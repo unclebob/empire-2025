@@ -51,7 +51,7 @@
 
 
 (defn occupy-random-free-city
-  "Occupies a random free city with the given city type (:my-city or :his-city)."
+  "Occupies a random free city with the given city type (:player-city or :computer-city)."
   [the-map city-type]
   (let [free-city-positions (map/filter-map the-map (fn [cell] (= :free-city (second cell))))
         num-free (count free-city-positions)]
@@ -101,8 +101,8 @@
         sea-level (find-sea-level the-map land-fraction)
         finalized-map (finalize-map the-map sea-level)
         map-with-cities (generate-cities finalized-map number-of-cities min-city-distance)
-        map-with-my-city (occupy-random-free-city map-with-cities :my-city)
-        map-with-his-city (occupy-random-free-city map-with-my-city :his-city)
+        map-with-my-city (occupy-random-free-city map-with-cities :player-city)
+        map-with-his-city (occupy-random-free-city map-with-my-city :computer-city)
         visibility-map (vec (for [_ (range height)]
                               (vec (for [_ (range width)]
                                      [:unexplored :empty]))))]

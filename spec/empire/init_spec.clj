@@ -37,7 +37,7 @@
         (should (vector? cell))
         (should= 2 (count cell))
         (should (#{:land :sea} (first cell)))
-        (should (#{:empty :free-city :my-city :his-city} (second cell))))))
+        (should (#{:empty :free-city :player-city :computer-city} (second cell))))))
 
   (it "has approximately correct land fraction"
     (let [land-count (count (for [row @initial-map
@@ -52,7 +52,7 @@
     (let [city-count (count (for [i (range (count @initial-map))
                                   j (range (count (first @initial-map)))
                                   :let [cell (get-in @initial-map [i j])]
-                                  :when (#{:free-city :my-city :his-city} (second cell))]
+                                  :when (#{:free-city :player-city :computer-city} (second cell))]
                               [i j]))]
       (should (>= city-count 2))
       (should (<= city-count 6))))                          ;; Allow up to num-cities + occupied
@@ -61,7 +61,7 @@
     (let [city-positions (for [i (range (count @initial-map))
                                j (range (count (first @initial-map)))
                                :let [cell (get-in @initial-map [i j])]
-                               :when (#{:free-city :my-city :his-city} (second cell))]
+                               :when (#{:free-city :player-city :computer-city} (second cell))]
                            [i j])]
       (doseq [[pos1 pos2] (for [p1 city-positions
                                 p2 city-positions

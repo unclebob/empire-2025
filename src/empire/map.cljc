@@ -26,10 +26,10 @@
   "An atom containing the visible map areas."
   (atom {}))
 
-(defn is-mine?
-  "Returns true if the value is a keyword that starts with 'my-'"
+(defn is-players?
+  "Returns true if the value is a keyword that starts with 'player-'"
   [v]
-  (and (keyword? v) (clojure.string/starts-with? (name v) "my-")))
+  (and (keyword? v) (clojure.string/starts-with? (name v) "player-")))
 
 (defn draw-map
   "Draws the map on the screen."
@@ -43,8 +43,8 @@
             j (range width)]
       (let [[terrain-type contents] (get-in the-map [i j])
             color (cond
-                    (= contents :my-city) [0 255 0]         ; green for player's city
-                    (= contents :his-city) [255 0 0]        ; red for opponent's city
+                    (= contents :player-city) [0 255 0]         ; green for player's city
+                    (= contents :computer-city) [255 0 0]        ; red for computer's city
                     (= contents :free-city) [255 255 255]   ; white for free cities
                     (= terrain-type :unexplored) [0 0 0]     ; black for unexplored
                     (= terrain-type :land) [139 69 19]      ; brown for land
@@ -60,7 +60,7 @@
         width (count (first game-map-val))]
     (doseq [i (range height)
             j (range width)
-            :when (is-mine? (second (get-in game-map-val [i j])))]
+            :when (is-players? (second (get-in game-map-val [i j])))]
       (doseq [di [-1 0 1]
               dj [-1 0 1]]
         (let [ni (max 0 (min (dec height) (+ i di)))
