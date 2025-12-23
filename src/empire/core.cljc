@@ -41,6 +41,20 @@
     (q/fill 255)
     (q/text "Empire: Global Conquest" 10 20)))
 
+(defn key-down [k]
+  ;; Placeholder for key down handling
+  (println "Key down:" k))
+
+(defn key-pressed [state _]
+  (let [k (q/key-as-keyword)]
+    (when (nil? @config/key)
+      (key-down k))
+    (reset! config/key k))
+  state)
+
+(defn key-released [_ _]
+  (reset! config/key nil))
+
 (defn on-close [_]
   (q/no-loop)
   (q/exit)                                                  ; Exit the sketch
@@ -56,6 +70,8 @@
                :setup setup
                :update update-state
                :draw draw-state
+                :key-pressed key-pressed
+                :key-released key-released
                :features [:keep-on-top]
                :middleware [m/fun-mode]
                :on-close on-close

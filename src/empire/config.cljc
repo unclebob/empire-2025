@@ -9,3 +9,5 @@
 (def number-of-cities 50)
 
 (def min-city-distance 5)
+
+(def key (atom nil))
