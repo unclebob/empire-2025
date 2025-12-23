@@ -13,20 +13,29 @@
     (let [{:keys [x y header items]} @atoms/menu-state
           item-height 20
           menu-width 150
-          menu-height (+ 30 (* (count items) item-height))]  ;; Extra space for header
+          menu-height (+ 30 (* (count items) item-height))  ;; Extra space for header
+          mouse-x (q/mouse-x)
+          mouse-y (q/mouse-y)
+          highlighted-idx (when (and (>= mouse-x x) (< mouse-x (+ x menu-width)))
+                            (first (filter #(let [item-y (+ y 35 (* % item-height))]  ;; Start detection 10px above text
+                                              (and (>= mouse-y item-y) (< mouse-y (+ item-y item-height))))
+                                           (range (count items)))))]
       (q/fill 200 200 200 200)
       (q/rect x y menu-width menu-height)
       ;; Header
       (q/fill 0)
-      (q/text-font (q/create-font "CourierNewPS-BoldMT" 16 true))  ;; Bold
+      (q/text-font (q/create-font "CourierNewPS-BoldMT" 16 true)) ;; Bold
       (q/text header (+ x 10) (+ y 20))
       ;; Line
       (q/stroke 0)
       (q/line (+ x 5) (+ y 25) (- (+ x menu-width) 5) (+ y 25))
       ;; Items
-      (q/fill 0)
       (q/text-font (q/create-font "Courier New" 14))
       (doseq [[idx item] (map-indexed vector items)]
+        (if (= idx highlighted-idx)
+          ;; Highlighted item
+          (q/fill 255)
+          (q/fill 0))
         (q/text item (+ x 10) (+ y 45 (* idx item-height)))))))
 
 (defn calculate-screen-dimensions
