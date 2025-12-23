@@ -10,4 +10,6 @@
 
 (def min-city-distance 5)
 
-(def key (atom nil))
+(def last-key (atom nil))
+
+(def test-mode (atom false))

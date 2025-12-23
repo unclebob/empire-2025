@@ -1,6 +1,8 @@
 (ns empire.init-spec
-  (:require [speclj.core :refer :all]
-            [empire.init :refer :all]))
+  (:require
+    [empire.init :refer :all]
+    [empire.map :as map]
+    [speclj.core :refer :all]))
 
 (describe "smooth-map"
   (it "handles a 1x1 map by returning the same value"
@@ -21,7 +23,9 @@
   (with land-fraction 0.7)
   (with num-cities 5)
   (with min-distance 4)
-  (with initial-map (make-initial-map @map-size @smooth-count @land-fraction @num-cities @min-distance))
+  (with initial-map (do
+                      (make-initial-map @map-size @smooth-count @land-fraction @num-cities @min-distance)
+                      @map/game-map))
 
   (it "creates a map with correct dimensions"
     (should= 10 (count @initial-map))
@@ -51,7 +55,7 @@
                                   :when (#{:free-city :my-city :his-city} (second cell))]
                               [i j]))]
       (should (>= city-count 2))
-      (should (<= city-count 6))))  ;; Allow up to num-cities + occupied
+      (should (<= city-count 6))))                          ;; Allow up to num-cities + occupied
 
   (it "places cities with minimum distance"
     (let [city-positions (for [i (range (count @initial-map))

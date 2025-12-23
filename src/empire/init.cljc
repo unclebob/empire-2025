@@ -102,5 +102,9 @@
         finalized-map (finalize-map the-map sea-level)
         map-with-cities (generate-cities finalized-map number-of-cities min-city-distance)
         map-with-my-city (occupy-random-free-city map-with-cities :my-city)
-        map-with-his-city (occupy-random-free-city map-with-my-city :his-city)]
-    (reset! map/game-map map-with-his-city)))
+        map-with-his-city (occupy-random-free-city map-with-my-city :his-city)
+        visibility-map (vec (for [_ (range height)]
+                              (vec (for [_ (range width)]
+                                     [:unexplored :empty]))))]
+    (reset! map/game-map map-with-his-city)
+    (reset! map/visible-map visibility-map)))
