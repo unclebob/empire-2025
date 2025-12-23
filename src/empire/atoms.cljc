@@ -9,3 +9,5 @@
 (def map-screen-dimensions (atom [0 0]))
 
 (def text-area-dimensions (atom [0 0 0 0]))
+
+(def map-to-display (atom :player-map))

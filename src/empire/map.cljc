@@ -22,14 +22,23 @@
   "A 2D atom containing vectors representing the game map."
   (atom nil))
 
-(def visible-map
-  "An atom containing the visible map areas."
+(def player-map
+  "An atom containing the player's visible map areas."
+  (atom {}))
+
+(def computer-map
+  "An atom containing the computer's visible map areas."
   (atom {}))
 
 (defn is-players?
   "Returns true if the value is a keyword that starts with 'player-'"
   [v]
   (and (keyword? v) (clojure.string/starts-with? (name v) "player-")))
+
+(defn is-computers?
+  "Returns true if the value is a keyword that starts with 'computer-'"
+  [v]
+  (and (keyword? v) (clojure.string/starts-with? (name v) "computer-")))
 
 (defn draw-map
   "Draws the map on the screen."
@@ -52,23 +61,34 @@
         (apply q/fill color)
         (q/rect (* j cell-w) (* i cell-h) cell-w cell-h)))))
 
-(defn see-cells-near-my-units
-  "Reveals cells near player-owned units on the visible map."
-  []
+(defn update-combatant-map
+  "Updates a combatant's visible map by revealing cells near their owned units."
+  [visible-map-atom ownership-predicate]
   (let [game-map-val @game-map
         height (count game-map-val)
         width (count (first game-map-val))]
     (doseq [i (range height)
             j (range width)
-            :when (is-players? (second (get-in game-map-val [i j])))]
+            :when (ownership-predicate (second (get-in game-map-val [i j])))]
       (doseq [di [-1 0 1]
               dj [-1 0 1]]
         (let [ni (max 0 (min (dec height) (+ i di)))
               nj (max 0 (min (dec width) (+ j dj)))]
-          (swap! visible-map assoc-in [ni nj] (get-in game-map-val [ni nj])))))))
+          (swap! visible-map-atom assoc-in [ni nj] (get-in game-map-val [ni nj])))))))
+
+(defn update-player-map
+  "Reveals cells near player-owned units on the visible map."
+  []
+  (update-combatant-map player-map is-players?))
+
+(defn update-computer-map
+  "Updates the computer's visible map by revealing cells near computer-owned units."
+  []
+  (update-combatant-map computer-map is-computers?))
 
 (defn update-map
   "Updates the game map state."
   []
-  (see-cells-near-my-units))
+  (update-player-map)
+  (update-computer-map))
 

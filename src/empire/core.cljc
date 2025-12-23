@@ -47,7 +47,10 @@
   [_state]
   (let [start-time (System/currentTimeMillis)]
     (q/background 0)
-    (let [the-map (if @atoms/test-mode @map/game-map @map/visible-map)]
+    (let [the-map (case @atoms/map-to-display
+                     :player-map @map/player-map
+                     :computer-map @map/computer-map
+                     :actual-map @map/game-map)]
       (map/draw-map the-map)
       (let [end-time (System/currentTimeMillis)
             draw-time (- end-time start-time)
@@ -60,6 +63,9 @@
     ;; Handle key down events
     (cond
       (= k :t) (swap! atoms/test-mode not)
+      (= k :m) (swap! atoms/map-to-display {:player-map :computer-map
+                                            :computer-map :actual-map
+                                            :actual-map :player-map})
       :else (println "Key down:" k)))
 
   (defn key-pressed [state _]

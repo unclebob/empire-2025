@@ -101,10 +101,11 @@
         sea-level (find-sea-level the-map land-fraction)
         finalized-map (finalize-map the-map sea-level)
         map-with-cities (generate-cities finalized-map number-of-cities min-city-distance)
-        map-with-my-city (occupy-random-free-city map-with-cities :player-city)
-        map-with-his-city (occupy-random-free-city map-with-my-city :computer-city)
+        map-with-player-city (occupy-random-free-city map-with-cities :player-city)
+        map-with-computer-city (occupy-random-free-city map-with-player-city :computer-city)
         visibility-map (vec (for [_ (range height)]
                               (vec (for [_ (range width)]
                                      [:unexplored :empty]))))]
-    (reset! map/game-map map-with-his-city)
-    (reset! map/visible-map visibility-map)))
+    (reset! map/game-map map-with-computer-city)
+    (reset! map/player-map visibility-map)
+    (reset! map/computer-map visibility-map)))
