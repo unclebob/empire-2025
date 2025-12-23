@@ -95,7 +95,7 @@
           menu-y (:y menu)
           items (:items menu)
           menu-width 150
-          menu-height (* (count items) 20)]
+          menu-height (+ 45 (* (count items) 20))]
       (when-not (and (>= x menu-x) (< x (+ menu-x menu-width))
                      (>= y menu-y) (< y (+ menu-y menu-height)))
         (swap! atoms/menu-state assoc :visible false)))))
@@ -118,7 +118,7 @@
   "Displays a menu with the given header and items positioned relative to a cell."
   [cell-x cell-y header items]
   (let [menu-width 150
-        menu-height (+ 30 (* (count items) 20))
+        menu-height (+ 45 (* (count items) 20))
         [map-w map-h] @atoms/map-screen-dimensions
         width (count (first @game-map))
         height (count @game-map)
@@ -170,11 +170,9 @@
         cell-h (/ map-h height)]
     [(int (Math/floor (/ x cell-w))) (int (Math/floor (/ y cell-h)))]))
 
-(defn mouse-down
-  "Handles mouse click events."
+(defn handle-menu-click
+  "Handles clicking on menu items. Returns true if a menu item was clicked."
   [x y]
-  (dismiss-existing-menu x y)
-  ;; Check if clicking on menu item
   (when (:visible @atoms/menu-state)
     (let [menu @atoms/menu-state
           menu-x (:x menu)
@@ -182,19 +180,25 @@
           items (:items menu)
           item-height 20
           clicked-item-idx (when (and (>= x menu-x) (< x (+ menu-x 150)))
-                             (first (filter #(let [item-y (+ menu-y 35 (* % item-height))]
-                                               (and (>= y item-y) (< y (+ item-y item-height))))
+                             (first (filter #(let [item-y (+ menu-y 45 (* % item-height))]
+                                               (and (>= y (- item-y 11)) (< y (+ item-y 3))))
                                             (range (count items)))))]
       (when clicked-item-idx
         (let [item (nth items clicked-item-idx)
               [cell-x cell-y] @atoms/last-clicked-cell]
           (item-clicked item cell-x cell-y))
-        (swap! atoms/menu-state assoc :visible false))))
+        (swap! atoms/menu-state assoc :visible false)
+        true))))
 
-  ;; Determine which map cell was clicked
-  (let [[cell-x cell-y] (determine-cell-coordinates x y)]
-    (reset! atoms/last-clicked-cell [cell-x cell-y])
-    (handle-cell-click cell-x cell-y)))
+(defn mouse-down
+  "Handles mouse click events."
+  [x y]
+  (dismiss-existing-menu x y)
+  (when-not (handle-menu-click x y)
+    ;; Determine which map cell was clicked (only if no menu item was clicked)
+    (let [[cell-x cell-y] (determine-cell-coordinates x y)]
+      (reset! atoms/last-clicked-cell [cell-x cell-y])
+      (handle-cell-click cell-x cell-y))))
 
 (defn do-a-round
   "Performs one round of game actions."

@@ -15,12 +15,12 @@
     (let [{:keys [x y header items]} @atoms/menu-state
           item-height 20
           menu-width 150
-          menu-height (+ 30 (* (count items) item-height))  ;; Extra space for header
+          menu-height (+ 45 (* (count items) item-height))  ;; Extra space for header
           mouse-x (q/mouse-x)
           mouse-y (q/mouse-y)
           highlighted-idx (when (and (>= mouse-x x) (< mouse-x (+ x menu-width)))
-                            (first (filter #(let [item-y (+ y 35 (* % item-height))]  ;; Start detection 10px above text
-                                              (and (>= mouse-y item-y) (< mouse-y (+ item-y item-height))))
+                            (first (filter #(let [item-y (+ y 45 (* % item-height))]
+                                              (and (>= mouse-y (- item-y 11)) (< mouse-y (+ item-y 3))))
                                            (range (count items)))))]
       (q/fill 200 200 200 200)
       (q/rect x y menu-width menu-height)
