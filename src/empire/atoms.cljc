@@ -13,3 +13,7 @@
 (def map-to-display (atom :player-map))
 
 (def round-number (atom 0))
+
+(def last-clicked-cell (atom nil))
+
+(def menu-state (atom {:visible false :x 0 :y 0 :items []}))

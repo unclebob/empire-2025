@@ -1,10 +1,33 @@
 (ns empire.core
-  (:require [empire.config :as config]
+  (:require [empire.atoms :as atoms]
+            [empire.config :as config]
             [empire.init :as init]
             [empire.map :as map]
-            [empire.atoms :as atoms]
             [quil.core :as q]
             [quil.middleware :as m]))
+
+(defn draw-menu
+  "Draws the menu if it's visible."
+  []
+  (when (:visible @atoms/menu-state)
+    (let [{:keys [x y header items]} @atoms/menu-state
+          item-height 20
+          menu-width 150
+          menu-height (+ 30 (* (count items) item-height))]  ;; Extra space for header
+      (q/fill 200 200 200 200)
+      (q/rect x y menu-width menu-height)
+      ;; Header
+      (q/fill 0)
+      (q/text-font (q/create-font "CourierNewPS-BoldMT" 16 true))  ;; Bold
+      (q/text header (+ x 10) (+ y 20))
+      ;; Line
+      (q/stroke 0)
+      (q/line (+ x 5) (+ y 25) (- (+ x menu-width) 5) (+ y 25))
+      ;; Items
+      (q/fill 0)
+      (q/text-font (q/create-font "Courier New" 14))
+      (doseq [[idx item] (map-indexed vector items)]
+        (q/text item (+ x 10) (+ y 45 (* idx item-height)))))))
 
 (defn calculate-screen-dimensions
   "Calculates map size and display dimensions based on screen and sets config values."
@@ -48,56 +71,65 @@
   (let [start-time (System/currentTimeMillis)]
     (q/background 0)
     (let [the-map (case @atoms/map-to-display
-                     :player-map @map/player-map
-                     :computer-map @map/computer-map
-                     :actual-map @map/game-map)]
+                    :player-map @map/player-map
+                    :computer-map @map/computer-map
+                    :actual-map @map/game-map)]
       (map/draw-map the-map)
+      (draw-menu)
       (let [end-time (System/currentTimeMillis)
             draw-time (- end-time start-time)
             [text-x text-y text-w _] @atoms/text-area-dimensions]
         (q/text-font (q/create-font "Courier New" 18))
         (q/fill 255)
         (q/text (str "Map size: " @atoms/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))
+        (when @atoms/last-clicked-cell
+          (let [[cx cy] @atoms/last-clicked-cell
+                [terrain-type contents] (get-in @map/game-map [cy cx])]
+            (q/text (str "Last clicked: " cx ", " cy " - " terrain-type " " contents) (+ text-x 10) (+ text-y 30))))
         (q/text (str "Round: " @atoms/round-number) (- (+ text-x text-w) 100) (+ text-y 10))))))
 
-  (defn key-down [k]
-    ;; Handle key down events
-    (cond
-      (= k :t) (swap! atoms/test-mode not)
-      (= k :m) (swap! atoms/map-to-display {:player-map :computer-map
-                                            :computer-map :actual-map
-                                            :actual-map :player-map})
-      (= k :space) (map/do-a-round)
-      :else (println "Key down:" k)))
+(defn key-down [k]
+  ;; Handle key down events
+  (cond
+    (= k :t) (swap! atoms/test-mode not)
+    (= k :m) (swap! atoms/map-to-display {:player-map :computer-map
+                                          :computer-map :actual-map
+                                          :actual-map :player-map})
+    (= k :space) (map/do-a-round)
+    :else (println "Key down:" k)))
 
-  (defn key-pressed [state _]
-    (let [k (q/key-as-keyword)]
-      (when (nil? @atoms/last-key)
-        (key-down k))
-      (reset! atoms/last-key k))
-    state)
+(defn key-pressed [state _]
+  (let [k (q/key-as-keyword)]
+    (when (nil? @atoms/last-key)
+      (key-down k))
+    (reset! atoms/last-key k))
+  state)
 
-  (defn key-released [_ _]
-    (reset! atoms/last-key nil))
+(defn key-released [_ _]
+  (reset! atoms/last-key nil))
 
-  (defn on-close [_]
-    (q/no-loop)
-    (q/exit)                                                ; Exit the sketch
-    (println "Empire closed.")
-    (System/exit 0))
+(defn mouse-pressed [_ _]
+  (map/mouse-down (q/mouse-x) (q/mouse-y)))
 
-  (declare empire)
-  (defn -main [& _args]
-    (println "empire has begun.")
-    (q/defsketch empire
-                 :title "Empire: Global Conquest"
-                 :size :fullscreen
-                 :setup setup
-                 :update update-state
-                 :draw draw-state
-                 :key-pressed key-pressed
-                 :key-released key-released
-                 :features [:keep-on-top]
-                 :middleware [m/fun-mode]
-                 :on-close on-close
-                 :host "empire"))
+(defn on-close [_]
+  (q/no-loop)
+  (q/exit)                                                  ; Exit the sketch
+  (println "Empire closed.")
+  (System/exit 0))
+
+(declare empire)
+(defn -main [& _args]
+  (println "empire has begun.")
+  (q/defsketch empire
+               :title "Empire: Global Conquest"
+               :size :fullscreen
+               :setup setup
+               :update update-state
+               :draw draw-state
+               :key-pressed key-pressed
+               :key-released key-released
+               :mouse-pressed mouse-pressed
+               :features [:keep-on-top]
+               :middleware [m/fun-mode]
+               :on-close on-close
+               :host "empire"))

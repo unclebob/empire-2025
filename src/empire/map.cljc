@@ -86,6 +86,93 @@
   []
   (update-combatant-map computer-map is-computers?))
 
+(defn dismiss-existing-menu
+  "Dismisses the menu if clicking outside it."
+  [x y]
+  (when (:visible @atoms/menu-state)
+    (let [menu @atoms/menu-state
+          menu-x (:x menu)
+          menu-y (:y menu)
+          items (:items menu)
+          menu-width 150
+          menu-height (* (count items) 20)]
+      (when-not (and (>= x menu-x) (< x (+ menu-x menu-width))
+                      (>= y menu-y) (< y (+ menu-y menu-height)))
+        (swap! atoms/menu-state assoc :visible false)))))
+
+(defn on-coast?
+  "Checks if a cell is adjacent to sea."
+  [cell-x cell-y]
+  (let [game-map-val @game-map
+        height (count game-map-val)
+        width (count (first game-map-val))]
+    (some (fn [[dx dy]]
+            (let [nx (+ cell-x dx)
+                  ny (+ cell-y dy)]
+              (and (>= nx 0) (< nx width)
+                   (>= ny 0) (< ny height)
+                   (= :sea (first (get-in game-map-val [ny nx]))))))
+          [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
+
+(defn show-menu
+  "Displays a menu with the given header and items positioned relative to a cell."
+  [cell-x cell-y header items]
+  (let [menu-width 150
+        menu-height (+ 30 (* (count items) 20))
+        [map-w map-h] @atoms/map-screen-dimensions
+        width (count (first @game-map))
+        height (count @game-map)
+        cell-left (* cell-x (/ map-w width))
+        cell-top (* cell-y (/ map-h height))
+        cell-bottom (+ cell-top (/ map-h height))
+        [_ text-y _ _] @atoms/text-area-dimensions
+        screen-w (q/width)
+        menu-x (min cell-left (- screen-w menu-width))
+        menu-y (if (<= (+ cell-bottom menu-height) (min map-h text-y))
+                 cell-bottom
+                 (max 0 (- cell-top menu-height)))]
+    (reset! atoms/menu-state {:visible true
+                              :x menu-x
+                              :y menu-y
+                              :header header
+                              :items items})))
+
+(defn handle-city-click
+  "Handles clicking on a city cell."
+  [cell-x cell-y]
+  (let [header "Produce"
+        coastal-city? (on-coast? cell-x cell-y)
+        items (cond-> ["Army" "Fighter" "Satellite"]
+                      coastal-city? (into ["Transport" "Patrol Boat" "Destroyer" "Submarine" "Carrier" "Battleship"]))]
+    (show-menu cell-x cell-y header items)))
+
+(defn handle-cell-click
+  "Handles clicking on a map cell."
+  [cell-x cell-y]
+  (let [contents (second (get-in @game-map [cell-y cell-x]))]
+    (condp = contents
+      :player-city (handle-city-click cell-x cell-y)
+      nil)))
+
+(defn determine-cell-coordinates
+  "Converts mouse coordinates to map cell coordinates."
+  [x y]
+  (let [[map-w map-h] @atoms/map-screen-dimensions
+        height (count @game-map)
+        width (count (first @game-map))
+        cell-w (/ map-w width)
+        cell-h (/ map-h height)]
+    [(int (Math/floor (/ x cell-w))) (int (Math/floor (/ y cell-h)))]))
+
+(defn mouse-down
+  "Handles mouse click events."
+  [x y]
+  (dismiss-existing-menu x y)
+  ;; Determine which map cell was clicked
+  (let [[cell-x cell-y] (determine-cell-coordinates x y)]
+    (reset! atoms/last-clicked-cell [cell-x cell-y])
+    (handle-cell-click cell-x cell-y)))
+
 (defn do-a-round
   "Performs one round of game actions."
   []
