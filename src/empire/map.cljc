@@ -1,6 +1,6 @@
 (ns empire.map
   (:require [quil.core :as q]
-            [empire.config :as config]))
+            [empire.atoms :as atoms]))
 
 (defn process-map
   "Processes the map by applying f to each cell, where f takes i j and the-map."
@@ -34,7 +34,7 @@
 (defn draw-map
   "Draws the map on the screen."
   [the-map]
-  (let [[map-w map-h] @config/map-screen-dimensions
+  (let [[map-w map-h] @atoms/map-screen-dimensions
         height (count the-map)
         width (count (first the-map))
         cell-w (/ map-w width)

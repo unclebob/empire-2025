@@ -2,6 +2,7 @@
   (:require [empire.config :as config]
             [empire.init :as init]
             [empire.map :as map]
+            [empire.atoms :as atoms]
             [quil.core :as q]
             [quil.middleware :as m]))
 
@@ -23,15 +24,15 @@
         text-x 0
         text-y (+ map-display-h text-gap)
         text-w screen-w]
-    (reset! config/map-size [cols rows])
-    (reset! config/map-screen-dimensions [map-display-w map-display-h])
-    (reset! config/text-area-dimensions [text-x text-y text-w text-h])))
+    (reset! atoms/map-size [cols rows])
+    (reset! atoms/map-screen-dimensions [map-display-w map-display-h])
+    (reset! atoms/text-area-dimensions [text-x text-y text-w text-h])))
 
 (defn setup
   "Initial setup for the game state."
   []
   (calculate-screen-dimensions)
-  (init/make-initial-map @config/map-size config/smooth-count config/land-fraction config/number-of-cities config/min-city-distance)
+  (init/make-initial-map @atoms/map-size config/smooth-count config/land-fraction config/number-of-cities config/min-city-distance)
   (q/frame-rate 10)
   {})
 
@@ -46,30 +47,30 @@
   [_state]
   (let [start-time (System/currentTimeMillis)]
     (q/background 0)
-    (let [the-map (if @config/test-mode @map/game-map @map/visible-map)]
+    (let [the-map (if @atoms/test-mode @map/game-map @map/visible-map)]
       (map/draw-map the-map)
       (let [end-time (System/currentTimeMillis)
             draw-time (- end-time start-time)
-            [text-x text-y _ _] @config/text-area-dimensions]
+            [text-x text-y _ _] @atoms/text-area-dimensions]
         (q/text-font (q/create-font "Courier New" 18))
         (q/fill 255)
-        (q/text (str "Map size: " @config/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))))))
+        (q/text (str "Map size: " @atoms/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))))))
 
   (defn key-down [k]
     ;; Handle key down events
     (cond
-      (= k :t) (swap! config/test-mode not)
+      (= k :t) (swap! atoms/test-mode not)
       :else (println "Key down:" k)))
 
   (defn key-pressed [state _]
     (let [k (q/key-as-keyword)]
-      (when (nil? @config/last-key)
+      (when (nil? @atoms/last-key)
         (key-down k))
-      (reset! config/last-key k))
+      (reset! atoms/last-key k))
     state)
 
   (defn key-released [_ _]
-    (reset! config/last-key nil))
+    (reset! atoms/last-key nil))
 
   (defn on-close [_]
     (q/no-loop)
