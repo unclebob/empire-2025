@@ -3,14 +3,13 @@
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."
-  [i j _current the-map]
-  (let [height (count the-map)
-        width (count (first the-map))
-        neighbors (for [di [-1 0 1]
+  [i j the-map]
+  (let [neighbors (for [di [-1 0 1]
                         dj [-1 0 1]]
-                    (let [ni (max 0 (min (dec height) (+ i di)))
-                          nj (max 0 (min (dec width) (+ j dj)))]
-                      (get-in the-map [ni nj])))]
+                    (let [ni (+ i di)
+                          nj (+ j dj)
+                          default (get-in the-map [i j] 0)]
+                      (get-in the-map [ni nj] default)))]
     (Math/round (double (/ (apply + neighbors) 9.0)))))
 
 (defn smooth-map
@@ -34,9 +33,10 @@
 (defn finalize-map
   "Converts a height map to a terrain map with land/sea types."
   [the-map sea-level]
-  (map/process-map the-map (fn [_i _j height _]
-                               (let [terrain-type (if (> height sea-level) :land :sea)]
-                                 [terrain-type :empty]))))
+  (map/process-map the-map (fn [i j the-map]
+                             (let [height (get-in the-map [i j])
+                                   terrain-type (if (> height sea-level) :land :sea)]
+                               [terrain-type :empty]))))
 
 (defn find-sea-level
   "Finds the sea-level threshold for a given land fraction."
@@ -53,7 +53,7 @@
 (defn occupy-random-free-city
   "Occupies a random free city with the given city type (:my-city or :his-city)."
   [the-map city-type]
-  (let [free-city-positions (map/scan-map the-map (fn [i j] (= :free-city (second (get-in the-map [i j])))))
+  (let [free-city-positions (map/filter-map the-map (fn [cell] (= :free-city (second cell))))
         num-free (count free-city-positions)]
     (if (> num-free 0)
       (let [idx (rand-int num-free)
@@ -64,7 +64,7 @@
 (defn generate-cities
   "Places free cities on land cells with minimum distance constraints."
   [the-map number-of-cities min-city-distance]
-  (let [land-positions (map/scan-map the-map (fn [i j] (= :land (first (get-in the-map [i j])))))
+  (let [land-positions (map/filter-map the-map (fn [cell] (= :land (first cell))))
         land-positions-vec (vec land-positions)
         num-land (count land-positions-vec)]
     (loop [placed-cities []
@@ -77,7 +77,7 @@
                 the-map
                 placed-cities)
 
-        (>= attempts 1000) ; Prevent infinite loop by stopping placement
+        (>= attempts 1000)                                  ; Prevent infinite loop by stopping placement
         (reduce (fn [m [i j]]
                   (assoc-in m [i j] [:land :free-city]))
                 the-map
