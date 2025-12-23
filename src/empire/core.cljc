@@ -54,10 +54,11 @@
       (map/draw-map the-map)
       (let [end-time (System/currentTimeMillis)
             draw-time (- end-time start-time)
-            [text-x text-y _ _] @atoms/text-area-dimensions]
+            [text-x text-y text-w _] @atoms/text-area-dimensions]
         (q/text-font (q/create-font "Courier New" 18))
         (q/fill 255)
-        (q/text (str "Map size: " @atoms/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))))))
+        (q/text (str "Map size: " @atoms/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))
+        (q/text (str "Round: " @atoms/round-number) (- (+ text-x text-w) 100) (+ text-y 10))))))
 
   (defn key-down [k]
     ;; Handle key down events
@@ -66,6 +67,7 @@
       (= k :m) (swap! atoms/map-to-display {:player-map :computer-map
                                             :computer-map :actual-map
                                             :actual-map :player-map})
+      (= k :space) (map/do-a-round)
       :else (println "Key down:" k)))
 
   (defn key-pressed [state _]

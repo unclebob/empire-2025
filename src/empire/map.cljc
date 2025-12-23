@@ -86,6 +86,13 @@
   []
   (update-combatant-map computer-map is-computers?))
 
+(defn do-a-round
+  "Performs one round of game actions."
+  []
+  ;; Placeholder for round logic
+  (swap! atoms/round-number inc)
+  (println "Doing round" @atoms/round-number "..."))
+
 (defn update-map
   "Updates the game map state."
   []

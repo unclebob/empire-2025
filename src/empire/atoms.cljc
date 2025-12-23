@@ -11,3 +11,5 @@
 (def text-area-dimensions (atom [0 0 0 0]))
 
 (def map-to-display (atom :player-map))
+
+(def round-number (atom 0))
