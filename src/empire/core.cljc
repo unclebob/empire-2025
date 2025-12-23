@@ -5,10 +5,33 @@
             [quil.core :as q]
             [quil.middleware :as m]))
 
+(defn calculate-screen-dimensions
+  "Calculates map size and display dimensions based on screen and sets config values."
+  []
+  (q/text-font (q/create-font "Courier New" 18))
+  (let [char-width (q/text-width "M")
+        char-height (+ (q/text-ascent) (q/text-descent))
+        screen-w (q/width)
+        screen-h (q/height)
+        cols (quot screen-w char-width)
+        text-rows 3
+        text-gap 5
+        text-h (* text-rows char-height)
+        rows (quot (+ (- screen-h text-h) text-gap) char-height)
+        map-display-w (* cols char-width)
+        map-display-h (* rows char-height)
+        text-x 0
+        text-y (+ map-display-h text-gap)
+        text-w screen-w]
+    (reset! config/map-size [cols rows])
+    (reset! config/map-screen-dimensions [map-display-w map-display-h])
+    (reset! config/text-area-dimensions [text-x text-y text-w text-h])))
+
 (defn setup
   "Initial setup for the game state."
   []
-  (init/make-initial-map config/map-size config/smooth-count config/land-fraction config/number-of-cities config/min-city-distance)
+  (calculate-screen-dimensions)
+  (init/make-initial-map @config/map-size config/smooth-count config/land-fraction config/number-of-cities config/min-city-distance)
   (q/frame-rate 10)
   {})
 
@@ -23,49 +46,49 @@
   [_state]
   (let [start-time (System/currentTimeMillis)]
     (q/background 0)
-    (let [screen-w (q/width)
-          screen-h (q/height)
-          the-map (if @config/test-mode @map/game-map @map/visible-map)]
-      (map/draw-map screen-w screen-h the-map))
-    (q/fill 255)
-    (q/text "Empire: Global Conquest" 10 20)
-    (let [end-time (System/currentTimeMillis)]
-      (println "Draw time:" (- end-time start-time) "ms"))))
+    (let [the-map (if @config/test-mode @map/game-map @map/visible-map)]
+      (map/draw-map the-map)
+      (let [end-time (System/currentTimeMillis)
+            draw-time (- end-time start-time)
+            [text-x text-y _ _] @config/text-area-dimensions]
+        (q/text-font (q/create-font "Courier New" 18))
+        (q/fill 255)
+        (q/text (str "Map size: " @config/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))))))
 
-(defn key-down [k]
-  ;; Handle key down events
-  (cond
-    (= k :t) (swap! config/test-mode not)
-    :else (println "Key down:" k)))
+  (defn key-down [k]
+    ;; Handle key down events
+    (cond
+      (= k :t) (swap! config/test-mode not)
+      :else (println "Key down:" k)))
 
-(defn key-pressed [state _]
-  (let [k (q/key-as-keyword)]
-    (when (nil? @config/last-key)
-      (key-down k))
-    (reset! config/last-key k))
-  state)
+  (defn key-pressed [state _]
+    (let [k (q/key-as-keyword)]
+      (when (nil? @config/last-key)
+        (key-down k))
+      (reset! config/last-key k))
+    state)
 
-(defn key-released [_ _]
-  (reset! config/last-key nil))
+  (defn key-released [_ _]
+    (reset! config/last-key nil))
 
-(defn on-close [_]
-  (q/no-loop)
-  (q/exit)                                                  ; Exit the sketch
-  (println "Empire closed.")
-  (System/exit 0))
+  (defn on-close [_]
+    (q/no-loop)
+    (q/exit)                                                ; Exit the sketch
+    (println "Empire closed.")
+    (System/exit 0))
 
-(declare empire)
-(defn -main [& _args]
-  (println "empire has begun.")
-  (q/defsketch empire
-               :title "Empire: Global Conquest"
-               :size :fullscreen
-               :setup setup
-               :update update-state
-               :draw draw-state
-               :key-pressed key-pressed
-               :key-released key-released
-               :features [:keep-on-top]
-               :middleware [m/fun-mode]
-               :on-close on-close
-               :host "empire"))
+  (declare empire)
+  (defn -main [& _args]
+    (println "empire has begun.")
+    (q/defsketch empire
+                 :title "Empire: Global Conquest"
+                 :size :fullscreen
+                 :setup setup
+                 :update update-state
+                 :draw draw-state
+                 :key-pressed key-pressed
+                 :key-released key-released
+                 :features [:keep-on-top]
+                 :middleware [m/fun-mode]
+                 :on-close on-close
+                 :host "empire"))

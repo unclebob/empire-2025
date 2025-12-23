@@ -18,7 +18,7 @@
 
 (declare map-size smooth-count land-fraction num-cities min-distance initial-map)
 (describe "make-initial-map"
-  (with map-size [10 10])
+  (with map-size (atom [10 10]))
   (with smooth-count 5)
   (with land-fraction 0.7)
   (with num-cities 5)

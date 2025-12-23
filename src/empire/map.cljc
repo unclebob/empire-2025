@@ -1,5 +1,6 @@
 (ns empire.map
-  (:require [quil.core :as q]))
+  (:require [quil.core :as q]
+            [empire.config :as config]))
 
 (defn process-map
   "Processes the map by applying f to each cell, where f takes i j and the-map."
@@ -32,11 +33,12 @@
 
 (defn draw-map
   "Draws the map on the screen."
-  [screen-w screen-h the-map]
-  (let [height (count the-map)
+  [the-map]
+  (let [[map-w map-h] @config/map-screen-dimensions
+        height (count the-map)
         width (count (first the-map))
-        cell-w (/ screen-w width)
-        cell-h (/ screen-h height)]
+        cell-w (/ map-w width)
+        cell-h (/ map-h height)]
     (doseq [i (range height)
             j (range width)]
       (let [[terrain-type contents] (get-in the-map [i j])
