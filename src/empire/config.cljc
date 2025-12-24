@@ -1,4 +1,5 @@
-(ns empire.config)
+(ns empire.config
+  (:require [clojure.set]))
 
 (def smooth-count 10)
 
@@ -9,7 +10,7 @@
 (def min-city-distance 5)
 
 ;; Production items: keywords -> display strings
-(def production-items
+(def production-items->strings
   {:army "Army"
    :fighter "Fighter"
    :satellite "Satellite"
@@ -19,3 +20,6 @@
    :submarine "Submarine"
    :carrier "Carrier"
    :battleship "Battleship"})
+
+;; Reverse lookup: display strings -> keywords
+(def production-strings->items (clojure.set/map-invert production-items->strings))

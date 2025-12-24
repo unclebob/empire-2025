@@ -119,7 +119,7 @@
         menu-y (if (<= (+ cell-bottom menu-height) (min map-h text-y))
                  cell-bottom
                  (max 0 (- cell-top menu-height)))
-        display-items (map config/production-items items)]
+        display-items (map config/production-items->strings items)]
     (reset! atoms/menu-state {:visible true
                               :x menu-x
                               :y menu-y

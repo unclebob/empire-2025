@@ -1,6 +1,7 @@
 (ns empire.menus
   (:require [empire.atoms :as atoms]
-            [quil.core :as q]))
+            [quil.core :as q]
+            [empire.config :as config]))
 
 ;; Menu constants
 (def menu-width 150)
@@ -45,9 +46,10 @@
           clicked-item-idx (find-menu-item menu-x menu-y x y items)]
       (when clicked-item-idx
         (let [item (nth items clicked-item-idx)
+              keyword-item (config/production-strings->items item)
               [cell-x cell-y] @atoms/last-clicked-cell]
-          (reset! atoms/last-clicked-item item)
-          (println "Clicked on item:" item "at cell" cell-x "," cell-y))
+          (reset! atoms/last-clicked-item keyword-item)
+          (println "Clicked on item:" keyword-item "at cell" cell-x "," cell-y))
         (swap! atoms/menu-state assoc :visible false)
         true))))
 
