@@ -1,5 +1,6 @@
 (ns empire.map
   (:require [empire.atoms :as atoms]
+            [empire.config :as config]
             [quil.core :as q]
             [empire.menus :as menus]))
 
@@ -87,20 +88,6 @@
   []
   (update-combatant-map computer-map is-computers?))
 
-(defn dismiss-existing-menu
-  "Dismisses the menu if clicking outside it."
-  [x y]
-  (when (:visible @atoms/menu-state)
-    (let [menu @atoms/menu-state
-          menu-x (:x menu)
-          menu-y (:y menu)
-          items (:items menu)
-          menu-width 150
-          menu-height (+ 45 (* (count items) 20))]
-      (when-not (and (>= x menu-x) (< x (+ menu-x menu-width))
-                     (>= y menu-y) (< y (+ menu-y menu-height)))
-        (swap! atoms/menu-state assoc :visible false)))))
-
 (defn on-coast?
   "Checks if a cell is adjacent to sea."
   [cell-x cell-y]
@@ -131,20 +118,23 @@
         menu-x (min cell-left (- screen-w menu-width))
         menu-y (if (<= (+ cell-bottom menu-height) (min map-h text-y))
                  cell-bottom
-                 (max 0 (- cell-top menu-height)))]
+                 (max 0 (- cell-top menu-height)))
+        display-items (map config/production-items items)]
     (reset! atoms/menu-state {:visible true
                               :x menu-x
                               :y menu-y
                               :header header
-                              :items items})))
+                              :items display-items})))
 
 (defn handle-city-click
   "Handles clicking on a city cell."
   [cell-x cell-y]
   (let [header "Produce"
         coastal-city? (on-coast? cell-x cell-y)
-        items (cond-> ["Army" "Fighter" "Satellite"]
-                      coastal-city? (into ["Transport" "Patrol Boat" "Destroyer" "Submarine" "Carrier" "Battleship"]))]
+        basic-items [:army :fighter :satellite]
+        coastal-items [:transport :patrol-boat :destroyer :submarine :carrier :battleship]
+        all-items (cond-> basic-items coastal-city? (into coastal-items))
+        items all-items]
     (show-menu cell-x cell-y header items)))
 
 (defn handle-cell-click

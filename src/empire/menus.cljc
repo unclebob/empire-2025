@@ -31,7 +31,7 @@
           items (:items menu)
           menu-height (+ menu-item-start-y-offset (* (count items) item-height))]
       (when-not (and (>= x menu-x) (< x (+ menu-x menu-width))
-                      (>= y menu-y) (< y (+ menu-y menu-height)))
+                     (>= y menu-y) (< y (+ menu-y menu-height)))
         (swap! atoms/menu-state assoc :visible false)))))
 
 (defn handle-menu-click
