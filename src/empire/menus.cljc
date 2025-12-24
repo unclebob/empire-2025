@@ -2,12 +2,23 @@
   (:require [empire.atoms :as atoms]
             [quil.core :as q]))
 
+;; Menu constants
+(def menu-width 150)
+(def item-height 20)
+(def menu-item-start-y-offset 45)
+(def text-ascent-offset 11)
+(def text-descent-offset 3)
+(def menu-text-x-offset 10)
+(def header-y-offset 20)
+(def line-margin 5)
+(def line-y-offset 25)
+
 (defn find-menu-item
   "Finds the menu item index based on mouse position."
   [menu-x menu-y x y items]
-  (when (and (>= x menu-x) (< x (+ menu-x 150)))
-    (first (filter #(let [item-y (+ menu-y 45 (* % 20))]
-                      (and (>= y (- item-y 11)) (< y (+ item-y 3))))
+  (when (and (>= x menu-x) (< x (+ menu-x menu-width)))
+    (first (filter #(let [item-y (+ menu-y menu-item-start-y-offset (* % item-height))]
+                      (and (>= y (- item-y text-ascent-offset)) (< y (+ item-y text-descent-offset))))
                    (range (count items))))))
 
 (defn dismiss-existing-menu
@@ -18,8 +29,7 @@
           menu-x (:x menu)
           menu-y (:y menu)
           items (:items menu)
-          menu-width 150
-          menu-height (+ 45 (* (count items) 20))]
+          menu-height (+ menu-item-start-y-offset (* (count items) item-height))]
       (when-not (and (>= x menu-x) (< x (+ menu-x menu-width))
                       (>= y menu-y) (< y (+ menu-y menu-height)))
         (swap! atoms/menu-state assoc :visible false)))))
@@ -46,9 +56,7 @@
   []
   (when (:visible @atoms/menu-state)
     (let [{:keys [x y header items]} @atoms/menu-state
-          item-height 20
-          menu-width 150
-          menu-height (+ 45 (* (count items) item-height))
+          menu-height (+ menu-item-start-y-offset (* (count items) item-height))
           mouse-x (q/mouse-x)
           mouse-y (q/mouse-y)
           highlighted-idx (find-menu-item x y mouse-x mouse-y items)]
@@ -57,14 +65,14 @@
       ;; Header
       (q/fill 0)
       (q/text-font (q/create-font "CourierNewPS-BoldMT" 16 true))
-      (q/text header (+ x 10) (+ y 20))
+      (q/text header (+ x menu-text-x-offset) (+ y header-y-offset))
       ;; Line
       (q/stroke 0)
-      (q/line (+ x 5) (+ y 25) (- (+ x menu-width) 5) (+ y 25))
+      (q/line (+ x line-margin) (+ y line-y-offset) (- (+ x menu-width) line-margin) (+ y line-y-offset))
       ;; Items
       (q/text-font (q/create-font "Courier New" 14))
       (doseq [[idx item] (map-indexed vector items)]
         (if (= idx highlighted-idx)
           (q/fill 255)
           (q/fill 0))
-        (q/text item (+ x 10) (+ y 45 (* idx item-height)))))))
+        (q/text item (+ x menu-text-x-offset) (+ y menu-item-start-y-offset (* idx item-height)))))))

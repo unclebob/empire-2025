@@ -1,12 +1,12 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
         org.clojure/clojurescript {:mvn/version "1.11.132"}
         quil/quil {:mvn/version "4.3.1563"}
-        speclj/speclj {:mvn/version "3.4.6"}}
+        speclj/speclj {:mvn/version "3.10.0"}}
  :aliases {:test {:extra-paths ["spec"]
                    :main-opts ["-m" "speclj.main" "-c"]}
 					 :spec  {:main-opts ["-m" "speclj.main" "-c"]
-                   :extra-deps  {speclj/speclj {:mvn/version "3.4.6"}}
+                   :extra-deps  {speclj/speclj {:mvn/version "3.10.0"}}
                    :extra-paths ["spec"]}
 	         :empire {:main-opts [-m empire.core]}
 					 :run {:main-opts [-m empire.core]}
