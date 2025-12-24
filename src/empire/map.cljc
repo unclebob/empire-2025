@@ -58,7 +58,6 @@
               base-color (or (config/cell-colors contents) (config/cell-colors terrain-type))
               dark-color (mapv #(* % 0.5) base-color)]
           (when (and (> progress 0) (> remaining 0))
-            (q/no-stroke)
             (apply q/fill (conj dark-color 128))            ; semi-transparent darker version
             (let [bar-height (* cell-h progress)]
               (q/rect (* j cell-w) (+ (* i cell-h) (- cell-h bar-height)) cell-w bar-height))))
@@ -88,7 +87,7 @@
             blink-on? (or (not completed?) (even? (quot (System/currentTimeMillis) 500)))
             blink-color (if blink-on? color [255 255 255])]
         (apply q/fill blink-color)
-        (q/rect (* j cell-w) (* i cell-h) cell-w cell-h)
+        (q/rect (* j cell-w) (* i cell-h) (inc cell-w) (inc cell-h))
         (draw-production-indicators i j contents cell-w cell-h the-map)))))
 
 (defn update-combatant-map
