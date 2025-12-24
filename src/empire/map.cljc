@@ -34,14 +34,14 @@
   (atom {}))
 
 (defn is-players?
-  "Returns true if the value is a keyword that starts with 'player-'"
-  [v]
-  (and (keyword? v) (clojure.string/starts-with? (name v) "player-")))
+  "Returns true if the cell is owned by the player."
+  [cell]
+  (= (:owner cell) :player))
 
 (defn is-computers?
-  "Returns true if the value is a keyword that starts with 'computer-'"
-  [v]
-  (and (keyword? v) (clojure.string/starts-with? (name v) "computer-")))
+  "Returns true if the cell is owned by the computer."
+  [cell]
+  (= (:owner cell) :computer))
 
 (defn draw-production-indicators
   "Draws production indicator for a city cell."
@@ -98,7 +98,7 @@
         width (count (first game-map-val))]
     (doseq [i (range height)
             j (range width)
-            :when (ownership-predicate (:contents (get-in game-map-val [i j])))]
+            :when (ownership-predicate (get-in game-map-val [i j]))]
       (doseq [di [-1 0 1]
               dj [-1 0 1]]
         (let [ni (max 0 (min (dec height) (+ i di)))
@@ -168,10 +168,9 @@
 (defn handle-cell-click
   "Handles clicking on a map cell."
   [cell-x cell-y]
-  (let [contents (:contents (get-in @game-map [cell-y cell-x]))]
-    (condp = contents
-      :player-city (handle-city-click cell-x cell-y)
-      nil)))
+  (let [cell (get-in @game-map [cell-y cell-x])]
+    (when (= (:owner cell) :player)
+      (handle-city-click cell-x cell-y))))
 
 (defn city?
   "Returns true if the cell at coords is a city."

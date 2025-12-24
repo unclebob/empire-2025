@@ -59,7 +59,7 @@
     (if (> num-free 0)
       (let [idx (rand-int num-free)
             [i j] (nth free-city-positions idx)]
-        (assoc-in the-map [i j] {:type :land :contents city-type}))
+        (assoc-in the-map [i j] {:type :land :contents city-type :owner (if (= city-type :player-city) :player :computer)}))
       the-map)))
 
 (defn generate-cities

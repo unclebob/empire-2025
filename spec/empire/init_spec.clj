@@ -34,15 +34,19 @@
   (it "creates cells with correct structure"
     (doseq [row @initial-map]
       (doseq [cell row]
-        (should (vector? cell))
-        (should= 2 (count cell))
-        (should (#{:land :sea} (first cell)))
-        (should (#{:empty :free-city :player-city :computer-city} (second cell))))))
+        (should (map? cell))
+        (should (contains? cell :type))
+        (should (contains? cell :contents))
+        (should (#{:land :sea} (:type cell)))
+        (should (#{:empty :free-city :player-city :computer-city} (:contents cell)))
+        (when (#{:player-city :computer-city} (:contents cell))
+          (should (contains? cell :owner))
+          (should (#{:player :computer} (:owner cell)))))))
 
   (it "has approximately correct land fraction"
     (let [land-count (count (for [row @initial-map
                                   cell row
-                                  :when (= :land (first cell))]
+                                  :when (= :land (:type cell))]
                               cell))
           expected-land (* @land-fraction (count @initial-map) (count (first @initial-map)))
           tolerance 10]
@@ -52,7 +56,7 @@
     (let [city-count (count (for [i (range (count @initial-map))
                                   j (range (count (first @initial-map)))
                                   :let [cell (get-in @initial-map [i j])]
-                                  :when (#{:free-city :player-city :computer-city} (second cell))]
+                                  :when (#{:free-city :player-city :computer-city} (:contents cell))]
                               [i j]))]
       (should (>= city-count 2))
       (should (<= city-count 6))))                          ;; Allow up to num-cities + occupied
@@ -61,7 +65,7 @@
     (let [city-positions (for [i (range (count @initial-map))
                                j (range (count (first @initial-map)))
                                :let [cell (get-in @initial-map [i j])]
-                               :when (#{:free-city :player-city :computer-city} (second cell))]
+                               :when (#{:free-city :player-city :computer-city} (:contents cell))]
                            [i j])]
       (doseq [[pos1 pos2] (for [p1 city-positions
                                 p2 city-positions
