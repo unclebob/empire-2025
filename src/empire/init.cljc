@@ -37,7 +37,7 @@
   (map/process-map the-map (fn [i j the-map]
                              (let [height (get-in the-map [i j])
                                    terrain-type (if (> height sea-level) :land :sea)]
-                               [terrain-type :empty]))))
+                               {:type terrain-type :contents :empty}))))
 
 (defn find-sea-level
   "Finds the sea-level threshold for a given land fraction."
@@ -54,18 +54,18 @@
 (defn occupy-random-free-city
   "Occupies a random free city with the given city type (:player-city or :computer-city)."
   [the-map city-type]
-  (let [free-city-positions (map/filter-map the-map (fn [cell] (= :free-city (second cell))))
+  (let [free-city-positions (map/filter-map the-map (fn [cell] (= :free-city (:contents cell))))
         num-free (count free-city-positions)]
     (if (> num-free 0)
       (let [idx (rand-int num-free)
             [i j] (nth free-city-positions idx)]
-        (assoc-in the-map [i j] [:land city-type]))
+        (assoc-in the-map [i j] {:type :land :contents city-type}))
       the-map)))
 
 (defn generate-cities
   "Places free cities on land cells with minimum distance constraints."
   [the-map number-of-cities min-city-distance]
-  (let [land-positions (map/filter-map the-map (fn [cell] (= :land (first cell))))
+  (let [land-positions (map/filter-map the-map (fn [cell] (= :land (:type cell))))
         land-positions-vec (vec land-positions)
         num-land (count land-positions-vec)]
     (loop [placed-cities []
@@ -74,13 +74,13 @@
         (>= (count placed-cities) number-of-cities)
         ;; Update the map with cities
         (reduce (fn [m [i j]]
-                  (assoc-in m [i j] [:land :free-city]))
+                  (assoc-in m [i j] {:type :land :contents :free-city}))
                 the-map
                 placed-cities)
 
         (>= attempts 1000)                                  ; Prevent infinite loop by stopping placement
         (reduce (fn [m [i j]]
-                  (assoc-in m [i j] [:land :free-city]))
+                  (assoc-in m [i j] {:type :land :contents :free-city}))
                 the-map
                 placed-cities)
 
@@ -106,12 +106,12 @@
         map-with-computer-city (occupy-random-free-city map-with-player-city :computer-city)
         visibility-map (vec (for [_ (range height)]
                               (vec (for [_ (range width)]
-                                     [:unexplored :empty]))))]
+                                     {:type :unexplored :contents :empty}))))]
     (reset! map/game-map map-with-computer-city)
     (reset! map/player-map visibility-map)
     (reset! map/computer-map visibility-map)
     ;; Initialize production for cities
     (doseq [[y row] (map-indexed vector @map/game-map)
             [x cell] (map-indexed vector row)]
-      (when (#{:player-city :computer-city} (second cell))
+      (when (#{:player-city :computer-city} (:contents cell))
         (swap! atoms/production assoc [x y] :no-production)))))

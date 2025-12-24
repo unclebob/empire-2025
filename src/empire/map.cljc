@@ -53,7 +53,8 @@
         (let [total (config/production-rounds (:production-type prod))
               remaining (:remaining-rounds prod)
               progress (/ (- total remaining) (double total))
-              [terrain-type _] (get-in the-map [i j])
+              cell (get-in the-map [i j])
+              terrain-type (:type cell)
               base-color (or (config/cell-colors contents) (config/cell-colors terrain-type))
               dark-color (mapv #(* % 0.5) base-color)]
           (when (and (> progress 0) (> remaining 0))
@@ -76,7 +77,9 @@
         cell-h (/ map-h height)]
     (doseq [i (range height)
             j (range width)]
-      (let [[terrain-type contents] (get-in the-map [i j])
+      (let [cell (get-in the-map [i j])
+            terrain-type (:type cell)
+            contents (:contents cell)
             color (or (config/cell-colors contents)
                       (config/cell-colors terrain-type))
             completed? (and (#{:player-city :computer-city} contents)
@@ -96,7 +99,7 @@
         width (count (first game-map-val))]
     (doseq [i (range height)
             j (range width)
-            :when (ownership-predicate (second (get-in game-map-val [i j])))]
+            :when (ownership-predicate (:contents (get-in game-map-val [i j])))]
       (doseq [di [-1 0 1]
               dj [-1 0 1]]
         (let [ni (max 0 (min (dec height) (+ i di)))
@@ -124,7 +127,7 @@
                   ny (+ cell-y dy)]
               (and (>= nx 0) (< nx width)
                    (>= ny 0) (< ny height)
-                   (= :sea (first (get-in game-map-val [ny nx]))))))
+                   (= :sea (:type (get-in game-map-val [ny nx]))))))
           [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
 
 (defn show-menu
@@ -166,7 +169,7 @@
 (defn handle-cell-click
   "Handles clicking on a map cell."
   [cell-x cell-y]
-  (let [contents (second (get-in @game-map [cell-y cell-x]))]
+  (let [contents (:contents (get-in @game-map [cell-y cell-x]))]
     (condp = contents
       :player-city (handle-city-click cell-x cell-y)
       nil)))
@@ -174,7 +177,7 @@
 (defn city?
   "Returns true if the cell at coords is a city."
   [[x y]]
-  (#{:player-city :computer-city} (second (get-in @game-map [y x]))))
+  (#{:player-city :computer-city} (:contents (get-in @game-map [y x]))))
 
 (defn determine-cell-coordinates
   "Converts mouse coordinates to map cell coordinates."

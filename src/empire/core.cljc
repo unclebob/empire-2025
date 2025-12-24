@@ -71,7 +71,9 @@
         (q/text (str "Map size: " @atoms/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))
         (when @atoms/last-clicked-cell
           (let [[cx cy] @atoms/last-clicked-cell
-                [terrain-type contents] (get-in @map/game-map [cy cx])]
+                cell (get-in @map/game-map [cy cx])
+                terrain-type (:type cell)
+                contents (:contents cell)]
             (q/text (str "Last clicked cell: " cx ", " cy " - " terrain-type " " contents) (+ text-x 10) (+ text-y 30))))
         (q/text (str "Production: " @atoms/production) (+ text-x 10) (+ text-y 50))
         (q/text (str "Round: " @atoms/round-number) (- (+ text-x text-w) 100) (+ text-y 10))))))
