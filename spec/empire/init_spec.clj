@@ -1,7 +1,7 @@
 (ns empire.init-spec
   (:require
+    [empire.atoms :as atoms]
     [empire.init :refer :all]
-    [empire.map :as map]
     [speclj.core :refer :all]))
 
 (describe "smooth-map"
@@ -25,7 +25,7 @@
   (with min-distance 4)
   (with initial-map (do
                       (make-initial-map @map-size @smooth-count @land-fraction @num-cities @min-distance)
-                      @map/game-map))
+                      @atoms/game-map))
 
   (it "creates a map with correct dimensions"
     (should= 10 (count @initial-map))

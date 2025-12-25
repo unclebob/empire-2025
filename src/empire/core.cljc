@@ -58,9 +58,9 @@
   (let [start-time (System/currentTimeMillis)]
     (q/background 0)
     (let [the-map (case @atoms/map-to-display
-                    :player-map @map/player-map
-                    :computer-map @map/computer-map
-                    :actual-map @map/game-map)]
+                    :player-map @atoms/player-map
+                    :computer-map @atoms/computer-map
+                    :actual-map @atoms/game-map)]
       (map/draw-map the-map)
       (menus/draw-menu)
       (let [end-time (System/currentTimeMillis)
@@ -71,7 +71,7 @@
         (q/text (str "Map size: " @atoms/map-size " Draw time: " draw-time "ms") (+ text-x 10) (+ text-y 10))
         (when @atoms/last-clicked-cell
           (let [[cx cy] @atoms/last-clicked-cell
-                cell (get-in @map/game-map [cy cx])
+                cell (get-in @atoms/game-map [cy cx])
                 terrain-type (:type cell)
                 contents (:contents cell)]
             (q/text (str "Last clicked cell: " cx ", " cy " - " terrain-type " " contents) (+ text-x 10) (+ text-y 30))))

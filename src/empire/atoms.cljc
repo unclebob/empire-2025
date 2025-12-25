@@ -29,3 +29,16 @@
 
 ;; Cell coordinates that opened the current menu
 (def menu-cell (atom nil))
+
+;; Game maps
+(def game-map
+  "A 2D atom containing vectors representing the game map."
+  (atom nil))
+
+(def player-map
+  "An atom containing the player's visible map areas."
+  (atom {}))
+
+(def computer-map
+  "An atom containing the computer's visible map areas."
+  (atom {}))

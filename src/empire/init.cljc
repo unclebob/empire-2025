@@ -107,11 +107,6 @@
         visibility-map (vec (for [_ (range height)]
                               (vec (for [_ (range width)]
                                      {:type :unexplored :contents :empty}))))]
-    (reset! map/game-map map-with-computer-city)
-    (reset! map/player-map visibility-map)
-    (reset! map/computer-map visibility-map)
-    ;; Initialize production for cities
-    (doseq [[y row] (map-indexed vector @map/game-map)
-            [x cell] (map-indexed vector row)]
-      (when (:owner cell)
-        (swap! atoms/production assoc [x y] :no-production)))))
+    (reset! atoms/game-map map-with-computer-city)
+    (reset! atoms/player-map visibility-map)
+    (reset! atoms/computer-map visibility-map)))

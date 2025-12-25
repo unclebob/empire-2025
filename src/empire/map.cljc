@@ -21,18 +21,6 @@
         :when (pred current)]
     [i j]))
 
-(def game-map
-  "A 2D atom containing vectors representing the game map."
-  (atom nil))
-
-(def player-map
-  "An atom containing the player's visible map areas."
-  (atom {}))
-
-(def computer-map
-  "An atom containing the computer's visible map areas."
-  (atom {}))
-
 (defn is-players?
   "Returns true if the cell is owned by the player."
   [cell]
@@ -59,9 +47,9 @@
   [i j cell cell-w cell-h]
   (when (= :city (:type cell))
     (when-let [prod (@atoms/production [j i])]
-      (when (and (map? prod) (:production-type prod))
+      (when (and (map? prod) (:item prod))
         ;; Draw production progress thermometer
-        (let [total (config/item-cost (:production-type prod))
+        (let [total (config/item-cost (:item prod))
               remaining (:remaining-rounds prod)
               progress (/ (- total remaining) (double total))
               base-color (color-of cell)
@@ -71,9 +59,9 @@
             (let [bar-height (* cell-h progress)]
               (q/rect (* j cell-w) (+ (* i cell-h) (- cell-h bar-height)) cell-w bar-height))))
         ;; Draw production character
-        (q/fill 0 0 0)
+        (apply q/fill config/production-color)
         (q/text-font @atoms/production-char-font)
-        (q/text (config/item-chars (:production-type prod)) (+ (* j cell-w) 2) (+ (* i cell-h) 12))))))
+        (q/text (config/item-chars (:item prod)) (+ (* j cell-w) 2) (+ (* i cell-h) 12))))))
 
 (defn draw-map
   "Draws the map on the screen."
@@ -99,7 +87,7 @@
 (defn update-combatant-map
   "Updates a combatant's visible map by revealing cells near their owned units."
   [visible-map-atom ownership-predicate]
-  (let [game-map-val @game-map
+  (let [game-map-val @atoms/game-map
         height (count game-map-val)
         width (count (first game-map-val))]
     (doseq [i (range height)
@@ -114,17 +102,17 @@
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (update-combatant-map player-map is-players?))
+  (update-combatant-map atoms/player-map is-players?))
 
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (update-combatant-map computer-map is-computers?))
+  (update-combatant-map atoms/computer-map is-computers?))
 
 (defn on-coast?
   "Checks if a cell is adjacent to sea."
   [cell-x cell-y]
-  (let [game-map-val @game-map
+  (let [game-map-val @atoms/game-map
         height (count game-map-val)
         width (count (first game-map-val))]
     (some (fn [[dx dy]]
@@ -141,8 +129,8 @@
   (let [menu-width 150
         menu-height (+ 45 (* (count items) 20))
         [map-w map-h] @atoms/map-screen-dimensions
-        width (count (first @game-map))
-        height (count @game-map)
+        width (count (first @atoms/game-map))
+        height (count @atoms/game-map)
         cell-left (* cell-x (/ map-w width))
         cell-top (* cell-y (/ map-h height))
         cell-bottom (+ cell-top (/ map-h height))
@@ -174,21 +162,21 @@
 (defn handle-cell-click
   "Handles clicking on a map cell."
   [cell-x cell-y]
-  (let [cell (get-in @game-map [cell-y cell-x])]
+  (let [cell (get-in @atoms/game-map [cell-y cell-x])]
     (when (= (:owner cell) :player)
       (handle-city-click cell-x cell-y))))
 
 (defn city?
   "Returns true if the cell at coords is a city."
   [[x y]]
-  (= :city (:type (get-in @game-map [y x]))))
+  (= :city (:type (get-in @atoms/game-map [y x]))))
 
 (defn determine-cell-coordinates
   "Converts mouse coordinates to map cell coordinates."
   [x y]
   (let [[map-w map-h] @atoms/map-screen-dimensions
-        height (count @game-map)
-        width (count (first @game-map))
+        height (count @atoms/game-map)
+        width (count (first @atoms/game-map))
         cell-w (/ map-w width)
         cell-h (/ map-h height)]
     [(int (Math/floor (/ x cell-w))) (int (Math/floor (/ y cell-h)))]))
