@@ -36,11 +36,10 @@
       (doseq [cell row]
         (should (map? cell))
         (should (contains? cell :type))
-        (should (contains? cell :contents))
         (should (#{:land :sea :city} (:type cell)))
-        (should (#{:empty :free-city :player-city :computer-city} (:contents cell)))
-        (when (#{:player-city :computer-city} (:contents cell))
-          (should (contains? cell :owner))
+        (should (nil? (:contents cell)))
+        (when (:owner cell)
+          (should (= :city (:type cell)))
           (should (#{:player :computer} (:owner cell)))))))
 
   (it "has approximately correct land fraction"
@@ -56,7 +55,7 @@
     (let [city-count (count (for [i (range (count @initial-map))
                                   j (range (count (first @initial-map)))
                                   :let [cell (get-in @initial-map [i j])]
-                                  :when (#{:free-city :player-city :computer-city} (:contents cell))]
+                                  :when (= :city (:type cell))]
                               [i j]))]
       (should (>= city-count 2))
       (should (<= city-count 6))))                          ;; Allow up to num-cities + occupied
@@ -65,7 +64,7 @@
     (let [city-positions (for [i (range (count @initial-map))
                                j (range (count (first @initial-map)))
                                :let [cell (get-in @initial-map [i j])]
-                               :when (#{:free-city :player-city :computer-city} (:contents cell))]
+                               :when (= :city (:type cell))]
                            [i j])]
       (doseq [[pos1 pos2] (for [p1 city-positions
                                 p2 city-positions

@@ -45,8 +45,8 @@
 
 (defn draw-production-indicators
   "Draws production indicator for a city cell."
-  [i j contents cell-w cell-h the-map]
-  (when (#{:player-city :computer-city} contents)
+  [i j cell cell-w cell-h the-map]
+  (when (= :city (:type cell))
     (when-let [prod (@atoms/production [j i])]
       (when (and (map? prod) (:production-type prod))
         ;; Draw production progress thermometer
@@ -55,7 +55,7 @@
               progress (/ (- total remaining) (double total))
               cell (get-in the-map [i j])
               terrain-type (:type cell)
-              base-color (or (config/cell-colors contents) (config/cell-colors terrain-type))
+              base-color (or (config/cell-colors (:contents cell)) (config/cell-colors terrain-type))
               dark-color (mapv #(* % 0.5) base-color)]
           (when (and (> progress 0) (> remaining 0))
             (apply q/fill (conj dark-color 128))            ; semi-transparent darker version
@@ -78,17 +78,21 @@
             j (range width)]
       (let [cell (get-in the-map [i j])
             terrain-type (:type cell)
-            contents (:contents cell)
-            color (or (config/cell-colors contents)
-                      (config/cell-colors terrain-type))
-            completed? (and (#{:player-city :computer-city} contents)
+            cell-color (if (= terrain-type :city)
+                         (case (:owner cell)
+                           :player :player-city
+                           :computer :computer-city
+                           :free-city)
+                         terrain-type)
+            color (config/cell-colors cell-color)
+            completed? (and (= terrain-type :city) (:owner cell)
                             (let [prod (@atoms/production [j i])]
                               (and (map? prod) (= (:remaining-rounds prod) 0))))
             blink-on? (or (not completed?) (even? (quot (System/currentTimeMillis) 500)))
             blink-color (if blink-on? color [255 255 255])]
         (apply q/fill blink-color)
         (q/rect (* j cell-w) (* i cell-h) (inc cell-w) (inc cell-h))
-        (draw-production-indicators i j contents cell-w cell-h the-map)))))
+        (draw-production-indicators i j cell cell-w cell-h the-map)))))
 
 (defn update-combatant-map
   "Updates a combatant's visible map by revealing cells near their owned units."
@@ -175,7 +179,7 @@
 (defn city?
   "Returns true if the cell at coords is a city."
   [[x y]]
-  (#{:player-city :computer-city} (:contents (get-in @game-map [y x]))))
+  (= :city (:type (get-in @game-map [y x]))))
 
 (defn determine-cell-coordinates
   "Converts mouse coordinates to map cell coordinates."
