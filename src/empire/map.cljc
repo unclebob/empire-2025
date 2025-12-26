@@ -74,25 +74,29 @@
 
         draw-unit (fn [col row cell]
                     (when-let [contents (get-in cell [:contents])]
-                      (let [item (:type contents)
-                            mode (:mode contents)
-                            blink-on? (even? (quot (System/currentTimeMillis) 250))]
-                        (when (or (not= mode :awake) blink-on?)
-                          (apply q/fill config/unit-color)
-                          (q/text-font @atoms/production-char-font)
-                          (q/text (config/item-chars item) (+ (* col cell-w) 2) (+ (* row cell-h) 12))))))]
+                      (let [item (:type contents)]
+                        (apply q/fill config/unit-color)
+                        (q/text-font @atoms/production-char-font)
+                        (q/text (config/item-chars item) (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))]
 
     (doseq [col (range cols)
             row (range rows)]
       (let [cell (get-in the-map [col row])]
         (when (not= :unexplored (:type cell))
           (let [color (color-of cell)
+                player-owned? (= (:owner cell) :player)
+                unit-awake? (and (:contents cell) (= (:mode (:contents cell)) :awake))
+                city-no-prod? (and (= (:type cell) :city) (not (@atoms/production [col row])))
+                should-flash-black (and player-owned? (or unit-awake? city-no-prod?))
                 completed? (and (= (:type cell) :city) (:owner cell)
                                 (let [prod (@atoms/production [col row])]
                                   (and (map? prod) (= (:remaining-rounds prod) 0))))
-                blink-on? (or (not completed?) (even? (quot (System/currentTimeMillis) 500)))
-                blink-color (if blink-on? color [255 255 255])]
-            (apply q/fill blink-color)
+                blink-white? (and completed? (even? (quot (System/currentTimeMillis) 500)))
+                blink-black? (and should-flash-black (= (mod (q/frame-count) 4) 0))
+                final-color (cond blink-black? [0 0 0]
+                                  blink-white? [255 255 255]
+                                  :else color)]
+            (apply q/fill final-color)
             (q/rect (* col cell-w) (* row cell-h) (inc cell-w) (inc cell-h))
             (draw-production-indicators row col cell cell-w cell-h)
             (draw-unit col row cell)))))))
