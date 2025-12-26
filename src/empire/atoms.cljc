@@ -39,6 +39,16 @@
   "An atom containing the player's visible map areas."
   (atom {}))
 
+;; Coordinates of cells needing attention
+(def cells-needing-attention
+  "An atom containing coordinates of player's awake units and cities with no production."
+  (atom []))
+
+;; Message to display to the player
+(def message
+  "An atom containing the current message to display."
+  (atom ""))
+
 (def computer-map
   "An atom containing the computer's visible map areas."
   (atom {}))

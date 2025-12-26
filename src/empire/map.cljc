@@ -84,10 +84,9 @@
       (let [cell (get-in the-map [col row])]
         (when (not= :unexplored (:type cell))
           (let [color (color-of cell)
-                player-owned? (= (:owner cell) :player)
-                unit-awake? (and (:contents cell) (= (:mode (:contents cell)) :awake))
-                city-no-prod? (and (= (:type cell) :city) (not (@atoms/production [col row])))
-                should-flash-black (and player-owned? (or unit-awake? city-no-prod?))
+                attention-coords @atoms/cells-needing-attention
+                current [col row]
+                should-flash-black (and (seq attention-coords) (= current (first attention-coords)))
                 completed? (and (= (:type cell) :city) (:owner cell)
                                 (let [prod (@atoms/production [col row])]
                                   (and (map? prod) (= (:remaining-rounds prod) 0))))
@@ -206,10 +205,30 @@
     (let [clicked-item (menus/handle-menu-click x y)]
       (when clicked-item
         (when (city? @atoms/menu-cell)
-          (production/set-city-production @atoms/menu-cell clicked-item)))
+          (production/set-city-production @atoms/menu-cell clicked-item)
+          (when (seq @atoms/cells-needing-attention)
+            (swap! atoms/cells-needing-attention rest))))
       (when-not clicked-item
         (reset! atoms/last-clicked-cell [cell-x cell-y])
         (handle-cell-click cell-x cell-y)))))
+
+(defn needs-attention?
+  "Returns true if the cell at [i j] needs attention (awake unit or city with no production)."
+  [i j]
+  (let [cell (get-in @atoms/player-map [i j])
+        mode (:mode (:contents cell))]
+    (and (= (:owner cell) :player)
+         (or (= mode :awake)
+             (and (= (:type cell) :city)
+                  (not (@atoms/production [i j])))))))
+
+(defn cells-needing-attention
+  "Returns coordinates of player's units and cities with no production."
+  []
+  (for [i (range (count @atoms/player-map))
+        j (range (count (first @atoms/player-map)))
+        :when (needs-attention? i j)]
+    [i j]))
 
 (defn do-a-round
   "Performs one round of game actions."
@@ -217,7 +236,18 @@
   ;; Placeholder for round logic
   (swap! atoms/round-number inc)
   (production/update-production)
-  (println "Doing round" @atoms/round-number "..."))
+  (let [player-coords (cells-needing-attention)]
+    (reset! atoms/cells-needing-attention player-coords)
+    ;; Use player-coords as needed, e.g., for future logic
+    (println "Player's units and cities at:" player-coords))
+  (while (seq @atoms/cells-needing-attention)
+    (let [first-cell-coords (first @atoms/cells-needing-attention)
+          first-cell (get-in @atoms/game-map first-cell-coords)]
+      (reset! atoms/message (if (:contents first-cell)
+                              (str (name (:type (:contents first-cell))) " needs attention")
+                              "City needs attention")))
+    (Thread/sleep 100)
+    (reset! atoms/message "")))
 
 (defn update-map
   "Updates the game map state."
