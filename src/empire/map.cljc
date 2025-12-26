@@ -101,30 +101,15 @@
             (draw-production-indicators row col cell cell-w cell-h)
             (draw-unit col row cell)))))))
 
-(defn update-combatant-map
-  "Updates a combatant's visible map by revealing cells near their owned units."
-  [visible-map-atom ownership-predicate]
-  (let [game-map-val @atoms/game-map
-        height (count game-map-val)
-        width (count (first game-map-val))]
-    (doseq [i (range height)
-            j (range width)
-            :when (ownership-predicate (get-in game-map-val [i j]))]
-      (doseq [di [-1 0 1]
-              dj [-1 0 1]]
-        (let [ni (max 0 (min (dec height) (+ i di)))
-              nj (max 0 (min (dec width) (+ j dj)))]
-          (swap! visible-map-atom assoc-in [ni nj] (get-in game-map-val [ni nj])))))))
-
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (update-combatant-map atoms/player-map is-players?))
+  (movement/update-combatant-map atoms/player-map is-players?))
 
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (update-combatant-map atoms/computer-map is-computers?))
+  (movement/update-combatant-map atoms/computer-map is-computers?))
 
 (defn on-coast?
   "Checks if a cell is adjacent to sea."
