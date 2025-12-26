@@ -221,3 +221,8 @@
   (update-player-map)
   (update-computer-map))
 
+(defn game-loop []
+  (Thread/sleep ^long config/round-delay)
+  (do-a-round)
+  (recur))
+

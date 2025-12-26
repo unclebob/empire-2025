@@ -44,6 +44,7 @@
   (calculate-screen-dimensions)
   (init/make-initial-map @atoms/map-size config/smooth-count config/land-fraction config/number-of-cities config/min-city-distance)
   (q/frame-rate 10)
+  (future (map/game-loop))
   {})
 
 (defn update-state

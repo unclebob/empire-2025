@@ -9,6 +9,8 @@
 
 (def min-city-distance 5)
 
+(def round-delay 1000)
+
 ;; Production items: keywords -> display strings
 (def production-items->strings
   {:army "Army"
