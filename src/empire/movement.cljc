@@ -68,7 +68,17 @@
       ;; Normal move
       (let [is-at-target (= next-pos target-coords)
             final-pos (if is-at-target target-coords next-pos)
-            updated-unit (if is-at-target
+            ;; Check if near enemy or free city
+            near-enemy-city? (some (fn [[di dj]]
+                                     (let [ni (+ (first final-pos) di)
+                                           nj (+ (second final-pos) dj)
+                                           adj-cell (get-in current-map [ni nj])]
+                                       (and adj-cell
+                                            (= (:type adj-cell) :city)
+                                            (#{:free :computer} (:city-status adj-cell)))))
+                                   (for [di [-1 0 1] dj [-1 0 1]] [di dj]))
+            wake-up? (or is-at-target near-enemy-city?)
+            updated-unit (if wake-up?
                            (dissoc (assoc unit :mode :awake) :target)
                            unit)
             from-cell (assoc cell :contents nil)
