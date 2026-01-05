@@ -120,10 +120,15 @@
 (defn handle-city-click
   "Handles clicking on a city cell."
   [cell-x cell-y]
-  (let [header :production
+  (let [cell (get-in @atoms/game-map [cell-x cell-y])
+        header (if (= (:city-status cell) :player) :production :city-info)
         coastal-city? (on-coast? cell-x cell-y)
-        basic-items [:army :fighter :satellite]
-        coastal-items [:transport :patrol-boat :destroyer :submarine :carrier :battleship]
+        basic-items (if (= header :production)
+                      [:army :fighter :satellite]
+                      ["City Status" (name (:city-status cell))])
+        coastal-items (if (= header :production)
+                        [:transport :patrol-boat :destroyer :submarine :carrier :battleship]
+                        [])
         all-items (cond-> basic-items coastal-city? (into coastal-items))
         items all-items]
     (menus/show-menu cell-x cell-y header items)))
@@ -167,6 +172,9 @@
       (handle-unit-click cell-x cell-y clicked-coords attention-coords)
 
       (is-city-needing-attention? cell clicked-coords attention-coords)
+      (handle-city-click cell-x cell-y)
+
+      (= (:type cell) :city)
       (handle-city-click cell-x cell-y)
 
       ;; Otherwise, do nothing
