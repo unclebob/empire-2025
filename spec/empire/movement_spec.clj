@@ -111,6 +111,17 @@
           (should= {:type :land  :contents nil} (get-in @atoms/game-map [4 4]))
           (should= {:type :land  :contents {:type :army :mode :awake :owner :player}} (get-in @atoms/game-map [5 5]))
           (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map))))))
+
+      (it "wakes up a unit if the next move would be into sea"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land 
+                                               :contents {:type :army :mode :moving :owner :player :target [4 5]}})
+                              (assoc-in [4 5] {:type :sea}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (move-units)
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player}} (get-in @atoms/game-map [4 4]))
+          (should= {:type :sea} (get-in @atoms/game-map [4 5]))))
       )
 
     (context "visibility updates"

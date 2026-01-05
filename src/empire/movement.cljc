@@ -58,17 +58,25 @@
 (defn move-unit [from-coords target-coords cell current-map]
   (let [unit (:contents cell)
         next-pos (next-step-pos from-coords target-coords)
-        is-at-target (= next-pos target-coords)
-        final-pos (if is-at-target target-coords next-pos)
-        updated-unit (if is-at-target
-                       (dissoc (assoc unit :mode :awake) :target)
-                       unit)
-        from-cell (assoc cell :contents nil)
-        to-cell (or (get-in current-map final-pos) {:type :land})
-        updated-to-cell (assoc to-cell :contents updated-unit)]
-    (swap! atoms/game-map assoc-in from-coords from-cell)
-    (swap! atoms/game-map assoc-in final-pos updated-to-cell)
-    (update-cell-visibility final-pos (:owner unit))))
+        next-cell (get-in current-map next-pos)]
+    (if (= (:type next-cell) :sea)
+      ;; Wake up without moving
+      (let [woken-unit (dissoc (assoc unit :mode :awake) :target)
+            updated-cell (assoc cell :contents woken-unit)]
+        (swap! atoms/game-map assoc-in from-coords updated-cell)
+        (update-cell-visibility from-coords (:owner unit)))
+      ;; Normal move
+      (let [is-at-target (= next-pos target-coords)
+            final-pos (if is-at-target target-coords next-pos)
+            updated-unit (if is-at-target
+                           (dissoc (assoc unit :mode :awake) :target)
+                           unit)
+            from-cell (assoc cell :contents nil)
+            to-cell (or (get-in current-map final-pos) {:type :land})
+            updated-to-cell (assoc to-cell :contents updated-unit)]
+        (swap! atoms/game-map assoc-in from-coords from-cell)
+        (swap! atoms/game-map assoc-in final-pos updated-to-cell)
+        (update-cell-visibility final-pos (:owner unit))))))
 
 (defn move-units []
   (let [current-map @atoms/game-map
