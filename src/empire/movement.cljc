@@ -103,9 +103,22 @@
                           cell (get-in current-map coords)
                           contents (:contents cell)]
                     :when (and contents (= :moving (:mode contents)))]
-                [coords (:target contents) cell])]
-    (doseq [[from-coords target-coords cell] moves]
-      (move-unit from-coords target-coords cell current-map))))
+                [coords (:target contents) (:type contents)])]
+    (doseq [[from-coords target-coords unit-type] moves]
+      (let [steps (if (= unit-type :fighter) 5 1)]
+        (loop [current-from from-coords
+               current-target target-coords
+               remaining-steps steps]
+          (when (> remaining-steps 0)
+            (let [current-cell (get-in @atoms/game-map current-from)]
+              (move-unit current-from current-target current-cell @atoms/game-map)
+              ;; The unit moved to next-pos towards current-target
+              (let [next-pos (next-step-pos current-from current-target)
+                    moved-cell (get-in @atoms/game-map next-pos)
+                    moved-contents (:contents moved-cell)]
+                (when (and moved-contents (= :moving (:mode moved-contents)))
+                  (let [new-target (:target moved-contents)]
+                    (recur next-pos new-target (dec remaining-steps))))))))))))
 
 (defn set-unit-movement [unit-coords target-coords]
   (let [first-cell (get-in @atoms/game-map unit-coords)
