@@ -78,3 +78,15 @@
 
 (def production-color [128 128 128])
 (def unit-color [0 0 0])
+
+;; Unit speeds (cells per turn)
+(def unit-speed
+  {:army 1
+   :fighter 8
+   :satellite 10
+   :transport 2
+   :patrol-boat 4
+   :destroyer 2
+   :submarine 2
+   :carrier 2
+   :battleship 2})
