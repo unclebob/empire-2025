@@ -163,7 +163,8 @@
 
 (defn set-unit-movement [unit-coords target-coords]
   (let [first-cell (get-in @atoms/game-map unit-coords)
-        updated-contents (-> (:contents first-cell)
+        unit (:contents first-cell)
+        updated-contents (-> unit
                              (assoc :mode :moving :target target-coords)
                              (dissoc :reason))]
     (swap! atoms/game-map assoc-in unit-coords (assoc first-cell :contents updated-contents))))

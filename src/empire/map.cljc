@@ -378,24 +378,32 @@
                             (:city-needs-attention config/messages)))))
 
 (defn move-current-unit
-  "Moves the unit at coords if it's in moving mode, respecting unit speed."
+  "Moves the unit at coords one step. Returns new coords if still moving or awoke with steps, nil if done."
   [coords]
   (let [cell (get-in @atoms/game-map coords)
         unit (:contents cell)]
     (when (= (:mode unit) :moving)
-      (let [steps (get config/unit-speed (:type unit) 1)]
-        (loop [current-from coords
-               remaining-steps steps]
-          (when (> remaining-steps 0)
-            (let [current-cell (get-in @atoms/game-map current-from)
-                  current-unit (:contents current-cell)]
-              (when (and current-unit (= :moving (:mode current-unit)))
-                (movement/move-unit current-from (:target current-unit) current-cell atoms/game-map)
-                (let [next-pos (movement/next-step-pos current-from (:target current-unit))
-                      moved-cell (get-in @atoms/game-map next-pos)
-                      moved-unit (:contents moved-cell)]
-                  (when (and moved-unit (= :moving (:mode moved-unit)))
-                    (recur next-pos (dec remaining-steps))))))))))))
+      (let [target (:target unit)]
+        (movement/move-unit coords target cell atoms/game-map)
+        (let [next-pos (movement/next-step-pos coords target)
+              moved-cell (get-in @atoms/game-map next-pos)
+              moved-unit (:contents moved-cell)]
+          (when moved-unit
+            (let [new-steps (dec (:steps-remaining moved-unit 1))]
+              (swap! atoms/game-map assoc-in (conj next-pos :contents :steps-remaining) new-steps)
+              (when (> new-steps 0)
+                next-pos))))))))
+
+(defn reset-steps-remaining
+  "Resets steps-remaining for all player units at start of round."
+  []
+  (doseq [i (range (count @atoms/game-map))
+          j (range (count (first @atoms/game-map)))
+          :let [cell (get-in @atoms/game-map [i j])
+                unit (:contents cell)]
+          :when (and unit (= (:owner unit) :player))]
+    (let [steps (get config/unit-speed (:type unit) 1)]
+      (swap! atoms/game-map assoc-in [i j :contents :steps-remaining] steps))))
 
 (defn start-new-round
   "Starts a new round by building player items list and updating game state."
@@ -403,6 +411,7 @@
   (swap! atoms/round-number inc)
   (remove-dead-units)
   (production/update-production)
+  (reset-steps-remaining)
   (reset! atoms/player-items (vec (build-player-items)))
   (reset! atoms/waiting-for-input false)
   (reset! atoms/message "")
@@ -420,8 +429,8 @@
             (reset! atoms/cells-needing-attention [coords])
             (set-attention-message coords)
             (reset! atoms/waiting-for-input true))
-          (do
-            (move-current-unit coords)
+          (if-let [new-coords (move-current-unit coords)]
+            (swap! atoms/player-items #(cons new-coords (rest %)))
             (swap! atoms/player-items rest)))))))
 
 (defn item-processed
