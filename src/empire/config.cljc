@@ -94,6 +94,17 @@
    :unit-needs-attention " needs attention"
    :not-on-map "That's not on the map!"})
 
+;; Key to movement direction mapping [dx dy]
+(def key->direction
+  {:u [-1 -1]   ; northwest
+   :i [0 -1]    ; north
+   :o [1 -1]    ; northeast
+   :j [-1 0]    ; west
+   :l [1 0]     ; east
+   :m [-1 1]    ; southwest
+   (keyword ",") [0 1]     ; south
+   :. [1 1]})   ; southeast
+
 ;; Key to production item mapping
 (def key->production-item
   {:a :army

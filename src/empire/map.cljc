@@ -266,16 +266,31 @@
             (handle-cell-click cell-x cell-y))
           (reset! atoms/line3-message (:not-on-map config/messages)))))))
 
-(defn handle-city-production-key [k]
+(defn- handle-city-production-key [k coords cell]
   (when-let [item (config/key->production-item k)]
-    (when-let [coords (first @atoms/cells-needing-attention)]
-      (let [cell (get-in @atoms/game-map coords)]
-        (when (and (= (:type cell) :city)
-                   (= (:city-status cell) :player)
-                   (not (:contents cell)))
-          (production/set-city-production coords item)
+    (when (and (= (:type cell) :city)
+               (= (:city-status cell) :player)
+               (not (:contents cell)))
+      (production/set-city-production coords item)
+      (swap! atoms/cells-needing-attention rest)
+      true)))
+
+(defn- handle-unit-movement-key [k coords cell]
+  (when-let [[dx dy] (config/key->direction k)]
+    (let [unit (:contents cell)]
+      (when (and unit (= (:owner unit) :player))
+        (let [[x y] coords
+              target [(+ x dx) (+ y dy)]]
+          (movement/set-unit-movement coords target)
           (swap! atoms/cells-needing-attention rest)
           true)))))
+
+(defn handle-key [k]
+  (when-let [coords (first @atoms/cells-needing-attention)]
+    (let [cell (get-in @atoms/game-map coords)]
+      (if (:contents cell)
+        (handle-unit-movement-key k coords cell)
+        (handle-city-production-key k coords cell)))))
 
 (defn remove-dead-units
   "Removes units with hits at or below zero."

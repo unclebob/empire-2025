@@ -112,7 +112,7 @@
     (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
                                           :computer-map :actual-map
                                           :actual-map :player-map})
-    (map/handle-city-production-key k) nil
+    (map/handle-key k) nil
     :else (println "Key down:" k)))
 
 (defn key-pressed [state _]
