@@ -58,10 +58,10 @@
 (defn wake-before-move [unit next-cell]
   (cond
     (and (= (:type unit) :army) (= (:type next-cell) :sea))
-    [(assoc (dissoc (assoc unit :mode :awake) :target) :reason (:cant-move-into-water config/messages)) true]
+    [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :cant-move-into-water) true]
 
     (and (= (:type unit) :army) (= (:type next-cell) :city) (= (:city-status next-cell) :player))
-    [(assoc (dissoc (assoc unit :mode :awake) :target) :reason (:cant-move-into-city config/messages)) true]
+    [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :cant-move-into-city) true]
 
     :else [unit false]))
 
@@ -78,7 +78,7 @@
                                        (for [di [-1 0 1] dj [-1 0 1]] [di dj])))
                       false)
         wake-up? (or is-at-target unit-wakes?)
-        reason (when (and (= (:type unit) :army) unit-wakes?) (:army-found-city config/messages))
+        reason (when (and (= (:type unit) :army) unit-wakes?) :army-found-city)
         updated-unit (if wake-up?
                        (dissoc (cond-> (assoc unit :mode :awake)
                                  reason (assoc :reason reason)) :target)
@@ -90,7 +90,7 @@
                      (cond (and is-fighter (<= new-fuel -1)) nil
                            is-fighter (let [waking? (<= new-fuel 0)
                                             unit (if waking?
-                                                   (assoc (dissoc (assoc updated-unit :mode :awake) :target) :reason (:fighter-out-of-fuel config/messages))
+                                                   (assoc (dissoc (assoc updated-unit :mode :awake) :target) :reason :fighter-out-of-fuel)
                                                    updated-unit)]
                                         (assoc unit :fuel new-fuel))
                            :else updated-unit))]

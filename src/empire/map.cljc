@@ -301,9 +301,10 @@
       (reset! atoms/message (if (:contents first-cell)
                               (let [unit (:contents first-cell)
                                     unit-name (name (:type unit))
-                                    reason (or (:reason unit)
-                                               (when adjacent-enemy-city? (:army-found-city config/messages)))]
-                                (str unit-name (:unit-needs-attention config/messages) (if reason (str " - " reason) "")))
+                                    reason-key (or (:reason unit)
+                                                   (when adjacent-enemy-city? :army-found-city))
+                                    reason-str (when reason-key (reason-key config/messages))]
+                                (str unit-name (:unit-needs-attention config/messages) (if reason-str (str " - " reason-str) "")))
                               (:city-needs-attention config/messages))))
     (Thread/sleep 100)
     (reset! atoms/message "")))

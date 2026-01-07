@@ -121,8 +121,19 @@
           (reset! atoms/game-map initial-map)
           (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
           (move-units)
-          (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason (:cant-move-into-water config/messages)}} (get-in @atoms/game-map [4 4]))
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason :cant-move-into-water}} (get-in @atoms/game-map [4 4]))
           (should= {:type :sea} (get-in @atoms/game-map [4 5]))))
+
+      (it "wakes up a unit if the next move would be into a friendly city"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land
+                                               :contents {:type :army :mode :moving :owner :player :target [4 5]}})
+                              (assoc-in [4 5] {:type :city :city-status :player}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (move-units)
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason :cant-move-into-city}} (get-in @atoms/game-map [4 4]))
+          (should= {:type :city :city-status :player} (get-in @atoms/game-map [4 5]))))
 
       (it "wakes up a unit when moving near an enemy city"
         (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
@@ -134,7 +145,7 @@
           (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
           (move-units)
           (should= {:type :land} (get-in @atoms/game-map [4 4]))
-          (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason (:army-found-city config/messages)}} (get-in @atoms/game-map [4 5]))
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason :army-found-city}} (get-in @atoms/game-map [4 5]))
           (should= {:type :city :city-status :computer :contents nil} (get-in @atoms/game-map [4 6]))))
       )
 
@@ -317,7 +328,7 @@
           (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
           (move-units)
           (should= {:type :land} (get-in @atoms/game-map [4 4]))
-          (should= {:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 0 :reason (:fighter-out-of-fuel config/messages)}} (get-in @atoms/game-map [4 5]))))
+          (should= {:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 0 :reason :fighter-out-of-fuel}} (get-in @atoms/game-map [4 5]))))
 
       (it "fighter crashes when trying to move with 0 fuel"
         (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
