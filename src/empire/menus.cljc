@@ -1,7 +1,7 @@
 (ns empire.menus
   (:require [empire.atoms :as atoms]
-            [quil.core :as q]
-            [empire.config :as config]))
+            [empire.config :as config]
+            [quil.core :as q]))
 
 ;; Menu constants
 (def menu-width 150)
@@ -84,20 +84,24 @@
           menu-height (+ menu-item-start-y-offset (* (count items) item-height))
           mouse-x (q/mouse-x)
           mouse-y (q/mouse-y)
-          highlighted-idx (find-menu-item x y mouse-x mouse-y items)]
-      (q/fill 200 200 200 200)
-      (q/rect x y menu-width menu-height)
-      ;; Header
-      (q/fill 0)
-      (q/text-font @atoms/menu-header-font)
-      (q/text (config/menu-header->string header) (+ x menu-text-x-offset) (+ y header-y-offset))
-      ;; Line
-      (q/stroke 0)
-      (q/line (+ x line-margin) (+ y line-y-offset) (- (+ x menu-width) line-margin) (+ y line-y-offset))
-      ;; Items
-      (q/text-font @atoms/menu-item-font)
-      (doseq [[idx item] (map-indexed vector items)]
-        (if (= idx highlighted-idx)
-          (q/fill 255)
-          (q/fill 0))
-        (q/text item (+ x menu-text-x-offset) (+ y menu-item-start-y-offset (* idx item-height)))))))
+          highlighted-idx (find-menu-item x y mouse-x mouse-y items)
+          header-string (config/menu-header->string header)]
+      (when (or (nil? header) (nil? header-string))
+        (prn 'Bad-menu 'header header 'string header-string))
+      (when (some? header-string)
+        (q/fill 200 200 200 200)
+        (q/rect x y menu-width menu-height)
+        ;; Header
+        (q/fill 0)
+        (q/text-font @atoms/menu-header-font)
+        (q/text header-string (+ x menu-text-x-offset) (+ y header-y-offset))
+        ;; Line
+        (q/stroke 0)
+        (q/line (+ x line-margin) (+ y line-y-offset) (- (+ x menu-width) line-margin) (+ y line-y-offset))
+        ;; Items
+        (q/text-font @atoms/menu-item-font)
+        (doseq [[idx item] (map-indexed vector items)]
+          (if (= idx highlighted-idx)
+            (q/fill 255)
+            (q/fill 0))
+          (q/text item (+ x menu-text-x-offset) (+ y menu-item-start-y-offset (* idx item-height))))))))

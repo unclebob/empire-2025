@@ -147,6 +147,26 @@
        (= (:type cell) :city)
        (= clicked-coords (first attention-coords))))
 
+
+(defn needs-attention?
+  "Returns true if the cell at [i j] needs attention (awake unit or city with no production)."
+  [i j]
+  (let [cell (get-in @atoms/player-map [i j])
+        mode (:mode (:contents cell))]
+    (and (or (= (:city-status cell) :player)
+             (= (:owner (:contents cell)) :player))
+         (or (= mode :awake)
+             (and (= (:type cell) :city)
+                  (not (@atoms/production [i j])))))))
+
+(defn cells-needing-attention
+  "Returns coordinates of player's units and cities with no production."
+  []
+  (for [i (range (count @atoms/player-map))
+        j (range (count (first @atoms/player-map)))
+        :when (needs-attention? i j)]
+    [i j]))
+
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
   [cell-x cell-y clicked-coords attention-coords]
@@ -156,10 +176,27 @@
       (let [header :unit
             items [:explore :sentry]]
         (menus/show-menu cell-x cell-y header items))
-      ;; Clicked elsewhere: move the unit
-      (do
-        (movement/set-unit-movement first-coords clicked-coords)
-        (swap! atoms/cells-needing-attention rest)))))
+      ;; Clicked elsewhere
+      (if (and (= :army (:type (:contents (get-in @atoms/game-map first-coords))))
+               (= (:reason (:contents (get-in @atoms/game-map first-coords))) (:army-found-city config/messages))
+               (let [target-cell (get-in @atoms/game-map clicked-coords)]
+                 (and (= (:type target-cell) :city)
+                      (#{:free :computer} (:city-status target-cell)))))
+        ;; Attempt conquest
+        (if (< (rand) 0.5)
+          (let [city-cell (get-in @atoms/game-map clicked-coords)
+                army-cell (get-in @atoms/game-map first-coords)]
+            (swap! atoms/game-map assoc-in first-coords (dissoc army-cell :contents))
+            (swap! atoms/game-map assoc-in clicked-coords (assoc city-cell :city-status :player))
+            (movement/update-cell-visibility clicked-coords :player)
+            (reset! atoms/cells-needing-attention (cells-needing-attention)))
+          ;; Fail: update army
+          (let [army-cell (get-in @atoms/game-map first-coords)
+                updated-army (dissoc (assoc (:contents army-cell) :mode :awake :hits 0 :reason (:failed-to-conquer config/messages)) :target)]
+            (swap! atoms/game-map assoc-in first-coords (assoc army-cell :contents updated-army))))
+        ;; Normal movement
+        (movement/set-unit-movement first-coords clicked-coords))))
+  (swap! atoms/cells-needing-attention rest))
 
 (defn handle-cell-click
   "Handles clicking on a map cell, prioritizing attention-needing items."
@@ -214,25 +251,6 @@
         (reset! atoms/last-clicked-cell [cell-x cell-y])
         (handle-cell-click cell-x cell-y)))))
 
-(defn needs-attention?
-  "Returns true if the cell at [i j] needs attention (awake unit or city with no production)."
-  [i j]
-  (let [cell (get-in @atoms/player-map [i j])
-        mode (:mode (:contents cell))]
-    (and (or (= (:city-status cell) :player)
-             (= (:owner (:contents cell)) :player))
-         (or (= mode :awake)
-             (and (= (:type cell) :city)
-                  (not (@atoms/production [i j])))))))
-
-(defn cells-needing-attention
-  "Returns coordinates of player's units and cities with no production."
-  []
-  (for [i (range (count @atoms/player-map))
-        j (range (count (first @atoms/player-map)))
-        :when (needs-attention? i j)]
-    [i j]))
-
 (defn remove-dead-units
   "Removes units with hits at or below zero."
   []
@@ -256,8 +274,11 @@
     (let [first-cell-coords (first @atoms/cells-needing-attention)
           first-cell (get-in @atoms/game-map first-cell-coords)]
       (reset! atoms/message (if (:contents first-cell)
-                              (str (name (:type (:contents first-cell))) " needs attention")
-                              "City needs attention")))
+                              (let [unit (:contents first-cell)
+                                    unit-name (name (:type unit))
+                                    reason (:reason unit)]
+                                (str unit-name (:unit-needs-attention config/messages) (if reason (str " - " reason) "")))
+                              (:city-needs-attention config/messages))))
     (Thread/sleep 100)
     (reset! atoms/message "")))
 

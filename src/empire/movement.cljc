@@ -73,8 +73,10 @@
                                        (for [di [-1 0 1] dj [-1 0 1]] [di dj])))
                       false)
         wake-up? (or is-at-target unit-wakes?)
+        reason (when (and (= (:type unit) :army) unit-wakes?) (:army-found-city config/messages))
         updated-unit (if wake-up?
-                       (dissoc (assoc unit :mode :awake) :target)
+                       (dissoc (cond-> (assoc unit :mode :awake)
+                                 reason (assoc :reason reason)) :target)
                        unit)
         ;; Handle fighter fuel
         final-unit (let [is-fighter (= (:type updated-unit) :fighter)
@@ -82,8 +84,9 @@
                          new-fuel (if is-fighter (dec current-fuel) nil)]
                      (cond (and is-fighter (<= new-fuel -1)) nil
                            is-fighter (let [waking? (<= new-fuel 0)
-                                            unit (if waking? (dissoc (assoc updated-unit :mode :awake) :target) updated-unit)]
-                                        (when waking? (reset! atoms/reason "fighter out of fuel"))
+                                            unit (if waking?
+                                                   (assoc (dissoc (assoc updated-unit :mode :awake) :target) :reason (:fighter-out-of-fuel config/messages))
+                                                   updated-unit)]
                                         (assoc unit :fuel new-fuel))
                            :else updated-unit))]
     final-unit))
@@ -105,30 +108,11 @@
       (let [updated-cell (assoc cell :contents unit)]
         (swap! atoms/game-map assoc-in from-coords updated-cell)
         (update-cell-visibility from-coords (:owner unit)))
+      ;; Normal move
       (let [is-at-target (= next-pos target-coords)
-            final-pos (if is-at-target target-coords next-pos)]
-        (if (and is-at-target
-                 (= :army (:type unit))
-                 (let [city-cell (get-in @current-map final-pos)]
-                   (and (= :city (:type city-cell))
-                        (#{:free :computer} (:city-status city-cell)))))
-          ;; Conquest attempt
-          (if (< (rand) 0.5)
-            ;; Conquer
-            (let [city-cell (get-in @atoms/game-map final-pos)]
-              (swap! atoms/game-map assoc-in from-coords (dissoc cell :contents))
-              (swap! atoms/game-map assoc-in final-pos (assoc city-cell :city-status :player))
-              (update-cell-visibility final-pos (:owner unit)))
-            ;; Fail
-            (do
-              (reset! atoms/reason "failed to conquer")
-              (let [failed-unit (dissoc (assoc unit :mode :awake :hits 0) :target)
-                    updated-cell (assoc cell :contents failed-unit)]
-                (swap! atoms/game-map assoc-in from-coords updated-cell)
-                (update-cell-visibility from-coords (:owner unit)))))
-          ;; Normal move
-          (let [final-unit (wake-after-move unit final-pos current-map is-at-target)]
-            (do-move from-coords final-pos cell final-unit)))))))
+            final-pos (if is-at-target target-coords next-pos)
+            final-unit (wake-after-move unit final-pos current-map is-at-target)]
+        (do-move from-coords final-pos cell final-unit)))))
 
 (defn get-moves []
   (let [current-map @atoms/game-map]
@@ -168,6 +152,6 @@
 (defn set-unit-mode [coords mode]
   (let [cell (get-in @atoms/game-map coords)
         unit (:contents cell)
-        updated-unit (assoc unit :mode mode)
+        updated-unit (dissoc (assoc unit :mode mode) :reason)
         updated-cell (assoc cell :contents updated-unit)]
     (swap! atoms/game-map assoc-in coords updated-cell)))

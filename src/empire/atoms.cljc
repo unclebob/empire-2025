@@ -46,13 +46,6 @@
   "An atom containing the current message to display."
   (atom ""))
 
-;; Reason for units needing attention
-(def reason
-  "An atom containing the reason for units needing attention."
-  (atom ""))
-
 (def computer-map
   "An atom containing the computer's visible map areas."
   (atom {}))
-
-(def message (atom nil))

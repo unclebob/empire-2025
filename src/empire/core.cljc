@@ -67,11 +67,8 @@
       (let [[text-x text-y text-w _] @atoms/text-area-dimensions]
         (q/text-font @atoms/text-font)
         (q/fill 255)
-        (when (or (seq @atoms/message) (seq @atoms/cells-needing-attention))
-          (let [msg (str @atoms/message
-                         (when (and (seq @atoms/cells-needing-attention) (seq @atoms/reason))
-                           (str (if (seq @atoms/message) " - " "") @atoms/reason)))]
-            (q/text msg (+ text-x 10) (+ text-y 10))))
+        (when (seq @atoms/message)
+          (q/text @atoms/message (+ text-x 10) (+ text-y 10)))
         (q/text (str "Round: " @atoms/round-number) (- (+ text-x text-w) 100) (+ text-y 10))
         (q/text (str (- (System/currentTimeMillis) start-time) " ms" ) (- (+ text-x text-w) 100) (+ text-y 30))))))
 

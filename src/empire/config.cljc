@@ -81,6 +81,14 @@
 
 (def fighter-fuel 32)
 
+;; Messages and reasons
+(def messages
+  {:army-found-city "Army found a city!"
+   :fighter-out-of-fuel "Fighter out of fuel."
+   :failed-to-conquer "Failed to conquer city."
+   :city-needs-attention "City needs attention"
+   :unit-needs-attention " needs attention"})
+
 ;; Unit speeds (cells per turn)
 (def unit-speed
   {:army 1
