@@ -85,6 +85,7 @@
 (def messages
   {:army-found-city "Army found a city!"
    :fighter-out-of-fuel "Fighter out of fuel."
+   :fighter-landed-and-refueled "Landed and refueled."
    :failed-to-conquer "Failed to conquer city."
    :conquest-failed "Conquest Failed"
    :cant-move-into-water "Can't move into water."

@@ -46,6 +46,10 @@
   "An atom containing the current message to display."
   (atom ""))
 
+(def line2-message
+  "An atom containing the message to display on line 2."
+  (atom ""))
+
 (def line3-message
   "An atom containing the message to display on line 3."
   (atom ""))

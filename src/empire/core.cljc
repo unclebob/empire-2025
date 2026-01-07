@@ -61,7 +61,9 @@
 
 (defn draw-line-2
   "Draws content on line 2."
-  [text-x text-y])
+  [text-x text-y]
+  (when (seq @atoms/line2-message)
+    (q/text @atoms/line2-message (+ text-x 10) (+ text-y 30))))
 
 (defn draw-line-3
   "Draws the flashing red message on line 3."
@@ -125,7 +127,15 @@
   (reset! atoms/last-key nil))
 
 (defn mouse-pressed [_ _]
-  (map/mouse-down (q/mouse-x) (q/mouse-y)))
+  (let [x (q/mouse-x)
+        y (q/mouse-y)
+        button (q/mouse-button)]
+    (if (= button :right)
+      (when (map/on-map? x y)
+        (let [[cell-x cell-y] (map/determine-cell-coordinates x y)
+              cell (get-in @atoms/game-map [cell-x cell-y])]
+          (reset! atoms/line2-message (str cell))))
+      (map/mouse-down x y))))
 
 (defn on-close [_]
   (q/no-loop)
