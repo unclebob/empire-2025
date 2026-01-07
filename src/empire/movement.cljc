@@ -65,19 +65,22 @@
 
     :else [unit false]))
 
-(defn wake-after-move [unit final-pos current-map is-at-target]
-  (let [unit-wakes? (case (:type unit)
-                      :army (and (not is-at-target)
-                                 (some (fn [[di dj]]
-                                         (let [ni (+ (first final-pos) di)
-                                               nj (+ (second final-pos) dj)
-                                               adj-cell (get-in @current-map [ni nj])]
-                                           (and adj-cell
-                                                (= (:type adj-cell) :city)
-                                                (#{:free :computer} (:city-status adj-cell)))))
-                                       (for [di [-1 0 1] dj [-1 0 1]] [di dj])))
+(defn near-conquerable-city? [pos current-map]
+  (some (fn [[di dj]]
+          (let [ni (+ (first pos) di)
+                nj (+ (second pos) dj)
+                adj-cell (get-in @current-map [ni nj])]
+            (and adj-cell
+                 (= (:type adj-cell) :city)
+                 (#{:free :computer} (:city-status adj-cell)))))
+        (for [di [-1 0 1] dj [-1 0 1]] [di dj])))
+
+(defn wake-after-move [unit final-pos current-map]
+  (let [is-at-target? (= final-pos (:target unit))
+        unit-wakes? (case (:type unit)
+                      :army (near-conquerable-city? final-pos current-map)
                       false)
-        wake-up? (or is-at-target unit-wakes?)
+        wake-up? (or is-at-target? unit-wakes?)
         reason (when (and (= (:type unit) :army) unit-wakes?) :army-found-city)
         updated-unit (if wake-up?
                        (dissoc (cond-> (assoc unit :mode :awake)
@@ -114,10 +117,8 @@
         (swap! atoms/game-map assoc-in from-coords updated-cell)
         (update-cell-visibility from-coords (:owner unit)))
       ;; Normal move
-      (let [is-at-target (= next-pos target-coords)
-            final-pos (if is-at-target target-coords next-pos)
-            final-unit (wake-after-move unit final-pos current-map is-at-target)]
-        (do-move from-coords final-pos cell final-unit)))))
+      (let [final-unit (wake-after-move unit next-pos current-map)]
+        (do-move from-coords next-pos cell final-unit)))))
 
 (defn get-moves []
   (let [current-map @atoms/game-map]
