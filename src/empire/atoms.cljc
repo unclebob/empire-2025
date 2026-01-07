@@ -4,8 +4,6 @@
 
 (def last-key (atom nil))
 
-(def test-mode (atom false))
-
 (def map-screen-dimensions (atom [0 0]))
 
 (def text-area-dimensions (atom [0 0 0 0]))

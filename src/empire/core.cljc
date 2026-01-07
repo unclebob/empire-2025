@@ -109,11 +109,10 @@
 (defn key-down [k]
   ;; Handle key down events
   (cond
-    (= k :t) (swap! atoms/test-mode not)
-    (= k :m) (swap! atoms/map-to-display {:player-map :computer-map
+    (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
                                           :computer-map :actual-map
                                           :actual-map :player-map})
-    (= k :space) (map/do-a-round)
+    (map/handle-city-production-key k) nil
     :else (println "Key down:" k)))
 
 (defn key-pressed [state _]

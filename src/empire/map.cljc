@@ -266,6 +266,17 @@
             (handle-cell-click cell-x cell-y))
           (reset! atoms/line3-message (:not-on-map config/messages)))))))
 
+(defn handle-city-production-key [k]
+  (when-let [item (config/key->production-item k)]
+    (when-let [coords (first @atoms/cells-needing-attention)]
+      (let [cell (get-in @atoms/game-map coords)]
+        (when (and (= (:type cell) :city)
+                   (= (:city-status cell) :player)
+                   (not (:contents cell)))
+          (production/set-city-production coords item)
+          (swap! atoms/cells-needing-attention rest)
+          true)))))
+
 (defn remove-dead-units
   "Removes units with hits at or below zero."
   []

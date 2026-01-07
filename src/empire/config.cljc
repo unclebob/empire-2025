@@ -94,6 +94,18 @@
    :unit-needs-attention " needs attention"
    :not-on-map "That's not on the map!"})
 
+;; Key to production item mapping
+(def key->production-item
+  {:a :army
+   :f :fighter
+   :z :satellite
+   :t :transport
+   :p :patrol-boat
+   :d :destroyer
+   :s :submarine
+   :c :carrier
+   :b :battleship})
+
 ;; Unit speeds (cells per turn)
 (def unit-speed
   {:army 1
