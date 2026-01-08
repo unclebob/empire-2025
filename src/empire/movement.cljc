@@ -66,9 +66,14 @@
     (and (= (:type unit) :army) (= (:type next-cell) :city) (= (:city-status next-cell) :player))
     [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :cant-move-into-city) true]
 
+    (and (= (:type unit) :fighter)
+         (= (:type next-cell) :city)
+         (#{:free :computer} (:city-status next-cell)))
+    [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :fighter-over-defended-city) true]
+
     :else [unit false]))
 
-(defn near-conquerable-city? [pos current-map]
+(defn near-hostile-city? [pos current-map]
   (some (fn [[di dj]]
           (let [ni (+ (first pos) di)
                 nj (+ (second pos) dj)
@@ -81,21 +86,26 @@
 (defn wake-after-move [unit final-pos current-map]
   (let [is-at-target? (= final-pos (:target unit))
         dest-cell (get-in @current-map final-pos)
-        [unit-wakes? reason refuel?] (case (:type unit)
-                                       :army [(near-conquerable-city? final-pos current-map) :army-found-city false]
-                                       :fighter (let [entering-city? (= (:type dest-cell) :city)
-                                                      low-fuel? (<= (:fuel unit config/fighter-fuel) 1)]
-                                                  [(or entering-city? low-fuel?)
-                                                   (cond entering-city? :fighter-landed-and-refueled
-                                                         low-fuel? :fighter-out-of-fuel
-                                                         :else nil)
-                                                   entering-city?])
-                                       [false nil false])
+        [unit-wakes? reason refuel? shot-down?] (case (:type unit)
+                                                  :army [(near-hostile-city? final-pos current-map) :army-found-city false false]
+                                                  :fighter (let [entering-city? (= (:type dest-cell) :city)
+                                                                 friendly-city? (= (:city-status dest-cell) :player)
+                                                                 hostile-city? (and entering-city? (not friendly-city?))
+                                                                 low-fuel? (<= (:fuel unit config/fighter-fuel) 1)]
+                                                             (cond
+                                                               hostile-city? [true :fighter-shot-down false true]
+                                                               entering-city? [true :fighter-landed-and-refueled true false]
+                                                               low-fuel? [true :fighter-out-of-fuel false false]
+                                                               :else [false nil false false]))
+                                                  [false nil false false])
         wake-up? (or is-at-target? unit-wakes?)]
+    (when shot-down?
+      (reset! atoms/line3-message (:fighter-destroyed-by-city config/messages)))
     (if wake-up?
       (dissoc (cond-> (assoc unit :mode :awake)
                 (and unit-wakes? reason) (assoc :reason reason)
-                refuel? (assoc :fuel config/fighter-fuel)) :target)
+                refuel? (assoc :fuel config/fighter-fuel)
+                shot-down? (assoc :hits 0 :steps-remaining 0)) :target)
       unit)))
 
 (defn process-consumables [unit to-cell]

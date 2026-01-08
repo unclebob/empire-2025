@@ -24,8 +24,6 @@
         :when (pred current)]
     [i j]))
 
-
-
 (defn color-of [cell]
   (let
     [terrain-type (:type cell)
@@ -185,10 +183,22 @@
         (reset! atoms/line3-message (:conquest-failed config/messages))))
     true))
 
-(defn conquerable-city? [target-coords]
+(defn hostile-city? [target-coords]
   (let [target-cell (get-in @atoms/game-map target-coords)]
     (and (= (:type target-cell) :city)
          (#{:free :computer} (:city-status target-cell)))))
+
+(defn attempt-fighter-overfly
+  "Fighter flies over hostile city and gets shot down."
+  [fighter-coords city-coords]
+  (let [fighter-cell (get-in @atoms/game-map fighter-coords)
+        fighter (:contents fighter-cell)
+        city-cell (get-in @atoms/game-map city-coords)
+        shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
+    (swap! atoms/game-map assoc-in fighter-coords (dissoc fighter-cell :contents))
+    (swap! atoms/game-map assoc-in city-coords (assoc city-cell :contents shot-down-fighter))
+    (reset! atoms/line3-message (:fighter-destroyed-by-city config/messages))
+    true))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
@@ -201,13 +211,18 @@
         (menus/show-menu cell-x cell-y header items))
       ;; Clicked elsewhere
       (let [attn-cell (get-in @atoms/game-map attn-coords)
+            unit-type (:type (:contents attn-cell))
             [ax ay] attn-coords
             [cx cy] clicked-coords
             adjacent? (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))]
-        (if (and (= :army (:type (:contents attn-cell)))
-                 adjacent?
-                 (conquerable-city? clicked-coords))
+        (cond
+          (and (= :army unit-type) adjacent? (hostile-city? clicked-coords))
           (attempt-conquest attn-coords clicked-coords)
+
+          (and (= :fighter unit-type) adjacent? (hostile-city? clicked-coords))
+          (attempt-fighter-overfly attn-coords clicked-coords)
+
+          :else
           (movement/set-unit-movement attn-coords clicked-coords))
         (item-processed)))))
 
@@ -305,13 +320,24 @@
                 target (if extended?
                          (calculate-extended-target coords direction)
                          adjacent-target)]
-            (if (and (= :army (:type unit))
-                     (not extended?)
-                     (conquerable-city? adjacent-target))
+            (cond
+              (and (= :army (:type unit))
+                   (not extended?)
+                   (hostile-city? adjacent-target))
               (do
                 (attempt-conquest coords adjacent-target)
                 (item-processed)
                 true)
+
+              (and (= :fighter (:type unit))
+                   (not extended?)
+                   (hostile-city? adjacent-target))
+              (do
+                (attempt-fighter-overfly coords adjacent-target)
+                (item-processed)
+                true)
+
+              :else
               (do
                 (movement/set-unit-movement coords target)
                 (item-processed)

@@ -350,6 +350,55 @@
           (move-units)
           (should= {:type :land} (get-in @atoms/game-map [4 4]))
           (should= {:type :city :city-status :player :contents {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :reason :fighter-landed-and-refueled}} (get-in @atoms/game-map [4 5]))))
+
+
+      (it "fighter safely lands at friendly city"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 5] :fuel 10}})
+                              (assoc-in [4 5] {:type :city :city-status :player}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (reset! atoms/line3-message "")
+          (move-units)
+          (let [city-cell (get-in @atoms/game-map [4 5])
+                fighter (:contents city-cell)]
+            (should= :fighter (:type fighter))
+            (should= :awake (:mode fighter))
+            (should= :fighter-landed-and-refueled (:reason fighter))
+            (should-not-be-nil fighter))
+          (should= "" @atoms/line3-message)))
+
+      (it "fighter wakes before flying over free city"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 6] :fuel 10}})
+                              (assoc-in [4 5] {:type :city :city-status :free})
+                              (assoc-in [4 6] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (move-units)
+          ;; Fighter should stay at starting position, awake
+          (let [fighter (:contents (get-in @atoms/game-map [4 4]))]
+            (should= :fighter (:type fighter))
+            (should= :awake (:mode fighter))
+            (should= :fighter-over-defended-city (:reason fighter)))
+          ;; City should be empty
+          (should= nil (:contents (get-in @atoms/game-map [4 5])))))
+
+      (it "fighter wakes before flying over computer city"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 6] :fuel 10}})
+                              (assoc-in [4 5] {:type :city :city-status :computer})
+                              (assoc-in [4 6] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (move-units)
+          ;; Fighter should stay at starting position, awake
+          (let [fighter (:contents (get-in @atoms/game-map [4 4]))]
+            (should= :fighter (:type fighter))
+            (should= :awake (:mode fighter))
+            (should= :fighter-over-defended-city (:reason fighter)))
+          ;; City should be empty
+          (should= nil (:contents (get-in @atoms/game-map [4 5])))))
       )
     )
   )

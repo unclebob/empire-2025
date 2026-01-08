@@ -141,3 +141,36 @@
       (should= 0 (:steps-remaining (:contents (get-in @atoms/game-map [0 1]))))
       ;; Try to move again - should return nil since no steps left
       (should= nil (map/move-current-unit [0 1])))))
+
+(describe "attempt-fighter-overfly"
+  (it "shoots down fighter when flying over free city"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :awake}}
+                        {:type :city :city-status :free}]]]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/line3-message "")
+      (map/attempt-fighter-overfly [0 0] [0 1])
+      ;; Fighter should be removed from original cell
+      (should= nil (:contents (get-in @atoms/game-map [0 0])))
+      ;; Fighter should be on city with hits=0
+      (let [fighter (:contents (get-in @atoms/game-map [0 1]))]
+        (should= 0 (:hits fighter))
+        (should= 0 (:steps-remaining fighter))
+        (should= :awake (:mode fighter))
+        (should= :fighter-shot-down (:reason fighter)))
+      (should= (:fighter-destroyed-by-city config/messages) @atoms/line3-message)))
+
+  (it "shoots down fighter when flying over computer city"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :awake}}
+                        {:type :city :city-status :computer}]]]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/line3-message "")
+      (map/attempt-fighter-overfly [0 0] [0 1])
+      ;; Fighter should be removed from original cell
+      (should= nil (:contents (get-in @atoms/game-map [0 0])))
+      ;; Fighter should be on city with hits=0
+      (let [fighter (:contents (get-in @atoms/game-map [0 1]))]
+        (should= 0 (:hits fighter))
+        (should= 0 (:steps-remaining fighter))
+        (should= :awake (:mode fighter))
+        (should= :fighter-shot-down (:reason fighter)))
+      (should= (:fighter-destroyed-by-city config/messages) @atoms/line3-message))))
