@@ -67,8 +67,11 @@
 
         draw-unit (fn [col row cell]
                     (when-let [contents (get-in cell [:contents])]
-                      (let [item (:type contents)]
-                        (apply q/fill config/unit-color)
+                      (let [item (:type contents)
+                            unit-color (if (= :awake (:mode contents))
+                                         config/awake-unit-color
+                                         config/sleeping-unit-color)]
+                        (apply q/fill unit-color)
                         (q/text-font @atoms/production-char-font)
                         (q/text (config/item-chars item) (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))]
 
@@ -276,9 +279,15 @@
           cell (get-in @atoms/game-map [cell-x cell-y])]
       (case button
         :right
-        (if (and (= (:type cell) :city)
-                 (= (:city-status cell) :player))
+        (cond
+          (and (= (:type cell) :city)
+               (= (:city-status cell) :player))
           (handle-city-click cell-x cell-y)
+
+          (= (:owner (:contents cell)) :player)
+          (movement/set-unit-mode [cell-x cell-y] :awake)
+
+          :else
           (reset! atoms/line2-message (str cell)))
 
         :left
