@@ -68,8 +68,9 @@
         draw-unit (fn [col row cell]
                     (when-let [contents (get-in cell [:contents])]
                       (let [item (:type contents)
-                            unit-color (if (= :awake (:mode contents))
-                                         config/awake-unit-color
+                            unit-color (case (:mode contents)
+                                         :awake config/awake-unit-color
+                                         :sentry config/sentry-unit-color
                                          config/sleeping-unit-color)]
                         (apply q/fill unit-color)
                         (q/text-font @atoms/production-char-font)
@@ -367,7 +368,12 @@
   (when-let [coords (first @atoms/cells-needing-attention)]
     (let [cell (get-in @atoms/game-map coords)]
       (if (:contents cell)
-        (handle-unit-movement-key k coords cell)
+        (if (and (= k :s) (not= :city (:type cell)))
+          (do
+            (movement/set-unit-mode coords :sentry)
+            (item-processed)
+            true)
+          (handle-unit-movement-key k coords cell))
         (handle-city-production-key k coords cell)))))
 
 (defn remove-dead-units
@@ -378,7 +384,8 @@
           :let [cell (get-in @atoms/game-map [i j])
                 contents (:contents cell)]
           :when (and contents (<= (:hits contents 1) 0))]
-    (swap! atoms/game-map assoc-in [i j] (dissoc cell :contents))))
+    (swap! atoms/game-map assoc-in [i j] (dissoc cell :contents))
+    (movement/update-cell-visibility [i j] (:owner contents))))
 
 (defn build-player-items
   "Builds list of player city/unit coordinates to process this round."
@@ -451,10 +458,43 @@
     (let [steps (get config/unit-speed (:type unit) 1)]
       (swap! atoms/game-map assoc-in [i j :contents :steps-remaining] steps))))
 
+(defn consume-sentry-fighter-fuel
+  "Consumes fuel for sentry fighters each round, applying fuel warnings."
+  []
+  (doseq [i (range (count @atoms/game-map))
+          j (range (count (first @atoms/game-map)))
+          :let [cell (get-in @atoms/game-map [i j])
+                unit (:contents cell)]
+          :when (and unit
+                     (= :fighter (:type unit))
+                     (= :sentry (:mode unit)))]
+    (let [current-fuel (:fuel unit config/fighter-fuel)
+          new-fuel (dec current-fuel)
+          pos [i j]
+          bingo-threshold (quot config/fighter-fuel 4)
+          low-fuel? (<= new-fuel 1)
+          bingo-fuel? (and (<= new-fuel bingo-threshold)
+                           (movement/friendly-city-in-range? pos new-fuel atoms/game-map))]
+      (cond
+        (<= new-fuel 0)
+        (swap! atoms/game-map assoc-in [i j :contents :hits] 0)
+
+        low-fuel?
+        (swap! atoms/game-map update-in [i j :contents]
+               #(assoc % :fuel new-fuel :mode :awake :reason :fighter-out-of-fuel))
+
+        bingo-fuel?
+        (swap! atoms/game-map update-in [i j :contents]
+               #(assoc % :fuel new-fuel :mode :awake :reason :fighter-bingo))
+
+        :else
+        (swap! atoms/game-map assoc-in [i j :contents :fuel] new-fuel)))))
+
 (defn start-new-round
   "Starts a new round by building player items list and updating game state."
   []
   (swap! atoms/round-number inc)
+  (consume-sentry-fighter-fuel)
   (remove-dead-units)
   (production/update-production)
   (reset-steps-remaining)

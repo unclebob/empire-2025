@@ -174,3 +174,56 @@
         (should= :awake (:mode fighter))
         (should= :fighter-shot-down (:reason fighter)))
       (should= (:fighter-destroyed-by-city config/messages) @atoms/line3-message))))
+
+(describe "sentry mode"
+  (it "handle-key with 's' puts unit in sentry mode"
+    (let [initial-map [[{:type :land :contents {:type :army :owner :player :mode :awake}}]]]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/cells-needing-attention [[0 0]])
+      (map/handle-key :s)
+      (should= :sentry (:mode (:contents (get-in @atoms/game-map [0 0]))))))
+
+  (it "handle-key with 's' does not put unit in sentry when in city"
+    (let [initial-map [[{:type :city :city-status :player :contents {:type :army :owner :player :mode :awake}}]]]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/cells-needing-attention [[0 0]])
+      (map/handle-key :s)
+      (should= :awake (:mode (:contents (get-in @atoms/game-map [0 0]))))))
+
+  (it "sentry units do not move"
+    (let [initial-map [[{:type :land :contents {:type :army :owner :player :mode :sentry}}
+                        {:type :land}]]]
+      (reset! atoms/game-map initial-map)
+      (should= nil (map/move-current-unit [0 0]))
+      (should= :sentry (:mode (:contents (get-in @atoms/game-map [0 0]))))))
+
+  (it "consume-sentry-fighter-fuel decrements fuel each round"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :sentry :fuel 20}}]]]
+      (reset! atoms/game-map initial-map)
+      (map/consume-sentry-fighter-fuel)
+      (should= 19 (:fuel (:contents (get-in @atoms/game-map [0 0]))))))
+
+  (it "consume-sentry-fighter-fuel wakes fighter with bingo warning when city in range"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :sentry :fuel 9}}
+                        {:type :city :city-status :player}]]]
+      (reset! atoms/game-map initial-map)
+      (map/consume-sentry-fighter-fuel)
+      (let [fighter (:contents (get-in @atoms/game-map [0 0]))]
+        (should= 8 (:fuel fighter))
+        (should= :awake (:mode fighter))
+        (should= :fighter-bingo (:reason fighter)))))
+
+  (it "consume-sentry-fighter-fuel wakes fighter with out-of-fuel warning"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :sentry :fuel 2}}]]]
+      (reset! atoms/game-map initial-map)
+      (map/consume-sentry-fighter-fuel)
+      (let [fighter (:contents (get-in @atoms/game-map [0 0]))]
+        (should= 1 (:fuel fighter))
+        (should= :awake (:mode fighter))
+        (should= :fighter-out-of-fuel (:reason fighter)))))
+
+  (it "consume-sentry-fighter-fuel kills fighter when fuel hits zero"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :sentry :fuel 1}}]]]
+      (reset! atoms/game-map initial-map)
+      (map/consume-sentry-fighter-fuel)
+      (should= 0 (:hits (:contents (get-in @atoms/game-map [0 0])))))))
