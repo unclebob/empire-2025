@@ -126,15 +126,7 @@
   (reset! atoms/last-key nil))
 
 (defn mouse-pressed [_ _]
-  (let [x (q/mouse-x)
-        y (q/mouse-y)
-        button (q/mouse-button)]
-    (if (= button :right)
-      (when (map/on-map? x y)
-        (let [[cell-x cell-y] (map/determine-cell-coordinates x y)
-              cell (get-in @atoms/game-map [cell-x cell-y])]
-          (reset! atoms/line2-message (str cell))))
-      (map/mouse-down x y))))
+  (map/mouse-down (q/mouse-x) (q/mouse-y) (q/mouse-button)))
 
 (defn on-close [_]
   (q/no-loop)

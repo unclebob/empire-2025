@@ -268,24 +268,35 @@
 
 (defn mouse-down
   "Handles mouse click events."
-  [x y]
+  [x y button]
   (reset! atoms/line3-message "")
-  (let [[cell-x cell-y] (determine-cell-coordinates x y)]
-    (menus/dismiss-existing-menu x y)
-    (let [clicked-item (menus/handle-menu-click x y)]
-      (when clicked-item
-        (when (= :production (:header @atoms/menu-state))
-          (production/set-city-production (:coords @atoms/menu-state) clicked-item)
-          (item-processed))
-        (when (= :unit (:header @atoms/menu-state))
-          (movement/set-unit-mode (:coords @atoms/menu-state) clicked-item)
-          (item-processed)))
-      (when-not clicked-item
-        (if (on-map? x y)
-          (do
-            (reset! atoms/last-clicked-cell [cell-x cell-y])
-            (handle-cell-click cell-x cell-y))
-          (reset! atoms/line3-message (:not-on-map config/messages)))))))
+  (if-not (on-map? x y)
+    (reset! atoms/line3-message (:not-on-map config/messages))
+    (let [[cell-x cell-y] (determine-cell-coordinates x y)
+          cell (get-in @atoms/game-map [cell-x cell-y])]
+      (case button
+        :right
+        (if (and (= (:type cell) :city)
+                 (= (:city-status cell) :player))
+          (handle-city-click cell-x cell-y)
+          (reset! atoms/line2-message (str cell)))
+
+        :left
+        (do
+          (menus/dismiss-existing-menu x y)
+          (let [clicked-item (menus/handle-menu-click x y)]
+            (when clicked-item
+              (when (= :production (:header @atoms/menu-state))
+                (production/set-city-production (:coords @atoms/menu-state) clicked-item)
+                (item-processed))
+              (when (= :unit (:header @atoms/menu-state))
+                (movement/set-unit-mode (:coords @atoms/menu-state) clicked-item)
+                (item-processed)))
+            (when-not clicked-item
+              (reset! atoms/last-clicked-cell [cell-x cell-y])
+              (handle-cell-click cell-x cell-y))))
+
+        nil))))
 
 (defn- handle-city-production-key [k coords cell]
   (when-let [item (config/key->production-item k)]
