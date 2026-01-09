@@ -309,14 +309,24 @@
 
         nil))))
 
+(def naval-units #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
+
 (defn- handle-city-production-key [k coords cell]
   (when-let [item (config/key->production-item k)]
     (when (and (= (:type cell) :city)
                (= (:city-status cell) :player)
                (not (:contents cell)))
-      (production/set-city-production coords item)
-      (item-processed)
-      true)))
+      (let [[x y] coords
+            coastal? (on-coast? x y)
+            naval? (naval-units item)]
+        (if (and naval? (not coastal?))
+          (do
+            (reset! atoms/line3-message (format "Must be coastal city to produce %s." (name item)))
+            true)
+          (do
+            (production/set-city-production coords item)
+            (item-processed)
+            true))))))
 
 (defn- calculate-extended-target [coords [dx dy]]
   (let [height (count @atoms/game-map)
