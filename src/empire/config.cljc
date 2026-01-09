@@ -99,6 +99,7 @@
    :conquest-failed "Conquest Failed"
    :cant-move-into-water "Can't move into water."
    :cant-move-into-city "Can't move into city."
+   :ships-cant-drive-on-land "Ships don't drive on land."
    :somethings-in-the-way "Something's in the way."
    :city-needs-attention "City needs attention"
    :unit-needs-attention " needs attention"

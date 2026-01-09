@@ -55,6 +55,8 @@
                 game-cell (get-in @atoms/game-map [ni nj])]
             (swap! visible-map-atom assoc-in [ni nj] game-cell)))))))
 
+(def naval-units #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
+
 (defn wake-before-move [unit next-cell]
   (cond
     (:contents next-cell)
@@ -70,6 +72,9 @@
          (= (:type next-cell) :city)
          (#{:free :computer} (:city-status next-cell)))
     [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :fighter-over-defended-city) true]
+
+    (and (naval-units (:type unit)) (= (:type next-cell) :land))
+    [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :ships-cant-drive-on-land) true]
 
     :else [unit false]))
 
