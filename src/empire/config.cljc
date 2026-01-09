@@ -31,6 +31,12 @@
 ;; Reverse lookup: display strings -> keywords
 (def menu-strings->items (clojure.set/map-invert menu-items->strings))
 
+;; Naval unit types (require coastal cities to produce, can only travel on water)
+(def naval-unit? #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
+
+;; Hostile city status (not player-owned)
+(def hostile-city? #{:free :computer})
+
 ;; Production rounds required for each item
 (def item-cost
   {:army 5

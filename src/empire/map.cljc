@@ -191,7 +191,7 @@
 (defn hostile-city? [target-coords]
   (let [target-cell (get-in @atoms/game-map target-coords)]
     (and (= (:type target-cell) :city)
-         (#{:free :computer} (:city-status target-cell)))))
+         (config/hostile-city? (:city-status target-cell)))))
 
 (defn attempt-fighter-overfly
   "Fighter flies over hostile city and gets shot down."
@@ -309,8 +309,6 @@
 
         nil))))
 
-(def naval-units #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
-
 (defn- handle-city-production-key [k coords cell]
   (when-let [item (config/key->production-item k)]
     (when (and (= (:type cell) :city)
@@ -318,7 +316,7 @@
                (not (:contents cell)))
       (let [[x y] coords
             coastal? (on-coast? x y)
-            naval? (naval-units item)]
+            naval? (config/naval-unit? item)]
         (if (and naval? (not coastal?))
           (do
             (reset! atoms/line3-message (format "Must be coastal city to produce %s." (name item)))
@@ -439,7 +437,7 @@
                                                 adj-cell (get-in @atoms/game-map [ni nj])]
                                             (and adj-cell
                                                  (= (:type adj-cell) :city)
-                                                 (#{:free :computer} (:city-status adj-cell)))))
+                                                 (config/hostile-city? (:city-status adj-cell)))))
                                         (for [di [-1 0 1] dj [-1 0 1]] [di dj])))]
     (reset! atoms/message (if (:contents cell)
                             (let [unit (:contents cell)

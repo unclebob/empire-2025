@@ -55,8 +55,6 @@
                 game-cell (get-in @atoms/game-map [ni nj])]
             (swap! visible-map-atom assoc-in [ni nj] game-cell)))))))
 
-(def naval-units #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
-
 (defn wake-before-move [unit next-cell]
   (cond
     (:contents next-cell)
@@ -70,10 +68,10 @@
 
     (and (= (:type unit) :fighter)
          (= (:type next-cell) :city)
-         (#{:free :computer} (:city-status next-cell)))
+         (config/hostile-city? (:city-status next-cell)))
     [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :fighter-over-defended-city) true]
 
-    (and (naval-units (:type unit)) (= (:type next-cell) :land))
+    (and (config/naval-unit? (:type unit)) (= (:type next-cell) :land))
     [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :ships-cant-drive-on-land) true]
 
     :else [unit false]))
@@ -85,7 +83,7 @@
                 adj-cell (get-in @current-map [ni nj])]
             (and adj-cell
                  (= (:type adj-cell) :city)
-                 (#{:free :computer} (:city-status adj-cell)))))
+                 (config/hostile-city? (:city-status adj-cell)))))
         (for [di [-1 0 1] dj [-1 0 1]] [di dj])))
 
 (defn friendly-city-in-range? [pos max-dist current-map]
