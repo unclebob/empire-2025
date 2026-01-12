@@ -158,7 +158,8 @@
     unit))
 
 (defn load-adjacent-sentry-armies
-  "Loads adjacent sentry armies onto a transport at the given coords."
+  "Loads adjacent sentry armies onto a transport at the given coords.
+   Wakes up the transport if it has armies and is at a beach."
   [transport-coords]
   (let [cell (get-in @atoms/game-map transport-coords)
         unit (:contents cell)]
@@ -181,7 +182,14 @@
                            (= (:owner adj-unit) (:owner transport))
                            (< current-armies config/transport-capacity))
                   (swap! atoms/game-map assoc-in [nx ny] (dissoc adj-cell :contents))
-                  (swap! atoms/game-map update-in (conj transport-coords :contents :armies) (fnil conj []) adj-unit))))))))))
+                  (swap! atoms/game-map update-in (conj transport-coords :contents :armies) (fnil conj []) adj-unit))))))
+        ;; After loading, wake transport if at beach with armies
+        (let [updated-transport (get-in @atoms/game-map (conj transport-coords :contents))
+              has-armies? (pos? (count (or (:armies updated-transport) [])))
+              at-beach? (adjacent-to-land? transport-coords atoms/game-map)]
+          (when (and has-armies? at-beach? (= (:mode updated-transport) :sentry))
+            (swap! atoms/game-map update-in (conj transport-coords :contents)
+                   #(assoc % :mode :awake :reason :transport-at-beach))))))))
 
 (defn do-move [from-coords final-pos cell final-unit]
   (let [from-cell (dissoc cell :contents)
@@ -281,20 +289,21 @@
     (swap! atoms/game-map assoc-in transport-coords updated-cell)))
 
 (defn disembark-army-from-transport
-  "Removes first awake army from transport and sets it moving to target."
+  "Removes first awake army from transport and places it on target land cell.
+   Army remains awake and ready for orders. Other armies remain on transport."
   [transport-coords target-coords]
   (let [cell (get-in @atoms/game-map transport-coords)
         transport (:contents cell)
         armies (or (:armies transport) [])
-        awake-army (first (filter #(= (:mode %) :awake) armies))
-        remaining-armies (vec (remove #(= % awake-army) armies))
-        moving-army (-> awake-army
-                        (assoc :mode :moving :target target-coords)
-                        (dissoc :reason))
+        ;; Split into: armies before first awake, first awake army, armies after
+        [before-awake after-split] (split-with #(not= (:mode %) :awake) armies)
+        awake-army (first after-split)
+        remaining-armies (vec (concat before-awake (rest after-split)))
+        disembarked-army (dissoc awake-army :reason)  ; Keep :awake mode
         updated-transport (assoc transport :armies remaining-armies)
         updated-cell (assoc cell :contents updated-transport)]
     (swap! atoms/game-map assoc-in transport-coords updated-cell)
-    (swap! atoms/game-map assoc-in (conj target-coords :contents) moving-army)
+    (swap! atoms/game-map assoc-in (conj target-coords :contents) disembarked-army)
     (update-cell-visibility target-coords (:owner awake-army))))
 
 (defn set-unit-mode [coords mode]
