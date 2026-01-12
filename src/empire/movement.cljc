@@ -278,19 +278,24 @@
     (swap! atoms/game-map assoc-in transport-coords updated-cell)))
 
 (defn sleep-armies-on-transport
-  "Puts all armies aboard the transport back to sleep (sentry mode)."
+  "Puts all armies aboard the transport back to sleep (sentry mode).
+   Wakes up the transport so it can receive orders."
   [transport-coords]
   (let [cell (get-in @atoms/game-map transport-coords)
         transport (:contents cell)
         armies (or (:armies transport) [])
         sleeping-armies (mapv #(assoc % :mode :sentry) armies)
-        updated-transport (assoc transport :armies sleeping-armies)
+        updated-transport (-> transport
+                              (assoc :armies sleeping-armies)
+                              (assoc :mode :awake)
+                              (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
     (swap! atoms/game-map assoc-in transport-coords updated-cell)))
 
 (defn disembark-army-from-transport
   "Removes first awake army from transport and places it on target land cell.
-   Army remains awake and ready for orders. Other armies remain on transport."
+   Army remains awake and ready for orders. Other armies remain on transport.
+   Wakes the transport when last army disembarks."
   [transport-coords target-coords]
   (let [cell (get-in @atoms/game-map transport-coords)
         transport (:contents cell)
@@ -299,8 +304,11 @@
         [before-awake after-split] (split-with #(not= (:mode %) :awake) armies)
         awake-army (first after-split)
         remaining-armies (vec (concat before-awake (rest after-split)))
+        no-more-awake? (not (some #(= (:mode %) :awake) remaining-armies))
         disembarked-army (dissoc awake-army :reason)  ; Keep :awake mode
-        updated-transport (assoc transport :armies remaining-armies)
+        updated-transport (cond-> (assoc transport :armies remaining-armies)
+                            no-more-awake? (assoc :mode :awake)
+                            no-more-awake? (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
     (swap! atoms/game-map assoc-in transport-coords updated-cell)
     (swap! atoms/game-map assoc-in (conj target-coords :contents) disembarked-army)
