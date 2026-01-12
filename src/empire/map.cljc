@@ -70,7 +70,30 @@
                     (let [contents (:contents cell)
                           has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
                           has-any-airport-fighter? (pos? (uc/get-count cell :fighter-count))
+                          has-awake-carrier-fighter? (and (= (:type contents) :carrier)
+                                                         (uc/has-awake? contents :awake-fighters))
+                          has-awake-army-aboard? (and (= (:type contents) :transport)
+                                                     (uc/has-awake? contents :awake-armies))
+                          ;; Check if this is attention cell with unit in container
+                          attention-coords @atoms/cells-needing-attention
+                          is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
+                          show-contained-unit? (and is-attention-cell?
+                                                    (or has-awake-airport-fighter?
+                                                        has-awake-carrier-fighter?
+                                                        has-awake-army-aboard?)
+                                                    (even? (quot (q/frame-count) 8)))
                           display-unit (cond
+                                         ;; Alternate: show contained unit (even frames)
+                                         (and show-contained-unit? has-awake-airport-fighter?)
+                                         {:type :fighter :mode :awake}
+                                         (and show-contained-unit? has-awake-carrier-fighter?)
+                                         {:type :fighter :mode :awake}
+                                         (and show-contained-unit? has-awake-army-aboard?)
+                                         {:type :army :mode :awake}
+                                         ;; Alternate: show container (odd frames) - airport shows nothing
+                                         (and is-attention-cell? has-awake-airport-fighter? (not show-contained-unit?))
+                                         nil
+                                         ;; Normal display logic
                                          (and contents (= (:mode contents) :awake)) contents
                                          has-awake-airport-fighter? {:type :fighter :mode :awake}
                                          contents contents
@@ -249,10 +272,16 @@
             adjacent? (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))]
         (cond
           is-airport-fighter?
-          (movement/launch-fighter-from-airport attn-coords clicked-coords)
+          (let [fighter-pos (movement/launch-fighter-from-airport attn-coords clicked-coords)]
+            (reset! atoms/waiting-for-input false)
+            (reset! atoms/message "")
+            (reset! atoms/cells-needing-attention [])
+            (swap! atoms/player-items #(cons fighter-pos (rest %))))
 
           (and is-army-aboard? adjacent? (= (:type target-cell) :land) (not (:contents target-cell)))
-          (movement/disembark-army-from-transport attn-coords clicked-coords)
+          (do
+            (movement/disembark-army-from-transport attn-coords clicked-coords)
+            (item-processed))
 
           is-army-aboard?
           nil ;; Awake army aboard - ignore invalid disembark targets
@@ -346,11 +375,21 @@
         nil))))
 
 (defn- handle-city-production-key [k coords cell]
-  (when-let [item (config/key->production-item k)]
-    (when (and (= (:type cell) :city)
-               (= (:city-status cell) :player)
-               (not (:contents cell)))
-      (let [[x y] coords
+  (when (and (= (:type cell) :city)
+             (= (:city-status cell) :player)
+             (not (:contents cell)))
+    (cond
+      ;; 'x' sets production to nothing
+      (= k :x)
+      (do
+        (swap! atoms/production assoc coords :none)
+        (item-processed)
+        true)
+
+      ;; Standard production keys
+      (config/key->production-item k)
+      (let [item (config/key->production-item k)
+            [x y] coords
             coastal? (on-coast? x y)
             naval? (config/naval-unit? item)]
         (if (and naval? (not coastal?))
@@ -392,20 +431,30 @@
                          adjacent-target)]
             (cond
               is-airport-fighter?
-              (do
-                (movement/launch-fighter-from-airport coords target)
-                (item-processed)
+              (let [fighter-pos (movement/launch-fighter-from-airport coords target)]
+                (reset! atoms/waiting-for-input false)
+                (reset! atoms/message "")
+                (reset! atoms/cells-needing-attention [])
+                (swap! atoms/player-items #(cons fighter-pos (rest %)))
                 true)
 
               is-carrier-fighter?
+              (let [fighter-pos (movement/launch-fighter-from-carrier coords target)]
+                (reset! atoms/waiting-for-input false)
+                (reset! atoms/message "")
+                (reset! atoms/cells-needing-attention [])
+                (swap! atoms/player-items #(cons fighter-pos (rest %)))
+                true)
+
+              (and is-army-aboard? (not extended?) (= (:type target-cell) :land) (not (:contents target-cell)))
               (do
-                (movement/launch-fighter-from-carrier coords target)
+                (movement/disembark-army-from-transport coords adjacent-target)
                 (item-processed)
                 true)
 
-              (and is-army-aboard? (= (:type target-cell) :land) (not (:contents target-cell)))
+              (and is-army-aboard? extended? (= (:type target-cell) :land) (not (:contents target-cell)))
               (do
-                (movement/disembark-army-from-transport coords adjacent-target)
+                (movement/disembark-army-with-target coords adjacent-target target)
                 (item-processed)
                 true)
 
@@ -485,6 +534,25 @@
             (item-processed)
             true)
 
+          (and (= k :x) is-army-aboard?)
+          (let [[x y] coords
+                adjacent-cells (for [dx [-1 0 1] dy [-1 0 1]
+                                     :when (not (and (zero? dx) (zero? dy)))]
+                                 [(+ x dx) (+ y dy)])
+                valid-target (first (filter (fn [target]
+                                              (let [tcell (get-in @atoms/game-map target)]
+                                                (and tcell
+                                                     (= :land (:type tcell))
+                                                     (not (:contents tcell)))))
+                                            adjacent-cells))]
+            (when valid-target
+              (let [army-pos (movement/disembark-army-to-explore coords valid-target)]
+                (reset! atoms/waiting-for-input false)
+                (reset! atoms/message "")
+                (reset! atoms/cells-needing-attention [])
+                (swap! atoms/player-items #(cons army-pos (rest %)))))
+            true)
+
           :else
           (handle-unit-movement-key k coords cell))
         (handle-city-production-key k coords cell)))))
@@ -535,8 +603,9 @@
         unit (:contents cell)
         active-unit (movement/get-active-unit cell)
         is-airport-fighter? (movement/is-fighter-from-airport? cell active-unit)
-        awake-army-aboard? (pos? (:awake-armies unit 0))
-        adjacent-enemy-city? (and (= :army (:type unit))
+        is-carrier-fighter? (movement/is-fighter-from-carrier? cell active-unit)
+        is-army-aboard? (movement/is-army-aboard-transport? cell active-unit)
+        adjacent-enemy-city? (and (= :army (:type active-unit))
                                   (some (fn [[di dj]]
                                           (let [ni (+ ax di)
                                                 nj (+ ay dj)
@@ -547,19 +616,26 @@
                                         (for [di [-1 0 1] dj [-1 0 1]] [di dj])))]
     (reset! atoms/message (cond
                             is-airport-fighter?
-                            "Fighter needs attention, refuelled."
+                            (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages))
 
-                            awake-army-aboard?
-                            (str "Army aboard transport" (:unit-needs-attention config/messages) " - " (:transport-at-beach config/messages))
+                            is-carrier-fighter?
+                            (str "Fighter" (:unit-needs-attention config/messages) " - aboard carrier (" (:fighter-count unit 0) " fighters)")
 
-                            unit
-                            (let [unit-name (name (:type unit))
-                                  armies-str (when (= (:type unit) :transport)
-                                               (str " (" (:army-count unit 0) " armies)"))
-                                  reason-key (or (:reason unit)
+                            is-army-aboard?
+                            (str "Army" (:unit-needs-attention config/messages) " - aboard transport (" (:army-count unit 0) " armies) - " (:transport-at-beach config/messages))
+
+                            active-unit
+                            (let [unit-name (name (:type active-unit))
+                                  cargo-str (cond
+                                              (= (:type active-unit) :transport)
+                                              (str " (" (:army-count active-unit 0) " armies)")
+                                              (= (:type active-unit) :carrier)
+                                              (str " (" (:fighter-count active-unit 0) " fighters)")
+                                              :else nil)
+                                  reason-key (or (:reason active-unit)
                                                  (when adjacent-enemy-city? :army-found-city))
                                   reason-str (when reason-key (reason-key config/messages))]
-                              (str unit-name (:unit-needs-attention config/messages) (or armies-str "") (if reason-str (str " - " reason-str) "")))
+                              (str unit-name (:unit-needs-attention config/messages) (or cargo-str "") (if reason-str (str " - " reason-str) "")))
 
                             :else
                             (:city-needs-attention config/messages)))))
