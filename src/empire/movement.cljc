@@ -1,6 +1,7 @@
 (ns empire.movement
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.map-utils :as map-utils]
             [empire.unit-container :as uc]))
 
 (defn is-players?
@@ -90,7 +91,7 @@
             (and adj-cell
                  (= (:type adj-cell) :city)
                  (config/hostile-city? (:city-status adj-cell)))))
-        (for [di [-1 0 1] dj [-1 0 1]] [di dj])))
+        map-utils/neighbor-offsets))
 
 (defn friendly-city-in-range? [pos max-dist current-map]
   (let [[px py] pos
@@ -115,7 +116,7 @@
               (and (>= nx 0) (< nx height)
                    (>= ny 0) (< ny width)
                    (= :land (:type (get-in @current-map [nx ny]))))))
-          [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
+          map-utils/neighbor-offsets)))
 
 (defn wake-after-move [unit final-pos current-map]
   (let [is-at-target? (= final-pos (:target unit))
@@ -173,7 +174,7 @@
       (let [[tx ty] transport-coords
             height (count @atoms/game-map)
             width (count (first @atoms/game-map))]
-        (doseq [[dx dy] [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]]
+        (doseq [[dx dy] map-utils/neighbor-offsets]
           (let [nx (+ tx dx)
                 ny (+ ty dy)]
             (when (and (>= nx 0) (< nx height) (>= ny 0) (< ny width))
@@ -476,7 +477,7 @@
               (and (>= nx 0) (< nx height)
                    (>= ny 0) (< ny width)
                    (= :sea (:type (get-in @current-map [nx ny]))))))
-          [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
+          map-utils/neighbor-offsets)))
 
 (defn get-valid-explore-moves
   "Returns list of valid adjacent positions for exploration."
@@ -484,7 +485,7 @@
   (let [[x y] pos
         height (count @current-map)
         width (count (first @current-map))]
-    (for [[dx dy] [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]
+    (for [[dx dy] map-utils/neighbor-offsets
           :let [nx (+ x dx)
                 ny (+ y dy)
                 cell (when (and (>= nx 0) (< nx height)
@@ -505,7 +506,7 @@
               (and (>= nx 0) (< nx height)
                    (>= ny 0) (< ny width)
                    (nil? (get-in @atoms/player-map [nx ny])))))
-          [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
+          map-utils/neighbor-offsets)))
 
 (defn get-unexplored-explore-moves
   "Returns valid moves that are adjacent to unexplored cells."

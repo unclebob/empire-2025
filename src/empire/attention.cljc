@@ -1,6 +1,7 @@
 (ns empire.attention
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.map-utils :as map-utils]
             [empire.movement :as movement]
             [empire.unit-container :as uc]))
 
@@ -85,7 +86,7 @@
                                             (and adj-cell
                                                  (= (:type adj-cell) :city)
                                                  (config/hostile-city? (:city-status adj-cell)))))
-                                        (for [di [-1 0 1] dj [-1 0 1]] [di dj])))]
+                                        map-utils/neighbor-offsets))]
     (reset! atoms/message (cond
                             is-airport-fighter?
                             (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages))

@@ -1,6 +1,10 @@
 (ns empire.map-utils
   (:require [empire.atoms :as atoms]))
 
+(def neighbor-offsets
+  "Offsets for the 8 adjacent cells (excludes center)."
+  [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+
 (defn get-cell
   "Returns the cell from atoms/game-map at the given coordinates."
   ([x y]
@@ -43,7 +47,7 @@
               (and (>= nx 0) (< nx cols)
                    (>= ny 0) (< ny rows)
                    (= :sea (:type (get-in game-map-val [nx ny]))))))
-          [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
+          neighbor-offsets)))
 
 (defn on-map?
   "Returns true if the pixel coordinates are within the map display area."

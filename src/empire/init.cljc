@@ -62,7 +62,7 @@
               (and (>= ni 0) (< ni height)
                    (>= nj 0) (< nj width)
                    (= :sea (:type (get-in the-map [ni nj]))))))
-          [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])))
+          map-utils/neighbor-offsets)))
 
 (defn count-surrounding-land
   "Counts land cells in a 5x5 area centered on [i j], excluding the center."
