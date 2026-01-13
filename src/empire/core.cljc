@@ -203,15 +203,21 @@
             contents (:contents cell)]
         (cond
           ;; Wake a friendly city - remove production and wake sleeping fighters
+          ;; Also skip any unit at this location from attention queue
           (and (= (:type cell) :city)
                (= (:city-status cell) :player))
           (let [sleeping (get cell :sleeping-fighters 0)
-                awake (get cell :awake-fighters 0)]
-            (swap! atoms/production dissoc [cx cy])
+                awake (get cell :awake-fighters 0)
+                coords [cx cy]]
+            (swap! atoms/production dissoc coords)
             (when (pos? sleeping)
-              (swap! atoms/game-map update-in [cx cy] assoc
+              (swap! atoms/game-map update-in coords assoc
                      :sleeping-fighters 0
                      :awake-fighters (+ awake sleeping)))
+            ;; Skip unit at this city if it's currently needing attention
+            (when (= coords (first @atoms/cells-needing-attention))
+              (swap! atoms/player-items rest)
+              (game-loop/item-processed))
             true)
 
           ;; Wake a sleeping/sentry/explore friendly unit (not already awake)
