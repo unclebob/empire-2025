@@ -21,9 +21,17 @@
                 (let [game-map @atoms/game-map
                       cell (get-in game-map coords)
                       owner (:city-status cell)
+                      marching-orders (:marching-orders cell)
+                      flight-path (:flight-path cell)
                       unit {:type item :hits (config/item-hits item) :mode :awake :owner owner}
-                       unit (if (= item :fighter) (assoc unit :fuel config/fighter-fuel) unit)
-                       cell (assoc cell :contents unit)]
+                      unit (if (= item :fighter) (assoc unit :fuel config/fighter-fuel) unit)
+                      unit (cond
+                             (and (= item :army) marching-orders)
+                             (assoc unit :mode :moving :target marching-orders)
+                             (and (= item :fighter) flight-path)
+                             (assoc unit :mode :moving :target flight-path)
+                             :else unit)
+                      cell (assoc cell :contents unit)]
                   (swap! atoms/game-map assoc-in coords cell)
                   (swap! atoms/production assoc coords (assoc prod :remaining-rounds (config/item-cost item)))))
               (swap! atoms/production assoc coords (assoc prod :remaining-rounds remaining)))))))))

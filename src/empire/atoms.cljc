@@ -63,3 +63,7 @@
 (def computer-map
   "An atom containing the computer's visible map areas."
   (atom {}))
+
+(def destination
+  "An atom containing the remembered destination coordinates for marching orders/flight paths."
+  (atom nil))

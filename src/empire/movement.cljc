@@ -204,6 +204,8 @@
                                    (= (:type processed-unit) :fighter)
                                    (= (:type to-cell) :city)
                                    (= (:city-status to-cell) :player))
+        fighter-at-target? (and fighter-landing-city?
+                                (= (:target final-unit) final-pos))
         fighter-landing-carrier? (and processed-unit
                                       (= (:type processed-unit) :fighter)
                                       (= (:type to-contents) :carrier)
@@ -211,6 +213,9 @@
                                       (not (uc/full? to-contents :fighter-count config/carrier-capacity)))
         updated-to-cell (cond
                           (nil? processed-unit) (dissoc to-cell :contents)
+                          fighter-at-target? (-> to-cell
+                                                 (uc/add-unit :fighter-count)
+                                                 (update :sleeping-fighters (fnil inc 0)))
                           fighter-landing-city? (-> to-cell
                                                     (uc/add-unit :fighter-count)
                                                     (update :resting-fighters (fnil inc 0)))

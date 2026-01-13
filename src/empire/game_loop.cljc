@@ -67,7 +67,8 @@
 
 (defn wake-airport-fighters
   "Wakes fighters in player city airports at start of round.
-   Fighters that just landed (resting) stay asleep this round but will wake next round."
+   Fighters that just landed (resting) stay asleep this round but will wake next round.
+   Fighters that landed at their target (sleeping) stay asleep until manually woken."
   []
   (doseq [i (range (count @atoms/game-map))
           j (range (count (first @atoms/game-map)))
@@ -77,7 +78,8 @@
                      (pos? (uc/get-count cell :fighter-count)))]
     (let [total (uc/get-count cell :fighter-count)
           resting (get cell :resting-fighters 0)
-          to-wake (- total resting)]
+          sleeping (get cell :sleeping-fighters 0)
+          to-wake (- total resting sleeping)]
       (swap! atoms/game-map update-in [i j] assoc
              :awake-fighters to-wake
              :resting-fighters 0))))
@@ -140,6 +142,45 @@
   [coords]
   (movement/move-explore-unit coords))
 
+(defn- auto-launch-fighter [coords cell]
+  "Auto-launches a fighter from city airport or carrier if flight-path is set.
+   Returns new coords if launched, nil otherwise."
+  (let [flight-path (or (:flight-path cell)
+                        (:flight-path (:contents cell)))
+        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
+        has-awake-carrier-fighter? (and (= (:type (:contents cell)) :carrier)
+                                        (uc/has-awake? (:contents cell) :awake-fighters))]
+    (when flight-path
+      (cond
+        has-awake-airport-fighter?
+        (movement/launch-fighter-from-airport coords flight-path)
+
+        has-awake-carrier-fighter?
+        (movement/launch-fighter-from-carrier coords flight-path)
+
+        :else nil))))
+
+(defn- auto-disembark-army [coords cell]
+  "Auto-disembarks an army from transport if marching-orders is set.
+   Returns new coords if disembarked, nil otherwise."
+  (let [contents (:contents cell)
+        marching-orders (:marching-orders contents)
+        has-awake-army? (and (= (:type contents) :transport)
+                             (pos? (:awake-armies contents 0)))]
+    (when (and marching-orders has-awake-army?)
+      (let [[x y] coords
+            adjacent-cells (for [dx [-1 0 1] dy [-1 0 1]
+                                 :when (not (and (zero? dx) (zero? dy)))]
+                             [(+ x dx) (+ y dy)])
+            valid-target (first (filter (fn [target]
+                                          (let [tcell (get-in @atoms/game-map target)]
+                                            (and tcell
+                                                 (= :land (:type tcell))
+                                                 (not (:contents tcell)))))
+                                        adjacent-cells))]
+        (when valid-target
+          (movement/disembark-army-with-target coords valid-target marching-orders))))))
+
 (defn advance-game
   "Advances the game by processing the current item or starting new round."
   []
@@ -149,18 +190,21 @@
       (let [coords (first @atoms/player-items)
             cell (get-in @atoms/game-map coords)
             unit (:contents cell)]
-        (if (attention/item-needs-attention? coords)
-          (do
-            (reset! atoms/cells-needing-attention [coords])
-            (attention/set-attention-message coords)
-            (reset! atoms/waiting-for-input true))
-          (let [new-coords (case (:mode unit)
-                             :explore (move-explore-unit coords)
-                             :moving (move-current-unit coords)
-                             nil)]
-            (if new-coords
-              (swap! atoms/player-items #(cons new-coords (rest %)))
-              (swap! atoms/player-items rest))))))))
+        (if-let [auto-coords (or (auto-launch-fighter coords cell)
+                                 (auto-disembark-army coords cell))]
+          (swap! atoms/player-items #(cons auto-coords (rest %)))
+          (if (attention/item-needs-attention? coords)
+            (do
+              (reset! atoms/cells-needing-attention [coords])
+              (attention/set-attention-message coords)
+              (reset! atoms/waiting-for-input true))
+            (let [new-coords (case (:mode unit)
+                               :explore (move-explore-unit coords)
+                               :moving (move-current-unit coords)
+                               nil)]
+              (if new-coords
+                (swap! atoms/player-items #(cons new-coords (rest %)))
+                (swap! atoms/player-items rest)))))))))
 
 (defn update-map
   "Updates the game map state."
