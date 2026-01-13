@@ -8,6 +8,70 @@
             [empire.input :as input]
             [empire.movement :as movement]))
 
+(describe "build-player-items"
+  (it "returns coordinates of player cities"
+    (reset! atoms/game-map [[{:type :city :city-status :player}
+                             {:type :city :city-status :computer}]])
+    (should= [[0 0]] (vec (game-loop/build-player-items))))
+
+  (it "returns coordinates of player units"
+    (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :player}}
+                             {:type :land :contents {:type :army :owner :computer}}]])
+    (should= [[0 0]] (vec (game-loop/build-player-items))))
+
+  (it "returns both cities and units"
+    (reset! atoms/game-map [[{:type :city :city-status :player}
+                             {:type :land :contents {:type :army :owner :player}}]
+                            [{:type :land}
+                             {:type :city :city-status :computer}]])
+    (should= [[0 0] [0 1]] (vec (game-loop/build-player-items))))
+
+  (it "returns empty list when no player items"
+    (reset! atoms/game-map [[{:type :sea} {:type :land}]])
+    (should= [] (vec (game-loop/build-player-items)))))
+
+(describe "item-processed"
+  (it "resets waiting-for-input to false"
+    (reset! atoms/waiting-for-input true)
+    (game-loop/item-processed)
+    (should= false @atoms/waiting-for-input))
+
+  (it "clears message"
+    (reset! atoms/message "Some message")
+    (game-loop/item-processed)
+    (should= "" @atoms/message))
+
+  (it "clears cells-needing-attention"
+    (reset! atoms/cells-needing-attention [[0 0] [1 1]])
+    (game-loop/item-processed)
+    (should= [] @atoms/cells-needing-attention)))
+
+(describe "wake-airport-fighters"
+  (it "wakes fighters in player city airports"
+    (reset! atoms/game-map [[{:type :city :city-status :player :fighter-count 3 :awake-fighters 0}]])
+    (game-loop/wake-airport-fighters)
+    (should= 3 (:awake-fighters (get-in @atoms/game-map [0 0]))))
+
+  (it "does not wake resting fighters"
+    (reset! atoms/game-map [[{:type :city :city-status :player :fighter-count 3 :resting-fighters 2 :awake-fighters 0}]])
+    (game-loop/wake-airport-fighters)
+    (should= 1 (:awake-fighters (get-in @atoms/game-map [0 0]))))
+
+  (it "clears resting-fighters count"
+    (reset! atoms/game-map [[{:type :city :city-status :player :fighter-count 3 :resting-fighters 2}]])
+    (game-loop/wake-airport-fighters)
+    (should= 0 (:resting-fighters (get-in @atoms/game-map [0 0]))))
+
+  (it "ignores computer cities"
+    (reset! atoms/game-map [[{:type :city :city-status :computer :fighter-count 3 :awake-fighters 0}]])
+    (game-loop/wake-airport-fighters)
+    (should= 0 (:awake-fighters (get-in @atoms/game-map [0 0]))))
+
+  (it "ignores cities with no fighters"
+    (reset! atoms/game-map [[{:type :city :city-status :player :fighter-count 0}]])
+    (game-loop/wake-airport-fighters)
+    (should= nil (:awake-fighters (get-in @atoms/game-map [0 0])))))
+
 (describe "cells-needing-attention"
   (it "returns empty list when no player cells"
     (reset! atoms/player-map [[{:type :sea }
@@ -402,3 +466,32 @@
       (let [unit (:contents (get-in @atoms/game-map [0 1]))]
         (should= :awake (:mode unit))
         (should= :army-found-city (:reason unit))))))
+
+(describe "calculate-extended-target"
+  (it "calculates target at map edge going east"
+    (reset! atoms/game-map (vec (repeat 5 (vec (repeat 5 {:type :land})))))
+    (should= [4 0] (#'input/calculate-extended-target [0 0] [1 0])))
+
+  (it "calculates target at map edge going south"
+    (reset! atoms/game-map (vec (repeat 5 (vec (repeat 5 {:type :land})))))
+    (should= [0 4] (#'input/calculate-extended-target [0 0] [0 1])))
+
+  (it "calculates target at map edge going southeast"
+    (reset! atoms/game-map (vec (repeat 5 (vec (repeat 5 {:type :land})))))
+    (should= [4 4] (#'input/calculate-extended-target [0 0] [1 1])))
+
+  (it "calculates target at map edge going west"
+    (reset! atoms/game-map (vec (repeat 5 (vec (repeat 5 {:type :land})))))
+    (should= [0 2] (#'input/calculate-extended-target [4 2] [-1 0])))
+
+  (it "calculates target at map edge going north"
+    (reset! atoms/game-map (vec (repeat 5 (vec (repeat 5 {:type :land})))))
+    (should= [2 0] (#'input/calculate-extended-target [2 4] [0 -1])))
+
+  (it "returns starting position when already at edge"
+    (reset! atoms/game-map (vec (repeat 5 (vec (repeat 5 {:type :land})))))
+    (should= [0 0] (#'input/calculate-extended-target [0 0] [-1 0])))
+
+  (it "works with non-square maps"
+    (reset! atoms/game-map (vec (repeat 10 (vec (repeat 3 {:type :land})))))
+    (should= [9 1] (#'input/calculate-extended-target [0 1] [1 0]))))
