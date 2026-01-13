@@ -332,7 +332,7 @@
       (= k (keyword ".")) (set-destination-at-mouse)
       (and (= k :m) (set-marching-orders-at-mouse)) nil
       (and (= k :f) @atoms/destination (set-flight-path-at-mouse)) nil
-      (and (= k :w) (wake-at-mouse)) nil
+      (and (= k :u) (wake-at-mouse)) nil
       (set-city-marching-orders-by-direction k) nil
       (input/handle-key k) nil
       :else nil)))

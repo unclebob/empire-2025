@@ -194,13 +194,13 @@
             (game-loop/item-processed)
             true)
 
-          (and (= k :w) transport-at-beach?)
+          (and (= k :u) transport-at-beach?)
           (do
             (movement/wake-armies-on-transport coords)
             (game-loop/item-processed)
             true)
 
-          (and (= k :w) carrier-with-fighters?)
+          (and (= k :u) carrier-with-fighters?)
           (do
             (movement/wake-fighters-on-carrier coords)
             (game-loop/item-processed)
