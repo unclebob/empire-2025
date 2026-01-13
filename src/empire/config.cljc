@@ -94,25 +94,25 @@
 
 ;; Key to movement direction mapping [dx dy]
 (def key->direction
-  {:u [-1 -1]   ; northwest
-   :i [0 -1]    ; north
-   :o [1 -1]    ; northeast
-   :j [-1 0]    ; west
-   :l [1 0]     ; east
-   :m [-1 1]    ; southwest
-   (keyword ",") [0 1]     ; south
-   :. [1 1]})   ; southeast
+  {:q [-1 -1]   ; northwest
+   :w [0 -1]    ; north
+   :e [1 -1]    ; northeast
+   :a [-1 0]    ; west
+   :d [1 0]     ; east
+   :z [-1 1]    ; southwest
+   :x [0 1]     ; south
+   :c [1 1]})   ; southeast
 
 ;; Shifted keys for extended movement (to map edge)
 (def key->extended-direction
-  {:U [-1 -1]   ; far northwest
-   :I [0 -1]    ; far north
-   :O [1 -1]    ; far northeast
-   :J [-1 0]    ; far west
-   :L [1 0]     ; far east
-   :M [-1 1]    ; far southwest
-   :< [0 1]     ; far south
-   :> [1 1]})   ; far southeast
+  {:Q [-1 -1]   ; far northwest
+   :W [0 -1]    ; far north
+   :E [1 -1]    ; far northeast
+   :A [-1 0]    ; far west
+   :D [1 0]     ; far east
+   :Z [-1 1]    ; far southwest
+   :X [0 1]     ; far south
+   :C [1 1]})   ; far southeast
 
 ;; Key to production item mapping
 (def key->production-item

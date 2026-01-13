@@ -241,12 +241,13 @@
         (should= :explore (:mode unit))
         (should= config/explore-steps (:explore-steps unit)))))
 
-  (it "handle-key with 'x' does nothing for non-army units"
-    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :awake}}]]]
+  (it "handle-key with 'x' moves non-army units south"
+    (let [initial-map [[{:type :land :contents {:type :fighter :owner :player :mode :awake :fuel 20}}
+                        {:type :land}]]]
       (reset! atoms/game-map initial-map)
       (reset! atoms/cells-needing-attention [[0 0]])
       (input/handle-key :x)
-      (should= :awake (:mode (:contents (get-in @atoms/game-map [0 0]))))))
+      (should= :moving (:mode (:contents (get-in @atoms/game-map [0 0]))))))
 
   (it "explore army moves to valid adjacent cell"
     (let [initial-map [[{:type :land :contents {:type :army :owner :player :mode :explore :explore-steps 50}}

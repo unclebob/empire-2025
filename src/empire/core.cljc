@@ -120,20 +120,29 @@
           (swap! atoms/game-map assoc-in [cx cy :contents] unit))))))
 
 (defn wake-at-mouse []
+  "Wakes a city (removes production so it needs attention) or a sleeping unit.
+   Returns true if something was woken, nil otherwise."
   (let [x (q/mouse-x)
         y (q/mouse-y)]
     (when (map-utils/on-map? x y)
       (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-            cell (get-in @atoms/game-map [cx cy])]
+            cell (get-in @atoms/game-map [cx cy])
+            contents (:contents cell)]
         (cond
-          ;; Wake a friendly city - cancel production
+          ;; Wake a friendly city - remove production so it needs attention
           (and (= (:type cell) :city)
                (= (:city-status cell) :player))
-          (swap! atoms/production assoc [cx cy] :none)
+          (do (swap! atoms/production dissoc [cx cy])
+              true)
 
-          ;; Wake a friendly unit
-          (= (:owner (:contents cell)) :player)
-          (swap! atoms/game-map assoc-in [cx cy :contents :mode] :awake))))))
+          ;; Wake a sleeping/sentry/explore friendly unit (not already awake)
+          (and contents
+               (= (:owner contents) :player)
+               (not= (:mode contents) :awake))
+          (do (swap! atoms/game-map assoc-in [cx cy :contents :mode] :awake)
+              true)
+
+          :else nil)))))
 
 (defn key-down [k]
   ;; Handle key down events
@@ -151,7 +160,7 @@
       (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
                                             :computer-map :actual-map
                                             :actual-map :player-map})
-      (= k :w) (wake-at-mouse)
+      (and (= k :w) (wake-at-mouse)) nil
       (input/handle-key k) nil
       :else nil)))
 
