@@ -56,6 +56,10 @@
   "An atom containing the message to display on line 2."
   (atom ""))
 
+(def confirmation-until
+  "An atom containing the timestamp until which line2-message should not be overwritten."
+  (atom 0))
+
 (def line3-message
   "An atom containing the message to display on line 3."
   (atom ""))

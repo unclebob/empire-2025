@@ -90,18 +90,25 @@
 
       :else nil)))
 
+(defn set-confirmation-message
+  "Sets a confirmation message on line 2 that persists for the specified milliseconds."
+  [msg ms]
+  (reset! atoms/line2-message msg)
+  (reset! atoms/confirmation-until (+ (System/currentTimeMillis) ms)))
+
 (defn update-hover-status
-  "Updates line2-message based on mouse position."
+  "Updates line2-message based on mouse position, unless a confirmation message is active."
   []
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (if (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-            coords [cx cy]
-            cell (get-in @atoms/player-map coords)
-            status (format-hover-status cell coords)]
-        (reset! atoms/line2-message (or status "")))
-      (reset! atoms/line2-message ""))))
+  (when (>= (System/currentTimeMillis) @atoms/confirmation-until)
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
+      (if (map-utils/on-map? x y)
+        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+              coords [cx cy]
+              cell (get-in @atoms/player-map coords)
+              status (format-hover-status cell coords)]
+          (reset! atoms/line2-message (or status "")))
+        (reset! atoms/line2-message "")))))
 
 (defn update-state
   "Update the game state."
@@ -237,12 +244,14 @@
                  (= (:city-status cell) :player))
             (do (swap! atoms/game-map assoc-in [cx cy :marching-orders] dest)
                 (reset! atoms/destination nil)
+                (set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
                 true)
 
             (and (= (:type contents) :transport)
                  (= (:owner contents) :player))
             (do (swap! atoms/game-map assoc-in [cx cy :contents :marching-orders] dest)
                 (reset! atoms/destination nil)
+                (set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
                 true)
 
             :else nil))))))
@@ -261,15 +270,40 @@
                  (= (:city-status cell) :player))
             (do (swap! atoms/game-map assoc-in [cx cy :flight-path] dest)
                 (reset! atoms/destination nil)
+                (set-confirmation-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
                 true)
 
             (and (= (:type contents) :carrier)
                  (= (:owner contents) :player))
             (do (swap! atoms/game-map assoc-in [cx cy :contents :flight-path] dest)
                 (reset! atoms/destination nil)
+                (set-confirmation-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
                 true)
 
             :else nil))))))
+
+(defn set-city-marching-orders-by-direction [k]
+  "Sets marching orders on a player city under the mouse to the map edge in the given direction."
+  (when-let [direction (config/key->direction k)]
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
+      (when (map-utils/on-map? x y)
+        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+              cell (get-in @atoms/game-map [cx cy])]
+          (when (and (= (:type cell) :city)
+                     (= (:city-status cell) :player))
+            (let [[dx dy] direction
+                  cols (count @atoms/game-map)
+                  rows (count (first @atoms/game-map))
+                  target (loop [tx cx ty cy]
+                           (let [nx (+ tx dx)
+                                 ny (+ ty dy)]
+                             (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
+                               (recur nx ny)
+                               [tx ty])))]
+              (swap! atoms/game-map assoc-in [cx cy :marching-orders] target)
+              (set-confirmation-message (str "Marching orders set to " (first target) "," (second target)) 2000)
+              true)))))))
 
 (defn key-down [k]
   ;; Handle key down events
@@ -291,6 +325,7 @@
       (and (= k :m) (set-marching-orders-at-mouse)) nil
       (and (= k :f) @atoms/destination (set-flight-path-at-mouse)) nil
       (and (= k :w) (wake-at-mouse)) nil
+      (set-city-marching-orders-by-direction k) nil
       (input/handle-key k) nil
       :else nil)))
 
