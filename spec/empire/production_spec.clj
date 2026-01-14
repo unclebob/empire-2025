@@ -60,6 +60,14 @@
       (should= :moving (:mode unit))
       (should= [5 5] (:target unit))))
 
+  (it "creates army without marching orders when city has none"
+    (swap! atoms/production assoc [1 0] {:item :army :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [1 0]))]
+      (should= :army (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))))
+
   (it "creates fighter with flight path when city has one"
     (swap! atoms/game-map assoc-in [0 1 :flight-path] [10 10])
     (swap! atoms/production assoc [0 1] {:item :fighter :remaining-rounds 1})
@@ -68,7 +76,42 @@
       (should= :fighter (:type unit))
       (should= :moving (:mode unit))
       (should= [10 10] (:target unit))
-      (should= config/fighter-fuel (:fuel unit)))))
+      (should= config/fighter-fuel (:fuel unit))))
+
+  (it "creates fighter without flight path when city has none"
+    (swap! atoms/production assoc [0 1] {:item :fighter :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+      (should= :fighter (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))
+      (should= config/fighter-fuel (:fuel unit))))
+
+  (it "ignores marching orders for non-army units"
+    (swap! atoms/game-map assoc-in [1 0 :marching-orders] [5 5])
+    (swap! atoms/production assoc [1 0] {:item :transport :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [1 0]))]
+      (should= :transport (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))))
+
+  (it "ignores flight path for non-fighter units"
+    (swap! atoms/game-map assoc-in [1 0 :flight-path] [10 10])
+    (swap! atoms/production assoc [1 0] {:item :destroyer :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [1 0]))]
+      (should= :destroyer (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))))
+
+  (it "creates unit owned by computer for computer city"
+    (swap! atoms/game-map assoc-in [1 0 :city-status] :computer)
+    (swap! atoms/production assoc [1 0] {:item :army :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [1 0]))]
+      (should= :army (:type unit))
+      (should= :computer (:owner unit)))))
 
 (describe "set-city-production"
   (before

@@ -201,12 +201,13 @@
         to-cell (get-in @atoms/game-map final-pos)
         processed-unit (process-consumables final-unit to-cell)
         to-contents (:contents to-cell)
+        original-target (:target (:contents cell))
         fighter-landing-city? (and processed-unit
                                    (= (:type processed-unit) :fighter)
                                    (= (:type to-cell) :city)
                                    (= (:city-status to-cell) :player))
         fighter-at-target? (and fighter-landing-city?
-                                (= (:target final-unit) final-pos))
+                                (= original-target final-pos))
         fighter-landing-carrier? (and processed-unit
                                       (= (:type processed-unit) :fighter)
                                       (= (:type to-contents) :carrier)

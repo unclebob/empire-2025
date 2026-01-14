@@ -683,5 +683,193 @@
               cell {:type :sea :contents {:type :carrier :mode :sentry :owner :player :fighter-count 1}}]
           (should-not (is-fighter-from-carrier? cell fighter))))
       )
+
+    (describe "is-computers?"
+      (it "returns true for computer city"
+        (let [cell {:type :city :city-status :computer}]
+          (should (is-computers? cell))))
+
+      (it "returns true for cell with computer unit"
+        (let [cell {:type :land :contents {:type :army :owner :computer}}]
+          (should (is-computers? cell))))
+
+      (it "returns false for player city"
+        (let [cell {:type :city :city-status :player}]
+          (should-not (is-computers? cell))))
+
+      (it "returns false for cell with player unit"
+        (let [cell {:type :land :contents {:type :army :owner :player}}]
+          (should-not (is-computers? cell))))
+
+      (it "returns false for empty cell"
+        (let [cell {:type :land}]
+          (should-not (is-computers? cell)))))
+
+    (describe "wake-before-move edge cases"
+      (it "wakes unit when something is in the way"
+        (let [unit {:type :army :mode :moving :owner :player :target [4 5] :steps-remaining 1}
+              next-cell {:type :land :contents {:type :army :owner :player}}
+              [result should-wake?] (wake-before-move unit next-cell)]
+          (should= :awake (:mode result))
+          (should= :somethings-in-the-way (:reason result))
+          (should should-wake?)))
+
+      (it "wakes naval unit when trying to move on land"
+        (let [unit {:type :destroyer :mode :moving :owner :player :target [4 5] :steps-remaining 1}
+              next-cell {:type :land}
+              [result should-wake?] (wake-before-move unit next-cell)]
+          (should= :awake (:mode result))
+          (should= :ships-cant-drive-on-land (:reason result))
+          (should should-wake?))))
+
+    (describe "wake-after-move default case"
+      (it "returns default values for naval units like destroyer"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :destroyer :mode :moving :owner :player :target [4 5] :hits 3 :steps-remaining 1}})
+                              (assoc-in [4 5] {:type :sea}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          ;; Destroyer moving to its target should wake normally
+          (game-loop/move-current-unit [4 4])
+          (let [destroyer (:contents (get-in @atoms/game-map [4 5]))]
+            (should= :destroyer (:type destroyer))
+            (should= :awake (:mode destroyer))))))
+
+    (describe "fighter shot down by city"
+      (it "fighter is destroyed when flying into hostile city"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 5] :fuel 10 :steps-remaining 1 :hits 1}})
+                              (assoc-in [4 5] {:type :city :city-status :computer}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (reset! atoms/line3-message "")
+          ;; wake-after-move takes unit, final-pos, and current-map (atom)
+          (let [cell (get-in @atoms/game-map [4 4])
+                unit (:contents cell)
+                result (wake-after-move unit [4 5] atoms/game-map)]
+            (should= 0 (:hits result))))))
+
+    (describe "fighter landing at city"
+      (it "fighter lands at target city and becomes sleeping fighter"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 5] :fuel 10 :steps-remaining 1 :hits 1}})
+                              (assoc-in [4 5] {:type :city :city-status :player :fighter-count 0}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          (let [city (get-in @atoms/game-map [4 5])]
+            (should= 1 (:fighter-count city))
+            (should= 1 (:sleeping-fighters city 0)))))
+
+      (it "fighter lands at non-target city and becomes resting fighter"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 6] :fuel 10 :steps-remaining 1 :hits 1}})
+                              (assoc-in [4 5] {:type :city :city-status :player :fighter-count 0}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          (let [city (get-in @atoms/game-map [4 5])]
+            (should= 1 (:fighter-count city))
+            (should= 1 (:resting-fighters city 0))))))
+
+    (describe "get-active-unit airport fighter"
+      (it "returns synthetic fighter when city has awake airport fighters"
+        (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 1}]
+          (let [active (get-active-unit cell)]
+            (should= :fighter (:type active))
+            (should= :awake (:mode active))
+            (should= true (:from-airport active)))))
+
+      (it "is-fighter-from-airport? returns true for synthetic airport fighter"
+        (let [fighter {:type :fighter :mode :awake :owner :player :from-airport true}
+              cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 1}]
+          (should= true (is-fighter-from-airport? cell fighter))))
+
+      (it "is-fighter-from-airport? returns falsy for regular fighter"
+        (let [fighter {:type :fighter :mode :awake :owner :player :hits 1}
+              cell {:type :city :city-status :player :fighter-count 1}]
+          (should-not (is-fighter-from-airport? cell fighter)))))
+
+    (describe "launch-fighter-from-airport"
+      (it "removes awake fighter from airport and places it moving"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :city :city-status :player :fighter-count 2 :awake-fighters 2})
+                              (assoc-in [4 5] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (launch-fighter-from-airport [4 4] [4 6])
+          (let [city (get-in @atoms/game-map [4 4])
+                fighter (:contents city)]
+            (should= 1 (:fighter-count city))
+            (should= 1 (:awake-fighters city))
+            (should= :fighter (:type fighter))
+            (should= :moving (:mode fighter))
+            (should= [4 6] (:target fighter))))))
+
+    (describe "disembark-army-with-target"
+      (it "disembarks army and sets it moving toward extended target"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :sentry :owner :player :hits 1 :army-count 2 :awake-armies 2}})
+                              (assoc-in [5 4] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (disembark-army-with-target [4 4] [5 4] [8 4])
+          (let [transport (:contents (get-in @atoms/game-map [4 4]))
+                army (:contents (get-in @atoms/game-map [5 4]))]
+            (should= 1 (:army-count transport))
+            (should= 1 (:awake-armies transport))
+            (should= :army (:type army))
+            (should= :moving (:mode army))
+            (should= [8 4] (:target army))
+            (should= 0 (:steps-remaining army))))))
+
+    (describe "disembark-army-to-explore"
+      (it "disembarks army in explore mode"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :sentry :owner :player :hits 1 :army-count 2 :awake-armies 2}})
+                              (assoc-in [5 4] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (let [result (disembark-army-to-explore [4 4] [5 4])]
+            (should= [5 4] result)
+            (let [transport (:contents (get-in @atoms/game-map [4 4]))
+                  army (:contents (get-in @atoms/game-map [5 4]))]
+              (should= 1 (:army-count transport))
+              (should= 1 (:awake-armies transport))
+              (should= :army (:type army))
+              (should= :explore (:mode army))
+              (should= #{[5 4]} (:visited army)))))))
+
+    (describe "explore movement helpers"
+      (it "get-unexplored-explore-moves returns moves adjacent to unexplored"
+        (let [game-map (-> (vec (repeat 5 (vec (repeat 5 nil))))
+                           (assoc-in [2 2] {:type :land})
+                           (assoc-in [2 3] {:type :land})
+                           (assoc-in [3 2] {:type :land}))
+              player-map (-> (vec (repeat 5 (vec (repeat 5 nil))))
+                             (assoc-in [2 2] {:type :land})
+                             (assoc-in [2 3] {:type :land}))]
+          (reset! atoms/game-map game-map)
+          (reset! atoms/player-map player-map)
+          ;; [3 2] is unexplored in player-map, so moves from [2 2] that are adjacent to unexplored
+          (let [moves (get-unexplored-explore-moves [2 2] atoms/game-map)]
+            (should (some #{[3 2]} moves)))))
+
+      (it "pick-explore-move returns visited cell when all cells visited"
+        (let [game-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
+                           (assoc-in [2 2] {:type :land})
+                           (assoc-in [2 3] {:type :land})
+                           (assoc-in [3 2] {:type :land}))
+              player-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
+                             (assoc-in [2 2] {:type :land})
+                             (assoc-in [2 3] {:type :land})
+                             (assoc-in [3 2] {:type :land}))]
+          (reset! atoms/game-map game-map)
+          (reset! atoms/player-map player-map)
+          ;; All valid moves are visited
+          (let [visited #{[2 3] [3 2]}
+                move (pick-explore-move [2 2] atoms/game-map visited)]
+            ;; Should still return a move even though all are visited
+            (should (some #{move} [[2 3] [3 2]]))))))
     )
   )
