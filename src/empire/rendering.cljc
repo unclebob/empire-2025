@@ -1,6 +1,7 @@
 (ns empire.rendering
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.map-utils :as map-utils]
             [empire.unit-container :as uc]
             [quil.core :as q]))
 
@@ -134,3 +135,109 @@
       (doseq [{:keys [col row cell]} cells]
         (draw-production-indicators row col cell cell-w cell-h)
         (draw-unit col row cell cell-w cell-h)))))
+
+(defn- format-unit-status
+  "Formats status string for a unit."
+  [unit]
+  (let [type-name (name (:type unit))
+        hits (:hits unit)
+        max-hits (config/item-hits (:type unit))
+        fuel (when (= (:type unit) :fighter) (:fuel unit))
+        cargo (case (:type unit)
+                :transport (:army-count unit 0)
+                :carrier (:fighter-count unit 0)
+                nil)
+        orders (cond
+                 (:marching-orders unit) "march"
+                 (:flight-path unit) "flight"
+                 :else nil)]
+    (str type-name
+         " [" hits "/" max-hits "]"
+         (when fuel (str " fuel:" fuel))
+         (when cargo (str " cargo:" cargo))
+         (when orders (str " " orders))
+         " " (name (:mode unit)))))
+
+(defn- format-city-status
+  "Formats status string for a city."
+  [cell coords]
+  (let [status (:city-status cell)
+        production (get @atoms/production coords)
+        fighters (:fighter-count cell 0)
+        sleeping (:sleeping-fighters cell 0)]
+    (str "city:" (name status)
+         (when (and (= status :player) production)
+           (str " producing:" (if (= production :none) "none" (name (:item production)))))
+         (when (pos? fighters) (str " fighters:" fighters))
+         (when (pos? sleeping) (str " sleeping:" sleeping))
+         (when (:marching-orders cell) " march")
+         (when (:flight-path cell) " flight"))))
+
+(defn format-hover-status
+  "Formats a status string for the cell under the mouse."
+  [cell coords]
+  (cond
+    (:contents cell) (format-unit-status (:contents cell))
+    (= (:type cell) :city) (format-city-status cell coords)
+    :else nil))
+
+(defn update-hover-status
+  "Updates line2-message based on mouse position, unless a confirmation message is active."
+  []
+  (when (>= (System/currentTimeMillis) @atoms/confirmation-until)
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
+      (if (map-utils/on-map? x y)
+        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+              coords [cx cy]
+              cell (get-in @atoms/player-map coords)
+              status (format-hover-status cell coords)]
+          (reset! atoms/line2-message (or status "")))
+        (reset! atoms/line2-message "")))))
+
+(defn- draw-line-1
+  "Draws the main message on line 1."
+  [text-x text-y]
+  (when (seq @atoms/message)
+    (q/text @atoms/message (+ text-x 10) (+ text-y 10))))
+
+(defn- draw-line-2
+  "Draws content on line 2."
+  [text-x text-y]
+  (when (seq @atoms/line2-message)
+    (q/text @atoms/line2-message (+ text-x 10) (+ text-y 30))))
+
+(defn- draw-line-3
+  "Draws the flashing red message on line 3."
+  [text-x text-y]
+  (if (>= (System/currentTimeMillis) @atoms/line3-until)
+    (reset! atoms/line3-message "")
+    (when (and (seq @atoms/line3-message)
+               (blink? 500))
+      (q/fill 255 0 0)
+      (q/text @atoms/line3-message (+ text-x 10) (+ text-y 50))
+      (q/fill 255))))
+
+(defn- draw-status
+  "Draws the status area on the right (3 lines, 20 chars wide)."
+  [text-x text-y text-w]
+  (let [char-width (q/text-width "M")
+        status-width (* 20 char-width)
+        status-x (- (+ text-x text-w) status-width)
+        dest @atoms/destination
+        dest-str (if dest (str "Dest: " (first dest) "," (second dest)) "")]
+    (q/text (str "Round: " @atoms/round-number) status-x (+ text-y 10))
+    (q/text dest-str status-x (+ text-y 30))))
+
+(defn draw-message-area
+  "Draws the message area including separator line and messages."
+  []
+  (let [[text-x text-y text-w _] @atoms/text-area-dimensions]
+    (q/stroke 255)
+    (q/line text-x (- text-y 4) (+ text-x text-w) (- text-y 4))
+    (q/text-font @atoms/text-font)
+    (q/fill 255)
+    (draw-line-1 text-x text-y)
+    (draw-line-2 text-x text-y)
+    (draw-line-3 text-x text-y)
+    (draw-status text-x text-y text-w)))

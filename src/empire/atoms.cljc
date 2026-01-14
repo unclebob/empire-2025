@@ -74,6 +74,12 @@
   (reset! line3-message msg)
   (reset! line3-until (+ (System/currentTimeMillis) ms)))
 
+(defn set-confirmation-message
+  "Sets a confirmation message on line 2 that persists for the specified milliseconds."
+  [msg ms]
+  (reset! line2-message msg)
+  (reset! confirmation-until (+ (System/currentTimeMillis) ms)))
+
 (def computer-map
   "An atom containing the computer's visible map areas."
   (atom {}))

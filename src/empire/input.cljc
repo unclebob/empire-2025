@@ -7,7 +7,8 @@
             [empire.map-utils :as map-utils]
             [empire.movement :as movement]
             [empire.production :as production]
-            [empire.unit-container :as uc]))
+            [empire.unit-container :as uc]
+            [quil.core :as q]))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
@@ -252,3 +253,160 @@
           :else
           (handle-unit-movement-key k coords cell))
         (handle-city-production-key k coords cell)))))
+
+(defn add-unit-at-mouse [unit-type]
+  (let [x (q/mouse-x)
+        y (q/mouse-y)]
+    (when (map-utils/on-map? x y)
+      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+            cell (get-in @atoms/game-map [cx cy])
+            unit {:type unit-type
+                  :hits (config/item-hits unit-type)
+                  :mode :awake
+                  :owner :player}
+            unit (if (= unit-type :fighter)
+                   (assoc unit :fuel config/fighter-fuel)
+                   unit)]
+        (when-not (:contents cell)
+          (swap! atoms/game-map assoc-in [cx cy :contents] unit))))))
+
+(defn wake-at-mouse []
+  "Wakes a city (removes production so it needs attention) or a sleeping unit.
+   Also wakes sleeping fighters in city airports.
+   Returns true if something was woken, nil otherwise."
+  (let [x (q/mouse-x)
+        y (q/mouse-y)]
+    (when (map-utils/on-map? x y)
+      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+            cell (get-in @atoms/game-map [cx cy])
+            contents (:contents cell)]
+        (cond
+          ;; Wake a friendly city - remove production and wake sleeping fighters
+          ;; Does not affect any unit at the city
+          (and (= (:type cell) :city)
+               (= (:city-status cell) :player))
+          (let [sleeping (get cell :sleeping-fighters 0)
+                awake (get cell :awake-fighters 0)]
+            (swap! atoms/production dissoc [cx cy])
+            (when (pos? sleeping)
+              (swap! atoms/game-map update-in [cx cy] assoc
+                     :sleeping-fighters 0
+                     :awake-fighters (+ awake sleeping)))
+            true)
+
+          ;; Wake a sleeping/sentry/explore friendly unit (not already awake)
+          (and contents
+               (= (:owner contents) :player)
+               (not= (:mode contents) :awake))
+          (do (swap! atoms/game-map assoc-in [cx cy :contents :mode] :awake)
+              true)
+
+          :else nil)))))
+
+(defn set-destination-at-mouse []
+  "Sets the destination to the cell under the mouse cursor."
+  (let [x (q/mouse-x)
+        y (q/mouse-y)]
+    (when (map-utils/on-map? x y)
+      (let [[cx cy] (map-utils/determine-cell-coordinates x y)]
+        (reset! atoms/destination [cx cy])
+        true))))
+
+(defn set-marching-orders-at-mouse []
+  "Sets marching orders on a player city or transport under the mouse to the current destination."
+  (when-let [dest @atoms/destination]
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
+      (when (map-utils/on-map? x y)
+        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+              cell (get-in @atoms/game-map [cx cy])
+              contents (:contents cell)]
+          (cond
+            (and (= (:type cell) :city)
+                 (= (:city-status cell) :player))
+            (do (swap! atoms/game-map assoc-in [cx cy :marching-orders] dest)
+                (reset! atoms/destination nil)
+                (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+                true)
+
+            (and (= (:type contents) :transport)
+                 (= (:owner contents) :player))
+            (do (swap! atoms/game-map assoc-in [cx cy :contents :marching-orders] dest)
+                (reset! atoms/destination nil)
+                (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+                true)
+
+            :else nil))))))
+
+(defn set-flight-path-at-mouse []
+  "Sets flight path on a player city or carrier under the mouse to the current destination."
+  (when-let [dest @atoms/destination]
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
+      (when (map-utils/on-map? x y)
+        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+              cell (get-in @atoms/game-map [cx cy])
+              contents (:contents cell)]
+          (cond
+            (and (= (:type cell) :city)
+                 (= (:city-status cell) :player))
+            (do (swap! atoms/game-map assoc-in [cx cy :flight-path] dest)
+                (reset! atoms/destination nil)
+                (atoms/set-confirmation-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
+                true)
+
+            (and (= (:type contents) :carrier)
+                 (= (:owner contents) :player))
+            (do (swap! atoms/game-map assoc-in [cx cy :contents :flight-path] dest)
+                (reset! atoms/destination nil)
+                (atoms/set-confirmation-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
+                true)
+
+            :else nil))))))
+
+(defn set-city-marching-orders-by-direction [k]
+  "Sets marching orders on a player city under the mouse to the map edge in the given direction."
+  (when-let [direction (config/key->direction k)]
+    (let [x (q/mouse-x)
+          y (q/mouse-y)]
+      (when (map-utils/on-map? x y)
+        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+              cell (get-in @atoms/game-map [cx cy])]
+          (when (and (= (:type cell) :city)
+                     (= (:city-status cell) :player))
+            (let [[dx dy] direction
+                  cols (count @atoms/game-map)
+                  rows (count (first @atoms/game-map))
+                  target (loop [tx cx ty cy]
+                           (let [nx (+ tx dx)
+                                 ny (+ ty dy)]
+                             (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
+                               (recur nx ny)
+                               [tx ty])))]
+              (swap! atoms/game-map assoc-in [cx cy :marching-orders] target)
+              (atoms/set-confirmation-message (str "Marching orders set to " (first target) "," (second target)) 2000)
+              true)))))))
+
+(defn key-down [k]
+  ;; Handle key down events
+  (if @atoms/backtick-pressed
+    (do
+      (reset! atoms/backtick-pressed false)
+      (case k
+        :c (add-unit-at-mouse :carrier)
+        :t (add-unit-at-mouse :transport)
+        :a (add-unit-at-mouse :army)
+        :f (add-unit-at-mouse :fighter)
+        nil))
+    (cond
+      (= k (keyword "`")) (reset! atoms/backtick-pressed true)
+      (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
+                                            :computer-map :actual-map
+                                            :actual-map :player-map})
+      (= k (keyword ".")) (set-destination-at-mouse)
+      (and (= k :m) (set-marching-orders-at-mouse)) nil
+      (and (= k :f) @atoms/destination (set-flight-path-at-mouse)) nil
+      (and (= k :u) (wake-at-mouse)) nil
+      (set-city-marching-orders-by-direction k) nil
+      (handle-key k) nil
+      :else nil)))
