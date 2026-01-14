@@ -1,7 +1,8 @@
 (ns empire.production-spec
   (:require [speclj.core :refer :all]
             [empire.production :as production]
-            [empire.atoms :as atoms]))
+            [empire.atoms :as atoms]
+            [empire.config :as config]))
 
 (describe "update-production"
   (around [it]
@@ -48,4 +49,35 @@
     (swap! atoms/game-map assoc-in [1 0 :contents] {:type :fighter :hits 1}) ; Put a unit in the city
     (production/update-production)
     (should= {:item :army :remaining-rounds 3} (@atoms/production [1 0])) ; Should not decrement
-    (should= {:type :fighter :hits 1} (:contents (get-in @atoms/game-map [1 0])))))
+    (should= {:type :fighter :hits 1} (:contents (get-in @atoms/game-map [1 0]))))
+
+  (it "creates army with marching orders when city has them"
+    (swap! atoms/game-map assoc-in [1 0 :marching-orders] [5 5])
+    (swap! atoms/production assoc [1 0] {:item :army :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [1 0]))]
+      (should= :army (:type unit))
+      (should= :moving (:mode unit))
+      (should= [5 5] (:target unit))))
+
+  (it "creates fighter with flight path when city has one"
+    (swap! atoms/game-map assoc-in [0 1 :flight-path] [10 10])
+    (swap! atoms/production assoc [0 1] {:item :fighter :remaining-rounds 1})
+    (production/update-production)
+    (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+      (should= :fighter (:type unit))
+      (should= :moving (:mode unit))
+      (should= [10 10] (:target unit))
+      (should= config/fighter-fuel (:fuel unit)))))
+
+(describe "set-city-production"
+  (before
+    (reset! atoms/production {}))
+
+  (it "sets production for a city"
+    (production/set-city-production [1 2] :army)
+    (should= {:item :army :remaining-rounds (config/item-cost :army)} (@atoms/production [1 2])))
+
+  (it "sets production for fighter with correct cost"
+    (production/set-city-production [3 4] :fighter)
+    (should= {:item :fighter :remaining-rounds (config/item-cost :fighter)} (@atoms/production [3 4]))))

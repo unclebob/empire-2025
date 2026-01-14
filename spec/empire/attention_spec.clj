@@ -117,3 +117,21 @@
   (it "returns true for transport with awake armies"
     (reset! atoms/game-map [[{:type :sea :contents {:type :transport :mode :sentry :awake-armies 1}}]])
     (should (attention/item-needs-attention? [0 0]))))
+
+(describe "cells-needing-attention"
+  (it "returns coordinates of cells needing attention"
+    (reset! atoms/player-map [[{:type :land :contents {:type :army :mode :awake :owner :player}}
+                               {:type :city :city-status :player}]
+                              [{:type :land}
+                               {:type :city :city-status :computer}]])
+    (reset! atoms/production {})
+    (let [cells (attention/cells-needing-attention)]
+      (should-contain [0 0] cells)
+      (should-contain [0 1] cells)
+      (should-not-contain [1 0] cells)
+      (should-not-contain [1 1] cells)))
+
+  (it "excludes player cities with production"
+    (reset! atoms/player-map [[{:type :city :city-status :player}]])
+    (reset! atoms/production {[0 0] {:item :army}})
+    (should= [] (attention/cells-needing-attention))))
