@@ -38,21 +38,40 @@
     [i j]))
 
 (defn move-current-unit
-  "Moves the unit at coords one step. Returns new coords if still moving or awoke with steps, nil if done."
-  [coords]
-  (let [cell (get-in @atoms/game-map coords)
-        unit (:contents cell)]
-    (when (= (:mode unit) :moving)
-      (let [target (:target unit)]
-        (movement/move-unit coords target cell atoms/game-map)
-        (let [next-pos (movement/next-step-pos coords target)
-              moved-cell (get-in @atoms/game-map next-pos)
-              moved-unit (:contents moved-cell)]
-          (when moved-unit
-            (let [new-steps (dec (:steps-remaining moved-unit 1))]
-              (swap! atoms/game-map assoc-in (conj next-pos :contents :steps-remaining) new-steps)
-              (when (> new-steps 0)
-                next-pos))))))))
+  "Moves the unit at coords one step. Returns new coords if still moving, nil if done.
+   Sidesteps consume a step but continue moving if steps remain."
+  ([coords] (move-current-unit coords 10))  ;; max 10 consecutive sidesteps to prevent infinite loops
+  ([coords max-sidesteps]
+   (let [cell (get-in @atoms/game-map coords)
+         unit (:contents cell)]
+     (when (= (:mode unit) :moving)
+       (let [target (:target unit)
+             {:keys [result pos]} (movement/move-unit coords target cell atoms/game-map)]
+         (case result
+           ;; Sidestep - consume a step, continue if steps remain
+           :sidestep
+           (let [moved-cell (get-in @atoms/game-map pos)
+                 moved-unit (:contents moved-cell)]
+             (when moved-unit
+               (let [new-steps (dec (:steps-remaining moved-unit 1))]
+                 (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) new-steps)
+                 (when (> new-steps 0)
+                   (if (pos? max-sidesteps)
+                     (recur pos (dec max-sidesteps))
+                     pos)))))
+
+           ;; Normal move - decrement steps and continue if steps remain
+           :normal
+           (let [moved-cell (get-in @atoms/game-map pos)
+                 moved-unit (:contents moved-cell)]
+             (when moved-unit
+               (let [new-steps (dec (:steps-remaining moved-unit 1))]
+                 (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) new-steps)
+                 (when (> new-steps 0)
+                   pos))))
+
+           ;; Woke up - done moving
+           :woke nil))))))
 
 (defn reset-steps-remaining
   "Resets steps-remaining for all player units at start of round."

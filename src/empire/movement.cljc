@@ -27,6 +27,78 @@
                  :else -1)]
     [(+ x dx) (+ y dy)]))
 
+(defn chebyshev-distance
+  "Returns the Chebyshev (chessboard) distance between two positions."
+  [[x1 y1] [x2 y2]]
+  (max (abs (- x2 x1)) (abs (- y2 y1))))
+
+(defn- can-move-to?
+  "Returns true if the unit type can move to the given cell."
+  [unit-type cell]
+  (and cell
+       (nil? (:contents cell))
+       (case unit-type
+         :army (and (= (:type cell) :land)
+                    (not (and (= (:type cell) :city)
+                              (= (:city-status cell) :player))))
+         :fighter true
+         (not= (:type cell) :land)))) ; naval units can't go on land
+
+(defn- get-sidestep-directions
+  "Returns candidate sidestep directions given the blocked direction.
+   First returns the two diagonals adjacent to the blocked direction,
+   then the two orthogonals perpendicular to it."
+  [[dx dy]]
+  (cond
+    ;; Blocked moving diagonally - try the two adjacent diagonals, then orthogonals
+    (and (not (zero? dx)) (not (zero? dy)))
+    [[dx 0] [0 dy] [(- dx) dy] [dx (- dy)]]
+
+    ;; Blocked moving horizontally - try diagonals first, then pure vertical
+    (zero? dy)
+    [[dx 1] [dx -1] [0 1] [0 -1]]
+
+    ;; Blocked moving vertically - try diagonals first, then pure horizontal
+    :else
+    [[1 dy] [-1 dy] [1 0] [-1 0]]))
+
+(defn- simulate-path
+  "Simulates n moves from start-pos toward target, returning the final position.
+   Returns nil if the first move is invalid."
+  [start-pos target unit-type n current-map]
+  (loop [pos start-pos
+         remaining n]
+    (if (or (zero? remaining) (= pos target))
+      pos
+      (let [next-pos (next-step-pos pos target)
+            next-cell (get-in @current-map next-pos)]
+        (if (can-move-to? unit-type next-cell)
+          (recur next-pos (dec remaining))
+          pos)))))
+
+(defn- find-best-sidestep
+  "Finds the best sidestep direction using 4-round look-ahead.
+   Returns the position to sidestep to, or nil if no valid sidestep exists
+   or if sidestepping doesn't get us closer to the target."
+  [from-pos target unit-type blocked-dir current-map]
+  (let [candidates (get-sidestep-directions blocked-dir)
+        [fx fy] from-pos
+        current-dist (chebyshev-distance from-pos target)
+        valid-sidesteps
+        (for [[sdx sdy] candidates
+              :let [sidestep-pos [(+ fx sdx) (+ fy sdy)]
+                    sidestep-cell (get-in @current-map sidestep-pos)]
+              :when (can-move-to? unit-type sidestep-cell)
+              :let [final-pos (simulate-path sidestep-pos target unit-type 3 current-map)
+                    final-dist (chebyshev-distance final-pos target)]]
+          {:pos sidestep-pos :dist final-dist})]
+    (when (seq valid-sidesteps)
+      (let [best-dist (apply min (map :dist valid-sidesteps))
+            best-options (filter #(= (:dist %) best-dist) valid-sidesteps)]
+        ;; Only sidestep if it gets us closer than staying put
+        (when (< best-dist current-dist)
+          (:pos (rand-nth best-options)))))))
+
 (defn update-combatant-map
   "Updates a combatant's visible map by revealing cells near their owned units."
   [visible-map-atom owner]
@@ -275,18 +347,57 @@
     (when (= (:type processed-unit) :transport)
       (load-adjacent-sentry-armies final-pos))))
 
-(defn move-unit [from-coords target-coords cell current-map]
+(defn- blocked-by-friendly?
+  "Returns true if the next cell contains a friendly unit (same owner)."
+  [unit next-cell]
+  (let [blocker (:contents next-cell)]
+    (and blocker
+         (= (:owner blocker) (:owner unit)))))
+
+(defn- get-blocked-direction
+  "Returns the direction [dx dy] from pos to next-pos."
+  [[x y] [nx ny]]
+  [(- nx x) (- ny y)])
+
+(defn move-unit
+  "Moves a unit one step toward target. Returns a map with:
+   :result - :normal, :sidestep, or :woke
+   :pos - the new position (or original if woke)"
+  [from-coords target-coords cell current-map]
   (let [unit (:contents cell)
         next-pos (next-step-pos from-coords target-coords)
         next-cell (get-in @current-map next-pos)
-        [unit woke?] (wake-before-move unit next-cell)]
-    (if woke?
-      (let [updated-cell (assoc cell :contents unit)]
+        [woken-unit woke?] (wake-before-move unit next-cell)]
+    (cond
+      ;; Blocked by friendly unit - try to sidestep
+      (and woke?
+           (= (:reason woken-unit) :somethings-in-the-way)
+           (blocked-by-friendly? unit next-cell))
+      (let [blocked-dir (get-blocked-direction from-coords next-pos)
+            sidestep-pos (find-best-sidestep from-coords target-coords (:type unit) blocked-dir current-map)]
+        (if sidestep-pos
+          ;; Sidestep successful - move to sidestep position (doesn't consume a step)
+          (let [final-unit (wake-after-move unit sidestep-pos current-map)]
+            (do-move from-coords sidestep-pos cell final-unit)
+            {:result :sidestep :pos sidestep-pos})
+          ;; No valid sidestep - wake up
+          (let [updated-cell (assoc cell :contents woken-unit)]
+            (swap! atoms/game-map assoc-in from-coords updated-cell)
+            (update-cell-visibility from-coords (:owner unit))
+            {:result :woke :pos from-coords})))
+
+      ;; Other wake conditions - just wake up
+      woke?
+      (let [updated-cell (assoc cell :contents woken-unit)]
         (swap! atoms/game-map assoc-in from-coords updated-cell)
-        (update-cell-visibility from-coords (:owner unit)))
+        (update-cell-visibility from-coords (:owner unit))
+        {:result :woke :pos from-coords})
+
       ;; Normal move
+      :else
       (let [final-unit (wake-after-move unit next-pos current-map)]
-        (do-move from-coords next-pos cell final-unit)))))
+        (do-move from-coords next-pos cell final-unit)
+        {:result :normal :pos next-pos}))))
 
 (defn set-unit-movement [unit-coords target-coords]
   (let [first-cell (get-in @atoms/game-map unit-coords)
