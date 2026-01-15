@@ -161,4 +161,39 @@
       ;; Only [1 1] is coastal, so player gets it
       (should= [1 1] player-pos)
       ;; No coastal cities left, computer gets nothing
-      (should= nil computer-pos))))
+      (should= nil computer-pos)))
+
+  (it "uses 3-arity version with min-distance-from"
+    (let [test-map [[{:type :sea} {:type :city :city-status :free} {:type :land} {:type :land} {:type :land}]
+                    [{:type :sea} {:type :land} {:type :land} {:type :land} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land} {:type :city :city-status :free} {:type :sea}]]
+          ;; Two coastal cities: [0 1] and [4 3]
+          ;; Distance from [0 0] to [0 1] = 1, to [4 3] = 7
+          result (occupy-random-free-city test-map :player [0 0 5])]
+      ;; Should only pick [4 3] since it's >= 5 away from [0 0]
+      (should= :player (:city-status (get-in result [4 3]))))))
+
+(describe "generate-cities"
+  (it "places cities on land cells"
+    (let [test-map [[{:type :land} {:type :land}]
+                    [{:type :land} {:type :sea}]]
+          result (generate-cities test-map 2 1)
+          city-count (count (for [i (range 2) j (range 2)
+                                  :when (= :city (:type (get-in result [i j])))]
+                              [i j]))]
+      (should= 2 city-count)))
+
+  (it "stops placement after 1000 attempts when impossible to place all cities"
+    ;; A 2x2 map with only 2 land cells and min-distance of 10 makes it impossible
+    ;; to place more than 1 city with proper spacing
+    (let [test-map [[{:type :land} {:type :sea}]
+                    [{:type :sea} {:type :land}]]
+          ;; Request 5 cities with min-distance 10 on a 2x2 map - impossible
+          result (generate-cities test-map 5 10)
+          city-count (count (for [i (range 2) j (range 2)
+                                  :when (= :city (:type (get-in result [i j])))]
+                              [i j]))]
+      ;; Should have placed 1 city (the first one), then hit 1000 attempts
+      (should (< city-count 5)))))

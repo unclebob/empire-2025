@@ -14,15 +14,10 @@
   (reset! atoms/text-font (q/create-font "Courier New" 18))
   (reset! atoms/production-char-font (q/create-font "CourierNewPS-BoldMT" 12)))
 
-(defn calculate-screen-dimensions
-  "Calculates map size and display dimensions based on screen and sets config values."
-  []
-  (q/text-font @atoms/text-font)
-  (let [char-width (q/text-width "M")
-        char-height (+ (q/text-ascent) (q/text-descent))
-        screen-w (q/width)
-        screen-h (q/height)
-        cols (quot screen-w char-width)
+(defn compute-screen-dimensions
+  "Pure calculation of screen dimensions. Returns a map with :map-size, :map-screen-dimensions, and :text-area-dimensions."
+  [char-width char-height screen-w screen-h]
+  (let [cols (quot screen-w char-width)
         text-rows 4
         text-gap 7
         text-h (* text-rows char-height)
@@ -32,9 +27,22 @@
         text-x 0
         text-y (+ map-display-h text-gap)
         text-w screen-w]
-    (reset! atoms/map-size [cols rows])
-    (reset! atoms/map-screen-dimensions [map-display-w map-display-h])
-    (reset! atoms/text-area-dimensions [text-x text-y text-w text-h])))
+    {:map-size [cols rows]
+     :map-screen-dimensions [map-display-w map-display-h]
+     :text-area-dimensions [text-x text-y text-w text-h]}))
+
+(defn calculate-screen-dimensions
+  "Calculates map size and display dimensions based on screen and sets config values."
+  []
+  (q/text-font @atoms/text-font)
+  (let [char-width (q/text-width "M")
+        char-height (+ (q/text-ascent) (q/text-descent))
+        screen-w (q/width)
+        screen-h (q/height)
+        dims (compute-screen-dimensions char-width char-height screen-w screen-h)]
+    (reset! atoms/map-size (:map-size dims))
+    (reset! atoms/map-screen-dimensions (:map-screen-dimensions dims))
+    (reset! atoms/text-area-dimensions (:text-area-dimensions dims))))
 
 (defn setup
   "Initial setup for the game state."
