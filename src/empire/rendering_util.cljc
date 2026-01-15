@@ -1,5 +1,6 @@
 (ns empire.rendering-util
-  (:require [empire.config :as config]))
+  (:require [empire.config :as config]
+            [empire.unit-container :as uc]))
 
 (defn format-unit-status
   "Formats status string for a unit."
@@ -44,6 +45,29 @@
     (:contents cell) (format-unit-status (:contents cell))
     (= (:type cell) :city) (format-city-status cell production)
     :else nil))
+
+(defn determine-display-unit
+  "Determines which unit to display, handling attention blinking.
+   attention-coords is the list of cells needing attention (or nil).
+   blink? is the current blink state for contained unit display."
+  [col row cell attention-coords blink?]
+  (let [contents (:contents cell)
+        has-awake-airport? (uc/has-awake? cell :awake-fighters)
+        has-any-airport? (pos? (uc/get-count cell :fighter-count))
+        has-awake-carrier? (uc/has-awake-carrier-fighter? contents)
+        has-awake-army? (uc/has-awake-army-aboard? contents)
+        has-contained-unit? (or has-awake-airport? has-awake-carrier? has-awake-army?)
+        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
+        show-contained? (and is-attention-cell? has-contained-unit? blink?)]
+    (cond
+      show-contained?
+      (uc/blinking-contained-unit has-awake-airport? has-awake-carrier? has-awake-army?)
+
+      (and is-attention-cell? has-awake-airport?)
+      nil ;; Hide airport fighter on alternate blink frame
+
+      :else
+      (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
 
 (defn group-cells-by-color
   "Groups map cells by their display color for batched rendering.

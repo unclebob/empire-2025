@@ -62,6 +62,45 @@
     (let [cell {:type :land}]
       (should-not (ru/format-hover-status cell nil)))))
 
+(describe "determine-display-unit"
+  (it "returns contents for normal cell with unit"
+    (let [cell {:contents {:type :army :mode :awake}}]
+      (should= {:type :army :mode :awake}
+               (ru/determine-display-unit 5 5 cell nil false))))
+
+  (it "returns nil for empty cell"
+    (let [cell {:type :land}]
+      (should-not (ru/determine-display-unit 5 5 cell nil false))))
+
+  (it "returns blinking fighter for attention cell with awake airport when blink is on"
+    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
+      (should= {:type :fighter :mode :awake}
+               (ru/determine-display-unit 0 0 cell [[0 0]] true))))
+
+  (it "returns nil for attention cell with awake airport when blink is off"
+    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
+      (should-not (ru/determine-display-unit 0 0 cell [[0 0]] false))))
+
+  (it "returns blinking fighter for attention cell with carrier with awake fighters"
+    (let [cell {:contents {:type :carrier :awake-fighters 1}}]
+      (should= {:type :fighter :mode :awake}
+               (ru/determine-display-unit 0 0 cell [[0 0]] true))))
+
+  (it "returns blinking army for attention cell with transport with awake armies"
+    (let [cell {:contents {:type :transport :awake-armies 1}}]
+      (should= {:type :army :mode :awake}
+               (ru/determine-display-unit 0 0 cell [[0 0]] true))))
+
+  (it "returns normal display for non-attention cell with airport"
+    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
+      (should= {:type :fighter :mode :awake}
+               (ru/determine-display-unit 5 5 cell [[0 0]] true))))
+
+  (it "returns sentry fighter for city with sleeping fighters only"
+    (let [cell {:type :city :fighter-count 2 :awake-fighters 0}]
+      (should= {:type :fighter :mode :sentry}
+               (ru/determine-display-unit 5 5 cell nil false)))))
+
 (describe "group-cells-by-color"
   (it "groups cells by their base color"
     (let [the-map [[{:type :land} {:type :sea}]

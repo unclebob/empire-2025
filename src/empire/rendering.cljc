@@ -3,7 +3,6 @@
             [empire.config :as config]
             [empire.map-utils :as map-utils]
             [empire.rendering-util :as ru]
-            [empire.unit-container :as uc]
             [quil.core :as q]))
 
 (defn draw-production-indicators
@@ -30,32 +29,10 @@
         (q/text (config/item-chars (:item prod)) (+ (* j cell-w) 2) (+ (* i cell-h) 12))))))
 
 
-(defn- determine-display-unit
-  "Determines which unit to display, handling attention blinking."
-  [col row cell]
-  (let [contents (:contents cell)
-        has-awake-airport? (uc/has-awake? cell :awake-fighters)
-        has-any-airport? (pos? (uc/get-count cell :fighter-count))
-        has-awake-carrier? (uc/has-awake-carrier-fighter? contents)
-        has-awake-army? (uc/has-awake-army-aboard? contents)
-        has-contained-unit? (or has-awake-airport? has-awake-carrier? has-awake-army?)
-        attention-coords @atoms/cells-needing-attention
-        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
-        show-contained? (and is-attention-cell? has-contained-unit? (map-utils/blink? 250))]
-    (cond
-      show-contained?
-      (uc/blinking-contained-unit has-awake-airport? has-awake-carrier? has-awake-army?)
-
-      (and is-attention-cell? has-awake-airport?)
-      nil ;; Hide airport fighter on alternate blink frame
-
-      :else
-      (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
-
 (defn- draw-unit
   "Draws a unit on the map cell, handling attention blinking for contained units."
-  [col row cell cell-w cell-h]
-  (when-let [display-unit (determine-display-unit col row cell)]
+  [col row cell cell-w cell-h attention-coords blink-unit?]
+  (when-let [display-unit (ru/determine-display-unit col row cell attention-coords blink-unit?)]
     (let [[r g b] (config/mode->color (:mode display-unit))]
       (q/fill r g b)
       (q/text-font @atoms/production-char-font)
@@ -73,6 +50,7 @@
         production @atoms/production
         blink-attention? (map-utils/blink? 125)
         blink-completed? (map-utils/blink? 500)
+        blink-unit? (map-utils/blink? 250)
         cells-by-color (ru/group-cells-by-color the-map attention-coords production blink-attention? blink-completed?)]
     (q/no-stroke)
     ;; Draw all rects batched by color
@@ -91,7 +69,7 @@
     (doseq [[_ cells] cells-by-color]
       (doseq [{:keys [col row cell]} cells]
         (draw-production-indicators row col cell cell-w cell-h)
-        (draw-unit col row cell cell-w cell-h)))))
+        (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)))))
 
 (defn update-hover-status
   "Updates line2-message based on mouse position, unless a confirmation message is active."
