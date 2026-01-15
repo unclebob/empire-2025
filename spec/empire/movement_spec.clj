@@ -897,3 +897,75 @@
 
   (it "returns :standard-unit for nil unit"
     (should= :standard-unit (movement-context {} nil))))
+
+(describe "add-unit-at"
+  (before
+    (reset! atoms/game-map (vec (repeat 9 (vec (repeat 9 {:type :land}))))))
+
+  (it "adds army unit at empty cell"
+    (add-unit-at [3 4] :army)
+    (let [contents (get-in @atoms/game-map [3 4 :contents])]
+      (should= :army (:type contents))
+      (should= :player (:owner contents))
+      (should= :awake (:mode contents))
+      (should= (config/item-hits :army) (:hits contents))))
+
+  (it "adds fighter with fuel"
+    (add-unit-at [3 4] :fighter)
+    (let [contents (get-in @atoms/game-map [3 4 :contents])]
+      (should= :fighter (:type contents))
+      (should= config/fighter-fuel (:fuel contents))))
+
+  (it "does not add unit if cell has contents"
+    (swap! atoms/game-map assoc-in [3 4 :contents] {:type :army :owner :computer})
+    (add-unit-at [3 4] :carrier)
+    (should= :army (get-in @atoms/game-map [3 4 :contents :type]))))
+
+(describe "wake-at"
+  (before
+    (reset! atoms/game-map (vec (repeat 9 (vec (repeat 9 {:type :land})))))
+    (reset! atoms/production {}))
+
+  (it "wakes a sleeping unit"
+    (swap! atoms/game-map assoc-in [3 4 :contents]
+           {:type :army :owner :player :mode :sentry})
+    (should (wake-at [3 4]))
+    (should= :awake (get-in @atoms/game-map [3 4 :contents :mode])))
+
+  (it "wakes unit in explore mode"
+    (swap! atoms/game-map assoc-in [3 4 :contents]
+           {:type :army :owner :player :mode :explore})
+    (should (wake-at [3 4]))
+    (should= :awake (get-in @atoms/game-map [3 4 :contents :mode])))
+
+  (it "returns nil for already awake unit"
+    (swap! atoms/game-map assoc-in [3 4 :contents]
+           {:type :army :owner :player :mode :awake})
+    (should-not (wake-at [3 4])))
+
+  (it "returns nil for enemy unit"
+    (swap! atoms/game-map assoc-in [3 4 :contents]
+           {:type :army :owner :computer :mode :sentry})
+    (should-not (wake-at [3 4])))
+
+  (it "wakes player city and removes production"
+    (swap! atoms/game-map assoc-in [3 4]
+           {:type :city :city-status :player :sleeping-fighters 0 :awake-fighters 0})
+    (reset! atoms/production {[3 4] {:item :army :remaining-rounds 5}})
+    (should (wake-at [3 4]))
+    (should-not (get @atoms/production [3 4])))
+
+  (it "wakes sleeping fighters in city airport"
+    (swap! atoms/game-map assoc-in [3 4]
+           {:type :city :city-status :player :sleeping-fighters 3 :awake-fighters 1})
+    (should (wake-at [3 4]))
+    (should= 0 (get-in @atoms/game-map [3 4 :sleeping-fighters]))
+    (should= 4 (get-in @atoms/game-map [3 4 :awake-fighters])))
+
+  (it "returns nil for empty cell"
+    (should-not (wake-at [3 4])))
+
+  (it "returns nil for enemy city"
+    (swap! atoms/game-map assoc-in [3 4]
+           {:type :city :city-status :computer})
+    (should-not (wake-at [3 4]))))

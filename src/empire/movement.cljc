@@ -620,3 +620,48 @@
                                            (assoc :mode :awake)
                                            (dissoc :explore-steps :visited))))
           nil)))))
+
+(defn add-unit-at
+  "Adds a unit of the given type at the specified cell coordinates.
+   Only adds if the cell is empty."
+  [[cx cy] unit-type]
+  (let [cell (get-in @atoms/game-map [cx cy])
+        unit {:type unit-type
+              :hits (config/item-hits unit-type)
+              :mode :awake
+              :owner :player}
+        unit (if (= unit-type :fighter)
+               (assoc unit :fuel config/fighter-fuel)
+               unit)]
+    (when-not (:contents cell)
+      (swap! atoms/game-map assoc-in [cx cy :contents] unit))))
+
+(defn wake-at
+  "Wakes a city (removes production so it needs attention) or a sleeping unit.
+   Also wakes sleeping fighters in city airports.
+   Returns true if something was woken, nil otherwise."
+  [[cx cy]]
+  (let [cell (get-in @atoms/game-map [cx cy])
+        contents (:contents cell)]
+    (cond
+      ;; Wake a friendly city - remove production and wake sleeping fighters
+      ;; Does not affect any unit at the city
+      (and (= (:type cell) :city)
+           (= (:city-status cell) :player))
+      (let [sleeping (get cell :sleeping-fighters 0)
+            awake (get cell :awake-fighters 0)]
+        (swap! atoms/production dissoc [cx cy])
+        (when (pos? sleeping)
+          (swap! atoms/game-map update-in [cx cy] assoc
+                 :sleeping-fighters 0
+                 :awake-fighters (+ awake sleeping)))
+        true)
+
+      ;; Wake a sleeping/sentry/explore friendly unit (not already awake)
+      (and contents
+           (= (:owner contents) :player)
+           (not= (:mode contents) :awake))
+      (do (swap! atoms/game-map assoc-in [cx cy :contents :mode] :awake)
+          true)
+
+      :else nil)))

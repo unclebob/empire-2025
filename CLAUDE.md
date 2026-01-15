@@ -60,3 +60,9 @@ Each map cell is a map with:
 ### Unit Modes
 
 Units operate in modes: `:awake` (needs orders), `:sentry` (sleeping), `:explore` (auto-exploring), `:moving` (executing movement orders)
+
+## Coding Guidelines
+
+### Quil Isolation
+
+Functions in `input.cljc` and `rendering.cljc` that do not depend on Quil should be moved to appropriate non-Quil modules. Keep Quil dependencies (e.g., `q/mouse-x`, `q/mouse-y`, drawing functions) isolated to thin wrapper functions, with core logic extracted into testable, Quil-independent functions in modules like `movement.cljc`, `config.cljc`, or `unit-container.cljc`.

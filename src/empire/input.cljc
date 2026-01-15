@@ -253,50 +253,13 @@
   (let [x (q/mouse-x)
         y (q/mouse-y)]
     (when (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-            cell (get-in @atoms/game-map [cx cy])
-            unit {:type unit-type
-                  :hits (config/item-hits unit-type)
-                  :mode :awake
-                  :owner :player}
-            unit (if (= unit-type :fighter)
-                   (assoc unit :fuel config/fighter-fuel)
-                   unit)]
-        (when-not (:contents cell)
-          (swap! atoms/game-map assoc-in [cx cy :contents] unit))))))
+      (movement/add-unit-at (map-utils/determine-cell-coordinates x y) unit-type))))
 
 (defn wake-at-mouse []
-  "Wakes a city (removes production so it needs attention) or a sleeping unit.
-   Also wakes sleeping fighters in city airports.
-   Returns true if something was woken, nil otherwise."
   (let [x (q/mouse-x)
         y (q/mouse-y)]
     (when (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-            cell (get-in @atoms/game-map [cx cy])
-            contents (:contents cell)]
-        (cond
-          ;; Wake a friendly city - remove production and wake sleeping fighters
-          ;; Does not affect any unit at the city
-          (and (= (:type cell) :city)
-               (= (:city-status cell) :player))
-          (let [sleeping (get cell :sleeping-fighters 0)
-                awake (get cell :awake-fighters 0)]
-            (swap! atoms/production dissoc [cx cy])
-            (when (pos? sleeping)
-              (swap! atoms/game-map update-in [cx cy] assoc
-                     :sleeping-fighters 0
-                     :awake-fighters (+ awake sleeping)))
-            true)
-
-          ;; Wake a sleeping/sentry/explore friendly unit (not already awake)
-          (and contents
-               (= (:owner contents) :player)
-               (not= (:mode contents) :awake))
-          (do (swap! atoms/game-map assoc-in [cx cy :contents :mode] :awake)
-              true)
-
-          :else nil)))))
+      (movement/wake-at (map-utils/determine-cell-coordinates x y)))))
 
 (defn set-destination-at-mouse []
   "Sets the destination to the cell under the mouse cursor."
