@@ -700,7 +700,7 @@
             (should= :moving (:mode launched-fighter))
             (should= [4 6] (:target launched-fighter)))))
 
-      (it "launch-fighter-from-carrier wakes carrier when last awake fighter launches"
+      (it "launch-fighter-from-carrier keeps carrier in sentry mode after last fighter launches"
         (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
                               (assoc-in [4 4] {:type :sea :contents {:type :carrier :mode :sentry :owner :player :hits 8 :fighter-count 1 :awake-fighters 1}})
                               (assoc-in [4 5] {:type :sea}))]
@@ -708,7 +708,7 @@
           (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
           (launch-fighter-from-carrier [4 4] [4 6])
           (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
-            (should= :awake (:mode carrier))
+            (should= :sentry (:mode carrier))
             (should= 0 (:fighter-count carrier)))))
 
       (it "launch-fighter-from-carrier sets steps-remaining to speed minus one"

@@ -471,13 +471,12 @@
 (defn launch-fighter-from-carrier
   "Removes first awake fighter from carrier and sets it moving to target.
    Fighter is placed at the adjacent cell toward target.
-   Wakes the carrier when no more awake fighters remain.
+   Carrier stays in its current mode (sentry carriers remain sentry).
    Returns the coordinates where the fighter was placed."
   [carrier-coords target-coords]
   (let [cell (get-in @atoms/game-map carrier-coords)
         carrier (:contents cell)
         after-remove (uc/remove-awake-unit carrier :fighter-count :awake-fighters)
-        no-more-awake? (not (uc/has-awake? after-remove :awake-fighters))
         ;; Calculate first step toward target
         [cx cy] carrier-coords
         [tx ty] target-coords
@@ -486,10 +485,7 @@
         first-step [(+ cx dx) (+ cy dy)]
         moving-fighter {:type :fighter :mode :moving :owner (:owner carrier) :fuel config/fighter-fuel :target target-coords :hits 1
                         :steps-remaining (dec (config/unit-speed :fighter))}
-        updated-carrier (cond-> after-remove
-                          no-more-awake? (assoc :mode :awake)
-                          no-more-awake? (dissoc :reason))
-        updated-cell (assoc cell :contents updated-carrier)
+        updated-cell (assoc cell :contents after-remove)
         target-cell (get-in @atoms/game-map first-step)]
     ;; Update carrier
     (swap! atoms/game-map assoc-in carrier-coords updated-cell)
