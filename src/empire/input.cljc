@@ -261,6 +261,16 @@
     (when (map-utils/on-map? x y)
       (movement/wake-at (map-utils/determine-cell-coordinates x y)))))
 
+(defn own-city-at-mouse []
+  (let [x (q/mouse-x)
+        y (q/mouse-y)]
+    (when (map-utils/on-map? x y)
+      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+            cell (get-in @atoms/game-map [cx cy])]
+        (when (= (:type cell) :city)
+          (swap! atoms/game-map assoc-in [cx cy :city-status] :player)
+          true)))))
+
 (defn set-destination-at-mouse []
   "Sets the destination to the cell under the mouse cursor."
   (let [x (q/mouse-x)
@@ -365,6 +375,7 @@
       (and (= k :m) (set-marching-orders-at-mouse)) nil
       (and (= k :f) @atoms/destination (set-flight-path-at-mouse)) nil
       (and (= k :u) (wake-at-mouse)) nil
+      (and (= k :o) (own-city-at-mouse)) nil
       (set-city-marching-orders-by-direction k) nil
       (handle-key k) nil
       :else nil)))

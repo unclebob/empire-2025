@@ -122,6 +122,29 @@
   (when (near-hostile-city? final-pos current-map)
     {:wake? true :reason :army-found-city}))
 
+(defn- friendly-city? [cell]
+  (and (= (:type cell) :city)
+       (= (:city-status cell) :player)))
+
+(defn- friendly-carrier? [carrier unit]
+  (and (= (:type carrier) :carrier)
+       (= (:owner carrier) (:owner unit))))
+
+(defn- target-is-reachable-friendly-city? [unit final-pos fuel current-map]
+  (when-let [target (:target unit)]
+    (let [[tx ty] target
+          [fx fy] final-pos
+          target-cell (get-in @current-map target)
+          target-contents (:contents target-cell)
+          distance (max (abs (- tx fx)) (abs (- ty fy)))]
+      (or (and (friendly-city? target-cell)
+               (<= distance fuel))
+          ;; Carrier may be moving away, so account for chase:
+          ;; fuel needed = distance * fighter-speed / (fighter-speed - carrier-speed)
+          ;; = distance * 8 / 6 = distance * 4/3
+          (and (friendly-carrier? target-contents unit)
+               (<= (* distance 4/3) fuel))))))
+
 (defn- wake-fighter-check [unit final-pos current-map]
   (let [dest-cell (get-in @current-map final-pos)
         entering-city? (= (:type dest-cell) :city)
@@ -130,7 +153,8 @@
         fuel (:fuel unit config/fighter-fuel)
         low-fuel? (<= fuel 1)
         bingo-fuel? (and (<= fuel (quot config/fighter-fuel 4))
-                         (friendly-city-in-range? final-pos fuel current-map))]
+                         (friendly-city-in-range? final-pos fuel current-map)
+                         (not (target-is-reachable-friendly-city? unit final-pos fuel current-map)))]
     (cond
       hostile-city? {:wake? true :reason :fighter-shot-down :shot-down? true}
       entering-city? {:wake? true :reason :fighter-landed-and-refueled :refuel? true}

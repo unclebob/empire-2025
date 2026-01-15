@@ -451,6 +451,59 @@
             (should= :fighter (:type fighter))
             (should= :awake (:mode fighter))
             (should= nil (:reason fighter)))))
+
+      (it "fighter does not wake with bingo when target is a reachable friendly city"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              ;; Fighter at [4 4] with fuel 8 (bingo level), target is friendly city at [4 7]
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 7] :fuel 8 :steps-remaining 1}})
+                              (assoc-in [4 5] {:type :land})
+                              (assoc-in [4 7] {:type :city :city-status :player}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          ;; Fighter should NOT bingo - target city is 2 cells away, fuel 7 after move is sufficient
+          (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
+            (should= :fighter (:type fighter))
+            (should= :moving (:mode fighter))
+            (should= nil (:reason fighter)))))
+
+      (it "fighter does not wake with bingo when target is a reachable friendly carrier"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              ;; Fighter at [4 4] with fuel 8 (bingo level), target is carrier at [4 6]
+                              ;; Distance to carrier is 2, worst-case fuel needed = 2 * 4/3 = 2.67, so 8 fuel is enough
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 6] :fuel 8 :steps-remaining 1}})
+                              (assoc-in [4 5] {:type :sea})
+                              ;; Carrier at [4 6] - no flight-path needed
+                              (assoc-in [4 6] {:type :sea :contents {:type :carrier :mode :sentry :owner :player}})
+                              ;; Another friendly city in range to trigger bingo check
+                              (assoc-in [0 0] {:type :city :city-status :player}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          ;; Fighter should NOT bingo - carrier is reachable even if moving away
+          (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
+            (should= :fighter (:type fighter))
+            (should= :moving (:mode fighter))
+            (should= nil (:reason fighter)))))
+
+      (it "fighter wakes with bingo when carrier is too far to reach"
+        (let [initial-map (-> (vec (repeat 12 (vec (repeat 12 nil))))
+                              ;; Fighter at [4 4] with fuel 6 (bingo level), target is carrier at [4 10]
+                              ;; Distance after move is 5, worst-case fuel needed = 5 * 4/3 = 6.67 > 6
+                              (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 10] :fuel 6 :steps-remaining 1}})
+                              (assoc-in [4 5] {:type :sea})
+                              ;; Carrier at [4 10]
+                              (assoc-in [4 10] {:type :sea :contents {:type :carrier :mode :sentry :owner :player}})
+                              ;; Friendly city in range to trigger bingo check
+                              (assoc-in [0 0] {:type :city :city-status :player}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 12 (vec (repeat 12 nil)))))
+          (game-loop/move-current-unit [4 4])
+          ;; Fighter should bingo - carrier too far (needs 6.67 fuel, only has 6)
+          (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
+            (should= :fighter (:type fighter))
+            (should= :awake (:mode fighter))
+            (should= :fighter-bingo (:reason fighter)))))
       )
 
     (context "transport with armies"
