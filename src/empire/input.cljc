@@ -365,6 +365,7 @@
         :t (add-unit-at-mouse :transport)
         :a (add-unit-at-mouse :army)
         :f (add-unit-at-mouse :fighter)
+        :o (own-city-at-mouse)
         nil))
     (cond
       (= k (keyword "`")) (reset! atoms/backtick-pressed true)
@@ -375,7 +376,6 @@
       (and (= k :m) (set-marching-orders-at-mouse)) nil
       (and (= k :f) @atoms/destination (set-flight-path-at-mouse)) nil
       (and (= k :u) (wake-at-mouse)) nil
-      (and (= k :o) (own-city-at-mouse)) nil
       (set-city-marching-orders-by-direction k) nil
       (handle-key k) nil
       :else nil)))
