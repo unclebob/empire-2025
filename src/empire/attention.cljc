@@ -23,16 +23,19 @@
        (= clicked-coords (first attention-coords))))
 
 (defn needs-attention?
-  "Returns true if the cell at [i j] needs attention (awake unit, city with no production, awake airport fighter, carrier with awake fighters, or transport with awake armies)."
+  "Returns true if the cell at [i j] needs attention (awake unit, city with no production, awake airport fighter, carrier with awake fighters, or transport with awake armies).
+   Satellites only need attention when they have no target."
   [i j]
   (let [cell (get-in @atoms/player-map [i j])
         unit (:contents cell)
         mode (:mode unit)
+        satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
         has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
                                         (uc/has-awake? unit :awake-fighters))]
-    (and (or (= (:city-status cell) :player)
+    (and (not satellite-with-target?)
+         (or (= (:city-status cell) :player)
              (= (:owner unit) :player)
              has-awake-airport-fighter?
              has-awake-carrier-fighter?)
@@ -52,21 +55,24 @@
     [i j]))
 
 (defn item-needs-attention?
-  "Returns true if the item at coords needs user input."
+  "Returns true if the item at coords needs user input.
+   Satellites only need attention when they have no target."
   [coords]
   (let [cell (get-in @atoms/game-map coords)
         unit (:contents cell)
+        satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
         has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
                                         (uc/has-awake? unit :awake-fighters))]
-    (or (= (:mode unit) :awake)
-        has-awake-airport-fighter?
-        has-awake-army-aboard?
-        has-awake-carrier-fighter?
-        (and (= (:type cell) :city)
-             (= (:city-status cell) :player)
-             (not (@atoms/production coords))))))
+    (and (not satellite-with-target?)
+         (or (= (:mode unit) :awake)
+             has-awake-airport-fighter?
+             has-awake-army-aboard?
+             has-awake-carrier-fighter?
+             (and (= (:type cell) :city)
+                  (= (:city-status cell) :player)
+                  (not (@atoms/production coords)))))))
 
 (defn set-attention-message
   "Sets the message for the current item needing attention."

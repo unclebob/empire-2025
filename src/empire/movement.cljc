@@ -116,18 +116,24 @@
             (swap! visible-map-atom assoc-in [ni nj] (get-in @atoms/game-map [ni nj]))))))))
 
 (defn update-cell-visibility [pos owner]
-  "Updates visibility around a specific cell for the given owner."
+  "Updates visibility around a specific cell for the given owner.
+   Satellites reveal two rectangular rings (distances 1 and 2)."
   (let [visible-map-atom (if (= owner :player) atoms/player-map atoms/computer-map)
-        [x y] pos]
+        [x y] pos
+        cell (get-in @atoms/game-map pos)
+        is-satellite? (= :satellite (:type (:contents cell)))
+        radius (if is-satellite? 2 1)]
     (when @visible-map-atom
       (let [height (count @atoms/game-map)
             width (count (first @atoms/game-map))]
-        (doseq [di [-1 0 1]
-                dj [-1 0 1]]
-          (let [ni (max 0 (min (dec height) (+ x di)))
-                nj (max 0 (min (dec width) (+ y dj)))
-                game-cell (get-in @atoms/game-map [ni nj])]
-            (swap! visible-map-atom assoc-in [ni nj] game-cell)))))))
+        (doseq [di (range (- radius) (inc radius))
+                dj (range (- radius) (inc radius))]
+          (let [ni (+ x di)
+                nj (+ y dj)]
+            (when (and (>= ni 0) (< ni height)
+                       (>= nj 0) (< nj width))
+              (let [game-cell (get-in @atoms/game-map [ni nj])]
+                (swap! visible-map-atom assoc-in [ni nj] game-cell)))))))))
 
 (defn wake-before-move [unit next-cell]
   (let [next-contents (:contents next-cell)
@@ -399,11 +405,37 @@
         (do-move from-coords next-pos cell final-unit)
         {:result :normal :pos next-pos}))))
 
+(defn- extend-to-boundary
+  "Extends from position in direction until hitting a boundary."
+  [[x y] [dx dy] map-height map-width]
+  (loop [px x py y]
+    (let [nx (+ px dx)
+          ny (+ py dy)]
+      (if (and (>= nx 0) (< nx map-height)
+               (>= ny 0) (< ny map-width))
+        (recur nx ny)
+        [px py]))))
+
+(defn- calculate-satellite-target
+  "For satellites, extends the target to the map boundary in the direction of travel."
+  [unit-coords target-coords]
+  (let [[ux uy] unit-coords
+        [tx ty] target-coords
+        dx (Integer/signum (- tx ux))
+        dy (Integer/signum (- ty uy))
+        map-height (count @atoms/game-map)
+        map-width (count (first @atoms/game-map))]
+    (extend-to-boundary unit-coords [dx dy] map-height map-width)))
+
 (defn set-unit-movement [unit-coords target-coords]
   (let [first-cell (get-in @atoms/game-map unit-coords)
         unit (:contents first-cell)
+        ;; For satellites, extend target to the boundary
+        actual-target (if (= :satellite (:type unit))
+                        (calculate-satellite-target unit-coords target-coords)
+                        target-coords)
         updated-contents (-> unit
-                             (assoc :mode :moving :target target-coords)
+                             (assoc :mode :moving :target actual-target)
                              (dissoc :reason))]
     (swap! atoms/game-map assoc-in unit-coords (assoc first-cell :contents updated-contents))))
 
@@ -756,6 +788,9 @@
               :owner :player}
         unit (if (= unit-type :fighter)
                (assoc unit :fuel config/fighter-fuel)
+               unit)
+        unit (if (= unit-type :satellite)
+               (assoc unit :turns-remaining config/satellite-turns)
                unit)]
     (when-not (:contents cell)
       (swap! atoms/game-map assoc-in [cx cy :contents] unit))))
@@ -781,3 +816,64 @@
           true)
 
       :else nil)))
+
+(defn- calculate-new-satellite-target
+  "Calculates a new target on the opposite boundary when satellite reaches its target.
+   At corners, randomly chooses one of the two opposite boundaries."
+  [[x y] map-height map-width]
+  (let [at-top? (= x 0)
+        at-bottom? (= x (dec map-height))
+        at-left? (= y 0)
+        at-right? (= y (dec map-width))
+        at-corner? (and (or at-top? at-bottom?) (or at-left? at-right?))]
+    (cond
+      ;; Corner - choose one of the two opposite boundaries randomly
+      at-corner?
+      (if (zero? (rand-int 2))
+        [(if at-top? (dec map-height) 0) (rand-int map-width)]
+        [(rand-int map-height) (if at-left? (dec map-width) 0)])
+
+      ;; At top/bottom edge - target opposite vertical edge
+      (or at-top? at-bottom?)
+      [(if at-top? (dec map-height) 0) (rand-int map-width)]
+
+      ;; At left/right edge - target opposite horizontal edge
+      (or at-left? at-right?)
+      [(rand-int map-height) (if at-left? (dec map-width) 0)]
+
+      ;; Not at boundary (shouldn't happen)
+      :else
+      [x y])))
+
+(defn move-satellite
+  "Moves a satellite one step toward its target.
+   When at target (always on boundary), calculates new target on opposite boundary.
+   Satellites without a target don't move - they wait for user input."
+  [[x y]]
+  (let [cell (get-in @atoms/game-map [x y])
+        satellite (:contents cell)
+        target (:target satellite)]
+    (if-not target
+      ;; No target - satellite doesn't move, waits for user input
+      [x y]
+      (let [map-height (count @atoms/game-map)
+            map-width (count (first @atoms/game-map))
+            [tx ty] target
+            at-target? (and (= x tx) (= y ty))]
+        (if at-target?
+          ;; At target (on boundary) - bounce to opposite side
+          (let [new-target (calculate-new-satellite-target [x y] map-height map-width)
+                updated-satellite (assoc satellite :target new-target)]
+            (swap! atoms/game-map assoc-in [x y :contents] updated-satellite)
+            (update-cell-visibility [x y] (:owner satellite))
+            [x y])
+          ;; Not at target - move toward it
+          (let [dx (Integer/signum (- tx x))
+                dy (Integer/signum (- ty y))
+                new-pos [(+ x dx) (+ y dy)]]
+            ;; Remove from old position
+            (swap! atoms/game-map assoc-in [x y :contents] nil)
+            ;; Place at new position
+            (swap! atoms/game-map assoc-in (conj new-pos :contents) satellite)
+            (update-cell-visibility new-pos (:owner satellite))
+            new-pos))))))

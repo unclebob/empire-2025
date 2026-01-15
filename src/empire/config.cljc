@@ -71,6 +71,7 @@
 (def carrier-capacity 8)
 
 (def explore-steps 50)
+(def satellite-turns 50)
 
 ;; Messages and reasons
 (def messages

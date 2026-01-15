@@ -153,10 +153,64 @@
   (reset! atoms/message "")
   (reset! atoms/cells-needing-attention []))
 
+(defn- find-satellite-coords
+  "Returns coordinates of all satellites on the map.
+   Returns a vector to avoid lazy evaluation issues during map modification."
+  []
+  (vec (for [i (range (count @atoms/game-map))
+             j (range (count (first @atoms/game-map)))
+             :let [cell (get-in @atoms/game-map [i j])
+                   contents (:contents cell)]
+             :when (= (:type contents) :satellite)]
+         [i j])))
+
+(defn- move-satellite-steps
+  "Moves a satellite the number of steps based on its speed.
+   Decrements turns-remaining once per round.
+   Returns final position or nil if satellite expired."
+  [start-coords]
+  (loop [coords start-coords
+         steps-left (config/unit-speed :satellite)]
+    (let [cell (get-in @atoms/game-map coords)
+          satellite (:contents cell)]
+      (cond
+        ;; No satellite here (already removed or error)
+        (not satellite)
+        nil
+
+        ;; Satellite expired
+        (<= (:turns-remaining satellite 0) 0)
+        (do (swap! atoms/game-map update-in coords dissoc :contents)
+            (movement/update-cell-visibility coords (:owner satellite))
+            nil)
+
+        ;; No more steps this round - decrement turns-remaining once per round
+        (zero? steps-left)
+        (let [new-turns (dec (:turns-remaining satellite 1))]
+          (if (<= new-turns 0)
+            (do (swap! atoms/game-map update-in coords dissoc :contents)
+                (movement/update-cell-visibility coords (:owner satellite))
+                nil)
+            (do (swap! atoms/game-map assoc-in (conj coords :contents :turns-remaining) new-turns)
+                coords)))
+
+        ;; Move one step
+        :else
+        (let [new-coords (movement/move-satellite coords)]
+          (recur new-coords (dec steps-left)))))))
+
+(defn move-satellites
+  "Moves all satellites according to their speed.
+   Removes satellites with turns-remaining at or below zero."
+  []
+  (doseq [coords (find-satellite-coords)]
+    (move-satellite-steps coords)))
+
 (defn start-new-round
   "Starts a new round by building player items list and updating game state."
   []
   (swap! atoms/round-number inc)
+  (move-satellites)
   (consume-sentry-fighter-fuel)
   (remove-dead-units)
   (production/update-production)
@@ -220,22 +274,26 @@
     (when-not @atoms/waiting-for-input
       (let [coords (first @atoms/player-items)
             cell (get-in @atoms/game-map coords)
-            unit (:contents cell)]
-        (if-let [auto-coords (or (auto-launch-fighter coords cell)
-                                 (auto-disembark-army coords cell))]
-          (swap! atoms/player-items #(cons auto-coords (rest %)))
-          (if (attention/item-needs-attention? coords)
-            (do
-              (reset! atoms/cells-needing-attention [coords])
-              (attention/set-attention-message coords)
-              (reset! atoms/waiting-for-input true))
-            (let [new-coords (case (:mode unit)
-                               :explore (move-explore-unit coords)
-                               :moving (move-current-unit coords)
-                               nil)]
-              (if new-coords
-                (swap! atoms/player-items #(cons new-coords (rest %)))
-                (swap! atoms/player-items rest)))))))))
+            unit (:contents cell)
+            ;; Satellites with targets are moved by move-satellites, skip them here
+            satellite-with-target? (and (= (:type unit) :satellite) (:target unit))]
+        (if satellite-with-target?
+          (swap! atoms/player-items rest)
+          (if-let [auto-coords (or (auto-launch-fighter coords cell)
+                                   (auto-disembark-army coords cell))]
+            (swap! atoms/player-items #(cons auto-coords (rest %)))
+            (if (attention/item-needs-attention? coords)
+              (do
+                (reset! atoms/cells-needing-attention [coords])
+                (attention/set-attention-message coords)
+                (reset! atoms/waiting-for-input true))
+              (let [new-coords (case (:mode unit)
+                                 :explore (move-explore-unit coords)
+                                 :moving (move-current-unit coords)
+                                 nil)]
+                (if new-coords
+                  (swap! atoms/player-items #(cons new-coords (rest %)))
+                  (swap! atoms/player-items rest))))))))))
 
 (defn update-map
   "Updates the game map state."

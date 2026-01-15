@@ -7,6 +7,7 @@
   [coords item]
   (swap! atoms/production assoc coords {:item item :remaining-rounds (config/item-cost item)}))
 
+
 (defn update-production
   "Updates production for all cities by decrementing remaining rounds."
   []
@@ -25,6 +26,9 @@
                       flight-path (:flight-path cell)
                       unit {:type item :hits (config/item-hits item) :mode :awake :owner owner}
                       unit (if (= item :fighter) (assoc unit :fuel config/fighter-fuel) unit)
+                      unit (if (= item :satellite)
+                             (assoc unit :turns-remaining config/satellite-turns)
+                             unit)
                       unit (cond
                              (and (= item :army) marching-orders)
                              (assoc unit :mode :moving :target marching-orders)

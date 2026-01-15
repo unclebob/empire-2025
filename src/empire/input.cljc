@@ -361,10 +361,15 @@
     (do
       (reset! atoms/backtick-pressed false)
       (case k
-        :c (add-unit-at-mouse :carrier)
-        :t (add-unit-at-mouse :transport)
         :a (add-unit-at-mouse :army)
         :f (add-unit-at-mouse :fighter)
+        :z (add-unit-at-mouse :satellite)
+        :t (add-unit-at-mouse :transport)
+        :p (add-unit-at-mouse :patrol-boat)
+        :d (add-unit-at-mouse :destroyer)
+        :s (add-unit-at-mouse :submarine)
+        :c (add-unit-at-mouse :carrier)
+        :b (add-unit-at-mouse :battleship)
         :o (own-city-at-mouse)
         nil))
     (cond

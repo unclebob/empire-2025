@@ -95,7 +95,17 @@
   (it "returns true for transport with awake armies"
     (reset! atoms/player-map [[{:type :sea :contents {:type :transport :mode :sentry :owner :player :awake-armies 1}}]])
     (reset! atoms/production {})
-    (should (attention/needs-attention? 0 0))))
+    (should (attention/needs-attention? 0 0)))
+
+  (it "returns true for satellite without target"
+    (reset! atoms/player-map [[{:type :land :contents {:type :satellite :mode :awake :owner :player :turns-remaining 50}}]])
+    (reset! atoms/production {})
+    (should (attention/needs-attention? 0 0)))
+
+  (it "returns false for satellite with target"
+    (reset! atoms/player-map [[{:type :land :contents {:type :satellite :mode :awake :owner :player :target [5 5] :turns-remaining 50}}]])
+    (reset! atoms/production {})
+    (should-not (attention/needs-attention? 0 0))))
 
 (describe "item-needs-attention?"
   (it "returns true for awake unit"
@@ -126,7 +136,15 @@
 
   (it "returns true for transport with awake armies"
     (reset! atoms/game-map [[{:type :sea :contents {:type :transport :mode :sentry :awake-armies 1}}]])
-    (should (attention/item-needs-attention? [0 0]))))
+    (should (attention/item-needs-attention? [0 0])))
+
+  (it "returns true for satellite without target"
+    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :mode :awake :turns-remaining 50}}]])
+    (should (attention/item-needs-attention? [0 0])))
+
+  (it "returns false for satellite with target"
+    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :mode :awake :target [5 5] :turns-remaining 50}}]])
+    (should-not (attention/item-needs-attention? [0 0]))))
 
 (describe "cells-needing-attention"
   (it "returns coordinates of cells needing attention"
