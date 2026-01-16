@@ -118,7 +118,12 @@
         dest @atoms/destination
         dest-str (if dest (str "Dest: " (first dest) "," (second dest)) "")]
     (q/text (str "Round: " @atoms/round-number) status-x (+ text-y 10))
-    (q/text dest-str status-x (+ text-y 30))))
+    (if @atoms/paused
+      (do
+        (q/fill 255 0 0)
+        (q/text "PAUSED" status-x (+ text-y 30))
+        (q/fill 255))
+      (q/text dest-str status-x (+ text-y 30)))))
 
 (defn draw-message-area
   "Draws the message area including separator line and messages."

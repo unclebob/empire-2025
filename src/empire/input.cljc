@@ -389,6 +389,7 @@
         nil))
     (cond
       (= k (keyword "`")) (reset! atoms/backtick-pressed true)
+      (= k :p) (game-loop/toggle-pause)
       (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
                                             :computer-map :actual-map
                                             :actual-map :player-map})

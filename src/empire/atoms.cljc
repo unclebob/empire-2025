@@ -87,3 +87,11 @@
 (def destination
   "An atom containing the remembered destination coordinates for marching orders/flight paths."
   (atom nil))
+
+(def paused
+  "An atom indicating if the game is currently paused."
+  (atom false))
+
+(def pause-requested
+  "An atom indicating a pause has been requested at end of current round."
+  (atom false))

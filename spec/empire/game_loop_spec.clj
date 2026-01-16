@@ -270,3 +270,60 @@
     (game-loop/advance-game)
     ;; Should have moved the exploring unit
     (should-not= [[0 0]] @atoms/player-items)))
+
+
+(describe "pause functionality"
+  (before
+    (reset! atoms/paused false)
+    (reset! atoms/pause-requested false))
+
+  (describe "toggle-pause"
+    (it "sets pause-requested when game is running"
+      (reset! atoms/paused false)
+      (game-loop/toggle-pause)
+      (should @atoms/pause-requested))
+
+    (it "unpauses when game is paused"
+      (reset! atoms/paused true)
+      (reset! atoms/pause-requested false)
+      (game-loop/toggle-pause)
+      (should-not @atoms/paused)
+      (should-not @atoms/pause-requested)))
+
+  (describe "advance-game pauses at round end"
+    (it "pauses at end of round when pause-requested"
+      (reset! atoms/game-map [[{:type :land}]])
+      (reset! atoms/player-map [[{}]])
+      (reset! atoms/production {})
+      (reset! atoms/player-items [])  ;; Empty means end of round
+      (reset! atoms/pause-requested true)
+      (reset! atoms/paused false)
+      (let [round-before @atoms/round-number]
+        (game-loop/advance-game)
+        ;; Should be paused, round should not have advanced
+        (should @atoms/paused)
+        (should-not @atoms/pause-requested)
+        (should= round-before @atoms/round-number)))
+
+    (it "does not start new round when paused"
+      (reset! atoms/game-map [[{:type :land}]])
+      (reset! atoms/player-map [[{}]])
+      (reset! atoms/production {})
+      (reset! atoms/player-items [])
+      (reset! atoms/paused true)
+      (let [round-before @atoms/round-number]
+        (game-loop/advance-game)
+        ;; Round should not advance while paused
+        (should= round-before @atoms/round-number)))
+
+    (it "starts new round normally when not paused"
+      (reset! atoms/game-map [[{:type :land}]])
+      (reset! atoms/player-map [[{}]])
+      (reset! atoms/production {})
+      (reset! atoms/player-items [])
+      (reset! atoms/paused false)
+      (reset! atoms/pause-requested false)
+      (let [round-before @atoms/round-number]
+        (game-loop/advance-game)
+        ;; Round should advance
+        (should= (inc round-before) @atoms/round-number)))))

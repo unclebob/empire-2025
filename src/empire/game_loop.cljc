@@ -274,32 +274,57 @@
 (defn advance-game
   "Advances the game by processing the current item or starting new round."
   []
-  (if (empty? @atoms/player-items)
-    (start-new-round)
-    (when-not @atoms/waiting-for-input
-      (let [coords (first @atoms/player-items)
-            cell (get-in @atoms/game-map coords)
-            unit (:contents cell)
-            ;; Satellites with targets are moved by move-satellites, skip them here
-            satellite-with-target? (and (= (:type unit) :satellite) (:target unit))]
-        (if satellite-with-target?
-          (swap! atoms/player-items rest)
-          (if-let [auto-coords (or (auto-launch-fighter coords cell)
-                                   (auto-disembark-army coords cell))]
-            (swap! atoms/player-items #(cons auto-coords (rest %)))
-            (if (attention/item-needs-attention? coords)
-              (do
-                (reset! atoms/cells-needing-attention [coords])
-                (attention/set-attention-message coords)
-                (reset! atoms/waiting-for-input true))
-              (let [new-coords (case (:mode unit)
-                                 :explore (move-explore-unit coords)
-                                 :coastline-follow (move-coastline-unit coords)
-                                 :moving (move-current-unit coords)
-                                 nil)]
-                (if new-coords
-                  (swap! atoms/player-items #(cons new-coords (rest %)))
-                  (swap! atoms/player-items rest))))))))))
+  (cond
+    ;; Already paused - do nothing
+    @atoms/paused
+    nil
+
+    ;; End of round - check for pause request
+    (empty? @atoms/player-items)
+    (if @atoms/pause-requested
+      (do
+        (reset! atoms/paused true)
+        (reset! atoms/pause-requested false))
+      (start-new-round))
+
+    ;; Normal processing
+    @atoms/waiting-for-input
+    nil
+
+    :else
+    (let [coords (first @atoms/player-items)
+          cell (get-in @atoms/game-map coords)
+          unit (:contents cell)
+          ;; Satellites with targets are moved by move-satellites, skip them here
+          satellite-with-target? (and (= (:type unit) :satellite) (:target unit))]
+      (if satellite-with-target?
+        (swap! atoms/player-items rest)
+        (if-let [auto-coords (or (auto-launch-fighter coords cell)
+                                 (auto-disembark-army coords cell))]
+          (swap! atoms/player-items #(cons auto-coords (rest %)))
+          (if (attention/item-needs-attention? coords)
+            (do
+              (reset! atoms/cells-needing-attention [coords])
+              (attention/set-attention-message coords)
+              (reset! atoms/waiting-for-input true))
+            (let [new-coords (case (:mode unit)
+                               :explore (move-explore-unit coords)
+                               :coastline-follow (move-coastline-unit coords)
+                               :moving (move-current-unit coords)
+                               nil)]
+              (if new-coords
+                (swap! atoms/player-items #(cons new-coords (rest %)))
+                (swap! atoms/player-items rest)))))))))
+
+(defn toggle-pause
+  "Toggles pause state. If running, requests pause at end of round.
+   If paused, resumes immediately."
+  []
+  (if @atoms/paused
+    (do
+      (reset! atoms/paused false)
+      (reset! atoms/pause-requested false))
+    (reset! atoms/pause-requested true)))
 
 (defn update-map
   "Updates the game map state."
