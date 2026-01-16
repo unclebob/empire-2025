@@ -277,15 +277,30 @@
     (:refuel? result) (assoc :fuel config/fighter-fuel)
     (:shot-down? result) (assoc :hits 0 :steps-remaining 0)))
 
+(defn- get-waypoint-orders
+  "Returns the waypoint marching orders at final-pos if unit is an army, else nil."
+  [unit final-pos current-map]
+  (when (= :army (:type unit))
+    (let [cell (get-in @current-map final-pos)]
+      (:marching-orders (:waypoint cell)))))
+
 (defn wake-after-move [unit from-pos final-pos current-map]
   (let [is-at-target? (= final-pos (:target unit))
         handler (wake-check-handlers (:type unit))
         result (when handler (handler unit from-pos final-pos current-map))
-        wake-up? (or is-at-target? (:wake? result))]
+        waypoint-orders (get-waypoint-orders unit final-pos current-map)
+        wake-up? (and (or is-at-target? (:wake? result))
+                      (not waypoint-orders))]
     (when (:shot-down? result)
       (atoms/set-line3-message (:fighter-destroyed-by-city config/messages) 3000))
-    (if wake-up?
+    (cond
+      waypoint-orders
+      (assoc unit :target waypoint-orders)
+
+      wake-up?
       (dissoc (apply-wake-result unit result) :target)
+
+      :else
       unit)))
 
 (defn process-consumables [unit to-cell]

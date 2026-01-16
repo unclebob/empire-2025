@@ -8,6 +8,7 @@
             [empire.movement :as movement]
             [empire.production :as production]
             [empire.unit-container :as uc]
+            [empire.waypoint :as waypoint]
             [quil.core :as q]))
 
 (defn handle-unit-click
@@ -296,7 +297,7 @@
         true))))
 
 (defn set-marching-orders-at-mouse []
-  "Sets marching orders on a player city or transport under the mouse to the current destination."
+  "Sets marching orders on a player city, transport, or waypoint under the mouse to the current destination."
   (when-let [dest @atoms/destination]
     (let [x (q/mouse-x)
           y (q/mouse-y)]
@@ -317,6 +318,10 @@
             (do (swap! atoms/game-map assoc-in [cx cy :contents :marching-orders] dest)
                 (reset! atoms/destination nil)
                 (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+                true)
+
+            (:waypoint cell)
+            (do (waypoint/set-waypoint-orders [cx cy])
                 true)
 
             :else nil))))))
@@ -346,6 +351,19 @@
                 true)
 
             :else nil))))))
+
+(defn set-waypoint-at-mouse []
+  "Creates or removes a waypoint at the cell under the mouse cursor."
+  (let [x (q/mouse-x)
+        y (q/mouse-y)]
+    (when (map-utils/on-map? x y)
+      (let [[cx cy] (map-utils/determine-cell-coordinates x y)]
+        (when (waypoint/create-waypoint [cx cy])
+          (let [cell (get-in @atoms/game-map [cx cy])]
+            (if (:waypoint cell)
+              (atoms/set-confirmation-message (str "Waypoint placed at " cx "," cy) 2000)
+              (atoms/set-confirmation-message (str "Waypoint removed from " cx "," cy) 2000)))
+          true)))))
 
 (defn set-city-marching-orders-by-direction [k]
   "Sets marching orders on a player city under the mouse to the map edge in the given direction."
@@ -399,4 +417,5 @@
       (and (= k :u) (wake-at-mouse)) nil
       (set-city-marching-orders-by-direction k) nil
       (handle-key k) nil
+      (and (= k (keyword "*")) (set-waypoint-at-mouse)) nil
       :else nil)))

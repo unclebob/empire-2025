@@ -38,6 +38,15 @@
       (q/text-font @atoms/production-char-font)
       (q/text (config/item-chars (:type display-unit)) (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))
 
+(defn- draw-waypoint
+  "Draws a waypoint marker on the map cell if it has a waypoint and no contents."
+  [col row cell cell-w cell-h]
+  (when (and (:waypoint cell) (nil? (:contents cell)))
+    (let [[r g b] config/waypoint-color]
+      (q/fill r g b)
+      (q/text-font @atoms/production-char-font)
+      (q/text "*" (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))
+
 (defn draw-map
   "Draws the map on the screen."
   [the-map]
@@ -65,11 +74,12 @@
       (q/line (* col cell-w) 0 (* col cell-w) map-h))
     (doseq [row (range (inc rows))]
       (q/line 0 (* row cell-h) map-w (* row cell-h)))
-    ;; Draw production indicators and units
+    ;; Draw production indicators, units, and waypoints
     (doseq [[_ cells] cells-by-color]
       (doseq [{:keys [col row cell]} cells]
         (draw-production-indicators row col cell cell-w cell-h)
-        (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)))))
+        (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)
+        (draw-waypoint col row cell cell-w cell-h)))))
 
 (defn update-hover-status
   "Updates line2-message based on mouse position, unless a confirmation message is active."

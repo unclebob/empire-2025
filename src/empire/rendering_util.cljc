@@ -36,12 +36,21 @@
          (when (:marching-orders cell) " march")
          (when (:flight-path cell) " flight"))))
 
+(defn format-waypoint-status
+  "Formats status string for a waypoint."
+  [waypoint]
+  (let [orders (:marching-orders waypoint)]
+    (if orders
+      (str "waypoint -> " (first orders) "," (second orders))
+      "waypoint (no orders)")))
+
 (defn format-hover-status
   "Formats a status string for a cell. Production is the production entry for this cell, or nil."
   [cell production]
   (cond
     (:contents cell) (format-unit-status (:contents cell))
     (= (:type cell) :city) (format-city-status cell production)
+    (:waypoint cell) (format-waypoint-status (:waypoint cell))
     :else nil))
 
 (defn determine-display-unit

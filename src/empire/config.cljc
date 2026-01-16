@@ -37,6 +37,7 @@
    :sea [0 191 255]})          ; deep sky blue for water
 
 (def production-color [128 128 128])
+(def waypoint-color [0 255 0])
 (def awake-unit-color [255 255 255])
 (def sleeping-unit-color [0 0 0])
 (def sentry-unit-color [255 128 128])
