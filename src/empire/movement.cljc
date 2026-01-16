@@ -796,6 +796,13 @@
   (and near-coast?
        (#{:transport :patrol-boat} (:type unit))))
 
+(defn coastline-follow-rejection-reason
+  "Returns the reason why a unit can't use coastline-follow, or nil if eligible or not applicable."
+  [unit near-coast?]
+  (when (and (#{:transport :patrol-boat} (:type unit))
+             (not near-coast?))
+    :not-near-coast))
+
 (defn set-coastline-follow-mode
   "Sets a unit to coastline-follow mode with initial state."
   [coords]
@@ -833,9 +840,9 @@
       [nx ny])))
 
 (defn pick-coastline-move
-  "Picks the next coastline move - prefers cells orthogonally adjacent to land (shore hugging),
-   then diagonally adjacent, avoids visited. Randomizes choice, avoids backsteps.
-   Returns nil if no valid moves."
+  "Picks the next coastline move - prefers cells that expose unexplored territory,
+   then orthogonally adjacent to land (shore hugging), then diagonally adjacent.
+   Avoids visited cells and backsteps. Returns nil if no valid moves."
   [pos current-map visited prev-pos]
   (let [all-moves (remove #{prev-pos} (get-valid-coastline-moves pos current-map))
         unvisited-moves (vec (remove visited all-moves))
@@ -844,13 +851,24 @@
         unvisited-orthogonal (vec (filter #(orthogonally-adjacent-to-land? % current-map) unvisited-moves))
         ;; Fallback to any coastal moves (diagonal adjacency)
         coastal-moves (vec (filter #(adjacent-to-land? % current-map) all-moves))
-        unvisited-coastal (vec (filter #(adjacent-to-land? % current-map) unvisited-moves))]
+        unvisited-coastal (vec (filter #(adjacent-to-land? % current-map) unvisited-moves))
+        ;; Prefer moves that expose unexplored territory
+        unvisited-orthogonal-unexplored (vec (filter adjacent-to-unexplored? unvisited-orthogonal))
+        unvisited-coastal-unexplored (vec (filter adjacent-to-unexplored? unvisited-coastal))]
     (cond
-      ;; Prefer unvisited orthogonally coastal moves (best shore hugging)
+      ;; Best: unvisited orthogonal coastal exposing unexplored
+      (seq unvisited-orthogonal-unexplored)
+      (rand-nth unvisited-orthogonal-unexplored)
+
+      ;; Unvisited orthogonal coastal (no unexplored)
       (seq unvisited-orthogonal)
       (rand-nth unvisited-orthogonal)
 
-      ;; Unvisited diagonally coastal moves
+      ;; Unvisited coastal exposing unexplored
+      (seq unvisited-coastal-unexplored)
+      (rand-nth unvisited-coastal-unexplored)
+
+      ;; Unvisited coastal (no unexplored)
       (seq unvisited-coastal)
       (rand-nth unvisited-coastal)
 

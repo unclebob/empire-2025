@@ -330,4 +330,58 @@
         (reset! atoms/game-map game-map)
         ;; [3 3] is diagonally adjacent to land (at [2 2] borders, [2 3], [3 2], [4 2], [2 4], etc)
         ;; but not orthogonally adjacent since [2 3], [3 2], [4 3], [3 4] need to be land
-        (should= [3 3] (movement/pick-coastline-move [2 2] atoms/game-map #{} nil))))))
+        (should= [3 3] (movement/pick-coastline-move [2 2] atoms/game-map #{} nil)))))
+
+  (describe "pick-coastline-move prefers unexplored territory"
+    (it "prefers moves adjacent to unexplored over explored"
+      (let [;; Sea map with land for shore hugging, two valid moves
+            ;; [3 3] current, can move to [3 4] or [4 3]
+            ;; [3 4] has unexplored neighbors, [4 3] does not
+            game-map (-> (vec (repeat 7 (vec (repeat 7 {:type :sea}))))
+                          (assoc-in [3 5] {:type :land})   ; makes [3 4] coastal
+                          (assoc-in [5 3] {:type :land}))  ; makes [4 3] coastal
+            ;; Player map: most explored, but [3 6] and neighbors of [3 4] unexplored
+            player-map (-> (vec (repeat 7 (vec (repeat 7 {:type :sea}))))
+                            (assoc-in [3 5] {:type :land})
+                            (assoc-in [5 3] {:type :land})
+                            ;; Leave [2 5], [3 6], [4 5] as nil (unexplored) - adjacent to [3 4]
+                            (assoc-in [2 5] nil)
+                            (assoc-in [3 6] nil)
+                            (assoc-in [4 5] nil))]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/player-map player-map)
+        ;; Both moves are orthogonally coastal, but [3 4] is adjacent to unexplored
+        (let [moves (set (repeatedly 20 #(movement/pick-coastline-move [3 3] atoms/game-map #{} nil)))]
+          ;; Should prefer [3 4] since it's adjacent to unexplored territory
+          (should (every? #(movement/adjacent-to-unexplored? %) moves)))))
+
+    (it "falls back to explored when no unexplored available"
+      (let [;; Fully explored sea with coastal moves
+            game-map (-> (vec (repeat 6 (vec (repeat 6 {:type :land}))))
+                          (assoc-in [2 2] {:type :sea})
+                          (assoc-in [2 3] {:type :sea}))
+            ;; Fully explored player map
+            player-map (-> (vec (repeat 6 (vec (repeat 6 {:type :land}))))
+                            (assoc-in [2 2] {:type :sea})
+                            (assoc-in [2 3] {:type :sea}))]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/player-map player-map)
+        ;; Should still return a valid move even though nothing is unexplored
+        (should= [2 3] (movement/pick-coastline-move [2 2] atoms/game-map #{} nil)))))
+
+  (describe "not near coast message"
+    (it "returns :not-near-coast reason when transport not adjacent to land"
+      (let [unit {:type :transport :mode :awake}]
+        (should= :not-near-coast (movement/coastline-follow-rejection-reason unit false))))
+
+    (it "returns :not-near-coast reason when patrol-boat not adjacent to land"
+      (let [unit {:type :patrol-boat :mode :awake}]
+        (should= :not-near-coast (movement/coastline-follow-rejection-reason unit false))))
+
+    (it "returns nil when transport is near coast (eligible)"
+      (let [unit {:type :transport :mode :awake}]
+        (should-be-nil (movement/coastline-follow-rejection-reason unit true))))
+
+    (it "returns nil for non-ship units"
+      (let [unit {:type :destroyer :mode :awake}]
+        (should-be-nil (movement/coastline-follow-rejection-reason unit false))))))

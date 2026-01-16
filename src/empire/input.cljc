@@ -219,7 +219,8 @@
 
 (defn- handle-look-around-key [coords cell active-unit]
   (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
-        near-coast? (movement/adjacent-to-land? coords atoms/game-map)]
+        near-coast? (movement/adjacent-to-land? coords atoms/game-map)
+        rejection-reason (movement/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond
       ;; Army (not aboard) - explore mode
       (and (= :army (:type active-unit)) (not is-army-aboard?))
@@ -241,6 +242,11 @@
       (movement/coastline-follow-eligible? active-unit near-coast?)
       (do (movement/set-coastline-follow-mode coords)
           (game-loop/item-processed)
+          true)
+
+      ;; Transport or patrol-boat not near coast - show reason
+      rejection-reason
+      (do (reset! atoms/message (rejection-reason config/messages))
           true)
 
       :else nil)))

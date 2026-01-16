@@ -72,7 +72,8 @@
    :returned-to-start "Returned to start."
    :hit-edge "Hit map edge."
    :blocked "Blocked."
-   :steps-exhausted "Lookaround limit reached."})
+   :steps-exhausted "Lookaround limit reached."
+   :not-near-coast "Not near coast."})
 
 ;; Key to movement direction mapping [dx dy]
 (def key->direction
