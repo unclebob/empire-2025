@@ -371,10 +371,49 @@
     (and blocker
          (= (:owner blocker) (:owner unit)))))
 
+(defn- should-sidestep-city?
+  "Returns true if unit should sidestep around the city in next-cell.
+   Armies sidestep friendly cities. Fighters sidestep all cities except their target."
+  [unit next-cell next-pos]
+  (when (= :city (:type next-cell))
+    (cond
+      ;; Army should sidestep friendly cities
+      (and (= :army (:type unit))
+           (= :player (:city-status next-cell)))
+      true
+
+      ;; Fighter should sidestep any city that's not its target
+      (and (= :fighter (:type unit))
+           (not= next-pos (:target unit)))
+      true
+
+      :else false)))
+
 (defn- get-blocked-direction
   "Returns the direction [dx dy] from pos to next-pos."
   [[x y] [nx ny]]
   [(- nx x) (- ny y)])
+
+(defn- try-sidestep
+  "Attempts to sidestep around a blocked cell. Returns {:result :sidestep :pos new-pos}
+   if successful, or {:result :woke :pos from-coords} if no valid sidestep exists."
+  [from-coords next-pos target-coords cell woken-unit current-map]
+  (let [unit (:contents cell)
+        blocked-dir (get-blocked-direction from-coords next-pos)
+        sidestep-pos (find-best-sidestep from-coords target-coords (:type unit) blocked-dir current-map)]
+    (if sidestep-pos
+      (let [final-unit (wake-after-move unit sidestep-pos current-map)]
+        (do-move from-coords sidestep-pos cell final-unit)
+        {:result :sidestep :pos sidestep-pos})
+      (let [updated-cell (assoc cell :contents woken-unit)]
+        (swap! atoms/game-map assoc-in from-coords updated-cell)
+        (update-cell-visibility from-coords (:owner unit))
+        {:result :woke :pos from-coords}))))
+
+(defn- wake-unit-for-city [unit]
+  "Creates a woken unit with appropriate reason for city blocking."
+  (let [reason (if (= :army (:type unit)) :cant-move-into-city :fighter-over-defended-city)]
+    (assoc (dissoc (assoc unit :mode :awake) :target) :reason reason)))
 
 (defn move-unit
   "Moves a unit one step toward target. Returns a map with:
@@ -386,22 +425,15 @@
         next-cell (get-in @current-map next-pos)
         [woken-unit woke?] (wake-before-move unit next-cell)]
     (cond
+      ;; Sidestep around cities (armies around friendly, fighters around non-target)
+      (should-sidestep-city? unit next-cell next-pos)
+      (try-sidestep from-coords next-pos target-coords cell (wake-unit-for-city unit) current-map)
+
       ;; Blocked by friendly unit - try to sidestep
       (and woke?
            (= (:reason woken-unit) :somethings-in-the-way)
            (blocked-by-friendly? unit next-cell))
-      (let [blocked-dir (get-blocked-direction from-coords next-pos)
-            sidestep-pos (find-best-sidestep from-coords target-coords (:type unit) blocked-dir current-map)]
-        (if sidestep-pos
-          ;; Sidestep successful - move to sidestep position (doesn't consume a step)
-          (let [final-unit (wake-after-move unit sidestep-pos current-map)]
-            (do-move from-coords sidestep-pos cell final-unit)
-            {:result :sidestep :pos sidestep-pos})
-          ;; No valid sidestep - wake up
-          (let [updated-cell (assoc cell :contents woken-unit)]
-            (swap! atoms/game-map assoc-in from-coords updated-cell)
-            (update-cell-visibility from-coords (:owner unit))
-            {:result :woke :pos from-coords})))
+      (try-sidestep from-coords next-pos target-coords cell woken-unit current-map)
 
       ;; Other wake conditions - just wake up
       woke?

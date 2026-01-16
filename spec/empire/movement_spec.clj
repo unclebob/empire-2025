@@ -1199,6 +1199,106 @@
       (should (:contents (get-in @atoms/game-map [0 2])))
       (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))))
 
+(describe "sidestep around cities"
+  (it "army sidesteps around friendly city"
+    (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                          ;; Army at [4 4] moving to [4 8], friendly city at [4 5]
+                          (assoc-in [4 4] {:type :land :contents {:type :army :mode :moving :owner :player :target [4 8] :steps-remaining 2}})
+                          (assoc-in [4 5] {:type :city :city-status :player})
+                          (assoc-in [5 5] {:type :land})  ;; Diagonal sidestep
+                          (assoc-in [3 5] {:type :land})  ;; Other diagonal
+                          (assoc-in [4 6] {:type :land})
+                          (assoc-in [4 7] {:type :land})
+                          (assoc-in [4 8] {:type :land}))]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (game-loop/move-current-unit [4 4])
+      ;; Army should have sidestepped around friendly city and continued
+      (should (:contents (get-in @atoms/game-map [4 6])))
+      (should-be-nil (:contents (get-in @atoms/game-map [4 4])))))
+
+  (it "army wakes when no sidestep around friendly city exists"
+    (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                          ;; Army at [4 4] moving to [4 8], friendly city at [4 5], all sidesteps blocked
+                          (assoc-in [4 4] {:type :land :contents {:type :army :mode :moving :owner :player :target [4 8] :steps-remaining 1}})
+                          (assoc-in [4 5] {:type :city :city-status :player})
+                          (assoc-in [5 5] {:type :sea})
+                          (assoc-in [3 5] {:type :sea})
+                          (assoc-in [5 4] {:type :sea})
+                          (assoc-in [3 4] {:type :sea}))]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (game-loop/move-current-unit [4 4])
+      ;; Army should wake up since no sidestep exists
+      (let [unit (:contents (get-in @atoms/game-map [4 4]))]
+        (should= :awake (:mode unit))
+        (should= :cant-move-into-city (:reason unit)))))
+
+  (it "fighter sidesteps around free city when not target"
+    (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                          ;; Fighter at [4 4] moving to [4 8], free city at [4 5]
+                          (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 8] :fuel 20 :steps-remaining 2}})
+                          (assoc-in [4 5] {:type :city :city-status :free})
+                          (assoc-in [5 5] {:type :land})  ;; Diagonal sidestep
+                          (assoc-in [3 5] {:type :land})
+                          (assoc-in [4 6] {:type :land})
+                          (assoc-in [4 7] {:type :land})
+                          (assoc-in [4 8] {:type :land}))]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (game-loop/move-current-unit [4 4])
+      ;; Fighter should have sidestepped around city and continued
+      (should (:contents (get-in @atoms/game-map [4 6])))
+      (should-be-nil (:contents (get-in @atoms/game-map [4 4])))))
+
+  (it "fighter sidesteps around player city when not target"
+    (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                          ;; Fighter at [4 4] moving to [4 8], player city at [4 5]
+                          (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 8] :fuel 20 :steps-remaining 2}})
+                          (assoc-in [4 5] {:type :city :city-status :player})
+                          (assoc-in [5 5] {:type :land})
+                          (assoc-in [3 5] {:type :land})
+                          (assoc-in [4 6] {:type :land})
+                          (assoc-in [4 7] {:type :land})
+                          (assoc-in [4 8] {:type :land}))]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (game-loop/move-current-unit [4 4])
+      ;; Fighter should have sidestepped around city and continued
+      (should (:contents (get-in @atoms/game-map [4 6])))
+      (should-be-nil (:contents (get-in @atoms/game-map [4 4])))))
+
+  (it "fighter does not sidestep when city is target"
+    (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                          ;; Fighter at [4 4] with target [4 5] which is a player city
+                          (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 5] :fuel 20 :steps-remaining 2}})
+                          (assoc-in [4 5] {:type :city :city-status :player :fighter-count 0})
+                          (assoc-in [5 5] {:type :land})
+                          (assoc-in [3 5] {:type :land}))]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (game-loop/move-current-unit [4 4])
+      ;; Fighter should land at target city, not sidestep
+      (should= 1 (:fighter-count (get-in @atoms/game-map [4 5])))
+      (should-be-nil (:contents (get-in @atoms/game-map [4 4])))))
+
+  (it "fighter sidesteps around hostile city"
+    (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                          ;; Fighter at [4 4] moving to [4 8], hostile city at [4 5]
+                          (assoc-in [4 4] {:type :land :contents {:type :fighter :mode :moving :owner :player :target [4 8] :fuel 20 :steps-remaining 2}})
+                          (assoc-in [4 5] {:type :city :city-status :computer})
+                          (assoc-in [5 5] {:type :land})
+                          (assoc-in [3 5] {:type :land})
+                          (assoc-in [4 6] {:type :land})
+                          (assoc-in [4 7] {:type :land})
+                          (assoc-in [4 8] {:type :land}))]
+      (reset! atoms/game-map initial-map)
+      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (game-loop/move-current-unit [4 4])
+      ;; Fighter should have sidestepped around hostile city
+      (should (:contents (get-in @atoms/game-map [4 6])))
+      (should-be-nil (:contents (get-in @atoms/game-map [4 4]))))))
+
 (describe "satellite movement"
   (it "does not move without a target"
     (let [initial-map (-> (vec (repeat 10 (vec (repeat 10 {:type :land}))))
