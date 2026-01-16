@@ -798,6 +798,52 @@
       (it "is-fighter-from-carrier? returns falsy for fighter without :from-carrier"
         (let [fighter {:type :fighter :mode :awake :owner :player :hits 1}]
           (should-not (is-fighter-from-carrier? fighter))))
+
+      (it "fighter launched from carrier and landing back has awake-fighters 0"
+        ;; Simulate: launch a fighter, have it fly and return to carrier
+        ;; awake-fighters should be 0 after landing
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :carrier :mode :sentry :owner :player :hits 8 :fighter-count 1 :awake-fighters 1}})
+                              (assoc-in [4 5] {:type :sea})
+                              (assoc-in [4 6] {:type :sea}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          ;; Launch fighter from carrier toward [4 6]
+          (launch-fighter-from-carrier [4 4] [4 6])
+          ;; Verify carrier now has 0 fighters
+          (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
+            (should= 0 (:fighter-count carrier))
+            (should= 0 (:awake-fighters carrier)))
+          ;; Fighter is at [4 5] moving toward [4 6]
+          ;; Now simulate fighter returning to carrier - set its target to carrier
+          (let [fighter-cell (get-in @atoms/game-map [4 5])
+                fighter (:contents fighter-cell)
+                returning-fighter (assoc fighter :target [4 4] :steps-remaining 1)]
+            (swap! atoms/game-map assoc-in [4 5 :contents] returning-fighter)
+            ;; Move fighter back to carrier
+            (game-loop/move-current-unit [4 5])
+            ;; Verify fighter landed and is sleeping
+            (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
+              (should= :carrier (:type carrier))
+              (should= 1 (:fighter-count carrier))
+              (should= 0 (:awake-fighters carrier 0))))))
+
+      (it "fighter out of fuel crashing near carrier does not destroy carrier"
+        ;; Fighter with fuel 0 adjacent to carrier - when it tries to land, it crashes
+        ;; but the carrier should remain intact
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 nil))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :fighter :mode :moving :owner :player :target [4 5] :fuel 0 :steps-remaining 1}})
+                              (assoc-in [4 5] {:type :sea :contents {:type :carrier :mode :sentry :owner :player :hits 8 :fighter-count 1}}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          ;; Fighter should be gone (crashed)
+          (should-be-nil (:contents (get-in @atoms/game-map [4 4])))
+          ;; Carrier should still exist with its original fighter count
+          (let [carrier-cell (get-in @atoms/game-map [4 5])
+                carrier (:contents carrier-cell)]
+            (should= :carrier (:type carrier))
+            (should= 1 (:fighter-count carrier)))))
       )
 
     (describe "is-computers?"

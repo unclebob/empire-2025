@@ -113,7 +113,10 @@
                                               :else nil)
                                   reason-key (or (:reason active-unit)
                                                  (when adjacent-enemy-city? :army-found-city))
-                                  reason-str (when reason-key (reason-key config/messages))]
+                                  reason-str (when reason-key
+                                               (if (string? reason-key)
+                                                 reason-key
+                                                 (reason-key config/messages)))]
                               (str unit-name (:unit-needs-attention config/messages) (or cargo-str "") (if reason-str (str " - " reason-str) "")))
 
                             :else

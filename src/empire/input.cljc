@@ -168,6 +168,21 @@
 
 
 (defn- handle-space-key [coords]
+  (let [cell (get-in @atoms/game-map coords)
+        unit (:contents cell)]
+    (when unit
+      (if (= :fighter (:type unit))
+        (let [current-fuel (:fuel unit config/fighter-fuel)
+              fuel-cost (config/unit-speed :fighter)
+              new-fuel (- current-fuel fuel-cost)]
+          (if (<= new-fuel 0)
+            (do
+              (swap! atoms/game-map assoc-in (conj coords :contents :hits) 0)
+              (swap! atoms/game-map assoc-in (conj coords :contents :reason) :skipping-this-round))
+            (do
+              (swap! atoms/game-map assoc-in (conj coords :contents :fuel) new-fuel)
+              (swap! atoms/game-map assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
+        (swap! atoms/game-map assoc-in (conj coords :contents :reason) :skipping-this-round))))
   (swap! atoms/player-items rest)
   (game-loop/item-processed)
   true)

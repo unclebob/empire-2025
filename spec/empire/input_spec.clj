@@ -1,7 +1,8 @@
 (ns empire.input-spec
   (:require [speclj.core :refer :all]
             [empire.input :as input]
-            [empire.atoms :as atoms]))
+            [empire.atoms :as atoms]
+            [empire.config :as config]))
 
 (describe "set-city-lookaround"
   (around [it]
@@ -29,3 +30,43 @@
 
   (it "returns nil for non-city cell"
     (should-be-nil (input/set-city-lookaround [0 0]))))
+
+(describe "handle-key :space"
+  (it "sets reason to :skipping-this-round on the unit"
+    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :awake :owner :player}}]])
+    (reset! atoms/cells-needing-attention [[0 0]])
+    (reset! atoms/player-items [[0 0]])
+    (reset! atoms/waiting-for-input true)
+    (input/handle-key :space)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :skipping-this-round (:reason unit))))
+
+  (it "burns a full round of fuel for fighters when skipping"
+    (let [initial-fuel 20
+          fighter-speed (config/unit-speed :fighter)]
+      (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :awake :owner :player :fuel initial-fuel}}]])
+      (reset! atoms/cells-needing-attention [[0 0]])
+      (reset! atoms/player-items [[0 0]])
+      (reset! atoms/waiting-for-input true)
+      (input/handle-key :space)
+      (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+        (should= (- initial-fuel fighter-speed) (:fuel unit)))))
+
+  (it "fighter crashes when skipping with insufficient fuel"
+    (let [fighter-speed (config/unit-speed :fighter)]
+      (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 3 :hits 1}}]])
+      (reset! atoms/cells-needing-attention [[0 0]])
+      (reset! atoms/player-items [[0 0]])
+      (reset! atoms/waiting-for-input true)
+      (input/handle-key :space)
+      (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+        (should= 0 (:hits unit)))))
+
+  (it "includes fuel in reason when fighter skips"
+    (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 20}}]])
+    (reset! atoms/cells-needing-attention [[0 0]])
+    (reset! atoms/player-items [[0 0]])
+    (reset! atoms/waiting-for-input true)
+    (input/handle-key :space)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should-contain "12" (:reason unit)))))

@@ -160,7 +160,15 @@
 
   (it "clears cells-needing-attention"
     (game-loop/start-new-round)
-    (should= [] @atoms/cells-needing-attention)))
+    (should= [] @atoms/cells-needing-attention))
+
+  (it "does not wake carrier fighters - they stay asleep until u is pressed"
+    (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player :fighter-count 2 :awake-fighters 0}}]])
+    (reset! atoms/player-map [[{}]])
+    (reset! atoms/computer-map [[{}]])
+    (game-loop/start-new-round)
+    (let [carrier (:contents (get-in @atoms/game-map [0 0]))]
+      (should= 0 (:awake-fighters carrier 0)))))
 
 (describe "advance-game"
   (it "starts new round when player-items is empty"

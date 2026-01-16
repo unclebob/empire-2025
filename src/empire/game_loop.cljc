@@ -253,7 +253,7 @@
   (profile "update-production" production/update-production)
   (profile "reset-steps-remaining" reset-steps-remaining)
   (profile "wake-airport-fighters" wake-airport-fighters)
-  (profile "wake-carrier-fighters" wake-carrier-fighters)
+  ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
   (profile "build-player-items" #(reset! atoms/player-items (vec (build-player-items))))
   (reset! atoms/waiting-for-input false)
   (reset! atoms/message "")

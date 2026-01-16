@@ -402,7 +402,7 @@
 
 (defn- update-destination-cell [move-type to-cell processed-unit]
   (case move-type
-    :unit-destroyed (dissoc to-cell :contents)
+    :unit-destroyed to-cell  ;; Unit crashed - leave destination unchanged
     :fighter-land-at-city (uc/add-unit to-cell :fighter-count)
     :fighter-land-on-carrier (update to-cell :contents uc/add-unit :fighter-count)
     :normal-move (assoc to-cell :contents processed-unit)))
