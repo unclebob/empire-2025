@@ -65,6 +65,7 @@
    :cant-move-into-city "Can't move into city."
    :ships-cant-drive-on-land "Ships don't drive on land."
    :transport-at-beach "At beach."
+   :transport-found-land "Found land!"
    :somethings-in-the-way "Something's in the way."
    :city-needs-attention "City needs attention"
    :unit-needs-attention " needs attention"

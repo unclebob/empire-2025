@@ -629,6 +629,63 @@
             (should= :awake (:mode transport))
             (should= nil (:reason transport)))))
 
+      (it "completely-surrounded-by-sea? returns true when no adjacent land"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :moving :owner :player}}))]
+          (reset! atoms/game-map initial-map)
+          (should (completely-surrounded-by-sea? [4 4] atoms/game-map))))
+
+      (it "completely-surrounded-by-sea? returns false when adjacent to land"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :moving :owner :player}})
+                              (assoc-in [4 5] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (should-not (completely-surrounded-by-sea? [4 4] atoms/game-map))))
+
+      (it "transport wakes with found-land when moving from open sea to land visible"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
+                              ;; Transport at [4 4] completely surrounded by sea
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :moving :owner :player :hits 1 :army-count 1 :target [4 5] :steps-remaining 1}})
+                              ;; Target at [4 5] is sea but has land at [4 6] (adjacent to [4 5] but not to [4 4])
+                              (assoc-in [4 5] {:type :sea})
+                              (assoc-in [4 6] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          (let [transport (:contents (get-in @atoms/game-map [4 5]))]
+            (should= :awake (:mode transport))
+            (should= :transport-found-land (:reason transport)))))
+
+      (it "transport does not wake with found-land when already near land before move"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
+                              ;; Transport at [4 4] already has land at [3 3]
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :moving :owner :player :hits 1 :army-count 1 :target [4 5] :steps-remaining 1}})
+                              (assoc-in [3 3] {:type :land})
+                              ;; Target at [4 5] also near land at [5 5]
+                              (assoc-in [4 5] {:type :sea})
+                              (assoc-in [5 5] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          (let [transport (:contents (get-in @atoms/game-map [4 5]))]
+            ;; Still wakes because it's at beach with armies, but reason should be :transport-at-beach
+            (should= :awake (:mode transport))
+            (should= :transport-at-beach (:reason transport)))))
+
+      (it "transport wakes with found-land even without armies"
+        (let [initial-map (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
+                              ;; Transport at [4 4] completely surrounded by sea, no armies
+                              (assoc-in [4 4] {:type :sea :contents {:type :transport :mode :moving :owner :player :hits 1 :target [4 5] :steps-remaining 1}})
+                              ;; Target at [4 5] is sea but has land at [4 6] (adjacent to [4 5] but not to [4 4])
+                              (assoc-in [4 5] {:type :sea})
+                              (assoc-in [4 6] {:type :land}))]
+          (reset! atoms/game-map initial-map)
+          (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+          (game-loop/move-current-unit [4 4])
+          (let [transport (:contents (get-in @atoms/game-map [4 5]))]
+            (should= :awake (:mode transport))
+            (should= :transport-found-land (:reason transport)))))
+
       (it "get-active-unit returns synthetic army when transport has awake armies"
         (let [cell {:type :sea :contents {:type :transport :mode :sentry :owner :player :army-count 3 :awake-armies 2}}]
           (let [active (get-active-unit cell)]
@@ -802,10 +859,10 @@
           (reset! atoms/game-map initial-map)
           (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
           (reset! atoms/line3-message "")
-          ;; wake-after-move takes unit, final-pos, and current-map (atom)
+          ;; wake-after-move takes unit, from-pos, final-pos, and current-map (atom)
           (let [cell (get-in @atoms/game-map [4 4])
                 unit (:contents cell)
-                result (wake-after-move unit [4 5] atoms/game-map)]
+                result (wake-after-move unit [4 4] [4 5] atoms/game-map)]
             (should= 0 (:hits result))))))
 
     (describe "fighter landing at city"

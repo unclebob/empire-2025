@@ -193,6 +193,11 @@
                    (= :land (:type (get-in @current-map [nx ny]))))))
           map-utils/neighbor-offsets)))
 
+(defn completely-surrounded-by-sea?
+  "Returns true if the position has no adjacent land cells (completely in open sea)."
+  [pos current-map]
+  (not (adjacent-to-land? pos current-map)))
+
 (defn orthogonally-adjacent-to-land?
   "Returns true if the position is orthogonally adjacent to a land cell (N/S/E/W only)."
   [pos current-map]
@@ -207,7 +212,7 @@
                    (= :land (:type (get-in @current-map [nx ny]))))))
           map-utils/orthogonal-offsets)))
 
-(defn- wake-army-check [_unit final-pos current-map]
+(defn- wake-army-check [_unit _from-pos final-pos current-map]
   (when (near-hostile-city? final-pos current-map)
     {:wake? true :reason :army-found-city}))
 
@@ -234,7 +239,7 @@
           (and (friendly-carrier? target-contents unit)
                (<= (* distance 4/3) fuel))))))
 
-(defn- wake-fighter-check [unit final-pos current-map]
+(defn- wake-fighter-check [unit _from-pos final-pos current-map]
   (let [dest-cell (get-in @current-map final-pos)
         entering-city? (= (:type dest-cell) :city)
         friendly-city? (= (:city-status dest-cell) :player)
@@ -251,11 +256,15 @@
       bingo-fuel? {:wake? true :reason :fighter-bingo}
       :else nil)))
 
-(defn- wake-transport-check [unit final-pos current-map]
+(defn- wake-transport-check [unit from-pos final-pos current-map]
   (let [has-armies? (pos? (:army-count unit 0))
-        at-beach? (adjacent-to-land? final-pos current-map)]
-    (when (and has-armies? at-beach?)
-      {:wake? true :reason :transport-at-beach})))
+        at-beach? (adjacent-to-land? final-pos current-map)
+        was-in-open-sea? (completely-surrounded-by-sea? from-pos current-map)
+        found-land? (and was-in-open-sea? at-beach?)]
+    (cond
+      found-land? {:wake? true :reason :transport-found-land}
+      (and has-armies? at-beach?) {:wake? true :reason :transport-at-beach}
+      :else nil)))
 
 (def ^:private wake-check-handlers
   {:army wake-army-check
@@ -268,10 +277,10 @@
     (:refuel? result) (assoc :fuel config/fighter-fuel)
     (:shot-down? result) (assoc :hits 0 :steps-remaining 0)))
 
-(defn wake-after-move [unit final-pos current-map]
+(defn wake-after-move [unit from-pos final-pos current-map]
   (let [is-at-target? (= final-pos (:target unit))
         handler (wake-check-handlers (:type unit))
-        result (when handler (handler unit final-pos current-map))
+        result (when handler (handler unit from-pos final-pos current-map))
         wake-up? (or is-at-target? (:wake? result))]
     (when (:shot-down? result)
       (atoms/set-line3-message (:fighter-destroyed-by-city config/messages) 3000))
@@ -402,7 +411,7 @@
         blocked-dir (get-blocked-direction from-coords next-pos)
         sidestep-pos (find-best-sidestep from-coords target-coords (:type unit) blocked-dir current-map)]
     (if sidestep-pos
-      (let [final-unit (wake-after-move unit sidestep-pos current-map)]
+      (let [final-unit (wake-after-move unit from-coords sidestep-pos current-map)]
         (do-move from-coords sidestep-pos cell final-unit)
         {:result :sidestep :pos sidestep-pos})
       (let [updated-cell (assoc cell :contents woken-unit)]
@@ -444,7 +453,7 @@
 
       ;; Normal move
       :else
-      (let [final-unit (wake-after-move unit next-pos current-map)]
+      (let [final-unit (wake-after-move unit from-coords next-pos current-map)]
         (do-move from-coords next-pos cell final-unit)
         {:result :normal :pos next-pos}))))
 
