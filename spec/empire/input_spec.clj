@@ -2,12 +2,13 @@
   (:require [speclj.core :refer :all]
             [empire.input :as input]
             [empire.atoms :as atoms]
-            [empire.config :as config]))
+            [empire.config :as config]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "set-city-lookaround"
   (around [it]
-    (reset! atoms/game-map [[{:type :sea} {:type :city :city-status :player}]
-                            [{:type :city :city-status :computer} {:type :land}]])
+    (reset! atoms/game-map @(build-test-map ["sO"
+                                             "XL"]))
     (it))
 
   (it "sets marching orders to :lookaround on player city"
@@ -33,7 +34,7 @@
 
 (describe "handle-key :space"
   (it "sets reason to :skipping-this-round on the unit"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :awake :owner :player}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["A"]) [0 0 :contents :mode] :awake))
     (reset! atoms/cells-needing-attention [[0 0]])
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input true)
@@ -44,7 +45,9 @@
   (it "burns a full round of fuel for fighters when skipping"
     (let [initial-fuel 20
           fighter-speed (config/unit-speed :fighter)]
-      (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :awake :owner :player :fuel initial-fuel}}]])
+      (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                       [0 0 :contents]
+                                       {:type :fighter :mode :awake :owner :player :fuel initial-fuel}))
       (reset! atoms/cells-needing-attention [[0 0]])
       (reset! atoms/player-items [[0 0]])
       (reset! atoms/waiting-for-input true)
@@ -54,7 +57,9 @@
 
   (it "fighter crashes when skipping with insufficient fuel"
     (let [fighter-speed (config/unit-speed :fighter)]
-      (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 3 :hits 1}}]])
+      (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                       [0 0 :contents]
+                                       {:type :fighter :mode :awake :owner :player :fuel 3 :hits 1}))
       (reset! atoms/cells-needing-attention [[0 0]])
       (reset! atoms/player-items [[0 0]])
       (reset! atoms/waiting-for-input true)
@@ -63,7 +68,9 @@
         (should= 0 (:hits unit)))))
 
   (it "includes fuel in reason when fighter skips"
-    (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 20}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                     [0 0 :contents]
+                                     {:type :fighter :mode :awake :owner :player :fuel 20}))
     (reset! atoms/cells-needing-attention [[0 0]])
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input true)

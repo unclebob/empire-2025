@@ -2,7 +2,8 @@
   (:require [speclj.core :refer :all]
             [empire.game-loop :as game-loop]
             [empire.atoms :as atoms]
-            [empire.config :as config]))
+            [empire.config :as config]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "item-processed"
   (it "resets waiting-for-input to false"
@@ -22,8 +23,8 @@
 
 (describe "build-player-items"
   (before
-    (reset! atoms/game-map [[{:type :land} {:type :city :city-status :player}]
-                            [{:type :land :contents {:type :army :owner :player}} {:type :city :city-status :computer}]]))
+    (reset! atoms/game-map @(build-test-map ["LO"
+                                             "AX"])))
 
   (it "returns player city coordinates"
     (let [items (game-loop/build-player-items)]
@@ -43,10 +44,12 @@
 
 (describe "remove-dead-units"
   (before
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :player :hits 0}}
-                             {:type :land :contents {:type :fighter :owner :player :hits 1}}]
-                            [{:type :land} {:type :land}]])
-    (reset! atoms/player-map [[{} {}] [{} {}]]))
+    (reset! atoms/game-map (-> @(build-test-map ["AF"
+                                                 "LL"])
+                               (assoc-in [0 0 :contents :hits] 0)
+                               (assoc-in [0 1 :contents :hits] 1)))
+    (reset! atoms/player-map @(build-test-map ["LL"
+                                               "LL"])))
 
   (it "removes units with hits <= 0"
     (game-loop/remove-dead-units)
@@ -58,9 +61,9 @@
 
 (describe "reset-steps-remaining"
   (before
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :player}}
-                             {:type :land :contents {:type :fighter :owner :player}}]
-                            [{:type :land :contents {:type :army :owner :computer}} {:type :land}]]))
+    (reset! atoms/game-map (assoc-in @(build-test-map ["AF"
+                                                       "AL"])
+                                     [1 0 :contents :owner] :computer)))
 
   (it "sets steps-remaining for player army"
     (game-loop/reset-steps-remaining)
@@ -76,44 +79,50 @@
 
 (describe "wake-airport-fighters"
   (it "wakes all fighters in player city airports"
-    (reset! atoms/game-map [[{:type :city :city-status :player :fighter-count 3}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["O"]) [0 0 :fighter-count] 3))
     (game-loop/wake-airport-fighters)
     (should= 3 (:awake-fighters (get-in @atoms/game-map [0 0]))))
 
   (it "ignores computer cities"
-    (reset! atoms/game-map [[{:type :city :city-status :computer :fighter-count 3}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["X"]) [0 0 :fighter-count] 3))
     (game-loop/wake-airport-fighters)
     (should-be-nil (:awake-fighters (get-in @atoms/game-map [0 0]))))
 
   (it "ignores cities with no fighters"
-    (reset! atoms/game-map [[{:type :city :city-status :player :fighter-count 0}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["O"]) [0 0 :fighter-count] 0))
     (game-loop/wake-airport-fighters)
     (should-be-nil (:awake-fighters (get-in @atoms/game-map [0 0])))))
 
 (describe "wake-carrier-fighters"
   (it "wakes all fighters on player carriers"
-    (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player :fighter-count 3}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["C"]) [0 0 :contents :fighter-count] 3))
     (game-loop/wake-carrier-fighters)
     (should= 3 (:awake-fighters (:contents (get-in @atoms/game-map [0 0])))))
 
   (it "ignores computer carriers"
-    (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :computer :fighter-count 3}}]])
+    (reset! atoms/game-map (-> @(build-test-map ["C"])
+                               (assoc-in [0 0 :contents :owner] :computer)
+                               (assoc-in [0 0 :contents :fighter-count] 3)))
     (game-loop/wake-carrier-fighters)
     (should-be-nil (:awake-fighters (:contents (get-in @atoms/game-map [0 0])))))
 
   (it "ignores carriers with no fighters"
-    (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player :fighter-count 0}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["C"]) [0 0 :contents :fighter-count] 0))
     (game-loop/wake-carrier-fighters)
     (should-be-nil (:awake-fighters (:contents (get-in @atoms/game-map [0 0]))))))
 
 (describe "consume-sentry-fighter-fuel"
   (it "decrements fuel for sentry fighters"
-    (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :sentry :fuel 20}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                     [0 0 :contents]
+                                     {:type :fighter :mode :sentry :fuel 20}))
     (game-loop/consume-sentry-fighter-fuel)
     (should= 19 (:fuel (:contents (get-in @atoms/game-map [0 0])))))
 
   (it "wakes fighter when fuel reaches 1"
-    (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :sentry :fuel 2 :owner :player}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                     [0 0 :contents]
+                                     {:type :fighter :mode :sentry :fuel 2 :owner :player}))
     (game-loop/consume-sentry-fighter-fuel)
     (let [unit (:contents (get-in @atoms/game-map [0 0]))]
       (should= 1 (:fuel unit))
@@ -121,12 +130,16 @@
       (should= :fighter-out-of-fuel (:reason unit))))
 
   (it "sets hits to 0 when fuel reaches 0"
-    (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :sentry :fuel 1 :owner :player}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                     [0 0 :contents]
+                                     {:type :fighter :mode :sentry :fuel 1 :owner :player}))
     (game-loop/consume-sentry-fighter-fuel)
     (should= 0 (:hits (:contents (get-in @atoms/game-map [0 0])))))
 
   (it "does not affect moving fighters"
-    (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :moving :fuel 20}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["F"])
+                                     [0 0 :contents]
+                                     {:type :fighter :mode :moving :fuel 20}))
     (game-loop/consume-sentry-fighter-fuel)
     (should= 20 (:fuel (:contents (get-in @atoms/game-map [0 0])))))
 
@@ -134,8 +147,9 @@
     ;; Fighter fuel is 20, bingo threshold is 20/4 = 5
     ;; At fuel 6, decrement to 5 which equals bingo threshold
     ;; Need a friendly city within range (5 cells)
-    (reset! atoms/game-map [[{:type :city :city-status :player}
-                             {:type :land :contents {:type :fighter :mode :sentry :fuel 6 :owner :player}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["OF"])
+                                     [0 1 :contents]
+                                     {:type :fighter :mode :sentry :fuel 6 :owner :player}))
     (game-loop/consume-sentry-fighter-fuel)
     (let [unit (:contents (get-in @atoms/game-map [0 1]))]
       (should= 5 (:fuel unit))
@@ -144,9 +158,9 @@
 
 (describe "start-new-round"
   (before
-    (reset! atoms/game-map [[{:type :city :city-status :player}]])
-    (reset! atoms/player-map [[{}]])
-    (reset! atoms/computer-map [[{}]])
+    (reset! atoms/game-map @(build-test-map ["O"]))
+    (reset! atoms/player-map @(build-test-map ["L"]))
+    (reset! atoms/computer-map @(build-test-map ["L"]))
     (reset! atoms/production {})
     (reset! atoms/round-number 0)
     (reset! atoms/player-items [])
@@ -175,18 +189,20 @@
     (should= [] @atoms/cells-needing-attention))
 
   (it "does not wake carrier fighters - they stay asleep until u is pressed"
-    (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player :fighter-count 2 :awake-fighters 0}}]])
-    (reset! atoms/player-map [[{}]])
-    (reset! atoms/computer-map [[{}]])
+    (reset! atoms/game-map (-> @(build-test-map ["C"])
+                               (assoc-in [0 0 :contents :fighter-count] 2)
+                               (assoc-in [0 0 :contents :awake-fighters] 0)))
+    (reset! atoms/player-map @(build-test-map ["s"]))
+    (reset! atoms/computer-map @(build-test-map ["s"]))
     (game-loop/start-new-round)
     (let [carrier (:contents (get-in @atoms/game-map [0 0]))]
       (should= 0 (:awake-fighters carrier 0)))))
 
 (describe "advance-game"
   (it "starts new round when player-items is empty"
-    (reset! atoms/game-map [[{:type :city :city-status :player}]])
-    (reset! atoms/player-map [[{}]])
-    (reset! atoms/computer-map [[{}]])
+    (reset! atoms/game-map @(build-test-map ["O"]))
+    (reset! atoms/player-map @(build-test-map ["L"]))
+    (reset! atoms/computer-map @(build-test-map ["L"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [])
     (reset! atoms/round-number 0)
@@ -194,7 +210,7 @@
     (should= 1 @atoms/round-number))
 
   (it "sets waiting-for-input when item needs attention"
-    (reset! atoms/game-map [[{:type :city :city-status :player}]])
+    (reset! atoms/game-map @(build-test-map ["O"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -203,7 +219,7 @@
     (should= true @atoms/waiting-for-input))
 
   (it "does nothing when waiting for input"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :awake :owner :player}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["A"]) [0 0 :contents :mode] :awake))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input true)
@@ -213,7 +229,7 @@
     (should= [[0 0]] @atoms/player-items))
 
   (it "moves to next item when unit does not need attention"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :sentry :owner :player}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["A"]) [0 0 :contents :mode] :sentry))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -222,9 +238,9 @@
 
 (describe "update-map"
   (before
-    (reset! atoms/game-map [[{:type :city :city-status :player}]])
-    (reset! atoms/player-map [[{}]])
-    (reset! atoms/computer-map [[{}]])
+    (reset! atoms/game-map @(build-test-map ["O"]))
+    (reset! atoms/player-map @(build-test-map ["L"]))
+    (reset! atoms/computer-map @(build-test-map ["L"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [])
     (reset! atoms/round-number 0))
@@ -236,9 +252,10 @@
 (describe "move-satellites"
   (it "removes satellite when turns-remaining reaches zero during movement"
     ;; Satellite with turns-remaining 1 will expire after moving
-    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :owner :player :turns-remaining 1}}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LL"])
+                                     [0 0 :contents]
+                                     {:type :satellite :owner :player :turns-remaining 1}))
+    (reset! atoms/player-map @(build-test-map ["LL"]))
     (game-loop/move-satellites)
     ;; Satellite should be removed after its turn expires
     (let [found-satellite (some (fn [[i row]]
@@ -254,17 +271,19 @@
 
   (it "removes satellite immediately when turns-remaining is already zero"
     ;; Satellite with turns-remaining 0 should be removed at start of move
-    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :owner :player :turns-remaining 0}}]])
-    (reset! atoms/player-map [[{}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["L"])
+                                     [0 0 :contents]
+                                     {:type :satellite :owner :player :turns-remaining 0}))
+    (reset! atoms/player-map @(build-test-map ["L"]))
     (game-loop/move-satellites)
     ;; Satellite should be removed
     (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
 
   (it "decrements turns-remaining after movement"
-    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :owner :player :turns-remaining 5}}
-                             {:type :land}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LLL"])
+                                     [0 0 :contents]
+                                     {:type :satellite :owner :player :turns-remaining 5}))
+    (reset! atoms/player-map @(build-test-map ["LLL"]))
     (game-loop/move-satellites)
     ;; Find where satellite ended up
     (let [find-sat (fn []
@@ -280,9 +299,10 @@
 
 (describe "move-explore-unit"
   (it "delegates to movement/move-explore-unit"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :explore :owner :player :visited #{[0 0]}}}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LL"])
+                                     [0 0 :contents]
+                                     {:type :army :mode :explore :owner :player :visited #{[0 0]}}))
+    (reset! atoms/player-map @(build-test-map ["LL"]))
     (let [result (game-loop/move-explore-unit [0 0])]
       ;; Should return new coords if still exploring
       (should (or (nil? result) (vector? result))))))
@@ -305,9 +325,11 @@
 
 (describe "auto-launch-fighter from airport"
   (it "launches fighter when city has flight-path and awake fighters"
-    (reset! atoms/game-map [[{:type :city :city-status :player :flight-path [0 1] :awake-fighters 1 :fighter-count 1}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {}]])
+    (reset! atoms/game-map (-> @(build-test-map ["OL"])
+                               (assoc-in [0 0 :flight-path] [0 1])
+                               (assoc-in [0 0 :awake-fighters] 1)
+                               (assoc-in [0 0 :fighter-count] 1)))
+    (reset! atoms/player-map @(build-test-map ["LL"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -317,9 +339,10 @@
       (should= [0 0] first-item)))
 
   (it "launches fighter from carrier with flight-path"
-    (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player :mode :sentry :flight-path [0 1] :awake-fighters 1 :fighter-count 1}}
-                             {:type :sea}]])
-    (reset! atoms/player-map [[{} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["Cs"])
+                                     [0 0 :contents]
+                                     {:type :carrier :owner :player :mode :sentry :flight-path [0 1] :awake-fighters 1 :fighter-count 1}))
+    (reset! atoms/player-map @(build-test-map ["ss"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -330,9 +353,10 @@
 
 (describe "auto-disembark-army"
   (it "disembarks army when transport has marching-orders and awake armies"
-    (reset! atoms/game-map [[{:type :sea :contents {:type :transport :owner :player :mode :sentry :marching-orders [1 0] :awake-armies 1 :army-count 1}}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["TL"])
+                                     [0 0 :contents]
+                                     {:type :transport :owner :player :mode :sentry :marching-orders [1 0] :awake-armies 1 :army-count 1}))
+    (reset! atoms/player-map @(build-test-map ["sL"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -343,9 +367,10 @@
 
 (describe "advance-game with explore mode"
   (it "processes exploring unit"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :explore :owner :player :visited #{[0 0]}}}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LL"])
+                                     [0 0 :contents]
+                                     {:type :army :mode :explore :owner :player :visited #{[0 0]}}))
+    (reset! atoms/player-map @(build-test-map ["LL"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -376,12 +401,11 @@
 (describe "advance-game with moving unit"
   (it "continues processing when unit moves and has steps remaining"
     ;; Set up a moving unit with multiple steps, target far away
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :moving :owner :player
-                                                      :target [0 3] :steps-remaining 2}}
-                             {:type :land}
-                             {:type :land}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{} {} {} {}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LLLL"])
+                                     [0 0 :contents]
+                                     {:type :army :mode :moving :owner :player
+                                      :target [0 3] :steps-remaining 2}))
+    (reset! atoms/player-map @(build-test-map ["LLLL"]))
     (reset! atoms/production {})
     (reset! atoms/player-items [[0 0]])
     (reset! atoms/waiting-for-input false)
@@ -413,8 +437,8 @@
 
   (describe "advance-game pauses at round end"
     (it "pauses at end of round when pause-requested"
-      (reset! atoms/game-map [[{:type :land}]])
-      (reset! atoms/player-map [[{}]])
+      (reset! atoms/game-map @(build-test-map ["L"]))
+      (reset! atoms/player-map @(build-test-map ["L"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [])  ;; Empty means end of round
       (reset! atoms/pause-requested true)
@@ -427,8 +451,8 @@
         (should= round-before @atoms/round-number)))
 
     (it "does not start new round when paused"
-      (reset! atoms/game-map [[{:type :land}]])
-      (reset! atoms/player-map [[{}]])
+      (reset! atoms/game-map @(build-test-map ["L"]))
+      (reset! atoms/player-map @(build-test-map ["L"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [])
       (reset! atoms/paused true)
@@ -438,8 +462,8 @@
         (should= round-before @atoms/round-number)))
 
     (it "starts new round normally when not paused"
-      (reset! atoms/game-map [[{:type :land}]])
-      (reset! atoms/player-map [[{}]])
+      (reset! atoms/game-map @(build-test-map ["L"]))
+      (reset! atoms/player-map @(build-test-map ["L"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [])
       (reset! atoms/paused false)

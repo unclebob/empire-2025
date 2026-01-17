@@ -2,13 +2,14 @@
   (:require [speclj.core :refer :all]
             [empire.production :as production]
             [empire.atoms :as atoms]
-            [empire.config :as config]))
+            [empire.config :as config]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "update-production"
   (around [it]
     (reset! atoms/production {})
-    (reset! atoms/game-map [[{:type :sea} {:type :city :city-status :player :contents nil}]
-                            [{:type :city :city-status :player :contents nil} {:type :land}]])
+    (reset! atoms/game-map @(build-test-map ["sO"
+                                             "OL"]))
     (it))
 
   (it "decrements remaining-rounds when not complete"
@@ -16,7 +17,7 @@
     (production/update-production)
     (should= {:item :army :remaining-rounds 2} (@atoms/production [1 0]))
     (should= {:type :sea} (get-in @atoms/game-map [0 0]))
-    (should= {:type :city :city-status :player :contents nil} (get-in @atoms/game-map [0 1])))
+    (should= {:type :city :city-status :player} (get-in @atoms/game-map [0 1])))
 
   (it "places item on map and resets production when remaining-rounds reaches 0"
     (swap! atoms/production assoc [1 0] {:item :army :remaining-rounds 1})
@@ -41,8 +42,8 @@
   (it "does nothing when no production"
     (production/update-production)
     (should= {} @atoms/production)
-    (should= [[{:type :sea} {:type :city :city-status :player :contents nil}]
-              [{:type :city :city-status :player :contents nil} {:type :land}]] @atoms/game-map))
+    (should= [[{:type :sea} {:type :city :city-status :player}]
+              [{:type :city :city-status :player} {:type :land}]] @atoms/game-map))
 
   (it "does not decrement remaining-rounds if city has a unit"
     (swap! atoms/production assoc [1 0] {:item :army :remaining-rounds 3})
