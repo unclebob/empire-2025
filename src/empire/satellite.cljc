@@ -1,6 +1,6 @@
 (ns empire.satellite
   (:require [empire.atoms :as atoms]
-            [empire.visibility :as visibility]))
+            [empire.movement.visibility :as visibility]))
 
 (defn- extend-to-boundary
   "Extends from position in direction until hitting a boundary."

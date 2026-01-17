@@ -1,9 +1,9 @@
-(ns empire.coastline
+(ns empire.movement.coastline
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
-            [empire.visibility :as visibility]
-            [empire.explore :as explore]))
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.visibility :as visibility]
+            [empire.movement.explore :as explore]))
 
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."

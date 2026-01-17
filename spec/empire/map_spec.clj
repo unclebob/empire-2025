@@ -6,7 +6,7 @@
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.input :as input]
-            [empire.movement :as movement]))
+            [empire.movement.movement :as movement]))
 
 (describe "build-player-items"
   (it "returns coordinates of player cities"

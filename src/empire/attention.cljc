@@ -1,8 +1,8 @@
 (ns empire.attention
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
-            [empire.movement :as movement]
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.movement :as movement]
             [empire.unit-container :as uc]))
 
 (defn is-unit-needing-attention?

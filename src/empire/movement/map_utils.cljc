@@ -1,4 +1,4 @@
-(ns empire.map-utils
+(ns empire.movement.map-utils
   (:require [empire.atoms :as atoms]))
 
 (def neighbor-offsets

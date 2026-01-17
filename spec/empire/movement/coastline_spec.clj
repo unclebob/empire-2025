@@ -1,8 +1,8 @@
-(ns empire.coastline-spec
+(ns empire.movement.coastline-spec
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.coastline :refer :all]))
+            [empire.movement.coastline :refer :all]))
 
 (describe "coastline-follow-eligible?"
   (it "returns true for transport near coast"

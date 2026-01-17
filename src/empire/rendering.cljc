@@ -1,7 +1,7 @@
 (ns empire.rendering
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
+            [empire.movement.map-utils :as map-utils]
             [empire.rendering-util :as ru]
             [quil.core :as q]))
 

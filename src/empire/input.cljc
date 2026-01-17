@@ -4,11 +4,11 @@
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
-            [empire.map-utils :as map-utils]
-            [empire.movement :as movement]
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.movement :as movement]
             [empire.production :as production]
             [empire.unit-container :as uc]
-            [empire.waypoint :as waypoint]
+            [empire.movement.waypoint :as waypoint]
             [quil.core :as q]))
 
 (defn handle-unit-click

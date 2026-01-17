@@ -1,7 +1,7 @@
-(ns empire.wake-conditions
+(ns empire.movement.wake-conditions
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
+            [empire.movement.map-utils :as map-utils]
             [empire.unit-container :as uc]))
 
 (defn near-hostile-city?

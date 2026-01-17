@@ -1,7 +1,7 @@
 (ns empire.combat
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.movement :as movement]))
+            [empire.movement.movement :as movement]))
 
 (defn hostile-city? [target-coords]
   (let [target-cell (get-in @atoms/game-map target-coords)]

@@ -1,6 +1,6 @@
-(ns empire.map-utils-spec
+(ns empire.movement.map-utils-spec
   (:require [speclj.core :refer :all]
-            [empire.map-utils :as map-utils]
+            [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]))
 
 (describe "process-map"

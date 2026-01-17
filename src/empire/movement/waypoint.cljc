@@ -1,4 +1,4 @@
-(ns empire.waypoint
+(ns empire.movement.waypoint
   (:require [empire.atoms :as atoms]))
 
 (defn create-waypoint

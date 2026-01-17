@@ -1,10 +1,10 @@
-(ns empire.waypoint-spec
+(ns empire.movement.waypoint-spec
   (:require
     [empire.atoms :as atoms]
     [empire.config :as config]
     [empire.game-loop :as game-loop]
-    [empire.movement :as movement]
-    [empire.waypoint :as waypoint]
+    [empire.movement.movement :as movement]
+    [empire.movement.waypoint :as waypoint]
     [speclj.core :refer :all]))
 
 (describe "waypoints"

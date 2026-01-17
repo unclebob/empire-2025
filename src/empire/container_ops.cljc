@@ -1,9 +1,9 @@
 (ns empire.container-ops
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
+            [empire.movement.map-utils :as map-utils]
             [empire.unit-container :as uc]
-            [empire.visibility :as visibility]))
+            [empire.movement.visibility :as visibility]))
 
 ;; Transport operations
 

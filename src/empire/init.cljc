@@ -1,7 +1,7 @@
 (ns empire.init
-  (:require [empire.map-utils :as map-utils]
+  (:require [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]
-            [empire.movement :as movement]))
+            [empire.movement.movement :as movement]))
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."

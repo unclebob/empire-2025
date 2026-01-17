@@ -1,9 +1,9 @@
-(ns empire.explore
+(ns empire.movement.explore
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
-            [empire.visibility :as visibility]
-            [empire.wake-conditions :as wake]))
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.visibility :as visibility]
+            [empire.movement.wake-conditions :as wake]))
 
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."

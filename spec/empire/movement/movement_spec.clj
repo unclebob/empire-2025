@@ -1,9 +1,9 @@
-(ns empire.movement-spec
+(ns empire.movement.movement-spec
   (:require
     [empire.atoms :as atoms]
     [empire.config :as config]
     [empire.game-loop :as game-loop]
-    [empire.movement :refer :all]
+    [empire.movement.movement :refer :all]
     [speclj.core :refer :all]))
 
 (defn move-until-done

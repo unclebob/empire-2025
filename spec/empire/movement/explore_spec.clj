@@ -1,8 +1,8 @@
-(ns empire.explore-spec
+(ns empire.movement.explore-spec
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.explore :refer :all]))
+            [empire.movement.explore :refer :all]))
 
 (describe "valid-explore-cell?"
   (it "returns true for land cell without unit"

@@ -2,7 +2,7 @@
   (:require [empire.atoms :as atoms]
             [empire.attention :as attention]
             [empire.config :as config]
-            [empire.movement :as movement]
+            [empire.movement.movement :as movement]
             [empire.production :as production]
             [empire.unit-container :as uc]))
 

@@ -1,13 +1,13 @@
-(ns empire.movement
+(ns empire.movement.movement
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.map-utils :as map-utils]
+            [empire.movement.map-utils :as map-utils]
             [empire.unit-container :as uc]
             [empire.units.dispatcher :as dispatcher]
-            [empire.visibility :as visibility]
-            [empire.wake-conditions :as wake]
-            [empire.explore :as explore]
-            [empire.coastline :as coastline]
+            [empire.movement.visibility :as visibility]
+            [empire.movement.wake-conditions :as wake]
+            [empire.movement.explore :as explore]
+            [empire.movement.coastline :as coastline]
             [empire.satellite :as satellite]
             [empire.container-ops :as container-ops]))
 

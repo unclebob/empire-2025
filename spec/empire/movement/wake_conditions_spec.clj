@@ -1,8 +1,8 @@
-(ns empire.wake-conditions-spec
+(ns empire.movement.wake-conditions-spec
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.wake-conditions :refer :all]))
+            [empire.movement.wake-conditions :refer :all]))
 
 (describe "near-hostile-city?"
   (it "returns true when adjacent to a computer city"

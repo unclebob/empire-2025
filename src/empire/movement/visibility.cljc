@@ -1,4 +1,4 @@
-(ns empire.visibility
+(ns empire.movement.visibility
   (:require [empire.atoms :as atoms]))
 
 (defn- is-players?

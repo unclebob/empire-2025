@@ -1,7 +1,7 @@
-(ns empire.visibility-spec
+(ns empire.movement.visibility-spec
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
-            [empire.visibility :refer :all]))
+            [empire.movement.visibility :refer :all]))
 
 (describe "update-cell-visibility"
   (it "reveals cells near player-owned units"
