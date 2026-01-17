@@ -116,7 +116,7 @@
   (not (adjacent-to-land? pos current-map)))
 
 (defn in-bay?
-  "Returns true if the position is in a bay - surrounded by land on exactly 3 orthogonal sides."
+  "Returns true if the position is in a bay - surrounded by 4 or more land cells."
   [pos current-map]
   (let [[x y] pos
         height (count @current-map)
@@ -127,8 +127,8 @@
                                       (and (>= nx 0) (< nx height)
                                            (>= ny 0) (< ny width)
                                            (= :land (:type (get-in @current-map [nx ny]))))))
-                                  orthogonal-offsets))]
-    (= 3 land-count)))
+                                  neighbor-offsets))]
+    (>= land-count 4)))
 
 (defn adjacent-to-sea?
   "Returns true if the position has an adjacent sea cell."

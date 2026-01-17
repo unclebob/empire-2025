@@ -189,23 +189,35 @@
       (should-not (map-utils/completely-surrounded-by-sea? [1 1] game-map)))))
 
 (describe "in-bay?"
-  (it "returns true when surrounded by land on 3 orthogonal sides"
-    (let [game-map (build-test-map ["~#~"
+  (it "returns true when surrounded by 4 or more land cells"
+    (let [game-map (build-test-map ["##~"
                                     "#~#"
                                     "~~~"])]
       (should (map-utils/in-bay? [1 1] game-map))))
 
-  (it "returns false when surrounded by land on only 2 sides"
+  (it "returns true when surrounded by exactly 4 land cells"
+    (let [game-map (build-test-map ["#~~"
+                                    "#~#"
+                                    "~#~"])]
+      (should (map-utils/in-bay? [1 1] game-map))))
+
+  (it "returns false when surrounded by only 3 land cells"
+    (let [game-map (build-test-map ["~#~"
+                                    "#~#"
+                                    "~~~"])]
+      (should-not (map-utils/in-bay? [1 1] game-map))))
+
+  (it "returns false when surrounded by only 2 land cells"
     (let [game-map (build-test-map ["~#~"
                                     "#~~"
                                     "~~~"])]
       (should-not (map-utils/in-bay? [1 1] game-map))))
 
-  (it "returns false when surrounded by land on all 4 sides"
-    (let [game-map (build-test-map ["~#~"
+  (it "returns true when surrounded by land on all 8 sides"
+    (let [game-map (build-test-map ["###"
                                     "#~#"
-                                    "~#~"])]
-      (should-not (map-utils/in-bay? [1 1] game-map)))))
+                                    "###"])]
+      (should (map-utils/in-bay? [1 1] game-map)))))
 
 (describe "adjacent-to-sea?"
   (it "returns true when adjacent to sea"
