@@ -132,3 +132,113 @@
   (it "returns true or false based on time period"
     (let [result (map-utils/blink? 1)]
       (should (or (true? result) (false? result))))))
+
+(describe "adjacent-to-land?"
+  (it "returns true when position is adjacent to land"
+    (let [game-map (atom [[{:type :sea} {:type :land}]
+                          [{:type :sea} {:type :sea}]])]
+      (should (map-utils/adjacent-to-land? [0 0] game-map))))
+
+  (it "returns false when position is not adjacent to land"
+    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])]
+      (should-not (map-utils/adjacent-to-land? [1 1] game-map))))
+
+  (it "handles corner positions"
+    (let [game-map (atom [[{:type :sea} {:type :sea}]
+                          [{:type :land} {:type :sea}]])]
+      (should (map-utils/adjacent-to-land? [0 0] game-map))))
+
+  (it "returns true for diagonal adjacency"
+    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :land}]])]
+      (should (map-utils/adjacent-to-land? [1 1] game-map)))))
+
+(describe "orthogonally-adjacent-to-land?"
+  (it "returns true when orthogonally adjacent to land"
+    (let [game-map (atom [[{:type :sea} {:type :land}]
+                          [{:type :sea} {:type :sea}]])]
+      (should (map-utils/orthogonally-adjacent-to-land? [0 0] game-map))))
+
+  (it "returns false for only diagonal adjacency"
+    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :land}]])]
+      (should-not (map-utils/orthogonally-adjacent-to-land? [1 1] game-map))))
+
+  (it "returns false when not adjacent to land"
+    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])]
+      (should-not (map-utils/orthogonally-adjacent-to-land? [1 1] game-map)))))
+
+(describe "completely-surrounded-by-sea?"
+  (it "returns true when no adjacent land"
+    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])]
+      (should (map-utils/completely-surrounded-by-sea? [1 1] game-map))))
+
+  (it "returns false when adjacent to land"
+    (let [game-map (atom [[{:type :sea} {:type :land} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])]
+      (should-not (map-utils/completely-surrounded-by-sea? [1 1] game-map)))))
+
+(describe "in-bay?"
+  (it "returns true when surrounded by land on 3 orthogonal sides"
+    (let [game-map (atom [[{:type :sea} {:type :land} {:type :sea}]
+                          [{:type :land} {:type :sea} {:type :land}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])]
+      (should (map-utils/in-bay? [1 1] game-map))))
+
+  (it "returns false when surrounded by land on only 2 sides"
+    (let [game-map (atom [[{:type :sea} {:type :land} {:type :sea}]
+                          [{:type :land} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])]
+      (should-not (map-utils/in-bay? [1 1] game-map))))
+
+  (it "returns false when surrounded by land on all 4 sides"
+    (let [game-map (atom [[{:type :sea} {:type :land} {:type :sea}]
+                          [{:type :land} {:type :sea} {:type :land}]
+                          [{:type :sea} {:type :land} {:type :sea}]])]
+      (should-not (map-utils/in-bay? [1 1] game-map)))))
+
+(describe "adjacent-to-sea?"
+  (it "returns true when adjacent to sea"
+    (let [game-map (atom [[{:type :land} {:type :sea}]
+                          [{:type :land} {:type :land}]])]
+      (should (map-utils/adjacent-to-sea? [0 0] game-map))))
+
+  (it "returns false when not adjacent to sea"
+    (let [game-map (atom [[{:type :land} {:type :land} {:type :land}]
+                          [{:type :land} {:type :land} {:type :land}]
+                          [{:type :land} {:type :land} {:type :land}]])]
+      (should-not (map-utils/adjacent-to-sea? [1 1] game-map)))))
+
+(describe "at-map-edge?"
+  (it "returns true for top edge"
+    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+      (should (map-utils/at-map-edge? [0 2] game-map))))
+
+  (it "returns true for bottom edge"
+    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+      (should (map-utils/at-map-edge? [4 2] game-map))))
+
+  (it "returns true for left edge"
+    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+      (should (map-utils/at-map-edge? [2 0] game-map))))
+
+  (it "returns true for right edge"
+    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+      (should (map-utils/at-map-edge? [2 4] game-map))))
+
+  (it "returns false for interior position"
+    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+      (should-not (map-utils/at-map-edge? [2 2] game-map))))
+
+  (it "returns true for corner"
+    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+      (should (map-utils/at-map-edge? [0 0] game-map)))))
