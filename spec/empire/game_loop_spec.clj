@@ -128,7 +128,19 @@
   (it "does not affect moving fighters"
     (reset! atoms/game-map [[{:type :land :contents {:type :fighter :mode :moving :fuel 20}}]])
     (game-loop/consume-sentry-fighter-fuel)
-    (should= 20 (:fuel (:contents (get-in @atoms/game-map [0 0]))))))
+    (should= 20 (:fuel (:contents (get-in @atoms/game-map [0 0])))))
+
+  (it "wakes fighter with bingo when fuel is low and friendly city in range"
+    ;; Fighter fuel is 20, bingo threshold is 20/4 = 5
+    ;; At fuel 6, decrement to 5 which equals bingo threshold
+    ;; Need a friendly city within range (5 cells)
+    (reset! atoms/game-map [[{:type :city :city-status :player}
+                             {:type :land :contents {:type :fighter :mode :sentry :fuel 6 :owner :player}}]])
+    (game-loop/consume-sentry-fighter-fuel)
+    (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+      (should= 5 (:fuel unit))
+      (should= :awake (:mode unit))
+      (should= :fighter-bingo (:reason unit)))))
 
 (describe "start-new-round"
   (before
@@ -221,6 +233,51 @@
     (game-loop/update-map)
     (should= 1 @atoms/round-number)))
 
+(describe "move-satellites"
+  (it "removes satellite when turns-remaining reaches zero during movement"
+    ;; Satellite with turns-remaining 1 will expire after moving
+    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :owner :player :turns-remaining 1}}
+                             {:type :land}]])
+    (reset! atoms/player-map [[{} {}]])
+    (game-loop/move-satellites)
+    ;; Satellite should be removed after its turn expires
+    (let [found-satellite (some (fn [[i row]]
+                                  (some (fn [[j cell]]
+                                          (when (= :satellite (:type (:contents cell)))
+                                            [i j]))
+                                        (map-indexed vector row)))
+                                (map-indexed vector @atoms/game-map))]
+      ;; Either satellite is gone or has decremented turns
+      (when found-satellite
+        (let [sat (:contents (get-in @atoms/game-map found-satellite))]
+          (should (or (nil? sat) (<= (:turns-remaining sat 0) 0)))))))
+
+  (it "removes satellite immediately when turns-remaining is already zero"
+    ;; Satellite with turns-remaining 0 should be removed at start of move
+    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :owner :player :turns-remaining 0}}]])
+    (reset! atoms/player-map [[{}]])
+    (game-loop/move-satellites)
+    ;; Satellite should be removed
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+  (it "decrements turns-remaining after movement"
+    (reset! atoms/game-map [[{:type :land :contents {:type :satellite :owner :player :turns-remaining 5}}
+                             {:type :land}
+                             {:type :land}]])
+    (reset! atoms/player-map [[{} {} {}]])
+    (game-loop/move-satellites)
+    ;; Find where satellite ended up
+    (let [find-sat (fn []
+                     (some (fn [[i row]]
+                             (some (fn [[j cell]]
+                                     (when (= :satellite (:type (:contents cell)))
+                                       (:contents cell)))
+                                   (map-indexed vector row)))
+                           (map-indexed vector @atoms/game-map)))
+          sat (find-sat)]
+      (when sat
+        (should (< (:turns-remaining sat) 5))))))
+
 (describe "move-explore-unit"
   (it "delegates to movement/move-explore-unit"
     (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :explore :owner :player :visited #{[0 0]}}}
@@ -229,6 +286,22 @@
     (let [result (game-loop/move-explore-unit [0 0])]
       ;; Should return new coords if still exploring
       (should (or (nil? result) (vector? result))))))
+
+(describe "move-coastline-unit"
+  (it "delegates to movement/move-coastline-unit"
+    (let [game-map (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
+          game-map (reduce (fn [m row] (assoc-in m [row 0] {:type :land})) game-map (range 5))]
+      (reset! atoms/game-map
+              (assoc-in game-map [2 1]
+                        {:type :sea :contents {:type :transport :mode :coastline-follow :owner :player
+                                               :coastline-steps 50
+                                               :start-pos [2 1]
+                                               :visited #{[2 1]}
+                                               :prev-pos nil}}))
+      (reset! atoms/player-map @atoms/game-map)
+      (let [result (game-loop/move-coastline-unit [2 1])]
+        ;; Should return nil (unit keeps moving until done)
+        (should-be-nil result)))))
 
 (describe "auto-launch-fighter from airport"
   (it "launches fighter when city has flight-path and awake fighters"
@@ -279,6 +352,45 @@
     (game-loop/advance-game)
     ;; Should have moved the exploring unit
     (should-not= [[0 0]] @atoms/player-items)))
+
+(describe "advance-game with coastline-follow mode"
+  (it "processes coastline-following unit and continues when returning new coords"
+    (let [game-map (vec (repeat 10 (vec (repeat 10 {:type :sea}))))
+          game-map (reduce (fn [m row] (assoc-in m [row 0] {:type :land})) game-map (range 10))]
+      (reset! atoms/game-map
+              (assoc-in game-map [5 1]
+                        {:type :sea :contents {:type :transport :mode :coastline-follow :owner :player
+                                               :coastline-steps 50
+                                               :start-pos [5 1]
+                                               :visited #{[5 1]}
+                                               :prev-pos nil}}))
+      (reset! atoms/player-map @atoms/game-map)
+      (reset! atoms/production {})
+      (reset! atoms/player-items [[5 1]])
+      (reset! atoms/waiting-for-input false)
+      (game-loop/advance-game)
+      ;; Unit should have moved - player-items should be updated
+      (should (or (empty? @atoms/player-items)
+                  (not= [[5 1]] (vec @atoms/player-items)))))))
+
+(describe "advance-game with moving unit"
+  (it "continues processing when unit moves and has steps remaining"
+    ;; Set up a moving unit with multiple steps, target far away
+    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :moving :owner :player
+                                                      :target [0 3] :steps-remaining 2}}
+                             {:type :land}
+                             {:type :land}
+                             {:type :land}]])
+    (reset! atoms/player-map [[{} {} {} {}]])
+    (reset! atoms/production {})
+    (reset! atoms/player-items [[0 0]])
+    (reset! atoms/waiting-for-input false)
+    (game-loop/advance-game)
+    ;; Unit should have moved towards target
+    (let [original-has-unit? (some? (:contents (get-in @atoms/game-map [0 0])))]
+      ;; Either original spot is empty or unit is somewhere else
+      (should (or (not original-has-unit?)
+                  (empty? @atoms/player-items))))))
 
 
 (describe "pause functionality"

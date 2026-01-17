@@ -1,7 +1,6 @@
 (ns empire.rendering
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.game-loop :as game-loop]
             [empire.map-utils :as map-utils]
             [empire.rendering-util :as ru]
             [quil.core :as q]))
@@ -60,31 +59,27 @@
         blink-attention? (map-utils/blink? 125)
         blink-completed? (map-utils/blink? 500)
         blink-unit? (map-utils/blink? 250)
-        cells-by-color (game-loop/profile "group-cells-by-color"
-                         #(ru/group-cells-by-color the-map attention-coords production blink-attention? blink-completed?))]
+        cells-by-color (ru/group-cells-by-color the-map attention-coords production blink-attention? blink-completed?)]
     (q/no-stroke)
     ;; Draw all rects batched by color
-    (game-loop/profile "draw-rects"
-      #(doseq [[color cells] cells-by-color]
-         (let [[r g b] color]
-           (q/fill r g b)
-           (doseq [{:keys [col row]} cells]
-             (q/rect (* col cell-w) (* row cell-h) cell-w cell-h)))))
-    (game-loop/profile "draw-grid"
-      #(do
-         (q/stroke 0)
-         (doseq [col (range (inc cols))]
-           (q/line (* col cell-w) 0 (* col cell-w) map-h))
-         (doseq [row (range (inc rows))]
-           (q/line 0 (* row cell-h) map-w (* row cell-h)))))
+    (doseq [[color cells] cells-by-color]
+      (let [[r g b] color]
+        (q/fill r g b)
+        (doseq [{:keys [col row]} cells]
+          (q/rect (* col cell-w) (* row cell-h) cell-w cell-h))))
+    ;; Draw grid
+    (q/stroke 0)
+    (doseq [col (range (inc cols))]
+      (q/line (* col cell-w) 0 (* col cell-w) map-h))
+    (doseq [row (range (inc rows))]
+      (q/line 0 (* row cell-h) map-w (* row cell-h)))
     ;; Draw production indicators, units, and waypoints (set font once)
     (q/text-font @atoms/production-char-font)
-    (game-loop/profile "draw-units-etc"
-      #(doseq [[_ cells] cells-by-color]
-         (doseq [{:keys [col row cell]} cells]
-           (draw-production-indicators row col cell cell-w cell-h)
-           (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)
-           (draw-waypoint col row cell cell-w cell-h))))))
+    (doseq [[_ cells] cells-by-color]
+      (doseq [{:keys [col row cell]} cells]
+        (draw-production-indicators row col cell cell-w cell-h)
+        (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)
+        (draw-waypoint col row cell cell-w cell-h)))))
 
 (defn update-hover-status
   "Updates line2-message based on mouse position, unless a confirmation message is active."

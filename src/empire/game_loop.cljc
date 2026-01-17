@@ -6,43 +6,6 @@
             [empire.production :as production]
             [empire.unit-container :as uc]))
 
-(defn profile [label f]
-  "Times execution of f and accumulates stats under label."
-  (if @atoms/profile-enabled
-    (let [start (System/nanoTime)
-          result (f)
-          elapsed (/ (- (System/nanoTime) start) 1000000.0)]
-      (swap! atoms/profile-data update label
-             (fn [stats]
-               (let [stats (or stats {:count 0 :total 0.0 :max 0.0})]
-                 (-> stats
-                     (update :count inc)
-                     (update :total + elapsed)
-                     (update :max max elapsed)))))
-      result)
-    (f)))
-
-(defn print-profile-report []
-  "Prints accumulated profile data and resets it."
-  (when (seq @atoms/profile-data)
-    (println "\n=== Profile Report ===")
-    (doseq [[label {:keys [count total max]}] (sort-by (comp - :total val) @atoms/profile-data)]
-      (println (format "%-30s calls: %5d  total: %8.2fms  avg: %6.3fms  max: %6.3fms"
-                       label count total (/ total count) max)))
-    (println "======================\n")
-    (reset! atoms/profile-data {})))
-
-(defn toggle-profiling []
-  "Toggles profiling on/off. When turning off, prints report."
-  (if @atoms/profile-enabled
-    (do
-      (print-profile-report)
-      (reset! atoms/profile-enabled false)
-      (println "Profiling OFF"))
-    (do
-      (reset! atoms/profile-enabled true)
-      (println "Profiling ON - press '=' again to see report"))))
-
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
@@ -247,14 +210,14 @@
   "Starts a new round by building player items list and updating game state."
   []
   (swap! atoms/round-number inc)
-  (profile "move-satellites" move-satellites)
-  (profile "consume-sentry-fighter-fuel" consume-sentry-fighter-fuel)
-  (profile "remove-dead-units" remove-dead-units)
-  (profile "update-production" production/update-production)
-  (profile "reset-steps-remaining" reset-steps-remaining)
-  (profile "wake-airport-fighters" wake-airport-fighters)
+  (move-satellites)
+  (consume-sentry-fighter-fuel)
+  (remove-dead-units)
+  (production/update-production)
+  (reset-steps-remaining)
+  (wake-airport-fighters)
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
-  (profile "build-player-items" #(reset! atoms/player-items (vec (build-player-items))))
+  (reset! atoms/player-items (vec (build-player-items)))
   (reset! atoms/waiting-for-input false)
   (reset! atoms/message "")
   (reset! atoms/cells-needing-attention []))
@@ -373,6 +336,6 @@
 (defn update-map
   "Updates the game map state."
   []
-  (profile "update-player-map" update-player-map)
-  (profile "update-computer-map" update-computer-map)
-  (profile "advance-game" advance-game))
+  (update-player-map)
+  (update-computer-map)
+  (advance-game))

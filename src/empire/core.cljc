@@ -56,8 +56,8 @@
 (defn update-state
   "Update the game state."
   [state]
-  (game-loop/profile "update-map" game-loop/update-map)
-  (game-loop/profile "update-hover-status" rendering/update-hover-status)
+  (game-loop/update-map)
+  (rendering/update-hover-status)
   state)
 
 (defn draw-state
@@ -68,8 +68,8 @@
                   :player-map @atoms/player-map
                   :computer-map @atoms/computer-map
                   :actual-map @atoms/game-map)]
-    (game-loop/profile "draw-map" #(rendering/draw-map the-map))
-    (game-loop/profile "draw-message-area" rendering/draw-message-area)))
+    (rendering/draw-map the-map)
+    (rendering/draw-message-area)))
 
 (defn key-pressed [state _]
   (let [k (q/key-as-keyword)]

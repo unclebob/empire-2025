@@ -95,7 +95,3 @@
 (def pause-requested
   "An atom indicating a pause has been requested at end of current round."
   (atom false))
-
-;; Profiling
-(def profile-enabled (atom false))
-(def profile-data (atom {}))
