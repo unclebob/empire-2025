@@ -1,7 +1,8 @@
 (ns empire.movement.visibility-spec
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
-            [empire.movement.visibility :refer :all]))
+            [empire.movement.visibility :refer :all]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "update-cell-visibility"
   (it "reveals cells near player-owned units"
@@ -57,10 +58,18 @@
 
 (describe "update-combatant-map"
   (it "reveals all 9 cells around a player unit in center of map"
-    (let [game-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
-                       (assoc-in [2 2] {:type :land :contents {:type :army :owner :player}}))]
+    (let [game-map (assoc-in @(build-test-map ["sssss"
+                                               "sssss"
+                                               "ssAss"
+                                               "sssss"
+                                               "sssss"])
+                             [2 2] {:type :land :contents {:type :army :owner :player}})]
       (reset! atoms/game-map game-map)
-      (reset! atoms/player-map (vec (repeat 5 (vec (repeat 5 nil)))))
+      (reset! atoms/player-map @(build-test-map ["....."
+                                                 "....."
+                                                 "....."
+                                                 "....."
+                                                 "....."]))
       (update-combatant-map atoms/player-map :player)
       ;; All 9 cells around [2 2] should be revealed
       (should= {:type :sea} (get-in @atoms/player-map [1 1]))
@@ -79,10 +88,18 @@
       (should= nil (get-in @atoms/player-map [4 4]))))
 
   (it "clamps visibility at map edges for unit in corner"
-    (let [game-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
-                       (assoc-in [0 0] {:type :land :contents {:type :army :owner :player}}))]
+    (let [game-map (assoc-in @(build-test-map ["sssss"
+                                               "sssss"
+                                               "sssss"
+                                               "sssss"
+                                               "sssss"])
+                             [0 0] {:type :land :contents {:type :army :owner :player}})]
       (reset! atoms/game-map game-map)
-      (reset! atoms/player-map (vec (repeat 5 (vec (repeat 5 nil)))))
+      (reset! atoms/player-map @(build-test-map ["....."
+                                                 "....."
+                                                 "....."
+                                                 "....."
+                                                 "....."]))
       (update-combatant-map atoms/player-map :player)
       ;; Cells at and adjacent to [0 0] should be revealed (clamped)
       (should= {:type :land :contents {:type :army :owner :player}} (get-in @atoms/player-map [0 0]))
@@ -93,10 +110,18 @@
       (should= nil (get-in @atoms/player-map [2 2]))))
 
   (it "reveals cells around player city"
-    (let [game-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
-                       (assoc-in [2 2] {:type :city :city-status :player}))]
+    (let [game-map (assoc-in @(build-test-map ["sssss"
+                                               "sssss"
+                                               "sssss"
+                                               "sssss"
+                                               "sssss"])
+                             [2 2] {:type :city :city-status :player})]
       (reset! atoms/game-map game-map)
-      (reset! atoms/player-map (vec (repeat 5 (vec (repeat 5 nil)))))
+      (reset! atoms/player-map @(build-test-map ["....."
+                                                 "....."
+                                                 "....."
+                                                 "....."
+                                                 "....."]))
       (update-combatant-map atoms/player-map :player)
       ;; All 9 cells around [2 2] should be revealed
       (should= {:type :city :city-status :player} (get-in @atoms/player-map [2 2]))
@@ -104,18 +129,30 @@
       (should= {:type :sea} (get-in @atoms/player-map [3 3]))))
 
   (it "does nothing when visible-map-atom is nil"
-    (let [game-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
-                       (assoc-in [2 2] {:type :land :contents {:type :army :owner :player}}))]
+    (let [game-map (assoc-in @(build-test-map ["sssss"
+                                               "sssss"
+                                               "ssAss"
+                                               "sssss"
+                                               "sssss"])
+                             [2 2] {:type :land :contents {:type :army :owner :player}})]
       (reset! atoms/game-map game-map)
       (reset! atoms/player-map nil)
       (update-combatant-map atoms/player-map :player)
       (should= nil @atoms/player-map)))
 
   (it "works for computer owner"
-    (let [game-map (-> (vec (repeat 5 (vec (repeat 5 {:type :sea}))))
-                       (assoc-in [2 2] {:type :land :contents {:type :army :owner :computer}}))]
+    (let [game-map (assoc-in @(build-test-map ["sssss"
+                                               "sssss"
+                                               "sssss"
+                                               "sssss"
+                                               "sssss"])
+                             [2 2] {:type :land :contents {:type :army :owner :computer}})]
       (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map (vec (repeat 5 (vec (repeat 5 nil)))))
+      (reset! atoms/computer-map @(build-test-map ["....."
+                                                   "....."
+                                                   "....."
+                                                   "....."
+                                                   "....."]))
       (update-combatant-map atoms/computer-map :computer)
       ;; All 9 cells around [2 2] should be revealed in computer map
       (should= {:type :land :contents {:type :army :owner :computer}} (get-in @atoms/computer-map [2 2]))
@@ -123,11 +160,23 @@
       (should= {:type :sea} (get-in @atoms/computer-map [3 3]))))
 
   (it "handles multiple units revealing overlapping areas"
-    (let [game-map (-> (vec (repeat 7 (vec (repeat 7 {:type :sea}))))
+    (let [game-map (-> @(build-test-map ["sssssss"
+                                         "sssssss"
+                                         "sssssss"
+                                         "sssssss"
+                                         "sssssss"
+                                         "sssssss"
+                                         "sssssss"])
                        (assoc-in [2 2] {:type :land :contents {:type :army :owner :player}})
                        (assoc-in [4 4] {:type :land :contents {:type :army :owner :player}}))]
       (reset! atoms/game-map game-map)
-      (reset! atoms/player-map (vec (repeat 7 (vec (repeat 7 nil)))))
+      (reset! atoms/player-map @(build-test-map ["......."
+                                                 "......."
+                                                 "......."
+                                                 "......."
+                                                 "......."
+                                                 "......."
+                                                 "......."]))
       (update-combatant-map atoms/player-map :player)
       ;; Both units and their surroundings should be visible
       (should= {:type :land :contents {:type :army :owner :player}} (get-in @atoms/player-map [2 2]))

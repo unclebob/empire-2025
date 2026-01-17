@@ -7,6 +7,7 @@
     \. nil
     \+ {:type :city :city-status :free}
     \O {:type :city :city-status :player}
+    \X {:type :city :city-status :computer}
     \* {:type :land :waypoint true}
     \A {:type :land :contents {:type :army :owner :player}}
     \T {:type :sea :contents {:type :transport :owner :player}}

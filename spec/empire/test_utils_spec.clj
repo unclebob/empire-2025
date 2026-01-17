@@ -18,6 +18,9 @@
   (it "converts O to player city"
     (should= [[{:type :city :city-status :player}]] @(build-test-map ["O"])))
 
+  (it "converts X to computer city"
+    (should= [[{:type :city :city-status :computer}]] @(build-test-map ["X"])))
+
   (it "converts * to land with waypoint marker"
     (should= [[{:type :land :waypoint true}]] @(build-test-map ["*"])))
 

@@ -2,42 +2,77 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.movement.wake-conditions :refer :all]))
+            [empire.movement.wake-conditions :refer :all]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "near-hostile-city?"
   (it "returns true when adjacent to a computer city"
-    (let [game-map (atom (-> (vec (repeat 5 (vec (repeat 5 {:type :land}))))
-                             (assoc-in [2 3] {:type :city :city-status :computer})))]
+    (let [game-map (build-test-map ["LLLLL"
+                                    "LLLLL"
+                                    "LLLXL"
+                                    "LLLLL"
+                                    "LLLLL"])]
       (should (near-hostile-city? [2 2] game-map))))
 
   (it "returns true when adjacent to a free city"
-    (let [game-map (atom (-> (vec (repeat 5 (vec (repeat 5 {:type :land}))))
-                             (assoc-in [2 3] {:type :city :city-status :free})))]
+    (let [game-map (build-test-map ["LLLLL"
+                                    "LLLLL"
+                                    "LLL+L"
+                                    "LLLLL"
+                                    "LLLLL"])]
       (should (near-hostile-city? [2 2] game-map))))
 
   (it "returns false when adjacent to a player city"
-    (let [game-map (atom (-> (vec (repeat 5 (vec (repeat 5 {:type :land}))))
-                             (assoc-in [2 3] {:type :city :city-status :player})))]
+    (let [game-map (build-test-map ["LLLLL"
+                                    "LLLLL"
+                                    "LLLOL"
+                                    "LLLLL"
+                                    "LLLLL"])]
       (should-not (near-hostile-city? [2 2] game-map))))
 
   (it "returns false when not adjacent to any city"
-    (let [game-map (atom (vec (repeat 5 (vec (repeat 5 {:type :land})))))]
+    (let [game-map (build-test-map ["LLLLL"
+                                    "LLLLL"
+                                    "LLLLL"
+                                    "LLLLL"
+                                    "LLLLL"])]
       (should-not (near-hostile-city? [2 2] game-map)))))
 
 (describe "friendly-city-in-range?"
   (it "returns true when friendly city is within range"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :land}))))
-                             (assoc-in [4 0] {:type :city :city-status :player})))]
+    (let [game-map (build-test-map ["LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "OLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"])]
       (should (friendly-city-in-range? [4 4] 5 game-map))))
 
   (it "returns false when friendly city is out of range"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :land}))))
-                             (assoc-in [0 0] {:type :city :city-status :player})))]
+    (let [game-map (build-test-map ["OLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"])]
       (should-not (friendly-city-in-range? [4 5] 3 game-map))))
 
   (it "returns false when only computer cities are in range"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :land}))))
-                             (assoc-in [4 5] {:type :city :city-status :computer})))]
+    (let [game-map (build-test-map ["LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLXLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"])]
       (should-not (friendly-city-in-range? [4 4] 5 game-map)))))
 
 (describe "wake-before-move"
@@ -95,8 +130,15 @@
 
 (describe "wake-after-move"
   (it "wakes army when near hostile city"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :land}))))
-                             (assoc-in [4 6] {:type :city :city-status :computer})))]
+    (let [game-map (build-test-map ["LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLXLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"])]
       (reset! atoms/game-map @game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [4 6]}
             result (wake-after-move unit [4 4] [4 5] game-map)]
@@ -104,8 +146,15 @@
         (should= :army-found-city (:reason result)))))
 
   (it "wakes fighter when entering friendly city"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :land}))))
-                             (assoc-in [4 5] {:type :city :city-status :player})))]
+    (let [game-map (build-test-map ["LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLOLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"])]
       (reset! atoms/game-map @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [4 5] :fuel 10}
             result (wake-after-move unit [4 4] [4 5] game-map)]
@@ -114,7 +163,15 @@
         (should= config/fighter-fuel (:fuel result)))))
 
   (it "wakes fighter when fuel reaches 1"
-    (let [game-map (atom (vec (repeat 9 (vec (repeat 9 {:type :land})))))]
+    (let [game-map (build-test-map ["LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"
+                                    "LLLLLLLLL"])]
       (reset! atoms/game-map @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [4 8] :fuel 1}
             result (wake-after-move unit [4 4] [4 5] game-map)]
@@ -122,8 +179,15 @@
         (should= :fighter-out-of-fuel (:reason result)))))
 
   (it "wakes transport when finding land from open sea"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
-                             (assoc-in [4 6] {:type :land})))]
+    (let [game-map (build-test-map ["sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "ssssssLss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"])]
       (reset! atoms/game-map @game-map)
       (let [unit {:type :transport :mode :moving :owner :player :target [4 6] :army-count 1}
             result (wake-after-move unit [4 4] [4 5] game-map)]
@@ -131,9 +195,15 @@
         (should= :transport-found-land (:reason result)))))
 
   (it "wakes transport at beach with armies"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :sea}))))
-                             (assoc-in [4 3] {:type :land})   ;; land adjacent to start position
-                             (assoc-in [4 6] {:type :land})))] ;; land adjacent to destination
+    (let [game-map (build-test-map ["sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssLssLss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"])]
       (reset! atoms/game-map @game-map)
       ;; Transport at [4 4] (sea, adjacent to land at [4 3]) moving to [4 5] (sea, adjacent to land at [4 6])
       ;; Since it wasn't in open sea before, found-land? is false, but at-beach with armies triggers
@@ -143,16 +213,32 @@
         (should= :transport-at-beach (:reason result)))))
 
   (it "follows waypoint orders when arriving"
-    (let [game-map (atom (-> (vec (repeat 9 (vec (repeat 9 {:type :land}))))
-                             (assoc-in [4 5] {:type :land :waypoint {:marching-orders [8 8]}})))]
-      (reset! atoms/game-map @game-map)
+    (let [game-map (assoc-in @(build-test-map ["LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"
+                                               "LLLLLLLLL"])
+                             [4 5] {:type :land :waypoint {:marching-orders [8 8]}})]
+      (reset! atoms/game-map game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [4 5]}
-            result (wake-after-move unit [4 4] [4 5] game-map)]
+            result (wake-after-move unit [4 4] [4 5] (atom game-map))]
         (should= :moving (:mode result))
         (should= [8 8] (:target result)))))
 
   (it "returns unit unchanged for naval units without special conditions"
-    (let [game-map (atom (vec (repeat 9 (vec (repeat 9 {:type :sea})))))]
+    (let [game-map (build-test-map ["sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"
+                                    "sssssssss"])]
       (reset! atoms/game-map @game-map)
       (let [unit {:type :destroyer :mode :moving :owner :player :target [4 8] :hits 3}
             result (wake-after-move unit [4 4] [4 5] game-map)]

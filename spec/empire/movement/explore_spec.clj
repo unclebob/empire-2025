@@ -2,7 +2,8 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.movement.explore :refer :all]))
+            [empire.movement.explore :refer :all]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "valid-explore-cell?"
   (it "returns true for land cell without unit"
@@ -22,53 +23,52 @@
 
 (describe "get-valid-explore-moves"
   (it "returns adjacent land cells without units"
-    (let [game-map (atom [[{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]])]
+    (let [game-map (build-test-map ["LLL"
+                                    "LLL"
+                                    "LLL"])]
       (let [moves (get-valid-explore-moves [1 1] game-map)]
         (should= 8 (count moves)))))
 
   (it "excludes sea cells"
-    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
-                          [{:type :sea} {:type :land} {:type :sea}]
-                          [{:type :sea} {:type :sea} {:type :sea}]])]
+    (let [game-map (build-test-map ["sss"
+                                    "sLs"
+                                    "sss"])]
       (let [moves (get-valid-explore-moves [1 1] game-map)]
         (should= 0 (count moves)))))
 
   (it "excludes cells with units"
-    (let [game-map (atom [[{:type :land} {:type :land :contents {:type :army}} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]])]
+    (let [game-map (build-test-map ["LAL"
+                                    "LLL"
+                                    "LLL"])]
       (let [moves (get-valid-explore-moves [1 1] game-map)]
         (should= 7 (count moves)))))
 
   (it "handles corner positions"
-    (let [game-map (atom [[{:type :land} {:type :land}]
-                          [{:type :land} {:type :land}]])]
+    (let [game-map (build-test-map ["LL"
+                                    "LL"])]
       (let [moves (get-valid-explore-moves [0 0] game-map)]
         (should= 3 (count moves))))))
 
 (describe "adjacent-to-unexplored?"
   (it "returns true when adjacent to unexplored cell"
-    (reset! atoms/player-map [[{:type :land} nil]
-                              [{:type :land} {:type :land}]])
+    (reset! atoms/player-map @(build-test-map ["L."
+                                               "LL"]))
     (should (adjacent-to-unexplored? [0 0])))
 
   (it "returns false when all adjacent cells are explored"
-    (reset! atoms/player-map [[{:type :land} {:type :land} {:type :land}]
-                              [{:type :land} {:type :land} {:type :land}]
-                              [{:type :land} {:type :land} {:type :land}]])
+    (reset! atoms/player-map @(build-test-map ["LLL"
+                                               "LLL"
+                                               "LLL"]))
     (should-not (adjacent-to-unexplored? [1 1]))))
 
 (describe "get-unexplored-explore-moves"
   (it "returns moves adjacent to unexplored cells"
-    (let [game-map (atom [[{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]])
-          player-map [[{:type :land} {:type :land} nil]
-                      [{:type :land} {:type :land} nil]
-                      [{:type :land} {:type :land} nil]]]
-      (reset! atoms/player-map player-map)
+    (let [game-map (build-test-map ["LLL"
+                                    "LLL"
+                                    "LLL"])]
+      (reset! atoms/player-map @(build-test-map ["LL."
+                                                 "LL."
+                                                 "LL."]))
       ;; From [1 1], moves to column 2 should be adjacent to unexplored
       (let [moves (get-unexplored-explore-moves [1 1] game-map)]
         (should (some #{[0 2]} moves))
@@ -77,25 +77,21 @@
 
 (describe "pick-explore-move"
   (it "prefers unexplored moves"
-    (let [game-map (atom [[{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]
-                          [{:type :land} {:type :land} {:type :land}]])
-          player-map [[{:type :land} {:type :land} nil]
-                      [{:type :land} {:type :land} {:type :land}]
-                      [{:type :land} {:type :land} {:type :land}]]]
-      (reset! atoms/player-map player-map)
+    (let [game-map (build-test-map ["LLL"
+                                    "LLL"
+                                    "LLL"])]
+      (reset! atoms/player-map @(build-test-map ["LL."
+                                                 "LLL"
+                                                 "LLL"]))
       (let [move (pick-explore-move [1 1] game-map #{})]
         ;; Should pick a move adjacent to unexplored [0 2]
         (should (some #{move} [[0 1] [0 2] [1 2]])))))
 
   (it "returns visited cell when all cells visited"
-    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
-                          [{:type :sea} {:type :land} {:type :sea}]
-                          [{:type :land} {:type :land} {:type :land}]])
-          player-map [[{:type :sea} {:type :sea} {:type :sea}]
-                      [{:type :sea} {:type :land} {:type :sea}]
-                      [{:type :land} {:type :land} {:type :land}]]]
-      (reset! atoms/player-map player-map)
+    (let [game-map (build-test-map ["sss"
+                                    "sLs"
+                                    "LLL"])]
+      (reset! atoms/player-map @game-map)
       ;; All valid moves are visited
       (let [visited #{[2 0] [2 1] [2 2]}
             move (pick-explore-move [1 1] game-map visited)]
@@ -103,15 +99,15 @@
         (should (some #{move} [[2 0] [2 1] [2 2]])))))
 
   (it "returns nil when no valid moves"
-    (let [game-map (atom [[{:type :sea} {:type :sea} {:type :sea}]
-                          [{:type :sea} {:type :land} {:type :sea}]
-                          [{:type :sea} {:type :sea} {:type :sea}]])]
+    (let [game-map (build-test-map ["sss"
+                                    "sLs"
+                                    "sss"])]
       (reset! atoms/player-map @game-map)
       (should-be-nil (pick-explore-move [1 1] game-map #{})))))
 
 (describe "set-explore-mode"
   (it "sets unit to explore mode with initial state"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :awake :owner :player}}]])
+    (reset! atoms/game-map @(build-test-map ["A"]))
     (set-explore-mode [0 0])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :explore (:mode unit))
@@ -119,7 +115,8 @@
       (should= #{[0 0]} (:visited unit))))
 
   (it "removes reason and target when setting explore mode"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :awake :owner :player :reason :some-reason :target [5 5]}}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["A"]) [0 0 :contents]
+                                     {:type :army :owner :player :reason :some-reason :target [5 5]}))
     (set-explore-mode [0 0])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :explore (:mode unit))
@@ -128,9 +125,9 @@
 
 (describe "move-explore-unit"
   (it "wakes up after explore-steps exhausted"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :explore :owner :player :explore-steps 1 :visited #{}}}
-                             {:type :land}]])
-    (reset! atoms/player-map [[{:type :land} {:type :land}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LL"]) [0 0 :contents]
+                                     {:type :army :mode :explore :owner :player :explore-steps 1 :visited #{}}))
+    (reset! atoms/player-map @(build-test-map ["LL"]))
     (move-explore-unit [0 0])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :awake (:mode unit))
@@ -138,21 +135,22 @@
       (should-be-nil (:visited unit))))
 
   (it "wakes up when stuck with no valid moves"
-    (reset! atoms/game-map [[{:type :sea} {:type :sea} {:type :sea}]
-                            [{:type :sea} {:type :land :contents {:type :army :mode :explore :owner :player :explore-steps 10 :visited #{}}} {:type :sea}]
-                            [{:type :sea} {:type :sea} {:type :sea}]])
-    (reset! atoms/player-map [[{:type :sea} {:type :sea} {:type :sea}]
-                              [{:type :sea} {:type :land} {:type :sea}]
-                              [{:type :sea} {:type :sea} {:type :sea}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["sss"
+                                                       "sLs"
+                                                       "sss"])
+                                     [1 1 :contents]
+                                     {:type :army :mode :explore :owner :player :explore-steps 10 :visited #{}}))
+    (reset! atoms/player-map @(build-test-map ["sss"
+                                               "sLs"
+                                               "sss"]))
     (move-explore-unit [1 1])
     (let [unit (get-in @atoms/game-map [1 1 :contents])]
       (should= :awake (:mode unit))))
 
   (it "wakes up when finding hostile city"
-    (reset! atoms/game-map [[{:type :land :contents {:type :army :mode :explore :owner :player :explore-steps 10 :visited #{}}}
-                             {:type :land}
-                             {:type :city :city-status :computer}]])
-    (reset! atoms/player-map [[{:type :land} {:type :land} {:type :city}]])
+    (reset! atoms/game-map (assoc-in @(build-test-map ["LLX"]) [0 0 :contents]
+                                     {:type :army :mode :explore :owner :player :explore-steps 10 :visited #{}}))
+    (reset! atoms/player-map @(build-test-map ["LLX"]))
     (move-explore-unit [0 0])
     ;; After moving to [0 1] which is adjacent to hostile city at [0 2], unit should wake
     (let [unit (get-in @atoms/game-map [0 1 :contents])]
