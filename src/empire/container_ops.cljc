@@ -41,13 +41,15 @@
                    #(assoc % :mode :awake :reason :transport-at-beach))))))))
 
 (defn wake-armies-on-transport
-  "Wakes up all armies aboard the transport at the given coords."
+  "Wakes up all armies aboard the transport at the given coords.
+   Sets steps-remaining to 0 to end the transport's turn."
   [transport-coords]
   (let [cell (get-in @atoms/game-map transport-coords)
         transport (:contents cell)
         updated-transport (-> transport
                               (uc/wake-all :army-count :awake-armies)
                               (assoc :mode :sentry)
+                              (assoc :steps-remaining 0)
                               (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
     (swap! atoms/game-map assoc-in transport-coords updated-cell)))

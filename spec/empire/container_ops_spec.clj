@@ -82,7 +82,22 @@
       (should= :sentry (:mode transport))
       (should= nil (:reason transport))
       (should= 2 (:army-count transport))
-      (should= 2 (:awake-armies transport)))))
+      (should= 2 (:awake-armies transport))))
+
+  (it "clears steps-remaining to end transport's turn"
+    (reset! atoms/game-map @(build-test-map ["---------"
+                                             "---------"
+                                             "---------"
+                                             "---------"
+                                             "----T----"
+                                             "----#----"
+                                             "---------"
+                                             "---------"
+                                             "---------"]))
+    (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :reason :transport-at-beach :steps-remaining 2)
+    (wake-armies-on-transport [4 4])
+    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
+      (should= 0 (:steps-remaining transport)))))
 
 (describe "sleep-armies-on-transport"
   (it "puts armies to sleep and wakes transport"
