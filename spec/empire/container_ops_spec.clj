@@ -1,7 +1,7 @@
 (ns empire.container-ops-spec
   (:require [empire.atoms :as atoms]
             [empire.container-ops :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit]]
+            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit]]
             [speclj.core :refer :all]))
 
 (describe "load-adjacent-sentry-armies"
@@ -10,60 +10,63 @@
                                              "---------"
                                              "---------"
                                              "---#-----"
-                                             "----T----"
-                                             "----#----"
+                                             "---AT----"
+                                             "----A----"
                                              "---------"
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
-    ;; Add adjacent sentry armies
-    (swap! atoms/game-map assoc-in [4 3] {:type :land :contents {:type :army :mode :sentry :owner :player :hits 1}})
-    (swap! atoms/game-map assoc-in [5 4] {:type :land :contents {:type :army :mode :sentry :owner :player :hits 1}})
+    (set-test-unit atoms/game-map "A1" :mode :sentry :hits 1)
+    (set-test-unit atoms/game-map "A2" :mode :sentry :hits 1)
     (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
-    (load-adjacent-sentry-armies [4 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= 2 (:army-count transport)))
-    (should= nil (:contents (get-in @atoms/game-map [4 3])))
-    (should= nil (:contents (get-in @atoms/game-map [5 4]))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          army1-coords (:pos (get-test-unit atoms/game-map "A1"))
+          army2-coords (:pos (get-test-unit atoms/game-map "A2"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 2 (:army-count transport)))
+      (should= nil (:contents (get-in @atoms/game-map army1-coords)))
+      (should= nil (:contents (get-in @atoms/game-map army2-coords)))))
 
   (it "does not load awake armies onto transport"
     (reset! atoms/game-map @(build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
-                                             "----T----"
+                                             "---AT----"
                                              "---------"
                                              "---------"
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
-    ;; Add adjacent awake army
-    (swap! atoms/game-map assoc-in [4 3] {:type :land :contents {:type :army :mode :awake :owner :player :hits 1}})
+    (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
     (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
-    (load-adjacent-sentry-armies [4 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= 0 (:army-count transport 0)))
-    (should-not= nil (:contents (get-in @atoms/game-map [4 3]))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          army-coords (:pos (get-test-unit atoms/game-map "A"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 0 (:army-count transport 0)))
+      (should-not= nil (:contents (get-in @atoms/game-map army-coords)))))
 
   (it "wakes transport after loading armies if at beach"
     (reset! atoms/game-map @(build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
-                                             "----T----"
+                                             "---AT----"
                                              "----#----"
                                              "---------"
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
-    ;; Add adjacent sentry army
-    (swap! atoms/game-map assoc-in [4 3] {:type :land :contents {:type :army :mode :sentry :owner :player :hits 1}})
+    (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
     (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
-    (load-adjacent-sentry-armies [4 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :awake (:mode transport))
-      (should= :transport-at-beach (:reason transport))
-      (should= 1 (:army-count transport)))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= :awake (:mode transport))
+        (should= :transport-at-beach (:reason transport))
+        (should= 1 (:army-count transport))))))
 
 (describe "wake-armies-on-transport"
   (it "wakes all armies and sets transport to sentry"
