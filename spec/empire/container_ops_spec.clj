@@ -81,12 +81,13 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :reason :transport-at-beach)
-    (wake-armies-on-transport [4 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :sentry (:mode transport))
-      (should= nil (:reason transport))
-      (should= 2 (:army-count transport))
-      (should= 2 (:awake-armies transport))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (wake-armies-on-transport transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= :sentry (:mode transport))
+        (should= nil (:reason transport))
+        (should= 2 (:army-count transport))
+        (should= 2 (:awake-armies transport)))))
 
   (it "clears steps-remaining to end transport's turn"
     (reset! atoms/game-map @(build-test-map ["---------"
@@ -99,9 +100,10 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :reason :transport-at-beach :steps-remaining 2)
-    (wake-armies-on-transport [4 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= 0 (:steps-remaining transport)))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (wake-armies-on-transport transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 0 (:steps-remaining transport))))))
 
 (describe "sleep-armies-on-transport"
   (before (reset-all-atoms!))
@@ -117,12 +119,13 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
-    (sleep-armies-on-transport [4 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :awake (:mode transport))
-      (should= nil (:reason transport))
-      (should= 2 (:army-count transport))
-      (should= 0 (:awake-armies transport)))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (sleep-armies-on-transport transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= :awake (:mode transport))
+        (should= nil (:reason transport))
+        (should= 2 (:army-count transport))
+        (should= 0 (:awake-armies transport))))))
 
 (describe "disembark-army-from-transport"
   (before (reset-all-atoms!))
@@ -138,13 +141,15 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 3 :awake-armies 3)
-    (disembark-army-from-transport [4 4] [5 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))
-          disembarked (:contents (get-in @atoms/game-map [5 4]))]
-      (should= 2 (:army-count transport))
-      (should= 2 (:awake-armies transport))
-      (should= :army (:type disembarked))
-      (should= :awake (:mode disembarked))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          land-coords [(inc (first transport-coords)) (second transport-coords)]]
+      (disembark-army-from-transport transport-coords land-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))
+            disembarked (:contents (get-in @atoms/game-map land-coords))]
+        (should= 2 (:army-count transport))
+        (should= 2 (:awake-armies transport))
+        (should= :army (:type disembarked))
+        (should= :awake (:mode disembarked)))))
 
   (it "wakes transport when last army disembarks"
     (reset! atoms/game-map @(build-test-map ["---------"
@@ -157,10 +162,12 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 1 :awake-armies 1)
-    (disembark-army-from-transport [4 4] [5 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :awake (:mode transport))
-      (should= 0 (:army-count transport))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          land-coords [(inc (first transport-coords)) (second transport-coords)]]
+      (disembark-army-from-transport transport-coords land-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= :awake (:mode transport))
+        (should= 0 (:army-count transport)))))
 
   (it "wakes transport when no more awake armies remain"
     (reset! atoms/game-map @(build-test-map ["---------"
@@ -173,11 +180,13 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 1)
-    (disembark-army-from-transport [4 4] [5 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :awake (:mode transport))
-      (should= 1 (:army-count transport))
-      (should= 0 (:awake-armies transport)))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          land-coords [(inc (first transport-coords)) (second transport-coords)]]
+      (disembark-army-from-transport transport-coords land-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= :awake (:mode transport))
+        (should= 1 (:army-count transport))
+        (should= 0 (:awake-armies transport))))))
 
 (describe "disembark-army-with-target"
   (before (reset-all-atoms!))
@@ -193,15 +202,18 @@
                                              "---------"
                                              "----#----"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
-    (disembark-army-with-target [4 4] [5 4] [8 4])
-    (let [transport (:contents (get-in @atoms/game-map [4 4]))
-          army (:contents (get-in @atoms/game-map [5 4]))]
-      (should= 1 (:army-count transport))
-      (should= 1 (:awake-armies transport))
-      (should= :army (:type army))
-      (should= :moving (:mode army))
-      (should= [8 4] (:target army))
-      (should= 0 (:steps-remaining army)))))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          land-coords [(inc (first transport-coords)) (second transport-coords)]
+          target-coords [(+ 4 (first transport-coords)) (second transport-coords)]]
+      (disembark-army-with-target transport-coords land-coords target-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))
+            army (:contents (get-in @atoms/game-map land-coords))]
+        (should= 1 (:army-count transport))
+        (should= 1 (:awake-armies transport))
+        (should= :army (:type army))
+        (should= :moving (:mode army))
+        (should= target-coords (:target army))
+        (should= 0 (:steps-remaining army))))))
 
 (describe "disembark-army-to-explore"
   (before (reset-all-atoms!))
@@ -217,15 +229,17 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
-    (let [result (disembark-army-to-explore [4 4] [5 4])]
-      (should= [5 4] result)
-      (let [transport (:contents (get-in @atoms/game-map [4 4]))
-            army (:contents (get-in @atoms/game-map [5 4]))]
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          land-coords [(inc (first transport-coords)) (second transport-coords)]
+          result (disembark-army-to-explore transport-coords land-coords)]
+      (should= land-coords result)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))
+            army (:contents (get-in @atoms/game-map land-coords))]
         (should= 1 (:army-count transport))
         (should= 1 (:awake-armies transport))
         (should= :army (:type army))
         (should= :explore (:mode army))
-        (should= #{[5 4]} (:visited army))))))
+        (should= #{land-coords} (:visited army))))))
 
 (describe "wake-fighters-on-carrier"
   (before (reset-all-atoms!))
@@ -241,11 +255,12 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :awake :hits 8 :fighter-count 2)
-    (wake-fighters-on-carrier [4 4])
-    (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :sentry (:mode carrier))
-      (should= 2 (:fighter-count carrier))
-      (should= 2 (:awake-fighters carrier)))))
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))]
+      (wake-fighters-on-carrier carrier-coords)
+      (let [carrier (:contents (get-in @atoms/game-map carrier-coords))]
+        (should= :sentry (:mode carrier))
+        (should= 2 (:fighter-count carrier))
+        (should= 2 (:awake-fighters carrier))))))
 
 (describe "sleep-fighters-on-carrier"
   (before (reset-all-atoms!))
@@ -261,11 +276,12 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 2 :awake-fighters 2)
-    (sleep-fighters-on-carrier [4 4])
-    (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :awake (:mode carrier))
-      (should= 2 (:fighter-count carrier))
-      (should= 0 (:awake-fighters carrier)))))
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))]
+      (sleep-fighters-on-carrier carrier-coords)
+      (let [carrier (:contents (get-in @atoms/game-map carrier-coords))]
+        (should= :awake (:mode carrier))
+        (should= 2 (:fighter-count carrier))
+        (should= 0 (:awake-fighters carrier))))))
 
 (describe "launch-fighter-from-carrier"
   (before (reset-all-atoms!))
@@ -281,14 +297,17 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 2 :awake-fighters 2)
-    (launch-fighter-from-carrier [4 4] [4 6])
-    (let [carrier (:contents (get-in @atoms/game-map [4 4]))
-          launched-fighter (:contents (get-in @atoms/game-map [4 5]))]
-      (should= 1 (:fighter-count carrier))
-      (should= 1 (:awake-fighters carrier))
-      (should= :fighter (:type launched-fighter))
-      (should= :moving (:mode launched-fighter))
-      (should= [4 6] (:target launched-fighter))))
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          adjacent-cell [(first carrier-coords) (inc (second carrier-coords))]
+          target-coords [(first carrier-coords) (+ 2 (second carrier-coords))]]
+      (launch-fighter-from-carrier carrier-coords target-coords)
+      (let [carrier (:contents (get-in @atoms/game-map carrier-coords))
+            launched-fighter (:contents (get-in @atoms/game-map adjacent-cell))]
+        (should= 1 (:fighter-count carrier))
+        (should= 1 (:awake-fighters carrier))
+        (should= :fighter (:type launched-fighter))
+        (should= :moving (:mode launched-fighter))
+        (should= target-coords (:target launched-fighter)))))
 
   (it "keeps carrier in sentry mode after last fighter launches"
     (reset! atoms/game-map @(build-test-map ["---------"
@@ -301,10 +320,12 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
-    (launch-fighter-from-carrier [4 4] [4 6])
-    (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
-      (should= :sentry (:mode carrier))
-      (should= 0 (:fighter-count carrier))))
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          target-coords [(first carrier-coords) (+ 2 (second carrier-coords))]]
+      (launch-fighter-from-carrier carrier-coords target-coords)
+      (let [carrier (:contents (get-in @atoms/game-map carrier-coords))]
+        (should= :sentry (:mode carrier))
+        (should= 0 (:fighter-count carrier)))))
 
   (it "sets steps-remaining to speed minus one"
     (reset! atoms/game-map @(build-test-map ["---------"
@@ -317,9 +338,12 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
-    (launch-fighter-from-carrier [4 4] [4 6])
-    (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
-      (should= 7 (:steps-remaining fighter)))))
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          adjacent-cell [(first carrier-coords) (inc (second carrier-coords))]
+          target-coords [(first carrier-coords) (+ 2 (second carrier-coords))]]
+      (launch-fighter-from-carrier carrier-coords target-coords)
+      (let [fighter (:contents (get-in @atoms/game-map adjacent-cell))]
+        (should= 7 (:steps-remaining fighter))))))
 
 (describe "launch-fighter-from-airport"
   (before (reset-all-atoms!))

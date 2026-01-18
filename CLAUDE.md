@@ -84,3 +84,7 @@ Functions in `input.cljc` and `rendering.cljc` that do not depend on Quil should
 ### Unused Arguments
 
 Remove unused function arguments before committing. If an argument must be retained for API consistency (e.g., polymorphic dispatch where all implementations share the same signature), prefix it with `_` to indicate it is intentionally unused.
+
+### Test Utilities
+
+When adding new atoms to `atoms.cljc`, also add them to `reset-all-atoms!` in `test_utils.cljc`.

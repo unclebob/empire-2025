@@ -81,6 +81,29 @@
                   {:pos [row-idx col-idx] :unit contents})]
     (nth matches (dec n) nil)))
 
+(def ^:private char->city-status
+  {\O :player
+   \X :computer
+   \+ :free})
+
+(defn- parse-city-spec [city-spec]
+  (let [c (first city-spec)
+        n (if (> (count city-spec) 1)
+            (Integer/parseInt (subs city-spec 1))
+            1)]
+    [(get char->city-status c) n]))
+
+(defn get-test-city [game-map-atom city-spec]
+  (let [[city-status n] (parse-city-spec city-spec)
+        game-map @game-map-atom
+        matches (for [row-idx (range (count game-map))
+                      col-idx (range (count (nth game-map row-idx)))
+                      :let [cell (get-in game-map [row-idx col-idx])]
+                      :when (and (= :city (:type cell))
+                                 (= city-status (:city-status cell)))]
+                  {:pos [row-idx col-idx] :cell cell})]
+    (nth matches (dec n) nil)))
+
 (defn make-initial-test-map [rows cols value]
   (vec (repeat rows (vec (repeat cols value)))))
 

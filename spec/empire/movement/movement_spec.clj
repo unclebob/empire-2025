@@ -4,7 +4,7 @@
     [empire.config :as config]
     [empire.game-loop :as game-loop]
     [empire.movement.movement :refer :all]
-    [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms!]]
+    [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms!]]
     [speclj.core :refer :all]))
 
 (defn move-until-done
@@ -50,20 +50,22 @@
                                                  "---------"
                                                  "---------"
                                                  "---------"]))
-        (set-test-unit atoms/game-map "A" :mode :moving :target [4 5] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"]))
-        (game-loop/move-current-unit [4 4])
-        (should= {:type :land} (get-in @atoms/game-map [4 4]))
-        (should= {:type :land :contents {:type :army :mode :awake :owner :player :steps-remaining 0}} (get-in @atoms/game-map [4 5]))
-        (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
+        (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
+              target-coords [(first unit-coords) (inc (second unit-coords))]]
+          (set-test-unit atoms/game-map "A" :mode :moving :target target-coords :steps-remaining 1)
+          (reset! atoms/player-map @(build-test-map ["---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"]))
+          (game-loop/move-current-unit unit-coords)
+          (should= {:type :land} (get-in @atoms/game-map unit-coords))
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player :steps-remaining 0}} (get-in @atoms/game-map target-coords))
+          (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map))))))
 
       (it "moves a unit up and sets mode to awake"
         (reset! atoms/game-map @(build-test-map ["---------"
@@ -250,19 +252,21 @@
                                                  "---------"
                                                  "---------"
                                                  "---------"]))
-        (set-test-unit atoms/game-map "A" :mode :moving :target [4 5] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"]))
-        (game-loop/move-current-unit [4 4])
-        (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason :cant-move-into-water :steps-remaining 1}} (get-in @atoms/game-map [4 4]))
-        (should= {:type :sea} (get-in @atoms/game-map [4 5])))
+        (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
+              target-coords [(first unit-coords) (inc (second unit-coords))]]
+          (set-test-unit atoms/game-map "A" :mode :moving :target target-coords :steps-remaining 1)
+          (reset! atoms/player-map @(build-test-map ["---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"]))
+          (game-loop/move-current-unit unit-coords)
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player :reason :cant-move-into-water :steps-remaining 1}} (get-in @atoms/game-map unit-coords))
+          (should= {:type :sea} (get-in @atoms/game-map target-coords))))
 
       (it "wakes up a unit if the next move would be into a friendly city"
         (reset! atoms/game-map @(build-test-map ["---------"
@@ -326,29 +330,31 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
-        (reset! atoms/player-map @(build-test-map ["---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"
-                                                   "---------"]))
-        (update-combatant-map atoms/player-map :player)
-        ;; Check that the unit's cell and neighbors are revealed
-        (should= {:type :land :contents {:type :army :mode :awake :owner :player}} (get-in @atoms/player-map [4 4]))
-        (should= {:type :land} (get-in @atoms/player-map [4 5]))
-        (should= {:type :land} (get-in @atoms/player-map [5 4]))
-        (should= nil (get-in @atoms/player-map [3 4]))
-        (should= nil (get-in @atoms/player-map [4 3]))
-        (should= nil (get-in @atoms/player-map [5 5]))
-        (should= nil (get-in @atoms/player-map [3 3]))
-        (should= nil (get-in @atoms/player-map [5 3]))
-        (should= nil (get-in @atoms/player-map [3 5]))
-        ;; Check that distant cells are not revealed
-        (should= nil (get-in @atoms/player-map [0 0]))
-        (should= nil (get-in @atoms/player-map [8 8])))
+        (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
+              [row col] unit-coords]
+          (reset! atoms/player-map @(build-test-map ["---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"
+                                                     "---------"]))
+          (update-combatant-map atoms/player-map :player)
+          ;; Check that the unit's cell and neighbors are revealed
+          (should= {:type :land :contents {:type :army :mode :awake :owner :player}} (get-in @atoms/player-map unit-coords))
+          (should= {:type :land} (get-in @atoms/player-map [row (inc col)]))
+          (should= {:type :land} (get-in @atoms/player-map [(inc row) col]))
+          (should= nil (get-in @atoms/player-map [(dec row) col]))
+          (should= nil (get-in @atoms/player-map [row (dec col)]))
+          (should= nil (get-in @atoms/player-map [(inc row) (inc col)]))
+          (should= nil (get-in @atoms/player-map [(dec row) (dec col)]))
+          (should= nil (get-in @atoms/player-map [(inc row) (dec col)]))
+          (should= nil (get-in @atoms/player-map [(dec row) (inc col)]))
+          ;; Check that distant cells are not revealed
+          (should= nil (get-in @atoms/player-map [0 0]))
+          (should= nil (get-in @atoms/player-map [8 8]))))
       )
 
     (context "multi-step moves take one step towards the target, keeping mode as moving"

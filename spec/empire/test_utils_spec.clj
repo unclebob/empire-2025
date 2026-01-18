@@ -171,3 +171,49 @@
         (should= [0 0] (:pos result))
         (should= :satellite (:type (:unit result)))
         (should= [5 5] (:target (:unit result)))))))
+
+(describe "get-test-city"
+  (it "returns nil when city not found"
+    (let [gm (build-test-map ["~~"])]
+      (should= nil (get-test-city gm "O"))))
+
+  (it "returns position and cell for player city"
+    (let [gm (build-test-map ["O"])]
+      (let [result (get-test-city gm "O")]
+        (should= [0 0] (:pos result))
+        (should= :city (:type (:cell result)))
+        (should= :player (:city-status (:cell result))))))
+
+  (it "returns position and cell for computer city"
+    (let [gm (build-test-map ["X"])]
+      (let [result (get-test-city gm "X")]
+        (should= [0 0] (:pos result))
+        (should= :computer (:city-status (:cell result))))))
+
+  (it "returns position and cell for free city"
+    (let [gm (build-test-map ["+"])]
+      (let [result (get-test-city gm "+")]
+        (should= [0 0] (:pos result))
+        (should= :free (:city-status (:cell result))))))
+
+  (it "finds city in multi-row map"
+    (let [gm (build-test-map ["##"
+                              "#O"])]
+      (let [result (get-test-city gm "O")]
+        (should= [1 1] (:pos result)))))
+
+  (it "finds second city with O2 notation"
+    (let [gm (build-test-map ["O~O"])]
+      (let [result (get-test-city gm "O2")]
+        (should= [0 2] (:pos result)))))
+
+  (it "distinguishes between city types"
+    (let [gm (build-test-map ["O+X"])]
+      (should= [0 0] (:pos (get-test-city gm "O")))
+      (should= [0 1] (:pos (get-test-city gm "+")))
+      (should= [0 2] (:pos (get-test-city gm "X")))))
+
+  (it "returns nil for wrong city type"
+    (let [gm (build-test-map ["O"])]
+      (should= nil (get-test-city gm "X"))
+      (should= nil (get-test-city gm "+")))))
