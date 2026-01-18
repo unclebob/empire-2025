@@ -107,8 +107,8 @@
     (should= 3 (:awake-fighters (:contents (get-in @atoms/game-map [0 0])))))
 
   (it "ignores computer carriers"
-    (reset! atoms/game-map @(build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :owner :computer :fighter-count 3)
+    (reset! atoms/game-map @(build-test-map ["c"]))
+    (set-test-unit atoms/game-map "c" :fighter-count 3)
     (game-loop/wake-carrier-fighters)
     (should-be-nil (:awake-fighters (:contents (get-in @atoms/game-map [0 0])))))
 

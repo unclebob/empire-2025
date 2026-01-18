@@ -279,11 +279,13 @@
           (handle-unit-movement-key k coords cell))
         (handle-city-production-key k coords cell)))))
 
-(defn add-unit-at-mouse [unit-type]
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (when (map-utils/on-map? x y)
-      (movement/add-unit-at (map-utils/determine-cell-coordinates x y) unit-type))))
+(defn add-unit-at-mouse
+  ([unit-type] (add-unit-at-mouse unit-type :player))
+  ([unit-type owner]
+   (let [x (q/mouse-x)
+         y (q/mouse-y)]
+     (when (map-utils/on-map? x y)
+       (movement/add-unit-at (map-utils/determine-cell-coordinates x y) unit-type owner)))))
 
 (defn wake-at-mouse []
   (let [x (q/mouse-x)
@@ -429,15 +431,27 @@
     (do
       (reset! atoms/backtick-pressed false)
       (case k
-        :a (add-unit-at-mouse :army)
-        :f (add-unit-at-mouse :fighter)
-        :z (add-unit-at-mouse :satellite)
-        :t (add-unit-at-mouse :transport)
-        :p (add-unit-at-mouse :patrol-boat)
-        :d (add-unit-at-mouse :destroyer)
-        :s (add-unit-at-mouse :submarine)
-        :c (add-unit-at-mouse :carrier)
-        :b (add-unit-at-mouse :battleship)
+        ;; Uppercase = player units
+        :A (add-unit-at-mouse :army :player)
+        :F (add-unit-at-mouse :fighter :player)
+        :Z (add-unit-at-mouse :satellite :player)
+        :T (add-unit-at-mouse :transport :player)
+        :P (add-unit-at-mouse :patrol-boat :player)
+        :D (add-unit-at-mouse :destroyer :player)
+        :S (add-unit-at-mouse :submarine :player)
+        :C (add-unit-at-mouse :carrier :player)
+        :B (add-unit-at-mouse :battleship :player)
+        ;; Lowercase = enemy/computer units
+        :a (add-unit-at-mouse :army :computer)
+        :f (add-unit-at-mouse :fighter :computer)
+        :z (add-unit-at-mouse :satellite :computer)
+        :t (add-unit-at-mouse :transport :computer)
+        :p (add-unit-at-mouse :patrol-boat :computer)
+        :d (add-unit-at-mouse :destroyer :computer)
+        :s (add-unit-at-mouse :submarine :computer)
+        :c (add-unit-at-mouse :carrier :computer)
+        :b (add-unit-at-mouse :battleship :computer)
+        ;; Other commands
         :o (own-city-at-mouse)
         nil))
     (cond

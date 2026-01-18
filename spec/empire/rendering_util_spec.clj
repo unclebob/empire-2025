@@ -3,29 +3,33 @@
             [empire.rendering-util :as ru]))
 
 (describe "format-unit-status"
-  (it "formats basic army status"
-    (let [unit {:type :army :hits 1 :mode :awake}]
-      (should= "army [1/1] awake" (ru/format-unit-status unit))))
+  (it "formats basic player army status"
+    (let [unit {:type :army :hits 1 :mode :awake :owner :player}]
+      (should= "player army [1/1] awake" (ru/format-unit-status unit))))
+
+  (it "formats computer army status"
+    (let [unit {:type :army :hits 1 :mode :sentry :owner :computer}]
+      (should= "computer army [1/1] sentry" (ru/format-unit-status unit))))
 
   (it "formats fighter with fuel"
-    (let [unit {:type :fighter :hits 1 :mode :sentry :fuel 15}]
-      (should= "fighter [1/1] fuel:15 sentry" (ru/format-unit-status unit))))
+    (let [unit {:type :fighter :hits 1 :mode :sentry :fuel 15 :owner :player}]
+      (should= "player fighter [1/1] fuel:15 sentry" (ru/format-unit-status unit))))
 
   (it "formats transport with cargo"
-    (let [unit {:type :transport :hits 1 :mode :awake :army-count 4}]
-      (should= "transport [1/1] cargo:4 awake" (ru/format-unit-status unit))))
+    (let [unit {:type :transport :hits 1 :mode :awake :army-count 4 :owner :player}]
+      (should= "player transport [1/1] cargo:4 awake" (ru/format-unit-status unit))))
 
   (it "formats carrier with cargo"
-    (let [unit {:type :carrier :hits 8 :mode :moving :fighter-count 3}]
-      (should= "carrier [8/8] cargo:3 moving" (ru/format-unit-status unit))))
+    (let [unit {:type :carrier :hits 8 :mode :moving :fighter-count 3 :owner :player}]
+      (should= "player carrier [8/8] cargo:3 moving" (ru/format-unit-status unit))))
 
   (it "formats unit with marching orders"
-    (let [unit {:type :army :hits 1 :mode :moving :marching-orders [[1 2] [3 4]]}]
-      (should= "army [1/1] march moving" (ru/format-unit-status unit))))
+    (let [unit {:type :army :hits 1 :mode :moving :marching-orders [[1 2] [3 4]] :owner :player}]
+      (should= "player army [1/1] march moving" (ru/format-unit-status unit))))
 
   (it "formats unit with flight path"
-    (let [unit {:type :fighter :hits 1 :mode :moving :fuel 10 :flight-path [[1 2]]}]
-      (should= "fighter [1/1] fuel:10 flight moving" (ru/format-unit-status unit)))))
+    (let [unit {:type :fighter :hits 1 :mode :moving :fuel 10 :flight-path [[1 2]] :owner :player}]
+      (should= "player fighter [1/1] fuel:10 flight moving" (ru/format-unit-status unit)))))
 
 (describe "format-city-status"
   (it "formats player city with production"
@@ -51,8 +55,8 @@
 
 (describe "format-hover-status"
   (it "returns unit status for cell with contents"
-    (let [cell {:contents {:type :army :hits 1 :mode :awake}}]
-      (should= "army [1/1] awake" (ru/format-hover-status cell nil))))
+    (let [cell {:contents {:type :army :hits 1 :mode :awake :owner :player}}]
+      (should= "player army [1/1] awake" (ru/format-hover-status cell nil))))
 
   (it "returns city status for city cell"
     (let [cell {:type :city :city-status :free :fighter-count 0}]

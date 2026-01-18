@@ -362,21 +362,24 @@
 
 (defn add-unit-at
   "Adds a unit of the given type at the specified cell coordinates.
-   Only adds if the cell is empty."
-  [[cx cy] unit-type]
-  (let [cell (get-in @atoms/game-map [cx cy])
-        unit {:type unit-type
-              :hits (config/item-hits unit-type)
-              :mode :awake
-              :owner :player}
-        unit (if (= unit-type :fighter)
-               (assoc unit :fuel config/fighter-fuel)
-               unit)
-        unit (if (= unit-type :satellite)
-               (assoc unit :turns-remaining config/satellite-turns)
-               unit)]
-    (when-not (:contents cell)
-      (swap! atoms/game-map assoc-in [cx cy :contents] unit))))
+   Only adds if the cell is empty. Owner defaults to :player.
+   Updates visibility for the owner after adding."
+  ([[cx cy] unit-type] (add-unit-at [cx cy] unit-type :player))
+  ([[cx cy] unit-type owner]
+   (let [cell (get-in @atoms/game-map [cx cy])
+         unit {:type unit-type
+               :hits (config/item-hits unit-type)
+               :mode :awake
+               :owner owner}
+         unit (if (= unit-type :fighter)
+                (assoc unit :fuel config/fighter-fuel)
+                unit)
+         unit (if (= unit-type :satellite)
+                (assoc unit :turns-remaining config/satellite-turns)
+                unit)]
+     (when-not (:contents cell)
+       (swap! atoms/game-map assoc-in [cx cy :contents] unit)
+       (visibility/update-cell-visibility [cx cy] owner)))))
 
 (defn wake-at
   "Wakes a city (removes production so it needs attention) or a sleeping unit.

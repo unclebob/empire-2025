@@ -1,5 +1,6 @@
 (ns empire.rendering
-  (:require [empire.atoms :as atoms]
+  (:require [clojure.string :as str]
+            [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.rendering-util :as ru]
@@ -30,12 +31,14 @@
 
 (defn- draw-unit
   "Draws a unit on the map cell, handling attention blinking for contained units.
-   Assumes font is already set."
+   Assumes font is already set. Computer units show as lowercase."
   [col row cell cell-w cell-h attention-coords blink-unit?]
   (when-let [display-unit (ru/determine-display-unit col row cell attention-coords blink-unit?)]
-    (let [[r g b] (config/mode->color (:mode display-unit))]
+    (let [[r g b] (config/mode->color (:mode display-unit))
+          char (config/item-chars (:type display-unit))
+          char (if (= :computer (:owner display-unit)) (str/lower-case char) char)]
       (q/fill r g b)
-      (q/text (config/item-chars (:type display-unit)) (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))
+      (q/text char (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))
 
 (defn- draw-waypoint
   "Draws a waypoint marker on the map cell if it has a waypoint and no contents.

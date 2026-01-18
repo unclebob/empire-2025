@@ -10,6 +10,7 @@
     \O {:type :city :city-status :player}
     \X {:type :city :city-status :computer}
     \* {:type :land :waypoint true}
+    ;; Player units (uppercase)
     \A {:type :land :contents {:type :army :owner :player}}
     \T {:type :sea :contents {:type :transport :owner :player}}
     \D {:type :sea :contents {:type :destroyer :owner :player}}
@@ -20,6 +21,17 @@
     \F {:type :land :contents {:type :fighter :owner :player}}
     \J {:type :sea :contents {:type :fighter :owner :player}}
     \V {:type :land :contents {:type :satellite :owner :player}}
+    ;; Enemy units (lowercase)
+    \a {:type :land :contents {:type :army :owner :computer}}
+    \t {:type :sea :contents {:type :transport :owner :computer}}
+    \d {:type :sea :contents {:type :destroyer :owner :computer}}
+    \p {:type :sea :contents {:type :patrol-boat :owner :computer}}
+    \c {:type :sea :contents {:type :carrier :owner :computer}}
+    \b {:type :sea :contents {:type :battleship :owner :computer}}
+    \s {:type :sea :contents {:type :submarine :owner :computer}}
+    \f {:type :land :contents {:type :fighter :owner :computer}}
+    \j {:type :sea :contents {:type :fighter :owner :computer}}
+    \v {:type :land :contents {:type :satellite :owner :computer}}
     (throw (ex-info (str "Unknown map char: " c) {:char c}))))
 
 (defn build-test-map [strings]
@@ -28,38 +40,36 @@
               strings)))
 
 (def ^:private char->unit-type
-  {\A :army
-   \T :transport
-   \D :destroyer
-   \P :patrol-boat
-   \C :carrier
-   \B :battleship
-   \S :submarine
-   \F :fighter
-   \J :fighter
-   \V :satellite})
+  {\A :army      \a :army
+   \T :transport \t :transport
+   \D :destroyer \d :destroyer
+   \P :patrol-boat \p :patrol-boat
+   \C :carrier   \c :carrier
+   \B :battleship \b :battleship
+   \S :submarine \s :submarine
+   \F :fighter   \f :fighter
+   \J :fighter   \j :fighter
+   \V :satellite \v :satellite})
 
-(defn- parse-unit-spec [unit-spec]
+(defn- find-unit-pos [game-map unit-spec]
   (let [c (first unit-spec)
+        unit-type (get char->unit-type c)
+        owner (if (Character/isUpperCase c) :player :computer)
         n (if (> (count unit-spec) 1)
             (Integer/parseInt (subs unit-spec 1))
-            1)]
-    [(get char->unit-type c) n]))
-
-(defn- find-unit-pos [game-map unit-type n]
-  (let [positions (for [row-idx (range (count game-map))
+            1)
+        positions (for [row-idx (range (count game-map))
                         col-idx (range (count (nth game-map row-idx)))
                         :let [cell (get-in game-map [row-idx col-idx])
                               contents (:contents cell)]
                         :when (and contents
                                    (= unit-type (:type contents))
-                                   (= :player (:owner contents)))]
+                                   (= owner (:owner contents)))]
                     [row-idx col-idx])]
     (nth positions (dec n) nil)))
 
 (defn set-test-unit [game-map-atom unit-spec & kvs]
-  (let [[unit-type n] (parse-unit-spec unit-spec)
-        pos (find-unit-pos @game-map-atom unit-type n)]
+  (let [pos (find-unit-pos @game-map-atom unit-spec)]
     (when (nil? pos)
       (throw (ex-info (str "Unit not found: " unit-spec) {:unit-spec unit-spec})))
     (swap! game-map-atom update-in (conj pos :contents) merge (apply hash-map kvs))))
@@ -68,7 +78,12 @@
   (every? (fn [[k v]] (= v (get unit k))) filters))
 
 (defn get-test-unit [game-map-atom unit-spec & {:as filters}]
-  (let [[unit-type n] (parse-unit-spec unit-spec)
+  (let [c (first unit-spec)
+        unit-type (get char->unit-type c)
+        owner (if (Character/isUpperCase c) :player :computer)
+        n (if (> (count unit-spec) 1)
+            (Integer/parseInt (subs unit-spec 1))
+            1)
         game-map @game-map-atom
         matches (for [row-idx (range (count game-map))
                       col-idx (range (count (nth game-map row-idx)))
@@ -76,7 +91,7 @@
                             contents (:contents cell)]
                       :when (and contents
                                  (= unit-type (:type contents))
-                                 (= :player (:owner contents))
+                                 (= owner (:owner contents))
                                  (matches-filters? contents filters))]
                   {:pos [row-idx col-idx] :unit contents})]
     (nth matches (dec n) nil)))

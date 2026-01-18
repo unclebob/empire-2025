@@ -11,6 +11,7 @@
   "Formats status string for a unit."
   [unit]
   (let [type-name (name (:type unit))
+        owner (name (:owner unit))
         hits (:hits unit)
         max-hits (config/item-hits (:type unit))
         fuel (when (= (:type unit) :fighter) (:fuel unit))
@@ -22,7 +23,7 @@
                  (:marching-orders unit) "march"
                  (:flight-path unit) "flight"
                  :else nil)]
-    (str type-name
+    (str owner " " type-name
          " [" hits "/" max-hits "]"
          (when fuel (str " fuel:" fuel))
          (when cargo (str " cargo:" cargo))

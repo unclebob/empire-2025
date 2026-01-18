@@ -16,8 +16,7 @@
     (should= [[0 0]] (vec (game-loop/build-player-items))))
 
   (it "returns coordinates of player units"
-    (reset! atoms/game-map @(build-test-map ["AA"]))
-    (set-test-unit atoms/game-map "A2" :owner :computer)
+    (reset! atoms/game-map @(build-test-map ["Aa"]))
     (should= [[0 0]] (vec (game-loop/build-player-items))))
 
   (it "returns both cities and units"
@@ -117,8 +116,7 @@
   (before (reset-all-atoms!))
   (it "initializes steps-remaining for player units based on unit speed"
     (reset! atoms/game-map @(build-test-map ["AF"
-                                             "A#"]))
-    (set-test-unit atoms/game-map "A2" :owner :computer)
+                                             "a#"]))
     (game-loop/reset-steps-remaining)
     (should= (config/unit-speed :army) (:steps-remaining (:contents (get-in @atoms/game-map [0 0]))))
     (should= (config/unit-speed :fighter) (:steps-remaining (:contents (get-in @atoms/game-map [0 1]))))
@@ -308,10 +306,8 @@
         (should= 49 (:explore-steps moved-unit)))))
 
   (it "explore army avoids cells with units"
-    (reset! atoms/game-map @(build-test-map ["AA"
-                                             "A#"]))
-    (set-test-unit atoms/game-map "A3" :owner :computer)
-    (set-test-unit atoms/game-map "A2" :owner :computer)
+    (reset! atoms/game-map @(build-test-map ["Aa"
+                                             "a#"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 50)
     (reset! atoms/player-map (make-initial-test-map 2 2 nil))
     (movement/move-explore-unit [0 0])

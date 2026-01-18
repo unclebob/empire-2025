@@ -143,10 +143,9 @@
   (it "works for computer owner"
     (reset! atoms/game-map @(build-test-map ["~~~~~"
                                              "~~~~~"
-                                             "~~A~~"
+                                             "~~a~~"
                                              "~~~~~"
                                              "~~~~~"]))
-    (set-test-unit atoms/game-map "A" :owner :computer)
     (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
     (update-combatant-map atoms/computer-map :computer)
     ;; All 9 cells around [2 2] should be revealed in computer map

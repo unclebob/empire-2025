@@ -757,7 +757,24 @@
   (it "does not add unit if cell has contents"
     (swap! atoms/game-map assoc-in [3 4 :contents] {:type :army :owner :computer})
     (add-unit-at [3 4] :carrier)
-    (should= :army (get-in @atoms/game-map [3 4 :contents :type]))))
+    (should= :army (get-in @atoms/game-map [3 4 :contents :type])))
+
+  (it "adds computer-owned army when owner is :computer"
+    (add-unit-at [3 4] :army :computer)
+    (let [contents (get-in @atoms/game-map [3 4 :contents])]
+      (should= :army (:type contents))
+      (should= :computer (:owner contents))
+      (should= :awake (:mode contents))))
+
+  (it "adds computer-owned destroyer when owner is :computer"
+    (add-unit-at [5 5] :destroyer :computer)
+    (let [contents (get-in @atoms/game-map [5 5 :contents])]
+      (should= :destroyer (:type contents))
+      (should= :computer (:owner contents))))
+
+  (it "defaults to player owner when not specified"
+    (add-unit-at [2 2] :transport)
+    (should= :player (get-in @atoms/game-map [2 2 :contents :owner]))))
 
 (describe "wake-at"
   (before

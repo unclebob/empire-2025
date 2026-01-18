@@ -77,7 +77,53 @@
              @(build-test-map ["#~" "~#"])))
 
   (it "throws on unknown character"
-    (should-throw (build-test-map ["x"]))))
+    (should-throw (build-test-map ["!"])))
+
+  ;; Enemy unit conversions (lowercase)
+  (it "converts a to enemy army on land"
+    (should= [[{:type :land :contents {:type :army :owner :computer}}]]
+             @(build-test-map ["a"])))
+
+  (it "converts t to enemy transport on sea"
+    (should= [[{:type :sea :contents {:type :transport :owner :computer}}]]
+             @(build-test-map ["t"])))
+
+  (it "converts d to enemy destroyer on sea"
+    (should= [[{:type :sea :contents {:type :destroyer :owner :computer}}]]
+             @(build-test-map ["d"])))
+
+  (it "converts p to enemy patrol-boat on sea"
+    (should= [[{:type :sea :contents {:type :patrol-boat :owner :computer}}]]
+             @(build-test-map ["p"])))
+
+  (it "converts c to enemy carrier on sea"
+    (should= [[{:type :sea :contents {:type :carrier :owner :computer}}]]
+             @(build-test-map ["c"])))
+
+  (it "converts b to enemy battleship on sea"
+    (should= [[{:type :sea :contents {:type :battleship :owner :computer}}]]
+             @(build-test-map ["b"])))
+
+  (it "converts s to enemy submarine on sea"
+    (should= [[{:type :sea :contents {:type :submarine :owner :computer}}]]
+             @(build-test-map ["s"])))
+
+  (it "converts f to enemy fighter over land"
+    (should= [[{:type :land :contents {:type :fighter :owner :computer}}]]
+             @(build-test-map ["f"])))
+
+  (it "converts j to enemy fighter over sea"
+    (should= [[{:type :sea :contents {:type :fighter :owner :computer}}]]
+             @(build-test-map ["j"])))
+
+  (it "converts v to enemy satellite over land"
+    (should= [[{:type :land :contents {:type :satellite :owner :computer}}]]
+             @(build-test-map ["v"])))
+
+  (it "builds map with mixed player and enemy units"
+    (should= [[{:type :sea :contents {:type :transport :owner :player}}
+               {:type :sea :contents {:type :transport :owner :computer}}]]
+             @(build-test-map ["Tt"]))))
 
 (describe "set-test-unit"
   (it "sets a single key-value on the first unit"
@@ -112,7 +158,31 @@
 
   (it "throws when unit not found"
     (let [gm (build-test-map ["~~"])]
-      (should-throw (set-test-unit gm "T" :mode :awake)))))
+      (should-throw (set-test-unit gm "T" :mode :awake))))
+
+  ;; Enemy unit tests
+  (it "sets properties on enemy unit with lowercase spec"
+    (let [gm (build-test-map ["t"])]
+      (set-test-unit gm "t" :mode :sentry :hits 2)
+      (should= :sentry (get-in @gm [0 0 :contents :mode]))
+      (should= 2 (get-in @gm [0 0 :contents :hits]))))
+
+  (it "finds second enemy unit with t2 notation"
+    (let [gm (build-test-map ["t~t"])]
+      (set-test-unit gm "t2" :mode :awake)
+      (should= nil (get-in @gm [0 0 :contents :mode]))
+      (should= :awake (get-in @gm [0 2 :contents :mode]))))
+
+  (it "distinguishes player and enemy units by case"
+    (let [gm (build-test-map ["Tt"])]
+      (set-test-unit gm "T" :mode :sentry)
+      (set-test-unit gm "t" :mode :awake)
+      (should= :sentry (get-in @gm [0 0 :contents :mode]))
+      (should= :awake (get-in @gm [0 1 :contents :mode]))))
+
+  (it "throws when enemy unit not found using lowercase spec"
+    (let [gm (build-test-map ["T"])]
+      (should-throw (set-test-unit gm "t" :mode :awake)))))
 
 (describe "get-test-unit"
   (it "returns nil when unit not found"
@@ -170,7 +240,44 @@
       (let [result (get-test-unit gm "V")]
         (should= [0 0] (:pos result))
         (should= :satellite (:type (:unit result)))
-        (should= [5 5] (:target (:unit result)))))))
+        (should= [5 5] (:target (:unit result))))))
+
+  ;; Enemy unit tests
+  (it "returns nil when enemy unit not found"
+    (let [gm (build-test-map ["T"])]
+      (should= nil (get-test-unit gm "t"))))
+
+  (it "finds enemy unit with lowercase spec"
+    (let [gm (build-test-map ["t"])]
+      (set-test-unit gm "t" :mode :awake)
+      (let [result (get-test-unit gm "t")]
+        (should= [0 0] (:pos result))
+        (should= :transport (:type (:unit result)))
+        (should= :computer (:owner (:unit result)))
+        (should= :awake (:mode (:unit result))))))
+
+  (it "finds second enemy unit with t2 notation"
+    (let [gm (build-test-map ["t~t"])]
+      (set-test-unit gm "t2" :mode :awake)
+      (let [result (get-test-unit gm "t2")]
+        (should= [0 2] (:pos result))
+        (should= :awake (:mode (:unit result))))))
+
+  (it "distinguishes player and enemy units by case"
+    (let [gm (build-test-map ["Tt"])]
+      (set-test-unit gm "T" :mode :sentry)
+      (set-test-unit gm "t" :mode :awake)
+      (should= [0 0] (:pos (get-test-unit gm "T")))
+      (should= :player (:owner (:unit (get-test-unit gm "T"))))
+      (should= [0 1] (:pos (get-test-unit gm "t")))
+      (should= :computer (:owner (:unit (get-test-unit gm "t"))))))
+
+  (it "filters enemy units by mode"
+    (let [gm (build-test-map ["tt"])]
+      (set-test-unit gm "t1" :mode :sentry)
+      (set-test-unit gm "t2" :mode :awake)
+      (let [result (get-test-unit gm "t" :mode :awake)]
+        (should= [0 1] (:pos result))))))
 
 (describe "get-test-city"
   (it "returns nil when city not found"
