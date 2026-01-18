@@ -3,7 +3,7 @@
     [empire.atoms :as atoms]
     [empire.game-loop :as game-loop]
     [empire.movement.movement :refer :all]
-    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]
+    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]
     [speclj.core :refer :all]))
 
 (describe "transport with armies"
@@ -21,7 +21,7 @@
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "A1" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "A2" :mode :sentry :hits 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           army1-coords (:pos (get-test-unit atoms/game-map "A1"))
           army2-coords (:pos (get-test-unit atoms/game-map "A2"))]
@@ -43,7 +43,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           army-coords (:pos (get-test-unit atoms/game-map "A"))]
       (load-adjacent-sentry-armies transport-coords)
@@ -63,7 +63,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
       (load-adjacent-sentry-armies transport-coords)
       (let [transport (:contents (get-in @atoms/game-map transport-coords))]
@@ -120,7 +120,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 3 :awake-armies 3)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           land-coords [(inc (first transport-coords)) (second transport-coords)]]
       (disembark-army-from-transport transport-coords land-coords)
@@ -142,7 +142,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 1 :awake-armies 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           land-coords [(inc (first transport-coords)) (second transport-coords)]]
       (disembark-army-from-transport transport-coords land-coords)
@@ -161,7 +161,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           land-coords [(inc (first transport-coords)) (second transport-coords)]]
       (disembark-army-from-transport transport-coords land-coords)
@@ -183,7 +183,7 @@
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           target-coords [(first transport-coords) (inc (second transport-coords))]]
       (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1 :target target-coords :steps-remaining 1)
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit transport-coords)
       (let [transport (:contents (get-in @atoms/game-map target-coords))]
         (should= :awake (:mode transport))
@@ -202,7 +202,7 @@
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           target-coords [(first transport-coords) (inc (second transport-coords))]]
       (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :target target-coords :steps-remaining 1)
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit transport-coords)
       (let [transport (:contents (get-in @atoms/game-map target-coords))]
         (should= :awake (:mode transport))
@@ -251,7 +251,7 @@
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           target-coords [(first transport-coords) (inc (second transport-coords))]]
       (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1 :target target-coords :steps-remaining 1)
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit transport-coords)
       (let [transport (:contents (get-in @atoms/game-map target-coords))]
         (should= :awake (:mode transport))
@@ -272,7 +272,7 @@
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           target-coords [(first transport-coords) (inc (second transport-coords))]]
       (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1 :target target-coords :steps-remaining 1)
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit transport-coords)
       (let [transport (:contents (get-in @atoms/game-map target-coords))]
         ;; Still wakes because it's at beach with armies, but reason should be :transport-at-beach
@@ -294,7 +294,7 @@
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           target-coords [(first transport-coords) (inc (second transport-coords))]]
       (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :target target-coords :steps-remaining 1)
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit transport-coords)
       (let [transport (:contents (get-in @atoms/game-map target-coords))]
         (should= :awake (:mode transport))
@@ -334,7 +334,7 @@
                                              "---------"
                                              "----#----"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           land-coords [(inc (first transport-coords)) (second transport-coords)]
           extended-target [8 (second transport-coords)]]
@@ -361,7 +361,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
           land-coords [(inc (first transport-coords)) (second transport-coords)]]
       (let [result (disembark-army-to-explore transport-coords land-coords)]

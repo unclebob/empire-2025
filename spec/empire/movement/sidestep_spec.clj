@@ -2,7 +2,7 @@
   (:require
     [empire.atoms :as atoms]
     [empire.game-loop :as game-loop]
-    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]
+    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]
     [speclj.core :refer :all]))
 
 (describe "sidestep around friendly units"
@@ -19,7 +19,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [4 8] :steps-remaining 2)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "A1"))
           blocking-coords (:pos (get-test-unit atoms/game-map "A2"))
           target-coords [4 6]]
@@ -43,7 +43,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [6 6] :steps-remaining 2)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "A1"))
           blocking-coords (:pos (get-test-unit atoms/game-map "A2"))]
       (game-loop/move-current-unit moving-coords)
@@ -69,7 +69,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [4 8] :steps-remaining 1)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "A1"))]
       (game-loop/move-current-unit moving-coords)
       ;; Unit should wake up at original position
@@ -92,7 +92,7 @@
           enemy-coords [(first moving-coords) (inc (second moving-coords))]]
       ;; Add blocking enemy army adjacent to moving unit
       (swap! atoms/game-map assoc-in enemy-coords {:type :land :contents {:type :army :owner :computer :mode :sentry}})
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit moving-coords)
       ;; Unit should wake up, not sidestep (enemy blocking)
       (let [unit (:contents (get-in @atoms/game-map moving-coords))]
@@ -111,7 +111,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "F1" :mode :moving :target [4 8] :fuel 20 :steps-remaining 2)
     (set-test-unit atoms/game-map "F2" :mode :sentry :fuel 10)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "F1"))
           blocking-coords (:pos (get-test-unit atoms/game-map "F2"))
           target-coords [4 6]]
@@ -134,7 +134,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "D" :mode :moving :target [4 8] :hits 3 :steps-remaining 2)
     (set-test-unit atoms/game-map "B" :mode :sentry :hits 10)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "D"))
           blocking-coords (:pos (get-test-unit atoms/game-map "B"))
           target-coords [4 6]]
@@ -160,7 +160,7 @@
                                              "------------"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [4 10] :steps-remaining 2)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 12 (vec (repeat 12 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 12 12 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "A1"))
           blocking-coords (:pos (get-test-unit atoms/game-map "A2"))
           target-coords [4 6]]
@@ -191,7 +191,7 @@
     (set-test-unit atoms/game-map "A4" :mode :sentry)
     (set-test-unit atoms/game-map "A5" :mode :sentry)
     (set-test-unit atoms/game-map "A6" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 12 (vec (repeat 12 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 12 12 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "A3"))]
       (game-loop/move-current-unit moving-coords)
       ;; Unit should wake up since sidestepping doesn't get us closer
@@ -207,7 +207,7 @@
                                              "-----"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [0 4] :steps-remaining 2)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 5 (vec (repeat 5 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
     (let [moving-coords (:pos (get-test-unit atoms/game-map "A1"))
           target-coords [0 2]]
       (game-loop/move-current-unit moving-coords)
@@ -228,7 +228,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "A" :mode :moving :target [4 8] :steps-remaining 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Army should have sidestepped around friendly city and continued
     (should (:contents (get-in @atoms/game-map [4 6])))
@@ -245,7 +245,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "A" :mode :moving :target [4 8] :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Army should wake up since no sidestep exists
     (let [unit (:contents (get-in @atoms/game-map [4 4]))]
@@ -263,7 +263,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 8] :fuel 20 :steps-remaining 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should have sidestepped around city and continued
     (should (:contents (get-in @atoms/game-map [4 6])))
@@ -280,7 +280,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 8] :fuel 20 :steps-remaining 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should have sidestepped around city and continued
     (should (:contents (get-in @atoms/game-map [4 6])))
@@ -300,7 +300,7 @@
           city-coords [(first fighter-coords) (inc (second fighter-coords))]]
       (set-test-unit atoms/game-map "F" :mode :moving :target city-coords :fuel 20 :steps-remaining 2)
       (swap! atoms/game-map assoc-in (conj city-coords :fighter-count) 0)
-      (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
       (game-loop/move-current-unit fighter-coords)
       ;; Fighter should land at target city, not sidestep
       (should= 1 (:fighter-count (get-in @atoms/game-map city-coords)))
@@ -317,7 +317,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 8] :fuel 20 :steps-remaining 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should have sidestepped around hostile city
     (should (:contents (get-in @atoms/game-map [4 6])))

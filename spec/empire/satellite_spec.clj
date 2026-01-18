@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.satellite :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms! make-initial-test-map]]))
 
 (describe "calculate-satellite-target"
   (before (reset-all-atoms!))
@@ -73,7 +73,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (let [result (move-satellite [5 5])]
       (should= [5 5] result)
       (should (:contents (get-in @atoms/game-map [5 5])))
@@ -91,7 +91,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (let [result (move-satellite [5 5])]
       (should= [6 6] result)
       (should (:contents (get-in @atoms/game-map [6 6])))
@@ -110,7 +110,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [5 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (let [result (move-satellite [5 3])]
       (should= [5 4] result)
       (should (:contents (get-in @atoms/game-map [5 4])))
@@ -128,7 +128,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 5] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (let [result (move-satellite [3 5])]
       (should= [4 5] result)
       (should (:contents (get-in @atoms/game-map [4 5])))
@@ -146,7 +146,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [5 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [5 9])
     (let [sat (:contents (get-in @atoms/game-map [5 9]))]
       (should sat)
@@ -164,7 +164,7 @@
                                              "##########"
                                              "#####V####"]))
     (set-test-unit atoms/game-map "V" :target [9 5] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [9 5])
     (let [sat (:contents (get-in @atoms/game-map [9 5]))]
       (should sat)
@@ -182,7 +182,7 @@
                                              "##########"
                                              "#########V"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [9 9])
     (let [sat (:contents (get-in @atoms/game-map [9 9]))
           [tx ty] (:target sat)]

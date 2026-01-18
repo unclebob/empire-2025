@@ -7,7 +7,7 @@
             [empire.game-loop :as game-loop]
             [empire.input :as input]
             [empire.movement.movement :as movement]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]))
 
 (describe "build-player-items"
   (before (reset-all-atoms!))
@@ -294,7 +294,7 @@
     (reset! atoms/game-map @(build-test-map ["A#"
                                              "##"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 50)
-    (reset! atoms/player-map (vec (repeat 2 (vec (repeat 2 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 2 2 nil))
     (let [result (movement/move-explore-unit [0 0])]
       ;; Returns nil (one step per round)
       (should= nil result)
@@ -313,7 +313,7 @@
     (set-test-unit atoms/game-map "A3" :owner :computer)
     (set-test-unit atoms/game-map "A2" :owner :computer)
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 50)
-    (reset! atoms/player-map (vec (repeat 2 (vec (repeat 2 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 2 2 nil))
     (movement/move-explore-unit [0 0])
     ;; Should move to [1 1] - the only valid cell
     (should-not-be-nil (:contents (get-in @atoms/game-map [1 1]))))
@@ -322,7 +322,7 @@
     (reset! atoms/game-map @(build-test-map ["A+"
                                              "O#"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 50)
-    (reset! atoms/player-map (vec (repeat 2 (vec (repeat 2 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 2 2 nil))
     (movement/move-explore-unit [0 0])
     ;; Should move to [1 1] - the only valid land cell
     (should-not-be-nil (:contents (get-in @atoms/game-map [1 1]))))
@@ -330,7 +330,7 @@
   (it "explore army wakes up after 50 steps"
     (reset! atoms/game-map @(build-test-map ["A#"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 1)
-    (reset! atoms/player-map (vec (repeat 1 (vec (repeat 2 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 1 2 nil))
     (let [result (movement/move-explore-unit [0 0])]
       ;; Should return nil (done exploring)
       (should= nil result)
@@ -343,7 +343,7 @@
     (reset! atoms/game-map @(build-test-map ["A~"
                                              "~~"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 50)
-    (reset! atoms/player-map (vec (repeat 2 (vec (repeat 2 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 2 2 nil))
     (let [result (movement/move-explore-unit [0 0])]
       ;; Should return nil (stuck)
       (should= nil result)

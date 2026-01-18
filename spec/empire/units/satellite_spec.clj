@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.units.satellite :as satellite]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map]]))
 
 (describe "satellite unit module"
   (before (reset-all-atoms!))
@@ -80,7 +80,7 @@
                                                "##########"
                                                "##########"
                                                "##########"]))
-      (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil))))))
+      (reset! atoms/player-map (make-initial-test-map 10 10 nil)))
 
     (it "does not move without target"
       (swap! atoms/game-map assoc-in [5 5 :contents]

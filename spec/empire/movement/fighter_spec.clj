@@ -3,7 +3,7 @@
     [empire.atoms :as atoms]
     [empire.game-loop :as game-loop]
     [empire.movement.movement :refer :all]
-    [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms!]]
+    [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms! make-initial-test-map]]
     [speclj.core :refer :all]))
 
 (describe "fighter fuel"
@@ -19,7 +19,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 10 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     (should= {:type :land} (get-in @atoms/game-map [4 4]))
     (should= {:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 9 :steps-remaining 0}} (get-in @atoms/game-map [4 5])))
@@ -35,7 +35,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 1 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     (should= {:type :land} (get-in @atoms/game-map [4 4]))
     (should= {:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 0 :reason :fighter-out-of-fuel :steps-remaining 0}} (get-in @atoms/game-map [4 5])))
@@ -51,7 +51,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 0 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     (should= {:type :land} (get-in @atoms/game-map [4 4]))
     (should= {:type :land} (get-in @atoms/game-map [4 5]))
@@ -68,7 +68,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 5 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     (should= {:type :land} (get-in @atoms/game-map [4 4]))
     (let [city-cell (get-in @atoms/game-map [4 5])]
@@ -89,7 +89,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 10 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (reset! atoms/line3-message "")
     (game-loop/move-current-unit [4 4])
     (let [city-cell (get-in @atoms/game-map [4 5])]
@@ -108,7 +108,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 6] :fuel 10 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should stay at starting position, awake
     (let [fighter (:contents (get-in @atoms/game-map [4 4]))]
@@ -129,7 +129,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 6] :fuel 10 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should stay at starting position, awake
     (let [fighter (:contents (get-in @atoms/game-map [4 4]))]
@@ -150,7 +150,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 8] :fuel 8 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should wake up with bingo warning
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -169,7 +169,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 3 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should wake at target, not due to bingo (city at [0 0] is distance 5, beyond fuel 3)
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -188,7 +188,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 10 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should wake at target, not due to bingo (fuel 10 > 8 = 25% of 32)
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -208,7 +208,7 @@
                                              "---------"]))
     ;; Fighter at [4 4] with fuel 8 (bingo level), target is friendly city at [4 7]
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 7] :fuel 8 :steps-remaining 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should NOT bingo - target city is 2 cells away, fuel 7 after move is sufficient
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -230,7 +230,7 @@
     ;; Distance to carrier is 2, worst-case fuel needed = 2 * 4/3 = 2.67, so 8 fuel is enough
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 6] :fuel 8 :steps-remaining 1)
     (set-test-unit atoms/game-map "C" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should NOT bingo - carrier is reachable even if moving away
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -255,7 +255,7 @@
     ;; Distance after move is 5, worst-case fuel needed = 5 * 4/3 = 6.67 > 6
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 10] :fuel 6 :steps-remaining 1)
     (set-test-unit atoms/game-map "C" :mode :sentry)
-    (reset! atoms/player-map (vec (repeat 12 (vec (repeat 12 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 12 12 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should bingo - carrier too far (needs 6.67 fuel, only has 6)
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -277,7 +277,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "J" :mode :moving :target [4 5] :fuel 10 :steps-remaining 1)
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     (let [carrier-cell (get-in @atoms/game-map [4 5])
           carrier (:contents carrier-cell)]
@@ -330,7 +330,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 2 :awake-fighters 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (launch-fighter-from-carrier [4 4] [4 6])
     (let [carrier (:contents (get-in @atoms/game-map [4 4]))
           launched-fighter (:contents (get-in @atoms/game-map [4 5]))]
@@ -351,7 +351,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (launch-fighter-from-carrier [4 4] [4 6])
     (let [carrier (:contents (get-in @atoms/game-map [4 4]))]
       (should= :sentry (:mode carrier))
@@ -368,7 +368,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (launch-fighter-from-carrier [4 4] [4 6])
     (let [fighter (:contents (get-in @atoms/game-map [4 5]))]
       (should= 7 (:steps-remaining fighter))))
@@ -407,7 +407,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     ;; Launch fighter from carrier toward [4 6]
     (launch-fighter-from-carrier [4 4] [4 6])
     ;; Verify carrier now has 0 fighters
@@ -442,7 +442,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "J" :mode :moving :target [4 5] :fuel 0 :steps-remaining 1)
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     ;; Fighter should be gone (crashed)
     (should-be-nil (:contents (get-in @atoms/game-map [4 4])))
@@ -465,7 +465,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 10 :steps-remaining 1 :hits 1)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (reset! atoms/line3-message "")
     ;; wake-after-move takes unit, from-pos, final-pos, and current-map (atom)
     (let [cell (get-in @atoms/game-map [4 4])
@@ -487,7 +487,7 @@
                                              "---------"]))
     (set-test-unit atoms/game-map "F" :mode :moving :target [4 5] :fuel 10 :steps-remaining 1 :hits 1)
     (swap! atoms/game-map assoc-in [4 5 :fighter-count] 0)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (game-loop/move-current-unit [4 4])
     (let [city (get-in @atoms/game-map [4 5])]
       (should= 1 (:fighter-count city))
@@ -524,7 +524,7 @@
                                              "---------"]))
     (swap! atoms/game-map assoc-in [4 4 :fighter-count] 2)
     (swap! atoms/game-map assoc-in [4 4 :awake-fighters] 2)
-    (reset! atoms/player-map (vec (repeat 9 (vec (repeat 9 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
     (launch-fighter-from-airport [4 4] [4 6])
     (let [city (get-in @atoms/game-map [4 4])
           fighter (:contents city)]

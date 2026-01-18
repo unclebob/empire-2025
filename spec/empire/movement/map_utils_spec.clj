@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map]]))
 
 (describe "process-map"
   (before (reset-all-atoms!))
@@ -110,7 +110,7 @@
   (before (reset-all-atoms!))
   (it "converts pixel coordinates to cell coordinates"
     (reset! atoms/map-screen-dimensions [800 600])
-    (reset! atoms/game-map (vec (repeat 8 (vec (repeat 6 nil)))))
+    (reset! atoms/game-map (make-initial-test-map 8 6 nil))
     ;; 800/8 = 100 pixels per cell width, 600/6 = 100 pixels per cell height
     (should= [0 0] (map-utils/determine-cell-coordinates 0 0))
     (should= [0 0] (map-utils/determine-cell-coordinates 50 50))

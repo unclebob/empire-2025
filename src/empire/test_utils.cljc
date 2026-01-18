@@ -81,6 +81,9 @@
                   {:pos [row-idx col-idx] :unit contents})]
     (nth matches (dec n) nil)))
 
+(defn make-initial-test-map [rows cols value]
+  (vec (repeat rows (vec (repeat cols value)))))
+
 (defn reset-all-atoms! []
   (reset! atoms/map-size [0 0])
   (reset! atoms/last-key nil)

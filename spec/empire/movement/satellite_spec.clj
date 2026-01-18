@@ -4,7 +4,7 @@
     [empire.game-loop :as game-loop]
     [empire.movement.movement :refer [move-satellite set-unit-movement]]
     [empire.movement.visibility :refer [update-cell-visibility]]
-    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]
+    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]
     [speclj.core :refer :all]))
 
 (describe "satellite movement"
@@ -21,7 +21,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [5 5])
     ;; Satellite should stay in place - no target set
     (should (:contents (get-in @atoms/game-map [5 5])))
@@ -39,7 +39,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :turns-remaining 5)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     ;; Run move-satellites (which calls move-satellite-steps)
     (game-loop/move-satellites)
     ;; Satellite should still be at [5 5] but with decremented turns
@@ -59,7 +59,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [5 5])
     ;; Satellite should have moved toward target [9 9], so to [6 6]
     (should (:contents (get-in @atoms/game-map [6 6])))
@@ -78,7 +78,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [5 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [5 3])
     ;; Satellite should move east to [5 4]
     (should (:contents (get-in @atoms/game-map [5 4])))
@@ -96,7 +96,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 5] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [3 5])
     ;; Satellite should move south to [4 5]
     (should (:contents (get-in @atoms/game-map [4 5])))
@@ -114,7 +114,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [5 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [5 9])
     ;; Satellite at target on right edge should get new target on left edge (column 0)
     (let [sat (:contents (get-in @atoms/game-map [5 9]))]
@@ -133,7 +133,7 @@
                                              "##########"
                                              "#####V####"]))
     (set-test-unit atoms/game-map "V" :target [9 5] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [9 5])
     ;; Satellite at target on bottom edge should get new target on top edge (row 0)
     (let [sat (:contents (get-in @atoms/game-map [9 5]))]
@@ -152,7 +152,7 @@
                                              "##########"
                                              "#########V"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (move-satellite [9 9])
     ;; Satellite at corner should get new target on either top edge (row 0) or left edge (column 0)
     (let [sat (:contents (get-in @atoms/game-map [9 9]))
@@ -172,7 +172,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :mode :awake :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     ;; Set movement to non-boundary target [5 5] - should extend to [9 9]
     (set-unit-movement [2 2] [5 5])
     (let [sat (:contents (get-in @atoms/game-map [2 2]))
@@ -194,7 +194,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (game-loop/move-satellites)
     ;; After one round of movement (10 steps), turns-remaining should only decrement by 1
     (let [{:keys [unit]} (get-test-unit atoms/game-map "V")]
@@ -212,7 +212,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 1)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     (game-loop/move-satellites)
     ;; Satellite should be removed after round ends with turns-remaining at 0
     ;; Check that satellite is gone from both original and any moved position
@@ -244,7 +244,7 @@
                                              "####################"
                                              "####################"]))
     (set-test-unit atoms/game-map "V" :target [19 19] :turns-remaining 5)
-    (reset! atoms/player-map (vec (repeat 20 (vec (repeat 20 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 20 20 nil))
     ;; Run 4 rounds - satellite should still exist
     (dotimes [_ 4]
       (game-loop/move-satellites))
@@ -283,7 +283,7 @@
                                              "####################"
                                              "####################"]))
     (set-test-unit atoms/game-map "V" :target [19 19] :turns-remaining 3)
-    (reset! atoms/player-map (vec (repeat 20 (vec (repeat 20 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 20 20 nil))
     (reset! atoms/player-items [])
     (reset! atoms/production {})
     (reset! atoms/round-number 0)
@@ -313,7 +313,7 @@
                                              "########V#"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 5)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     ;; Run 5 rounds - satellite should die
     (dotimes [_ 5]
       (game-loop/move-satellites))
@@ -335,7 +335,7 @@
                                              "##########"
                                              "##########"]))
     (set-test-unit atoms/game-map "V" :target [9 9] :turns-remaining 1)
-    (reset! atoms/player-map (vec (repeat 10 (vec (repeat 10 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 10 10 nil))
     ;; Update visibility so satellite appears on player-map
     (update-cell-visibility [5 5] :player)
     ;; Verify satellite is visible
@@ -363,7 +363,7 @@
                                              "###############"
                                              "###############"]))
     (set-test-unit atoms/game-map "V" :target [14 14] :turns-remaining 50)
-    (reset! atoms/player-map (vec (repeat 15 (vec (repeat 15 nil)))))
+    (reset! atoms/player-map (make-initial-test-map 15 15 nil))
     (update-cell-visibility [7 7] :player)
     ;; Ring 1 (distance 1) - all 8 cells should be visible
     (should (get-in @atoms/player-map [6 6]))
