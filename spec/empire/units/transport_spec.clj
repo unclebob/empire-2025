@@ -23,8 +23,8 @@
       (should= 1 transport/visibility-radius)))
 
   (describe "initial-state"
-    (it "starts with no armies"
-      (should= {:army-count 0 :awake-armies 0} (transport/initial-state))))
+    (it "starts with no armies and been-to-sea true"
+      (should= {:army-count 0 :awake-armies 0 :been-to-sea true} (transport/initial-state))))
 
   (describe "can-move-to?"
     (it "returns true for sea"

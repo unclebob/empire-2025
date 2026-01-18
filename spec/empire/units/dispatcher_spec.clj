@@ -75,7 +75,7 @@
       (should= {:turns-remaining 50} (dispatcher/initial-state :satellite)))
 
     (it "returns container state for transport"
-      (should= {:army-count 0 :awake-armies 0} (dispatcher/initial-state :transport)))
+      (should= {:army-count 0 :awake-armies 0 :been-to-sea true} (dispatcher/initial-state :transport)))
 
     (it "returns container state for carrier"
       (should= {:fighter-count 0 :awake-fighters 0} (dispatcher/initial-state :carrier))))

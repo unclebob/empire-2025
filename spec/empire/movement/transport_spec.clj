@@ -373,3 +373,118 @@
           (should= :army (:type army))
           (should= :explore (:mode army))
           (should= #{land-coords} (:visited army)))))))
+
+(describe "transport been-to-sea behavior"
+  (before (reset-all-atoms!))
+
+  (it "new transport has :been-to-sea true"
+    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~T~~~~"
+                                             "~~~~~#~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"]))
+    ;; Note: set-test-unit doesn't use initial-state, so we set :been-to-sea explicitly
+    ;; In production, new transports are created with initial-state which includes :been-to-sea true
+    (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 1 :been-to-sea true)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          transport (:contents (get-in @atoms/game-map transport-coords))]
+      (should= true (:been-to-sea transport))))
+
+  (it "transport does not wake at subsequent beaches after first beach wake"
+    ;; Transport starts at beach, moves along coast to another beach
+    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~#T~#~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"]))
+    ;; Transport at beach with :been-to-sea false (already woke at beach before)
+    ;; Target is further away so transport doesn't wake at target
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          next-coords [(first transport-coords) (inc (second transport-coords))]
+          far-target [(first transport-coords) 8]]
+      (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1
+                     :been-to-sea false :target far-target :steps-remaining 1)
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
+      (game-loop/move-current-unit transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map next-coords))]
+        ;; Should NOT wake - still moving (target not reached, been-to-sea is false)
+        (should= :moving (:mode transport))
+        (should= false (:been-to-sea transport)))))
+
+  (it "transport sets :been-to-sea true when completely surrounded by sea"
+    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~#~~~~~~"
+                                             "~~~~T~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"]))
+    ;; Transport at beach (adjacent to land at [3,2]) moving to open sea
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          target-coords [(first transport-coords) (inc (second transport-coords))]]
+      (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1
+                     :been-to-sea false :target target-coords :steps-remaining 1)
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
+      (game-loop/move-current-unit transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map target-coords))]
+        ;; Should set :been-to-sea true since now completely surrounded by sea
+        (should= true (:been-to-sea transport)))))
+
+  (it "transport wakes at beach after going to open sea"
+    ;; Transport NOT in open sea (adjacent to land at [3,3]) but :been-to-sea is true
+    ;; Moving to beach adjacent to land at [4,6]
+    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~#~~~~~"
+                                             "~~~~T~#~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"]))
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          target-coords [(first transport-coords) (inc (second transport-coords))]]
+      (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1
+                     :been-to-sea true :target target-coords :steps-remaining 1)
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
+      (game-loop/move-current-unit transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map target-coords))]
+        ;; Should wake with :transport-at-beach and set :been-to-sea false
+        (should= :awake (:mode transport))
+        (should= :transport-at-beach (:reason transport))
+        (should= false (:been-to-sea transport)))))
+
+  (it "transport wakes at first beach when :been-to-sea defaults to true"
+    ;; Transport NOT in open sea (adjacent to land at [3,3]) but :been-to-sea defaults to true
+    ;; Moving to beach adjacent to land at [4,6]
+    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~#~~~~~"
+                                             "~~~~T~#~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"
+                                             "~~~~~~~~~"]))
+    ;; New transport (default :been-to-sea true) moving to beach
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          target-coords [(first transport-coords) (inc (second transport-coords))]]
+      (set-test-unit atoms/game-map "T" :mode :moving :hits 1 :army-count 1
+                     :target target-coords :steps-remaining 1)
+      (reset! atoms/player-map (make-initial-test-map 9 9 nil))
+      (game-loop/move-current-unit transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map target-coords))]
+        ;; Should wake since :been-to-sea defaults to true
+        (should= :awake (:mode transport))
+        (should= :transport-at-beach (:reason transport))
+        (should= false (:been-to-sea transport))))))

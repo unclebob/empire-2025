@@ -12,7 +12,8 @@
   "Returns initial state fields for a new transport."
   []
   {:army-count 0
-   :awake-armies 0})
+   :awake-armies 0
+   :been-to-sea true})
 
 (defn can-move-to?
   "Transports can only move on sea."

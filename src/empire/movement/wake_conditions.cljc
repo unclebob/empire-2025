@@ -108,10 +108,13 @@
   (let [has-armies? (pos? (:army-count unit 0))
         at-beach? (map-utils/adjacent-to-land? final-pos current-map)
         was-in-open-sea? (map-utils/completely-surrounded-by-sea? from-pos current-map)
-        found-land? (and was-in-open-sea? at-beach?)]
+        now-in-open-sea? (map-utils/completely-surrounded-by-sea? final-pos current-map)
+        found-land? (and was-in-open-sea? at-beach?)
+        been-to-sea? (:been-to-sea unit true)]
     (cond
-      found-land? {:wake? true :reason :transport-found-land}
-      (and has-armies? at-beach?) {:wake? true :reason :transport-at-beach}
+      found-land? {:wake? true :reason :transport-found-land :been-to-sea false}
+      (and has-armies? at-beach? been-to-sea?) {:wake? true :reason :transport-at-beach :been-to-sea false}
+      now-in-open-sea? {:been-to-sea true}
       :else nil)))
 
 (def ^:private wake-check-handlers
@@ -123,7 +126,8 @@
   (cond-> (assoc unit :mode :awake)
     (:reason result) (assoc :reason (:reason result))
     (:refuel? result) (assoc :fuel config/fighter-fuel)
-    (:shot-down? result) (assoc :hits 0 :steps-remaining 0)))
+    (:shot-down? result) (assoc :hits 0 :steps-remaining 0)
+    (contains? result :been-to-sea) (assoc :been-to-sea (:been-to-sea result))))
 
 (defn- get-waypoint-orders
   "Returns the waypoint marching orders at final-pos if unit is an army, else nil."
@@ -131,6 +135,10 @@
   (when (= :army (:type unit))
     (let [cell (get-in @current-map final-pos)]
       (:marching-orders (:waypoint cell)))))
+
+(defn- apply-state-changes [unit result]
+  (cond-> unit
+    (contains? result :been-to-sea) (assoc :been-to-sea (:been-to-sea result))))
 
 (defn wake-after-move
   "Checks if a unit should wake after making a move.
@@ -146,10 +154,12 @@
       (atoms/set-line3-message (:fighter-destroyed-by-city config/messages) 3000))
     (cond
       waypoint-orders
-      (assoc unit :target waypoint-orders)
+      (-> unit
+          (apply-state-changes result)
+          (assoc :target waypoint-orders))
 
       wake-up?
       (dissoc (apply-wake-result unit result) :target)
 
       :else
-      unit)))
+      (apply-state-changes unit result))))
