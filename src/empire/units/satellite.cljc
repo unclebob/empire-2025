@@ -5,6 +5,7 @@
 (def speed 10)
 (def cost 50)
 (def hits 1)
+(def strength 1)
 (def display-char "Z")
 (def turns 50)
 (def visibility-radius 2)

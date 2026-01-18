@@ -4,6 +4,7 @@
 (def speed 8)
 (def cost 10)
 (def hits 1)
+(def strength 1)
 (def display-char "F")
 (def fuel 32)
 (def visibility-radius 1)

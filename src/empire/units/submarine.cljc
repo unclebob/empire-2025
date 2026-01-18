@@ -4,6 +4,7 @@
 (def speed 2)
 (def cost 20)
 (def hits 2)
+(def strength 3)
 (def display-char "S")
 (def visibility-radius 1)
 

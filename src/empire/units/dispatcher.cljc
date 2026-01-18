@@ -89,6 +89,19 @@
     :battleship battleship/visibility-radius
     nil))
 
+(defn strength [unit-type]
+  (case unit-type
+    :army army/strength
+    :fighter fighter/strength
+    :satellite satellite/strength
+    :transport transport/strength
+    :carrier carrier/strength
+    :patrol-boat patrol-boat/strength
+    :destroyer destroyer/strength
+    :submarine submarine/strength
+    :battleship battleship/strength
+    nil))
+
 ;; Behavior accessors
 (defn initial-state [unit-type]
   (case unit-type
