@@ -2,7 +2,8 @@
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
-            [empire.unit-container :as uc]))
+            [empire.unit-container :as uc]
+            [empire.units.dispatcher :as dispatcher]))
 
 (defn near-hostile-city?
   "Returns true if position is adjacent to a hostile city."
@@ -29,34 +30,68 @@
                    (<= (max (abs (- i px)) (abs (- j py))) max-dist))))
           (for [i (range height) j (range width)] [i j]))))
 
-(defn wake-before-move
-  "Checks if a unit should wake before making a move.
-   Returns [updated-unit woke?] where woke? indicates if the unit woke up."
+(defn enemy-unit-visible?
+  "Returns true if an enemy unit is within the unit's visibility radius."
+  [unit pos current-map]
+  (let [[px py] pos
+        radius (dispatcher/visibility-radius (:type unit))
+        owner (:owner unit)
+        height (count @current-map)
+        width (count (first @current-map))]
+    (some (fn [[di dj]]
+            (let [ni (+ px di)
+                  nj (+ py dj)]
+              (when (and (>= ni 0) (< ni height)
+                         (>= nj 0) (< nj width))
+                (let [cell (get-in @current-map [ni nj])
+                      contents (:contents cell)]
+                  (and contents
+                       (not= (:owner contents) owner))))))
+          (for [di (range (- radius) (inc radius))
+                dj (range (- radius) (inc radius))
+                :when (not (and (zero? di) (zero? dj)))]
+            [di dj]))))
+
+(defn- fighter-landing-on-carrier? [unit next-cell]
+  (let [next-contents (:contents next-cell)]
+    (and (= (:type unit) :fighter)
+         (= (:type next-contents) :carrier)
+         (= (:owner next-contents) (:owner unit))
+         (not (uc/full? next-contents :fighter-count config/carrier-capacity)))))
+
+(defn- blocking-wake-reason
+  "Returns the wake reason if the unit is blocked, nil otherwise."
   [unit next-cell]
-  (let [next-contents (:contents next-cell)
-        fighter-landing-carrier? (and (= (:type unit) :fighter)
-                                      (= (:type next-contents) :carrier)
-                                      (= (:owner next-contents) (:owner unit))
-                                      (not (uc/full? next-contents :fighter-count config/carrier-capacity)))]
-    (cond
-      (and (:contents next-cell) (not fighter-landing-carrier?))
-      [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :somethings-in-the-way) true]
+  (cond
+    (and (:contents next-cell) (not (fighter-landing-on-carrier? unit next-cell)))
+    :somethings-in-the-way
 
-      (and (= (:type unit) :army) (= (:type next-cell) :sea))
-      [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :cant-move-into-water) true]
+    (and (= (:type unit) :army) (= (:type next-cell) :sea))
+    :cant-move-into-water
 
-      (and (= (:type unit) :army) (= (:type next-cell) :city) (= (:city-status next-cell) :player))
-      [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :cant-move-into-city) true]
+    (and (= (:type unit) :army) (= (:type next-cell) :city) (= (:city-status next-cell) :player))
+    :cant-move-into-city
 
-      (and (= (:type unit) :fighter)
-           (= (:type next-cell) :city)
-           (config/hostile-city? (:city-status next-cell)))
-      [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :fighter-over-defended-city) true]
+    (and (= (:type unit) :fighter)
+         (= (:type next-cell) :city)
+         (config/hostile-city? (:city-status next-cell)))
+    :fighter-over-defended-city
 
-      (and (config/naval-unit? (:type unit)) (= (:type next-cell) :land))
-      [(assoc (dissoc (assoc unit :mode :awake) :target) :reason :ships-cant-drive-on-land) true]
+    (and (config/naval-unit? (:type unit)) (= (:type next-cell) :land))
+    :ships-cant-drive-on-land))
 
-      :else [unit false])))
+(defn- wake-unit-with-reason [unit reason]
+  (assoc (dissoc (assoc unit :mode :awake) :target) :reason reason))
+
+(defn wake-before-move
+  "Checks if a unit should wake before making a move due to blocking conditions.
+   Returns [updated-unit woke?] where woke? indicates if the unit woke up.
+   Note: Enemy visibility is checked in wake-after-move and wake-sentries-seeing-enemy,
+   not here, to allow user-directed movement to proceed."
+  [unit next-cell]
+  (if-let [reason (blocking-wake-reason unit next-cell)]
+    [(wake-unit-with-reason unit reason) true]
+    [unit false]))
 
 ;; Unit-specific wake check handlers
 
@@ -148,18 +183,22 @@
         handler (wake-check-handlers (:type unit))
         result (when handler (handler unit from-pos final-pos current-map))
         waypoint-orders (get-waypoint-orders unit final-pos current-map)
-        wake-up? (and (or is-at-target? (:wake? result))
-                      (not waypoint-orders))]
-    (when (:shot-down? result)
+        enemy-spotted? (enemy-unit-visible? unit final-pos current-map)
+        wake-up? (and (or is-at-target? (:wake? result) enemy-spotted?)
+                      (not waypoint-orders))
+        final-result (if (and enemy-spotted? (not (:wake? result)))
+                       {:wake? true :reason :enemy-spotted}
+                       result)]
+    (when (:shot-down? final-result)
       (atoms/set-line3-message (:fighter-destroyed-by-city config/messages) 3000))
     (cond
       waypoint-orders
       (-> unit
-          (apply-state-changes result)
+          (apply-state-changes final-result)
           (assoc :target waypoint-orders))
 
       wake-up?
-      (dissoc (apply-wake-result unit result) :target)
+      (dissoc (apply-wake-result unit final-result) :target)
 
       :else
-      (apply-state-changes unit result))))
+      (apply-state-changes unit final-result))))

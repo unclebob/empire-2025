@@ -159,6 +159,54 @@
       (should= :awake (:mode unit))
       (should= :fighter-bingo (:reason unit)))))
 
+(describe "wake-sentries-seeing-enemy"
+  (before (reset-all-atoms!))
+
+  (it "wakes sentry unit when enemy is adjacent"
+    (reset! atoms/game-map @(build-test-map ["Aa"]))
+    (set-test-unit atoms/game-map "A" :mode :sentry)
+    (game-loop/wake-sentries-seeing-enemy)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :awake (:mode unit))
+      (should= :enemy-spotted (:reason unit))))
+
+  (it "does not wake sentry when no enemy visible"
+    (reset! atoms/game-map @(build-test-map ["A#"]))
+    (set-test-unit atoms/game-map "A" :mode :sentry)
+    (game-loop/wake-sentries-seeing-enemy)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :sentry (:mode unit))))
+
+  (it "does not wake awake units"
+    (reset! atoms/game-map @(build-test-map ["Aa"]))
+    (set-test-unit atoms/game-map "A" :mode :awake)
+    (game-loop/wake-sentries-seeing-enemy)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :awake (:mode unit))
+      (should-be-nil (:reason unit))))
+
+  (it "does not wake moving units"
+    (reset! atoms/game-map @(build-test-map ["Aa"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 5])
+    (game-loop/wake-sentries-seeing-enemy)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :moving (:mode unit))))
+
+  (it "wakes sentry naval units when enemy visible"
+    (reset! atoms/game-map @(build-test-map ["Ds"]))
+    (set-test-unit atoms/game-map "D" :mode :sentry)
+    (game-loop/wake-sentries-seeing-enemy)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :awake (:mode unit))
+      (should= :enemy-spotted (:reason unit))))
+
+  (it "does not wake computer sentry units"
+    (reset! atoms/game-map @(build-test-map ["aA"]))
+    (set-test-unit atoms/game-map "a" :mode :sentry)
+    (game-loop/wake-sentries-seeing-enemy)
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :sentry (:mode unit)))))
+
 (describe "start-new-round"
   (before
     (reset-all-atoms!)

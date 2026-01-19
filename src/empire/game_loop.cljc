@@ -3,6 +3,7 @@
             [empire.attention :as attention]
             [empire.config :as config]
             [empire.movement.movement :as movement]
+            [empire.movement.wake-conditions :as wake]
             [empire.production :as production]
             [empire.unit-container :as uc]))
 
@@ -155,6 +156,20 @@
         :else
         (swap! atoms/game-map assoc-in [i j :contents :fuel] new-fuel)))))
 
+(defn wake-sentries-seeing-enemy
+  "Wakes player sentry units that can see an enemy unit."
+  []
+  (doseq [i (range (count @atoms/game-map))
+          j (range (count (first @atoms/game-map)))
+          :let [cell (get-in @atoms/game-map [i j])
+                unit (:contents cell)]
+          :when (and unit
+                     (= :player (:owner unit))
+                     (= :sentry (:mode unit))
+                     (wake/enemy-unit-visible? unit [i j] atoms/game-map))]
+    (swap! atoms/game-map update-in [i j :contents]
+           #(assoc % :mode :awake :reason :enemy-spotted))))
+
 (defn item-processed
   "Called when user input has been processed for current item."
   []
@@ -221,6 +236,7 @@
   (swap! atoms/round-number inc)
   (move-satellites)
   (consume-sentry-fighter-fuel)
+  (wake-sentries-seeing-enemy)
   (remove-dead-units)
   (production/update-production)
   (reset-steps-remaining)

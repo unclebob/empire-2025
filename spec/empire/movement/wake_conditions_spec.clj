@@ -247,3 +247,129 @@
       (let [unit {:type :destroyer :mode :moving :owner :player :target [4 8] :hits 3}
             result (wake-after-move unit [4 4] [4 5] game-map)]
         (should= :moving (:mode result))))))
+
+(describe "enemy-unit-visible?"
+  (before (reset-all-atoms!))
+
+  (it "returns true when enemy unit is adjacent"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#####a###"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      (let [unit {:type :army :mode :moving :owner :player}]
+        (should (enemy-unit-visible? unit [4 4] game-map)))))
+
+  (it "returns false when no enemy units are visible"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      (let [unit {:type :army :mode :moving :owner :player}]
+        (should-not (enemy-unit-visible? unit [4 4] game-map)))))
+
+  (it "returns false when only friendly units are visible"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#####A###"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      (let [unit {:type :army :mode :moving :owner :player}]
+        (should-not (enemy-unit-visible? unit [4 4] game-map)))))
+
+  (it "returns false when enemy unit is outside visibility radius"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "########a"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      ;; Enemy at [4 8], unit at [4 4], distance is 4, radius is 1
+      (let [unit {:type :army :mode :moving :owner :player}]
+        (should-not (enemy-unit-visible? unit [4 4] game-map)))))
+
+  (it "returns true for satellite with larger visibility radius"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "######a##"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      ;; Enemy at [4 6], unit at [4 4], distance is 2, satellite radius is 2
+      (let [unit {:type :satellite :mode :moving :owner :player}]
+        (should (enemy-unit-visible? unit [4 4] game-map))))))
+
+(describe "wake-after-move enemy spotted"
+  (before (reset-all-atoms!))
+
+  (it "wakes unit when enemy is spotted"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "######a##"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      (let [unit {:type :army :mode :moving :owner :player :target [4 8]}
+            result (wake-after-move unit [4 4] [4 5] game-map)]
+        (should= :awake (:mode result))
+        (should= :enemy-spotted (:reason result)))))
+
+  (it "does not wake when no enemy is visible"
+    (let [game-map (build-test-map ["#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"
+                                    "#########"])]
+      (reset! atoms/game-map @game-map)
+      (let [unit {:type :army :mode :moving :owner :player :target [4 8]}
+            result (wake-after-move unit [4 4] [4 5] game-map)]
+        (should= :moving (:mode result)))))
+
+  (it "wakes naval unit when enemy is spotted"
+    (let [game-map (build-test-map ["~~~~~~~~~"
+                                    "~~~~~~~~~"
+                                    "~~~~~~~~~"
+                                    "~~~~~~~~~"
+                                    "~~~~~~s~~"
+                                    "~~~~~~~~~"
+                                    "~~~~~~~~~"
+                                    "~~~~~~~~~"
+                                    "~~~~~~~~~"])]
+      (reset! atoms/game-map @game-map)
+      ;; Enemy submarine at [4 6], unit at [4 5] after move, distance is 1
+      (let [unit {:type :destroyer :mode :moving :owner :player :target [4 8] :hits 3}
+            result (wake-after-move unit [4 4] [4 5] game-map)]
+        (should= :awake (:mode result))
+        (should= :enemy-spotted (:reason result))))))

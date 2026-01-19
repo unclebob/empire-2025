@@ -69,6 +69,7 @@
    :transport-found-land "Found land!"
    :found-a-bay "Found a bay!"
    :somethings-in-the-way "Something's in the way."
+   :enemy-spotted "Enemy spotted."
    :city-needs-attention "City needs attention"
    :unit-needs-attention " needs attention"
    :not-on-map "That's not on the map!"
