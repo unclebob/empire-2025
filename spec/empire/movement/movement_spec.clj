@@ -18,7 +18,7 @@
   (before (reset-all-atoms!))
   (context "move-current-unit"
     (it "does nothing if no unit"
-      (reset! atoms/game-map @(build-test-map ["---------"
+      (reset! atoms/game-map (build-test-map ["---------"
                                                "---------"
                                                "---------"
                                                "---------"
@@ -27,7 +27,7 @@
                                                "---------"
                                                "---------"
                                                "---------"]))
-      (reset! atoms/player-map @(build-test-map ["---------"
+      (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -41,7 +41,7 @@
 
     (context "single moves that awaken the unit"
       (it "moves a unit to its target and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -53,7 +53,7 @@
         (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
               target-coords [(first unit-coords) (inc (second unit-coords))]]
           (set-test-unit atoms/game-map "A" :mode :moving :target target-coords :steps-remaining 1)
-          (reset! atoms/player-map @(build-test-map ["---------"
+          (reset! atoms/player-map (build-test-map ["---------"
                                                      "---------"
                                                      "---------"
                                                      "---------"
@@ -68,7 +68,7 @@
           (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map))))))
 
       (it "moves a unit up and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -78,7 +78,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [4 3] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -93,7 +93,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit left and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "----#----"
@@ -103,7 +103,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [3 4] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -118,7 +118,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit right and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -128,7 +128,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [5 4] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -143,7 +143,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit up-left and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---#-----"
@@ -153,7 +153,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [3 3] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -168,7 +168,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit up-right and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -178,7 +178,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [5 3] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -193,7 +193,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit down-left and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "-----#---"
@@ -203,7 +203,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [3 5] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -218,7 +218,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit down-right and sets mode to awake"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -228,7 +228,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [5 5] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -243,7 +243,7 @@
         (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "wakes up a unit if the next move would be into sea"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -255,7 +255,7 @@
         (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
               target-coords [(first unit-coords) (inc (second unit-coords))]]
           (set-test-unit atoms/game-map "A" :mode :moving :target target-coords :steps-remaining 1)
-          (reset! atoms/player-map @(build-test-map ["---------"
+          (reset! atoms/player-map (build-test-map ["---------"
                                                      "---------"
                                                      "---------"
                                                      "---------"
@@ -269,7 +269,7 @@
           (should= {:type :sea} (get-in @atoms/game-map target-coords))))
 
       (it "wakes up a unit if the next move would be into a friendly city"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -279,7 +279,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [4 5] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -293,7 +293,7 @@
         (should= {:type :city :city-status :player} (get-in @atoms/game-map [4 5])))
 
       (it "wakes up a unit when moving near an enemy city"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -303,7 +303,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [4 6] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -320,7 +320,7 @@
 
     (context "visibility updates"
       (it "reveals cells near player-owned units"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -332,7 +332,7 @@
         (set-test-unit atoms/game-map "A" :mode :awake)
         (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
               [row col] unit-coords]
-          (reset! atoms/player-map @(build-test-map ["---------"
+          (reset! atoms/player-map (build-test-map ["---------"
                                                      "---------"
                                                      "---------"
                                                      "---------"
@@ -359,7 +359,7 @@
 
     (context "multi-step moves take one step towards the target, keeping mode as moving"
       (it "moves a unit one step right towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -369,7 +369,7 @@
                                                  "---------"
                                                  "----#----"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [8 4] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -385,7 +385,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step left towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["----#----"
+        (reset! atoms/game-map (build-test-map ["----#----"
                                                  "---------"
                                                  "---------"
                                                  "----#----"
@@ -395,7 +395,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [0 4] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -411,7 +411,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step up towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -421,7 +421,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [4 0] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -437,7 +437,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step down towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -447,7 +447,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [4 8] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -463,7 +463,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step up-right towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -473,7 +473,7 @@
                                                  "---------"
                                                  "#--------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [8 0] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -489,7 +489,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step up-left towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["#--------"
+        (reset! atoms/game-map (build-test-map ["#--------"
                                                  "---------"
                                                  "---------"
                                                  "---#-----"
@@ -499,7 +499,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [0 0] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -515,7 +515,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step down-right towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -525,7 +525,7 @@
                                                  "---------"
                                                  "--------#"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [8 8] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -541,7 +541,7 @@
         (should= 3 (count (filter (complement nil?) (flatten @atoms/game-map)))))
 
       (it "moves a unit one step down-left towards target at radius 4"
-        (reset! atoms/game-map @(build-test-map ["--------#"
+        (reset! atoms/game-map (build-test-map ["--------#"
                                                  "---------"
                                                  "---------"
                                                  "-----#---"
@@ -551,7 +551,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [0 8] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -569,7 +569,7 @@
 
     (context "multiple steps"
       (it "moves a unit two steps towards target over two calls"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -579,7 +579,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "A" :mode :moving :target [4 6] :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -642,7 +642,7 @@
 
     (describe "wake-after-move default case"
       (it "returns default values for naval units like destroyer"
-        (reset! atoms/game-map @(build-test-map ["---------"
+        (reset! atoms/game-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -652,7 +652,7 @@
                                                  "---------"
                                                  "---------"]))
         (set-test-unit atoms/game-map "D" :mode :moving :target [4 5] :hits 3 :steps-remaining 1)
-        (reset! atoms/player-map @(build-test-map ["---------"
+        (reset! atoms/player-map (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -669,12 +669,12 @@
 
     (describe "explore movement helpers"
       (it "get-unexplored-explore-moves returns moves adjacent to unexplored"
-        (reset! atoms/game-map @(build-test-map ["-----"
+        (reset! atoms/game-map (build-test-map ["-----"
                                                  "-----"
                                                  "--##-"
                                                  "--#--"
                                                  "-----"]))
-        (reset! atoms/player-map @(build-test-map ["-----"
+        (reset! atoms/player-map (build-test-map ["-----"
                                                    "-----"
                                                    "--##-"
                                                    "-----"
@@ -684,12 +684,12 @@
           (should (some #{[3 2]} moves))))
 
       (it "pick-explore-move returns visited cell when all cells visited"
-        (reset! atoms/game-map @(build-test-map ["~~~~~"
+        (reset! atoms/game-map (build-test-map ["~~~~~"
                                                  "~~~~~"
                                                  "~~##~"
                                                  "~~#~~"
                                                  "~~~~~"]))
-        (reset! atoms/player-map @(build-test-map ["~~~~~"
+        (reset! atoms/player-map (build-test-map ["~~~~~"
                                                    "~~~~~"
                                                    "~~##~"
                                                    "~~#~~"
@@ -730,7 +730,7 @@
 (describe "add-unit-at"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map @(build-test-map ["#########"
+    (reset! atoms/game-map (build-test-map ["#########"
                                              "#########"
                                              "#########"
                                              "#########"
@@ -779,7 +779,7 @@
 (describe "wake-at"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map @(build-test-map ["#########"
+    (reset! atoms/game-map (build-test-map ["#########"
                                              "#########"
                                              "#########"
                                              "#########"
@@ -831,10 +831,10 @@
   (before (reset-all-atoms!))
 
   (it "army attacks enemy army when moving into its cell"
-    (reset! atoms/game-map @(build-test-map ["Aa"]))
+    (reset! atoms/game-map (build-test-map ["Aa"]))
     (set-test-unit atoms/game-map "A" :hits 1 :mode :moving :target [0 1] :steps-remaining 1)
     (set-test-unit atoms/game-map "a" :hits 1)
-    (reset! atoms/player-map @(build-test-map ["--"]))
+    (reset! atoms/player-map (build-test-map ["--"]))
     (with-redefs [rand (constantly 0.4)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -842,10 +842,10 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [0 1]))))))
 
   (it "army is destroyed when losing to enemy army"
-    (reset! atoms/game-map @(build-test-map ["Aa"]))
+    (reset! atoms/game-map (build-test-map ["Aa"]))
     (set-test-unit atoms/game-map "A" :hits 1 :mode :moving :target [0 1] :steps-remaining 1)
     (set-test-unit atoms/game-map "a" :hits 1)
-    (reset! atoms/player-map @(build-test-map ["--"]))
+    (reset! atoms/player-map (build-test-map ["--"]))
     (with-redefs [rand (constantly 0.6)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -853,10 +853,10 @@
       (should= :computer (:owner (:contents (get-in @atoms/game-map [0 1]))))))
 
   (it "destroyer attacks enemy transport on sea"
-    (reset! atoms/game-map @(build-test-map ["Dt"]))
+    (reset! atoms/game-map (build-test-map ["Dt"]))
     (set-test-unit atoms/game-map "D" :hits 3 :mode :moving :target [0 1] :steps-remaining 1)
     (set-test-unit atoms/game-map "t" :hits 1)
-    (reset! atoms/player-map @(build-test-map ["~~"]))
+    (reset! atoms/player-map (build-test-map ["~~"]))
     (with-redefs [rand (constantly 0.4)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -864,10 +864,10 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [0 1]))))))
 
   (it "fighter attacks enemy fighter"
-    (reset! atoms/game-map @(build-test-map ["Ff"]))
+    (reset! atoms/game-map (build-test-map ["Ff"]))
     (set-test-unit atoms/game-map "F" :hits 1 :fuel 20 :mode :moving :target [0 1] :steps-remaining 1)
     (set-test-unit atoms/game-map "f" :hits 1)
-    (reset! atoms/player-map @(build-test-map ["--"]))
+    (reset! atoms/player-map (build-test-map ["--"]))
     (with-redefs [rand (constantly 0.4)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -875,10 +875,10 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [0 1]))))))
 
   (it "attacker survives with reduced hits"
-    (reset! atoms/game-map @(build-test-map ["Dd"]))
+    (reset! atoms/game-map (build-test-map ["Dd"]))
     (set-test-unit atoms/game-map "D" :hits 3 :mode :moving :target [0 1] :steps-remaining 1)
     (set-test-unit atoms/game-map "d" :hits 3)
-    (reset! atoms/player-map @(build-test-map ["~~"]))
+    (reset! atoms/player-map (build-test-map ["~~"]))
     ;; Rolls: 0.4 (D hits d:2), 0.6 (d hits D:2), 0.4 (D hits d:1), 0.4 (D hits d:0)
     (let [rolls (atom [0.4 0.6 0.4 0.4])]
       (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
@@ -889,20 +889,20 @@
           (should= 2 (:hits survivor))))))
 
   (it "does not attack friendly units"
-    (reset! atoms/game-map @(build-test-map ["AA"]))
+    (reset! atoms/game-map (build-test-map ["AA"]))
     (set-test-unit atoms/game-map "A1" :hits 1 :mode :moving :target [0 1] :steps-remaining 1)
     (set-test-unit atoms/game-map "A2" :hits 1)
-    (reset! atoms/player-map @(build-test-map ["--"]))
+    (reset! atoms/player-map (build-test-map ["--"]))
     (game-loop/move-current-unit [0 0])
     ;; Should wake up, not attack
     (should= :awake (:mode (:contents (get-in @atoms/game-map [0 0]))))
     (should= :army (:type (:contents (get-in @atoms/game-map [0 1])))))
 
   (it "army cannot attack ship on sea (terrain incompatible)"
-    (reset! atoms/game-map @(build-test-map ["A~"]))
+    (reset! atoms/game-map (build-test-map ["A~"]))
     (swap! atoms/game-map assoc-in [0 1 :contents] {:type :destroyer :owner :computer :hits 3})
     (set-test-unit atoms/game-map "A" :hits 1 :mode :moving :target [0 1] :steps-remaining 1)
-    (reset! atoms/player-map @(build-test-map ["--"]))
+    (reset! atoms/player-map (build-test-map ["--"]))
     (game-loop/move-current-unit [0 0])
     ;; Army should wake up because it can't move onto sea
     (should= :awake (:mode (:contents (get-in @atoms/game-map [0 0]))))

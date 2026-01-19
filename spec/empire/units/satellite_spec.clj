@@ -70,7 +70,7 @@
 
   (describe "move-one-step"
     (before
-      (reset! atoms/game-map @(build-test-map ["##########"
+      (reset! atoms/game-map (build-test-map ["##########"
                                                "##########"
                                                "##########"
                                                "##########"

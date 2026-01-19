@@ -26,7 +26,7 @@
 (describe "move-satellite"
   (before (reset-all-atoms!))
   (it "does not move without a target"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -44,7 +44,7 @@
       (should-be-nil (:target (:contents (get-in @atoms/game-map [5 5]))))))
 
   (it "moves toward its target"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -63,7 +63,7 @@
       (should= [9 9] (:target (:contents (get-in @atoms/game-map [6 6]))))))
 
   (it "moves horizontally when target is directly east"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -81,7 +81,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map [5 3])))))
 
   (it "moves vertically when target is directly south"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "#####V####"
@@ -99,7 +99,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map [3 5])))))
 
   (it "gets new target on opposite boundary when reaching right edge"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -117,7 +117,7 @@
       (should= 0 (second (:target sat)))))
 
   (it "gets new target on opposite boundary when reaching bottom edge"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -135,7 +135,7 @@
       (should= 0 (first (:target sat)))))
 
   (it "gets new target on one of opposite boundaries when at corner"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"

@@ -10,7 +10,7 @@
 (describe "satellite movement"
   (before (reset-all-atoms!))
   (it "does not move without a target"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -28,7 +28,7 @@
     (should-be-nil (:target (:contents (get-in @atoms/game-map [5 5])))))
 
   (it "still decrements turns even without a target"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -48,7 +48,7 @@
       (should= 4 (:turns-remaining sat))))
 
   (it "moves toward its target"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -67,7 +67,7 @@
     (should= [9 9] (:target (:contents (get-in @atoms/game-map [6 6])))))
 
   (it "moves horizontally when target is directly east"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -85,7 +85,7 @@
     (should-be-nil (:contents (get-in @atoms/game-map [5 3]))))
 
   (it "moves vertically when target is directly south"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "#####V####"
@@ -103,7 +103,7 @@
     (should-be-nil (:contents (get-in @atoms/game-map [3 5]))))
 
   (it "gets new target on opposite boundary when reaching right edge"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -122,7 +122,7 @@
       (should= 0 (second (:target sat)))))
 
   (it "gets new target on opposite boundary when reaching bottom edge"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -141,7 +141,7 @@
       (should= 0 (first (:target sat)))))
 
   (it "gets new target on one of opposite boundaries when at corner"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -161,7 +161,7 @@
       (should (or (= tx 0) (= ty 0)))))
 
   (it "extends non-boundary target to wall when setting movement"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##V#######"
                                              "##########"
@@ -183,7 +183,7 @@
       (should= [9 9] [tx ty])))
 
   (it "decrements turns-remaining once per round not per step"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##V#######"
                                              "##########"
@@ -201,7 +201,7 @@
       (should= 49 (:turns-remaining unit))))
 
   (it "is removed when turns-remaining reaches zero"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -223,7 +223,7 @@
       (should= 0 sat-count)))
 
   (it "dies after correct number of rounds"
-    (reset! atoms/game-map @(build-test-map ["####################"
+    (reset! atoms/game-map (build-test-map ["####################"
                                              "####################"
                                              "####################"
                                              "####################"
@@ -262,7 +262,7 @@
       (should= 0 sat-count)))
 
   (it "dies through full game loop with start-new-round"
-    (reset! atoms/game-map @(build-test-map ["####################"
+    (reset! atoms/game-map (build-test-map ["####################"
                                              "####################"
                                              "####################"
                                              "####################"
@@ -302,7 +302,7 @@
 
   (it "dies even when bouncing off corners multiple times"
     ;; Satellite starting near corner, will bounce multiple times in 5 turns
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -324,7 +324,7 @@
       (should= 0 sat-count)))
 
   (it "is removed from visibility map when it dies"
-    (reset! atoms/game-map @(build-test-map ["##########"
+    (reset! atoms/game-map (build-test-map ["##########"
                                              "##########"
                                              "##########"
                                              "##########"
@@ -347,7 +347,7 @@
     (should-be-nil (get-test-unit atoms/player-map "V")))
 
   (it "reveals two rectangular rings around its position"
-    (reset! atoms/game-map @(build-test-map ["###############"
+    (reset! atoms/game-map (build-test-map ["###############"
                                              "###############"
                                              "###############"
                                              "###############"

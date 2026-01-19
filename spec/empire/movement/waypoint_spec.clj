@@ -17,7 +17,7 @@
 
   (context "waypoint creation"
     (it "creates a waypoint on an empty land cell"
-      (let [initial-map (assoc-in @(build-test-map ["---------"
+      (let [initial-map (assoc-in (build-test-map ["---------"
                                                     "---------"
                                                     "---------"
                                                     "---------"
@@ -32,7 +32,7 @@
         (should-not-be-nil (:waypoint (get-in @atoms/game-map [4 4])))))
 
     (it "does not create a waypoint on a sea cell"
-      (let [initial-map (assoc-in @(build-test-map ["---------"
+      (let [initial-map (assoc-in (build-test-map ["---------"
                                                     "---------"
                                                     "---------"
                                                     "---------"
@@ -47,7 +47,7 @@
         (should-be-nil (:waypoint (get-in @atoms/game-map [4 4])))))
 
     (it "does not create a waypoint on a cell with contents"
-      (reset! atoms/game-map @(build-test-map ["---------"
+      (reset! atoms/game-map (build-test-map ["---------"
                                                "---------"
                                                "---------"
                                                "---------"
@@ -60,7 +60,7 @@
       (should-be-nil (:waypoint (get-in @atoms/game-map [4 4]))))
 
     (it "does not create a waypoint on a city"
-      (let [initial-map (assoc-in @(build-test-map ["---------"
+      (let [initial-map (assoc-in (build-test-map ["---------"
                                                     "---------"
                                                     "---------"
                                                     "---------"
@@ -75,7 +75,7 @@
         (should-be-nil (:waypoint (get-in @atoms/game-map [4 4])))))
 
     (it "removes an existing waypoint when w is pressed again"
-      (let [initial-map (-> @(build-test-map ["---------"
+      (let [initial-map (-> (build-test-map ["---------"
                                               "---------"
                                               "---------"
                                               "---------"
@@ -92,7 +92,7 @@
 
   (context "waypoint marching orders"
     (it "sets marching orders on a waypoint using current destination"
-      (let [initial-map (-> @(build-test-map ["---------"
+      (let [initial-map (-> (build-test-map ["---------"
                                               "---------"
                                               "---------"
                                               "---------"
@@ -109,7 +109,7 @@
         (should= [6 6] (:marching-orders (:waypoint (get-in @atoms/game-map [4 4]))))))
 
     (it "does not set orders on a non-waypoint cell"
-      (let [initial-map (assoc-in @(build-test-map ["---------"
+      (let [initial-map (assoc-in (build-test-map ["---------"
                                                     "---------"
                                                     "---------"
                                                     "---------"
@@ -124,7 +124,7 @@
         (should-be-nil (waypoint/set-waypoint-orders [4 4]))))
 
     (it "sets marching orders on waypoint by direction to map edge"
-      (let [initial-map (-> @(build-test-map ["---------"
+      (let [initial-map (-> (build-test-map ["---------"
                                               "---------"
                                               "---------"
                                               "---------"
@@ -145,7 +145,7 @@
 
   (context "army interaction with waypoints"
     (it "army takes marching orders from waypoint without waking"
-      (reset! atoms/game-map (-> @(build-test-map ["---------"
+      (reset! atoms/game-map (-> (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -156,7 +156,7 @@
                                                    "---------"])
                                  (assoc-in [4 5 :waypoint] {:marching-orders [4 8]})))
       (set-test-unit atoms/game-map "A" :mode :moving :target [4 5] :steps-remaining 1)
-      (reset! atoms/player-map @(build-test-map ["---------"
+      (reset! atoms/player-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -171,7 +171,7 @@
         (should= [4 8] (:target moved-unit))))
 
     (it "army wakes normally if waypoint has no marching orders"
-      (reset! atoms/game-map (-> @(build-test-map ["---------"
+      (reset! atoms/game-map (-> (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -182,7 +182,7 @@
                                                    "---------"])
                                  (assoc-in [4 5 :waypoint] {})))
       (set-test-unit atoms/game-map "A" :mode :moving :target [4 5] :steps-remaining 1)
-      (reset! atoms/player-map @(build-test-map ["---------"
+      (reset! atoms/player-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -196,7 +196,7 @@
         (should= :awake (:mode moved-unit))))
 
     (it "army continues through multiple waypoints"
-      (reset! atoms/game-map (-> @(build-test-map ["---------"
+      (reset! atoms/game-map (-> (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -208,7 +208,7 @@
                                  (assoc-in [4 5 :waypoint] {:marching-orders [4 6]})
                                  (assoc-in [4 6 :waypoint] {:marching-orders [4 7]})))
       (set-test-unit atoms/game-map "A" :mode :moving :target [4 5] :steps-remaining 1)
-      (reset! atoms/player-map @(build-test-map ["---------"
+      (reset! atoms/player-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -224,7 +224,7 @@
         (should= [4 6] (:target unit-at-5))))
 
     (it "army passing through waypoint takes new orders even if not at target"
-      (reset! atoms/game-map (-> @(build-test-map ["---------"
+      (reset! atoms/game-map (-> (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -235,7 +235,7 @@
                                                    "---------"])
                                  (assoc-in [4 5 :waypoint] {:marching-orders [4 2]})))
       (set-test-unit atoms/game-map "A" :mode :moving :target [4 8] :steps-remaining 1)
-      (reset! atoms/player-map @(build-test-map ["---------"
+      (reset! atoms/player-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"
@@ -253,7 +253,7 @@
 
   (context "fighter interaction with waypoints"
     (it "fighter flies over waypoint with no effect"
-      (reset! atoms/game-map (-> @(build-test-map ["---------"
+      (reset! atoms/game-map (-> (build-test-map ["---------"
                                                    "---------"
                                                    "---------"
                                                    "---------"
@@ -264,7 +264,7 @@
                                                    "---------"])
                                  (assoc-in [4 5 :waypoint] {:marching-orders [4 8]})))
       (set-test-unit atoms/game-map "F" :mode :moving :fuel 20 :target [4 5] :steps-remaining 1 :hits 1)
-      (reset! atoms/player-map @(build-test-map ["---------"
+      (reset! atoms/player-map (build-test-map ["---------"
                                                  "---------"
                                                  "---------"
                                                  "---------"

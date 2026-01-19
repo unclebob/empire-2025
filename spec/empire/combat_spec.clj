@@ -9,26 +9,26 @@
 (describe "hostile-city?"
   (before (reset-all-atoms!))
   (it "returns true for free city"
-    (reset! atoms/game-map @(build-test-map ["+"]))
+    (reset! atoms/game-map (build-test-map ["+"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
       (should (combat/hostile-city? city-coords))))
 
   (it "returns true for computer city"
-    (reset! atoms/game-map @(build-test-map ["X"]))
+    (reset! atoms/game-map (build-test-map ["X"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
       (should (combat/hostile-city? city-coords))))
 
   (it "returns false for player city"
-    (reset! atoms/game-map @(build-test-map ["O"]))
+    (reset! atoms/game-map (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (should-not (combat/hostile-city? city-coords))))
 
   (it "returns false for non-city cells"
-    (reset! atoms/game-map @(build-test-map ["#"]))
+    (reset! atoms/game-map (build-test-map ["#"]))
     (should-not (combat/hostile-city? [0 0])))
 
   (it "returns false for sea cells"
-    (reset! atoms/game-map @(build-test-map ["~"]))
+    (reset! atoms/game-map (build-test-map ["~"]))
     (should-not (combat/hostile-city? [0 0]))))
 
 (describe "attempt-conquest"
@@ -37,7 +37,7 @@
 
   (it "removes army from original cell on success"
     (with-redefs [rand (constantly 0.1)]
-      (reset! atoms/game-map @(build-test-map ["A+"]))
+      (reset! atoms/game-map (build-test-map ["A+"]))
       (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
             city-coords (:pos (get-test-city atoms/game-map "+"))]
         (combat/attempt-conquest army-coords city-coords)
@@ -45,7 +45,7 @@
 
   (it "converts city to player on success"
     (with-redefs [rand (constantly 0.1)]
-      (reset! atoms/game-map @(build-test-map ["A+"]))
+      (reset! atoms/game-map (build-test-map ["A+"]))
       (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
             city-coords (:pos (get-test-city atoms/game-map "+"))]
         (combat/attempt-conquest army-coords city-coords)
@@ -53,7 +53,7 @@
 
   (it "removes army from original cell on failure"
     (with-redefs [rand (constantly 0.9)]
-      (reset! atoms/game-map @(build-test-map ["A+"]))
+      (reset! atoms/game-map (build-test-map ["A+"]))
       (reset! atoms/line3-message "")
       (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
             city-coords (:pos (get-test-city atoms/game-map "+"))]
@@ -62,7 +62,7 @@
 
   (it "keeps city status on failure"
     (with-redefs [rand (constantly 0.9)]
-      (reset! atoms/game-map @(build-test-map ["A+"]))
+      (reset! atoms/game-map (build-test-map ["A+"]))
       (reset! atoms/line3-message "")
       (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
             city-coords (:pos (get-test-city atoms/game-map "+"))]
@@ -71,7 +71,7 @@
 
   (it "sets failure message on failed conquest"
     (with-redefs [rand (constantly 0.9)]
-      (reset! atoms/game-map @(build-test-map ["A+"]))
+      (reset! atoms/game-map (build-test-map ["A+"]))
       (reset! atoms/line3-message "")
       (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
             city-coords (:pos (get-test-city atoms/game-map "+"))]
@@ -80,7 +80,7 @@
 
   (it "returns true regardless of outcome"
     (with-redefs [rand (constantly 0.5)]
-      (reset! atoms/game-map @(build-test-map ["A+"]))
+      (reset! atoms/game-map (build-test-map ["A+"]))
       (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
             city-coords (:pos (get-test-city atoms/game-map "+"))]
         (should (combat/attempt-conquest army-coords city-coords))))))
@@ -257,25 +257,25 @@
   (before (reset-all-atoms!))
 
   (it "returns false when target has no unit"
-    (reset! atoms/game-map @(build-test-map ["A#"]))
+    (reset! atoms/game-map (build-test-map ["A#"]))
     (set-test-unit atoms/game-map "A" :hits 1)
     (should-not (combat/attempt-attack [0 0] [0 1])))
 
   (it "returns false when target unit is friendly"
-    (reset! atoms/game-map @(build-test-map ["AA"]))
+    (reset! atoms/game-map (build-test-map ["AA"]))
     (set-test-unit atoms/game-map "A1" :hits 1)
     (set-test-unit atoms/game-map "A2" :hits 1)
     (should-not (combat/attempt-attack [0 0] [0 1])))
 
   (it "returns true when attacking enemy unit"
-    (reset! atoms/game-map @(build-test-map ["Aa"]))
+    (reset! atoms/game-map (build-test-map ["Aa"]))
     (set-test-unit atoms/game-map "A" :hits 1)
     (set-test-unit atoms/game-map "a" :hits 1)
     (with-redefs [rand (constantly 0.4)]
       (should (combat/attempt-attack [0 0] [0 1]))))
 
   (it "attacker wins and occupies cell when victorious"
-    (reset! atoms/game-map @(build-test-map ["Da"]))
+    (reset! atoms/game-map (build-test-map ["Da"]))
     (set-test-unit atoms/game-map "D" :hits 3)
     (set-test-unit atoms/game-map "a" :hits 1)
     (with-redefs [rand (constantly 0.4)]
@@ -285,7 +285,7 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [0 1]))))))
 
   (it "attacker loses and defender remains"
-    (reset! atoms/game-map @(build-test-map ["aD"]))
+    (reset! atoms/game-map (build-test-map ["aD"]))
     (set-test-unit atoms/game-map "a" :hits 1)
     (set-test-unit atoms/game-map "D" :hits 3)
     (with-redefs [rand (constantly 0.6)]
@@ -295,7 +295,7 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [0 1]))))))
 
   (it "removes attacker from original cell even when losing"
-    (reset! atoms/game-map @(build-test-map ["Tb"]))
+    (reset! atoms/game-map (build-test-map ["Tb"]))
     (set-test-unit atoms/game-map "T" :hits 1)
     (set-test-unit atoms/game-map "b" :hits 10)
     (with-redefs [rand (constantly 0.6)]
@@ -303,7 +303,7 @@
       (should= nil (:contents (get-in @atoms/game-map [0 0])))))
 
   (it "survivor has reduced hits after combat"
-    (reset! atoms/game-map @(build-test-map ["Dd"]))
+    (reset! atoms/game-map (build-test-map ["Dd"]))
     (set-test-unit atoms/game-map "D" :hits 3)
     (set-test-unit atoms/game-map "d" :hits 3)
     ;; Rolls: 0.4 (D hits d:2), 0.6 (d hits D:2), 0.4 (D hits d:1), 0.4 (D hits d:0)
@@ -316,7 +316,7 @@
           (should= 2 (:hits survivor))))))
 
   (it "displays combat log when attacker wins"
-    (reset! atoms/game-map @(build-test-map ["Da"]))
+    (reset! atoms/game-map (build-test-map ["Da"]))
     (set-test-unit atoms/game-map "D" :hits 3)
     (set-test-unit atoms/game-map "a" :hits 1)
     (reset! atoms/line2-message "")
@@ -325,7 +325,7 @@
       (should= "a-1. Army destroyed." @atoms/line2-message)))
 
   (it "displays combat log when attacker loses"
-    (reset! atoms/game-map @(build-test-map ["Ad"]))
+    (reset! atoms/game-map (build-test-map ["Ad"]))
     (set-test-unit atoms/game-map "A" :hits 1)
     (set-test-unit atoms/game-map "d" :hits 3)
     (reset! atoms/line2-message "")
@@ -334,7 +334,7 @@
       (should= "A-1. Army destroyed." @atoms/line2-message)))
 
   (it "displays combat log with multiple exchanges"
-    (reset! atoms/game-map @(build-test-map ["Dd"]))
+    (reset! atoms/game-map (build-test-map ["Dd"]))
     (set-test-unit atoms/game-map "D" :hits 3)
     (set-test-unit atoms/game-map "d" :hits 3)
     (reset! atoms/line2-message "")
@@ -345,7 +345,7 @@
         (should= "d-1,D-1,d-1,d-1. Destroyer destroyed." @atoms/line2-message))))
 
   (it "displays combat log for submarine vs carrier"
-    (reset! atoms/game-map @(build-test-map ["Sc"]))
+    (reset! atoms/game-map (build-test-map ["Sc"]))
     (set-test-unit atoms/game-map "S" :hits 2)
     (set-test-unit atoms/game-map "c" :hits 8)
     (reset! atoms/line2-message "")
@@ -356,7 +356,7 @@
         (should= "S-1,S-1. Submarine destroyed." @atoms/line2-message))))
 
   (it "displays combat log for submarine defeating carrier"
-    (reset! atoms/game-map @(build-test-map ["Sc"]))
+    (reset! atoms/game-map (build-test-map ["Sc"]))
     (set-test-unit atoms/game-map "S" :hits 2)
     (set-test-unit atoms/game-map "c" :hits 8)
     (reset! atoms/line2-message "")

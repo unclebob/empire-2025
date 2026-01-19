@@ -9,7 +9,7 @@
 (describe "transport with armies"
   (before (reset-all-atoms!))
   (it "loads adjacent sentry armies onto transport"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
@@ -32,7 +32,7 @@
       (should= nil (:contents (get-in @atoms/game-map army2-coords)))))
 
   (it "does not load awake armies onto transport"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
@@ -52,7 +52,7 @@
       (should-not= nil (:contents (get-in @atoms/game-map army-coords)))))
 
   (it "wakes transport after loading armies if at beach"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
@@ -72,7 +72,7 @@
         (should= 1 (:army-count transport)))))
 
   (it "wake-armies-on-transport wakes all armies and sets transport to sentry"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -91,7 +91,7 @@
         (should= 2 (:awake-armies transport)))))
 
   (it "sleep-armies-on-transport puts armies to sleep and wakes transport"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -110,7 +110,7 @@
         (should= 0 (:awake-armies transport)))))
 
   (it "disembark-army-from-transport removes one army and decrements counts"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -132,7 +132,7 @@
         (should= :awake (:mode disembarked)))))
 
   (it "disembark-army-from-transport wakes transport when last army disembarks"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -151,7 +151,7 @@
         (should= 0 (:army-count transport)))))
 
   (it "disembark-army-from-transport wakes transport when no more awake armies remain"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -171,7 +171,7 @@
         (should= 0 (:awake-armies transport)))))
 
   (it "transport wakes up when reaching beach with armies"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -190,7 +190,7 @@
         (should= :transport-at-beach (:reason transport)))))
 
   (it "transport does not wake when reaching beach without armies"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -209,7 +209,7 @@
         (should= nil (:reason transport)))))
 
   (it "completely-surrounded-by-sea? returns true when no adjacent land"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
@@ -223,7 +223,7 @@
       (should (completely-surrounded-by-sea? transport-coords atoms/game-map))))
 
   (it "completely-surrounded-by-sea? returns false when adjacent to land"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
@@ -237,7 +237,7 @@
       (should-not (completely-surrounded-by-sea? transport-coords atoms/game-map))))
 
   (it "transport wakes with found-land when moving from open sea to land visible"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
@@ -258,7 +258,7 @@
         (should= :transport-found-land (:reason transport)))))
 
   (it "transport does not wake with found-land when already near land before move"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~#~~~~~~"
@@ -280,7 +280,7 @@
         (should= :transport-at-beach (:reason transport)))))
 
   (it "transport wakes with found-land even without armies"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
@@ -324,7 +324,7 @@
 (describe "disembark-army-with-target"
   (before (reset-all-atoms!))
   (it "disembarks army and sets it moving toward extended target"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -351,7 +351,7 @@
 (describe "disembark-army-to-explore"
   (before (reset-all-atoms!))
   (it "disembarks army in explore mode"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -378,7 +378,7 @@
   (before (reset-all-atoms!))
 
   (it "new transport has :been-to-sea true"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
@@ -396,7 +396,7 @@
 
   (it "transport does not wake at subsequent beaches after first beach wake"
     ;; Transport starts at beach, moves along coast to another beach
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
@@ -420,7 +420,7 @@
         (should= false (:been-to-sea transport)))))
 
   (it "transport sets :been-to-sea true when completely surrounded by sea"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~#~~~~~~"
@@ -443,7 +443,7 @@
   (it "transport wakes at beach after going to open sea"
     ;; Transport NOT in open sea (adjacent to land at [3,3]) but :been-to-sea is true
     ;; Moving to beach adjacent to land at [4,6]
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~#~~~~~"
@@ -467,7 +467,7 @@
   (it "transport wakes at first beach when :been-to-sea defaults to true"
     ;; Transport NOT in open sea (adjacent to land at [3,3]) but :been-to-sea defaults to true
     ;; Moving to beach adjacent to land at [4,6]
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~~~~~~~"
                                              "~~~#~~~~~"

@@ -9,7 +9,7 @@
 (describe "set-city-lookaround"
   (around [it]
     (reset-all-atoms!)
-    (reset! atoms/game-map @(build-test-map ["~O"
+    (reset! atoms/game-map (build-test-map ["~O"
                                              "X#"]))
     (it))
 
@@ -41,7 +41,7 @@
 (describe "handle-key :space"
   (before (reset-all-atoms!))
   (it "sets reason to :skipping-this-round on the unit"
-    (reset! atoms/game-map @(build-test-map ["A"]))
+    (reset! atoms/game-map (build-test-map ["A"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (reset! atoms/cells-needing-attention [unit-coords])
@@ -54,7 +54,7 @@
   (it "burns a full round of fuel for fighters when skipping"
     (let [initial-fuel 20
           fighter-speed (config/unit-speed :fighter)]
-      (reset! atoms/game-map @(build-test-map ["F"]))
+      (reset! atoms/game-map (build-test-map ["F"]))
       (set-test-unit atoms/game-map "F" :mode :awake :fuel initial-fuel)
       (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
         (reset! atoms/cells-needing-attention [unit-coords])
@@ -66,7 +66,7 @@
 
   (it "fighter crashes when skipping with insufficient fuel"
     (let [_fighter-speed (config/unit-speed :fighter)]
-      (reset! atoms/game-map @(build-test-map ["F"]))
+      (reset! atoms/game-map (build-test-map ["F"]))
       (set-test-unit atoms/game-map "F" :mode :awake :fuel 3 :hits 1)
       (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
         (reset! atoms/cells-needing-attention [unit-coords])
@@ -77,7 +77,7 @@
           (should= 0 (:hits unit))))))
 
   (it "includes fuel in reason when fighter skips"
-    (reset! atoms/game-map @(build-test-map ["F"]))
+    (reset! atoms/game-map (build-test-map ["F"]))
     (set-test-unit atoms/game-map "F" :mode :awake :fuel 20)
     (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
       (reset! atoms/cells-needing-attention [unit-coords])
@@ -91,7 +91,7 @@
   (before (reset-all-atoms!))
 
   (it "keeps transport in player-items when more awake armies remain"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"

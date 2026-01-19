@@ -9,7 +9,7 @@
 (describe "fighter fuel"
   (before (reset-all-atoms!))
   (it "moves fighter and decrements fuel"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -27,7 +27,7 @@
       (should= {:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 9 :steps-remaining 0}} (get-in @atoms/game-map target-coords))))
 
   (it "fighter wakes when fuel reaches 0"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -45,7 +45,7 @@
       (should= {:type :land :contents {:type :fighter :mode :awake :owner :player :fuel 0 :reason :fighter-out-of-fuel :steps-remaining 0}} (get-in @atoms/game-map target-coords))))
 
   (it "fighter crashes when trying to move with 0 fuel"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -64,7 +64,7 @@
       (should= 2 (count (filter (complement nil?) (flatten @atoms/game-map))))))
 
   (it "fighter lands in city, refuels, and awakens"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -87,7 +87,7 @@
 
 
   (it "fighter safely lands at friendly city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -108,7 +108,7 @@
       (should= "" @atoms/line3-message)))
 
   (it "fighter wakes before flying over free city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -132,7 +132,7 @@
       (should= nil (:contents (get-in @atoms/game-map city-coords)))))
 
   (it "fighter wakes before flying over computer city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -156,7 +156,7 @@
       (should= nil (:contents (get-in @atoms/game-map city-coords)))))
 
   (it "fighter wakes with bingo warning when fuel at 25% and friendly city in range"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -178,7 +178,7 @@
         (should= :fighter-bingo (:reason fighter)))))
 
   (it "fighter does not wake with bingo warning when no friendly city in range"
-    (reset! atoms/game-map @(build-test-map ["O--------"
+    (reset! atoms/game-map (build-test-map ["O--------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -199,7 +199,7 @@
         (should= nil (:reason fighter)))))
 
   (it "fighter does not wake with bingo warning when fuel above 25%"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -220,7 +220,7 @@
         (should= nil (:reason fighter)))))
 
   (it "fighter does not wake with bingo when target is a reachable friendly city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -243,7 +243,7 @@
         (should= nil (:reason fighter)))))
 
   (it "fighter does not wake with bingo when target is a reachable friendly carrier"
-    (reset! atoms/game-map @(build-test-map ["O--------"
+    (reset! atoms/game-map (build-test-map ["O--------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -268,7 +268,7 @@
         (should= nil (:reason fighter)))))
 
   (it "fighter wakes with bingo when carrier is too far to reach"
-    (reset! atoms/game-map @(build-test-map ["O-----------"
+    (reset! atoms/game-map (build-test-map ["O-----------"
                                              "------------"
                                              "------------"
                                              "------------"
@@ -298,7 +298,7 @@
 (describe "carrier fighter deployment"
   (before (reset-all-atoms!))
   (it "fighter lands on carrier and sleeps"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -320,7 +320,7 @@
         (should= 0 (:awake-fighters carrier 0)))))
 
   (it "wake-fighters-on-carrier wakes all fighters and sets carrier to sentry"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -338,7 +338,7 @@
         (should= 2 (:awake-fighters carrier)))))
 
   (it "sleep-fighters-on-carrier puts fighters to sleep and wakes carrier"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -356,7 +356,7 @@
         (should= 0 (:awake-fighters carrier)))))
 
   (it "launch-fighter-from-carrier removes fighter and places it at adjacent cell"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -380,7 +380,7 @@
         (should= target-coords (:target launched-fighter)))))
 
   (it "launch-fighter-from-carrier keeps carrier in sentry mode after last fighter launches"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -399,7 +399,7 @@
         (should= 0 (:fighter-count carrier)))))
 
   (it "launch-fighter-from-carrier sets steps-remaining to speed minus one"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -441,7 +441,7 @@
   (it "fighter launched from carrier and landing back has awake-fighters 0"
     ;; Simulate: launch a fighter, have it fly and return to carrier
     ;; awake-fighters should be 0 after landing
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -478,7 +478,7 @@
   (it "fighter out of fuel crashing near carrier does not destroy carrier"
     ;; Fighter with fuel 0 adjacent to carrier - when it tries to land, it crashes
     ;; but the carrier should remain intact
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -504,7 +504,7 @@
 (describe "fighter shot down by city"
   (before (reset-all-atoms!))
   (it "fighter is destroyed when flying into hostile city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -527,7 +527,7 @@
 (describe "fighter landing at city"
   (before (reset-all-atoms!))
   (it "fighter lands at city and increments fighter-count"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -566,7 +566,7 @@
 (describe "launch-fighter-from-airport"
   (before (reset-all-atoms!))
   (it "removes awake fighter from airport and places it moving"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"

@@ -21,11 +21,11 @@
       (should= [] result)))
 
   (it "handles single cell map"
-    (let [result (map-utils/process-map @(build-test-map ["#"]) (fn [i j m] (assoc (get-in m [i j]) :processed true)))]
+    (let [result (map-utils/process-map (build-test-map ["#"]) (fn [i j m] (assoc (get-in m [i j]) :processed true)))]
       (should= [[{:type :land :processed true}]] result)))
 
   (it "preserves map structure with game-like cells"
-    (let [input-map @(build-test-map ["~#"
+    (let [input-map (build-test-map ["~#"
                                       "+~"])
           result (map-utils/process-map input-map
                                         (fn [i j m]
@@ -41,18 +41,18 @@
 (describe "filter-map"
   (before (reset-all-atoms!))
   (it "returns positions where predicate is true"
-    (let [input-map @(build-test-map ["~#"
+    (let [input-map (build-test-map ["~#"
                                       "#~"])
           result (map-utils/filter-map input-map #(= :land (:type %)))]
       (should= [[0 1] [1 0]] (vec result))))
 
   (it "returns empty list when no matches"
-    (let [input-map @(build-test-map ["~~"])
+    (let [input-map (build-test-map ["~~"])
           result (map-utils/filter-map input-map #(= :land (:type %)))]
       (should= [] (vec result))))
 
   (it "returns all positions when all match"
-    (let [input-map @(build-test-map ["##"])
+    (let [input-map (build-test-map ["##"])
           result (map-utils/filter-map input-map #(= :land (:type %)))]
       (should= [[0 0] [0 1]] (vec result))))
 
@@ -61,7 +61,7 @@
       (should= [] (vec result))))
 
   (it "finds cities by status"
-    (let [input-map @(build-test-map ["O#"
+    (let [input-map (build-test-map ["O#"
                                       "XO"])
           result (map-utils/filter-map input-map #(= :player (:city-status %)))]
       (should= [[0 0] [1 1]] (vec result)))))
@@ -69,23 +69,23 @@
 (describe "on-coast?"
   (before (reset-all-atoms!))
   (it "returns true when cell is adjacent to sea"
-    (reset! atoms/game-map @(build-test-map ["#~"
+    (reset! atoms/game-map (build-test-map ["#~"
                                              "##"]))
     (should (map-utils/on-coast? 0 0)))
 
   (it "returns false when cell is not adjacent to sea"
-    (reset! atoms/game-map @(build-test-map ["###"
+    (reset! atoms/game-map (build-test-map ["###"
                                              "###"
                                              "###"]))
     (should-not (map-utils/on-coast? 1 1)))
 
   (it "handles corner cells"
-    (reset! atoms/game-map @(build-test-map ["##"
+    (reset! atoms/game-map (build-test-map ["##"
                                              "#~"]))
     (should (map-utils/on-coast? 0 0)))
 
   (it "handles edge cells"
-    (reset! atoms/game-map @(build-test-map ["~"
+    (reset! atoms/game-map (build-test-map ["~"
                                              "#"
                                              "#"]))
     (should (map-utils/on-coast? 1 0))
@@ -121,15 +121,15 @@
 (describe "city?"
   (before (reset-all-atoms!))
   (it "returns true for city cells"
-    (reset! atoms/game-map @(build-test-map ["+"]))
+    (reset! atoms/game-map (build-test-map ["+"]))
     (should (map-utils/city? [0 0])))
 
   (it "returns false for non-city cells"
-    (reset! atoms/game-map @(build-test-map ["#"]))
+    (reset! atoms/game-map (build-test-map ["#"]))
     (should-not (map-utils/city? [0 0])))
 
   (it "returns false for sea cells"
-    (reset! atoms/game-map @(build-test-map ["~"]))
+    (reset! atoms/game-map (build-test-map ["~"]))
     (should-not (map-utils/city? [0 0]))))
 
 (describe "blink?"
@@ -144,151 +144,151 @@
 (describe "adjacent-to-land?"
   (before (reset-all-atoms!))
   (it "returns true when position is adjacent to land"
-    (let [game-map (build-test-map ["~#"
-                                    "~~"])]
+    (let [game-map (atom (build-test-map ["~#"
+                                    "~~"]))]
       (should (map-utils/adjacent-to-land? [0 0] game-map))))
 
   (it "returns false when position is not adjacent to land"
-    (let [game-map (build-test-map ["~~~"
+    (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should-not (map-utils/adjacent-to-land? [1 1] game-map))))
 
   (it "handles corner positions"
-    (let [game-map (build-test-map ["~~"
-                                    "#~"])]
+    (let [game-map (atom (build-test-map ["~~"
+                                    "#~"]))]
       (should (map-utils/adjacent-to-land? [0 0] game-map))))
 
   (it "returns true for diagonal adjacency"
-    (let [game-map (build-test-map ["~~~"
+    (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
-                                    "~~#"])]
+                                    "~~#"]))]
       (should (map-utils/adjacent-to-land? [1 1] game-map)))))
 
 (describe "orthogonally-adjacent-to-land?"
   (before (reset-all-atoms!))
   (it "returns true when orthogonally adjacent to land"
-    (let [game-map (build-test-map ["~#"
-                                    "~~"])]
+    (let [game-map (atom (build-test-map ["~#"
+                                    "~~"]))]
       (should (map-utils/orthogonally-adjacent-to-land? [0 0] game-map))))
 
   (it "returns false for only diagonal adjacency"
-    (let [game-map (build-test-map ["~~~"
+    (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
-                                    "~~#"])]
+                                    "~~#"]))]
       (should-not (map-utils/orthogonally-adjacent-to-land? [1 1] game-map))))
 
   (it "returns false when not adjacent to land"
-    (let [game-map (build-test-map ["~~~"
+    (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should-not (map-utils/orthogonally-adjacent-to-land? [1 1] game-map)))))
 
 (describe "completely-surrounded-by-sea?"
   (before (reset-all-atoms!))
   (it "returns true when no adjacent land"
-    (let [game-map (build-test-map ["~~~"
+    (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should (map-utils/completely-surrounded-by-sea? [1 1] game-map))))
 
   (it "returns false when adjacent to land"
-    (let [game-map (build-test-map ["~#~"
+    (let [game-map (atom (build-test-map ["~#~"
                                     "~~~"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should-not (map-utils/completely-surrounded-by-sea? [1 1] game-map)))))
 
 (describe "in-bay?"
   (before (reset-all-atoms!))
   (it "returns true when surrounded by 4 or more land cells"
-    (let [game-map (build-test-map ["##~"
+    (let [game-map (atom (build-test-map ["##~"
                                     "#~#"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should (map-utils/in-bay? [1 1] game-map))))
 
   (it "returns true when surrounded by exactly 4 land cells"
-    (let [game-map (build-test-map ["#~~"
+    (let [game-map (atom (build-test-map ["#~~"
                                     "#~#"
-                                    "~#~"])]
+                                    "~#~"]))]
       (should (map-utils/in-bay? [1 1] game-map))))
 
   (it "returns false when surrounded by only 3 land cells"
-    (let [game-map (build-test-map ["~#~"
+    (let [game-map (atom (build-test-map ["~#~"
                                     "#~#"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should-not (map-utils/in-bay? [1 1] game-map))))
 
   (it "returns false when surrounded by only 2 land cells"
-    (let [game-map (build-test-map ["~#~"
+    (let [game-map (atom (build-test-map ["~#~"
                                     "#~~"
-                                    "~~~"])]
+                                    "~~~"]))]
       (should-not (map-utils/in-bay? [1 1] game-map))))
 
   (it "returns true when surrounded by land on all 8 sides"
-    (let [game-map (build-test-map ["###"
+    (let [game-map (atom (build-test-map ["###"
                                     "#~#"
-                                    "###"])]
+                                    "###"]))]
       (should (map-utils/in-bay? [1 1] game-map)))))
 
 (describe "adjacent-to-sea?"
   (before (reset-all-atoms!))
   (it "returns true when adjacent to sea"
-    (let [game-map (build-test-map ["#~"
-                                    "##"])]
+    (let [game-map (atom (build-test-map ["#~"
+                                    "##"]))]
       (should (map-utils/adjacent-to-sea? [0 0] game-map))))
 
   (it "returns false when not adjacent to sea"
-    (let [game-map (build-test-map ["###"
+    (let [game-map (atom (build-test-map ["###"
                                     "###"
-                                    "###"])]
+                                    "###"]))]
       (should-not (map-utils/adjacent-to-sea? [1 1] game-map)))))
 
 (describe "at-map-edge?"
   (before (reset-all-atoms!))
   (it "returns true for top edge"
-    (let [game-map (build-test-map ["#####"
+    (let [game-map (atom (build-test-map ["#####"
                                     "#####"
                                     "#####"
                                     "#####"
-                                    "#####"])]
+                                    "#####"]))]
       (should (map-utils/at-map-edge? [0 2] game-map))))
 
   (it "returns true for bottom edge"
-    (let [game-map (build-test-map ["#####"
+    (let [game-map (atom (build-test-map ["#####"
                                     "#####"
                                     "#####"
                                     "#####"
-                                    "#####"])]
+                                    "#####"]))]
       (should (map-utils/at-map-edge? [4 2] game-map))))
 
   (it "returns true for left edge"
-    (let [game-map (build-test-map ["#####"
+    (let [game-map (atom (build-test-map ["#####"
                                     "#####"
                                     "#####"
                                     "#####"
-                                    "#####"])]
+                                    "#####"]))]
       (should (map-utils/at-map-edge? [2 0] game-map))))
 
   (it "returns true for right edge"
-    (let [game-map (build-test-map ["#####"
+    (let [game-map (atom (build-test-map ["#####"
                                     "#####"
                                     "#####"
                                     "#####"
-                                    "#####"])]
+                                    "#####"]))]
       (should (map-utils/at-map-edge? [2 4] game-map))))
 
   (it "returns false for interior position"
-    (let [game-map (build-test-map ["#####"
+    (let [game-map (atom (build-test-map ["#####"
                                     "#####"
                                     "#####"
                                     "#####"
-                                    "#####"])]
+                                    "#####"]))]
       (should-not (map-utils/at-map-edge? [2 2] game-map))))
 
   (it "returns true for corner"
-    (let [game-map (build-test-map ["#####"
+    (let [game-map (atom (build-test-map ["#####"
                                     "#####"
                                     "#####"
                                     "#####"
-                                    "#####"])]
+                                    "#####"]))]
       (should (map-utils/at-map-edge? [0 0] game-map)))))

@@ -7,7 +7,7 @@
 (describe "update-cell-visibility"
   (before (reset-all-atoms!))
   (it "reveals cells near player-owned units"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -28,7 +28,7 @@
     (should= nil (get-in @atoms/player-map [8 8])))
 
   (it "reveals two rectangular rings for satellites"
-    (reset! atoms/game-map @(build-test-map ["###############"
+    (reset! atoms/game-map (build-test-map ["###############"
                                              "###############"
                                              "###############"
                                              "###############"
@@ -78,7 +78,7 @@
 (describe "update-combatant-map"
   (before (reset-all-atoms!))
   (it "reveals all 9 cells around a player unit in center of map"
-    (reset! atoms/game-map @(build-test-map ["~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~A~~"
                                              "~~~~~"
@@ -102,7 +102,7 @@
     (should= nil (get-in @atoms/player-map [4 4])))
 
   (it "clamps visibility at map edges for unit in corner"
-    (reset! atoms/game-map @(build-test-map ["A~~~~"
+    (reset! atoms/game-map (build-test-map ["A~~~~"
                                              "~~~~~"
                                              "~~~~~"
                                              "~~~~~"
@@ -118,7 +118,7 @@
     (should= nil (get-in @atoms/player-map [2 2])))
 
   (it "reveals cells around player city"
-    (reset! atoms/game-map @(build-test-map ["~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~O~~"
                                              "~~~~~"
@@ -131,7 +131,7 @@
     (should= {:type :sea} (get-in @atoms/player-map [3 3])))
 
   (it "does nothing when visible-map-atom is nil"
-    (reset! atoms/game-map @(build-test-map ["~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~A~~"
                                              "~~~~~"
@@ -141,7 +141,7 @@
     (should= nil @atoms/player-map))
 
   (it "works for computer owner"
-    (reset! atoms/game-map @(build-test-map ["~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~a~~"
                                              "~~~~~"
@@ -154,7 +154,7 @@
     (should= {:type :sea} (get-in @atoms/computer-map [3 3])))
 
   (it "handles multiple units revealing overlapping areas"
-    (reset! atoms/game-map @(build-test-map ["~~~~~~~"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~"
                                              "~~~~~~~"
                                              "~~A~~~~"
                                              "~~~~~~~"

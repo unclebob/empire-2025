@@ -35,9 +35,9 @@
     (throw (ex-info (str "Unknown map char: " c) {:char c}))))
 
 (defn build-test-map [strings]
-  (atom (mapv (fn [row-str]
-                (mapv char->cell row-str))
-              strings)))
+  (mapv (fn [row-str]
+          (mapv char->cell row-str))
+        strings))
 
 (def ^:private char->unit-type
   {\A :army      \a :army

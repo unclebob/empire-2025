@@ -8,7 +8,7 @@
 (describe "sidestep around friendly units"
   (before (reset-all-atoms!))
   (it "sidesteps diagonally around friendly unit and continues moving"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -32,7 +32,7 @@
       (should (:contents (get-in @atoms/game-map blocking-coords)))))
 
   (it "sidesteps orthogonally when diagonals blocked and continues moving"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -58,7 +58,7 @@
                   (:contents (get-in @atoms/game-map [6 5]))))))
 
   (it "wakes when no valid sidestep exists"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---~~----"
@@ -78,7 +78,7 @@
         (should= :somethings-in-the-way (:reason unit)))))
 
   (it "attacks (not sidesteps) when blocked by enemy unit"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -101,7 +101,7 @@
         (should= :player (:owner (:contents (get-in @atoms/game-map enemy-coords)))))))
 
   (it "fighter sidesteps around friendly fighter and continues"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -124,7 +124,7 @@
       (should (:contents (get-in @atoms/game-map blocking-coords)))))
 
   (it "ship sidesteps around friendly ship and continues"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----~---"
@@ -147,7 +147,7 @@
       (should (:contents (get-in @atoms/game-map blocking-coords)))))
 
   (it "chooses sidestep that gets closer to target using 4-round look-ahead"
-    (reset! atoms/game-map @(build-test-map ["------------"
+    (reset! atoms/game-map (build-test-map ["------------"
                                              "------------"
                                              "------------"
                                              "-----#~-----"
@@ -173,7 +173,7 @@
       (should (:contents (get-in @atoms/game-map blocking-coords)))))
 
   (it "wakes up when blocked by long line of friendly units (no progress possible)"
-    (reset! atoms/game-map @(build-test-map ["------------"
+    (reset! atoms/game-map (build-test-map ["------------"
                                              "------------"
                                              "-----A------"
                                              "---#-A------"
@@ -201,7 +201,7 @@
         (should= :somethings-in-the-way (:reason unit)))))
 
   (it "does not sidestep outside map boundaries"
-    (reset! atoms/game-map @(build-test-map ["AA###"
+    (reset! atoms/game-map (build-test-map ["AA###"
                                              "~#---"
                                              "-----"
                                              "-----"
@@ -219,7 +219,7 @@
 (describe "sidestep around cities"
   (before (reset-all-atoms!))
   (it "army sidesteps around friendly city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -236,7 +236,7 @@
     (should-be-nil (:contents (get-in @atoms/game-map [4 4]))))
 
   (it "army wakes when no sidestep around friendly city exists"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---~~----"
@@ -254,7 +254,7 @@
       (should= :cant-move-into-city (:reason unit))))
 
   (it "fighter sidesteps around free city when not target"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -271,7 +271,7 @@
     (should-be-nil (:contents (get-in @atoms/game-map [4 4]))))
 
   (it "fighter sidesteps around player city when not target"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -288,7 +288,7 @@
     (should-be-nil (:contents (get-in @atoms/game-map [4 4]))))
 
   (it "fighter does not sidestep when city is target"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"
@@ -308,7 +308,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map fighter-coords)))))
 
   (it "fighter sidesteps around hostile city"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "-----#---"

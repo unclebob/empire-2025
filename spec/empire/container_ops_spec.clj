@@ -8,7 +8,7 @@
   (before (reset-all-atoms!))
 
   (it "loads adjacent sentry armies onto transport"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
@@ -30,7 +30,7 @@
       (should= nil (:contents (get-in @atoms/game-map army2-coords)))))
 
   (it "does not load awake armies onto transport"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
@@ -49,7 +49,7 @@
       (should-not= nil (:contents (get-in @atoms/game-map army-coords)))))
 
   (it "wakes transport after loading armies if at beach"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---#-----"
@@ -71,7 +71,7 @@
   (before (reset-all-atoms!))
 
   (it "wakes all armies and sets transport to sentry"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -90,7 +90,7 @@
         (should= 2 (:awake-armies transport)))))
 
   (it "clears steps-remaining to end transport's turn"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -109,7 +109,7 @@
   (before (reset-all-atoms!))
 
   (it "puts armies to sleep and wakes transport"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -131,7 +131,7 @@
   (before (reset-all-atoms!))
 
   (it "removes one army and decrements counts"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -152,7 +152,7 @@
         (should= :awake (:mode disembarked)))))
 
   (it "wakes transport when last army disembarks"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -170,7 +170,7 @@
         (should= 0 (:army-count transport)))))
 
   (it "wakes transport when no more awake armies remain"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -192,7 +192,7 @@
   (before (reset-all-atoms!))
 
   (it "disembarks army and sets it moving toward extended target"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -219,7 +219,7 @@
   (before (reset-all-atoms!))
 
   (it "disembarks army in explore mode"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -245,7 +245,7 @@
   (before (reset-all-atoms!))
 
   (it "wakes all fighters and sets carrier to sentry"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -266,7 +266,7 @@
   (before (reset-all-atoms!))
 
   (it "puts fighters to sleep and wakes carrier"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -287,7 +287,7 @@
   (before (reset-all-atoms!))
 
   (it "removes fighter and places it at adjacent cell"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -310,7 +310,7 @@
         (should= target-coords (:target launched-fighter)))))
 
   (it "keeps carrier in sentry mode after last fighter launches"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -328,7 +328,7 @@
         (should= 0 (:fighter-count carrier)))))
 
   (it "sets steps-remaining to speed minus one"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -349,7 +349,7 @@
   (before (reset-all-atoms!))
 
   (it "removes awake fighter from airport and places it moving"
-    (reset! atoms/game-map @(build-test-map ["---------"
+    (reset! atoms/game-map (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"

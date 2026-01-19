@@ -9,7 +9,7 @@
   (around [it]
     (reset-all-atoms!)
     (reset! atoms/production {})
-    (reset! atoms/game-map @(build-test-map ["~O"
+    (reset! atoms/game-map (build-test-map ["~O"
                                              "O#"]))
     (it))
 
