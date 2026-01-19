@@ -85,19 +85,18 @@
         (draw-waypoint col row cell cell-w cell-h)))))
 
 (defn update-hover-status
-  "Updates line2-message based on mouse position, unless a confirmation message is active."
+  "Updates hover-message based on mouse position."
   []
-  (when (>= (System/currentTimeMillis) @atoms/confirmation-until)
-    (let [x (q/mouse-x)
-          y (q/mouse-y)]
-      (if (map-utils/on-map? x y)
-        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-              coords [cx cy]
-              cell (get-in @atoms/player-map coords)
-              production (get @atoms/production coords)
-              status (ru/format-hover-status cell production)]
-          (reset! atoms/line2-message (or status "")))
-        (reset! atoms/line2-message "")))))
+  (let [x (q/mouse-x)
+        y (q/mouse-y)]
+    (if (map-utils/on-map? x y)
+      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
+            coords [cx cy]
+            cell (get-in @atoms/player-map coords)
+            production (get @atoms/production coords)
+            status (ru/format-hover-status cell production)]
+        (reset! atoms/hover-message (or status "")))
+      (reset! atoms/hover-message ""))))
 
 (defn- draw-line-1
   "Draws the main message on line 1."
@@ -112,31 +111,38 @@
     (q/text @atoms/line2-message (+ text-x 10) (+ text-y 30))))
 
 (defn- draw-line-3
-  "Draws the flashing red message on line 3."
+  "Draws flashing red warning on line 3 if active."
   [text-x text-y]
-  (if (>= (System/currentTimeMillis) @atoms/line3-until)
-    (reset! atoms/line3-message "")
+  (when (< (System/currentTimeMillis) @atoms/line3-until)
     (when (and (seq @atoms/line3-message)
                (map-utils/blink? 500))
       (q/fill 255 0 0)
       (q/text @atoms/line3-message (+ text-x 10) (+ text-y 50))
       (q/fill 255))))
 
+(defn- draw-text-right-justified
+  "Draws text right-justified within the status area."
+  [text right-edge y]
+  (let [text-width (q/text-width text)
+        x (- right-edge text-width)]
+    (q/text text x y)))
+
 (defn- draw-status
-  "Draws the status area on the right (3 lines, 20 chars wide)."
+  "Draws the status area on the right (3 lines), right-justified."
   [text-x text-y text-w]
-  (let [char-width (q/text-width "M")
-        status-width (* 20 char-width)
-        status-x (- (+ text-x text-w) status-width)
+  (let [right-edge (+ text-x text-w)
+        round-str (str "Round: " @atoms/round-number)
         dest @atoms/destination
         dest-str (if dest (str "Dest: " (first dest) "," (second dest)) "")]
-    (q/text (str "Round: " @atoms/round-number) status-x (+ text-y 10))
+    (draw-text-right-justified round-str right-edge (+ text-y 10))
     (if (ru/should-show-paused? @atoms/paused @atoms/pause-requested)
       (do
         (q/fill 255 0 0)
-        (q/text "PAUSED" status-x (+ text-y 30))
+        (draw-text-right-justified "PAUSED" right-edge (+ text-y 30))
         (q/fill 255))
-      (q/text dest-str status-x (+ text-y 30)))))
+      (draw-text-right-justified dest-str right-edge (+ text-y 30)))
+    (when (seq @atoms/hover-message)
+      (draw-text-right-justified @atoms/hover-message right-edge (+ text-y 50)))))
 
 (defn draw-message-area
   "Draws the message area including separator line and messages."

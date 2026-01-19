@@ -75,6 +75,22 @@ Each map cell is a map with:
 
 Units operate in modes: `:awake` (needs orders), `:sentry` (sleeping), `:explore` (auto-exploring), `:moving` (executing movement orders)
 
+### Message Area Layout
+
+The message area below the map has two sections, each 3 lines high:
+
+**Left side (message display):**
+- Line 1: Main game message
+- Line 2: Combat log (e.g., "c-3,S-1,S-1. Submarine destroyed.")
+- Line 3: Flashing red warnings (conquest failed, fighter destroyed, etc.)
+
+**Right side (status display):**
+- Line 1: Round number
+- Line 2: "PAUSED" indicator or destination coordinates
+- Line 3: Hover info (cell details on mouse-over)
+- All text is right-justified against the screen edge
+- Width accommodates the longest hover message (~60 chars for city with production, fighters, and orders)
+
 ## Coding Guidelines
 
 ### Quil Isolation

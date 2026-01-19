@@ -60,8 +60,12 @@
   "An atom containing the timestamp until which line2-message should not be overwritten."
   (atom 0))
 
+(def hover-message
+  "An atom containing the hover info message to display on line 3."
+  (atom ""))
+
 (def line3-message
-  "An atom containing the message to display on line 3."
+  "An atom containing the flashing warning message to display on line 3."
   (atom ""))
 
 (def line3-until
@@ -75,10 +79,13 @@
   (reset! line3-until (+ (System/currentTimeMillis) ms)))
 
 (defn set-confirmation-message
-  "Sets a confirmation message on line 2 that persists for the specified milliseconds."
+  "Sets a confirmation message on line 2 that persists for the specified milliseconds.
+   Use Long/MAX_VALUE for a permanent message."
   [msg ms]
   (reset! line2-message msg)
-  (reset! confirmation-until (+ (System/currentTimeMillis) ms)))
+  (reset! confirmation-until (if (= ms Long/MAX_VALUE)
+                               Long/MAX_VALUE
+                               (+ (System/currentTimeMillis) ms))))
 
 (def computer-map
   "An atom containing the computer's visible map areas."

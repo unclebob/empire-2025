@@ -105,43 +105,87 @@
   (it "returns false for nil unit"
     (should-not (combat/hostile-unit? nil :player))))
 
+(describe "format-combat-log"
+  (it "formats simple attacker win"
+    (let [log [{:hit :defender :damage 1}]
+          attacker-type :destroyer
+          defender-type :army]
+      (should= "a-1. Army destroyed."
+               (combat/format-combat-log log attacker-type defender-type :attacker))))
+
+  (it "formats simple attacker loss"
+    (let [log [{:hit :attacker :damage 1}]
+          attacker-type :army
+          defender-type :destroyer]
+      (should= "A-1. Army destroyed."
+               (combat/format-combat-log log attacker-type defender-type :defender))))
+
+  (it "formats multi-round combat"
+    (let [log [{:hit :defender :damage 3}
+               {:hit :attacker :damage 1}
+               {:hit :defender :damage 3}
+               {:hit :defender :damage 3}]
+          attacker-type :submarine
+          defender-type :carrier]
+      (should= "c-3,S-1,c-3,c-3. Carrier destroyed."
+               (combat/format-combat-log log attacker-type defender-type :attacker))))
+
+  (it "uses lowercase for defender hits"
+    (let [log [{:hit :defender :damage 2}]
+          attacker-type :battleship
+          defender-type :destroyer]
+      (should= "d-2. Destroyer destroyed."
+               (combat/format-combat-log log attacker-type defender-type :attacker))))
+
+  (it "uses uppercase for attacker hits"
+    (let [log [{:hit :attacker :damage 1}]
+          attacker-type :transport
+          defender-type :destroyer]
+      (should= "T-1. Transport destroyed."
+               (combat/format-combat-log log attacker-type defender-type :defender)))))
+
 (describe "fight-round"
   (it "attacker hits when rand < 0.5"
     (with-redefs [rand (constantly 0.4)]
       (let [attacker {:type :destroyer :hits 3 :owner :player}
             defender {:type :transport :hits 1 :owner :computer}
-            [new-attacker new-defender] (combat/fight-round attacker defender)]
+            [new-attacker new-defender log-entry] (combat/fight-round attacker defender)]
         (should= 3 (:hits new-attacker))
-        (should= 0 (:hits new-defender)))))
+        (should= 0 (:hits new-defender))
+        (should= {:hit :defender :damage 1} log-entry))))
 
   (it "defender hits when rand >= 0.5"
     (with-redefs [rand (constantly 0.6)]
       (let [attacker {:type :destroyer :hits 3 :owner :player}
             defender {:type :transport :hits 1 :owner :computer}
-            [new-attacker new-defender] (combat/fight-round attacker defender)]
+            [new-attacker new-defender log-entry] (combat/fight-round attacker defender)]
         (should= 2 (:hits new-attacker))
-        (should= 1 (:hits new-defender)))))
+        (should= 1 (:hits new-defender))
+        (should= {:hit :attacker :damage 1} log-entry))))
 
   (it "submarine deals 3 damage"
     (with-redefs [rand (constantly 0.4)]
       (let [attacker {:type :submarine :hits 2 :owner :player}
             defender {:type :carrier :hits 8 :owner :computer}
-            [_ new-defender] (combat/fight-round attacker defender)]
-        (should= 5 (:hits new-defender)))))
+            [_ new-defender log-entry] (combat/fight-round attacker defender)]
+        (should= 5 (:hits new-defender))
+        (should= {:hit :defender :damage 3} log-entry))))
 
   (it "battleship deals 2 damage"
     (with-redefs [rand (constantly 0.4)]
       (let [attacker {:type :battleship :hits 10 :owner :player}
             defender {:type :carrier :hits 8 :owner :computer}
-            [_ new-defender] (combat/fight-round attacker defender)]
-        (should= 6 (:hits new-defender)))))
+            [_ new-defender log-entry] (combat/fight-round attacker defender)]
+        (should= 6 (:hits new-defender))
+        (should= {:hit :defender :damage 2} log-entry))))
 
   (it "army deals 1 damage"
     (with-redefs [rand (constantly 0.4)]
       (let [attacker {:type :army :hits 1 :owner :player}
             defender {:type :army :hits 1 :owner :computer}
-            [_ new-defender] (combat/fight-round attacker defender)]
-        (should= 0 (:hits new-defender))))))
+            [_ new-defender log-entry] (combat/fight-round attacker defender)]
+        (should= 0 (:hits new-defender))
+        (should= {:hit :defender :damage 1} log-entry)))))
 
 (describe "resolve-combat"
   (it "attacker wins when always hitting"
@@ -151,6 +195,31 @@
             result (combat/resolve-combat attacker defender)]
         (should= :attacker (:winner result))
         (should= 3 (:hits (:survivor result))))))
+
+  (it "returns combat log with hit entries"
+    (with-redefs [rand (constantly 0.4)]
+      (let [attacker {:type :submarine :hits 2 :owner :player}
+            defender {:type :carrier :hits 8 :owner :computer}
+            result (combat/resolve-combat attacker defender)]
+        (should= :attacker (:winner result))
+        (should= [{:hit :defender :damage 3}
+                  {:hit :defender :damage 3}
+                  {:hit :defender :damage 3}] (:log result)))))
+
+  (it "logs defender hits with defender's strength"
+    ;; Submarine has 2 hits, carrier deals 1 damage per hit
+    ;; Roll 0.6: carrier hits submarine (1 damage), submarine has 1 hit left
+    ;; Roll 0.4: submarine hits carrier (3 damage), carrier has 5 hits left
+    ;; Roll 0.6: carrier hits submarine (1 damage), submarine has 0 hits -> dies
+    (let [rolls (atom [0.6 0.4 0.6])]
+      (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
+        (let [attacker {:type :submarine :hits 2 :owner :player}
+              defender {:type :carrier :hits 8 :owner :computer}
+              result (combat/resolve-combat attacker defender)]
+          (should= :defender (:winner result))
+          (should= [{:hit :attacker :damage 1}
+                    {:hit :defender :damage 3}
+                    {:hit :attacker :damage 1}] (:log result))))))
 
   (it "defender wins when always hitting"
     (with-redefs [rand (constantly 0.6)]
@@ -246,25 +315,25 @@
           (should= :player (:owner survivor))
           (should= 2 (:hits survivor))))))
 
-  (it "displays victory message with remaining hits when attacker wins"
+  (it "displays combat log when attacker wins"
     (reset! atoms/game-map @(build-test-map ["Da"]))
     (set-test-unit atoms/game-map "D" :hits 3)
     (set-test-unit atoms/game-map "a" :hits 1)
     (reset! atoms/line2-message "")
     (with-redefs [rand (constantly 0.4)]
       (combat/attempt-attack [0 0] [0 1])
-      (should= "Destroyer defeated Army (3 hits remaining)" @atoms/line2-message)))
+      (should= "a-1. Army destroyed." @atoms/line2-message)))
 
-  (it "displays defeat message when attacker loses"
+  (it "displays combat log when attacker loses"
     (reset! atoms/game-map @(build-test-map ["Ad"]))
     (set-test-unit atoms/game-map "A" :hits 1)
     (set-test-unit atoms/game-map "d" :hits 3)
     (reset! atoms/line2-message "")
     (with-redefs [rand (constantly 0.6)]
       (combat/attempt-attack [0 0] [0 1])
-      (should= "Army destroyed by Destroyer" @atoms/line2-message)))
+      (should= "A-1. Army destroyed." @atoms/line2-message)))
 
-  (it "displays correct hits when survivor is damaged"
+  (it "displays combat log with multiple exchanges"
     (reset! atoms/game-map @(build-test-map ["Dd"]))
     (set-test-unit atoms/game-map "D" :hits 3)
     (set-test-unit atoms/game-map "d" :hits 3)
@@ -273,4 +342,26 @@
     (let [rolls (atom [0.4 0.6 0.4 0.4])]
       (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
         (combat/attempt-attack [0 0] [0 1])
-        (should= "Destroyer defeated Destroyer (2 hits remaining)" @atoms/line2-message)))))
+        (should= "d-1,D-1,d-1,d-1. Destroyer destroyed." @atoms/line2-message))))
+
+  (it "displays combat log for submarine vs carrier"
+    (reset! atoms/game-map @(build-test-map ["Sc"]))
+    (set-test-unit atoms/game-map "S" :hits 2)
+    (set-test-unit atoms/game-map "c" :hits 8)
+    (reset! atoms/line2-message "")
+    ;; Rolls: 0.6 (c hits S:1), 0.6 (c hits S:0)
+    (let [rolls (atom [0.6 0.6])]
+      (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
+        (combat/attempt-attack [0 0] [0 1])
+        (should= "S-1,S-1. Submarine destroyed." @atoms/line2-message))))
+
+  (it "displays combat log for submarine defeating carrier"
+    (reset! atoms/game-map @(build-test-map ["Sc"]))
+    (set-test-unit atoms/game-map "S" :hits 2)
+    (set-test-unit atoms/game-map "c" :hits 8)
+    (reset! atoms/line2-message "")
+    ;; Rolls: 0.4 (S hits c:5), 0.6 (c hits S:1), 0.4 (S hits c:2), 0.4 (S hits c:0)
+    (let [rolls (atom [0.4 0.6 0.4 0.4])]
+      (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
+        (combat/attempt-attack [0 0] [0 1])
+        (should= "c-3,S-1,c-3,c-3. Carrier destroyed." @atoms/line2-message)))))

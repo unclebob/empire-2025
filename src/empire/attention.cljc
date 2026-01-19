@@ -104,11 +104,16 @@
                             (str "Army" (:unit-needs-attention config/messages) " - aboard transport (" (:army-count unit 0) " armies) - " (:transport-at-beach config/messages))
 
                             active-unit
-                            (let [unit-name (name (:type active-unit))
+                            (let [unit-type (:type active-unit)
+                                  unit-name (name unit-type)
+                                  max-hits (config/item-hits unit-type)
+                                  current-hits (:hits active-unit max-hits)
+                                  damaged? (< current-hits max-hits)
+                                  damage-prefix (if damaged? "Damaged " "")
                                   cargo-str (cond
-                                              (= (:type active-unit) :transport)
+                                              (= unit-type :transport)
                                               (str " (" (:army-count active-unit 0) " armies)")
-                                              (= (:type active-unit) :carrier)
+                                              (= unit-type :carrier)
                                               (str " (" (:fighter-count active-unit 0) " fighters)")
                                               :else nil)
                                   reason-key (or (:reason active-unit)
@@ -117,7 +122,7 @@
                                                (if (string? reason-key)
                                                  reason-key
                                                  (reason-key config/messages)))]
-                              (str unit-name (:unit-needs-attention config/messages) (or cargo-str "") (if reason-str (str " - " reason-str) "")))
+                              (str damage-prefix unit-name (:unit-needs-attention config/messages) (or cargo-str "") (if reason-str (str " - " reason-str) "")))
 
                             :else
                             (:city-needs-attention config/messages)))))

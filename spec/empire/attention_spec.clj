@@ -272,4 +272,39 @@
       (reset! atoms/message "")
       (attention/set-attention-message city-coords)
       (should-contain "City" @atoms/message)
-      (should-contain "needs" @atoms/message))))
+      (should-contain "needs" @atoms/message)))
+
+  (it "includes Damaged for damaged carrier"
+    (reset! atoms/game-map @(build-test-map ["C"]))
+    (set-test-unit atoms/game-map "C" :mode :awake :hits 5)
+    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
+      (reset! atoms/message "")
+      (attention/set-attention-message unit-coords)
+      (should-contain "Damaged" @atoms/message)
+      (should-contain "carrier" @atoms/message)))
+
+  (it "includes Damaged for damaged destroyer"
+    (reset! atoms/game-map @(build-test-map ["D"]))
+    (set-test-unit atoms/game-map "D" :mode :awake :hits 2)
+    (let [unit-coords (:pos (get-test-unit atoms/game-map "D"))]
+      (reset! atoms/message "")
+      (attention/set-attention-message unit-coords)
+      (should-contain "Damaged" @atoms/message)
+      (should-contain "destroyer" @atoms/message)))
+
+  (it "does not include Damaged for undamaged carrier"
+    (reset! atoms/game-map @(build-test-map ["C"]))
+    (set-test-unit atoms/game-map "C" :mode :awake :hits 8)
+    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
+      (reset! atoms/message "")
+      (attention/set-attention-message unit-coords)
+      (should-not-contain "Damaged" @atoms/message)
+      (should-contain "carrier" @atoms/message)))
+
+  (it "does not include Damaged for army (1 hit max)"
+    (reset! atoms/game-map @(build-test-map ["A"]))
+    (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
+    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+      (reset! atoms/message "")
+      (attention/set-attention-message unit-coords)
+      (should-not-contain "Damaged" @atoms/message))))

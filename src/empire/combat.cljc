@@ -48,35 +48,46 @@
   [unit-type]
   (-> unit-type name clojure.string/capitalize))
 
-(defn- format-combat-message
-  "Formats a combat result message for display."
-  [winner attacker-type defender-type survivor-hits]
-  (let [attacker-name (unit-name attacker-type)
-        defender-name (unit-name defender-type)]
-    (if (= winner :attacker)
-      (str attacker-name " defeated " defender-name " (" survivor-hits " hits remaining)")
-      (str attacker-name " destroyed by " defender-name))))
+(defn- format-log-entry
+  "Formats a single combat log entry.
+   Uses lowercase for defender, uppercase for attacker."
+  [entry attacker-type defender-type]
+  (let [unit-char (if (= :defender (:hit entry))
+                    (clojure.string/lower-case (dispatcher/display-char defender-type))
+                    (clojure.string/upper-case (dispatcher/display-char attacker-type)))]
+    (str unit-char "-" (:damage entry))))
+
+(defn format-combat-log
+  "Formats a combat log for display.
+   Format: c-3,S-1,S-1. Submarine destroyed."
+  [log attacker-type defender-type winner]
+  (let [entries (map #(format-log-entry % attacker-type defender-type) log)
+        exchange-str (clojure.string/join "," entries)
+        loser-type (if (= winner :attacker) defender-type attacker-type)
+        loser-name (unit-name loser-type)]
+    (str exchange-str ". " loser-name " destroyed.")))
 
 (defn fight-round
   "Executes one round of combat. 50% chance attacker hits, 50% chance defender hits.
-   Returns [updated-attacker updated-defender]."
+   Returns [updated-attacker updated-defender log-entry]."
   [attacker defender]
   (if (< (rand) 0.5)
     (let [damage (dispatcher/strength (:type attacker))]
-      [attacker (update defender :hits - damage)])
+      [attacker (update defender :hits - damage) {:hit :defender :damage damage}])
     (let [damage (dispatcher/strength (:type defender))]
-      [(update attacker :hits - damage) defender])))
+      [(update attacker :hits - damage) defender {:hit :attacker :damage damage}])))
 
 (defn resolve-combat
   "Fights combat rounds until one unit dies.
-   Returns {:winner :attacker|:defender :survivor unit-map}."
+   Returns {:winner :attacker|:defender :survivor unit-map :log [log-entries]}."
   [attacker defender]
-  (loop [a attacker d defender]
-    (let [[new-a new-d] (fight-round a d)]
+  (loop [a attacker d defender log []]
+    (let [[new-a new-d log-entry] (fight-round a d)
+          new-log (conj log log-entry)]
       (cond
-        (<= (:hits new-d) 0) {:winner :attacker :survivor new-a}
-        (<= (:hits new-a) 0) {:winner :defender :survivor new-d}
-        :else (recur new-a new-d)))))
+        (<= (:hits new-d) 0) {:winner :attacker :survivor new-a :log new-log}
+        (<= (:hits new-a) 0) {:winner :defender :survivor new-d :log new-log}
+        :else (recur new-a new-d new-log)))))
 
 (defn attempt-attack
   "Attempts to attack an enemy unit at target-coords from attacker-coords.
@@ -89,13 +100,13 @@
     (if (or (nil? defender) (not (hostile-unit? defender (:owner attacker))))
       false
       (let [result (resolve-combat attacker defender)
-            message (format-combat-message (:winner result)
-                                           (:type attacker)
-                                           (:type defender)
-                                           (:hits (:survivor result)))]
+            message (format-combat-log (:log result)
+                                       (:type attacker)
+                                       (:type defender)
+                                       (:winner result))]
         (swap! atoms/game-map assoc-in (conj attacker-coords :contents) nil)
         (if (= :attacker (:winner result))
           (swap! atoms/game-map assoc-in (conj target-coords :contents) (:survivor result))
           (swap! atoms/game-map assoc-in (conj target-coords :contents) (:survivor result)))
-        (atoms/set-confirmation-message message 3000)
+        (atoms/set-confirmation-message message Long/MAX_VALUE)
         true))))

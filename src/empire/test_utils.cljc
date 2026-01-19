@@ -142,6 +142,7 @@
   (reset! atoms/message "")
   (reset! atoms/line2-message "")
   (reset! atoms/confirmation-until 0)
+  (reset! atoms/hover-message "")
   (reset! atoms/line3-message "")
   (reset! atoms/line3-until 0)
   (reset! atoms/computer-map {})
