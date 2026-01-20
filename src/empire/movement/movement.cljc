@@ -285,44 +285,66 @@
   (let [reason (if (= :army (:type unit)) :cant-move-into-city :fighter-over-defended-city)]
     (assoc (dissoc (assoc unit :mode :awake) :target) :reason reason)))
 
+(defn- dock-ship-for-repair
+  "Docks a damaged ship into a friendly city's shipyard.
+   Removes ship from origin cell and adds to city's shipyard."
+  [from-coords city-coords cell]
+  (let [unit (:contents cell)
+        unit-type (:type unit)
+        city-cell (get-in @atoms/game-map city-coords)
+        updated-city (uc/add-ship-to-shipyard city-cell unit-type (:hits unit))
+        updated-origin (dissoc cell :contents)
+        type-name (clojure.string/capitalize (name unit-type))]
+    (swap! atoms/game-map assoc-in from-coords updated-origin)
+    (swap! atoms/game-map assoc-in city-coords updated-city)
+    (visibility/update-cell-visibility city-coords (:owner unit))
+    (reset! atoms/line2-message (str type-name " docked for repair."))
+    {:result :docked :pos city-coords}))
+
 (defn move-unit
   "Moves a unit one step toward target. Returns a map with:
-   :result - :normal, :sidestep, :woke, or :combat
+   :result - :normal, :sidestep, :woke, :combat, or :docked
    :pos - the new position (or original if woke)"
   [from-coords target-coords cell current-map]
   (let [unit (:contents cell)
         next-pos (next-step-pos from-coords target-coords)
-        next-cell (get-in @current-map next-pos)
-        [woken-unit woke?] (wake/wake-before-move unit next-cell)]
+        next-cell (get-in @current-map next-pos)]
     (cond
-      ;; Sidestep around cities (armies around friendly, fighters around non-target)
-      (should-sidestep-city? unit next-cell next-pos)
-      (try-sidestep from-coords next-pos target-coords cell (wake-unit-for-city unit) current-map)
+      ;; Damaged ship docking at friendly city for repair
+      (uc/ship-can-dock? unit next-cell)
+      (dock-ship-for-repair from-coords next-pos cell)
 
-      ;; Blocked by friendly unit - try to sidestep
-      (and woke?
-           (= (:reason woken-unit) :somethings-in-the-way)
-           (blocked-by-friendly? unit next-cell))
-      (try-sidestep from-coords next-pos target-coords cell woken-unit current-map)
-
-      ;; Combat with enemy unit (if terrain allows)
-      (and woke?
-           (= (:reason woken-unit) :somethings-in-the-way)
-           (can-attack-enemy? unit next-cell))
-      (handle-combat from-coords next-pos cell)
-
-      ;; Other wake conditions - just wake up
-      woke?
-      (let [updated-cell (assoc cell :contents woken-unit)]
-        (swap! atoms/game-map assoc-in from-coords updated-cell)
-        (visibility/update-cell-visibility from-coords (:owner unit))
-        {:result :woke :pos from-coords})
-
-      ;; Normal move
       :else
-      (let [final-unit (wake/wake-after-move unit from-coords next-pos current-map)]
-        (do-move from-coords next-pos cell final-unit)
-        {:result :normal :pos next-pos}))))
+      (let [[woken-unit woke?] (wake/wake-before-move unit next-cell)]
+        (cond
+          ;; Sidestep around cities (armies around friendly, fighters around non-target)
+          (should-sidestep-city? unit next-cell next-pos)
+          (try-sidestep from-coords next-pos target-coords cell (wake-unit-for-city unit) current-map)
+
+          ;; Blocked by friendly unit - try to sidestep
+          (and woke?
+               (= (:reason woken-unit) :somethings-in-the-way)
+               (blocked-by-friendly? unit next-cell))
+          (try-sidestep from-coords next-pos target-coords cell woken-unit current-map)
+
+          ;; Combat with enemy unit (if terrain allows)
+          (and woke?
+               (= (:reason woken-unit) :somethings-in-the-way)
+               (can-attack-enemy? unit next-cell))
+          (handle-combat from-coords next-pos cell)
+
+          ;; Other wake conditions - just wake up
+          woke?
+          (let [updated-cell (assoc cell :contents woken-unit)]
+            (swap! atoms/game-map assoc-in from-coords updated-cell)
+            (visibility/update-cell-visibility from-coords (:owner unit))
+            {:result :woke :pos from-coords})
+
+          ;; Normal move
+          :else
+          (let [final-unit (wake/wake-after-move unit from-coords next-pos current-map)]
+            (do-move from-coords next-pos cell final-unit)
+            {:result :normal :pos next-pos}))))))
 
 (defn set-unit-movement [unit-coords target-coords]
   (let [first-cell (get-in @atoms/game-map unit-coords)

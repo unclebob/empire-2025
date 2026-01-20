@@ -1,4 +1,5 @@
-(ns empire.unit-container)
+(ns empire.unit-container
+  (:require [empire.units.dispatcher :as dispatcher]))
 
 (defn get-count
   "Gets the total count of units in a container."
@@ -92,3 +93,47 @@
     contents contents
     has-any-airport? {:type :fighter :mode :sentry}
     :else nil))
+
+;; Shipyard helpers
+
+(defn add-ship-to-shipyard
+  "Adds a ship to the city's shipyard. Ship is stored as {:type t :hits h}."
+  [city ship-type hits]
+  (update city :shipyard (fnil conj []) {:type ship-type :hits hits}))
+
+(defn remove-ship-from-shipyard
+  "Removes the ship at the given index from the shipyard."
+  [city index]
+  (let [shipyard (:shipyard city [])
+        new-shipyard (vec (concat (subvec shipyard 0 index)
+                                  (subvec shipyard (inc index))))]
+    (assoc city :shipyard new-shipyard)))
+
+(defn get-shipyard-ships
+  "Returns the list of ships in the shipyard, or empty vector if none."
+  [city]
+  (get city :shipyard []))
+
+(defn repair-ship
+  "Repairs a ship by incrementing hits by 1, capped at max for unit type."
+  [ship]
+  (let [max-hits (dispatcher/hits (:type ship))
+        new-hits (min (inc (:hits ship)) max-hits)]
+    (assoc ship :hits new-hits)))
+
+(defn ship-fully-repaired?
+  "Returns true if ship's hits equal max hits for its type."
+  [ship]
+  (= (:hits ship) (dispatcher/hits (:type ship))))
+
+(defn ship-can-dock?
+  "Returns true if a damaged naval unit can dock at a friendly city for repair."
+  [unit cell]
+  (and (= :city (:type cell))
+       (dispatcher/naval-unit? (:type unit))
+       (< (:hits unit) (dispatcher/hits (:type unit)))
+       (= (:owner unit)
+          (case (:city-status cell)
+            :player :player
+            :computer :computer
+            nil))))

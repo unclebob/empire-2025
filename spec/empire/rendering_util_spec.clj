@@ -51,7 +51,25 @@
 
   (it "formats computer city"
     (let [cell {:type :city :city-status :computer :fighter-count 2}]
-      (should= "city:computer fighters:2" (ru/format-city-status cell nil)))))
+      (should= "city:computer fighters:2" (ru/format-city-status cell nil))))
+
+  (it "formats city with one ship in shipyard"
+    (let [cell {:type :city :city-status :player
+                :shipyard [{:type :destroyer :hits 2}]}]
+      (should= "city:player dock:D[2/3]" (ru/format-city-status cell nil))))
+
+  (it "formats city with multiple ships in shipyard"
+    (let [cell {:type :city :city-status :player
+                :shipyard [{:type :destroyer :hits 2}
+                           {:type :battleship :hits 7}]}]
+      (should= "city:player dock:D[2/3],B[7/10]" (ru/format-city-status cell nil))))
+
+  (it "formats city with shipyard and other info"
+    (let [cell {:type :city :city-status :player :fighter-count 2
+                :shipyard [{:type :submarine :hits 1}]}
+          production {:item :army :remaining-rounds 3}]
+      (should= "city:player producing:army fighters:2 dock:S[1/2]"
+               (ru/format-city-status cell production)))))
 
 (describe "format-hover-status"
   (it "returns unit status for cell with contents"

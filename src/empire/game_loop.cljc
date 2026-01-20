@@ -2,6 +2,7 @@
   (:require [empire.atoms :as atoms]
             [empire.attention :as attention]
             [empire.config :as config]
+            [empire.container-ops :as container-ops]
             [empire.movement.movement :as movement]
             [empire.movement.wake-conditions :as wake]
             [empire.production :as production]
@@ -81,7 +82,10 @@
                nil))  ;; Combat ends the move
 
            ;; Woke up - done moving
-           :woke nil))))))
+           :woke nil
+
+           ;; Docked for repair - done moving
+           :docked nil))))))
 
 (defn reset-steps-remaining
   "Resets steps-remaining for all player units at start of round."
@@ -230,6 +234,40 @@
   (doseq [coords (find-satellite-coords)]
     (move-satellite-steps coords)))
 
+(defn- repair-city-ships
+  "Repairs all ships in a city's shipyard by 1 hit each.
+   Launches fully repaired ships if the city cell is empty.
+   Returns indices of ships that were launched (in reverse order for safe removal)."
+  [city-coords]
+  (let [cell (get-in @atoms/game-map city-coords)
+        shipyard (uc/get-shipyard-ships cell)]
+    (when (seq shipyard)
+      ;; First, repair all ships
+      (let [repaired-ships (mapv uc/repair-ship shipyard)]
+        (swap! atoms/game-map assoc-in (conj city-coords :shipyard) repaired-ships))
+      ;; Then, launch fully repaired ships if city is empty
+      ;; Process from end to avoid index shifting issues
+      (let [updated-cell (get-in @atoms/game-map city-coords)
+            updated-shipyard (uc/get-shipyard-ships updated-cell)]
+        (doseq [i (reverse (range (count updated-shipyard)))]
+          (let [current-cell (get-in @atoms/game-map city-coords)
+                ship (get-in current-cell [:shipyard i])]
+            (when (and (uc/ship-fully-repaired? ship)
+                       (nil? (:contents current-cell)))
+              (container-ops/launch-ship-from-shipyard city-coords i))))))))
+
+(defn repair-damaged-ships
+  "Repairs ships in all friendly city shipyards by 1 hit per round.
+   Launches fully repaired ships onto the map if the city cell is empty."
+  []
+  (doseq [i (range (count @atoms/game-map))
+          j (range (count (first @atoms/game-map)))
+          :let [cell (get-in @atoms/game-map [i j])]
+          :when (and (= (:type cell) :city)
+                     (#{:player :computer} (:city-status cell))
+                     (seq (uc/get-shipyard-ships cell)))]
+    (repair-city-ships [i j])))
+
 (defn start-new-round
   "Starts a new round by building player items list and updating game state."
   []
@@ -239,6 +277,7 @@
   (wake-sentries-seeing-enemy)
   (remove-dead-units)
   (production/update-production)
+  (repair-damaged-ships)
   (reset-steps-remaining)
   (wake-airport-fighters)
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start

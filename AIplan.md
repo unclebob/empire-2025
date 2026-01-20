@@ -60,7 +60,7 @@ Before implementing the computer AI, we must first implement attack, damage, and
 - [ ] Phase 2: Fix backtick commands (uppercase=player, lowercase=enemy)
 - [ ] Phase 3: Unit-vs-unit combat
 - [ ] Phase 4: Integrate combat into movement
-- [ ] Phase 5: Repair mechanics
+- [x] Phase 5: Repair mechanics
 
 ---
 

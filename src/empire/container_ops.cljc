@@ -3,7 +3,8 @@
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.unit-container :as uc]
-            [empire.movement.visibility :as visibility]))
+            [empire.movement.visibility :as visibility]
+            [empire.units.dispatcher :as dispatcher]))
 
 ;; Transport operations
 
@@ -195,3 +196,24 @@
         updated-cell (assoc after-remove :contents moving-fighter)]
     (swap! atoms/game-map assoc-in city-coords updated-cell)
     city-coords))
+
+;; Shipyard operations
+
+(defn launch-ship-from-shipyard
+  "Removes ship at given index from city's shipyard and places on map.
+   Reconstructs full unit from minimal shipyard data."
+  [city-coords ship-index]
+  (let [cell (get-in @atoms/game-map city-coords)
+        ship-data (get-in cell [:shipyard ship-index])
+        owner (case (:city-status cell)
+                :player :player
+                :computer :computer
+                :player)  ; default to player for free cities
+        ship {:type (:type ship-data)
+              :owner owner
+              :hits (:hits ship-data)
+              :mode :awake
+              :steps-remaining (dispatcher/speed (:type ship-data))}
+        updated-city (uc/remove-ship-from-shipyard cell ship-index)]
+    (swap! atoms/game-map assoc-in city-coords (assoc updated-city :contents ship))
+    (visibility/update-cell-visibility city-coords owner)))

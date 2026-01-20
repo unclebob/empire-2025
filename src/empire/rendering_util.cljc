@@ -1,6 +1,7 @@
 (ns empire.rendering-util
   (:require [empire.config :as config]
-            [empire.unit-container :as uc]))
+            [empire.unit-container :as uc]
+            [empire.units.dispatcher :as dispatcher]))
 
 (defn should-show-paused?
   "Returns true if the PAUSED message should be displayed."
@@ -30,18 +31,33 @@
          (when orders (str " " orders))
          " " (name (:mode unit)))))
 
+(defn- format-ship-for-dock
+  "Formats a single ship for dock display: T[2/3] for type[hits/max]"
+  [ship]
+  (let [type-char (first (dispatcher/display-char (:type ship)))
+        max-hits (dispatcher/hits (:type ship))]
+    (str type-char "[" (:hits ship) "/" max-hits "]")))
+
+(defn- format-shipyard
+  "Formats shipyard contents as condensed string: D[2/3],B[7/10]"
+  [shipyard]
+  (when (seq shipyard)
+    (str " dock:" (clojure.string/join "," (map format-ship-for-dock shipyard)))))
+
 (defn format-city-status
   "Formats status string for a city. Production is the production entry for this city, or nil."
   [cell production]
   (let [status (:city-status cell)
-        fighters (:fighter-count cell 0)]
+        fighters (:fighter-count cell 0)
+        shipyard (uc/get-shipyard-ships cell)]
     (str "city:" (name status)
          (when (and (= status :player) production)
            (str " producing:" (if (= production :none) "none" (name (:item production)))))
          (when (pos? fighters) (str " fighters:" fighters))
          (when (:marching-orders cell)
            (if (= (:marching-orders cell) :lookaround) " lookaround" " march"))
-         (when (:flight-path cell) " flight"))))
+         (when (:flight-path cell) " flight")
+         (format-shipyard shipyard))))
 
 (defn format-waypoint-status
   "Formats status string for a waypoint."
