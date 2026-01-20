@@ -380,62 +380,43 @@
         (should= :hit-edge (:reason woken-unit)))))
 
   (it "wakes up when steps exhausted"
-    ;; Large map so unit doesn't hit edge - unit starts in middle, not at edge
-    (reset! atoms/game-map (build-test-map ["#~~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#T~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#~~~~~~~~~"
-                                             "#~~~~~~~~~"]))
+    ;; Map where unit starts in middle, not at edge
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
     (set-test-unit atoms/game-map "T"
                    :mode :coastline-follow
                    :coastline-steps 1  ;; Only 1 step left
-                   :start-pos [5 1]    ;; Started in middle, not at edge
-                   :visited #{[5 1]}
+                   :start-pos [2 1]    ;; Started in middle, not at edge
+                   :visited #{[2 1]}
                    :prev-pos nil)
     (reset! atoms/player-map @atoms/game-map)
-    (move-coastline-unit [5 1])
+    (move-coastline-unit [2 1])
     (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :awake)]
       (should= :awake (:mode unit))
       (should= :steps-exhausted (:reason unit))))
 
   (it "continues moving when not waking (tests make-continuing-unit and recur)"
-    ;; Large map where unit won't hit any wake conditions
-    ;; Use a 20x20 map with land on left, unit starts in middle at [10 1]
+    ;; Map where unit won't hit any wake conditions
     ;; Transport has speed 2, and with 50 coastline-steps, it should continue
-    (reset! atoms/game-map (build-test-map ["#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#T~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"
-                                             "#~~~~~~~~~~~~~~~~~~~"]))
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
     (set-test-unit atoms/game-map "T"
                    :mode :coastline-follow
                    :coastline-steps 50  ;; Plenty of steps
-                   :start-pos [10 1]   ;; Started in middle, not at edge
-                   :visited #{[10 1]}
+                   :start-pos [3 1]    ;; Started in middle, not at edge
+                   :visited #{[3 1]}
                    :prev-pos nil)
     (reset! atoms/player-map @atoms/game-map)
     ;; transport has speed 2, so it should take 2 steps and not wake
-    (move-coastline-unit [10 1])
+    (move-coastline-unit [3 1])
     ;; Unit should have moved but still be in coastline-follow mode (not woken)
     (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :coastline-follow)]
       (should= :coastline-follow (:mode unit))

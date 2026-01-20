@@ -28,52 +28,42 @@
     (should= nil (get-in @atoms/player-map [8 8])))
 
   (it "reveals two rectangular rings for satellites"
-    (reset! atoms/game-map (build-test-map ["###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "#######V#######"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"
-                                             "###############"]))
-    (set-test-unit atoms/game-map "V" :target [14 14] :turns-remaining 50)
-    (reset! atoms/player-map (make-initial-test-map 15 15 nil))
-    (update-cell-visibility [7 7] :player)
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "##V##"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [4 4] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (update-cell-visibility [2 2] :player)
     ;; Ring 1 (distance 1) - all 8 cells should be visible
-    (should (get-in @atoms/player-map [6 6]))
-    (should (get-in @atoms/player-map [6 7]))
-    (should (get-in @atoms/player-map [6 8]))
-    (should (get-in @atoms/player-map [7 6]))
-    (should (get-in @atoms/player-map [7 8]))
-    (should (get-in @atoms/player-map [8 6]))
-    (should (get-in @atoms/player-map [8 7]))
-    (should (get-in @atoms/player-map [8 8]))
+    (should (get-in @atoms/player-map [1 1]))
+    (should (get-in @atoms/player-map [1 2]))
+    (should (get-in @atoms/player-map [1 3]))
+    (should (get-in @atoms/player-map [2 1]))
+    (should (get-in @atoms/player-map [2 3]))
+    (should (get-in @atoms/player-map [3 1]))
+    (should (get-in @atoms/player-map [3 2]))
+    (should (get-in @atoms/player-map [3 3]))
     ;; Ring 2 (distance 2) - all 16 cells should be visible
-    (should (get-in @atoms/player-map [5 5]))
-    (should (get-in @atoms/player-map [5 6]))
-    (should (get-in @atoms/player-map [5 7]))
-    (should (get-in @atoms/player-map [5 8]))
-    (should (get-in @atoms/player-map [5 9]))
-    (should (get-in @atoms/player-map [6 5]))
-    (should (get-in @atoms/player-map [6 9]))
-    (should (get-in @atoms/player-map [7 5]))
-    (should (get-in @atoms/player-map [7 9]))
-    (should (get-in @atoms/player-map [8 5]))
-    (should (get-in @atoms/player-map [8 9]))
-    (should (get-in @atoms/player-map [9 5]))
-    (should (get-in @atoms/player-map [9 6]))
-    (should (get-in @atoms/player-map [9 7]))
-    (should (get-in @atoms/player-map [9 8]))
-    (should (get-in @atoms/player-map [9 9]))
+    (should (get-in @atoms/player-map [0 0]))
+    (should (get-in @atoms/player-map [0 1]))
+    (should (get-in @atoms/player-map [0 2]))
+    (should (get-in @atoms/player-map [0 3]))
+    (should (get-in @atoms/player-map [0 4]))
+    (should (get-in @atoms/player-map [1 0]))
+    (should (get-in @atoms/player-map [1 4]))
+    (should (get-in @atoms/player-map [2 0]))
+    (should (get-in @atoms/player-map [2 4]))
+    (should (get-in @atoms/player-map [3 0]))
+    (should (get-in @atoms/player-map [3 4]))
+    (should (get-in @atoms/player-map [4 0]))
+    (should (get-in @atoms/player-map [4 1]))
+    (should (get-in @atoms/player-map [4 2]))
+    (should (get-in @atoms/player-map [4 3]))
+    (should (get-in @atoms/player-map [4 4]))
     ;; Center cell (the satellite's position) should also be visible
-    (should (get-in @atoms/player-map [7 7]))))
+    (should (get-in @atoms/player-map [2 2]))))
 
 (describe "update-combatant-map"
   (before (reset-all-atoms!))
