@@ -85,14 +85,19 @@
         (draw-waypoint col row cell cell-w cell-h)))))
 
 (defn update-hover-status
-  "Updates hover-message based on mouse position."
+  "Updates hover-message based on mouse position.
+   Shows contents from the currently displayed map."
   []
   (let [x (q/mouse-x)
         y (q/mouse-y)]
     (if (map-utils/on-map? x y)
       (let [[cx cy] (map-utils/determine-cell-coordinates x y)
             coords [cx cy]
-            cell (get-in @atoms/player-map coords)
+            the-map (case @atoms/map-to-display
+                      :player-map @atoms/player-map
+                      :computer-map @atoms/computer-map
+                      :actual-map @atoms/game-map)
+            cell (get-in the-map coords)
             production (get @atoms/production coords)
             status (ru/format-hover-status cell production)]
         (reset! atoms/hover-message (or status "")))
