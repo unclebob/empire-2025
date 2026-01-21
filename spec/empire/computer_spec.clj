@@ -1000,17 +1000,19 @@
 (describe "transport mission - loading"
   (before (reset-all-atoms!))
 
-  (it "empty transport moves toward dock"
-    (reset! atoms/game-map (build-test-map ["~X~~~"
+  (it "empty transport moves toward good beach near city"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#X~~"
                                              "~~~~~"
                                              "~~t~~"]))
     (reset! atoms/computer-map @atoms/game-map)
-    ;; Transport at [2 2], dock at [0 1]
-    (let [move (computer/decide-transport-move [2 2])]
+    ;; Transport at [4 2], good beach near city at [2 3] (has 3+ land neighbors)
+    (let [move (computer/decide-transport-move [4 2])]
       (should-not-be-nil move)
-      ;; Should move toward dock
-      (should (< (computer/distance move [0 1])
-                 (computer/distance [2 2] [0 1])))))
+      ;; Should move toward the beach
+      (should (< (computer/distance move [2 3])
+                 (computer/distance [4 2] [2 3])))))
 
   (it "transport at dock with adjacent army loads it"
     (reset! atoms/game-map (build-test-map ["aX~"
@@ -1062,20 +1064,23 @@
     ;; Transport should have one less army
     (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 1])))))
 
-  (it "empty transport returns to base after unloading"
-    (reset! atoms/game-map (build-test-map ["~X~~~"
+  (it "empty transport returns to origin beach after unloading"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#X~~"
                                              "~~~~~"
                                              "~~~t~"]))
     (reset! atoms/computer-map @atoms/game-map)
-    ;; Transport with 0 armies, was unloading
-    (swap! atoms/game-map update-in [2 3 :contents] assoc
+    ;; Transport with 0 armies, was unloading, origin at [2 3]
+    (swap! atoms/game-map update-in [4 3 :contents] assoc
            :army-count 0
-           :transport-mission :unloading)
-    (let [move (computer/decide-transport-move [2 3])]
-      ;; Should move toward base
+           :transport-mission :unloading
+           :origin-beach [2 3])
+    (let [move (computer/decide-transport-move [4 3])]
+      ;; Should move toward origin beach
       (should-not-be-nil move)
-      (should (< (computer/distance move [0 1])
-                 (computer/distance [2 3] [0 1]))))))
+      (should (< (computer/distance move [2 3])
+                 (computer/distance [4 3] [2 3]))))))
 
 ;; Phase 3: Army-Transport Coordination Tests
 
@@ -1206,3 +1211,365 @@
       (should-not-be-nil move)
       ;; Should move toward city (down or left)
       (should (#{[1 1] [2 2] [2 1]} move)))))
+
+;; Transport Beach Operations Helper Tests
+
+(describe "count-land-neighbors"
+  (before (reset-all-atoms!))
+
+  (it "returns 0 for sea cell surrounded by sea"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~~"
+                                             "~~~"]))
+    (should= 0 (computer/count-land-neighbors [1 1])))
+
+  (it "returns count of adjacent land cells"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~#"
+                                             "###"]))
+    ;; Sea cell at [1 1] has 8 land neighbors
+    (should= 8 (computer/count-land-neighbors [1 1])))
+
+  (it "returns count of adjacent land and city cells"
+    (reset! atoms/game-map (build-test-map ["#X#"
+                                             "#~#"
+                                             "~~~"]))
+    ;; Sea cell at [1 1] has 5 land/city neighbors
+    (should= 5 (computer/count-land-neighbors [1 1])))
+
+  (it "returns 3 for typical beach"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~~"
+                                             "~~~"]))
+    ;; Sea cell at [1 1] has 3 land neighbors: [0 0], [0 1], [0 2], [1 0] = wait, let me count
+    ;; [1 1] neighbors: [0 0] land, [0 1] land, [0 2] land, [1 0] land, [1 2] sea, [2 0] sea, [2 1] sea, [2 2] sea
+    ;; That's 4 land neighbors. Let me adjust
+    (should= 4 (computer/count-land-neighbors [1 1]))))
+
+(describe "good-beach?"
+  (before (reset-all-atoms!))
+
+  (it "returns false for land cell"
+    (reset! atoms/game-map (build-test-map ["###"]))
+    (should-not (computer/good-beach? [0 1])))
+
+  (it "returns false for sea with fewer than 3 land neighbors"
+    (reset! atoms/game-map (build-test-map ["#~~"
+                                             "~~~"
+                                             "~~~"]))
+    ;; [0 1] has only 2 land neighbors: [0 0] and [1 0]
+    (should-not (computer/good-beach? [0 1])))
+
+  (it "returns true for sea with 3+ land neighbors"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "~~~"
+                                             "~~~"]))
+    ;; [1 1] has 3 land neighbors
+    (should (computer/good-beach? [1 1])))
+
+  (it "returns true for sea with many land neighbors"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~#"
+                                             "###"]))
+    (should (computer/good-beach? [1 1]))))
+
+(describe "completely-surrounded-by-sea?"
+  (before (reset-all-atoms!))
+
+  (it "returns true when no adjacent land"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~~"
+                                             "~~~"]))
+    (should (computer/completely-surrounded-by-sea? [1 1])))
+
+  (it "returns false when any adjacent land"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~#"
+                                             "~~~"]))
+    (should-not (computer/completely-surrounded-by-sea? [1 1])))
+
+  (it "returns false when adjacent to city"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~X"
+                                             "~~~"]))
+    (should-not (computer/completely-surrounded-by-sea? [1 1])))
+
+  (it "returns true at map edge with only sea neighbors"
+    (reset! atoms/game-map (build-test-map ["~~"
+                                             "~~"]))
+    (should (computer/completely-surrounded-by-sea? [0 0]))))
+
+(describe "directions-away-from-land"
+  (before (reset-all-atoms!))
+
+  (it "returns sea neighbors that move away from land"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "~~~"
+                                             "~~~"]))
+    ;; From [1 1], moving to [2 1] moves away from land (row 0)
+    (let [dirs (computer/directions-away-from-land [1 1])]
+      (should (some #{[2 1]} dirs))))
+
+  (it "returns empty when surrounded by land"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~#"
+                                             "###"]))
+    (should (empty? (computer/directions-away-from-land [1 1]))))
+
+  (it "filters out land cells"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "~~~"
+                                             "~~~"]))
+    (let [dirs (computer/directions-away-from-land [1 1])]
+      (doseq [d dirs]
+        (should= :sea (:type (get-in @atoms/game-map d)))))))
+
+(describe "find-good-beach-near-city"
+  (before (reset-all-atoms!))
+
+  (it "finds good beach adjacent to computer city"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#X~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [beach (computer/find-good-beach-near-city)]
+      (should-not-be-nil beach)
+      (should (computer/good-beach? beach))))
+
+  (it "returns nil when no computer city exists"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer/find-good-beach-near-city)))
+
+  (it "returns nil when city has no good beach nearby"
+    (reset! atoms/game-map (build-test-map ["~X~"
+                                             "~~~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; City at [0 1] is on an island - sea neighbors only have 1-2 land neighbors
+    (should-be-nil (computer/find-good-beach-near-city))))
+
+(describe "find-unloading-beach-for-invasion"
+  (before (reset-all-atoms!))
+
+  (it "finds good beach near free city"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~##~~"
+                                             "~+~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; City at [3 1], beach at [2 0] has 3 land/city neighbors: [1 1], [2 1], [3 1]
+    (let [beach (computer/find-unloading-beach-for-invasion)]
+      (should-not-be-nil beach)
+      (should (computer/good-beach? beach))))
+
+  (it "finds good beach near player city when no free cities"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~##~~"
+                                             "~O~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [beach (computer/find-unloading-beach-for-invasion)]
+      (should-not-be-nil beach)
+      (should (computer/good-beach? beach))))
+
+  (it "returns nil when no target cities visible"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer/find-unloading-beach-for-invasion))))
+
+;; Transport Mission Handler Tests
+
+(describe "transport-move-seeking-beach"
+  (before (reset-all-atoms!))
+
+  (it "navigates transport toward good beach"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~##~~"
+                                             "~X~~~"
+                                             "~~t~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [4 2], seeking beach [2 2] near city at [3 1]
+    ;; Note: [2 2] is sea with neighbors: [1 1] land, [1 2] land, [1 3] land, [2 1] land, [2 3] sea, [3 1] city, [3 2] sea, [3 3] sea
+    ;; That's 5 land/city neighbors, so [2 2] is a good beach
+    (swap! atoms/game-map update-in [4 2 :contents] assoc
+           :transport-mission :seeking-beach
+           :origin-beach [2 2])
+    (let [move (computer/decide-transport-move [4 2])]
+      (should-not-be-nil move)
+      ;; Should move toward beach
+      (should (< (computer/distance move [2 2])
+                 (computer/distance [4 2] [2 2])))))
+
+  (it "sets origin-beach and switches to loading when reaching good beach"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~##t~"
+                                             "~X~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 3], origin-beach is [2 3] (it's seeking the beach it's already at)
+    ;; [2 3] neighbors: [1 2] land, [1 3] land, [1 4] sea, [2 2] land, [2 4] sea, [3 2] sea, [3 3] sea, [3 4] sea
+    ;; That's 3 land neighbors, so [2 3] is a good beach
+    (should (computer/good-beach? [2 3]))
+    (swap! atoms/game-map update-in [2 3 :contents] assoc
+           :transport-mission :seeking-beach
+           :origin-beach [2 3])
+    (computer/decide-transport-move [2 3])
+    ;; Should switch to loading and keep origin-beach
+    (let [transport (:contents (get-in @atoms/game-map [2 3]))]
+      (should= :loading (:transport-mission transport))
+      (should= [2 3] (:origin-beach transport)))))
+
+(describe "transport-move-departing"
+  (before (reset-all-atoms!))
+
+  (it "moves transport away from land"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#t~~"
+                                             "~~~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 2], should move away from land to row 3 or 4
+    (swap! atoms/game-map update-in [2 2 :contents] assoc
+           :transport-mission :departing
+           :army-count 2
+           :origin-beach [2 2])
+    (let [move (computer/decide-transport-move [2 2])]
+      (should-not-be-nil move)
+      ;; Should move to sea neighbor farther from land
+      (should= :sea (:type (get-in @atoms/game-map move)))))
+
+  (it "switches to en-route when completely at sea with target available"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~~~~~"
+                                             "~~t~~"
+                                             "~~~~~"
+                                             "~~~~~"
+                                             "~###~"
+                                             "~##~~"
+                                             "~+~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 2] completely surrounded by sea, free city at [7 1] on coast
+    ;; City neighbors include sea at [6 0], [7 0], etc.
+    (swap! atoms/game-map update-in [2 2 :contents] assoc
+           :transport-mission :departing
+           :army-count 2
+           :origin-beach [0 0])
+    (should (computer/completely-surrounded-by-sea? [2 2]))
+    ;; Verify a good beach exists for invasion
+    (should-not-be-nil (computer/find-unloading-beach-for-invasion))
+    (computer/decide-transport-move [2 2])
+    ;; Should switch to en-route
+    (let [transport (:contents (get-in @atoms/game-map [2 2]))]
+      (should= :en-route (:transport-mission transport)))))
+
+(describe "transport-move-returning"
+  (before (reset-all-atoms!))
+
+  (it "navigates back to origin beach"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~##~~"
+                                             "~X~~~"
+                                             "~~t~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [4 2], returning to origin beach at [2 2]
+    (swap! atoms/game-map update-in [4 2 :contents] assoc
+           :transport-mission :returning
+           :army-count 0
+           :origin-beach [2 2])
+    (let [move (computer/decide-transport-move [4 2])]
+      (should-not-be-nil move)
+      ;; Should move toward origin beach
+      (should (< (computer/distance move [2 2])
+                 (computer/distance [4 2] [2 2])))))
+
+  (it "switches to loading when reaching origin beach"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#t~~"
+                                             "~X~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 2] which is its origin beach
+    (swap! atoms/game-map update-in [2 2 :contents] assoc
+           :transport-mission :returning
+           :army-count 0
+           :origin-beach [2 2])
+    (computer/decide-transport-move [2 2])
+    ;; Should switch to loading
+    (let [transport (:contents (get-in @atoms/game-map [2 2]))]
+      (should= :loading (:transport-mission transport)))))
+
+(describe "disembark-army-to-explore"
+  (before (reset-all-atoms!))
+
+  (it "creates army with explore mode on land"
+    (reset! atoms/game-map (build-test-map ["~#~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [1 1] with armies
+    (swap! atoms/game-map update-in [1 1 :contents] assoc :army-count 2)
+    (computer/disembark-army-to-explore [1 1] [0 1])
+    ;; Army should be on land with explore mode
+    (let [army (:contents (get-in @atoms/game-map [0 1]))]
+      (should= :army (:type army))
+      (should= :computer (:owner army))
+      (should= :explore (:mode army))
+      (should= 50 (:explore-steps army))
+      (should (contains? (:visited army) [0 1]))))
+
+  (it "decrements transport army count"
+    (reset! atoms/game-map (build-test-map ["~#~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map update-in [1 1 :contents] assoc :army-count 2)
+    (computer/disembark-army-to-explore [1 1] [0 1])
+    (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 1]))))))
+
+(describe "transport unloading with explore mode"
+  (before (reset-all-atoms!))
+
+  (it "disembarks armies in explore mode during unloading"
+    (reset! atoms/game-map (build-test-map ["~#~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport in unloading mission
+    (swap! atoms/game-map update-in [1 1 :contents] assoc
+           :transport-mission :unloading
+           :army-count 2
+           :origin-beach [1 1])
+    (computer/process-computer-unit [1 1])
+    ;; Army should be on land with explore mode
+    (let [army (:contents (get-in @atoms/game-map [0 1]))]
+      (should= :army (:type army))
+      (should= :explore (:mode army)))))
+
+(describe "transport production initialization"
+  (before (reset-all-atoms!))
+
+  (it "newly produced transport has idle mission and nil origin-beach"
+    (reset! atoms/game-map (build-test-map ["~X~"]))
+    (reset! atoms/player-map @atoms/game-map)
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Set transport production ready to complete
+    (reset! atoms/production {[0 1] {:item :transport :remaining-rounds 1}})
+    (game-loop/start-new-round)
+    ;; Transport should be on the city
+    (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+      (should= :transport (:type unit))
+      (should= :computer (:owner unit))
+      (should= :idle (:transport-mission unit))
+      (should-be-nil (:origin-beach unit)))))

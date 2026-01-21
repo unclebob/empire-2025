@@ -29,6 +29,9 @@
                       unit (if (= item :satellite)
                              (assoc unit :turns-remaining config/satellite-turns)
                              unit)
+                      unit (if (= item :transport)
+                             (assoc unit :transport-mission :idle :origin-beach nil)
+                             unit)
                       unit (cond
                              (and (= item :army) (= marching-orders :lookaround))
                              (assoc unit :mode :explore :explore-steps 50)

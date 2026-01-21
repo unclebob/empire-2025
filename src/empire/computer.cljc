@@ -539,7 +539,67 @@
     (let [unit-type (decide-production pos)]
       (production/set-city-production pos unit-type))))
 
-;; Transport Operations
+;; Transport Operations - Beach Helpers
+
+(defn count-land-neighbors
+  "Returns count of adjacent land or city cells for a position."
+  [pos]
+  (count (filter (fn [neighbor]
+                   (#{:land :city} (:type (get-in @atoms/game-map neighbor))))
+                 (get-neighbors pos))))
+
+(defn good-beach?
+  "Returns true if pos is a sea cell with 3+ adjacent land/city cells."
+  [pos]
+  (let [cell (get-in @atoms/game-map pos)]
+    (and (= :sea (:type cell))
+         (>= (count-land-neighbors pos) 3))))
+
+(defn completely-surrounded-by-sea?
+  "Returns true if position has no adjacent land cells."
+  [pos]
+  (not-any? (fn [neighbor]
+              (#{:land :city} (:type (get-in @atoms/game-map neighbor))))
+            (get-neighbors pos)))
+
+(defn directions-away-from-land
+  "Returns sea neighbors where moving increases distance from all land cells."
+  [pos]
+  (let [current-land-cells (filter (fn [neighbor]
+                                      (#{:land :city} (:type (get-in @atoms/game-map neighbor))))
+                                    (get-neighbors pos))
+        sea-neighbors (filter (fn [neighbor]
+                                 (= :sea (:type (get-in @atoms/game-map neighbor))))
+                               (get-neighbors pos))]
+    (when (seq current-land-cells)
+      (filter (fn [sea-neighbor]
+                ;; Check that this sea cell is farther from all land than current pos
+                (every? (fn [land-cell]
+                          (> (distance sea-neighbor land-cell)
+                             (distance pos land-cell)))
+                        current-land-cells))
+              sea-neighbors))))
+
+(defn find-good-beach-near-city
+  "Finds a good beach (sea with 3+ land neighbors) near a computer city."
+  []
+  (let [coastal-cities (filter city-is-coastal? (find-visible-cities #{:computer}))]
+    (first (for [city coastal-cities
+                  neighbor (get-neighbors city)
+                  :when (good-beach? neighbor)]
+              neighbor))))
+
+(defn find-unloading-beach-for-invasion
+  "Finds a good beach near enemy/free cities for invasion."
+  []
+  (let [target-cities (concat (find-visible-cities #{:free})
+                               (find-visible-cities #{:player}))]
+    (first (for [city target-cities
+                  neighbor (get-neighbors city)
+                  :when (good-beach? neighbor)]
+              neighbor))))
+
+;; Transport Operations - Loading Dock
 
 (defn find-loading-dock
   "Finds nearest sea position adjacent to a coastal computer city for loading."
@@ -587,9 +647,12 @@
 
 (defn- set-transport-mission
   "Sets transport mission state."
-  [pos mission target]
-  (swap! atoms/game-map update-in (conj pos :contents)
-         assoc :transport-mission mission :transport-target target))
+  ([pos mission target]
+   (swap! atoms/game-map update-in (conj pos :contents)
+          assoc :transport-mission mission :transport-target target))
+  ([pos mission target origin-beach]
+   (swap! atoms/game-map update-in (conj pos :contents)
+          assoc :transport-mission mission :transport-target target :origin-beach origin-beach)))
 
 (defn- load-adjacent-army
   "Loads an adjacent computer army onto the transport. Returns true if loaded."
@@ -620,36 +683,66 @@
       ;; Decrement transport army count
       (swap! atoms/game-map update-in (conj transport-pos :contents :army-count) dec))))
 
+(defn disembark-army-to-explore
+  "Disembarks one army from transport to land position with explore mode."
+  [transport-pos land-pos]
+  (let [transport (get-in @atoms/game-map (conj transport-pos :contents))]
+    (when (pos? (:army-count transport 0))
+      ;; Create army on land with explore mode
+      (swap! atoms/game-map assoc-in (conj land-pos :contents)
+             {:type :army
+              :owner :computer
+              :hits 1
+              :mode :explore
+              :explore-steps 50
+              :visited #{land-pos}})
+      ;; Decrement transport army count
+      (swap! atoms/game-map update-in (conj transport-pos :contents :army-count) dec))))
+
 (defn- transport-move-idle
-  "Handles transport in idle state - find dock or start invasion."
+  "Handles transport in idle state - find good beach or start invasion."
   [pos transport]
   (let [army-count (:army-count transport 0)]
     (if (pos? army-count)
       ;; Has armies but no mission - find invasion target
-      (when-let [target (find-invasion-target)]
+      (when-let [target (find-unloading-beach-for-invasion)]
         (set-transport-mission pos :en-route target)
         (pathfinding/next-step pos target :transport))
-      ;; Empty - find dock to load
-      (when-let [dock (find-loading-dock pos)]
-        (if (= pos dock)
-          (do (set-transport-mission pos :loading nil) nil)
-          (pathfinding/next-step pos dock :transport))))))
+      ;; Empty - find good beach to load at
+      (when-let [beach (find-good-beach-near-city)]
+        (if (= pos beach)
+          (do (set-transport-mission pos :loading nil beach) nil)
+          (do (set-transport-mission pos :seeking-beach beach beach)
+              (pathfinding/next-step pos beach :transport)))))))
+
+(defn- transport-move-seeking-beach
+  "Handles transport in seeking-beach state - navigate to good beach."
+  [pos transport]
+  (let [target-beach (:origin-beach transport)]
+    (if (and target-beach (= pos target-beach) (good-beach? pos))
+      ;; Reached good beach - switch to loading
+      (do (set-transport-mission pos :loading nil pos) nil)
+      ;; Navigate toward beach
+      (when target-beach
+        (or (pathfinding/next-step pos target-beach :transport)
+            (first (find-passable-ship-neighbors pos)))))))
 
 (defn- transport-move-loading
   "Handles transport in loading state - load armies, depart when ready."
   [pos transport]
   (let [army-count (:army-count transport 0)
-        timeout (:loading-timeout transport 0)]
+        timeout (:loading-timeout transport 0)
+        origin-beach (:origin-beach transport)]
     (cond
       (>= army-count 6)
-      (when-let [target (find-invasion-target)]
-        (set-transport-mission pos :en-route target)
-        nil)
+      ;; Full - start departing
+      (do (set-transport-mission pos :departing nil origin-beach)
+          nil)
 
       (> timeout 3)
+      ;; Timeout - depart if we have any armies
       (when (pos? army-count)
-        (when-let [target (find-invasion-target)]
-          (set-transport-mission pos :en-route target))
+        (set-transport-mission pos :departing nil origin-beach)
         nil)
 
       :else
@@ -658,26 +751,73 @@
         (load-adjacent-army pos)
         nil))))
 
-(defn- transport-move-en-route
-  "Handles transport in en-route state - navigate to target shore."
+(defn- transport-move-departing
+  "Handles transport in departing state - move away from land until at sea."
   [pos transport]
-  (let [target (:transport-target transport)]
-    (if (adjacent-to-land? pos)
-      (do (set-transport-mission pos :unloading target) nil)
+  (let [origin-beach (:origin-beach transport)]
+    (if (completely-surrounded-by-sea? pos)
+      ;; At sea - find invasion target and switch to en-route
+      (if-let [target (find-unloading-beach-for-invasion)]
+        (do (set-transport-mission pos :en-route target origin-beach)
+            nil)
+        ;; No target found - stay departing and explore
+        (first (find-passable-ship-neighbors pos)))
+      ;; Move away from land
+      (let [away-dirs (directions-away-from-land pos)]
+        (if (seq away-dirs)
+          (first away-dirs)
+          ;; No direction away - just move to any sea neighbor
+          (first (find-passable-ship-neighbors pos)))))))
+
+(defn- transport-move-en-route
+  "Handles transport in en-route state - navigate to good unloading beach."
+  [pos transport]
+  (let [target (:transport-target transport)
+        origin-beach (:origin-beach transport)]
+    (cond
+      ;; Reached a good beach for unloading
+      (and (adjacent-to-land? pos) (good-beach? pos))
+      (do (set-transport-mission pos :unloading target origin-beach) nil)
+
+      ;; Navigate toward target
+      target
       (or (pathfinding/next-step pos target :transport)
-          (first (find-passable-ship-neighbors pos))))))
+          (first (find-passable-ship-neighbors pos)))
+
+      ;; No target - find one
+      :else
+      (when-let [new-target (find-unloading-beach-for-invasion)]
+        (set-transport-mission pos :en-route new-target origin-beach)
+        (pathfinding/next-step pos new-target :transport)))))
 
 (defn- transport-move-unloading
-  "Handles transport in unloading state - disembark armies, return to base."
+  "Handles transport in unloading state - disembark armies in explore mode, return to origin."
   [pos transport]
-  (let [army-count (:army-count transport 0)]
+  (let [army-count (:army-count transport 0)
+        origin-beach (:origin-beach transport)]
     (if (zero? army-count)
-      (do (set-transport-mission pos :idle nil)
-          (when-let [base (find-loading-dock pos)]
-            (pathfinding/next-step pos base :transport)))
+      ;; Done unloading - return to origin beach
+      (do (set-transport-mission pos :returning nil origin-beach)
+          (when origin-beach
+            (pathfinding/next-step pos origin-beach :transport)))
+      ;; Disembark army in explore mode
       (when-let [land (find-disembark-target pos)]
-        (disembark-army pos land)
+        (disembark-army-to-explore pos land)
         nil))))
+
+(defn- transport-move-returning
+  "Handles transport in returning state - navigate back to origin beach."
+  [pos transport]
+  (let [origin-beach (:origin-beach transport)]
+    (if (and origin-beach (= pos origin-beach))
+      ;; Reached origin - switch to loading
+      (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :loading-timeout)
+          (set-transport-mission pos :loading nil origin-beach)
+          nil)
+      ;; Navigate toward origin beach
+      (when origin-beach
+        (or (pathfinding/next-step pos origin-beach :transport)
+            (first (find-passable-ship-neighbors pos)))))))
 
 (defn decide-transport-move
   "Decides transport movement based on mission state."
@@ -687,9 +827,12 @@
         mission (:transport-mission transport :idle)]
     (case mission
       :idle (transport-move-idle pos transport)
+      :seeking-beach (transport-move-seeking-beach pos transport)
       :loading (transport-move-loading pos transport)
+      :departing (transport-move-departing pos transport)
       :en-route (transport-move-en-route pos transport)
       :unloading (transport-move-unloading pos transport)
+      :returning (transport-move-returning pos transport)
       nil)))
 
 (defn- process-transport
