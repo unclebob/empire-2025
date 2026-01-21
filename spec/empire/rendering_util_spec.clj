@@ -19,6 +19,16 @@
     (let [unit {:type :transport :hits 1 :mode :awake :army-count 4 :owner :player}]
       (should= "player transport [1/1] cargo:4 awake" (ru/format-unit-status unit))))
 
+  (it "formats transport with mission"
+    (let [unit {:type :transport :hits 1 :mode :awake :army-count 2 :owner :computer
+                :transport-mission :loading}]
+      (should= "computer transport [1/1] cargo:2 loading awake" (ru/format-unit-status unit))))
+
+  (it "formats transport with en-route mission"
+    (let [unit {:type :transport :hits 1 :mode :awake :army-count 6 :owner :computer
+                :transport-mission :en-route}]
+      (should= "computer transport [1/1] cargo:6 en-route awake" (ru/format-unit-status unit))))
+
   (it "formats carrier with cargo"
     (let [unit {:type :carrier :hits 8 :mode :moving :fighter-count 3 :owner :player}]
       (should= "player carrier [8/8] cargo:3 moving" (ru/format-unit-status unit))))

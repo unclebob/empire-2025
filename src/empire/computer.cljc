@@ -8,7 +8,7 @@
             [empire.units.dispatcher :as dispatcher]))
 
 ;; Forward declarations for army-transport coordination and transport processing
-(declare find-adjacent-loading-transport find-loading-transport army-should-board-transport? process-transport)
+(declare find-adjacent-loading-transport find-loading-transport army-should-board-transport? process-transport direct-armies-to-beach)
 
 (defn- get-neighbors
   "Returns valid neighbor coordinates for a position."
@@ -215,21 +215,23 @@
 
 (defn decide-army-move
   "Decides where a computer army should move. Returns target coords or nil.
-   Priority: 1) Attack adjacent target 2) Board adjacent transport 3) Retreat if damaged
-   4) Move toward transport if should board 5) Move toward city 6) Explore."
+   Priority: 1) Attack adjacent target 2) Board adjacent transport if recruited or no land route
+   3) Retreat if damaged 4) Follow directed target 5) Move toward transport if should board
+   6) Move toward city 7) Explore."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
         adjacent-target (find-adjacent-army-target pos)
         adjacent-transport (find-adjacent-loading-transport pos)
-        passable (find-passable-neighbors pos)]
+        passable (find-passable-neighbors pos)
+        directed-target (:target unit)]
     (cond
       ;; Attack adjacent target
       adjacent-target
       adjacent-target
 
-      ;; Board adjacent transport if no land route to targets
-      (and adjacent-transport (army-should-board-transport? pos))
+      ;; Board adjacent transport if recruited (has target) or no land route to cities
+      (and adjacent-transport (or directed-target (army-should-board-transport? pos)))
       adjacent-transport
 
       ;; Retreat if damaged
@@ -239,6 +241,11 @@
       ;; No valid land moves
       (empty? passable)
       nil
+
+      ;; Follow directed target (from transport recruitment)
+      directed-target
+      (or (pathfinding/next-step pos directed-target :army)
+          (move-toward pos directed-target passable))
 
       ;; Move toward loading transport if should board
       (army-should-board-transport? pos)
@@ -388,19 +395,31 @@
         (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
         nil))))
 
+(defn- board-transport
+  "Loads army onto transport. Removes army from pos, increments transport army count."
+  [army-pos transport-pos]
+  (swap! atoms/game-map update-in army-pos dissoc :contents)
+  (swap! atoms/game-map update-in (conj transport-pos :contents :army-count) (fnil inc 0)))
+
 (defn- process-army [pos]
   (when-let [target (decide-army-move pos)]
-    (let [target-cell (get-in @atoms/game-map target)]
+    (let [target-cell (get-in @atoms/game-map target)
+          target-unit (:contents target-cell)]
       (cond
         ;; Attack player unit
-        (and (:contents target-cell)
-             (= (:owner (:contents target-cell)) :player))
+        (and target-unit (= (:owner target-unit) :player))
         (combat/attempt-attack pos target)
 
         ;; Attack hostile city (player or free)
         (and (= (:type target-cell) :city)
              (#{:player :free} (:city-status target-cell)))
         (attempt-conquest-computer pos target)
+
+        ;; Board friendly transport
+        (and target-unit
+             (= :computer (:owner target-unit))
+             (= :transport (:type target-unit)))
+        (board-transport pos target)
 
         ;; Normal move
         :else
@@ -548,11 +567,20 @@
                    (#{:land :city} (:type (get-in @atoms/game-map neighbor))))
                  (get-neighbors pos))))
 
+(defn- adjacent-to-city?
+  "Returns true if position has an adjacent city cell."
+  [pos]
+  (some (fn [neighbor]
+          (= :city (:type (get-in @atoms/game-map neighbor))))
+        (get-neighbors pos)))
+
 (defn good-beach?
-  "Returns true if pos is a sea cell with 3+ adjacent land/city cells."
+  "Returns true if pos is a sea cell with 3+ adjacent land cells and no adjacent cities.
+   Loading beaches should not be adjacent to cities."
   [pos]
   (let [cell (get-in @atoms/game-map pos)]
     (and (= :sea (:type cell))
+         (not (adjacent-to-city? pos))
          (>= (count-land-neighbors pos) 3))))
 
 (defn completely-surrounded-by-sea?
@@ -621,23 +649,27 @@
       [])))
 
 (defn find-good-beach-near-city
-  "Finds a good beach (sea with 3+ land neighbors) near a computer city."
+  "Finds a good beach (sea with 3+ land neighbors, no city neighbors) near a computer city.
+   Looks at cells within 2 hops of the city since beaches can't be adjacent to cities."
   []
   (let [coastal-cities (filter city-is-coastal? (find-visible-cities #{:computer}))]
     (first (for [city coastal-cities
-                  neighbor (get-neighbors city)
-                  :when (good-beach? neighbor)]
-              neighbor))))
+                 neighbor (get-neighbors city)
+                 neighbor2 (get-neighbors neighbor)
+                 :when (good-beach? neighbor2)]
+             neighbor2))))
 
 (defn find-unloading-beach-for-invasion
-  "Finds a good beach near enemy/free cities for invasion."
+  "Finds a good beach near enemy/free cities for invasion.
+   Looks at cells within 2 hops of the city since beaches can't be adjacent to cities."
   []
   (let [target-cities (concat (find-visible-cities #{:free})
                                (find-visible-cities #{:player}))]
     (first (for [city target-cities
-                  neighbor (get-neighbors city)
-                  :when (good-beach? neighbor)]
-              neighbor))))
+                 neighbor (get-neighbors city)
+                 neighbor2 (get-neighbors neighbor)
+                 :when (good-beach? neighbor2)]
+             neighbor2))))
 
 ;; Transport Operations - Loading Dock
 
@@ -751,7 +783,9 @@
       ;; Empty - find good beach to load at
       (when-let [beach (find-good-beach-near-city)]
         (if (= pos beach)
-          (do (set-transport-mission pos :loading nil beach) nil)
+          (do (set-transport-mission pos :loading nil beach)
+              (direct-armies-to-beach pos 6)
+              nil)
           (do (set-transport-mission pos :seeking-beach beach beach)
               (pathfinding/next-step pos beach :transport)))))))
 
@@ -760,8 +794,10 @@
   [pos transport]
   (let [target-beach (:origin-beach transport)]
     (if (and target-beach (= pos target-beach) (good-beach? pos))
-      ;; Reached good beach - switch to loading
-      (do (set-transport-mission pos :loading nil pos) nil)
+      ;; Reached good beach - switch to loading and recruit armies
+      (do (set-transport-mission pos :loading nil pos)
+          (direct-armies-to-beach pos 6)
+          nil)
       ;; Navigate toward beach
       (when target-beach
         (or (pathfinding/next-step pos target-beach :transport)
@@ -858,9 +894,10 @@
   [pos transport]
   (let [origin-beach (:origin-beach transport)]
     (if (and origin-beach (= pos origin-beach))
-      ;; Reached origin - switch to loading
+      ;; Reached origin - switch to loading and recruit armies
       (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :loading-timeout)
           (set-transport-mission pos :loading nil origin-beach)
+          (direct-armies-to-beach pos 6)
           nil)
       ;; Navigate toward origin beach
       (when origin-beach
@@ -936,3 +973,28 @@
       ;; Board transport if no cities reachable by land
       (and (seq all-targets)
            (not-any? #(pathfinding/next-step army-pos % :army) all-targets)))))
+
+;; Army-Transport Recruitment
+
+(defn find-nearest-armies
+  "Finds the n nearest computer armies to a position. Returns seq of positions."
+  [pos n]
+  (let [armies (for [i (range (count @atoms/game-map))
+                     j (range (count (first @atoms/game-map)))
+                     :let [cell (get-in @atoms/game-map [i j])
+                           unit (:contents cell)]
+                     :when (and unit
+                                (= :army (:type unit))
+                                (= :computer (:owner unit)))]
+                 [i j])]
+    (->> armies
+         (sort-by #(distance pos %))
+         (take n))))
+
+(defn direct-armies-to-beach
+  "Directs the n nearest computer armies to move toward the beach position."
+  [beach-pos n]
+  (let [nearest (find-nearest-armies beach-pos n)]
+    (doseq [army-pos nearest]
+      (swap! atoms/game-map update-in (conj army-pos :contents)
+             assoc :target beach-pos))))

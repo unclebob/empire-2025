@@ -20,6 +20,8 @@
                 :transport (:army-count unit 0)
                 :carrier (:fighter-count unit 0)
                 nil)
+        mission (when (= (:type unit) :transport)
+                  (:transport-mission unit))
         orders (cond
                  (:marching-orders unit) "march"
                  (:flight-path unit) "flight"
@@ -28,6 +30,7 @@
          " [" hits "/" max-hits "]"
          (when fuel (str " fuel:" fuel))
          (when cargo (str " cargo:" cargo))
+         (when mission (str " " (name mission)))
          (when orders (str " " orders))
          " " (name (:mode unit)))))
 
