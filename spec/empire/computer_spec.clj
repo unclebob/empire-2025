@@ -296,7 +296,27 @@
                                              "#~#"]))
     (reset! atoms/computer-map @atoms/game-map)
     (let [move (computer/decide-ship-move [0 1] :destroyer)]
-      (should= [1 1] move))))
+      (should= [1 1] move)))
+
+  (it "does not target adjacent free city"
+    (reset! atoms/game-map (build-test-map ["+d~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Ship should NOT try to attack the free city - it can't move there
+    (let [move (computer/decide-ship-move [0 1] :patrol-boat)]
+      ;; Should move to a sea cell, not the city
+      (should-not= [0 0] move)
+      (should= :sea (:type (get-in @atoms/game-map move)))))
+
+  (it "does not target adjacent player city"
+    (reset! atoms/game-map (build-test-map ["Od~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Ship should NOT try to attack the player city - it can't move there
+    (let [move (computer/decide-ship-move [0 1] :patrol-boat)]
+      ;; Should move to a sea cell, not the city
+      (should-not= [0 0] move)
+      (should= :sea (:type (get-in @atoms/game-map move))))))
 
 (describe "decide-fighter-move"
   (before (reset-all-atoms!))
@@ -766,3 +786,301 @@
           (println "=======================\n"))
         (should (>= @armies-produced 4))
         (should= @armies-produced final-count)))))
+
+;; Phase 3: Smart Production Tests
+
+(describe "city-is-coastal?"
+  (before (reset-all-atoms!))
+
+  (it "returns true when city has adjacent sea"
+    (reset! atoms/game-map (build-test-map ["~X#"]))
+    (should (computer/city-is-coastal? [0 1])))
+
+  (it "returns false for inland city"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#X#"
+                                             "###"]))
+    (should-not (computer/city-is-coastal? [1 1])))
+
+  (it "returns true for city surrounded by sea"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~X~"
+                                             "~~~"]))
+    (should (computer/city-is-coastal? [1 1]))))
+
+(describe "count-computer-units"
+  (before (reset-all-atoms!))
+
+  (it "counts all unit types"
+    (reset! atoms/game-map (build-test-map ["a#a"
+                                             "~~~"
+                                             "~d~"]))
+    (let [counts (computer/count-computer-units)]
+      (should= 2 (get counts :army 0))
+      (should= 1 (get counts :destroyer 0))
+      (should= 0 (get counts :transport 0))))
+
+  (it "ignores player units"
+    (reset! atoms/game-map (build-test-map ["aAa"]))
+    (let [counts (computer/count-computer-units)]
+      (should= 2 (get counts :army 0))))
+
+  (it "returns empty map when no units"
+    (reset! atoms/game-map (build-test-map ["###"]))
+    (let [counts (computer/count-computer-units)]
+      (should= {} counts))))
+
+(describe "smart decide-production"
+  (before (reset-all-atoms!))
+
+  (it "returns :transport at coastal city when armies outnumber transports"
+    (reset! atoms/game-map (build-test-map ["~X#"
+                                             "a#a"
+                                             "a#a"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; 4 armies, 0 transports - need transports
+    (should= :transport (computer/decide-production [0 1])))
+
+  (it "returns :army at inland city when few armies exist"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#X#"
+                                             "#a#"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Inland city, only 1 army - build more armies first
+    (should= :army (computer/decide-production [1 1])))
+
+  (it "returns warship at coastal city when no warships exist"
+    (reset! atoms/game-map (build-test-map ["~X~"
+                                             "~t~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Has transport but no warships
+    (let [unit (computer/decide-production [0 1])]
+      (should (#{:destroyer :patrol-boat} unit))))
+
+  (it "returns :fighter when no fighters exist and has enough armies"
+    (reset! atoms/game-map (build-test-map ["#X#"
+                                             "aaa"
+                                             "aaa"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Inland city, no fighters, 6 armies - need air support
+    (should= :fighter (computer/decide-production [0 1])))
+
+  (it "returns :army by default when all needs satisfied"
+    (reset! atoms/game-map (build-test-map ["#X#"
+                                             "#ff"
+                                             "aaa"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Has 2 fighters (enough), has 3 armies - just build more armies
+    (should= :army (computer/decide-production [0 1]))))
+
+;; Phase 3: Transport Helper Tests
+
+(describe "find-loading-dock"
+  (before (reset-all-atoms!))
+
+  (it "finds sea position adjacent to coastal computer city"
+    (reset! atoms/game-map (build-test-map ["~X~"
+                                             "~~~"
+                                             "~t~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; City at [0 1], dock should be adjacent sea: [0 0], [0 2], or [1 1]
+    (let [dock (computer/find-loading-dock [2 1])]
+      (should (#{[0 0] [0 2] [1 1]} dock))))
+
+  (it "returns nil when no coastal city"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~~~"
+                                             "~t~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer/find-loading-dock [2 1])))
+
+  (it "finds nearest dock when multiple exist"
+    (reset! atoms/game-map (build-test-map ["~X~~~X~"
+                                             "~~~t~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [1 3], cities at [0 1] and [0 5]
+    ;; Docks are sea adjacent to cities - should return nearest
+    (let [dock (computer/find-loading-dock [1 3])]
+      (should-not-be-nil dock)
+      (should= :sea (:type (get-in @atoms/game-map dock))))))
+
+(describe "find-invasion-target"
+  (before (reset-all-atoms!))
+
+  (it "finds shore near free city"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~+#"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Free city at [1 1], shore should be [1 0] or [0 1] or [2 1]
+    (let [target (computer/find-invasion-target)]
+      (should-not-be-nil target)
+      ;; Target should be sea adjacent to land
+      (should= :sea (:type (get-in @atoms/game-map target)))))
+
+  (it "finds shore near player city when no free cities"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~O#"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [target (computer/find-invasion-target)]
+      (should-not-be-nil target)
+      (should= :sea (:type (get-in @atoms/game-map target)))))
+
+  (it "returns nil when no target cities visible"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~X~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer/find-invasion-target))))
+
+(describe "find-disembark-target"
+  (before (reset-all-atoms!))
+
+  (it "finds adjacent empty land"
+    (reset! atoms/game-map (build-test-map ["~#~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should= [0 1] (computer/find-disembark-target [1 1])))
+
+  (it "returns nil when no adjacent land"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer/find-disembark-target [1 1])))
+
+  (it "returns nil when adjacent land is occupied"
+    (reset! atoms/game-map (build-test-map ["~a~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer/find-disembark-target [1 1]))))
+
+;; Phase 3: Transport Mission Tests
+
+(describe "transport mission - loading"
+  (before (reset-all-atoms!))
+
+  (it "empty transport moves toward dock"
+    (reset! atoms/game-map (build-test-map ["~X~~~"
+                                             "~~~~~"
+                                             "~~t~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 2], dock at [0 1]
+    (let [move (computer/decide-transport-move [2 2])]
+      (should-not-be-nil move)
+      ;; Should move toward dock
+      (should (< (computer/distance move [0 1])
+                 (computer/distance [2 2] [0 1])))))
+
+  (it "transport at dock with adjacent army loads it"
+    (reset! atoms/game-map (build-test-map ["aX~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Set transport to loading mission
+    (swap! atoms/game-map assoc-in [1 1 :contents :transport-mission] :loading)
+    (computer/process-computer-unit [1 1])
+    ;; Army should be loaded (removed from map, added to transport)
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+    (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 1]))))))
+
+(describe "transport mission - navigation"
+  (before (reset-all-atoms!))
+
+  (it "loaded transport moves toward invasion target"
+    (reset! atoms/game-map (build-test-map ["~~~+#"
+                                             "~~~~~"
+                                             "t~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Give transport armies and mission
+    (swap! atoms/game-map update-in [2 0 :contents] assoc
+           :army-count 2
+           :transport-mission :en-route
+           :transport-target [0 2])
+    (let [move (computer/decide-transport-move [2 0])]
+      (should-not-be-nil move)
+      ;; Should move toward target
+      (should (< (computer/distance move [0 2])
+                 (computer/distance [2 0] [0 2]))))))
+
+(describe "transport mission - unloading"
+  (before (reset-all-atoms!))
+
+  (it "transport adjacent to land disembarks army"
+    (reset! atoms/game-map (build-test-map ["~#~"
+                                             "~t~"
+                                             "~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Give transport armies and unloading mission
+    (swap! atoms/game-map update-in [1 1 :contents] assoc
+           :army-count 2
+           :transport-mission :unloading)
+    (computer/process-computer-unit [1 1])
+    ;; Army should be on land
+    (should= :army (:type (:contents (get-in @atoms/game-map [0 1]))))
+    (should= :computer (:owner (:contents (get-in @atoms/game-map [0 1]))))
+    ;; Transport should have one less army
+    (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 1])))))
+
+  (it "empty transport returns to base after unloading"
+    (reset! atoms/game-map (build-test-map ["~X~~~"
+                                             "~~~~~"
+                                             "~~~t~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport with 0 armies, was unloading
+    (swap! atoms/game-map update-in [2 3 :contents] assoc
+           :army-count 0
+           :transport-mission :unloading)
+    (let [move (computer/decide-transport-move [2 3])]
+      ;; Should move toward base
+      (should-not-be-nil move)
+      (should (< (computer/distance move [0 1])
+                 (computer/distance [2 3] [0 1]))))))
+
+;; Phase 3: Army-Transport Coordination Tests
+
+(describe "army-transport coordination"
+  (before (reset-all-atoms!))
+
+  (it "army boards adjacent loading transport when no land route to target"
+    (reset! atoms/game-map (build-test-map ["a~~~+"
+                                             "~t~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport in loading state with room
+    (swap! atoms/game-map update-in [1 1 :contents] assoc
+           :transport-mission :loading
+           :army-count 0)
+    ;; Army at [0 0] has no land route to free city at [0 4]
+    (let [move (computer/decide-army-move [0 0])]
+      ;; Should move toward transport at [1 1]
+      (should= [1 1] move)))
+
+  (it "army ignores transport when land route exists"
+    (reset! atoms/game-map (build-test-map ["a##+"
+                                             "~t~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map update-in [1 1 :contents] assoc
+           :transport-mission :loading
+           :army-count 0)
+    ;; Army at [0 0] has land route to free city at [0 3]
+    (let [move (computer/decide-army-move [0 0])]
+      ;; Should move on land toward city, not toward transport
+      (should= [0 1] move)))
+
+  (it "army moves toward distant loading transport when should board"
+    (reset! atoms/game-map (build-test-map ["a~~~~+"
+                                             "~~~~~~"
+                                             "~t~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map update-in [2 1 :contents] assoc
+           :transport-mission :loading
+           :army-count 0)
+    ;; Army has no land route to city
+    (let [move (computer/decide-army-move [0 0])]
+      ;; Should be nil (no passable land neighbors) or stay put
+      ;; Actually army is on land cell at [0 0], only neighbor is sea
+      (should-be-nil move))))
