@@ -87,6 +87,44 @@
       (let [unit (:contents (get-in @atoms/game-map unit-coords))]
         (should-contain "12" (:reason unit))))))
 
+(describe "handle-key :space on city needing attention"
+  (before (reset-all-atoms!))
+
+  (it "clears attention when space is pressed on city without production"
+    (reset! atoms/game-map (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (input/handle-key :space)
+      (should= [] @atoms/cells-needing-attention)
+      (should= false @atoms/waiting-for-input)))
+
+  (it "does not add production when space is pressed"
+    (reset! atoms/game-map (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (input/handle-key :space)
+      (should-be-nil (get @atoms/production city-coords))))
+
+  (it "removes city from player-items when space is pressed"
+    (reset! atoms/game-map (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/player-items [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (input/handle-key :space)
+      (should= [] @atoms/player-items)))
+
+  (it "does nothing for computer cities"
+    (reset! atoms/game-map (build-test-map ["X"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (input/handle-key :space)
+      ;; Should still be waiting - nothing happened
+      (should= true @atoms/waiting-for-input))))
+
 (describe "handle-key :l on army aboard transport"
   (before (reset-all-atoms!))
 

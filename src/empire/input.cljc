@@ -66,32 +66,29 @@
       (reset! atoms/last-clicked-cell [cell-x cell-y])
       (handle-cell-click cell-x cell-y))))
 
+(defn- try-set-production [coords item]
+  (let [[x y] coords
+        coastal? (map-utils/on-coast? x y)
+        naval? (config/naval-unit? item)]
+    (if (and naval? (not coastal?))
+      (atoms/set-line3-message (format "Must be coastal city to produce %s." (name item)) 3000)
+      (do
+        (production/set-city-production coords item)
+        (game-loop/item-processed)))
+    true))
+
 (defn- handle-city-production-key [k coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
              (not (movement/get-active-unit cell)))
     (cond
-      ;; 'x' sets production to nothing
-      (= k :x)
-      (do
-        (swap! atoms/production assoc coords :none)
-        (game-loop/item-processed)
-        true)
-
-      ;; Standard production keys
-      (config/key->production-item k)
-      (let [item (config/key->production-item k)
-            [x y] coords
-            coastal? (map-utils/on-coast? x y)
-            naval? (config/naval-unit? item)]
-        (if (and naval? (not coastal?))
-          (do
-            (atoms/set-line3-message (format "Must be coastal city to produce %s." (name item)) 3000)
-            true)
-          (do
-            (production/set-city-production coords item)
-            (game-loop/item-processed)
-            true))))))
+      (= k :space) (do (swap! atoms/player-items rest)
+                       (game-loop/item-processed)
+                       true)
+      (= k :x) (do (swap! atoms/production assoc coords :none)
+                   (game-loop/item-processed)
+                   true)
+      (config/key->production-item k) (try-set-production coords (config/key->production-item k)))))
 
 (defn- calculate-extended-target [coords [dx dy]]
   (let [height (count @atoms/game-map)
