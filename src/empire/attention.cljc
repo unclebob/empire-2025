@@ -74,25 +74,27 @@
                   (= (:city-status cell) :player)
                   (not (@atoms/production coords)))))))
 
+;; Returns true if an army at coords has an adjacent hostile city it could attack.
+;; Used to set the attention reason to :army-found-city when no other reason exists.
+(defn- army-adjacent-to-enemy-city? [coords active-unit]
+  (and (= :army (:type active-unit))
+       (let [[ax ay] coords]
+         (some (fn [[di dj]]
+                 (let [adj-cell (get-in @atoms/game-map [(+ ax di) (+ ay dj)])]
+                   (and adj-cell
+                        (= (:type adj-cell) :city)
+                        (config/hostile-city? (:city-status adj-cell)))))
+               map-utils/neighbor-offsets))))
+
 (defn set-attention-message
   "Sets the message for the current item needing attention."
   [coords]
   (let [cell (get-in @atoms/game-map coords)
-        [ax ay] coords
         unit (:contents cell)
         active-unit (movement/get-active-unit cell)
         is-airport-fighter? (movement/is-fighter-from-airport? active-unit)
         is-carrier-fighter? (movement/is-fighter-from-carrier? active-unit)
-        is-army-aboard? (movement/is-army-aboard-transport? active-unit)
-        adjacent-enemy-city? (and (= :army (:type active-unit))
-                                  (some (fn [[di dj]]
-                                          (let [ni (+ ax di)
-                                                nj (+ ay dj)
-                                                adj-cell (get-in @atoms/game-map [ni nj])]
-                                            (and adj-cell
-                                                 (= (:type adj-cell) :city)
-                                                 (config/hostile-city? (:city-status adj-cell)))))
-                                        map-utils/neighbor-offsets))]
+        is-army-aboard? (movement/is-army-aboard-transport? active-unit)]
     (reset! atoms/message (cond
                             is-airport-fighter?
                             (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages))
@@ -117,7 +119,7 @@
                                               (str " (" (:fighter-count active-unit 0) " fighters)")
                                               :else nil)
                                   reason-key (or (:reason active-unit)
-                                                 (when adjacent-enemy-city? :army-found-city))
+                                                 (when (army-adjacent-to-enemy-city? coords active-unit) :army-found-city))
                                   reason-str (when reason-key
                                                (if (string? reason-key)
                                                  reason-key

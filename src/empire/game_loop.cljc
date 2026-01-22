@@ -409,6 +409,23 @@
           :continue (recur (inc processed))
           :done (recur (inc processed)))))))
 
+;; Processes player items in a batch until one of three conditions:
+;; 1. player-items list becomes empty
+;; 2. waiting-for-input is set (unit needs player attention)
+;; 3. 100 items processed (batch limit to keep UI responsive)
+(defn- process-player-items-batch []
+  (loop [processed 0]
+    (cond
+      (empty? @atoms/player-items) nil
+      @atoms/waiting-for-input nil
+      (>= processed 100) nil
+      :else
+      (let [result (process-one-item)]
+        (case result
+          :waiting nil
+          :continue (recur (inc processed))
+          :done (recur (inc processed)))))))
+
 (defn advance-game
   "Advances the game by processing player items, then computer items.
    Processes multiple non-attention items per frame for faster rounds."
@@ -427,17 +444,7 @@
 
     ;; Player items to process
     (seq @atoms/player-items)
-    (loop [processed 0]
-      (cond
-        (empty? @atoms/player-items) nil
-        @atoms/waiting-for-input nil
-        (>= processed 100) nil
-        :else
-        (let [result (process-one-item)]
-          (case result
-            :waiting nil
-            :continue (recur (inc processed))
-            :done (recur (inc processed))))))
+    (process-player-items-batch)
 
     ;; Computer items to process
     :else
