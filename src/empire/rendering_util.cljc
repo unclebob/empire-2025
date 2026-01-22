@@ -20,8 +20,12 @@
                 :transport (:army-count unit 0)
                 :carrier (:fighter-count unit 0)
                 nil)
-        mission (when (= (:type unit) :transport)
-                  (:transport-mission unit))
+        transport-mission (when (= (:type unit) :transport)
+                            (:transport-mission unit))
+        army-mission (when (= (:type unit) :army)
+                       (:mission unit))
+        loading-timeout (when (= (:type unit) :transport)
+                          (:loading-timeout unit))
         orders (cond
                  (:marching-orders unit) "march"
                  (:flight-path unit) "flight"
@@ -30,7 +34,9 @@
          " [" hits "/" max-hits "]"
          (when fuel (str " fuel:" fuel))
          (when cargo (str " cargo:" cargo))
-         (when mission (str " " (name mission)))
+         (when transport-mission (str " " (name transport-mission)))
+         (when loading-timeout (str " timeout:" loading-timeout))
+         (when army-mission (str " mission:" (name army-mission)))
          (when orders (str " " orders))
          " " (name (:mode unit)))))
 
@@ -71,13 +77,15 @@
       "waypoint (no orders)")))
 
 (defn format-hover-status
-  "Formats a status string for a cell. Production is the production entry for this cell, or nil."
-  [cell production]
-  (cond
-    (:contents cell) (format-unit-status (:contents cell))
-    (= (:type cell) :city) (format-city-status cell production)
-    (:waypoint cell) (format-waypoint-status (:waypoint cell))
-    :else nil))
+  "Formats a status string for a cell. Production is the production entry for this cell, or nil.
+   Coords is [col row] of the cell being hovered."
+  [coords cell production]
+  (when-let [status (cond
+                      (:contents cell) (format-unit-status (:contents cell))
+                      (= (:type cell) :city) (format-city-status cell production)
+                      (:waypoint cell) (format-waypoint-status (:waypoint cell))
+                      :else nil)]
+    (str "[" (first coords) "," (second coords) "] " status)))
 
 (defn determine-display-unit
   "Determines which unit to display, handling attention blinking.

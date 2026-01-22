@@ -34,7 +34,7 @@
    Assumes font is already set. Computer units show as lowercase."
   [col row cell cell-w cell-h attention-coords blink-unit?]
   (when-let [display-unit (ru/determine-display-unit col row cell attention-coords blink-unit?)]
-    (let [[r g b] (config/mode->color (:mode display-unit))
+    (let [[r g b] (config/unit->color display-unit)
           char (config/item-chars (:type display-unit))
           char (if (= :computer (:owner display-unit)) (str/lower-case char) char)]
       (q/fill r g b)
@@ -99,7 +99,7 @@
                       :actual-map @atoms/game-map)
             cell (get-in the-map coords)
             production (get @atoms/production coords)
-            status (ru/format-hover-status cell production)]
+            status (ru/format-hover-status coords cell production)]
         (reset! atoms/hover-message (or status "")))
       (reset! atoms/hover-message ""))))
 

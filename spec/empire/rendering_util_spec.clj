@@ -39,7 +39,16 @@
 
   (it "formats unit with flight path"
     (let [unit {:type :fighter :hits 1 :mode :moving :fuel 10 :flight-path [[1 2]] :owner :player}]
-      (should= "player fighter [1/1] fuel:10 flight moving" (ru/format-unit-status unit)))))
+      (should= "player fighter [1/1] fuel:10 flight moving" (ru/format-unit-status unit))))
+
+  (it "formats army with mission"
+    (let [unit {:type :army :hits 1 :mode :sentry :owner :computer :mission :loading}]
+      (should= "computer army [1/1] mission:loading sentry" (ru/format-unit-status unit))))
+
+  (it "formats transport with loading-timeout"
+    (let [unit {:type :transport :hits 1 :mode :sentry :army-count 2 :owner :computer
+                :transport-mission :loading :loading-timeout 3}]
+      (should= "computer transport [1/1] cargo:2 loading timeout:3 sentry" (ru/format-unit-status unit)))))
 
 (describe "format-city-status"
   (it "formats player city with production"
@@ -82,17 +91,17 @@
                (ru/format-city-status cell production)))))
 
 (describe "format-hover-status"
-  (it "returns unit status for cell with contents"
+  (it "returns unit status with coordinates"
     (let [cell {:contents {:type :army :hits 1 :mode :awake :owner :player}}]
-      (should= "player army [1/1] awake" (ru/format-hover-status cell nil))))
+      (should= "[5,10] player army [1/1] awake" (ru/format-hover-status [5 10] cell nil))))
 
-  (it "returns city status for city cell"
+  (it "returns city status with coordinates"
     (let [cell {:type :city :city-status :free :fighter-count 0}]
-      (should= "city:free" (ru/format-hover-status cell nil))))
+      (should= "[3,7] city:free" (ru/format-hover-status [3 7] cell nil))))
 
   (it "returns nil for empty non-city cell"
     (let [cell {:type :land}]
-      (should-not (ru/format-hover-status cell nil)))))
+      (should-not (ru/format-hover-status [0 0] cell nil)))))
 
 (describe "determine-display-unit"
   (it "returns contents for normal cell with unit"
@@ -131,6 +140,11 @@
   (it "returns sentry fighter for city with sleeping fighters only"
     (let [cell {:type :city :fighter-count 2 :awake-fighters 0}]
       (should= {:type :fighter :mode :sentry}
+               (ru/determine-display-unit 5 5 cell nil false))))
+
+  (it "preserves mission field for army with loading mission"
+    (let [cell {:contents {:type :army :mode :sentry :mission :loading :owner :computer}}]
+      (should= {:type :army :mode :sentry :mission :loading :owner :computer}
                (ru/determine-display-unit 5 5 cell nil false)))))
 
 (describe "group-cells-by-color"

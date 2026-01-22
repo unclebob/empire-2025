@@ -987,9 +987,31 @@
 
 ;; Army-Transport Recruitment
 
+(defn- land-neighbors
+  "Returns land cell neighbors of a position."
+  [pos]
+  (filter (fn [neighbor]
+            (#{:land :city} (:type (get-in @atoms/game-map neighbor))))
+          (get-neighbors pos)))
+
+(defn- can-army-reach-beach?
+  "Returns true if army can reach the beach position.
+   If beach is sea, checks if army can reach any adjacent land cell."
+  [army-pos beach-pos]
+  (let [beach-cell (get-in @atoms/game-map beach-pos)]
+    (if (= :sea (:type beach-cell))
+      ;; Beach is sea - check if army can reach any adjacent land
+      (let [adjacent-land (land-neighbors beach-pos)]
+        (some #(or (= army-pos %)
+                   (pathfinding/next-step army-pos % :army))
+              adjacent-land))
+      ;; Beach is land - check direct path
+      (or (= army-pos beach-pos)
+          (pathfinding/next-step army-pos beach-pos :army)))))
+
 (defn find-nearest-armies
   "Finds the n nearest computer armies that can reach the position.
-   Only includes armies with a valid path to the target."
+   If position is sea, finds armies that can reach adjacent land cells."
   [pos n]
   (let [armies (for [i (range (count @atoms/game-map))
                      j (range (count (first @atoms/game-map)))
@@ -999,17 +1021,16 @@
                                 (= :army (:type unit))
                                 (= :computer (:owner unit)))]
                  [i j])
-        reachable (filter #(or (= % pos)
-                               (pathfinding/next-step % pos :army))
-                          armies)]
+        reachable (filter #(can-army-reach-beach? % pos) armies)]
     (->> reachable
          (sort-by #(distance pos %))
          (take n))))
 
 (defn direct-armies-to-beach
-  "Directs the n nearest computer armies to move toward the beach position."
+  "Directs the n nearest computer armies to move toward the beach position.
+   Sets mission :loading so armies display as black."
   [beach-pos n]
   (let [nearest (find-nearest-armies beach-pos n)]
     (doseq [army-pos nearest]
       (swap! atoms/game-map update-in (conj army-pos :contents)
-             assoc :target beach-pos))))
+             assoc :target beach-pos :mission :loading))))

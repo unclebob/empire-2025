@@ -140,4 +140,12 @@
     :coastline-follow explore-unit-color
     sleeping-unit-color))
 
+(defn unit->color
+  "Returns the RGB color for a unit based on mission and mode.
+   Units with mission :loading display as black."
+  [unit]
+  (if (= :loading (:mission unit))
+    sleeping-unit-color
+    (mode->color (:mode unit))))
+
 

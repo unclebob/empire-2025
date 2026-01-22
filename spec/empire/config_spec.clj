@@ -32,4 +32,15 @@
     (should= [0 0 0] (config/mode->color :moving))
     (should= [0 0 0] (config/mode->color :unknown))))
 
+(describe "unit->color"
+  (it "returns black for units with mission :loading"
+    (should= [0 0 0] (config/unit->color {:mode :awake :mission :loading}))
+    (should= [0 0 0] (config/unit->color {:mode :sentry :mission :loading})))
+
+  (it "returns mode-based color when no loading mission"
+    (should= [255 255 255] (config/unit->color {:mode :awake}))
+    (should= [255 128 128] (config/unit->color {:mode :sentry}))
+    (should= [144 238 144] (config/unit->color {:mode :explore}))
+    (should= [0 0 0] (config/unit->color {:mode :moving}))))
+
 

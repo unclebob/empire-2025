@@ -70,19 +70,19 @@
   (before (reset-all-atoms!))
   (it "returns nil for empty land"
     (let [cell {:type :land}]
-      (should-be-nil (ru/format-hover-status cell nil))))
+      (should-be-nil (ru/format-hover-status [0 0] cell nil))))
 
   (it "formats unit when present"
     (let [cell {:type :land :contents {:type :army :hits 1 :mode :awake :owner :player}}]
-      (should= "player army [1/1] awake" (ru/format-hover-status cell nil))))
+      (should= "[5,10] player army [1/1] awake" (ru/format-hover-status [5 10] cell nil))))
 
   (it "formats city when no unit"
     (let [cell {:type :city :city-status :player}]
-      (should= "city:player" (ru/format-hover-status cell nil))))
+      (should= "[3,7] city:player" (ru/format-hover-status [3 7] cell nil))))
 
   (it "prefers unit over city"
     (let [cell {:type :city :city-status :player :contents {:type :army :hits 1 :mode :awake :owner :computer}}]
-      (should= "computer army [1/1] awake" (ru/format-hover-status cell nil)))))
+      (should= "[1,2] computer army [1/1] awake" (ru/format-hover-status [1 2] cell nil)))))
 
 (describe "key-released"
   (before (reset-all-atoms!))

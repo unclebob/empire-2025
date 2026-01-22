@@ -1776,7 +1776,19 @@
       ;; Should only find the 2 reachable armies on the left island
       (should= 2 (count armies))
       (should-contain [0 0] armies)
-      (should-contain [4 0] armies))))
+      (should-contain [4 0] armies)))
+
+  (it "finds armies that can reach land adjacent to a sea beach"
+    ;; Beach is a sea cell at [1 2], armies are on adjacent land
+    (reset! atoms/game-map (build-test-map ["#a#"
+                                             "a~a"
+                                             "#a#"]))
+    ;; Beach at [1 2] is sea (~), armies at [0 1], [1 0], [1 2] - wait [1 2] is sea
+    ;; Let me reconsider: row 0: #a#, row 1: a~a, row 2: #a#
+    ;; [0 1] = a, [1 0] = a, [1 2] = a, [2 1] = a, [1 1] = ~ (beach)
+    (let [armies (computer/find-nearest-armies [1 1] 6)]
+      ;; All 4 armies are adjacent to the beach and should be found
+      (should= 4 (count armies)))))
 
 (describe "direct-armies-to-beach"
   (before (reset-all-atoms!))
@@ -1813,7 +1825,23 @@
                                                   (= :army (:type unit))
                                                   (:target unit))]
                                    [i j]))]
-      (should= 3 directed-count))))
+      (should= 3 directed-count)))
+
+  (it "sets mission :loading on directed armies"
+    (reset! atoms/game-map (build-test-map ["a####"
+                                             "#####"
+                                             "##a##"
+                                             "#####"
+                                             "####a"]))
+    (let [beach-pos [2 2]]
+      (computer/direct-armies-to-beach beach-pos 6)
+      ;; Check that armies have mission set to :loading
+      (let [army1 (:contents (get-in @atoms/game-map [0 0]))
+            army2 (:contents (get-in @atoms/game-map [2 2]))
+            army3 (:contents (get-in @atoms/game-map [4 4]))]
+        (should= :loading (:mission army1))
+        (should= :loading (:mission army2))
+        (should= :loading (:mission army3))))))
 
 (describe "army follows transport direction"
   (before (reset-all-atoms!))
