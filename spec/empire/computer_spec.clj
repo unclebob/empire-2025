@@ -2482,4 +2482,54 @@
     (computer/process-computer-unit [2 2])
     ;; Should still be at the beach and in loading state
     (let [transport (get-in @atoms/game-map [2 2 :contents])]
-      (should= :loading (:transport-mission transport)))))
+      (should= :loading (:transport-mission transport))))
+
+  (it "stuck transport in city with no available beach is sent to explore"
+    ;; City with transport, all beaches reserved by another transport
+    (reset! atoms/game-map (build-test-map ["~~~~~~~"
+                                             "~#####~"
+                                             "~#####~"
+                                             "~#X##~~"
+                                             "~~~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Put a transport in the city
+    (swap! atoms/game-map assoc-in [3 2 :contents]
+           {:type :transport :owner :computer :hits 1 :transport-id 2
+            :transport-mission :idle :army-count 0})
+    ;; Reserve all good beaches by another transport (ID 1)
+    ;; Beach at [2 0] is the only good beach within 2 hops
+    (swap! atoms/reserved-beaches assoc [2 0] 1)
+    ;; Process the stuck transport
+    (computer/process-computer-unit [3 2])
+    ;; Transport should be sent to explore (departing or exploring)
+    (let [transport (get-in @atoms/game-map [3 2 :contents])]
+      (should (#{:departing :exploring} (:transport-mission transport)))))
+
+  (it "city stops producing transports when transport is stuck"
+    ;; City with stuck transport
+    (reset! atoms/game-map (build-test-map ["~~~~~~~"
+                                             "~#####~"
+                                             "~#####~"
+                                             "~#X##~~"
+                                             "~~~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Put a transport in the city
+    (swap! atoms/game-map assoc-in [3 2 :contents]
+           {:type :transport :owner :computer :hits 1 :transport-id 2
+            :transport-mission :idle :army-count 0})
+    ;; Reserve all good beaches
+    (swap! atoms/reserved-beaches assoc [2 0] 1)
+    ;; Process the stuck transport
+    (computer/process-computer-unit [3 2])
+    ;; City should be marked to not produce transports
+    (let [city (get-in @atoms/game-map [3 2])]
+      (should= true (:no-more-transports city))))
+
+  (it "city with no-more-transports flag does not produce transports"
+    (reset! atoms/game-map (build-test-map ["~X~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Mark city to not produce transports
+    (swap! atoms/game-map assoc-in [0 1 :no-more-transports] true)
+    ;; Even if need-transports? would return true, city produces army instead
+    (let [production-type (computer/decide-production [0 1])]
+      (should-not= :transport production-type))))
