@@ -156,4 +156,6 @@
   (reset! atoms/pause-requested false)
   (reset! atoms/computer-items [])
   (reset! atoms/computer-turn false)
+  (reset! atoms/next-transport-id 1)
+  (reset! atoms/reserved-beaches {})
   (pathfinding/clear-path-cache))

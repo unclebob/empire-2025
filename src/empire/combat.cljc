@@ -89,6 +89,16 @@
         (<= (:hits new-a) 0) {:winner :defender :survivor new-d :log new-log}
         :else (recur new-a new-d new-log)))))
 
+(defn- release-transport-beach-reservation
+  "Releases beach reservation if the destroyed unit is a computer transport."
+  [unit]
+  (when (and (= :transport (:type unit))
+             (= :computer (:owner unit))
+             (:transport-id unit))
+    (swap! atoms/reserved-beaches
+           (fn [reservations]
+             (into {} (remove (fn [[_ tid]] (= tid (:transport-id unit))) reservations))))))
+
 (defn attempt-attack
   "Attempts to attack an enemy unit at target-coords from attacker-coords.
    Returns true if attack was attempted, false otherwise."
@@ -103,7 +113,10 @@
             message (format-combat-log (:log result)
                                        (:type attacker)
                                        (:type defender)
-                                       (:winner result))]
+                                       (:winner result))
+            ;; Release beach reservation if a computer transport is destroyed
+            destroyed-unit (if (= :attacker (:winner result)) defender attacker)]
+        (release-transport-beach-reservation destroyed-unit)
         (swap! atoms/game-map assoc-in (conj attacker-coords :contents) nil)
         (if (= :attacker (:winner result))
           (swap! atoms/game-map assoc-in (conj target-coords :contents) (:survivor result))

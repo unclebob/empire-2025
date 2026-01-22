@@ -2,6 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.game-loop :as game-loop]
             [empire.computer :as computer]
+            [empire.combat :as combat]
             [empire.atoms :as atoms]
             [empire.pathfinding :as pathfinding]
             [empire.production :as production]
@@ -2362,3 +2363,123 @@
                                         :when (= :transport (:type (:contents cell)))]
                                     [i j]))]
       (should= 2 transport-count))))
+
+(describe "beach reservation"
+  (before (reset-all-atoms!))
+
+  (it "computer transport gets unique ID when spawned from production"
+    (reset! atoms/game-map (build-test-map ["~X~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Set transport production ready to complete
+    (reset! atoms/production {[0 1] {:item :transport :remaining-rounds 1}})
+    (game-loop/start-new-round)
+    ;; Transport should be spawned with a unique ID at the city
+    (let [transport (get-in @atoms/game-map [0 1 :contents])]
+      (should= :transport (:type transport))
+      (should= :computer (:owner transport))
+      (should= 1 (:transport-id transport))))
+
+  (it "second computer transport gets different ID"
+    (reset! atoms/game-map (build-test-map ["~X~"
+                                             "~X~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Spawn first transport
+    (reset! atoms/production {[0 1] {:item :transport :remaining-rounds 1}})
+    (game-loop/start-new-round)
+    ;; Spawn second transport - move first transport out of the way
+    (swap! atoms/game-map assoc-in [0 0 :contents] (get-in @atoms/game-map [0 1 :contents]))
+    (swap! atoms/game-map assoc-in [0 1 :contents] nil)
+    (reset! atoms/production {[1 1] {:item :transport :remaining-rounds 1}})
+    (game-loop/start-new-round)
+    ;; Both should have unique IDs
+    (let [transport1 (get-in @atoms/game-map [0 0 :contents])
+          transport2 (get-in @atoms/game-map [1 1 :contents])]
+      (should= 1 (:transport-id transport1))
+      (should= 2 (:transport-id transport2))))
+
+  (it "player transport does not get transport-id"
+    (reset! atoms/game-map (build-test-map ["~O~"]))
+    (reset! atoms/player-map @atoms/game-map)
+    ;; Set transport production ready to complete
+    (reset! atoms/production {[0 1] {:item :transport :remaining-rounds 1}})
+    (game-loop/start-new-round)
+    (let [transport (get-in @atoms/game-map [0 1 :contents])]
+      (should= :transport (:type transport))
+      (should= :player (:owner transport))
+      (should-be-nil (:transport-id transport))))
+
+  (it "transport reserves beach when selecting it"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~"
+                                             "~#####~"
+                                             "~#####~"
+                                             "~#X##~~"
+                                             "~~t~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Give transport an ID
+    (swap! atoms/game-map assoc-in [4 2 :contents :transport-id] 1)
+    ;; Process idle transport - should find beach and reserve it
+    (computer/process-computer-unit [4 2])
+    ;; Beach should be reserved by transport ID 1
+    (should= 1 (count @atoms/reserved-beaches))
+    (should= 1 (first (vals @atoms/reserved-beaches))))
+
+  (it "second transport cannot select beach reserved by first"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~"
+                                             "~#####~"
+                                             "~#####~"
+                                             "~#X##~~"
+                                             "~~t~t~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Give transports unique IDs
+    (swap! atoms/game-map assoc-in [4 2 :contents :transport-id] 1)
+    (swap! atoms/game-map assoc-in [4 4 :contents :transport-id] 2)
+    ;; First transport selects beach (and moves toward it)
+    (computer/process-computer-unit [4 2])
+    (let [beach1 (first (keys @atoms/reserved-beaches))]
+      ;; Second transport should not select the same beach
+      (computer/process-computer-unit [4 4])
+      ;; If there's only one good beach, second transport gets nil
+      ;; If there are multiple beaches, they should be different
+      (should= 1 (count @atoms/reserved-beaches))
+      ;; Beach should still be reserved by transport 1 only
+      (should= 1 (get @atoms/reserved-beaches beach1))))
+
+  (it "reservation is released when transport is destroyed in combat"
+    (reset! atoms/game-map (build-test-map ["~~~~~~~"
+                                             "~#####~"
+                                             "~#####~"
+                                             "~#X##~~"
+                                             "~~t~D~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Give transport an ID and set up beach reservation
+    (swap! atoms/game-map assoc-in [4 2 :contents :transport-id] 1)
+    (swap! atoms/game-map assoc-in [4 2 :contents :origin-beach] [3 4])
+    (swap! atoms/reserved-beaches assoc [3 4] 1)
+    ;; Set transport hits to 1 to ensure it dies quickly
+    (swap! atoms/game-map assoc-in [4 2 :contents :hits] 1)
+    ;; Give destroyer many hits to virtually guarantee it wins
+    ;; (transport would need to win 20 50/50 rolls without losing one)
+    (swap! atoms/game-map assoc-in [4 4 :contents :hits] 20)
+    ;; Destroyer attacks transport
+    (combat/attempt-attack [4 4] [4 2])
+    ;; Beach reservation should be released (transport destroyed)
+    (should-be-nil (get @atoms/reserved-beaches [3 4])))
+
+  (it "transport can use its own reserved beach"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#t~~"
+                                             "~#X~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 2] which is a good beach, ID 1
+    (swap! atoms/game-map assoc-in [2 2 :contents :transport-id] 1)
+    (swap! atoms/game-map assoc-in [2 2 :contents :transport-mission] :returning)
+    (swap! atoms/game-map assoc-in [2 2 :contents :origin-beach] [2 2])
+    ;; Reserve the beach for this transport
+    (swap! atoms/reserved-beaches assoc [2 2] 1)
+    ;; Transport should be able to use this beach (switch to loading)
+    (computer/process-computer-unit [2 2])
+    ;; Should still be at the beach and in loading state
+    (let [transport (get-in @atoms/game-map [2 2 :contents])]
+      (should= :loading (:transport-mission transport)))))

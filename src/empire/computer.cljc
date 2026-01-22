@@ -594,11 +594,36 @@
          (not (adjacent-to-city? pos))
          (>= (count-land-neighbors pos) 3))))
 
+(defn- beach-reserved-by-other?
+  "Returns true if beach is reserved by a transport with a different ID."
+  [beach-pos transport-id]
+  (let [reserved-by (get @atoms/reserved-beaches beach-pos)]
+    (and reserved-by (not= reserved-by transport-id))))
+
+(defn reserve-beach
+  "Reserves a beach for a transport. Removes any previous reservation by this transport."
+  [beach-pos transport-id]
+  ;; First remove any existing reservation by this transport
+  (swap! atoms/reserved-beaches
+         (fn [reservations]
+           (let [cleaned (into {} (remove (fn [[_ tid]] (= tid transport-id)) reservations))]
+             (assoc cleaned beach-pos transport-id)))))
+
+(defn release-beach-for-transport
+  "Releases any beach reservation held by the given transport ID."
+  [transport-id]
+  (swap! atoms/reserved-beaches
+         (fn [reservations]
+           (into {} (remove (fn [[_ tid]] (= tid transport-id)) reservations)))))
+
 (defn- available-beach?
   "Returns true if pos is a good beach that is not occupied by a friendly unit."
-  [pos]
-  (and (good-beach? pos)
-       (not (friendly-unit-at? pos))))
+  ([pos]
+   (available-beach? pos nil))
+  ([pos transport-id]
+   (and (good-beach? pos)
+        (not (friendly-unit-at? pos))
+        (not (beach-reserved-by-other? pos transport-id)))))
 
 (defn completely-surrounded-by-sea?
   "Returns true if position has no adjacent land cells."
@@ -666,15 +691,18 @@
       [])))
 
 (defn find-good-beach-near-city
-  "Finds an available beach (good beach not occupied by friendly unit) near a computer city.
-   Looks at cells within 2 hops of the city since beaches can't be adjacent to cities."
-  []
-  (let [coastal-cities (filter city-is-coastal? (find-visible-cities #{:computer}))]
-    (first (for [city coastal-cities
-                 neighbor (get-neighbors city)
-                 neighbor2 (get-neighbors neighbor)
-                 :when (available-beach? neighbor2)]
-             neighbor2))))
+  "Finds an available beach (good beach not occupied by friendly unit and not reserved by another
+   transport) near a computer city. Looks at cells within 2 hops of the city since beaches can't
+   be adjacent to cities. Pass transport-id to allow finding beaches not reserved by other transports."
+  ([]
+   (find-good-beach-near-city nil))
+  ([transport-id]
+   (let [coastal-cities (filter city-is-coastal? (find-visible-cities #{:computer}))]
+     (first (for [city coastal-cities
+                  neighbor (get-neighbors city)
+                  neighbor2 (get-neighbors neighbor)
+                  :when (available-beach? neighbor2 transport-id)]
+              neighbor2)))))
 
 (defn find-unloading-beach-for-invasion
   "Finds an available beach near enemy/free cities for invasion.
@@ -782,14 +810,17 @@
 (defn- transport-move-idle
   "Handles transport in idle state - find good beach or start invasion."
   [pos transport]
-  (let [army-count (:army-count transport 0)]
+  (let [army-count (:army-count transport 0)
+        transport-id (:transport-id transport)]
     (if (pos? army-count)
       ;; Has armies but no mission - find invasion target
       (when-let [target (find-unloading-beach-for-invasion)]
         (set-transport-mission pos :en-route target)
         (pathfinding/next-step pos target :transport))
       ;; Empty - find good beach to load at
-      (when-let [beach (find-good-beach-near-city)]
+      (when-let [beach (find-good-beach-near-city transport-id)]
+        (when transport-id
+          (reserve-beach beach transport-id))
         (if (= pos beach)
           (do (set-transport-mission pos :loading nil beach)
               (direct-armies-to-beach pos 6)

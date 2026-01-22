@@ -32,6 +32,11 @@
                       unit (if (= item :transport)
                              (assoc unit :transport-mission :idle :origin-beach nil)
                              unit)
+                      unit (if (and (= item :transport) (= owner :computer))
+                             (assoc unit :transport-id (let [id @atoms/next-transport-id]
+                                                         (swap! atoms/next-transport-id inc)
+                                                         id))
+                             unit)
                       unit (cond
                              (and (= item :army) (= marching-orders :lookaround))
                              (assoc unit :mode :explore :explore-steps 50)

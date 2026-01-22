@@ -110,3 +110,12 @@
 (def computer-turn
   "An atom indicating if we're currently processing the computer's turn."
   (atom false))
+
+(def next-transport-id
+  "An atom containing the next unique ID to assign to a computer transport."
+  (atom 1))
+
+(def reserved-beaches
+  "An atom mapping beach coordinates to the transport-id that reserved them.
+   Structure: {[beach-row beach-col] transport-id}"
+  (atom {}))
