@@ -460,6 +460,15 @@
       (reset! atoms/pause-requested false))
     (reset! atoms/pause-requested true)))
 
+(defn step-one-round
+  "When paused, advances one round then pauses again."
+  []
+  (when @atoms/paused
+    (reset! atoms/paused false)
+    (reset! atoms/pause-requested true)
+    (when (and (empty? @atoms/player-items) (empty? @atoms/computer-items))
+      (start-new-round))))
+
 (defn update-map
   "Updates the game map state."
   []

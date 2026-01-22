@@ -163,3 +163,26 @@
   (it "toggles pause when P is pressed"
     (input/key-down :P)
     (should @atoms/pause-requested)))
+
+(describe "key-down :space when paused"
+  (before
+    (reset-all-atoms!)
+    (reset! atoms/game-map (build-test-map ["#"]))
+    (reset! atoms/paused true)
+    (reset! atoms/pause-requested false)
+    (reset! atoms/backtick-pressed false)
+    (reset! atoms/player-items [])
+    (reset! atoms/computer-items [])
+    (reset! atoms/round-number 5))
+
+  (it "starts new round when both item lists are empty"
+    (input/key-down :space)
+    (should= 6 @atoms/round-number))
+
+  (it "sets pause-requested to pause after round"
+    (input/key-down :space)
+    (should= true @atoms/pause-requested))
+
+  (it "unpauses to allow game loop to process"
+    (input/key-down :space)
+    (should= false @atoms/paused)))
