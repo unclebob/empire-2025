@@ -920,14 +920,18 @@
 
 (defn- transport-move-departing
   "Handles transport in departing state - move away from land until at sea.
-   Tracks visited positions to prevent cycling in complex coastlines."
+   Tracks visited positions to prevent cycling in complex coastlines.
+   Releases beach reservation when reaching open sea."
   [pos transport]
   (let [origin-beach (:origin-beach transport)
+        transport-id (:transport-id transport)
         visited (or (:departing-visited transport) #{})]
     (add-to-departing-visited pos)
     (if (completely-surrounded-by-sea? pos)
-      ;; At sea - switch to exploring mode with a direction
+      ;; At sea - release beach reservation and switch to exploring mode
       (let [explore-dir (calculate-explore-direction pos origin-beach)]
+        (when transport-id
+          (release-beach-for-transport transport-id))
         (swap! atoms/game-map update-in (conj pos :contents)
                #(-> %
                     (assoc :transport-mission :exploring
@@ -1162,12 +1166,16 @@
         nil))))
 
 (defn- transport-move-returning
-  "Handles transport in returning state - navigate back to origin beach."
+  "Handles transport in returning state - navigate back to origin beach.
+   Re-reserves the beach when arriving."
   [pos transport]
-  (let [origin-beach (:origin-beach transport)]
+  (let [origin-beach (:origin-beach transport)
+        transport-id (:transport-id transport)]
     (if (and origin-beach (= pos origin-beach))
-      ;; Reached origin - switch to loading and recruit armies
-      (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :loading-timeout)
+      ;; Reached origin - re-reserve beach, switch to loading and recruit armies
+      (do (when transport-id
+            (reserve-beach origin-beach transport-id))
+          (swap! atoms/game-map update-in (conj pos :contents) dissoc :loading-timeout)
           (set-transport-mission pos :loading nil origin-beach)
           (direct-armies-to-beach pos 6)
           nil)

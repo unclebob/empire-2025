@@ -2482,4 +2482,48 @@
     (computer/process-computer-unit [2 2])
     ;; Should still be at the beach and in loading state
     (let [transport (get-in @atoms/game-map [2 2 :contents])]
+      (should= :loading (:transport-mission transport))))
+
+  (it "reservation is released when departing transport reaches open sea"
+    ;; Transport at sea surrounded by more sea - completely at sea
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~~~~~"
+                                             "~~t~~"
+                                             "~~~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Set up transport in departing state with reservation
+    (swap! atoms/game-map update-in [2 2 :contents] assoc
+           :transport-id 1
+           :transport-mission :departing
+           :origin-beach [0 0])
+    (swap! atoms/reserved-beaches assoc [0 0] 1)
+    ;; Process - transport is completely at sea, should release reservation
+    (computer/process-computer-unit [2 2])
+    ;; Reservation should be released
+    (should-be-nil (get @atoms/reserved-beaches [0 0]))
+    ;; Transport should be in exploring state
+    (let [transport (get-in @atoms/game-map [2 2 :contents])]
+      (should= :exploring (:transport-mission transport))))
+
+  (it "returning transport re-reserves beach when arriving"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#t~~"
+                                             "~#X~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at [2 2] which is a good beach, returning to it
+    (swap! atoms/game-map update-in [2 2 :contents] assoc
+           :transport-id 1
+           :transport-mission :returning
+           :origin-beach [2 2])
+    ;; No reservation exists yet (was released when departing)
+    (should-be-nil (get @atoms/reserved-beaches [2 2]))
+    ;; Process - transport arrives at origin beach
+    (computer/process-computer-unit [2 2])
+    ;; Beach should be re-reserved
+    (should= 1 (get @atoms/reserved-beaches [2 2]))
+    ;; Transport should be in loading state
+    (let [transport (get-in @atoms/game-map [2 2 :contents])]
       (should= :loading (:transport-mission transport)))))
