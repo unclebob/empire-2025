@@ -86,45 +86,57 @@
                         (config/hostile-city? (:city-status adj-cell)))))
                map-utils/neighbor-offsets))))
 
+;; Returns cargo description for units that carry other units.
+;; e.g., " (3 armies)" for transports, " (2 fighters)" for carriers.
+(defn- cargo-string [unit-type unit]
+  (case unit-type
+    :transport (str " (" (:army-count unit 0) " armies)")
+    :carrier (str " (" (:fighter-count unit 0) " fighters)")
+    nil))
+
+;; Converts a reason keyword or string to display text.
+;; Looks up keywords in config/messages, passes strings through unchanged.
+(defn- reason-string [reason-key]
+  (when reason-key
+    (if (string? reason-key)
+      reason-key
+      (reason-key config/messages))))
+
+;; Builds the attention message for a standard active unit (not special cases
+;; like airport fighters or armies aboard transports).
+(defn- active-unit-attention-message [coords active-unit]
+  (let [unit-type (:type active-unit)
+        unit-name (name unit-type)
+        max-hits (config/item-hits unit-type)
+        current-hits (:hits active-unit max-hits)
+        damage-prefix (if (< current-hits max-hits) "Damaged " "")
+        cargo-str (cargo-string unit-type active-unit)
+        reason-key (or (:reason active-unit)
+                       (when (army-adjacent-to-enemy-city? coords active-unit) :army-found-city))
+        reason-str (reason-string reason-key)]
+    (str damage-prefix unit-name (:unit-needs-attention config/messages)
+         (or cargo-str "")
+         (if reason-str (str " - " reason-str) ""))))
+
 (defn set-attention-message
   "Sets the message for the current item needing attention."
   [coords]
   (let [cell (get-in @atoms/game-map coords)
         unit (:contents cell)
-        active-unit (movement/get-active-unit cell)
-        is-airport-fighter? (movement/is-fighter-from-airport? active-unit)
-        is-carrier-fighter? (movement/is-fighter-from-carrier? active-unit)
-        is-army-aboard? (movement/is-army-aboard-transport? active-unit)]
-    (reset! atoms/message (cond
-                            is-airport-fighter?
-                            (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages))
+        active-unit (movement/get-active-unit cell)]
+    (reset! atoms/message
+            (cond
+              (movement/is-fighter-from-airport? active-unit)
+              (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages))
 
-                            is-carrier-fighter?
-                            (str "Fighter" (:unit-needs-attention config/messages) " - aboard carrier (" (:fighter-count unit 0) " fighters)")
+              (movement/is-fighter-from-carrier? active-unit)
+              (str "Fighter" (:unit-needs-attention config/messages) " - aboard carrier (" (:fighter-count unit 0) " fighters)")
 
-                            is-army-aboard?
-                            (str "Army" (:unit-needs-attention config/messages) " - aboard transport (" (:army-count unit 0) " armies) - " (:transport-at-beach config/messages))
+              (movement/is-army-aboard-transport? active-unit)
+              (str "Army" (:unit-needs-attention config/messages) " - aboard transport (" (:army-count unit 0) " armies) - " (:transport-at-beach config/messages))
 
-                            active-unit
-                            (let [unit-type (:type active-unit)
-                                  unit-name (name unit-type)
-                                  max-hits (config/item-hits unit-type)
-                                  current-hits (:hits active-unit max-hits)
-                                  damaged? (< current-hits max-hits)
-                                  damage-prefix (if damaged? "Damaged " "")
-                                  cargo-str (cond
-                                              (= unit-type :transport)
-                                              (str " (" (:army-count active-unit 0) " armies)")
-                                              (= unit-type :carrier)
-                                              (str " (" (:fighter-count active-unit 0) " fighters)")
-                                              :else nil)
-                                  reason-key (or (:reason active-unit)
-                                                 (when (army-adjacent-to-enemy-city? coords active-unit) :army-found-city))
-                                  reason-str (when reason-key
-                                               (if (string? reason-key)
-                                                 reason-key
-                                                 (reason-key config/messages)))]
-                              (str damage-prefix unit-name (:unit-needs-attention config/messages) (or cargo-str "") (if reason-str (str " - " reason-str) "")))
+              active-unit
+              (active-unit-attention-message coords active-unit)
 
-                            :else
-                            (:city-needs-attention config/messages)))))
+              :else
+              (:city-needs-attention config/messages)))))
