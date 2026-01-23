@@ -27,6 +27,45 @@
     (should= nil (get-in @atoms/player-map [0 0]))
     (should= nil (get-in @atoms/player-map [8 8])))
 
+  (it "reveals cells near computer-owned units"
+    (reset! atoms/game-map (build-test-map ["---------"
+                                             "---------"
+                                             "---------"
+                                             "---------"
+                                             "----a#---"
+                                             "----#----"
+                                             "---------"
+                                             "---------"
+                                             "---------"]))
+    (reset! atoms/computer-map (make-initial-test-map 9 9 nil))
+    (update-cell-visibility [4 4] :computer)
+    ;; Check that the unit's cell and neighbors are revealed
+    (should= {:type :land :contents {:type :army :owner :computer :hits 1}} (get-in @atoms/computer-map [4 4]))
+    (should= {:type :land} (get-in @atoms/computer-map [4 5]))
+    (should= {:type :land} (get-in @atoms/computer-map [5 4]))
+    ;; Check that distant cells are not revealed
+    (should= nil (get-in @atoms/computer-map [0 0])))
+
+  (it "does nothing when visible-map-atom contains nil"
+    (reset! atoms/game-map (build-test-map ["A#"]))
+    (reset! atoms/player-map nil)
+    (update-cell-visibility [0 0] :player)
+    (should= nil @atoms/player-map))
+
+  (it "clamps visibility at map edges"
+    (reset! atoms/game-map (build-test-map ["A##"
+                                             "###"
+                                             "###"]))
+    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (update-cell-visibility [0 0] :player)
+    ;; Should reveal 4 cells (2x2 in top-left corner)
+    (should (get-in @atoms/player-map [0 0]))
+    (should (get-in @atoms/player-map [0 1]))
+    (should (get-in @atoms/player-map [1 0]))
+    (should (get-in @atoms/player-map [1 1]))
+    ;; Should not reveal far cells
+    (should= nil (get-in @atoms/player-map [2 2])))
+
   (it "reveals two rectangular rings for satellites"
     (reset! atoms/game-map (build-test-map ["#####"
                                              "#####"

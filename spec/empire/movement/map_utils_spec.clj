@@ -4,6 +4,34 @@
             [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map]]))
 
+(describe "get-cell"
+  (before (reset-all-atoms!))
+  (it "gets cell with x y coordinates"
+    ;; x=column, y=row; get-cell uses [y x] = [row col]
+    (reset! atoms/game-map (build-test-map ["#~"
+                                             "~#"]))
+    (should= {:type :land} (map-utils/get-cell 0 0))   ; col 0, row 0 = [0][0]
+    (should= {:type :sea} (map-utils/get-cell 1 0)))   ; col 1, row 0 = [0][1]
+
+  (it "gets cell with vector coordinates"
+    (reset! atoms/game-map (build-test-map ["#~"
+                                             "~#"]))
+    (should= {:type :land} (map-utils/get-cell [0 0]))
+    (should= {:type :sea} (map-utils/get-cell [1 0]))))
+
+(describe "set-cell"
+  (before (reset-all-atoms!))
+  (it "sets cell with x y coordinates"
+    ;; x=column, y=row; set-cell uses [y x] = [row col]
+    (reset! atoms/game-map (build-test-map ["#~"]))
+    (map-utils/set-cell 0 0 {:type :city})
+    (should= {:type :city} (get-in @atoms/game-map [0 0])))
+
+  (it "sets cell with vector coordinates"
+    (reset! atoms/game-map (build-test-map ["#~"]))
+    (map-utils/set-cell [1 0] {:type :city})           ; col 1, row 0 = [0][1]
+    (should= {:type :city} (get-in @atoms/game-map [0 1]))))
+
 (describe "process-map"
   (before (reset-all-atoms!))
   (it "applies function to each cell returning transformed map"

@@ -118,6 +118,107 @@
     (reset! atoms/game-map (build-test-map ["a#t"]))
     (should-throw (computer-core/board-transport [0 0] [0 2]))))
 
+(describe "computer-core/attempt-conquest-computer"
+  (before (reset-all-atoms!))
+
+  (it "removes army from original position on conquest attempt"
+    (reset! atoms/game-map (build-test-map ["a+"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (with-redefs [rand (constantly 0.3)]  ;; Success case
+      (computer-core/attempt-conquest-computer [0 0] [0 1]))
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+  (it "conquers city on success (rand < 0.5)"
+    (reset! atoms/game-map (build-test-map ["a+"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (with-redefs [rand (constantly 0.3)]
+      (computer-core/attempt-conquest-computer [0 0] [0 1]))
+    (should= :computer (:city-status (get-in @atoms/game-map [0 1]))))
+
+  (it "army dies on failure (rand >= 0.5)"
+    (reset! atoms/game-map (build-test-map ["a+"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (with-redefs [rand (constantly 0.7)]
+      (computer-core/attempt-conquest-computer [0 0] [0 1]))
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+    (should= :free (:city-status (get-in @atoms/game-map [0 1]))))
+
+  (it "returns nil in both success and failure cases"
+    (reset! atoms/game-map (build-test-map ["a+"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (with-redefs [rand (constantly 0.3)]
+      (should-be-nil (computer-core/attempt-conquest-computer [0 0] [0 1])))
+    (reset! atoms/game-map (build-test-map ["a+"]))
+    (with-redefs [rand (constantly 0.7)]
+      (should-be-nil (computer-core/attempt-conquest-computer [0 0] [0 1])))))
+
+(describe "computer-core/find-loading-transport"
+  (before (reset-all-atoms!))
+
+  (it "finds transport with loading mission"
+    (reset! atoms/game-map (build-test-map ["~t~"]))
+    (swap! atoms/game-map assoc-in [0 1 :contents :transport-mission] :loading)
+    (should= [0 1] (computer-core/find-loading-transport)))
+
+  (it "returns nil when no loading transport exists"
+    (reset! atoms/game-map (build-test-map ["~t~"]))
+    (should-be-nil (computer-core/find-loading-transport)))
+
+  (it "ignores player transports"
+    (reset! atoms/game-map (build-test-map ["~T~"]))
+    (swap! atoms/game-map assoc-in [0 1 :contents :transport-mission] :loading)
+    (should-be-nil (computer-core/find-loading-transport)))
+
+  (it "ignores full transports (army-count >= 6)"
+    (reset! atoms/game-map (build-test-map ["~t~"]))
+    (swap! atoms/game-map assoc-in [0 1 :contents :transport-mission] :loading)
+    (swap! atoms/game-map assoc-in [0 1 :contents :army-count] 6)
+    (should-be-nil (computer-core/find-loading-transport))))
+
+(describe "computer-core/find-adjacent-loading-transport"
+  (before (reset-all-atoms!))
+
+  (it "finds adjacent transport with loading mission"
+    (reset! atoms/game-map (build-test-map ["at~"]))
+    (swap! atoms/game-map assoc-in [0 1 :contents :transport-mission] :loading)
+    (should= [0 1] (computer-core/find-adjacent-loading-transport [0 0])))
+
+  (it "returns nil when no adjacent loading transport"
+    (reset! atoms/game-map (build-test-map ["a~t"]))
+    (swap! atoms/game-map assoc-in [0 2 :contents :transport-mission] :loading)
+    (should-be-nil (computer-core/find-adjacent-loading-transport [0 0])))
+
+  (it "ignores adjacent transport without loading mission"
+    (reset! atoms/game-map (build-test-map ["at~"]))
+    (should-be-nil (computer-core/find-adjacent-loading-transport [0 0]))))
+
+(describe "computer-core/army-should-board-transport?"
+  (before (reset-all-atoms!))
+
+  (it "returns nil when no loading transport exists"
+    (reset! atoms/game-map (build-test-map ["a~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer-core/army-should-board-transport? [0 0] (constantly nil))))
+
+  (it "returns nil when no target cities exist"
+    (reset! atoms/game-map (build-test-map ["a~t"]))
+    (swap! atoms/game-map assoc-in [0 2 :contents :transport-mission] :loading)
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (computer-core/army-should-board-transport? [0 0] (constantly nil))))
+
+  (it "returns true when transport exists and no land route to cities"
+    (reset! atoms/game-map (build-test-map ["a~t+"]))
+    (swap! atoms/game-map assoc-in [0 2 :contents :transport-mission] :loading)
+    (reset! atoms/computer-map @atoms/game-map)
+    (should (computer-core/army-should-board-transport? [0 0] (constantly nil))))
+
+  (it "returns falsy when land route to cities exists"
+    (reset! atoms/game-map (build-test-map ["a#t+"]))
+    (swap! atoms/game-map assoc-in [0 2 :contents :transport-mission] :loading)
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Pathfinding returns a step, meaning land route exists
+    (should-not (computer-core/army-should-board-transport? [0 0] (constantly [0 1])))))
+
 ;; ============================================================================
 ;; Preserved Utilities: computer/threat.cljc
 ;; ============================================================================
@@ -165,7 +266,19 @@
                                                  "~~~"]))
     (let [unit {:type :destroyer :hits 3}
           moves [[0 1] [1 0] [1 2] [2 1]]]
-      (should= moves (threat/safe-moves @atoms/computer-map [1 1] unit moves)))))
+      (should= moves (threat/safe-moves @atoms/computer-map [1 1] unit moves))))
+
+  (it "sorts moves by threat level when unit is damaged"
+    (reset! atoms/computer-map (build-test-map ["B~~~~"
+                                                 "~~~~~"
+                                                 "~~d~~"
+                                                 "~~~~~"
+                                                 "~~~~~"]))
+    (let [unit {:type :destroyer :hits 2}  ;; damaged (max is 3)
+          moves [[2 1] [2 3]]]  ;; [2 1] is closer to Battleship, [2 3] is safer
+      ;; Should return safest moves first (lowest threat)
+      (let [result (threat/safe-moves @atoms/computer-map [2 2] unit moves)]
+        (should= [2 3] (first result))))))
 
 (describe "threat/should-retreat?"
   (before (reset-all-atoms!))
@@ -182,7 +295,55 @@
                                                  "~d~"
                                                  "~~~"]))
     (let [unit {:type :destroyer :hits 3}]
+      (should-not (threat/should-retreat? [1 1] unit @atoms/computer-map))))
+
+  (it "returns true for transport with armies under high threat"
+    (reset! atoms/computer-map (build-test-map ["~BB"
+                                                 "~t~"
+                                                 "~~~"]))
+    ;; Two battleships = threat of 20, which is > 5
+    (let [unit {:type :transport :hits 3 :army-count 2}]
+      (should (threat/should-retreat? [1 1] unit @atoms/computer-map))))
+
+  (it "returns false for transport with armies under low threat"
+    (reset! atoms/computer-map (build-test-map ["~P~"
+                                                 "~t~"
+                                                 "~~~"]))
+    ;; Patrol boat = threat of 3, which is not > 5
+    (let [unit {:type :transport :hits 3 :army-count 2}]
+      (should-not (threat/should-retreat? [1 1] unit @atoms/computer-map))))
+
+  (it "returns true when severely damaged (< 50% health)"
+    (reset! atoms/computer-map (build-test-map ["~~~"
+                                                 "~b~"
+                                                 "~~~"]))
+    ;; Battleship has 10 hits max, 4 < 5 (50%)
+    (let [unit {:type :battleship :hits 4}]
+      (should (threat/should-retreat? [1 1] unit @atoms/computer-map))))
+
+  (it "returns false when at exactly 50% health"
+    (reset! atoms/computer-map (build-test-map ["~~~"
+                                                 "~b~"
+                                                 "~~~"]))
+    ;; Battleship has 10 hits max, 5 = 50%
+    (let [unit {:type :battleship :hits 5}]
       (should-not (threat/should-retreat? [1 1] unit @atoms/computer-map)))))
+
+(describe "threat/find-nearest-friendly-base"
+  (before (reset-all-atoms!))
+
+  (it "returns nearest computer city"
+    (reset! atoms/computer-map (build-test-map ["X~~X~"
+                                                 "~~~~~"
+                                                 "~~d~~"]))
+    ;; [0 0] is distance 4, [0 3] is distance 3
+    (should= [0 3] (threat/find-nearest-friendly-base [2 2] :destroyer)))
+
+  (it "returns nil when no computer cities exist"
+    (reset! atoms/computer-map (build-test-map ["O~~+~"
+                                                 "~~~~~"
+                                                 "~~d~~"]))
+    (should-be-nil (threat/find-nearest-friendly-base [2 2] :destroyer))))
 
 (describe "threat/retreat-move"
   (before (reset-all-atoms!))
@@ -205,7 +366,15 @@
     (reset! atoms/computer-map @atoms/game-map)
     (let [unit {:type :destroyer :hits 1}
           passable [[1 2] [1 3] [2 1] [2 3]]]
-      (should-be-nil (threat/retreat-move [2 2] unit @atoms/computer-map passable)))))
+      (should-be-nil (threat/retreat-move [2 2] unit @atoms/computer-map passable))))
+
+  (it "returns nil when passable-moves is empty"
+    (reset! atoms/game-map (build-test-map ["X~~~~"
+                                             "~~~~~"
+                                             "~~d~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [unit {:type :destroyer :hits 1}]
+      (should-be-nil (threat/retreat-move [2 2] unit @atoms/computer-map [])))))
 
 ;; ============================================================================
 ;; Preserved Utilities: computer/production.cljc

@@ -90,6 +90,19 @@
       (should= "city:player producing:army fighters:2 dock:S[1/2]"
                (ru/format-city-status cell production)))))
 
+(describe "format-waypoint-status"
+  (it "formats waypoint with marching orders"
+    (let [waypoint {:marching-orders [10 20]}]
+      (should= "waypoint -> 10,20" (ru/format-waypoint-status waypoint))))
+
+  (it "formats waypoint without marching orders"
+    (let [waypoint {}]
+      (should= "waypoint (no orders)" (ru/format-waypoint-status waypoint))))
+
+  (it "formats waypoint with nil marching orders"
+    (let [waypoint {:marching-orders nil}]
+      (should= "waypoint (no orders)" (ru/format-waypoint-status waypoint)))))
+
 (describe "format-hover-status"
   (it "returns unit status with coordinates"
     (let [cell {:contents {:type :army :hits 1 :mode :awake :owner :player}}]
@@ -101,7 +114,15 @@
 
   (it "returns nil for empty non-city cell"
     (let [cell {:type :land}]
-      (should-not (ru/format-hover-status [0 0] cell nil)))))
+      (should-not (ru/format-hover-status [0 0] cell nil))))
+
+  (it "returns waypoint status with coordinates"
+    (let [cell {:type :land :waypoint {:marching-orders [15 25]}}]
+      (should= "[2,3] waypoint -> 15,25" (ru/format-hover-status [2 3] cell nil))))
+
+  (it "returns waypoint status without orders"
+    (let [cell {:type :sea :waypoint {}}]
+      (should= "[1,1] waypoint (no orders)" (ru/format-hover-status [1 1] cell nil)))))
 
 (describe "determine-display-unit"
   (it "returns contents for normal cell with unit"

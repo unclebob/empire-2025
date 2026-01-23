@@ -364,4 +364,28 @@
     (let [rolls (atom [0.4 0.6 0.4 0.4])]
       (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
         (combat/attempt-attack [0 0] [0 1])
-        (should= "c-3,S-1,c-3,c-3. Carrier destroyed." @atoms/line2-message)))))
+        (should= "c-3,S-1,c-3,c-3. Carrier destroyed." @atoms/line2-message))))
+
+  (it "releases beach reservation when computer transport is destroyed"
+    (reset! atoms/game-map (build-test-map ["Dt"]))
+    (set-test-unit atoms/game-map "D" :hits 3)
+    (set-test-unit atoms/game-map "t" :hits 1 :transport-id 42)
+    ;; Set up beach reservation for this transport
+    (reset! atoms/reserved-beaches {[5 5] 42 [6 6] 99})
+    (with-redefs [rand (constantly 0.4)]
+      (combat/attempt-attack [0 0] [0 1])
+      ;; Transport's beach reservation should be removed
+      (should-be-nil (get @atoms/reserved-beaches [5 5]))
+      ;; Other reservation should remain
+      (should= 99 (get @atoms/reserved-beaches [6 6]))))
+
+  (it "does not release beach reservation when player transport is destroyed"
+    (reset! atoms/game-map (build-test-map ["dT"]))
+    (set-test-unit atoms/game-map "d" :hits 3)
+    (set-test-unit atoms/game-map "T" :hits 1 :transport-id 42)
+    ;; Set up beach reservation (shouldn't be released for player transport)
+    (reset! atoms/reserved-beaches {[5 5] 42})
+    (with-redefs [rand (constantly 0.4)]
+      (combat/attempt-attack [0 0] [0 1])
+      ;; Reservation should remain since it was a player transport
+      (should= 42 (get @atoms/reserved-beaches [5 5])))))

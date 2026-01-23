@@ -84,4 +84,31 @@
 
     (it "extends diagonally to edge"
       (should= [9 9] (coords/extend-to-edge [5 5] [1 1] 10 10))
-      (should= [0 0] (coords/extend-to-edge [5 5] [-1 -1] 10 10)))))
+      (should= [0 0] (coords/extend-to-edge [5 5] [-1 -1] 10 10))))
+
+  (describe "screen->cell"
+    (it "converts pixel coordinates to cell coordinates"
+      ;; 800 pixels wide / 8 rows = 100 px per cell width
+      ;; 600 pixels high / 6 cols = 100 px per cell height
+      (should= [0 0] (coords/screen->cell 0 0 800 600 8 6))
+      (should= [0 0] (coords/screen->cell 50 50 800 600 8 6))
+      (should= [1 0] (coords/screen->cell 100 50 800 600 8 6))
+      (should= [0 1] (coords/screen->cell 50 100 800 600 8 6))
+      (should= [7 5] (coords/screen->cell 750 550 800 600 8 6))))
+
+  (describe "cell->screen"
+    (it "converts cell coordinates to screen pixel coordinates (top-left)"
+      ;; 800 pixels wide / 8 cols = 100 px per cell
+      ;; 600 pixels high / 6 rows = 100 px per cell
+      (should= [0 0] (coords/cell->screen 0 0 800 600 6 8))
+      (should= [100 0] (coords/cell->screen 0 1 800 600 6 8))
+      (should= [0 100] (coords/cell->screen 1 0 800 600 6 8))
+      (should= [700 500] (coords/cell->screen 5 7 800 600 6 8))))
+
+  (describe "cell-center->screen"
+    (it "converts cell coordinates to screen pixel coordinates (center)"
+      ;; 800 pixels wide / 8 cols = 100 px per cell
+      ;; 600 pixels high / 6 rows = 100 px per cell
+      (should= [50 50] (coords/cell-center->screen 0 0 800 600 6 8))
+      (should= [150 50] (coords/cell-center->screen 0 1 800 600 6 8))
+      (should= [50 150] (coords/cell-center->screen 1 0 800 600 6 8)))))

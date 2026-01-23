@@ -323,7 +323,7 @@
     (let [result (get-test-unit atoms/game-map "V")]
       ;; Either satellite is gone or has decremented turns
       (when result
-        (should (or (nil? (:unit result)) (<= (:turns-remaining (:unit result) 0) 0)))))))
+        (should (or (nil? (:unit result)) (<= (:turns-remaining (:unit result) 0) 0))))))
 
   (it "removes satellite immediately when turns-remaining is already zero"
     ;; Satellite with turns-remaining 0 should be removed at start of move
@@ -343,6 +343,19 @@
     (let [{:keys [unit]} (get-test-unit atoms/game-map "V")]
       (when unit
         (should (< (:turns-remaining unit) 5)))))
+
+  (it "removes satellite with negative turns-remaining"
+    ;; Satellite with turns-remaining -1 should be removed immediately
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#V#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "V" :turns-remaining -1 :target [0 0])
+    (reset! atoms/player-map (build-test-map ["###"
+                                               "###"
+                                               "###"]))
+    (game-loop/move-satellites)
+    ;; Satellite should be removed
+    (should-be-nil (:contents (get-in @atoms/game-map [1 1])))))
 
 (describe "move-explore-unit"
   (before (reset-all-atoms!))
@@ -521,4 +534,60 @@
       (let [round-before @atoms/round-number]
         (game-loop/advance-game)
         ;; Round should advance
-        (should= (inc round-before) @atoms/round-number)))))
+        (should= (inc round-before) @atoms/round-number))))
+
+  (describe "step-one-round"
+    (it "does nothing when not paused"
+      (reset! atoms/paused false)
+      (reset! atoms/pause-requested false)
+      (reset! atoms/player-items [[0 0]])
+      (game-loop/step-one-round)
+      (should-not @atoms/paused)
+      (should-not @atoms/pause-requested))
+
+    (it "unpauses and requests pause when paused"
+      (reset! atoms/paused true)
+      (reset! atoms/pause-requested false)
+      (reset! atoms/player-items [[0 0]])
+      (game-loop/step-one-round)
+      (should-not @atoms/paused)
+      (should @atoms/pause-requested))
+
+    (it "starts new round when paused and lists are empty"
+      (reset! atoms/game-map (build-test-map ["#"]))
+      (reset! atoms/player-map (build-test-map ["#"]))
+      (reset! atoms/computer-map (build-test-map ["#"]))
+      (reset! atoms/production {})
+      (reset! atoms/paused true)
+      (reset! atoms/pause-requested false)
+      (reset! atoms/player-items [])
+      (reset! atoms/computer-items [])
+      (reset! atoms/round-number 5)
+      (game-loop/step-one-round)
+      (should= 6 @atoms/round-number)))
+
+  (describe "advance-game with computer items"
+    (it "processes computer items when player items empty"
+      (reset! atoms/game-map (build-test-map ["#a"]))
+      (set-test-unit atoms/game-map "a" :mode :sentry)
+      (reset! atoms/player-map (build-test-map ["##"]))
+      (reset! atoms/computer-map (build-test-map ["##"]))
+      (reset! atoms/production {})
+      (reset! atoms/paused false)
+      (reset! atoms/player-items [])
+      (reset! atoms/computer-items [[0 1]])
+      (game-loop/advance-game)
+      ;; Computer item should have been processed
+      (should= [] (vec @atoms/computer-items)))
+
+    (it "processes computer city without unit"
+      (reset! atoms/game-map (build-test-map ["X#"]))
+      (reset! atoms/player-map (build-test-map ["##"]))
+      (reset! atoms/computer-map (build-test-map ["##"]))
+      (reset! atoms/production {})
+      (reset! atoms/paused false)
+      (reset! atoms/player-items [])
+      (reset! atoms/computer-items [[0 0]])
+      (game-loop/advance-game)
+      ;; Computer city should have been processed
+      (should= [] (vec @atoms/computer-items)))))

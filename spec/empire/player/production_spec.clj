@@ -147,7 +147,55 @@
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
         (should= :transport (:type unit))
         (should= :awake (:mode unit))
-        (should-be-nil (:explore-steps unit))))))
+        (should-be-nil (:explore-steps unit)))))
+
+  (it "creates satellite with turns-remaining"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
+      (swap! atoms/production assoc city-coords {:item :satellite :remaining-rounds 1})
+      (production/update-production)
+      (let [unit (:contents (get-in @atoms/game-map city-coords))]
+        (should= :satellite (:type unit))
+        (should= config/satellite-turns (:turns-remaining unit)))))
+
+  (it "creates computer transport with transport-id"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))
+          initial-id @atoms/next-transport-id]
+      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (swap! atoms/production assoc city-coords {:item :transport :remaining-rounds 1})
+      (production/update-production)
+      (let [unit (:contents (get-in @atoms/game-map city-coords))]
+        (should= :transport (:type unit))
+        (should= :computer (:owner unit))
+        (should= initial-id (:transport-id unit))
+        (should= (inc initial-id) @atoms/next-transport-id))))
+
+  (it "creates computer army with beach order target"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))
+          beach-pos [5 5]]
+      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (reset! atoms/beach-army-orders {beach-pos {:city-pos city-coords :remaining 3}})
+      (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
+      (production/update-production)
+      (let [unit (:contents (get-in @atoms/game-map city-coords))]
+        (should= :army (:type unit))
+        (should= :computer (:owner unit))
+        (should= beach-pos (:target unit))
+        (should= :loading (:mission unit))
+        ;; Beach order remaining should be decremented
+        (should= 2 (:remaining (get @atoms/beach-army-orders beach-pos))))))
+
+  (it "removes beach order when remaining reaches zero"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))
+          beach-pos [5 5]]
+      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (reset! atoms/beach-army-orders {beach-pos {:city-pos city-coords :remaining 1}})
+      (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
+      (production/update-production)
+      (let [unit (:contents (get-in @atoms/game-map city-coords))]
+        (should= :army (:type unit))
+        (should= beach-pos (:target unit)))
+      ;; Beach order should be removed
+      (should-be-nil (get @atoms/beach-army-orders beach-pos)))))
 
 (describe "set-city-production"
   (before
