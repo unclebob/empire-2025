@@ -6,6 +6,98 @@
             [empire.game-loop :as game-loop]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!]]))
 
+(describe "set-city-marching-orders"
+  (around [it]
+    (reset-all-atoms!)
+    (reset! atoms/game-map (build-test-map ["~O"
+                                             "X#"]))
+    (it))
+
+  (it "sets marching orders on player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))
+          dest [5 5]]
+      (input/set-city-marching-orders city-coords dest)
+      (should= dest (get-in @atoms/game-map (conj city-coords :marching-orders)))))
+
+  (it "clears destination after setting orders"
+    (reset! atoms/destination [5 5])
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/set-city-marching-orders city-coords [5 5])
+      (should-be-nil @atoms/destination)))
+
+  (it "returns true when setting orders on player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (should (input/set-city-marching-orders city-coords [5 5]))))
+
+  (it "returns nil for non-player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
+      (should-be-nil (input/set-city-marching-orders city-coords [5 5]))))
+
+  (it "returns nil for non-city cell"
+    (should-be-nil (input/set-city-marching-orders [0 0] [5 5]))))
+
+(describe "set-transport-marching-orders"
+  (before (reset-all-atoms!))
+
+  (it "sets marching orders on player transport"
+    (reset! atoms/game-map (build-test-map ["T~"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          dest [5 5]]
+      (input/set-transport-marching-orders transport-coords dest)
+      (should= dest (get-in @atoms/game-map (conj transport-coords :contents :marching-orders)))))
+
+  (it "clears destination after setting orders"
+    (reset! atoms/game-map (build-test-map ["T~"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry)
+    (reset! atoms/destination [5 5])
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (input/set-transport-marching-orders transport-coords [5 5])
+      (should-be-nil @atoms/destination)))
+
+  (it "returns true when setting orders on player transport"
+    (reset! atoms/game-map (build-test-map ["T~"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (should (input/set-transport-marching-orders transport-coords [5 5]))))
+
+  (it "returns nil for computer transport"
+    (reset! atoms/game-map (build-test-map ["t~"]))
+    (set-test-unit atoms/game-map "t" :mode :sentry)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "t"))]
+      (should-be-nil (input/set-transport-marching-orders transport-coords [5 5]))))
+
+  (it "returns nil for non-transport unit"
+    (reset! atoms/game-map (build-test-map ["A#"]))
+    (set-test-unit atoms/game-map "A" :mode :awake)
+    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+      (should-be-nil (input/set-transport-marching-orders unit-coords [5 5])))))
+
+(describe "set-marching-orders-for-cell"
+  (before (reset-all-atoms!))
+
+  (it "sets orders on player city"
+    (reset! atoms/game-map (build-test-map ["O"]))
+    (reset! atoms/destination [5 5])
+    (should (input/set-marching-orders-for-cell [0 0] [5 5])))
+
+  (it "sets orders on player transport"
+    (reset! atoms/game-map (build-test-map ["T"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry)
+    (reset! atoms/destination [5 5])
+    (should (input/set-marching-orders-for-cell [0 0] [5 5])))
+
+  (it "sets orders on waypoint"
+    (reset! atoms/game-map (-> (build-test-map ["#"])
+                               (assoc-in [0 0 :waypoint] {})))
+    (reset! atoms/destination [5 5])
+    ;; Waypoint behavior returns true but uses waypoint module
+    (should (input/set-marching-orders-for-cell [0 0] [5 5])))
+
+  (it "returns nil for empty cell"
+    (reset! atoms/game-map (build-test-map ["#"]))
+    (should-be-nil (input/set-marching-orders-for-cell [0 0] [5 5]))))
+
 (describe "set-city-lookaround"
   (around [it]
     (reset-all-atoms!)

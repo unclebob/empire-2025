@@ -479,6 +479,72 @@
                   (empty? @atoms/player-items))))))
 
 
+(describe "handle-sidestep-result"
+  (before (reset-all-atoms!))
+
+  (it "decrements steps-remaining and returns new pos when steps remain"
+    (reset! atoms/game-map (build-test-map ["A###"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 3] :steps-remaining 3)
+    (let [result (game-loop/handle-sidestep-result [0 0] 10)]
+      ;; Should return position for continued movement
+      (should result)
+      ;; steps-remaining should be decremented
+      (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+        (should= 2 (:steps-remaining unit)))))
+
+  (it "returns nil when no steps remaining"
+    (reset! atoms/game-map (build-test-map ["A###"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 3] :steps-remaining 1)
+    (let [result (game-loop/handle-sidestep-result [0 0] 10)]
+      ;; Should return nil - no more steps
+      (should-be-nil result)))
+
+  (it "returns nil when max sidesteps exhausted"
+    (reset! atoms/game-map (build-test-map ["A###"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 3] :steps-remaining 3)
+    (let [result (game-loop/handle-sidestep-result [0 0] 0)]
+      ;; Should return current pos when no sidesteps left
+      (should= [0 0] result))))
+
+(describe "handle-normal-move-result"
+  (before (reset-all-atoms!))
+
+  (it "decrements steps-remaining and returns pos when steps remain"
+    (reset! atoms/game-map (build-test-map ["A###"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 3] :steps-remaining 3)
+    (let [result (game-loop/handle-normal-move-result [0 0])]
+      ;; Should return position for continued movement
+      (should= [0 0] result)
+      ;; steps-remaining should be decremented
+      (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+        (should= 2 (:steps-remaining unit)))))
+
+  (it "returns nil when no steps remaining"
+    (reset! atoms/game-map (build-test-map ["A###"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 3] :steps-remaining 1)
+    (let [result (game-loop/handle-normal-move-result [0 0])]
+      ;; Should return nil - no more steps
+      (should-be-nil result))))
+
+(describe "handle-combat-result"
+  (before (reset-all-atoms!))
+
+  (it "returns nil when attacker won (ends move after combat)"
+    (reset! atoms/game-map (build-test-map ["A#"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [0 1] :steps-remaining 3)
+    (let [result (game-loop/handle-combat-result [0 0] :player)]
+      ;; Combat always ends the move
+      (should-be-nil result)
+      ;; steps-remaining should be set to 0
+      (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+        (should= 0 (:steps-remaining unit)))))
+
+  (it "returns nil when no unit at position (attacker lost)"
+    (reset! atoms/game-map (build-test-map ["##"]))
+    (let [result (game-loop/handle-combat-result [0 0] :player)]
+      ;; No unit means attacker lost
+      (should-be-nil result))))
+
 (describe "pause functionality"
   (before
     (reset-all-atoms!)

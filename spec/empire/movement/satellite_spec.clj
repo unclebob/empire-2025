@@ -8,6 +8,58 @@
     [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]
     [speclj.core :refer :all]))
 
+(describe "bounce-satellite"
+  (before (reset-all-atoms!))
+
+  (it "updates satellite with new target when at boundary"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "##V"
+                                             "###"]))
+    (set-test-unit atoms/game-map "V" :target [1 2] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (let [result (empire.movement.satellite/bounce-satellite [1 2])]
+      ;; Should return same position
+      (should= [1 2] result)
+      ;; Satellite should have new target on opposite boundary
+      (let [sat (:contents (get-in @atoms/game-map [1 2]))]
+        (should= 0 (second (:target sat))))))
+
+  (it "returns current position unchanged"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "V##"
+                                             "###"]))
+    (set-test-unit atoms/game-map "V" :target [1 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (let [result (empire.movement.satellite/bounce-satellite [1 0])]
+      (should= [1 0] result))))
+
+(describe "move-satellite-toward-target"
+  (before (reset-all-atoms!))
+
+  (it "moves satellite one step toward target"
+    (reset! atoms/game-map (build-test-map ["####"
+                                             "#V##"
+                                             "####"
+                                             "####"]))
+    (set-test-unit atoms/game-map "V" :target [3 3] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 4 4 nil))
+    (let [result (empire.movement.satellite/move-satellite-toward-target [1 1])]
+      ;; Should move diagonally toward [3 3]
+      (should= [2 2] result)
+      ;; Old position should be empty
+      (should-be-nil (:contents (get-in @atoms/game-map [1 1])))
+      ;; New position should have satellite
+      (should (:contents (get-in @atoms/game-map [2 2])))))
+
+  (it "moves horizontally when target is directly east"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#V###"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [1 4] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 3 5 nil))
+    (let [result (empire.movement.satellite/move-satellite-toward-target [1 1])]
+      (should= [1 2] result))))
+
 (describe "calculate-satellite-target"
   (before (reset-all-atoms!))
   (it "extends target to boundary in direction of travel"

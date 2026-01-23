@@ -330,35 +330,46 @@
         (reset! atoms/destination [cx cy])
         true))))
 
+(defn set-city-marching-orders
+  "Sets marching orders on a player city. Returns true if set, nil otherwise."
+  [coords dest]
+  (let [cell (get-in @atoms/game-map coords)]
+    (when (and (= (:type cell) :city)
+               (= (:city-status cell) :player))
+      (swap! atoms/game-map assoc-in (conj coords :marching-orders) dest)
+      (reset! atoms/destination nil)
+      (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+      true)))
+
+(defn set-transport-marching-orders
+  "Sets marching orders on a player transport. Returns true if set, nil otherwise."
+  [coords dest]
+  (let [cell (get-in @atoms/game-map coords)
+        contents (:contents cell)]
+    (when (and (= (:type contents) :transport)
+               (= (:owner contents) :player))
+      (swap! atoms/game-map assoc-in (conj coords :contents :marching-orders) dest)
+      (reset! atoms/destination nil)
+      (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+      true)))
+
+(defn set-marching-orders-for-cell
+  "Sets marching orders on cell (city, transport, or waypoint). Returns true if set."
+  [coords dest]
+  (let [cell (get-in @atoms/game-map coords)]
+    (or (set-city-marching-orders coords dest)
+        (set-transport-marching-orders coords dest)
+        (when (:waypoint cell)
+          (waypoint/set-waypoint-orders coords)
+          true))))
+
 (defn set-marching-orders-at-mouse []
   "Sets marching orders on a player city, transport, or waypoint under the mouse to the current destination."
   (when-let [dest @atoms/destination]
     (let [x (q/mouse-x)
           y (q/mouse-y)]
       (when (map-utils/on-map? x y)
-        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-              cell (get-in @atoms/game-map [cx cy])
-              contents (:contents cell)]
-          (cond
-            (and (= (:type cell) :city)
-                 (= (:city-status cell) :player))
-            (do (swap! atoms/game-map assoc-in [cx cy :marching-orders] dest)
-                (reset! atoms/destination nil)
-                (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
-                true)
-
-            (and (= (:type contents) :transport)
-                 (= (:owner contents) :player))
-            (do (swap! atoms/game-map assoc-in [cx cy :contents :marching-orders] dest)
-                (reset! atoms/destination nil)
-                (atoms/set-confirmation-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
-                true)
-
-            (:waypoint cell)
-            (do (waypoint/set-waypoint-orders [cx cy])
-                true)
-
-            :else nil))))))
+        (set-marching-orders-for-cell (map-utils/determine-cell-coordinates x y) dest)))))
 
 (defn set-flight-path-at-mouse []
   "Sets flight path on a player city or carrier under the mouse to the current destination."

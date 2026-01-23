@@ -5,6 +5,33 @@
             [empire.movement.coastline :refer :all]
             [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]))
 
+(describe "pick-random-matching"
+  (it "returns nil for empty collection"
+    (should-be-nil (pick-random-matching [])))
+
+  (it "returns nil when no elements match predicate"
+    (should-be-nil (pick-random-matching [1 3 5] even?)))
+
+  (it "returns random element from matching set"
+    (let [results (repeatedly 20 #(pick-random-matching [1 2 3 4 5 6] even?))]
+      (should (every? #{2 4 6} results))
+      ;; Should have some variety (not always same element)
+      (should (> (count (set results)) 1))))
+
+  (it "applies multiple predicates with every-pred"
+    (let [gt5? (fn [x] (> x 5))
+          results (repeatedly 20 #(pick-random-matching [1 2 3 4 5 6 7 8 9 10 12]
+                                                        even?
+                                                        gt5?))]
+      (should (every? #{6 8 10 12} results))))
+
+  (it "returns element when single match exists"
+    (should= 4 (pick-random-matching [1 3 4 5 7] even?)))
+
+  (it "works with no predicates (returns random from collection)"
+    (let [results (repeatedly 20 #(pick-random-matching [1 2 3]))]
+      (should (every? #{1 2 3} results)))))
+
 (describe "coastline-follow-eligible?"
   (before (reset-all-atoms!))
   (it "returns true for transport near coast"
