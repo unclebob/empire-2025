@@ -243,6 +243,44 @@
                                     "###"]))]
       (should-not (map-utils/adjacent-to-sea? [1 1] game-map)))))
 
+(describe "is-players?"
+  (it "returns true for player city"
+    (should (map-utils/is-players? {:type :city :city-status :player})))
+
+  (it "returns true for cell with player unit"
+    (should (map-utils/is-players? {:type :land :contents {:owner :player}})))
+
+  (it "returns false for computer city"
+    (should-not (map-utils/is-players? {:type :city :city-status :computer})))
+
+  (it "returns false for cell with computer unit"
+    (should-not (map-utils/is-players? {:type :land :contents {:owner :computer}})))
+
+  (it "returns false for free city"
+    (should-not (map-utils/is-players? {:type :city :city-status :free})))
+
+  (it "returns false for empty cell"
+    (should-not (map-utils/is-players? {:type :land}))))
+
+(describe "is-computers?"
+  (it "returns true for computer city"
+    (should (map-utils/is-computers? {:type :city :city-status :computer})))
+
+  (it "returns true for cell with computer unit"
+    (should (map-utils/is-computers? {:type :land :contents {:owner :computer}})))
+
+  (it "returns false for player city"
+    (should-not (map-utils/is-computers? {:type :city :city-status :player})))
+
+  (it "returns false for cell with player unit"
+    (should-not (map-utils/is-computers? {:type :land :contents {:owner :player}})))
+
+  (it "returns false for free city"
+    (should-not (map-utils/is-computers? {:type :city :city-status :free})))
+
+  (it "returns false for empty cell"
+    (should-not (map-utils/is-computers? {:type :land}))))
+
 (describe "at-map-edge?"
   (before (reset-all-atoms!))
   (it "returns true for top edge"

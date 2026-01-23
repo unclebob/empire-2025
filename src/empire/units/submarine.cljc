@@ -1,4 +1,5 @@
-(ns empire.units.submarine)
+(ns empire.units.submarine
+  (:require [empire.units.dispatcher :as dispatcher]))
 
 ;; Configuration
 (def speed 2)
@@ -23,3 +24,14 @@
   "Submarines need attention when awake."
   [unit]
   (= (:mode unit) :awake))
+
+;; Register with dispatcher
+(defmethod dispatcher/speed :submarine [_] speed)
+(defmethod dispatcher/cost :submarine [_] cost)
+(defmethod dispatcher/hits :submarine [_] hits)
+(defmethod dispatcher/strength :submarine [_] strength)
+(defmethod dispatcher/display-char :submarine [_] display-char)
+(defmethod dispatcher/visibility-radius :submarine [_] visibility-radius)
+(defmethod dispatcher/initial-state :submarine [_] (initial-state))
+(defmethod dispatcher/can-move-to? :submarine [_ cell] (can-move-to? cell))
+(defmethod dispatcher/needs-attention? :submarine [unit] (needs-attention? unit))

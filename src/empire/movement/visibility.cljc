@@ -1,17 +1,6 @@
 (ns empire.movement.visibility
-  (:require [empire.atoms :as atoms]))
-
-(defn- is-players?
-  "Returns true if the cell is owned by the player."
-  [cell]
-  (or (= (:city-status cell) :player)
-      (= (:owner (:contents cell)) :player)))
-
-(defn- is-computers?
-  "Returns true if the cell is owned by the computer."
-  [cell]
-  (or (= (:city-status cell) :computer)
-      (= (:owner (:contents cell)) :computer)))
+  (:require [empire.atoms :as atoms]
+            [empire.movement.map-utils :as map-utils]))
 
 (defn- reveal-surrounding-cells!
   "Reveals the 3x3 area around cell [i,j] in the transient result map.
@@ -46,7 +35,7 @@
   [visible-map-atom owner]
   (when-let [visible-map @visible-map-atom]
     (let [game-map @atoms/game-map
-          ownership-predicate (if (= owner :player) is-players? is-computers?)
+          ownership-predicate (if (= owner :player) map-utils/is-players? map-utils/is-computers?)
           height (count game-map)
           width (count (first game-map))
           transient-map (transient (mapv transient visible-map))

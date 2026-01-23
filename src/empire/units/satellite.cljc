@@ -1,5 +1,6 @@
 (ns empire.units.satellite
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.atoms :as atoms]
+            [empire.units.dispatcher :as dispatcher]))
 
 ;; Configuration
 (def speed 10)
@@ -95,3 +96,14 @@
             (swap! atoms/game-map assoc-in [x y :contents] nil)
             (swap! atoms/game-map assoc-in (conj new-pos :contents) satellite)
             new-pos))))))
+
+;; Register with dispatcher
+(defmethod dispatcher/speed :satellite [_] speed)
+(defmethod dispatcher/cost :satellite [_] cost)
+(defmethod dispatcher/hits :satellite [_] hits)
+(defmethod dispatcher/strength :satellite [_] strength)
+(defmethod dispatcher/display-char :satellite [_] display-char)
+(defmethod dispatcher/visibility-radius :satellite [_] visibility-radius)
+(defmethod dispatcher/initial-state :satellite [_] (initial-state))
+(defmethod dispatcher/can-move-to? :satellite [_ cell] (can-move-to? cell))
+(defmethod dispatcher/needs-attention? :satellite [unit] (needs-attention? unit))

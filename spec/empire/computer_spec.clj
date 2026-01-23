@@ -11,6 +11,7 @@
             [empire.computer.ship :as ship]
             [empire.computer.threat :as threat]
             [empire.computer.transport :as transport]
+            [empire.ui.coordinates :as coords]
             [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 
@@ -35,12 +36,12 @@
     (let [neighbors (computer-core/get-neighbors [0 0])]
       (should= 3 (count neighbors)))))
 
-(describe "computer-core/distance"
+(describe "coords/manhattan-distance (consolidated from computer-core)"
   (it "calculates manhattan distance"
-    (should= 0 (computer-core/distance [0 0] [0 0]))
-    (should= 1 (computer-core/distance [0 0] [0 1]))
-    (should= 2 (computer-core/distance [0 0] [1 1]))
-    (should= 5 (computer-core/distance [0 0] [2 3]))))
+    (should= 0 (coords/manhattan-distance [0 0] [0 0]))
+    (should= 1 (coords/manhattan-distance [0 0] [0 1]))
+    (should= 2 (coords/manhattan-distance [0 0] [1 1]))
+    (should= 5 (coords/manhattan-distance [0 0] [2 3]))))
 
 (describe "computer-core/attackable-target?"
   (it "returns true for player unit"

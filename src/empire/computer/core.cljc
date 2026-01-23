@@ -2,18 +2,14 @@
   "Shared utilities for computer AI modules."
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.visibility :as visibility]))
+            [empire.movement.visibility :as visibility]
+            [empire.ui.coordinates :as coords]))
 
 (defn get-neighbors
   "Returns valid neighbor coordinates for a position."
   [pos]
   (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets
                                     some?))
-
-(defn distance
-  "Manhattan distance between two positions."
-  [[x1 y1] [x2 y2]]
-  (+ (Math/abs (- x2 x1)) (Math/abs (- y2 y1))))
 
 (defn attackable-target?
   "Returns true if the cell contains an attackable target for the computer."
@@ -37,7 +33,7 @@
   "Returns the neighbor that moves closest to target."
   [pos target passable-neighbors]
   (when (seq passable-neighbors)
-    (apply min-key #(distance % target) passable-neighbors)))
+    (apply min-key #(coords/manhattan-distance % target) passable-neighbors)))
 
 (defn adjacent-to-computer-unexplored?
   "Returns true if the position has an adjacent unexplored cell on computer-map."
@@ -73,20 +69,11 @@
         (visibility/update-cell-visibility army-pos :computer)
         nil))))
 
-(defn- adjacent?
-  "Returns true if pos1 and pos2 are adjacent (including diagonally)."
-  [pos1 pos2]
-  (let [[r1 c1] pos1
-        [r2 c2] pos2
-        dr (Math/abs (- r2 r1))
-        dc (Math/abs (- c2 c1))]
-    (and (<= dr 1) (<= dc 1) (not (and (zero? dr) (zero? dc))))))
-
 (defn board-transport
   "Loads army onto transport. Removes army from pos, increments transport army count.
    Verifies adjacency before loading - throws if positions are not adjacent."
   [army-pos transport-pos]
-  (when-not (adjacent? army-pos transport-pos)
+  (when-not (coords/adjacent? army-pos transport-pos)
     (throw (ex-info "Cannot board transport from non-adjacent cell"
                     {:army-pos army-pos :transport-pos transport-pos})))
   (swap! atoms/game-map update-in army-pos dissoc :contents)

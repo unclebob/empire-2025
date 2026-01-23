@@ -1,6 +1,7 @@
 (ns empire.computer.threat
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]
+            [empire.ui.coordinates :as coords]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn unit-threat
@@ -75,17 +76,12 @@
                    (status-pred (:city-status cell)))]
     [i j]))
 
-(defn distance
-  "Manhattan distance between two positions."
-  [[x1 y1] [x2 y2]]
-  (+ (Math/abs (- x2 x1)) (Math/abs (- y2 y1))))
-
 (defn find-nearest-friendly-base
   "Finds the nearest computer-owned city."
   [pos _unit-type]
   (let [cities (find-visible-cities #{:computer})]
     (when (seq cities)
-      (apply min-key #(distance pos %) cities))))
+      (apply min-key #(coords/manhattan-distance pos %) cities))))
 
 (defn retreat-move
   "Returns best retreat move toward nearest friendly city.
@@ -97,6 +93,6 @@
         (let [safe (safe-moves computer-map pos unit passable-moves)]
           (when (seq safe)
             ;; Pick move that's both safe and moves toward base
-            (apply min-key #(+ (distance % nearest-city)
+            (apply min-key #(+ (coords/manhattan-distance % nearest-city)
                                (* 2 (threat-level computer-map %)))
                    safe)))))))

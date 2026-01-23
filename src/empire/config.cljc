@@ -1,5 +1,6 @@
 (ns empire.config
-  (:require [empire.units.dispatcher :as dispatcher]))
+  (:require [empire.units.dispatcher :as dispatcher]
+            [empire.units.registry]))
 
 (def smooth-count 10)
 

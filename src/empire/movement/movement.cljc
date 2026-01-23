@@ -8,21 +8,10 @@
             [empire.movement.wake-conditions :as wake]
             [empire.movement.satellite :as satellite]
             [empire.containers.helpers :as uc]
+            [empire.ui.coordinates :as coords]
             [empire.units.dispatcher :as dispatcher]))
 
 ;; Core movement functions
-
-(defn is-players?
-  "Returns true if the cell is owned by the player."
-  [cell]
-  (or (= (:city-status cell) :player)
-      (= (:owner (:contents cell)) :player)))
-
-(defn is-computers?
-  "Returns true if the cell is owned by the computer."
-  [cell]
-  (or (= (:city-status cell) :computer)
-      (= (:owner (:contents cell)) :computer)))
 
 (defn next-step-pos [pos target]
   (let [[x y] pos
@@ -34,11 +23,6 @@
                  (pos? (- ty y)) 1
                  :else -1)]
     [(+ x dx) (+ y dy)]))
-
-(defn chebyshev-distance
-  "Returns the Chebyshev (chessboard) distance between two positions."
-  [[x1 y1] [x2 y2]]
-  (max (abs (- x2 x1)) (abs (- y2 y1))))
 
 (defn- can-move-to?
   "Returns true if the unit type can move to the given cell.
@@ -87,14 +71,14 @@
   [from-pos target unit-type blocked-dir current-map]
   (let [candidates (get-sidestep-directions blocked-dir)
         [fx fy] from-pos
-        current-dist (chebyshev-distance from-pos target)
+        current-dist (coords/chebyshev-distance from-pos target)
         valid-sidesteps
         (for [[sdx sdy] candidates
               :let [sidestep-pos [(+ fx sdx) (+ fy sdy)]
                     sidestep-cell (get-in @current-map sidestep-pos)]
               :when (can-move-to? unit-type sidestep-cell)
               :let [final-pos (simulate-path sidestep-pos target unit-type 3 current-map)
-                    final-dist (chebyshev-distance final-pos target)]]
+                    final-dist (coords/chebyshev-distance final-pos target)]]
           {:pos sidestep-pos :dist final-dist})]
     (when (seq valid-sidesteps)
       (let [best-dist (apply min (map :dist valid-sidesteps))

@@ -4,6 +4,7 @@
     [empire.config :as config]
     [empire.game-loop :as game-loop]
     [empire.movement.explore :as explore]
+    [empire.movement.map-utils :as map-utils]
     [empire.movement.movement :refer :all]
     [empire.movement.visibility :as visibility]
     [empire.movement.wake-conditions :as wake]
@@ -608,23 +609,23 @@
     (describe "is-computers?"
       (it "returns true for computer city"
         (let [cell {:type :city :city-status :computer}]
-          (should (is-computers? cell))))
+          (should (map-utils/is-computers? cell))))
 
       (it "returns true for cell with computer unit"
         (let [cell {:type :land :contents {:type :army :owner :computer}}]
-          (should (is-computers? cell))))
+          (should (map-utils/is-computers? cell))))
 
       (it "returns false for player city"
         (let [cell {:type :city :city-status :player}]
-          (should-not (is-computers? cell))))
+          (should-not (map-utils/is-computers? cell))))
 
       (it "returns false for cell with player unit"
         (let [cell {:type :land :contents {:type :army :owner :player}}]
-          (should-not (is-computers? cell))))
+          (should-not (map-utils/is-computers? cell))))
 
       (it "returns false for empty cell"
         (let [cell {:type :land}]
-          (should-not (is-computers? cell)))))
+          (should-not (map-utils/is-computers? cell)))))
 
     (describe "wake-before-move edge cases"
       (it "wakes unit when something is in the way"

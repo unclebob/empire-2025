@@ -1,5 +1,6 @@
 (ns empire.movement.map-utils
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.atoms :as atoms]
+            [empire.ui.coordinates :as coords]))
 
 (def neighbor-offsets
   "Offsets for the 8 adjacent cells (excludes center)."
@@ -92,18 +93,19 @@
   "Returns true if the pixel coordinates are within the map display area."
   [x y]
   (let [[map-w map-h] @atoms/map-screen-dimensions]
-    (and (>= x 0) (< x map-w)
-         (>= y 0) (< y map-h))))
+    (coords/in-map-bounds? x y map-w map-h)))
 
 (defn determine-cell-coordinates
-  "Converts mouse coordinates to map cell coordinates."
+  "Converts mouse coordinates to map cell coordinates [col row].
+   Note: game-map is indexed [row][col], but screen coords use x=col, y=row."
   [x y]
   (let [[map-w map-h] @atoms/map-screen-dimensions
-        cols (count @atoms/game-map)
-        rows (count (first @atoms/game-map))
-        cell-w (/ map-w cols)
-        cell-h (/ map-h rows)]
-    [(int (Math/floor (/ x cell-w))) (int (Math/floor (/ y cell-h)))]))
+        ;; game-map outer count = rows (height), inner count = cols (width)
+        map-rows (count @atoms/game-map)
+        map-cols (count (first @atoms/game-map))]
+    ;; Original code divided map-w by rows and map-h by cols (swapped)
+    ;; to get pixels-per-cell-x and pixels-per-cell-y
+    (coords/screen->cell x y map-w map-h map-rows map-cols)))
 
 (defn city?
   "Returns true if the cell at coords is a city."
@@ -156,3 +158,17 @@
     (or (zero? x) (zero? y)
         (= x (dec height))
         (= y (dec width)))))
+
+;; Ownership predicates - consolidated from movement.cljc and visibility.cljc
+
+(defn is-players?
+  "Returns true if the cell is owned by the player."
+  [cell]
+  (or (= (:city-status cell) :player)
+      (= (:owner (:contents cell)) :player)))
+
+(defn is-computers?
+  "Returns true if the cell is owned by the computer."
+  [cell]
+  (or (= (:city-status cell) :computer)
+      (= (:owner (:contents cell)) :computer)))

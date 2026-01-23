@@ -1,4 +1,5 @@
-(ns empire.units.transport)
+(ns empire.units.transport
+  (:require [empire.units.dispatcher :as dispatcher]))
 
 ;; Configuration
 (def speed 2)
@@ -69,3 +70,14 @@
   (-> unit
       (update :army-count (fnil dec 0))
       (update :awake-armies (fnil dec 0))))
+
+;; Register with dispatcher
+(defmethod dispatcher/speed :transport [_] speed)
+(defmethod dispatcher/cost :transport [_] cost)
+(defmethod dispatcher/hits :transport [_] hits)
+(defmethod dispatcher/strength :transport [_] strength)
+(defmethod dispatcher/display-char :transport [_] display-char)
+(defmethod dispatcher/visibility-radius :transport [_] visibility-radius)
+(defmethod dispatcher/initial-state :transport [_] (initial-state))
+(defmethod dispatcher/can-move-to? :transport [_ cell] (can-move-to? cell))
+(defmethod dispatcher/needs-attention? :transport [unit] (needs-attention? unit))

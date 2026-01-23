@@ -1,4 +1,5 @@
-(ns empire.units.army)
+(ns empire.units.army
+  (:require [empire.units.dispatcher :as dispatcher]))
 
 ;; Configuration
 (def speed 1)
@@ -25,3 +26,14 @@
   "Armies need attention when awake."
   [unit]
   (= (:mode unit) :awake))
+
+;; Register with dispatcher
+(defmethod dispatcher/speed :army [_] speed)
+(defmethod dispatcher/cost :army [_] cost)
+(defmethod dispatcher/hits :army [_] hits)
+(defmethod dispatcher/strength :army [_] strength)
+(defmethod dispatcher/display-char :army [_] display-char)
+(defmethod dispatcher/visibility-radius :army [_] visibility-radius)
+(defmethod dispatcher/initial-state :army [_] (initial-state))
+(defmethod dispatcher/can-move-to? :army [_ cell] (can-move-to? cell))
+(defmethod dispatcher/needs-attention? :army [unit] (needs-attention? unit))
