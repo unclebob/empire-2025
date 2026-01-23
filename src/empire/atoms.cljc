@@ -119,3 +119,8 @@
   "An atom mapping beach coordinates to the transport-id that reserved them.
    Structure: {[beach-row beach-col] transport-id}"
   (atom {}))
+
+(def used-unloading-beaches
+  "An atom containing set of beach coordinates that have been used for unloading.
+   Once a transport unloads at a beach, no other transport should use it."
+  (atom #{}))

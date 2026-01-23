@@ -2539,4 +2539,45 @@
     (swap! atoms/game-map assoc-in [0 1 :no-more-transports] true)
     ;; Even if need-transports? would return true, city produces army instead
     (let [production-type (computer-production/decide-production [0 1])]
-      (should-not= :transport production-type))))
+      (should-not= :transport production-type)))
+
+  (it "beach is marked as used when transport starts unloading"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#t~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Transport at beach [2 2] with armies, ready to unload
+    (swap! atoms/game-map assoc-in [2 2 :contents]
+           {:type :transport :owner :computer :hits 1 :transport-id 1
+            :transport-mission :coastline-searching :army-count 3
+            :origin-beach [0 0]})
+    ;; Beach [2 2] should be valid for unloading (3+ land neighbors)
+    (should (transport/can-unload-at? [2 2]))
+    ;; Process transport - should switch to unloading and mark beach as used
+    (computer/process-computer-unit [2 2])
+    ;; Beach should be marked as used for unloading
+    (should (contains? @atoms/used-unloading-beaches [2 2])))
+
+  (it "second transport cannot unload at beach already used by first"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~###~"
+                                             "~#~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Mark beach [2 2] as already used for unloading
+    (swap! atoms/used-unloading-beaches conj [2 2])
+    ;; Beach [2 2] has 3+ land neighbors but should not be usable
+    (should-not (transport/can-unload-at? [2 2])))
+
+  (it "find-unloading-beach-for-invasion excludes used beaches"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~O##~"
+                                             "~#~~~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    ;; Beach [2 2] is the only good beach near the free city
+    ;; Mark it as used
+    (swap! atoms/used-unloading-beaches conj [2 2])
+    ;; Should not find any unloading beach
+    (should-be-nil (transport/find-unloading-beach-for-invasion))))

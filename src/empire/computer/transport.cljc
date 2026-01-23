@@ -60,6 +60,16 @@
          (fn [reservations]
            (into {} (remove (fn [[_ tid]] (= tid transport-id)) reservations)))))
 
+(defn- beach-used-for-unloading?
+  "Returns true if beach has already been used for unloading by any transport."
+  [beach-pos]
+  (contains? @atoms/used-unloading-beaches beach-pos))
+
+(defn- mark-beach-used-for-unloading
+  "Marks a beach as used for unloading, preventing other transports from using it."
+  [beach-pos]
+  (swap! atoms/used-unloading-beaches conj beach-pos))
+
 (defn- available-beach?
   "Returns true if pos is a good beach that is not occupied by a friendly unit."
   ([pos]
@@ -150,14 +160,16 @@
 
 (defn find-unloading-beach-for-invasion
   "Finds an available beach near enemy/free cities for invasion.
-   Looks at cells within 2 hops of the city since beaches can't be adjacent to cities."
+   Looks at cells within 2 hops of the city since beaches can't be adjacent to cities.
+   Excludes beaches already used for unloading by other transports."
   []
   (let [target-cities (concat (core/find-visible-cities #{:free})
                                (core/find-visible-cities #{:player}))]
     (first (for [city target-cities
                  neighbor (core/get-neighbors city)
                  neighbor2 (core/get-neighbors neighbor)
-                 :when (available-beach? neighbor2)]
+                 :when (and (available-beach? neighbor2)
+                            (not (beach-used-for-unloading? neighbor2)))]
              neighbor2))))
 
 ;; Loading Dock and Invasion Targets
@@ -577,11 +589,13 @@
   "Returns true if computer transport can unload at pos:
    - 3+ adjacent land/city cells
    - No adjacent player (enemy) cities
-   - At least one empty land cell to unload to."
+   - At least one empty land cell to unload to
+   - Beach not already used for unloading by another transport."
   [pos]
   (and (>= (count-land-neighbors pos) 3)
        (not (adjacent-to-player-city? pos))
-       (find-empty-land-neighbor pos)))
+       (find-empty-land-neighbor pos)
+       (not (beach-used-for-unloading? pos))))
 
 (defn- pick-coastline-move
   "Picks next coastline-hugging move. Prefers unvisited cells adjacent to land."
@@ -613,7 +627,8 @@
     (swap! atoms/game-map update-in (conj pos :contents :coastline-visited) (fnil conj #{}) pos)
     (if (can-unload-at? pos)
       ;; Found valid unloading beach - switch to unloading immediately
-      (do (swap! atoms/game-map update-in (conj pos :contents)
+      (do (mark-beach-used-for-unloading pos)
+          (swap! atoms/game-map update-in (conj pos :contents)
                  #(-> %
                       (assoc :transport-mission :unloading)
                       (dissoc :coastline-visited)))
@@ -629,7 +644,9 @@
     (cond
       ;; Reached a good beach for unloading
       (and (adjacent-to-land? pos) (good-beach? pos))
-      (do (set-transport-mission pos :unloading target origin-beach) nil)
+      (do (mark-beach-used-for-unloading pos)
+          (set-transport-mission pos :unloading target origin-beach)
+          nil)
 
       ;; Navigate toward target
       target
