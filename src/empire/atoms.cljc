@@ -124,3 +124,9 @@
   "An atom containing set of beach coordinates that have been used for unloading.
    Once a transport unloads at a beach, no other transport should use it."
   (atom #{}))
+
+(def beach-army-orders
+  "Tracks beaches needing army production.
+   When a transport departs, the nearest city produces 6 armies for the beach.
+   Structure: {beach-pos {:city-pos [r c], :remaining n}}"
+  (atom {}))

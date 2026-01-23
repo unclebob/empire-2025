@@ -1,5 +1,6 @@
 (ns empire.computer
-  "Computer AI coordinator - dispatches to specialized modules for unit processing."
+  "Computer AI coordinator - dispatches to specialized modules for unit processing.
+   Gutted for CommandingGeneral refactor - units currently do nothing."
   (:require [empire.atoms :as atoms]
             [empire.computer.army :as army]
             [empire.computer.fighter :as fighter]
@@ -9,7 +10,8 @@
 ;; Main dispatch function
 
 (defn process-computer-unit
-  "Processes a single computer unit's turn. Returns nil when done."
+  "Processes a single computer unit's turn. Returns nil when done.
+   Currently all units do nothing - awaiting CommandingGeneral implementation."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)]

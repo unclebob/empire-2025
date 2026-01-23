@@ -159,4 +159,5 @@
   (reset! atoms/next-transport-id 1)
   (reset! atoms/reserved-beaches {})
   (reset! atoms/used-unloading-beaches #{})
+  (reset! atoms/beach-army-orders {})
   (pathfinding/clear-path-cache))
