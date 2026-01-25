@@ -1,10 +1,21 @@
 (ns empire.fsm.engine
   "FSM execution engine with priority event queue support.
-   Provides event queue operations and FSM stepping.")
+   Provides event queue operations and FSM stepping."
+  (:require [empire.debug :as debug]))
 
 (def priority-order
   "Priority ordering for events. Lower number = higher priority."
   {:high 0 :normal 1 :low 2})
+
+(defn- entity-type
+  "Detect entity type from its structure for logging purposes."
+  [entity]
+  (cond
+    (:lieutenants entity) :general
+    (:cities entity) :lieutenant
+    (:units entity) :squad
+    (get-in entity [:fsm-data :mission-type]) (get-in entity [:fsm-data :mission-type])
+    :else :unknown))
 
 (defn- event-priority
   "Returns numeric priority for an event (default :normal if not specified)."
@@ -22,6 +33,7 @@
   "Add event to entity's queue, maintaining priority order.
    Events with same priority maintain FIFO order."
   [entity event]
+  (debug/log-action! [:fsm-event-posted (entity-type entity) (:type event) (:priority event)])
   (update entity :event-queue insert-by-priority event))
 
 (defn pop-event
@@ -73,6 +85,8 @@
         entity
         (let [[_ _ new-state action-fn] transition
               data-updates (action-fn context)]
+          (when (not= current-state new-state)
+            (debug/log-action! [:fsm-transition (entity-type entity) current-state new-state]))
           (-> entity
               (assoc :fsm-state new-state)
               (update :fsm-data merge data-updates)))))))
