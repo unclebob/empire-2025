@@ -91,7 +91,7 @@
   "Guard: Returns true if unit is on a coastal cell."
   [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])]
-    (boolean (map-utils/adjacent-to-sea? pos atoms/game-map))))
+    (map-utils/adjacent-to-sea? pos atoms/game-map)))
 
 (defn- not-on-coast?
   "Guard: Returns true if unit is not on a coastal cell."
@@ -115,7 +115,7 @@
         explore-direction (:explore-direction fsm-data)
         all-moves (context/get-valid-army-moves ctx pos)
         next-pos (pick-seeking-move pos all-moves recent-moves explore-direction)
-        on-coast? (boolean (map-utils/adjacent-to-sea? pos atoms/game-map))]
+        on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)]
     (when next-pos
       {:move-to next-pos
        :recent-moves (update-recent-moves recent-moves next-pos)
@@ -155,7 +155,7 @@
 (defn create-explorer-data
   "Create FSM data for a new coastline explorer mission at given position."
   [pos]
-  (let [on-coast? (boolean (map-utils/adjacent-to-sea? pos atoms/game-map))]
+  (let [on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)]
     {:fsm coastline-explorer-fsm
      :fsm-state (if on-coast? :following-coast :seeking-coast)
      :fsm-data {:position pos

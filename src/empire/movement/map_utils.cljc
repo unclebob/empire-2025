@@ -46,13 +46,14 @@
   (let [[x y] pos
         height (count the-map)
         width (count (first the-map))]
-    (some (fn [[dx dy]]
-            (let [nx (+ x dx)
-                  ny (+ y dy)]
-              (and (>= nx 0) (< nx height)
-                   (>= ny 0) (< ny width)
-                   (pred (get-in the-map [nx ny])))))
-          offsets)))
+    (boolean
+      (some (fn [[dx dy]]
+              (let [nx (+ x dx)
+                    ny (+ y dy)]
+                (and (>= nx 0) (< nx height)
+                     (>= ny 0) (< ny width)
+                     (pred (get-in the-map [nx ny])))))
+            offsets))))
 
 (defn- count-matching-neighbors
   "Counts neighbors (using given offsets) that satisfy the predicate."
