@@ -1,9 +1,9 @@
 (ns empire.computer.production
-  "Computer production module - gutted for CommandingGeneral refactor.
-   Decision logic removed; production decisions will come from CommandingGeneral."
+  "Computer production module - delegates to FSM hierarchy for decisions."
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]
-            [empire.player.production :as production]))
+            [empire.player.production :as production]
+            [empire.fsm.production :as fsm-prod]))
 
 ;; Preserved utilities
 
@@ -31,9 +31,7 @@
                 (:type unit))]
     (frequencies units)))
 
-;; Decision logic removed. Production decisions will come from CommandingGeneral.
-
 (defn process-computer-city
-  "Processes a computer city. Currently does nothing - awaits CommandingGeneral."
+  "Processes a computer city. Delegates production decisions to FSM hierarchy."
   [pos]
-  nil)
+  (fsm-prod/process-computer-city-production pos))
