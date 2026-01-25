@@ -69,6 +69,7 @@
                   :computer-map @atoms/computer-map
                   :actual-map @atoms/game-map)]
     (rendering/draw-map the-map)
+    (rendering/draw-debug-selection-rectangle)
     (rendering/draw-message-area)))
 
 (defn key-pressed [state _]
@@ -82,8 +83,24 @@
 (defn key-released [_ _]
   (reset! atoms/last-key nil))
 
-(defn mouse-pressed [_ _]
-  (input/mouse-down (q/mouse-x) (q/mouse-y) (q/mouse-button)))
+(defn mouse-pressed [state _]
+  (let [modifiers (q/key-modifiers)
+        x (q/mouse-x)
+        y (q/mouse-y)]
+    (if (input/modifier-held? modifiers)
+      (input/debug-drag-start! x y)
+      (input/mouse-down x y (q/mouse-button))))
+  state)
+
+(defn mouse-dragged [state _]
+  (when @atoms/debug-drag-start
+    (input/debug-drag-update! (q/mouse-x) (q/mouse-y)))
+  state)
+
+(defn mouse-released [state _]
+  (when @atoms/debug-drag-start
+    (input/debug-drag-end! (q/mouse-x) (q/mouse-y)))
+  state)
 
 (defn on-close [_]
   (q/no-loop)
@@ -103,6 +120,8 @@
                :key-pressed key-pressed
                :key-released key-released
                :mouse-pressed mouse-pressed
+               :mouse-dragged mouse-dragged
+               :mouse-released mouse-released
                :features []
                :middleware [m/fun-mode]
                :on-close on-close

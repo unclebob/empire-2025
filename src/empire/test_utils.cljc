@@ -160,4 +160,7 @@
   (reset! atoms/reserved-beaches {})
   (reset! atoms/used-unloading-beaches #{})
   (reset! atoms/beach-army-orders {})
+  (reset! atoms/debug-drag-start nil)
+  (reset! atoms/debug-drag-current nil)
+  (reset! atoms/action-log [])
   (pathfinding/clear-path-cache))

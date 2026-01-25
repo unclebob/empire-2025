@@ -1,5 +1,6 @@
 (ns empire.ui.input
   (:require [empire.atoms :as atoms]
+            [empire.debug :as debug]
             [empire.player.attention :as attention]
             [empire.player.combat :as combat]
             [empire.config :as config]
@@ -439,6 +440,7 @@
 
 (defn key-down [k]
   ;; Handle key down events
+  (debug/log-action! [:key-pressed k])
   (if @atoms/backtick-pressed
     (do
       (reset! atoms/backtick-pressed false)
@@ -482,3 +484,36 @@
       (handle-key k) nil
       (and (= k (keyword "*")) (set-waypoint-at-mouse)) nil
       :else nil)))
+
+;; Debug drag handling for region selection dumps
+
+(defn modifier-held?
+  "Returns true if Ctrl or Shift modifier is in the modifiers set."
+  [modifiers]
+  (boolean (and modifiers
+                (or (contains? modifiers :shift)
+                    (contains? modifiers :ctrl)
+                    (contains? modifiers :control)))))
+
+(defn debug-drag-start!
+  "Starts a debug drag operation at the given screen coordinates."
+  [x y]
+  (reset! atoms/debug-drag-start [x y])
+  (reset! atoms/debug-drag-current [x y]))
+
+(defn debug-drag-update!
+  "Updates the current drag position. Only updates if a drag is active."
+  [x y]
+  (when @atoms/debug-drag-start
+    (reset! atoms/debug-drag-current [x y])))
+
+(defn debug-drag-end!
+  "Ends a debug drag operation and triggers the dump.
+   Converts screen coordinates to cell range and writes the dump file."
+  [x y]
+  (when-let [start @atoms/debug-drag-start]
+    (let [end [x y]
+          cell-range (debug/screen-coords-to-cell-range start end)]
+      (debug/write-dump! (first cell-range) (second cell-range)))
+    (reset! atoms/debug-drag-start nil)
+    (reset! atoms/debug-drag-current nil)))

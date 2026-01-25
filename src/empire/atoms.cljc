@@ -130,3 +130,17 @@
    When a transport departs, the nearest city produces 6 armies for the beach.
    Structure: {beach-pos {:city-pos [r c], :remaining n}}"
   (atom {}))
+
+;; Debug atoms
+(def debug-drag-start
+  "Screen coords [x y] when debug drag begins, or nil."
+  (atom nil))
+
+(def debug-drag-current
+  "Current screen coords [x y] during debug drag."
+  (atom nil))
+
+(def action-log
+  "Circular buffer of recent game actions for debugging. Capped at 100 entries.
+   Each entry is {:timestamp <ms> :action <vector describing the action>}."
+  (atom []))

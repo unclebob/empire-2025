@@ -2,6 +2,7 @@
   (:require [clojure.string]
             [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.debug :as debug]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -17,10 +18,12 @@
         city-cell (get-in @atoms/game-map city-coords)]
     (if (< (rand) 0.5)
       (do
+        (debug/log-action! [:combat :army army-coords :victory :city city-coords])
         (swap! atoms/game-map assoc-in army-coords (dissoc army-cell :contents))
         (swap! atoms/game-map assoc-in city-coords (assoc city-cell :city-status :player))
         (visibility/update-cell-visibility city-coords :player))
       (do
+        (debug/log-action! [:combat :army army-coords :defeat :city city-coords])
         (swap! atoms/game-map assoc-in army-coords (dissoc army-cell :contents))
         (visibility/update-cell-visibility army-coords :player)
         (atoms/set-line3-message (:conquest-failed config/messages) 3000)))
@@ -33,6 +36,7 @@
         fighter (:contents fighter-cell)
         city-cell (get-in @atoms/game-map city-coords)
         shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
+    (debug/log-action! [:combat :fighter fighter-coords :shot-down :city city-coords])
     (swap! atoms/game-map assoc-in fighter-coords (dissoc fighter-cell :contents))
     (swap! atoms/game-map assoc-in city-coords (assoc city-cell :contents shot-down-fighter))
     (atoms/set-line3-message (:fighter-destroyed-by-city config/messages) 3000)
@@ -115,7 +119,9 @@
                                        (:type defender)
                                        (:winner result))
             ;; Release beach reservation if a computer transport is destroyed
-            destroyed-unit (if (= :attacker (:winner result)) defender attacker)]
+            destroyed-unit (if (= :attacker (:winner result)) defender attacker)
+            outcome (if (= :attacker (:winner result)) :victory :defeat)]
+        (debug/log-action! [:combat (:type attacker) attacker-coords outcome (:type defender) target-coords])
         (release-transport-beach-reservation destroyed-unit)
         (swap! atoms/game-map assoc-in (conj attacker-coords :contents) nil)
         (if (= :attacker (:winner result))

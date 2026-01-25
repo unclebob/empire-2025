@@ -1,5 +1,6 @@
 (ns empire.game-loop
   (:require [empire.atoms :as atoms]
+            [empire.debug :as debug]
             [empire.player.attention :as attention]
             [empire.computer :as computer]
             [empire.computer.production :as computer-production]
@@ -292,6 +293,7 @@
   "Starts a new round by building player and computer items lists and updating game state."
   []
   (swap! atoms/round-number inc)
+  (debug/log-action! [:round-start @atoms/round-number])
   (pathfinding/clear-path-cache)
   (move-satellites)
   (consume-sentry-fighter-fuel)

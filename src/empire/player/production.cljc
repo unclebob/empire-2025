@@ -1,6 +1,7 @@
 (ns empire.player.production
   (:require [empire.atoms :as atoms]
-            [empire.config :as config]))
+            [empire.config :as config]
+            [empire.debug :as debug]))
 
 (defn- find-beach-order-for-city
   "Returns [beach-pos order] if city has a beach order, nil otherwise."
@@ -90,6 +91,7 @@
   [coords prod item]
   (let [cell (get-in @atoms/game-map coords)
         owner (spawn-unit coords cell item)]
+    (debug/log-action! [:production-complete coords item owner])
     (if (= owner :computer)
       (swap! atoms/production dissoc coords)
       (swap! atoms/production assoc coords

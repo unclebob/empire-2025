@@ -1,5 +1,6 @@
 (ns empire.movement.movement
   (:require [empire.atoms :as atoms]
+            [empire.debug :as debug]
             [empire.player.combat :as combat]
             [empire.config :as config]
             [empire.containers.ops :as container-ops]
@@ -132,7 +133,9 @@
         processed-unit (process-consumables final-unit to-cell)
         original-target (:target (:contents cell))
         move-type (classify-move processed-unit to-cell original-target final-pos)
-        updated-to-cell (update-destination-cell move-type to-cell processed-unit)]
+        updated-to-cell (update-destination-cell move-type to-cell processed-unit)
+        unit (:contents cell)]
+    (debug/log-action! [:move (:type unit) (:owner unit) from-coords final-pos])
     (swap! atoms/game-map assoc-in from-coords from-cell)
     (swap! atoms/game-map assoc-in final-pos updated-to-cell)
     (visibility/update-cell-visibility final-pos (:owner (:contents cell)))

@@ -149,6 +149,30 @@
     (when (seq @atoms/hover-message)
       (draw-text-right-justified @atoms/hover-message right-edge (+ text-y 50)))))
 
+(defn draw-debug-selection-rectangle
+  "Draws the debug selection rectangle when a drag is in progress.
+   Shows a semi-transparent rectangle with visible border from drag start to current position."
+  []
+  (when-let [start @atoms/debug-drag-start]
+    (when-let [current @atoms/debug-drag-current]
+      (let [[start-x start-y] start
+            [current-x current-y] current
+            x (min start-x current-x)
+            y (min start-y current-y)
+            width (Math/abs (- current-x start-x))
+            height (Math/abs (- current-y start-y))]
+        ;; Draw semi-transparent fill (light blue with 40% opacity)
+        (q/fill 100 150 200 100)
+        (q/rect x y width height)
+        ;; Draw visible border (white stroke)
+        (q/stroke 255)
+        (q/stroke-weight 2)
+        (q/no-fill)
+        (q/rect x y width height)
+        ;; Reset stroke settings
+        (q/stroke-weight 1)
+        (q/no-stroke)))))
+
 (defn draw-message-area
   "Draws the message area including separator line and messages."
   []
