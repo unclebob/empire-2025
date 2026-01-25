@@ -149,3 +149,8 @@
   "Circular buffer of recent game actions for debugging. Capped at 100 entries.
    Each entry is {:timestamp <ms> :action <vector describing the action>}."
   (atom []))
+
+(def commanding-general
+  "The computer's Commanding General FSM entity.
+   Created when computer gets first city, processes each computer turn."
+  (atom nil))

@@ -1,7 +1,8 @@
 (ns empire.init
   (:require [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]
-            [empire.movement.visibility :as visibility]))
+            [empire.movement.visibility :as visibility]
+            [empire.fsm.integration :as integration]))
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."
@@ -166,4 +167,6 @@
     ;; Initialize visibility around starting positions
     (visibility/update-combatant-map atoms/player-map :player)
     (visibility/update-combatant-map atoms/computer-map :computer)
+    ;; Initialize Commanding General for computer player
+    (integration/initialize-general)
     map-with-computer-city))

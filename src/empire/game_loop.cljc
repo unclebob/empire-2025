@@ -14,7 +14,8 @@
             [empire.pathfinding :as pathfinding]
             [empire.player.production :as production]
             [empire.movement.satellite :as satellite]
-            [empire.containers.helpers :as uc]))
+            [empire.containers.helpers :as uc]
+            [empire.fsm.integration :as integration]))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -407,8 +408,11 @@
       (do (swap! atoms/computer-items rest) :done))))
 
 (defn- process-computer-items
-  "Processes computer items until done or safety limit reached."
+  "Processes computer items until done or safety limit reached.
+   Also processes Commanding General FSM at start of computer turn."
   []
+  ;; Process the Commanding General's FSM first
+  (integration/process-general-turn)
   (loop [processed 0]
     (cond
       (empty? @atoms/computer-items) nil

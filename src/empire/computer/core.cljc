@@ -3,7 +3,8 @@
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
-            [empire.ui.coordinates :as coords]))
+            [empire.ui.coordinates :as coords]
+            [empire.fsm.integration :as integration]))
 
 (defn get-neighbors
   "Returns valid neighbor coordinates for a position."
@@ -62,6 +63,8 @@
         (swap! atoms/game-map assoc-in city-pos (assoc city-cell :city-status :computer))
         (visibility/update-cell-visibility army-pos :computer)
         (visibility/update-cell-visibility city-pos :computer)
+        ;; Notify Commanding General of new city
+        (integration/notify-city-captured city-pos)
         nil)
       ;; Failure - army dies
       (do

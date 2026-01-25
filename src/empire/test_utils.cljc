@@ -164,4 +164,5 @@
   (reset! atoms/debug-drag-current nil)
   (reset! atoms/debug-message "")
   (reset! atoms/action-log [])
+  (reset! atoms/commanding-general nil)
   (pathfinding/clear-path-cache))
