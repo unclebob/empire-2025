@@ -140,6 +140,11 @@
   "Current screen coords [x y] during debug drag."
   (atom nil))
 
+(def debug-message
+  "Message to display on line 1 of the debug window (middle section).
+   Remains until overwritten by another message."
+  (atom ""))
+
 (def action-log
   "Circular buffer of recent game actions for debugging. Capped at 100 entries.
    Each entry is {:timestamp <ms> :action <vector describing the action>}."

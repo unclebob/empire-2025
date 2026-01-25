@@ -512,6 +512,12 @@
   (or (not= start-row end-row)
       (not= start-col end-col)))
 
+(defn debug-drag-cancel!
+  "Cancels a debug drag operation without writing a dump."
+  []
+  (reset! atoms/debug-drag-start nil)
+  (reset! atoms/debug-drag-current nil))
+
 (defn debug-drag-end!
   "Ends a debug drag operation and triggers the dump if ctrl is held and selection has area.
    Converts screen coordinates to cell range and writes the dump file."
@@ -522,6 +528,7 @@
             end [x y]
             cell-range (debug/screen-coords-to-cell-range start end)]
         (when (has-area? cell-range)
-          (debug/write-dump! (first cell-range) (second cell-range)))))
+          (let [filename (debug/write-dump! (first cell-range) (second cell-range))]
+            (reset! atoms/debug-message (str "Debug: " filename))))))
     (reset! atoms/debug-drag-start nil)
     (reset! atoms/debug-drag-current nil)))

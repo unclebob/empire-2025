@@ -162,5 +162,6 @@
   (reset! atoms/beach-army-orders {})
   (reset! atoms/debug-drag-start nil)
   (reset! atoms/debug-drag-current nil)
+  (reset! atoms/debug-message "")
   (reset! atoms/action-log [])
   (pathfinding/clear-path-cache))

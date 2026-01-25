@@ -85,7 +85,27 @@
                                          "test-file.txt")]
         (input/debug-drag-start! 100 100)
         (input/debug-drag-end! 100 100 #{:ctrl})
-        (should-be-nil @dump-called)))))
+        (should-be-nil @dump-called))))
+
+  (it "shows filename in debug window when dump is created"
+    (with-redefs [debug/write-dump! (fn [_ _] "debug-2026-01-25-123456.txt")]
+      (input/debug-drag-start! 0 0)
+      (input/debug-drag-end! 200 200 #{:ctrl})
+      (should= "Debug: debug-2026-01-25-123456.txt" @atoms/debug-message))))
+
+(describe "debug-drag-cancel!"
+  (before (reset-all-atoms!))
+
+  (it "clears drag atoms"
+    (input/debug-drag-start! 100 100)
+    (input/debug-drag-update! 200 200)
+    (input/debug-drag-cancel!)
+    (should-be-nil @atoms/debug-drag-start)
+    (should-be-nil @atoms/debug-drag-current))
+
+  (it "does nothing when no drag is active"
+    (input/debug-drag-cancel!)
+    (should-be-nil @atoms/debug-drag-start)))
 
 (describe "modifier-held?"
   (it "returns true when :ctrl is in modifiers set"

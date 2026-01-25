@@ -79,17 +79,24 @@ Units operate in modes: `:awake` (needs orders), `:sentry` (sleeping), `:explore
 
 The message area below the map has two sections, each 3 lines high:
 
-**Left side (message display):**
+**Move window (left side):**
 - Line 1: Main game message
 - Line 2: Combat log (e.g., "c-3,S-1,S-1. Submarine destroyed.")
 - Line 3: Flashing red warnings (conquest failed, fighter destroyed, etc.)
+- Shows messages relevant to the current and last move
 
-**Right side (status display):**
+**Debug window (middle):**
+- Three lines between the move window and status window
+- Used for debug-related messages and information
+- Bounds should be set so it does not interfere with messages in the move window or status window
+
+**Status window (right side):**
 - Line 1: Round number
 - Line 2: "PAUSED" indicator or destination coordinates
-- Line 3: Hover info (cell details on mouse-over)
+- Line 3: Hover info (cell details on mouse-over), debug file notifications
 - All text is right-justified against the screen edge
 - Width accommodates the longest hover message (~60 chars for city with production, fighters, and orders)
+- Contains round number and other status information
 
 ## Coding Guidelines
 

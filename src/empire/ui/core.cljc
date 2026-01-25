@@ -80,8 +80,13 @@
       (reset! atoms/last-key k)))
   state)
 
-(defn key-released [_ _]
-  (reset! atoms/last-key nil))
+(defn key-released [state _]
+  (reset! atoms/last-key nil)
+  ;; Cancel debug drag if Ctrl key is released
+  (when (and @atoms/debug-drag-start
+             (#{:control :ctrl} (q/key-as-keyword)))
+    (input/debug-drag-cancel!))
+  state)
 
 (defn mouse-pressed [state _]
   (let [modifiers (q/key-modifiers)

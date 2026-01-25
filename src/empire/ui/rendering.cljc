@@ -132,6 +132,16 @@
         x (- right-edge text-width)]
     (q/text text x y)))
 
+(defn- draw-debug-window
+  "Draws the debug window (middle section, 3 lines), centered."
+  [text-x text-y text-w]
+  (when (seq @atoms/debug-message)
+    (let [center-x (+ text-x (/ text-w 2))
+          msg @atoms/debug-message
+          msg-width (q/text-width msg)
+          x (- center-x (/ msg-width 2))]
+      (q/text msg x (+ text-y 10)))))
+
 (defn- draw-status
   "Draws the status area on the right (3 lines), right-justified."
   [text-x text-y text-w]
@@ -184,4 +194,5 @@
     (draw-line-1 text-x text-y)
     (draw-line-2 text-x text-y)
     (draw-line-3 text-x text-y)
+    (draw-debug-window text-x text-y text-w)
     (draw-status text-x text-y text-w)))
