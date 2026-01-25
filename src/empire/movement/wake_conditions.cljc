@@ -8,14 +8,15 @@
 (defn near-hostile-city?
   "Returns true if position is adjacent to a hostile city."
   [pos current-map]
-  (some (fn [[di dj]]
-          (let [ni (+ (first pos) di)
-                nj (+ (second pos) dj)
-                adj-cell (get-in @current-map [ni nj])]
-            (and adj-cell
-                 (= (:type adj-cell) :city)
-                 (config/hostile-city? (:city-status adj-cell)))))
-        map-utils/neighbor-offsets))
+  (boolean
+    (some (fn [[di dj]]
+            (let [ni (+ (first pos) di)
+                  nj (+ (second pos) dj)
+                  adj-cell (get-in @current-map [ni nj])]
+              (and adj-cell
+                   (= (:type adj-cell) :city)
+                   (config/hostile-city? (:city-status adj-cell)))))
+          map-utils/neighbor-offsets)))
 
 (defn friendly-city-in-range?
   "Returns true if there is a friendly city within max-dist cells."
@@ -23,12 +24,13 @@
   (let [[px py] pos
         height (count @current-map)
         width (count (first @current-map))]
-    (some (fn [[i j]]
-            (let [cell (get-in @current-map [i j])]
-              (and (= (:type cell) :city)
-                   (= (:city-status cell) :player)
-                   (<= (max (abs (- i px)) (abs (- j py))) max-dist))))
-          (for [i (range height) j (range width)] [i j]))))
+    (boolean
+      (some (fn [[i j]]
+              (let [cell (get-in @current-map [i j])]
+                (and (= (:type cell) :city)
+                     (= (:city-status cell) :player)
+                     (<= (max (abs (- i px)) (abs (- j py))) max-dist))))
+            (for [i (range height) j (range width)] [i j])))))
 
 (defn enemy-unit-visible?
   "Returns true if an enemy unit is within the unit's visibility radius."
@@ -38,19 +40,20 @@
         owner (:owner unit)
         height (count @current-map)
         width (count (first @current-map))]
-    (some (fn [[di dj]]
-            (let [ni (+ px di)
-                  nj (+ py dj)]
-              (when (and (>= ni 0) (< ni height)
-                         (>= nj 0) (< nj width))
-                (let [cell (get-in @current-map [ni nj])
-                      contents (:contents cell)]
-                  (and contents
-                       (not= (:owner contents) owner))))))
-          (for [di (range (- radius) (inc radius))
-                dj (range (- radius) (inc radius))
-                :when (not (and (zero? di) (zero? dj)))]
-            [di dj]))))
+    (boolean
+      (some (fn [[di dj]]
+              (let [ni (+ px di)
+                    nj (+ py dj)]
+                (when (and (>= ni 0) (< ni height)
+                           (>= nj 0) (< nj width))
+                  (let [cell (get-in @current-map [ni nj])
+                        contents (:contents cell)]
+                    (and contents
+                         (not= (:owner contents) owner))))))
+            (for [di (range (- radius) (inc radius))
+                  dj (range (- radius) (inc radius))
+                  :when (not (and (zero? di) (zero? dj)))]
+              [di dj])))))
 
 (defn- fighter-landing-on-carrier? [unit next-cell]
   (let [next-contents (:contents next-cell)]

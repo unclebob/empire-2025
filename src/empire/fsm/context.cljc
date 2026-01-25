@@ -18,7 +18,7 @@
 (defn has-event?
   "Returns true if entity's queue contains an event of the given type."
   [context event-type]
-  (some #(= event-type (:type %)) (:event-queue context)))
+  (boolean (some #(= event-type (:type %)) (:event-queue context))))
 
 (defn get-cell
   "Get cell from game-map at given [row col] coordinates."

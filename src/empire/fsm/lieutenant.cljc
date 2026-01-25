@@ -12,7 +12,7 @@
 (defn- has-any-event?
   "Guard: check if there's any event in queue."
   [ctx]
-  (seq (:event-queue ctx)))
+  (boolean (seq (:event-queue ctx))))
 
 (def lieutenant-fsm
   "FSM transitions for the Lieutenant.

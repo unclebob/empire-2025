@@ -58,13 +58,14 @@
   [[i j] the-map]
   (let [height (count the-map)
         width (count (first the-map))]
-    (some (fn [[di dj]]
-            (let [ni (+ i di)
-                  nj (+ j dj)]
-              (and (>= ni 0) (< ni height)
-                   (>= nj 0) (< nj width)
-                   (= :sea (:type (get-in the-map [ni nj]))))))
-          map-utils/neighbor-offsets)))
+    (boolean
+      (some (fn [[di dj]]
+              (let [ni (+ i di)
+                    nj (+ j dj)]
+                (and (>= ni 0) (< ni height)
+                     (>= nj 0) (< nj width)
+                     (= :sea (:type (get-in the-map [ni nj]))))))
+            map-utils/neighbor-offsets))))
 
 (defn count-surrounding-land
   "Counts land cells in a 5x5 area centered on [i j], excluding the center."

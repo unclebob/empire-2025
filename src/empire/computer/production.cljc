@@ -16,9 +16,10 @@
 (defn city-is-coastal?
   "Returns true if city has adjacent sea cells."
   [city-pos]
-  (some (fn [neighbor]
-          (= :sea (:type (get-in @atoms/game-map neighbor))))
-        (get-neighbors city-pos)))
+  (boolean
+    (some (fn [neighbor]
+            (= :sea (:type (get-in @atoms/game-map neighbor))))
+          (get-neighbors city-pos))))
 
 (defn count-computer-units
   "Counts computer units by type. Returns map of type to count."

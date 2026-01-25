@@ -25,7 +25,7 @@
   (let [entity (:entity ctx)
         target (get-in entity [:fsm-data :target])
         units (:units entity)]
-    (some #(adjacent? (:coords %) target) units)))
+    (boolean (some #(adjacent? (:coords %) target) units))))
 
 (defn- has-city-conquered?
   "Guard: check if city-conquered event is in queue."

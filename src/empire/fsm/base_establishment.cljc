@@ -26,9 +26,10 @@
    Must be land, adjacent to sea, with at least 3 adjacent land cells."
   [coords]
   (let [cell-type (cell-type-at coords)]
-    (and (= :land cell-type)
-         (some #(= :sea (cell-type-at %)) (get-neighbors coords))
-         (>= (count-adjacent-land coords) 3))))
+    (boolean
+      (and (= :land cell-type)
+           (some #(= :sea (cell-type-at %)) (get-neighbors coords))
+           (>= (count-adjacent-land coords) 3)))))
 
 (defn transport-fully-loaded?
   "Returns true if transport has 6 armies aboard."
@@ -38,8 +39,9 @@
 (defn base-establishment-ready?
   "Returns true if Lieutenant has beach candidates and a fully loaded transport."
   [lieutenant transports]
-  (and (seq (:beach-candidates lieutenant))
-       (some transport-fully-loaded? transports)))
+  (boolean
+    (and (seq (:beach-candidates lieutenant))
+         (some transport-fully-loaded? transports))))
 
 (defn make-base-established-event
   "Create a base-established event."

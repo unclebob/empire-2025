@@ -23,8 +23,9 @@
 (defn on-coastline?
   "Returns true if position is land adjacent to sea."
   [coords]
-  (and (= :land (cell-type-at coords))
-       (some #(= :sea (cell-type-at %)) (get-neighbors coords))))
+  (boolean
+    (and (= :land (cell-type-at coords))
+         (some #(= :sea (cell-type-at %)) (get-neighbors coords)))))
 
 (defn find-adjacent-free-city
   "Find a free city adjacent to the given position, if any."
