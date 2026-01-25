@@ -36,14 +36,15 @@
             (build-test-map ["###"
                              "#A#"
                              "~~~"]))
+    ;; player-map and computer-map are 2D vectors like game-map
     (reset! atoms/player-map
-            {[0 0] {:type :land}
-             [0 1] {:type :land}
-             [1 0] {:type :land}
-             [1 1] {:type :land :contents {:type :army :owner :player}}})
+            [[{:type :land} {:type :land} {:type :unexplored}]
+             [{:type :land} {:type :land :contents {:type :army :owner :player}} {:type :unexplored}]
+             [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
     (reset! atoms/computer-map
-            {[2 0] {:type :sea}
-             [2 1] {:type :sea}}))
+            [[{:type :unexplored} {:type :unexplored} {:type :unexplored}]
+             [{:type :unexplored} {:type :unexplored} {:type :unexplored}]
+             [{:type :sea} {:type :sea} {:type :unexplored}]]))
 
   (it "extracts cells from all three maps for coordinate range"
     (let [result (debug/dump-region [0 0] [1 1])]
@@ -117,8 +118,13 @@
     (reset! atoms/game-map
             (build-test-map ["##"
                              "~~"]))
-    (reset! atoms/player-map {[0 0] {:type :land}})
-    (reset! atoms/computer-map {})
+    ;; player-map and computer-map are 2D vectors like game-map
+    (reset! atoms/player-map
+            [[{:type :land} {:type :unexplored}]
+             [{:type :unexplored} {:type :unexplored}]])
+    (reset! atoms/computer-map
+            [[{:type :unexplored} {:type :unexplored}]
+             [{:type :unexplored} {:type :unexplored}]])
     (reset! atoms/round-number 42)
     (reset! atoms/cells-needing-attention [[1 0] [1 1]])
     (reset! atoms/player-items [[0 0]])
@@ -159,6 +165,8 @@
   (before
     (reset-all-atoms!)
     (reset! atoms/game-map (build-test-map ["#"]))
+    (reset! atoms/player-map [[{:type :unexplored}]])
+    (reset! atoms/computer-map [[{:type :unexplored}]])
     ;; Add 30 actions
     (doseq [i (range 30)]
       (debug/log-action! [:action i])))
@@ -178,7 +186,24 @@
   (it "generates correct filename format"
     (let [filename (debug/generate-dump-filename)]
       ;; Should match pattern debug-YYYY-MM-DD-HHMMSS.txt
-      (should (re-matches #"debug-\d{4}-\d{2}-\d{2}-\d{6}\.txt" filename)))))
+      (should (re-matches #"debug-\d{4}-\d{2}-\d{2}-\d{6}\.txt" filename))))
+
+  (it "writes dump file and returns filename"
+    (reset! atoms/game-map (build-test-map ["##" "~~"]))
+    (reset! atoms/player-map [[{:type :land} {:type :land}]
+                               [{:type :sea} {:type :sea}]])
+    (reset! atoms/computer-map [[{:type :unexplored} {:type :unexplored}]
+                                 [{:type :unexplored} {:type :unexplored}]])
+    (reset! atoms/round-number 99)
+    (let [filename (debug/write-dump! [0 0] [1 1])]
+      (try
+        (should (re-matches #"debug-\d{4}-\d{2}-\d{2}-\d{6}\.txt" filename))
+        (should (.exists (java.io.File. filename)))
+        (let [content (slurp filename)]
+          (should-contain "Round: 99" content)
+          (should-contain "game-map" content))
+        (finally
+          (.delete (java.io.File. filename)))))))
 
 (describe "screen-coords-to-cell-range"
   (before

@@ -99,7 +99,7 @@
 
 (defn mouse-released [state _]
   (when @atoms/debug-drag-start
-    (input/debug-drag-end! (q/mouse-x) (q/mouse-y)))
+    (input/debug-drag-end! (q/mouse-x) (q/mouse-y) (q/key-modifiers)))
   state)
 
 (defn on-close [_]

@@ -43,12 +43,12 @@
                        [coord cell]))
      :player-map (into {}
                        (for [coord coords-in-range
-                             :let [cell (get player-map coord)]
+                             :let [cell (get-in player-map coord)]
                              :when cell]
                          [coord cell]))
      :computer-map (into {}
                          (for [coord coords-in-range
-                               :let [cell (get computer-map coord)]
+                               :let [cell (get-in computer-map coord)]
                                :when cell]
                            [coord cell]))}))
 

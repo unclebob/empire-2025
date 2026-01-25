@@ -84,7 +84,7 @@ destination: [10,15]
 
 ## Trigger Mechanism
 
-Ctrl-drag or Shift-drag to select region. On mouse release, dump is written automatically.
+Ctrl-drag to select region. On mouse release, dump is written automatically.
 
 ## File Naming
 
