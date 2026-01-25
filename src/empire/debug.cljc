@@ -190,8 +190,9 @@
         map-rows (count game-map)
         map-cols (count (first game-map))
         ;; Convert screen coords to cell coords
-        [col1 row1] (coords/screen->cell x1 y1 map-w map-h map-rows map-cols)
-        [col2 row2] (coords/screen->cell x2 y2 map-w map-h map-rows map-cols)
+        ;; screen->cell returns [row col] despite docstring saying [col row]
+        [row1 col1] (coords/screen->cell x1 y1 map-w map-h map-rows map-cols)
+        [row2 col2] (coords/screen->cell x2 y2 map-w map-h map-rows map-cols)
         ;; Normalize so start <= end
         start-row (min row1 row2)
         end-row (max row1 row2)

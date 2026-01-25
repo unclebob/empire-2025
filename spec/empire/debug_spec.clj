@@ -235,4 +235,18 @@
       (should (>= (second start) 0))
       ;; end should be within map bounds (3 rows, 4 cols => max [2,3])
       (should (<= (first end) 2))
-      (should (<= (second end) 3)))))
+      (should (<= (second end) 3))))
+
+  (it "returns correct cell coordinates for known screen positions"
+    ;; Map is 3 rows x 4 cols, screen is 400x300 pixels
+    ;; Legacy formula uses: cell-w = 400/3 = 133.33, cell-h = 300/4 = 75
+    ;; For first=1 (row): x in [133.33, 266.67)
+    ;; For second=2 (col): y in [150, 225)
+    ;; So pixel (150, 160) should give [row=1, col=2]
+    (let [[[start-row start-col] [end-row end-col]]
+          (debug/screen-coords-to-cell-range [150 160] [200 200])]
+      ;; The selection should include row 1, col 2
+      (should= 1 start-row)
+      (should= 2 start-col)
+      (should= 1 end-row)
+      (should= 2 end-col))))

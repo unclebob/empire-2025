@@ -10,11 +10,9 @@
        (>= pixel-y 0) (< pixel-y map-height)))
 
 (defn screen->cell
-  "Converts screen pixel coordinates to map cell coordinates [col row].
+  "Converts screen pixel coordinates to map cell coordinates [row col].
    Pure function - takes dimensions as parameters.
-   Note: map-rows/map-cols refer to the game map structure where
-   outer dimension is rows and inner is cols, but for screen math
-   we divide width by rows and height by cols to get proper cell sizes."
+   Note: Uses legacy formula where width is divided by rows and height by cols."
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]
   ;; The cell width is screen width / number of columns in a row (map-rows in our indexing)
   ;; The cell height is screen height / number of rows (map-cols in our indexing)
