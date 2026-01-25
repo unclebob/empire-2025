@@ -114,7 +114,7 @@
     (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
 
 (defn- execute-exploration
-  "Executes one exploration step. Returns new position or nil."
+  "Executes one exploration step. Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
@@ -139,7 +139,7 @@
           (visibility/update-cell-visibility next-pos :computer)
           ;; Report any discoveries at new position
           (report-discoveries! next-pos)
-          next-pos)
+          nil)  ; Return nil so army is only processed once per round
         ;; Stuck - wake up
         (do
           (swap! atoms/game-map assoc-in pos
@@ -152,7 +152,7 @@
   "Processes a computer army's turn.
    - Awake armies get assigned exploration missions
    - Exploring armies execute one step
-   Returns new position if moved, nil otherwise."
+   Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)]
