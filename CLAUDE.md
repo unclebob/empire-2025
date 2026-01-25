@@ -75,6 +75,15 @@ Each map cell is a map with:
 
 Units operate in modes: `:awake` (needs orders), `:sentry` (sleeping), `:explore` (auto-exploring), `:moving` (executing movement orders)
 
+### Computer AI and FSM Architecture
+
+Computer unit movement decisions are made entirely within FSM (Finite State Machine) action functions. The FSM actions in `src/empire/fsm/` return a `:move-to` key in their result map specifying the target position. The orchestration layer (`src/empire/computer/army.cljc`) extracts `:move-to` from fsm-data and executes the movement, handling map mutations and visibility updates as side effects.
+
+Key FSM modules:
+- **coastline_explorer.cljc**: Drives army exploration with `seek-coast-action` and `follow-coast-action`
+- **context.cljc**: Builds context maps for FSM guards and actions, includes `get-valid-army-moves`
+- **engine.cljc**: FSM execution engine with priority event queue support
+
 ### Message Area Layout
 
 The message area below the map has two sections, each 3 lines high:

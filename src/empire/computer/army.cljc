@@ -1,11 +1,12 @@
 (ns empire.computer.army
   "Computer army module - executes exploration missions assigned by Lieutenant."
   (:require [empire.atoms :as atoms]
-            [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.fsm.engine :as engine]
-            [empire.fsm.base-establishment :as base]))
+            [empire.fsm.base-establishment :as base]
+            [empire.fsm.coastline-explorer :as explorer]
+            [empire.fsm.context :as context]))
 
 (def explore-steps 50)
 
@@ -66,92 +67,75 @@
                                                      :data {:coords pos}})]
         (update-lieutenant! updated-lt)))))
 
-(defn- valid-explore-cell?
-  "Returns true if a cell is valid for army exploration (land, no city, no unit)."
-  [cell]
-  (and cell
-       (= :land (:type cell))
-       (nil? (:contents cell))))
-
-(defn- get-valid-explore-moves
-  "Returns list of valid adjacent positions for exploration."
-  [pos]
-  (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets
-                                    valid-explore-cell?))
-
-(defn- adjacent-to-unexplored?
-  "Returns true if the position has an adjacent unexplored cell on computer-map."
-  [pos]
-  (map-utils/any-neighbor-matches? pos @atoms/computer-map map-utils/neighbor-offsets
-                                   #(or (nil? %) (= :unexplored (:type %)))))
-
-(defn- pick-explore-move
-  "Picks the next explore move - prefers unexplored, then coast following, then random."
-  [pos visited]
-  (let [all-moves (get-valid-explore-moves pos)
-        unvisited-moves (remove visited all-moves)
-        unexplored-moves (filter adjacent-to-unexplored? unvisited-moves)
-        on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)
-        coastal-moves (when on-coast?
-                        (filter #(map-utils/adjacent-to-sea? % atoms/game-map) unvisited-moves))]
-    (cond
-      (seq unexplored-moves) (rand-nth unexplored-moves)
-      (seq coastal-moves) (rand-nth coastal-moves)
-      (seq unvisited-moves) (rand-nth unvisited-moves)
-      (seq all-moves) (rand-nth all-moves)
-      :else nil)))
-
 (defn- assign-exploration-mission
-  "Assigns exploration mission to an awake army."
+  "Assigns exploration mission to an awake army.
+   Initializes the coastline explorer FSM."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
+        explorer-data (explorer/create-explorer-data pos)
         updated-unit (-> unit
                          (assoc :mode :explore
-                                :explore-steps explore-steps
-                                :visited #{pos})
-                         (dissoc :reason))]
+                                :explore-steps explore-steps)
+                         (merge explorer-data)
+                         (dissoc :reason :visited))]
     (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
 
+(defn- step-explorer-fsm
+  "Step the coastline explorer FSM and return updated unit."
+  [unit pos]
+  (let [;; Build context with position for guards
+        unit-with-pos (assoc-in unit [:fsm-data :position] pos)
+        ctx (context/build-context unit-with-pos)
+        ;; Step the FSM
+        updated (engine/step unit-with-pos ctx)]
+    updated))
+
 (defn- execute-exploration
-  "Executes one exploration step. Always returns nil (army moves once per round)."
+  "Executes one exploration step using the coastline explorer FSM.
+   The FSM action returns :move-to in fsm-data.
+   Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
-        remaining-steps (dec (:explore-steps unit explore-steps))
-        visited (or (:visited unit) #{})]
+        remaining-steps (dec (:explore-steps unit explore-steps))]
     (if (<= remaining-steps 0)
       ;; Done exploring - go back to awake
       (do
         (swap! atoms/game-map assoc-in pos
                (assoc cell :contents (-> unit
                                          (assoc :mode :awake)
-                                         (dissoc :explore-steps :visited))))
+                                         (dissoc :explore-steps :fsm :fsm-state :fsm-data))))
         nil)
-      ;; Try to move
-      (if-let [next-pos (pick-explore-move pos visited)]
-        (let [next-cell (get-in @atoms/game-map next-pos)
-              moved-unit (-> unit
-                             (assoc :explore-steps remaining-steps)
-                             (assoc :visited (conj visited next-pos)))]
-          (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
-          (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
-          (visibility/update-cell-visibility next-pos :computer)
-          ;; Report any discoveries at new position
-          (report-discoveries! next-pos)
-          nil)  ; Return nil so army is only processed once per round
-        ;; Stuck - wake up
-        (do
-          (swap! atoms/game-map assoc-in pos
-                 (assoc cell :contents (-> unit
-                                           (assoc :mode :awake)
-                                           (dissoc :explore-steps :visited))))
-          nil)))))
+      ;; Step FSM - action computes and returns :move-to
+      (let [unit-stepped (step-explorer-fsm unit pos)
+            fsm-data (:fsm-data unit-stepped)
+            next-pos (:move-to fsm-data)]
+        (if next-pos
+          (let [next-cell (get-in @atoms/game-map next-pos)
+                moved-unit (-> unit-stepped
+                               (assoc :explore-steps remaining-steps)
+                               (assoc-in [:fsm-data :position] next-pos)
+                               ;; Clear :move-to after consuming it
+                               (update :fsm-data dissoc :move-to))]
+            (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
+            (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
+            (visibility/update-cell-visibility next-pos :computer)
+            ;; Report any discoveries at new position
+            (report-discoveries! next-pos)
+            nil)
+          ;; Stuck - wake up
+          (do
+            (swap! atoms/game-map assoc-in pos
+                   (assoc cell :contents (-> unit
+                                             (assoc :mode :awake)
+                                             (dissoc :explore-steps :fsm :fsm-state :fsm-data))))
+            nil))))))
 
 (defn process-army
   "Processes a computer army's turn.
    - Awake armies get assigned exploration missions
-   - Exploring armies execute one step
+   - Exploring armies execute one step via FSM
    Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)

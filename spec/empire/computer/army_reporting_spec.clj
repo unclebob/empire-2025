@@ -2,6 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.army :as army]
             [empire.fsm.integration :as integration]
+            [empire.fsm.coastline-explorer :as explorer]
             [empire.atoms :as atoms]
             [empire.test-utils :refer [reset-all-atoms! build-test-map]]))
 
@@ -17,7 +18,11 @@
                                    [{:type :land} {:type :city :city-status :free} {:type :land}]
                                    [{:type :land} {:type :land} {:type :land}]])
       (swap! atoms/game-map assoc-in [1 0 :contents]
-             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50 :visited #{[1 0]}})
+             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50
+              :fsm explorer/coastline-explorer-fsm
+              :fsm-state :seeking-coast
+              :fsm-data {:recent-moves [[1 0]] :found-coast false :position [1 0]
+                         :explore-direction [0 1]}})
       (integration/initialize-general)
       (integration/process-general-turn))
 
@@ -39,7 +44,12 @@
                                    [{:type :land} {:type :land} {:type :land} {:type :sea}]
                                    [{:type :land} {:type :land} {:type :land} {:type :land}]])
       (swap! atoms/game-map assoc-in [2 2 :contents]
-             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50 :visited #{[2 2]}})
+             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50
+              :fsm explorer/coastline-explorer-fsm
+              :fsm-state :following-coast
+              ;; [3 3] only has 2 adjacent land cells, not a valid beach
+              ;; Add it to recent-moves so unit avoids moving there
+              :fsm-data {:recent-moves [[2 2] [3 3]] :found-coast true :position [2 2]}})
       (integration/initialize-general)
       (integration/process-general-turn))
 

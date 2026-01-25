@@ -48,7 +48,9 @@
                                    [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
       ;; Place an exploring army at [1 1]
       (swap! atoms/game-map assoc-in [1 1 :contents]
-             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50 :visited #{[1 1]}})
+             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50
+              :fsm-state :seeking-coast
+              :fsm-data {:recent-moves [[1 1]] :found-coast false :position [1 1]}})
       (integration/initialize-general)
       (integration/process-general-turn))
 
@@ -76,7 +78,9 @@
                                    [{:type :land} {:type :land} {:type :unexplored}]
                                    [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
       (swap! atoms/game-map assoc-in [1 1 :contents]
-             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50 :visited #{[1 1]}})
+             {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50
+              :fsm-state :seeking-coast
+              :fsm-data {:recent-moves [[1 1]] :found-coast false :position [1 1]}})
       (integration/initialize-general)
       (integration/process-general-turn))
 
