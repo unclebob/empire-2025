@@ -1,7 +1,8 @@
 (ns empire.fsm.general
   "General FSM - top-level strategic commander for computer player.
    Creates and commands Lieutenants, processes strategic events."
-  (:require [empire.fsm.engine :as engine]
+  (:require [empire.atoms :as atoms]
+            [empire.fsm.engine :as engine]
             [empire.fsm.context :as context]
             [empire.fsm.lieutenant :as lieutenant]))
 
@@ -47,19 +48,29 @@
    :lieutenants []})
 
 (defn- process-city-needs-orders
-  "Process a city-needs-orders event: create lieutenant and assign city."
+  "Process a city-needs-orders event: create lieutenant and assign city.
+   Also stores the lieutenant's name on the city cell for unit spawning.
+   Initializes lieutenant with knowledge of visible cells around the city."
   [general event]
   (let [city-coords (get-in event [:data :coords])
         lt-name (next-lieutenant-name (:lieutenants general))
-        new-lt (lieutenant/create-lieutenant lt-name city-coords)]
+        new-lt (-> (lieutenant/create-lieutenant lt-name city-coords)
+                   (lieutenant/initialize-with-visible-cells))]
+    ;; Store lieutenant name on the city cell
+    (swap! atoms/game-map assoc-in (conj city-coords :lieutenant) lt-name)
     (update general :lieutenants conj new-lt)))
 
 (defn- process-base-established
-  "Process a base-established event: create lieutenant for the new base."
+  "Process a base-established event: create lieutenant for the new base.
+   Also stores the lieutenant's name on the beach cell.
+   Initializes lieutenant with knowledge of visible cells around the beach."
   [general event]
   (let [beach-coords (get-in event [:data :beach-coords])
         lt-name (next-lieutenant-name (:lieutenants general))
-        new-lt (lieutenant/create-lieutenant lt-name beach-coords)]
+        new-lt (-> (lieutenant/create-lieutenant lt-name beach-coords)
+                   (lieutenant/initialize-with-visible-cells))]
+    ;; Store lieutenant name on the beach cell
+    (swap! atoms/game-map assoc-in (conj beach-coords :lieutenant) lt-name)
     (update general :lieutenants conj new-lt)))
 
 (defn- process-event

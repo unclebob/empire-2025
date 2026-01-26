@@ -1,10 +1,12 @@
 (ns empire.fsm.coastline-explorer
   "Coastline Explorer FSM - drives army exploration behavior.
+   Phase 0: Move to Lieutenant-directed starting position.
    Phase 1: Head in random direction until reaching coast.
    Phase 2: Follow coastline, avoiding backtracking.
    Phase 3: Skirt around port cities blocking the coastal path."
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]
+            [empire.movement.pathfinding :as pathfinding]
             [empire.fsm.context :as context]))
 
 (def backtrack-limit 10)
@@ -33,6 +35,20 @@
   {:type :free-city-found
    :priority :high
    :data {:coords city-pos}})
+
+(defn- get-terrain-type
+  "Returns :coastal if pos is land adjacent to sea, :landlocked otherwise."
+  [pos]
+  (if (map-utils/adjacent-to-sea? pos atoms/game-map)
+    :coastal
+    :landlocked))
+
+(defn- make-cells-discovered-event
+  "Create a :cells-discovered event for the given position."
+  [pos]
+  {:type :cells-discovered
+   :priority :low
+   :data {:cells [{:pos pos :terrain (get-terrain-type pos)}]}})
 
 ;; --- Movement Logic ---
 
@@ -82,21 +98,49 @@
           best-moves (map first (filter #(= (second %) max-score) scored))]
       (rand-nth best-moves))))
 
+(defn- first-move?
+  "Returns true if recent-moves only contains the starting position (length 1)."
+  [recent-moves]
+  (= 1 (count recent-moves)))
+
+(defn- pick-by-direction
+  "From a list of moves, pick the one(s) best aligned with explore-direction.
+   Returns a random choice among the best moves."
+  [pos moves explore-direction]
+  (when (and (seq moves) explore-direction)
+    (let [scored (map (fn [m] [m (score-move-by-direction pos m explore-direction)]) moves)
+          max-score (apply max (map second scored))
+          best-moves (map first (filter #(= (second %) max-score) scored))]
+      (rand-nth best-moves))))
+
+(defn- pick-unexplored-fallback
+  "Standard move selection preferring unexplored territory."
+  [non-backtrack-coastal coastal-moves non-backtrack-any all-moves computer-map]
+  (cond
+    (seq non-backtrack-coastal) (pick-best-by-unexplored non-backtrack-coastal computer-map)
+    (seq coastal-moves) (pick-best-by-unexplored coastal-moves computer-map)
+    (seq non-backtrack-any) (pick-best-by-unexplored non-backtrack-any computer-map)
+    (seq all-moves) (rand-nth all-moves)
+    :else nil))
+
 (defn pick-following-move
   "Pick a move while following the coast. Stay adjacent to sea, avoid backtracking.
-   Prefers moves that expose more unexplored territory."
-  [pos all-moves recent-moves computer-map]
+   On first move (recent-moves has only starting position), uses explore-direction.
+   After first move, prefers moves that expose more unexplored territory."
+  [pos all-moves recent-moves computer-map explore-direction]
   (let [coastal-moves (filter #(map-utils/adjacent-to-sea? % atoms/game-map) all-moves)
         non-backtrack-coastal (remove (set recent-moves) coastal-moves)
         non-backtrack-any (remove (set recent-moves) all-moves)]
-    (cond
-      (seq non-backtrack-coastal) (pick-best-by-unexplored non-backtrack-coastal computer-map)
-      (seq coastal-moves) (pick-best-by-unexplored coastal-moves computer-map)
-      (seq non-backtrack-any) (pick-best-by-unexplored non-backtrack-any computer-map)
-      (seq all-moves) (rand-nth all-moves)
-      :else nil)))
+    (if (and (first-move? recent-moves) explore-direction)
+      ;; First move with explore-direction: use it to pick initial direction
+      (or (pick-by-direction pos non-backtrack-coastal explore-direction)
+          (pick-by-direction pos coastal-moves explore-direction)
+          (pick-by-direction pos non-backtrack-any explore-direction)
+          (pick-unexplored-fallback non-backtrack-coastal coastal-moves non-backtrack-any all-moves computer-map))
+      ;; Subsequent moves or no explore-direction: prefer unexplored territory
+      (pick-unexplored-fallback non-backtrack-coastal coastal-moves non-backtrack-any all-moves computer-map))))
 
-(defn- adjacent-to?
+(defn adjacent-to?
   "Returns true if pos1 is adjacent to pos2 (including diagonals)."
   [[r1 c1] [r2 c2]]
   (and (<= (Math/abs (- r1 r2)) 1)
@@ -105,16 +149,16 @@
 
 (defn pick-skirting-move
   "Pick a move while skirting around a city. Stay adjacent to the city while
-   moving toward the coast. Avoid backtracking."
+   moving toward the coast. Avoid backtracking. Returns nil if no city-adjacent
+   move is available - the unit must stay adjacent to the city until reaching coast."
   [pos all-moves recent-moves city-pos computer-map]
-  (let [;; Prefer moves that stay adjacent to the city being skirted
+  (let [;; Only consider moves that stay adjacent to the city being skirted
         adjacent-to-city (filter #(adjacent-to? % city-pos) all-moves)
         ;; Among those, prefer moves that get us closer to coast
         coastal-adjacent (filter #(map-utils/adjacent-to-sea? % atoms/game-map) adjacent-to-city)
         ;; Avoid backtracking
         non-backtrack-coastal (remove (set recent-moves) coastal-adjacent)
-        non-backtrack-adjacent (remove (set recent-moves) adjacent-to-city)
-        non-backtrack-any (remove (set recent-moves) all-moves)]
+        non-backtrack-adjacent (remove (set recent-moves) adjacent-to-city)]
     (cond
       ;; Best: adjacent to city, coastal, not backtracking
       (seq non-backtrack-coastal) (pick-best-by-unexplored non-backtrack-coastal computer-map)
@@ -122,12 +166,9 @@
       (seq coastal-adjacent) (pick-best-by-unexplored coastal-adjacent computer-map)
       ;; OK: adjacent to city, not backtracking
       (seq non-backtrack-adjacent) (pick-best-by-unexplored non-backtrack-adjacent computer-map)
-      ;; Fallback: any adjacent to city
+      ;; Fallback: any adjacent to city (even if backtracking)
       (seq adjacent-to-city) (pick-best-by-unexplored adjacent-to-city computer-map)
-      ;; Last resort: any non-backtrack move
-      (seq non-backtrack-any) (pick-best-by-unexplored non-backtrack-any computer-map)
-      ;; Truly stuck
-      (seq all-moves) (rand-nth all-moves)
+      ;; No city-adjacent moves available - unit is stuck
       :else nil)))
 
 ;; --- Unit Integration ---
@@ -163,6 +204,28 @@
   [_ctx]
   true)
 
+(defn- at-destination?
+  "Guard: Returns true if unit is at its destination."
+  [ctx]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])]
+    (= pos dest)))
+
+(defn- not-at-destination?
+  "Guard: Returns true if unit is not at its destination."
+  [ctx]
+  (not (at-destination? ctx)))
+
+(defn- at-destination-on-coast?
+  "Guard: Returns true if at destination and on a coastal cell."
+  [ctx]
+  (and (at-destination? ctx) (on-coast? ctx)))
+
+(defn- at-destination-not-on-coast?
+  "Guard: Returns true if at destination but not on a coastal cell."
+  [ctx]
+  (and (at-destination? ctx) (not (on-coast? ctx))))
+
 (defn at-port-city?
   "Guard: Returns true if following coast and adjacent to a port city that blocks
    the coastal path (no valid coastal moves that bypass the city)."
@@ -196,35 +259,41 @@
         on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)
         ;; Check for adjacent free cities to report
         free-city (find-adjacent-free-city pos)
-        events (when free-city [(make-free-city-event free-city)])]
+        ;; Build events list: always include cells-discovered, optionally free-city
+        events (cond-> [(make-cells-discovered-event pos)]
+                 free-city (conj (make-free-city-event free-city)))]
     (when next-pos
-      (cond-> {:move-to next-pos
-               :recent-moves (update-recent-moves recent-moves next-pos)
-               :found-coast on-coast?}
-        events (assoc :events events)))))
+      {:move-to next-pos
+       :recent-moves (update-recent-moves recent-moves next-pos)
+       :found-coast on-coast?
+       :events events})))
 
 ;; Public version for testing
 (def seek-coast-action-public seek-coast-action)
 
 (defn- follow-coast-action
   "Action: Compute next move while following the coast.
-   Prefers moves that expose more unexplored territory.
+   On first move, uses explore-direction to pick initial direction.
+   After first move, prefers moves that expose more unexplored territory.
    Returns {:move-to [row col], :recent-moves [...], :found-coast true, :events [...]}."
   [ctx]
   (let [fsm-data (get-in ctx [:entity :fsm-data])
         pos (:position fsm-data)
         recent-moves (or (:recent-moves fsm-data) [])
+        explore-direction (:explore-direction fsm-data)
         computer-map (:computer-map ctx)
         all-moves (context/get-valid-army-moves ctx pos)
-        next-pos (pick-following-move pos all-moves recent-moves computer-map)
+        next-pos (pick-following-move pos all-moves recent-moves computer-map explore-direction)
         ;; Check for adjacent free cities to report
         free-city (find-adjacent-free-city pos)
-        events (when free-city [(make-free-city-event free-city)])]
+        ;; Build events list: always include cells-discovered, optionally free-city
+        events (cond-> [(make-cells-discovered-event pos)]
+                 free-city (conj (make-free-city-event free-city)))]
     (when next-pos
-      (cond-> {:move-to next-pos
-               :recent-moves (update-recent-moves recent-moves next-pos)
-               :found-coast true}
-        events (assoc :events events)))))
+      {:move-to next-pos
+       :recent-moves (update-recent-moves recent-moves next-pos)
+       :found-coast true
+       :events events})))
 
 ;; Public version for testing
 (def follow-coast-action-public follow-coast-action)
@@ -249,17 +318,56 @@
                    (pick-skirting-move pos all-moves recent-moves city-pos computer-map))
         ;; Check for adjacent free cities to report
         free-city (find-adjacent-free-city pos)
-        events (when free-city [(make-free-city-event free-city)])]
+        ;; Build events list: always include cells-discovered, optionally free-city
+        events (cond-> [(make-cells-discovered-event pos)]
+                 free-city (conj (make-free-city-event free-city)))]
     (when next-pos
-      (cond-> {:move-to next-pos
-               :recent-moves (update-recent-moves recent-moves next-pos)
-               :city-being-skirted city-pos
-               :skirt-start-pos start-pos
-               :found-coast true}
-        events (assoc :events events)))))
+      {:move-to next-pos
+       :recent-moves (update-recent-moves recent-moves next-pos)
+       :city-being-skirted city-pos
+       :skirt-start-pos start-pos
+       :found-coast true
+       :events events})))
 
 ;; Public version for testing
 (def skirt-city-action-public skirt-city-action)
+
+(defn- move-to-start-action
+  "Action: Compute next move toward the destination using pathfinding.
+   Returns {:move-to [row col], :destination [row col], :recent-moves [...]}."
+  [ctx]
+  (let [fsm-data (get-in ctx [:entity :fsm-data])
+        pos (:position fsm-data)
+        dest (:destination fsm-data)
+        recent-moves (or (:recent-moves fsm-data) [])
+        next-pos (pathfinding/next-step-toward pos dest)]
+    (when next-pos
+      {:move-to next-pos
+       :destination dest
+       :recent-moves (update-recent-moves recent-moves next-pos)})))
+
+;; Public version for testing
+(def move-to-start-action-public move-to-start-action)
+
+(defn- arrive-at-start-action
+  "Action: Called when arriving at destination. Sets up for exploration
+   and computes the first exploration move by delegating to the appropriate action.
+   Returns exploration data based on whether destination is coastal."
+  [ctx]
+  (let [fsm-data (get-in ctx [:entity :fsm-data])
+        pos (:position fsm-data)
+        on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)
+        ;; Update context with cleared destination for the next action
+        setup-data {:destination nil
+                    :recent-moves [pos]
+                    :found-coast on-coast?}
+        updated-ctx (update-in ctx [:entity :fsm-data] merge setup-data)
+        ;; Delegate to the appropriate action to compute the first move
+        next-action-result (if on-coast?
+                             (follow-coast-action updated-ctx)
+                             (seek-coast-action updated-ctx))]
+    ;; Merge setup data with the action result
+    (merge setup-data next-action-result)))
 
 ;; --- FSM Definition ---
 
@@ -268,25 +376,41 @@
    Format: [current-state guard-fn new-state action-fn]
 
    States:
+   - :moving-to-start - Moving to Lieutenant-directed starting position
    - :seeking-coast   - Heading in random direction toward coast
    - :following-coast - Following the coastline
    - :skirting-city   - Walking around a port city blocking the coastal path"
-  [[:seeking-coast    on-coast?      :following-coast follow-coast-action]
+  [;; Moving to start transitions
+   [:moving-to-start  at-destination-on-coast?      :following-coast arrive-at-start-action]
+   [:moving-to-start  at-destination-not-on-coast?  :seeking-coast   arrive-at-start-action]
+   [:moving-to-start  not-at-destination?           :moving-to-start move-to-start-action]
+   ;; Seeking coast transitions
+   [:seeking-coast    on-coast?      :following-coast follow-coast-action]
    [:seeking-coast    not-on-coast?  :seeking-coast   seek-coast-action]
+   ;; Following coast transitions
    [:following-coast  at-port-city?  :skirting-city   skirt-city-action]
    [:following-coast  always         :following-coast follow-coast-action]
+   ;; Skirting city transitions
    [:skirting-city    back-on-coast? :following-coast follow-coast-action]
    [:skirting-city    always         :skirting-city   skirt-city-action]])
 
 ;; --- Create Explorer ---
 
 (defn create-explorer-data
-  "Create FSM data for a new coastline explorer mission at given position."
-  [pos]
-  (let [on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)]
-    {:fsm coastline-explorer-fsm
-     :fsm-state (if on-coast? :following-coast :seeking-coast)
-     :fsm-data {:position pos
-                :explore-direction (random-direction)
-                :recent-moves [pos]
-                :found-coast on-coast?}}))
+  "Create FSM data for a new coastline explorer mission at given position.
+   Optional target parameter sets destination for :moving-to-start state."
+  ([pos]
+   (create-explorer-data pos nil))
+  ([pos target]
+   (let [on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)
+         has-target? (and target (not= pos target))]
+     {:fsm coastline-explorer-fsm
+      :fsm-state (cond
+                   has-target? :moving-to-start
+                   on-coast? :following-coast
+                   :else :seeking-coast)
+      :fsm-data {:position pos
+                 :destination (when has-target? target)
+                 :explore-direction (random-direction)
+                 :recent-moves [pos]
+                 :found-coast on-coast?}})))

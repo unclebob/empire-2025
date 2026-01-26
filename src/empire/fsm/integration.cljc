@@ -3,6 +3,7 @@
    Manages General lifecycle and coordinates FSM processing with game turns."
   (:require [empire.atoms :as atoms]
             [empire.fsm.general :as general]
+            [empire.fsm.lieutenant :as lieutenant]
             [empire.fsm.engine :as engine]))
 
 (defn find-computer-cities
@@ -31,12 +32,24 @@
                                     computer-cities)]
         (reset! atoms/commanding-general gen-with-events)))))
 
+(defn- process-lieutenants
+  "Process all lieutenants in the General's command hierarchy.
+   Each lieutenant processes one event from its queue."
+  [general]
+  (update general :lieutenants
+          (fn [lts]
+            (mapv lieutenant/process-lieutenant lts))))
+
 (defn process-general-turn
-  "Processes one step of the General FSM.
+  "Processes one step of the General FSM and all lieutenants.
    Called each computer turn to advance the command hierarchy."
   []
   (when @atoms/commanding-general
-    (swap! atoms/commanding-general general/process-general)))
+    (swap! atoms/commanding-general
+           (fn [gen]
+             (-> gen
+                 general/process-general
+                 process-lieutenants)))))
 
 (defn notify-city-captured
   "Notifies the General that computer has captured a new city.

@@ -195,7 +195,29 @@
         (should= :army (:type unit))
         (should= beach-pos (:target unit)))
       ;; Beach order should be removed
-      (should-be-nil (get @atoms/beach-army-orders beach-pos)))))
+      (should-be-nil (get @atoms/beach-army-orders beach-pos))))
+
+  (it "creates computer army with lieutenant from city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
+      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (swap! atoms/game-map assoc-in (conj city-coords :lieutenant) "Bravo")
+      (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
+      (production/update-production)
+      (let [unit (:contents (get-in @atoms/game-map city-coords))]
+        (should= :army (:type unit))
+        (should= :computer (:owner unit))
+        (should= "Bravo" (:lieutenant unit)))))
+
+  (it "does not set lieutenant on player army"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
+      ;; City is player-owned by default
+      (swap! atoms/game-map assoc-in (conj city-coords :lieutenant) "Alpha")
+      (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
+      (production/update-production)
+      (let [unit (:contents (get-in @atoms/game-map city-coords))]
+        (should= :army (:type unit))
+        (should= :player (:owner unit))
+        (should-be-nil (:lieutenant unit))))))
 
 (describe "set-city-production"
   (before

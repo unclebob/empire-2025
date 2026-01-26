@@ -49,7 +49,24 @@
   (it "formats transport with loading-timeout"
     (let [unit {:type :transport :hits 1 :mode :sentry :army-count 2 :owner :computer
                 :transport-mission :loading :loading-timeout 3}]
-      (should= "computer transport [1/1] cargo:2 loading timeout:3 sentry" (ru/format-unit-status unit)))))
+      (should= "computer transport [1/1] cargo:2 loading timeout:3 sentry" (ru/format-unit-status unit))))
+
+  (it "formats army with destination"
+    (let [unit {:type :army :hits 1 :mode :moving :owner :computer :destination [8 12]}]
+      (should= "computer army [1/1] moving -> [8,12]" (ru/format-unit-status unit))))
+
+  (it "formats army with fsm-state"
+    (let [unit {:type :army :hits 1 :mode :explore :owner :computer :fsm-state :seeking-coast}]
+      (should= "computer army [1/1] explore seeking-coast" (ru/format-unit-status unit))))
+
+  (it "formats army with fsm-state following-coast"
+    (let [unit {:type :army :hits 1 :mode :explore :owner :computer :fsm-state :following-coast}]
+      (should= "computer army [1/1] explore following-coast" (ru/format-unit-status unit))))
+
+  (it "formats army with destination and fsm-state"
+    (let [unit {:type :army :hits 1 :mode :moving :owner :computer
+                :destination [5 10] :fsm-state :seeking-coast}]
+      (should= "computer army [1/1] moving -> [5,10] seeking-coast" (ru/format-unit-status unit)))))
 
 (describe "format-city-status"
   (it "formats player city with production"

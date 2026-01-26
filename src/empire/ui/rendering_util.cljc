@@ -29,7 +29,9 @@
         orders (cond
                  (:marching-orders unit) "march"
                  (:flight-path unit) "flight"
-                 :else nil)]
+                 :else nil)
+        destination (:destination unit)
+        fsm-state (:fsm-state unit)]
     (str owner " " type-name
          " [" hits "/" max-hits "]"
          (when fuel (str " fuel:" fuel))
@@ -38,7 +40,9 @@
          (when loading-timeout (str " timeout:" loading-timeout))
          (when army-mission (str " mission:" (name army-mission)))
          (when orders (str " " orders))
-         " " (name (:mode unit)))))
+         " " (name (:mode unit))
+         (when destination (str " -> [" (first destination) "," (second destination) "]"))
+         (when fsm-state (str " " (name fsm-state))))))
 
 (defn- format-ship-for-dock
   "Formats a single ship for dock display: T[2/3] for type[hits/max]"

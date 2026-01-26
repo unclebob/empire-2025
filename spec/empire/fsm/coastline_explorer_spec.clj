@@ -47,9 +47,10 @@
             ctx (context/build-context entity)
             result (explorer/seek-coast-action-public ctx)]
         (should-contain :events result)
-        (should= 1 (count (:events result)))
-        (should= :free-city-found (:type (first (:events result))))
-        (should= [1 1] (get-in (first (:events result)) [:data :coords]))))
+        ;; Should have cells-discovered and free-city-found events
+        (let [city-events (filter #(= :free-city-found (:type %)) (:events result))]
+          (should= 1 (count city-events))
+          (should= [1 1] (get-in (first city-events) [:data :coords])))))
 
     (it "follow-coast-action returns event when adjacent to free city"
       (reset! atoms/game-map (build-test-map ["~~~"
@@ -217,7 +218,59 @@
                                      :skirt-start-pos [2 1])
                     :event-queue []}
             ctx (context/build-context entity)]
-        (should-not (explorer/back-on-coast? ctx)))))
+        (should-not (explorer/back-on-coast? ctx))))
+
+    (it "pick-skirting-move always chooses city-adjacent moves over non-adjacent"
+      ;; Map where unit at [2,2] has both city-adjacent and non-adjacent moves
+      ;; ~~~~~~
+      ;; ~X####   X = computer city at [1,1]
+      ;; ~#####   Unit at [2,2] - adjacent to city: [1,2], [2,1], [3,1]
+      ;; ~#####                 - NOT adjacent: [2,3], [3,2], [3,3]
+      ;; ~~~~~~
+      (reset! atoms/game-map (build-test-map ["~~~~~~"
+                                               "~X####"
+                                               "~#####"
+                                               "~#####"
+                                               "~~~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~~~"
+                                                   "~X####"
+                                                   "~#####"
+                                                   "~#####"
+                                                   "~~~~~~"]))
+      (let [pos [2 2]
+            city-pos [1 1]
+            all-moves [[1 2] [1 3] [2 1] [2 3] [3 1] [3 2] [3 3]]
+            recent-moves []
+            result (explorer/pick-skirting-move pos all-moves recent-moves city-pos @atoms/computer-map)]
+        ;; Result must be adjacent to city [1,1]
+        (should-not-be-nil result)
+        (should (explorer/adjacent-to? result city-pos))))
+
+    (it "pick-skirting-move returns nil when only non-adjacent moves available"
+      ;; When no city-adjacent moves exist, unit should be stuck rather than move away
+      ;; ~~~~~~
+      ;; ~X####   X = computer city at [1,1]
+      ;; ~#####   Unit at [3,3] - only non-adjacent moves available
+      ;; ~#####
+      ;; ~~~~~~
+      (reset! atoms/game-map (build-test-map ["~~~~~~"
+                                               "~X####"
+                                               "~#####"
+                                               "~#####"
+                                               "~~~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~~~"
+                                                   "~X####"
+                                                   "~#####"
+                                                   "~#####"
+                                                   "~~~~~~"]))
+      (let [pos [3 3]
+            city-pos [1 1]
+            ;; Only moves NOT adjacent to city at [1,1]
+            all-moves [[2 3] [2 4] [3 2] [3 4] [4 2] [4 3] [4 4]]
+            recent-moves []
+            result (explorer/pick-skirting-move pos all-moves recent-moves city-pos @atoms/computer-map)]
+        ;; Should return nil - no valid skirting move
+        (should-be-nil result))))
 
   (describe "FSM transitions"
 
@@ -283,4 +336,224 @@
         (let [city-event (first (filter #(= :free-city-found (:type %))
                                         (:event-queue updated)))]
           (should-not-be-nil city-event)
-          (should= [1 1] (get-in city-event [:data :coords])))))))
+          (should= [1 1] (get-in city-event [:data :coords]))))))
+
+  (describe "cell discovery reporting"
+
+    (before
+      (reset-all-atoms!)
+      ;; Map with coastal and landlocked cells
+      ;; ~~~~
+      ;; ~###   [1,1] coastal, [1,2] landlocked, [1,3] coastal
+      ;; ~###   [2,1] coastal, [2,2] landlocked, [2,3] coastal
+      ;; ~~~~
+      (reset! atoms/game-map (build-test-map ["~~~~"
+                                               "~###"
+                                               "~###"
+                                               "~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~"
+                                                   "~###"
+                                                   "~###"
+                                                   "~~~~"])))
+
+    (it "follow-coast-action emits cells-discovered event for current position"
+      (let [explorer-data (explorer/create-explorer-data [1 1])
+            entity {:fsm (:fsm explorer-data)
+                    :fsm-state :following-coast
+                    :fsm-data (assoc (:fsm-data explorer-data)
+                                     :position [1 1]
+                                     :found-coast true)
+                    :event-queue []}
+            ctx (context/build-context entity)
+            result (explorer/follow-coast-action-public ctx)]
+        (should-contain :events result)
+        (let [discovery-event (first (filter #(= :cells-discovered (:type %))
+                                             (:events result)))]
+          (should-not-be-nil discovery-event)
+          (should= [{:pos [1 1] :terrain :coastal}]
+                   (get-in discovery-event [:data :cells])))))
+
+    (it "reports landlocked cells correctly"
+      ;; Need a larger map where [2,2] is truly landlocked (no adjacent sea)
+      (reset! atoms/game-map (build-test-map ["~~~~~~"
+                                               "~#####"
+                                               "~#####"
+                                               "~#####"
+                                               "~~~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~~~"
+                                                   "~#####"
+                                                   "~#####"
+                                                   "~#####"
+                                                   "~~~~~~"]))
+      (let [explorer-data (explorer/create-explorer-data [2 2])
+            entity {:fsm (:fsm explorer-data)
+                    :fsm-state :following-coast
+                    :fsm-data (assoc (:fsm-data explorer-data)
+                                     :position [2 2]
+                                     :found-coast true)
+                    :event-queue []}
+            ctx (context/build-context entity)
+            result (explorer/follow-coast-action-public ctx)]
+        (should-contain :events result)
+        (let [discovery-event (first (filter #(= :cells-discovered (:type %))
+                                             (:events result)))]
+          (should-not-be-nil discovery-event)
+          (should= [{:pos [2 2] :terrain :landlocked}]
+                   (get-in discovery-event [:data :cells])))))
+
+    (it "seek-coast-action emits cells-discovered event"
+      ;; Set up inland position
+      (reset! atoms/game-map (build-test-map ["~~~~~"
+                                               "~####"
+                                               "~####"
+                                               "~~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~~"
+                                                   "~####"
+                                                   "~####"
+                                                   "~~~~~"]))
+      (let [explorer-data (explorer/create-explorer-data [2 2])
+            entity {:fsm (:fsm explorer-data)
+                    :fsm-state :seeking-coast
+                    :fsm-data (assoc (:fsm-data explorer-data)
+                                     :position [2 2]
+                                     :explore-direction [0 1])
+                    :event-queue []}
+            ctx (context/build-context entity)
+            result (explorer/seek-coast-action-public ctx)]
+        (should-contain :events result)
+        (let [discovery-event (first (filter #(= :cells-discovered (:type %))
+                                             (:events result)))]
+          (should-not-be-nil discovery-event)))))
+
+  (describe "pick-following-move with explore-direction"
+
+    (before
+      (reset-all-atoms!)
+      ;; Long coastline with unexplored on both sides
+      ;; ~~~~~~~~~~
+      ;; ~########~
+      ;; ~~~~~~~~~~
+      (reset! atoms/game-map (build-test-map ["~~~~~~~~~~"
+                                               "~########~"
+                                               "~~~~~~~~~~"]))
+      ;; Everything explored except edges
+      (reset! atoms/computer-map (build-test-map ["~~~~~~~~~~"
+                                                   "~########~"
+                                                   "~~~~~~~~~~"])))
+
+    (it "uses explore-direction on first move when recent-moves has only starting position"
+      (let [pos [1 5]
+            all-moves [[1 4] [1 6]]  ; can go left or right along coast
+            recent-moves [[1 5]]     ; only starting position
+            explore-direction [0 1]  ; prefer moving right (increasing column)
+            result (explorer/pick-following-move pos all-moves recent-moves
+                                                  @atoms/computer-map explore-direction)]
+        ;; Should pick [1 6] because explore-direction points right
+        (should= [1 6] result)))
+
+    (it "picks move in opposite direction when explore-direction points left"
+      (let [pos [1 5]
+            all-moves [[1 4] [1 6]]
+            recent-moves [[1 5]]
+            explore-direction [0 -1]  ; prefer moving left (decreasing column)
+            result (explorer/pick-following-move pos all-moves recent-moves
+                                                  @atoms/computer-map explore-direction)]
+        ;; Should pick [1 4] because explore-direction points left
+        (should= [1 4] result)))
+
+    (it "falls back to unexplored-based selection after first move"
+      (let [pos [1 5]
+            all-moves [[1 4] [1 6]]
+            recent-moves [[1 5] [1 6]]  ; has history, not first move
+            explore-direction [0 1]     ; would prefer right, but not first move
+            result (explorer/pick-following-move pos all-moves recent-moves
+                                                  @atoms/computer-map explore-direction)]
+        ;; Should pick based on unexplored neighbors, not explore-direction
+        ;; Both have same unexplored count, but [1 4] is not in recent-moves
+        (should= [1 4] result))))
+
+  (describe "moving-to-start state"
+
+    (before
+      (reset-all-atoms!)
+      ;; Map with land for pathfinding
+      ;; ~~~~~~
+      ;; ~#####
+      ;; ~#####
+      ;; ~~~~~~
+      (reset! atoms/game-map (build-test-map ["~~~~~~"
+                                               "~#####"
+                                               "~#####"
+                                               "~~~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~~~"
+                                                   "~#####"
+                                                   "~#####"
+                                                   "~~~~~~"])))
+
+    (it "create-explorer-data with target sets moving-to-start state"
+      (let [pos [1 1]
+            target [1 4]
+            data (explorer/create-explorer-data pos target)]
+        (should= :moving-to-start (:fsm-state data))
+        (should= target (get-in data [:fsm-data :destination]))))
+
+    (it "create-explorer-data without target uses normal state selection"
+      (let [pos [1 1]  ; coastal position
+            data (explorer/create-explorer-data pos)]
+        (should= :following-coast (:fsm-state data))
+        (should-be-nil (get-in data [:fsm-data :destination]))))
+
+    (it "create-explorer-data at target position starts exploration immediately"
+      (let [pos [1 4]
+            target [1 4]  ; already at target
+            data (explorer/create-explorer-data pos target)]
+        ;; Should skip moving-to-start since already there
+        (should= :following-coast (:fsm-state data))))
+
+    (it "move-to-start-action returns next step toward destination"
+      (let [data (explorer/create-explorer-data [1 1] [1 4])
+            entity (assoc data :event-queue [])
+            ctx (context/build-context entity)
+            result (explorer/move-to-start-action-public ctx)]
+        (should-not-be-nil (:move-to result))
+        ;; Should move toward [1 4], so next pos should be [1 2]
+        (should= [1 2] (:move-to result))))
+
+    (it "transitions to following-coast when reaching coastal destination"
+      (let [;; Unit one step away from coastal destination
+            data (explorer/create-explorer-data [1 3] [1 4])
+            entity (-> data
+                       (assoc :event-queue [])
+                       (assoc-in [:fsm-data :position] [1 3]))
+            ctx (context/build-context entity)
+            updated (engine/step entity ctx)]
+        ;; After moving to [1 4] (coastal), should transition to following-coast
+        (should= [1 4] (get-in updated [:fsm-data :move-to]))
+        ;; State transitions on next step when at destination
+        (let [entity2 (-> updated
+                          (assoc-in [:fsm-data :position] [1 4]))
+              ctx2 (context/build-context entity2)
+              updated2 (engine/step entity2 ctx2)]
+          (should= :following-coast (:fsm-state updated2)))))
+
+    (it "transitions to seeking-coast when reaching non-coastal destination"
+      ;; Larger map with interior destination
+      (reset! atoms/game-map (build-test-map ["~~~~~~~"
+                                               "~#####~"
+                                               "~#####~"
+                                               "~#####~"
+                                               "~~~~~~~"]))
+      (reset! atoms/computer-map (build-test-map ["~~~~~~~"
+                                                   "~#####~"
+                                                   "~#####~"
+                                                   "~#####~"
+                                                   "~~~~~~~"]))
+      (let [;; Unit at interior position, destination is also interior
+            data (explorer/create-explorer-data [2 2] [2 4])
+            entity (-> data
+                       (assoc :event-queue [])
+                       (assoc-in [:fsm-data :position] [2 4]))  ; simulate being at destination
+            ctx (context/build-context entity)
+            updated (engine/step entity ctx)]
+        ;; Should transition to seeking-coast since [2 4] is not coastal
+        (should= :seeking-coast (:fsm-state updated))))))

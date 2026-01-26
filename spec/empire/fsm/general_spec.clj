@@ -94,7 +94,18 @@
                    general/process-general)]
         (should= "Alpha" (:name (nth (:lieutenants g3) 0)))
         (should= "Bravo" (:name (nth (:lieutenants g3) 1)))
-        (should= "Charlie" (:name (nth (:lieutenants g3) 2))))))
+        (should= "Charlie" (:name (nth (:lieutenants g3) 2)))))
+
+    (it "stores lieutenant name on the city cell"
+      (reset! atoms/game-map (build-test-map ["~X~"
+                                               "~~~"]))
+      (let [g (general/create-general)
+            g-with-event (engine/post-event g {:type :city-needs-orders
+                                                :priority :high
+                                                :data {:coords [0 1]}})
+            result (general/process-general g-with-event)
+            city-cell (get-in @atoms/game-map [0 1])]
+        (should= "Alpha" (:lieutenant city-cell)))))
 
   (describe "process-general"
     (before (reset-all-atoms!))

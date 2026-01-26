@@ -6,18 +6,24 @@
             [empire.fsm.engine :as engine]
             [empire.fsm.base-establishment :as base]
             [empire.fsm.coastline-explorer :as explorer]
-            [empire.fsm.context :as context]))
+            [empire.fsm.context :as context]
+            [empire.fsm.lieutenant :as lieutenant]))
 
 (def explore-steps 50)
 
 ;; --- Reporting to Lieutenant ---
 
 (defn- find-lieutenant-for-army
-  "Find the Lieutenant that should receive reports from this army.
-   Currently returns the first Lieutenant (armies don't track their commander yet)."
-  []
+  "Find the Lieutenant that commands this army.
+   Uses the army's :lieutenant field to find the correct Lieutenant.
+   Falls back to first Lieutenant if army has no assigned lieutenant."
+  [unit]
   (when-let [general @atoms/commanding-general]
-    (first (:lieutenants general))))
+    (if-let [lt-name (:lieutenant unit)]
+      ;; Find the named Lieutenant
+      (first (filter #(= (:name %) lt-name) (:lieutenants general)))
+      ;; Fallback: first Lieutenant (legacy behavior)
+      (first (:lieutenants general)))))
 
 (defn- update-lieutenant!
   "Update a Lieutenant in the General's lieutenants list."
@@ -46,7 +52,7 @@
   (let [events (:event-queue unit)]
     (when (seq events)
       (doseq [event events]
-        (when-let [lt (find-lieutenant-for-army)]
+        (when-let [lt (find-lieutenant-for-army unit)]
           (let [updated-lt (engine/post-event lt event)]
             (update-lieutenant! updated-lt)))))
     (assoc unit :event-queue [])))
@@ -54,28 +60,39 @@
 (defn- report-beach-discovery!
   "Report beach/coastline candidate at the current position to the Lieutenant.
    Free city reports are now handled by FSM events."
-  [pos]
+  [pos unit]
   (when (and (on-coastline? pos)
              (base/valid-beach-candidate? pos))
-    (when-let [lt (find-lieutenant-for-army)]
+    (when-let [lt (find-lieutenant-for-army unit)]
       (let [updated-lt (engine/post-event lt {:type :coastline-mapped
                                                :priority :normal
                                                :data {:coords pos}})]
         (update-lieutenant! updated-lt)))))
 
+(defn- start-exploration-at
+  "Start exploring at the given position, optionally with a target destination."
+  ([pos unit cell]
+   (start-exploration-at pos unit cell nil))
+  ([pos unit cell target]
+   (let [explorer-data (explorer/create-explorer-data pos target)
+         updated-unit (-> unit
+                          (assoc :mode :explore
+                                 :explore-steps explore-steps)
+                          (merge explorer-data)
+                          (dissoc :reason :visited))]
+     (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit)))))
+
 (defn- assign-exploration-mission
   "Assigns exploration mission to an awake army.
-   Initializes the coastline explorer FSM."
+   If Lieutenant knows of a better frontier position, directs army there via FSM.
+   Otherwise initializes coastline explorer FSM at current position."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
-        explorer-data (explorer/create-explorer-data pos)
-        updated-unit (-> unit
-                         (assoc :mode :explore
-                                :explore-steps explore-steps)
-                         (merge explorer-data)
-                         (dissoc :reason :visited))]
-    (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
+        lt (find-lieutenant-for-army unit)
+        target (when lt (lieutenant/get-exploration-target lt pos))]
+    ;; Always start in explore mode - FSM handles moving to target if needed
+    (start-exploration-at pos unit cell target)))
 
 (defn- step-explorer-fsm
   "Step the coastline explorer FSM and return updated unit."
@@ -121,7 +138,7 @@
             (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
             (visibility/update-cell-visibility next-pos :computer)
             ;; Report beach candidates at new position (free cities reported via FSM events)
-            (report-beach-discovery! next-pos)
+            (report-beach-discovery! next-pos moved-unit)
             nil)
           ;; Stuck - wake up
           (do
@@ -134,7 +151,7 @@
 (defn process-army
   "Processes a computer army's turn.
    - Awake armies get assigned exploration missions
-   - Exploring armies execute one step via FSM
+   - Exploring armies execute one step via FSM (including moving-to-start)
    Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)

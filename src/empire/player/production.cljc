@@ -73,6 +73,13 @@
     (apply-beach-order-to-army unit coords)
     unit))
 
+(defn- apply-lieutenant
+  "Copies the city's lieutenant to computer armies."
+  [unit item owner cell]
+  (if (and (= item :army) (= owner :computer) (:lieutenant cell))
+    (assoc unit :lieutenant (:lieutenant cell))
+    unit))
+
 (defn- spawn-unit
   "Creates and places a unit at the given city coordinates."
   [coords cell item]
@@ -82,7 +89,8 @@
         unit (-> (create-base-unit item owner)
                  (apply-unit-type-attributes item owner)
                  (apply-movement-orders item marching-orders flight-path)
-                 (apply-computer-army-beach-order item owner coords))]
+                 (apply-computer-army-beach-order item owner coords)
+                 (apply-lieutenant item owner cell))]
     (swap! atoms/game-map assoc-in (conj coords :contents) unit)
     owner))
 

@@ -107,4 +107,32 @@
       (reset! atoms/game-map (build-test-map ["~O~"
                                                "~+~"
                                                "~~~"]))
-      (should= [] (integration/find-computer-cities)))))
+      (should= [] (integration/find-computer-cities))))
+
+  (describe "process-general-turn processes lieutenants"
+    (before
+      (reset-all-atoms!)
+      (reset! atoms/game-map (build-test-map ["X##"
+                                               "###"
+                                               "~~~"]))
+      (integration/initialize-general)
+      ;; Create a lieutenant by processing the general
+      (integration/process-general-turn))
+
+    (it "processes lieutenant events when processing general turn"
+      ;; Lieutenant starts with empty known-coastal-cells
+      (let [lt (first (:lieutenants @atoms/commanding-general))]
+        (should= #{} (:known-coastal-cells lt)))
+      ;; Post a cells-discovered event to the lieutenant
+      (swap! atoms/commanding-general
+             update :lieutenants
+             (fn [lts]
+               (mapv #(engine/post-event % {:type :cells-discovered
+                                            :priority :low
+                                            :data {:cells [{:pos [1 1] :terrain :coastal}]}})
+                     lts)))
+      ;; Process general turn - should also process lieutenant events
+      (integration/process-general-turn)
+      ;; Lieutenant should now know about the coastal cell
+      (let [lt (first (:lieutenants @atoms/commanding-general))]
+        (should-contain [1 1] (:known-coastal-cells lt))))))
