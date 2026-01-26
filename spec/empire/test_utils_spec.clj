@@ -27,6 +27,9 @@
   (it "converts - to unexplored (nil)"
     (should= [[nil]] (build-test-map ["-"])))
 
+  (it "converts space to unexplored cell"
+    (should= [[{:type :unexplored}]] (build-test-map [" "])))
+
   (it "converts A to army on land"
     (should= [[{:type :land :contents {:type :army :owner :player :hits 1}}]]
              (build-test-map ["A"])))

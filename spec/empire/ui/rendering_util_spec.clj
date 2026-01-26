@@ -1,6 +1,7 @@
 (ns empire.ui.rendering-util-spec
   (:require [speclj.core :refer :all]
-            [empire.ui.rendering-util :as ru]))
+            [empire.ui.rendering-util :as ru]
+            [empire.test-utils :refer [build-test-map]]))
 
 (describe "format-unit-status"
   (it "formats basic player army status"
@@ -178,7 +179,7 @@
       (should= 2 (count (get result [0 191 255])))))
 
   (it "skips unexplored cells"
-    (let [the-map [[{:type :land} {:type :unexplored}]]
+    (let [the-map (build-test-map ["# "])
           result (ru/group-cells-by-color the-map nil {} false false)]
       (should= 1 (count result))
       (should= 1 (count (get result [139 69 19])))))

@@ -84,10 +84,10 @@
                                                "####"
                                                "####"]))
       ;; Computer has only explored edges
-      (reset! atoms/computer-map [[{:type :land} {:type :land} {:type :land} {:type :unexplored}]
-                                   [{:type :land} {:type :unexplored} {:type :unexplored} {:type :unexplored}]
-                                   [{:type :land} {:type :unexplored} {:type :unexplored} {:type :unexplored}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :unexplored}]]))
+      (reset! atoms/computer-map (build-test-map ["### "
+                                                   "#   "
+                                                   "#   "
+                                                   "    "])))
 
     (it "finds direction toward unexplored territory"
       (let [explorer (army/create-interior-explorer :lt-1 [0 0])

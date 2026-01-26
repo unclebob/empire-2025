@@ -18,9 +18,9 @@
                                                "###"
                                                "###"]))
       ;; Computer has explored around city
-      (reset! atoms/computer-map [[{:type :city :city-status :computer} {:type :land} {:type :unexplored}]
-                                   [{:type :land} {:type :land} {:type :unexplored}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
+      (reset! atoms/computer-map (build-test-map ["X# "
+                                                   "## "
+                                                   "   "]))
       ;; Place an awake army at [1 1]
       (swap! atoms/game-map assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
@@ -43,9 +43,9 @@
       (reset! atoms/game-map (build-test-map ["X##"
                                                "###"
                                                "###"]))
-      (reset! atoms/computer-map [[{:type :city :city-status :computer} {:type :land} {:type :unexplored}]
-                                   [{:type :land} {:type :land} {:type :unexplored}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
+      (reset! atoms/computer-map (build-test-map ["X# "
+                                                   "## "
+                                                   "   "]))
       ;; Place an exploring army at [1 1]
       (swap! atoms/game-map assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50
@@ -74,9 +74,9 @@
       (reset! atoms/game-map (build-test-map ["X##"
                                                "###"
                                                "###"]))
-      (reset! atoms/computer-map [[{:type :city :city-status :computer} {:type :land} {:type :unexplored}]
-                                   [{:type :land} {:type :land} {:type :unexplored}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
+      (reset! atoms/computer-map (build-test-map ["X# "
+                                                   "## "
+                                                   "   "]))
       (swap! atoms/game-map assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 50
               :fsm-state :seeking-coast

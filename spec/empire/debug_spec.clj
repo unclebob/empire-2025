@@ -38,13 +38,13 @@
                              "~~~"]))
     ;; player-map and computer-map are 2D vectors like game-map
     (reset! atoms/player-map
-            [[{:type :land} {:type :land} {:type :unexplored}]
-             [{:type :land} {:type :land :contents {:type :army :owner :player}} {:type :unexplored}]
-             [{:type :unexplored} {:type :unexplored} {:type :unexplored}]])
+            (build-test-map ["## "
+                             "#A "
+                             "   "]))
     (reset! atoms/computer-map
-            [[{:type :unexplored} {:type :unexplored} {:type :unexplored}]
-             [{:type :unexplored} {:type :unexplored} {:type :unexplored}]
-             [{:type :sea} {:type :sea} {:type :unexplored}]]))
+            (build-test-map ["   "
+                             "   "
+                             "~~ "])))
 
   (it "extracts cells from all three maps for coordinate range"
     (let [result (debug/dump-region [0 0] [1 1])]
@@ -120,11 +120,11 @@
                              "~~"]))
     ;; player-map and computer-map are 2D vectors like game-map
     (reset! atoms/player-map
-            [[{:type :land} {:type :unexplored}]
-             [{:type :unexplored} {:type :unexplored}]])
+            (build-test-map ["# "
+                             "  "]))
     (reset! atoms/computer-map
-            [[{:type :unexplored} {:type :unexplored}]
-             [{:type :unexplored} {:type :unexplored}]])
+            (build-test-map ["  "
+                             "  "]))
     (reset! atoms/round-number 42)
     (reset! atoms/cells-needing-attention [[1 0] [1 1]])
     (reset! atoms/player-items [[0 0]])
@@ -165,8 +165,8 @@
   (before
     (reset-all-atoms!)
     (reset! atoms/game-map (build-test-map ["#"]))
-    (reset! atoms/player-map [[{:type :unexplored}]])
-    (reset! atoms/computer-map [[{:type :unexplored}]])
+    (reset! atoms/player-map (build-test-map [" "]))
+    (reset! atoms/computer-map (build-test-map [" "]))
     ;; Add 30 actions
     (doseq [i (range 30)]
       (debug/log-action! [:action i])))
@@ -190,10 +190,10 @@
 
   (it "writes dump file and returns filename"
     (reset! atoms/game-map (build-test-map ["##" "~~"]))
-    (reset! atoms/player-map [[{:type :land} {:type :land}]
-                               [{:type :sea} {:type :sea}]])
-    (reset! atoms/computer-map [[{:type :unexplored} {:type :unexplored}]
-                                 [{:type :unexplored} {:type :unexplored}]])
+    (reset! atoms/player-map (build-test-map ["##"
+                                               "~~"]))
+    (reset! atoms/computer-map (build-test-map ["  "
+                                                 "  "]))
     (reset! atoms/round-number 99)
     (let [filename (debug/write-dump! [0 0] [1 1])]
       (try

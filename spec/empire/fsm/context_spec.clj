@@ -78,8 +78,8 @@
   (describe "get-computer-cell"
     (before
       (reset-all-atoms!)
-      (reset! atoms/computer-map [[{:type :land} {:type :unexplored}]
-                                   [{:type :unexplored} {:type :sea}]]))
+      (reset! atoms/computer-map (build-test-map ["# "
+                                                   " ~"])))
 
     (it "returns cell from computer's fog-of-war map"
       (let [ctx (context/build-context {:fsm-data {}})]
@@ -90,7 +90,7 @@
   (describe "cell-explored?"
     (before
       (reset-all-atoms!)
-      (reset! atoms/computer-map [[{:type :land} {:type :unexplored}]]))
+      (reset! atoms/computer-map (build-test-map ["# "])))
 
     (it "returns true for explored cells"
       (let [ctx (context/build-context {:fsm-data {}})]

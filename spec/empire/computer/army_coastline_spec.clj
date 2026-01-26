@@ -282,10 +282,10 @@
                                                "#####"
                                                "#####"]))
       ;; Computer has explored left/bottom, right/top is unexplored
-      (reset! atoms/computer-map [[{:type :sea} {:type :sea} {:type :sea} {:type :unexplored} {:type :unexplored}]
-                                   [{:type :sea} {:type :sea} {:type :sea} {:type :unexplored} {:type :unexplored}]
-                                   [{:type :land} {:type :land} {:type :land} {:type :unexplored} {:type :unexplored}]
-                                   [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]])
+      (reset! atoms/computer-map (build-test-map ["~~~  "
+                                                   "~~~  "
+                                                   "###  "
+                                                   "#####"]))
       ;; Unit at [2 2] following coast
       (let [unit {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 40
                   :fsm explorer/coastline-explorer-fsm
@@ -308,10 +308,10 @@
                                                "####~"
                                                "####~"]))
       ;; All unexplored except current position
-      (reset! atoms/computer-map [[{:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :sea}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :land} {:type :unexplored} {:type :sea}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :sea}]
-                                   [{:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :unexplored} {:type :sea}]])
+      (reset! atoms/computer-map (build-test-map ["    ~"
+                                                   "  # ~"
+                                                   "    ~"
+                                                   "    ~"]))
       ;; Unit at [1 2] with [1 3] in recent moves (backtrack)
       (let [unit {:type :army :owner :computer :hits 1 :mode :explore :explore-steps 40
                   :fsm explorer/coastline-explorer-fsm

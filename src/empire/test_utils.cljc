@@ -11,6 +11,7 @@
     \~ {:type :sea}
     \# {:type :land}
     (\. \-) nil
+    \space {:type :unexplored}
     \+ {:type :city :city-status :free}
     \O {:type :city :city-status :player}
     \X {:type :city :city-status :computer}
