@@ -84,6 +84,8 @@ Key FSM modules:
 - **context.cljc**: Builds context maps for FSM guards and actions, includes `get-valid-army-moves`
 - **engine.cljc**: FSM execution engine with priority event queue support
 
+**FSM Design Rule**: FSMs issue reports to their parent entities (e.g., Lieutenant) only within action functions, not guards. Actions return an `:events` list which the engine merges into the entity's `:event-queue` for delivery by the orchestration layer.
+
 ### Message Area Layout
 
 The message area below the map has two sections, each 3 lines high:

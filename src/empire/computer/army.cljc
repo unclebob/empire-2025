@@ -32,15 +32,6 @@
                        lt))
                    lts)))))
 
-(defn- find-adjacent-free-cities
-  "Find free cities adjacent to the given position."
-  [pos]
-  (filter (fn [neighbor]
-            (let [cell (get-in @atoms/computer-map neighbor)]
-              (and (= :city (:type cell))
-                   (= :free (:city-status cell)))))
-          (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets some?)))
-
 (defn- on-coastline?
   "Returns true if position is land adjacent to sea."
   [pos]
@@ -48,23 +39,28 @@
     (and (= :land (:type cell))
          (map-utils/adjacent-to-sea? pos atoms/game-map))))
 
-(defn- report-discoveries!
-  "Report any discoveries at the current position to the Lieutenant."
+(defn- deliver-fsm-events!
+  "Deliver events from the unit's event-queue to the Lieutenant.
+   Returns the unit with its event-queue cleared."
+  [unit]
+  (let [events (:event-queue unit)]
+    (when (seq events)
+      (doseq [event events]
+        (when-let [lt (find-lieutenant-for-army)]
+          (let [updated-lt (engine/post-event lt event)]
+            (update-lieutenant! updated-lt)))))
+    (assoc unit :event-queue [])))
+
+(defn- report-beach-discovery!
+  "Report beach/coastline candidate at the current position to the Lieutenant.
+   Free city reports are now handled by FSM events."
   [pos]
-  (when-let [lt (find-lieutenant-for-army)]
-    ;; Report free cities
-    (doseq [city-pos (find-adjacent-free-cities pos)]
-      (let [updated-lt (engine/post-event lt {:type :free-city-found
-                                               :priority :high
-                                               :data {:coords city-pos}})]
-        (update-lieutenant! updated-lt)))
-    ;; Report coastline/beach candidates
-    (when (and (on-coastline? pos)
-               (base/valid-beach-candidate? pos))
-      (let [lt-fresh (find-lieutenant-for-army)  ; Re-fetch after possible update
-            updated-lt (engine/post-event lt-fresh {:type :coastline-mapped
-                                                     :priority :normal
-                                                     :data {:coords pos}})]
+  (when (and (on-coastline? pos)
+             (base/valid-beach-candidate? pos))
+    (when-let [lt (find-lieutenant-for-army)]
+      (let [updated-lt (engine/post-event lt {:type :coastline-mapped
+                                               :priority :normal
+                                               :data {:coords pos}})]
         (update-lieutenant! updated-lt)))))
 
 (defn- assign-exploration-mission
@@ -94,6 +90,7 @@
 (defn- execute-exploration
   "Executes one exploration step using the coastline explorer FSM.
    The FSM action returns :move-to in fsm-data.
+   Events from the FSM are delivered to the Lieutenant.
    Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
@@ -105,15 +102,17 @@
         (swap! atoms/game-map assoc-in pos
                (assoc cell :contents (-> unit
                                          (assoc :mode :awake)
-                                         (dissoc :explore-steps :fsm :fsm-state :fsm-data))))
+                                         (dissoc :explore-steps :fsm :fsm-state :fsm-data :event-queue))))
         nil)
       ;; Step FSM - action computes and returns :move-to
       (let [unit-stepped (step-explorer-fsm unit pos)
-            fsm-data (:fsm-data unit-stepped)
+            ;; Deliver any events from FSM to Lieutenant
+            unit-events-delivered (deliver-fsm-events! unit-stepped)
+            fsm-data (:fsm-data unit-events-delivered)
             next-pos (:move-to fsm-data)]
         (if next-pos
           (let [next-cell (get-in @atoms/game-map next-pos)
-                moved-unit (-> unit-stepped
+                moved-unit (-> unit-events-delivered
                                (assoc :explore-steps remaining-steps)
                                (assoc-in [:fsm-data :position] next-pos)
                                ;; Clear :move-to after consuming it
@@ -121,15 +120,15 @@
             (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
             (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
             (visibility/update-cell-visibility next-pos :computer)
-            ;; Report any discoveries at new position
-            (report-discoveries! next-pos)
+            ;; Report beach candidates at new position (free cities reported via FSM events)
+            (report-beach-discovery! next-pos)
             nil)
           ;; Stuck - wake up
           (do
             (swap! atoms/game-map assoc-in pos
                    (assoc cell :contents (-> unit
                                              (assoc :mode :awake)
-                                             (dissoc :explore-steps :fsm :fsm-state :fsm-data))))
+                                             (dissoc :explore-steps :fsm :fsm-state :fsm-data :event-queue))))
             nil))))))
 
 (defn process-army

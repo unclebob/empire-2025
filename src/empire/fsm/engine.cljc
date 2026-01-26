@@ -70,10 +70,18 @@
                         (guard-fn context)))
                  fsm)))
 
+(defn- merge-action-events
+  "Merge events from action result into entity's event-queue."
+  [entity events]
+  (if (seq events)
+    (reduce post-event entity events)
+    entity))
+
 (defn step
   "Execute one FSM step for entity. If a matching transition is found,
    executes its action and transitions to the new state.
    Action function receives context and returns fsm-data updates (or nil).
+   If action returns :events, they are merged into the entity's event-queue.
    Returns updated entity."
   [entity context]
   (if (terminal? entity)
@@ -84,9 +92,13 @@
       (if-not transition
         entity
         (let [[_ _ new-state action-fn] transition
-              data-updates (action-fn context)]
+              data-updates (action-fn context)
+              events (:events data-updates)
+              ;; Remove :events from data-updates before merging into fsm-data
+              fsm-data-updates (dissoc data-updates :events)]
           (when (not= current-state new-state)
             (debug/log-action! [:fsm-transition (entity-type entity) current-state new-state]))
           (-> entity
               (assoc :fsm-state new-state)
-              (update :fsm-data merge data-updates)))))))
+              (update :fsm-data merge fsm-data-updates)
+              (merge-action-events events)))))))
