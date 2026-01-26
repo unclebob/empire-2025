@@ -167,14 +167,14 @@
     (reset! atoms/game-map (build-test-map ["#"]))
     (reset! atoms/player-map (build-test-map [" "]))
     (reset! atoms/computer-map (build-test-map [" "]))
-    ;; Add 30 actions
-    (doseq [i (range 30)]
+    ;; Add 60 actions
+    (doseq [i (range 60)]
       (debug/log-action! [:action i])))
 
-  (it "limits to last 20 actions in dump"
+  (it "limits to last 50 actions in dump"
     (let [output (debug/format-dump [0 0] [0 0])]
-      ;; Should contain actions 10-29 (last 20)
-      (should-contain "[:action 29]" output)
+      ;; Should contain actions 10-59 (last 50)
+      (should-contain "[:action 59]" output)
       (should-contain "[:action 10]" output)
       ;; Should not contain earlier actions
       (should-not-contain "[:action 9]" output)

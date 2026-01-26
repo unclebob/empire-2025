@@ -7,9 +7,8 @@
             [empire.fsm.base-establishment :as base]
             [empire.fsm.coastline-explorer :as explorer]
             [empire.fsm.context :as context]
-            [empire.fsm.lieutenant :as lieutenant]))
-
-(def explore-steps 50)
+            [empire.fsm.lieutenant :as lieutenant]
+            [empire.debug :as debug]))
 
 ;; --- Reporting to Lieutenant ---
 
@@ -76,8 +75,7 @@
   ([pos unit cell target]
    (let [explorer-data (explorer/create-explorer-data pos target)
          updated-unit (-> unit
-                          (assoc :mode :explore
-                                 :explore-steps explore-steps)
+                          (assoc :mode :explore)
                           (merge explorer-data)
                           (dissoc :reason :visited))]
      (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit)))))
@@ -112,41 +110,41 @@
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
-        remaining-steps (dec (:explore-steps unit explore-steps))]
-    (if (<= remaining-steps 0)
-      ;; Done exploring - go back to awake
-      (do
+        ;; Step FSM - action computes and returns :move-to
+        unit-stepped (step-explorer-fsm unit pos)
+        ;; Deliver any events from FSM to Lieutenant
+        unit-events-delivered (deliver-fsm-events! unit-stepped)
+        fsm-data (:fsm-data unit-events-delivered)
+        next-pos (:move-to fsm-data)]
+    (if next-pos
+      (let [next-cell (get-in @atoms/game-map next-pos)
+            moved-unit (-> unit-events-delivered
+                           (assoc-in [:fsm-data :position] next-pos)
+                           ;; Clear :move-to after consuming it
+                           (update :fsm-data dissoc :move-to))]
+        (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
+        (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
+        (visibility/update-cell-visibility next-pos :computer)
+        ;; Report beach candidates at new position (free cities reported via FSM events)
+        (report-beach-discovery! next-pos moved-unit)
+        nil)
+      ;; Stuck - wake up
+      (let [adjacent-info (for [[dr dc] map-utils/neighbor-offsets
+                                :let [r (+ (first pos) dr)
+                                      c (+ (second pos) dc)
+                                      adj-cell (get-in @atoms/game-map [r c])]
+                                :when adj-cell]
+                            [[r c] (:type adj-cell)
+                             (when-let [contents (:contents adj-cell)]
+                               (:type contents))])]
+        (debug/log-action! [:army-wake pos :stuck
+                            {:fsm-state (:fsm-state unit-stepped)
+                             :adjacent (vec adjacent-info)}])
         (swap! atoms/game-map assoc-in pos
                (assoc cell :contents (-> unit
                                          (assoc :mode :awake)
-                                         (dissoc :explore-steps :fsm :fsm-state :fsm-data :event-queue))))
-        nil)
-      ;; Step FSM - action computes and returns :move-to
-      (let [unit-stepped (step-explorer-fsm unit pos)
-            ;; Deliver any events from FSM to Lieutenant
-            unit-events-delivered (deliver-fsm-events! unit-stepped)
-            fsm-data (:fsm-data unit-events-delivered)
-            next-pos (:move-to fsm-data)]
-        (if next-pos
-          (let [next-cell (get-in @atoms/game-map next-pos)
-                moved-unit (-> unit-events-delivered
-                               (assoc :explore-steps remaining-steps)
-                               (assoc-in [:fsm-data :position] next-pos)
-                               ;; Clear :move-to after consuming it
-                               (update :fsm-data dissoc :move-to))]
-            (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
-            (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
-            (visibility/update-cell-visibility next-pos :computer)
-            ;; Report beach candidates at new position (free cities reported via FSM events)
-            (report-beach-discovery! next-pos moved-unit)
-            nil)
-          ;; Stuck - wake up
-          (do
-            (swap! atoms/game-map assoc-in pos
-                   (assoc cell :contents (-> unit
-                                             (assoc :mode :awake)
-                                             (dissoc :explore-steps :fsm :fsm-state :fsm-data :event-queue))))
-            nil))))))
+                                         (dissoc :fsm :fsm-state :fsm-data :event-queue))))
+        nil))))
 
 (defn process-army
   "Processes a computer army's turn.

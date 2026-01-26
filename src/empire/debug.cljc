@@ -112,7 +112,7 @@
   "Build complete dump string with:
    - Header with round number and selection coordinates
    - Global state
-   - Recent actions (last 20)
+   - Recent actions (last 50)
    - All cells in the region from all three maps"
   [[start-row start-col] [end-row end-col]]
   (let [region-data (dump-region [start-row start-col] [end-row end-col])
@@ -121,7 +121,7 @@
         player-items @atoms/player-items
         waiting @atoms/waiting-for-input
         dest @atoms/destination
-        actions (take-last 20 @atoms/action-log)
+        actions (take-last 50 @atoms/action-log)
         header (str "=== Empire Debug Dump ===\n"
                     "Round: " round "\n"
                     "Selection: [" start-row "," start-col "] to [" end-row "," end-col "]\n"
@@ -132,7 +132,7 @@
                           "player-items: " (pr-str player-items) "\n"
                           "waiting-for-input: " waiting "\n"
                           "destination: " (pr-str dest) "\n\n")
-        actions-section (str "=== Recent Actions (last 20) ===\n"
+        actions-section (str "=== Recent Actions (last 50) ===\n"
                              (if (empty? actions)
                                "  (none)\n"
                                (str (str/join "\n" (map format-action-entry actions)) "\n"))

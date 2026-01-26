@@ -32,12 +32,7 @@
     (it "assigns exploration mission to awake army"
       (army/process-army [1 1])
       (let [unit (get-in @atoms/game-map [1 1 :contents])]
-        (should= :explore (:mode unit))))
-
-    (it "sets explore-steps when assigning exploration"
-      (army/process-army [1 1])
-      (let [unit (get-in @atoms/game-map [1 1 :contents])]
-        (should (pos? (:explore-steps unit))))))
+        (should= :explore (:mode unit)))))
 
   (describe "process-army with exploring army"
     (before

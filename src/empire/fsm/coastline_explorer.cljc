@@ -7,7 +7,8 @@
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.fsm.context :as context]))
+            [empire.fsm.context :as context]
+            [empire.debug :as debug]))
 
 (def backtrack-limit 10)
 
@@ -310,8 +311,11 @@
         computer-map (:computer-map ctx)
         all-moves (context/get-valid-army-moves ctx pos)
         ;; Get or detect the city being skirted
-        city-pos (or (:city-being-skirted fsm-data)
-                     (find-adjacent-port-city pos))
+        ;; Only use stored city if it's still adjacent; otherwise detect fresh
+        stored-city (:city-being-skirted fsm-data)
+        city-pos (if (and stored-city (adjacent-to? pos stored-city))
+                   stored-city
+                   (find-adjacent-port-city pos))
         ;; Record start position if not already set
         start-pos (or (:skirt-start-pos fsm-data) pos)
         next-pos (when city-pos
@@ -321,6 +325,14 @@
         ;; Build events list: always include cells-discovered, optionally free-city
         events (cond-> [(make-cells-discovered-event pos)]
                  free-city (conj (make-free-city-event free-city)))]
+    ;; Debug logging when stuck
+    (when (nil? next-pos)
+      (let [adjacent-to-city (filter #(adjacent-to? % city-pos) all-moves)]
+        (debug/log-action! [:skirt-stuck pos
+                            {:city-pos city-pos
+                             :all-moves (vec all-moves)
+                             :adjacent-to-city (vec adjacent-to-city)
+                             :recent-moves (vec recent-moves)}])))
     (when next-pos
       {:move-to next-pos
        :recent-moves (update-recent-moves recent-moves next-pos)
