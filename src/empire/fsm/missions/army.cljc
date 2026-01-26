@@ -2,17 +2,10 @@
   "Army explorer mission FSMs - coastline and interior exploration."
   (:require [empire.fsm.engine :as engine]
             [empire.fsm.context :as context]
-            [empire.atoms :as atoms]))
+            [empire.atoms :as atoms]
+            [empire.movement.map-utils :as map-utils]))
 
 ;; --- Helper Functions ---
-
-(defn- get-neighbors
-  "Get all 8 neighboring coordinates for a position."
-  [[row col]]
-  (for [dr [-1 0 1]
-        dc [-1 0 1]
-        :when (not (and (zero? dr) (zero? dc)))]
-    [(+ row dr) (+ col dc)]))
 
 (defn- cell-type-at
   "Get cell type at coordinates from game-map."
@@ -25,32 +18,22 @@
   [coords]
   (boolean
     (and (= :land (cell-type-at coords))
-         (some #(= :sea (cell-type-at %)) (get-neighbors coords)))))
+         (seq (map-utils/get-matching-neighbors coords @atoms/game-map map-utils/neighbor-offsets
+                                                 #(= :sea (:type %)))))))
 
 (defn find-adjacent-free-city
   "Find a free city adjacent to the given position, if any."
   [_ctx coords]
-  (let [neighbors (get-neighbors coords)]
-    (first (filter (fn [neighbor]
-                     (let [cell (get-in @atoms/game-map neighbor)]
-                       (and (= :city (:type cell))
-                            (= :free (:city-status cell)))))
-                   neighbors))))
+  (first (map-utils/get-matching-neighbors coords @atoms/game-map map-utils/neighbor-offsets
+                                           #(and (= :city (:type %))
+                                                 (= :free (:city-status %))))))
 
 (defn find-unexplored-direction
   "Find a direction toward unexplored territory. Returns [dr dc] or nil."
   [ctx coords]
   (let [computer-map (:computer-map ctx)
-        map-rows (count computer-map)
-        map-cols (count (first computer-map))
-        neighbors (get-neighbors coords)
-        ;; Only consider in-bounds neighbors that are unexplored
-        unexplored (filter (fn [[r c]]
-                             (and (>= r 0) (< r map-rows)
-                                  (>= c 0) (< c map-cols)
-                                  (let [cell (get-in computer-map [r c])]
-                                    (= :unexplored (:type cell)))))
-                           neighbors)]
+        unexplored (map-utils/get-matching-neighbors coords computer-map map-utils/neighbor-offsets
+                                                     #(= :unexplored (:type %)))]
     (when (seq unexplored)
       (let [[nr nc] (first unexplored)
             [r c] coords]

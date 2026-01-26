@@ -290,6 +290,29 @@
   (it "returns false for empty cell"
     (should-not (map-utils/is-players? {:type :land}))))
 
+(describe "get-matching-neighbors"
+  (before (reset-all-atoms!))
+  (it "returns all in-bounds neighbors when no predicate given"
+    (let [test-map (build-test-map ["###"
+                                    "###"
+                                    "###"])]
+      (should= #{[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]}
+               (set (map-utils/get-matching-neighbors [1 1] test-map map-utils/neighbor-offsets)))))
+
+  (it "returns only in-bounds neighbors for corner position"
+    (let [test-map (build-test-map ["##"
+                                    "##"])]
+      (should= #{[0 1] [1 0] [1 1]}
+               (set (map-utils/get-matching-neighbors [0 0] test-map map-utils/neighbor-offsets)))))
+
+  (it "filters by predicate when provided"
+    (let [test-map (build-test-map ["#~#"
+                                    "~#~"
+                                    "#~#"])]
+      (should= #{[0 1] [1 0] [1 2] [2 1]}
+               (set (map-utils/get-matching-neighbors [1 1] test-map map-utils/neighbor-offsets
+                                                      #(= :sea (:type %))))))))
+
 (describe "is-computers?"
   (it "returns true for computer city"
     (should (map-utils/is-computers? {:type :city :city-status :computer})))

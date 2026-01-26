@@ -70,19 +70,22 @@
                    offsets))))
 
 (defn get-matching-neighbors
-  "Returns positions of neighbors (using given offsets) that satisfy the predicate."
-  [pos the-map offsets pred]
-  (let [[x y] pos
-        height (count the-map)
-        width (count (first the-map))]
-    (for [[dx dy] offsets
-          :let [nx (+ x dx)
-                ny (+ y dy)
-                cell (when (and (>= nx 0) (< nx height)
-                                (>= ny 0) (< ny width))
-                       (get-in the-map [nx ny]))]
-          :when (and cell (pred cell))]
-      [nx ny])))
+  "Returns positions of neighbors (using given offsets) that satisfy the predicate.
+   If no predicate given, returns all in-bounds neighbors."
+  ([pos the-map offsets]
+   (get-matching-neighbors pos the-map offsets (constantly true)))
+  ([pos the-map offsets pred]
+   (let [[x y] pos
+         height (count the-map)
+         width (count (first the-map))]
+     (for [[dx dy] offsets
+           :let [nx (+ x dx)
+                 ny (+ y dy)
+                 cell (when (and (>= nx 0) (< nx height)
+                                 (>= ny 0) (< ny width))
+                        (get-in the-map [nx ny]))]
+           :when (and cell (pred cell))]
+       [nx ny]))))
 
 (defn on-coast?
   "Checks if a cell is adjacent to sea."
