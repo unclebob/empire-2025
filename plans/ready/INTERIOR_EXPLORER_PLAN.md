@@ -53,22 +53,25 @@ Note: There is no "stuck" terminal state. When blocked, the FSM routes around ob
 ```clojure
 (def interior-explorer-fsm
   [;; Moving to target
-   [:moving-to-target  at-target?           :exploring         arrive-at-target-action]
-   [:moving-to-target  not-at-target?       :moving-to-target  move-toward-target-action]
+   [:moving-to-target  stuck?               [:terminal :stuck]         terminal-action]
+   [:moving-to-target  at-target?           :exploring                 arrive-at-target-action]
+   [:moving-to-target  not-at-target?       :moving-to-target          move-toward-target-action]
 
    ;; Exploring (initial diagonal sweep)
-   [:exploring         no-reachable-unexplored?  [:terminal :no-unexplored] nil]
-   [:exploring         reached-coast?            :rastering                 start-raster-action]
-   [:exploring         can-continue?             :exploring                 explore-diagonal-action]
-   [:exploring         needs-routing?            :exploring                 route-around-action]
+   [:exploring         stuck?                     [:terminal :stuck]         terminal-action]
+   [:exploring         no-reachable-unexplored?  [:terminal :no-unexplored]  terminal-complete-action]
+   [:exploring         reached-coast?            :rastering                  start-raster-action]
+   [:exploring         can-continue?             :exploring                  explore-diagonal-action]
+   [:exploring         needs-routing?            :exploring                  route-around-action]
 
    ;; Rastering (back-and-forth between coasts)
-   [:rastering         no-reachable-unexplored?  [:terminal :no-unexplored] nil]
-   [:rastering         can-continue?             :rastering                 raster-action]
-   [:rastering         needs-routing?            :rastering                 route-around-action]])
+   [:rastering         stuck?                     [:terminal :stuck]         terminal-action]
+   [:rastering         no-reachable-unexplored?  [:terminal :no-unexplored]  terminal-complete-action]
+   [:rastering         can-continue?             :rastering                  raster-action]
+   [:rastering         needs-routing?            :rastering                  route-around-action]])
 ```
 
-Note: `needs-routing?` triggers when normal movement is blocked but BFS can find a path. The `route-around-action` uses BFS to navigate toward unexplored territory. Terminal state only occurs when BFS confirms no unexplored cells are reachable.
+Note: `needs-routing?` triggers when normal movement is blocked but BFS can find a path. The `route-around-action` uses BFS to navigate toward unexplored territory. Terminal state `[:terminal :no-unexplored]` occurs when BFS confirms no unexplored cells are reachable. Terminal state `[:terminal :stuck]` occurs when no valid moves exist at all. Both terminal states emit `:mission-ended` events for Lieutenant tracking.
 
 ---
 
@@ -85,7 +88,8 @@ Note: `needs-routing?` triggers when normal movement is blocked but BFS can find
             :raster-axis :vertical        ; :vertical or :horizontal - which axis to sweep
             :raster-direction 1           ; +1 or -1 for current sweep direction
             :recent-moves [[r c] ...]     ; backtrack prevention (last 10 moves)
-            :lieutenant-id id}            ; for event reporting
+            :lieutenant-id id             ; for event reporting
+            :unit-id id}                  ; for Lieutenant tracking
  :event-queue []}
 ```
 
@@ -114,6 +118,16 @@ When rastering:
 ---
 
 ## Guards
+
+### `stuck?`
+Returns true if no valid moves exist at all. This is checked first in every state.
+
+```clojure
+(defn stuck? [ctx]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        valid-moves (get-valid-interior-moves ctx pos)]
+    (empty? valid-moves)))
+```
 
 ### `at-target?`
 Returns true if `position` equals `destination`, or if no destination was set.
@@ -155,6 +169,28 @@ Always returns true (fallback guard - should not be reached if guards are comple
 ---
 
 ## Actions
+
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
+### `terminal-complete-action`
+Called when exploration is complete (no unexplored cells reachable). Notifies Lieutenant.
+
+```clojure
+(defn- terminal-complete-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :no-unexplored}}]}))
+```
 
 ### `move-toward-target-action`
 Pathfind one step toward destination.
@@ -418,11 +454,15 @@ Consider extracting shared functions to a common module (e.g., `explorer_utils.c
    - lieutenant-id: ID of commanding Lieutenant (for event reporting)
    - start-pos: Current position [row col]
    - initial-city: Position of home city (for 'away from' direction preference)
-   - target: Optional destination to move to before exploring"
+   - target: Optional destination to move to before exploring
+   - unit-id: Optional unit ID for Lieutenant tracking"
   ([lieutenant-id start-pos initial-city]
-   (create-interior-explorer lieutenant-id start-pos initial-city nil))
+   (create-interior-explorer lieutenant-id start-pos initial-city nil nil))
 
   ([lieutenant-id start-pos initial-city target]
+   (create-interior-explorer lieutenant-id start-pos initial-city target nil))
+
+  ([lieutenant-id start-pos initial-city target unit-id]
    (let [has-target? (and target (not= start-pos target))
          explore-dir (pick-initial-direction start-pos initial-city)]
      {:fsm interior-explorer-fsm
@@ -435,7 +475,8 @@ Consider extracting shared functions to a common module (e.g., `explorer_utils.c
                  :raster-axis nil           ; set when entering :rastering
                  :raster-direction nil      ; set when entering :rastering
                  :recent-moves [start-pos]
-                 :lieutenant-id lieutenant-id}
+                 :lieutenant-id lieutenant-id
+                 :unit-id unit-id}
       :event-queue []})))
 ```
 
@@ -470,8 +511,11 @@ Modify or wrap `context/get-valid-army-moves` to also exclude:
 
 ## Terminal Conditions
 
+### `:stuck`
+Triggered when `stuck?` guard returns true (no valid moves exist). Emits `:mission-ended` event with reason `:stuck`.
+
 ### `:no-unexplored`
-The **only terminal state**. Triggered when `find-nearest-unexplored` returns nil.
+Triggered when `find-nearest-unexplored` returns nil. Emits `:mission-ended` event with reason `:no-unexplored`.
 
 Implementation: BFS from current position over valid army moves (excluding friendly armies). If no cell in `computer-map` with `:type :unexplored` is reachable, mission is complete.
 
@@ -495,7 +539,7 @@ Implementation: BFS from current position over valid army moves (excluding frien
               (recur new-queue new-visited))))))))
 ```
 
-Note: There is no `:stuck` terminal state. If normal movement is blocked but unexplored cells exist, the `route-around-action` uses BFS to navigate around obstacles.
+Both terminal states emit `:mission-ended` events for Lieutenant tracking. If normal movement is blocked but unexplored cells exist, the `route-around-action` uses BFS to navigate around obstacles.
 
 ---
 

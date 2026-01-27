@@ -38,6 +38,7 @@ The hurry-up-and-wait FSM is a simple army mission that moves to a Lieutenant-sp
 | `:moving` | Pathfind toward destination, sidestep obstacles along the way |
 | `:sidestepping-destination` | Adjacent to blocked destination, seeking nearby empty land |
 | `[:terminal :arrived]` | Mission complete - at destination or nearby empty land, enter sentry mode |
+| `[:terminal :stuck]` | Mission failed - no valid moves available |
 
 ---
 
@@ -46,12 +47,14 @@ The hurry-up-and-wait FSM is a simple army mission that moves to a Lieutenant-sp
 ```clojure
 (def hurry-up-and-wait-fsm
   [;; Moving toward destination
+   [:moving  stuck?                       [:terminal :stuck]          terminal-action]
    [:moving  at-destination?              [:terminal :arrived]        arrive-action]
    [:moving  destination-blocked?         :sidestepping-destination   begin-sidestep-action]
    [:moving  can-move-toward?             :moving                     move-toward-action]
    [:moving  needs-sidestep?              :moving                     sidestep-action]
 
    ;; Sidestepping blocked destination - find nearby empty land
+   [:sidestepping-destination  stuck?          [:terminal :stuck]          terminal-action]
    [:sidestepping-destination  on-empty-land?  [:terminal :arrived]        arrive-action]
    [:sidestepping-destination  always          :sidestepping-destination   sidestep-to-land-action]])
 ```
@@ -69,18 +72,29 @@ The hurry-up-and-wait FSM is a simple army mission that moves to a Lieutenant-sp
 
 ```clojure
 {:fsm hurry-up-and-wait-fsm
- :fsm-state :moving  ; or :sidestepping-destination, [:terminal :arrived]
+ :fsm-state :moving  ; or :sidestepping-destination, [:terminal :arrived], [:terminal :stuck]
  :fsm-data {:mission-type :hurry-up-and-wait
             :position [row col]           ; current position
             :destination [row col]        ; Lieutenant-specified target
             :recent-moves [[r c] ...]     ; backtrack prevention (last 10 moves)
-            :lieutenant-id id}            ; for event reporting
+            :lieutenant-id id             ; for event reporting
+            :unit-id id}                  ; for Lieutenant tracking
  :event-queue []}
 ```
 
 ---
 
 ## Guards
+
+### `stuck?`
+Returns true if no valid moves exist. This is checked first in every state.
+
+```clojure
+(defn stuck? [ctx]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        valid-moves (get-valid-army-moves ctx pos)]
+    (empty? valid-moves)))
+```
 
 ### `at-destination?`
 Returns true if `position` equals `destination`.
@@ -146,6 +160,17 @@ Always returns true (fallback guard).
 
 ## Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
 ### `move-toward-action`
 Take one step toward destination using pathfinding.
 
@@ -201,12 +226,15 @@ Continue moving to find empty land after destination was blocked.
 ```
 
 ### `arrive-action`
-Signal arrival and transition unit to sentry mode.
+Signal arrival and transition unit to sentry mode. Notifies Lieutenant.
 
 ```clojure
 (defn arrive-action [ctx]
-  ;; Returns data that orchestration layer uses to set unit to sentry mode
-  {:enter-sentry-mode true})
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:enter-sentry-mode true
+     :events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :arrived}}]}))
 ```
 
 ---
@@ -294,16 +322,20 @@ Reuse from coastline/interior explorer - maintains last 10 moves.
    Parameters:
    - lieutenant-id: ID of commanding Lieutenant
    - start-pos: Current position [row col]
-   - destination: Target position to move to"
-  [lieutenant-id start-pos destination]
-  {:fsm hurry-up-and-wait-fsm
-   :fsm-state :moving
-   :fsm-data {:mission-type :hurry-up-and-wait
-              :position start-pos
-              :destination destination
-              :recent-moves [start-pos]
-              :lieutenant-id lieutenant-id}
-   :event-queue []})
+   - destination: Target position to move to
+   - unit-id: Optional unit ID for Lieutenant tracking"
+  ([lieutenant-id start-pos destination]
+   (create-hurry-up-and-wait lieutenant-id start-pos destination nil))
+  ([lieutenant-id start-pos destination unit-id]
+   {:fsm hurry-up-and-wait-fsm
+    :fsm-state :moving
+    :fsm-data {:mission-type :hurry-up-and-wait
+               :position start-pos
+               :destination destination
+               :recent-moves [start-pos]
+               :lieutenant-id lieutenant-id
+               :unit-id unit-id}
+    :event-queue []}))
 ```
 
 ---
@@ -409,9 +441,10 @@ When the FSM returns `{:enter-sentry-mode true}`, the orchestration layer should
 
 ## Design Decisions
 
-1. **Single terminal state**: Only `[:terminal :arrived]` - mission always succeeds
-   - Reached assigned destination, OR
-   - Reached empty land after destination was blocked
+1. **Two terminal states**:
+   - `[:terminal :arrived]` - mission succeeded (reached destination or nearby empty land)
+   - `[:terminal :stuck]` - mission failed (no valid moves)
+   - Both emit `:mission-ended` events for Lieutenant tracking
 
 2. **Destination blocked handling**: When adjacent to blocked destination, transition to `:sidestepping-destination` state and find nearby empty land
 
@@ -420,3 +453,5 @@ When the FSM returns `{:enter-sentry-mode true}`, the orchestration layer should
 4. **No event reporting**: Unlike explorers, this mission doesn't report cells or cities (it's just moving to a known location)
 
 5. **Backtrack avoidance**: Same 10-move limit as other explorers to prevent oscillation
+
+6. **Stuck guard first**: Every state checks `stuck?` as first transition, ensuring consistent terminal behavior
