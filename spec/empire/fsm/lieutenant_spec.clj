@@ -482,3 +482,109 @@
     (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
                  (assoc :fsm-state :waiting-for-transport))]
       (should-not (lieutenant/should-produce? lt)))))
+
+(describe "mission status tracking"
+  (before (reset-all-atoms!))
+
+  (it "marks new missions as :active"
+    (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
+          lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                :priority :high
+                                                :data {:unit-id :army-1 :coords [11 20]}})
+          result (lieutenant/process-lieutenant lt-with-event)
+          unit (first (:direct-reports result))]
+      (should= :active (:status unit))))
+
+  (it "updates mission to :ended when receiving :mission-ended event"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :direct-reports [{:unit-id :army-1
+                                          :coords [11 20]
+                                          :mission-type :explore-coastline
+                                          :fsm-state :following-coast
+                                          :status :active}])
+                 (assoc :coastline-explorer-count 1))
+          lt-with-event (engine/post-event lt {:type :mission-ended
+                                                :priority :high
+                                                :data {:unit-id :army-1 :reason :stuck}})
+          result (lieutenant/process-lieutenant lt-with-event)
+          unit (first (:direct-reports result))]
+      (should= :ended (:status unit))))
+
+  (it "sets end-reason when mission ends"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :direct-reports [{:unit-id :army-1
+                                          :coords [11 20]
+                                          :mission-type :explore-coastline
+                                          :fsm-state :following-coast
+                                          :status :active}])
+                 (assoc :coastline-explorer-count 1))
+          lt-with-event (engine/post-event lt {:type :mission-ended
+                                                :priority :high
+                                                :data {:unit-id :army-1 :reason :stuck}})
+          result (lieutenant/process-lieutenant lt-with-event)
+          unit (first (:direct-reports result))]
+      (should= :stuck (:end-reason unit))))
+
+  (it "decrements coastline-explorer-count when coastline mission ends"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :direct-reports [{:unit-id :army-1
+                                          :coords [11 20]
+                                          :mission-type :explore-coastline
+                                          :fsm-state :following-coast
+                                          :status :active}])
+                 (assoc :coastline-explorer-count 2))
+          lt-with-event (engine/post-event lt {:type :mission-ended
+                                                :priority :high
+                                                :data {:unit-id :army-1 :reason :stuck}})
+          result (lieutenant/process-lieutenant lt-with-event)]
+      (should= 1 (:coastline-explorer-count result))))
+
+  (it "decrements interior-explorer-count when interior mission ends"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :direct-reports [{:unit-id :army-2
+                                          :coords [11 20]
+                                          :mission-type :explore-interior
+                                          :fsm-state :exploring
+                                          :status :active}])
+                 (assoc :interior-explorer-count 2))
+          lt-with-event (engine/post-event lt {:type :mission-ended
+                                                :priority :high
+                                                :data {:unit-id :army-2 :reason :stuck}})
+          result (lieutenant/process-lieutenant lt-with-event)]
+      (should= 1 (:interior-explorer-count result))))
+
+  (it "decrements waiting-army-count when waiting mission ends"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :direct-reports [{:unit-id :army-5
+                                          :coords [11 20]
+                                          :mission-type :hurry-up-and-wait
+                                          :fsm-state :waiting
+                                          :status :active}])
+                 (assoc :waiting-army-count 3))
+          lt-with-event (engine/post-event lt {:type :mission-ended
+                                                :priority :high
+                                                :data {:unit-id :army-5 :reason :stuck}})
+          result (lieutenant/process-lieutenant lt-with-event)]
+      (should= 2 (:waiting-army-count result))))
+
+  (it "only updates the matching unit when mission ends"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :direct-reports [{:unit-id :army-1
+                                          :coords [11 20]
+                                          :mission-type :explore-coastline
+                                          :fsm-state :following-coast
+                                          :status :active}
+                                         {:unit-id :army-2
+                                          :coords [12 20]
+                                          :mission-type :explore-coastline
+                                          :fsm-state :following-coast
+                                          :status :active}])
+                 (assoc :coastline-explorer-count 2))
+          lt-with-event (engine/post-event lt {:type :mission-ended
+                                                :priority :high
+                                                :data {:unit-id :army-1 :reason :stuck}})
+          result (lieutenant/process-lieutenant lt-with-event)
+          unit1 (first (filter #(= :army-1 (:unit-id %)) (:direct-reports result)))
+          unit2 (first (filter #(= :army-2 (:unit-id %)) (:direct-reports result)))]
+      (should= :ended (:status unit1))
+      (should= :active (:status unit2)))))

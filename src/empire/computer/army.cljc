@@ -72,8 +72,8 @@
 
 (defn- start-coastline-exploration
   "Start coastline exploration at the given position, optionally with a target."
-  [pos unit cell target]
-  (let [explorer-data (explorer/create-explorer-data pos target)
+  [pos unit cell target unit-id]
+  (let [explorer-data (explorer/create-explorer-data pos target unit-id)
         updated-unit (-> unit
                          (assoc :mode :explore)
                          (merge explorer-data)
@@ -82,8 +82,8 @@
 
 (defn- start-interior-exploration
   "Start interior exploration at the given position, optionally with a target."
-  [pos unit cell target]
-  (let [explorer-data (interior/create-interior-explorer-data pos target)
+  [pos unit cell target unit-id]
+  (let [explorer-data (interior/create-interior-explorer-data pos target unit-id)
         updated-unit (-> unit
                          (assoc :mode :explore)
                          (merge explorer-data)
@@ -92,8 +92,8 @@
 
 (defn- start-waiting-reserve
   "Start waiting reserve mission at the given position, with station target."
-  [pos unit cell station]
-  (let [reserve-data (reserve/create-waiting-reserve-data pos station)
+  [pos unit cell station unit-id]
+  (let [reserve-data (reserve/create-waiting-reserve-data pos station unit-id)
         updated-unit (-> unit
                          (assoc :mode :explore)  ; Use :explore mode for FSM-driven behavior
                          (merge reserve-data)
@@ -104,13 +104,13 @@
   "Immediately registers the mission assignment with the Lieutenant.
    Updates explorer counts and direct-reports so subsequent mission
    assignments see the correct state."
-  [unit pos mission-type]
+  [unit pos mission-type unit-id]
   (when-let [lt (find-lieutenant-for-army unit)]
-    (let [unit-id (keyword (str "army-" (hash pos)))
-          explorer {:unit-id unit-id
+    (let [explorer {:unit-id unit-id
                     :coords pos
                     :mission-type mission-type
-                    :fsm-state :exploring}
+                    :fsm-state :exploring
+                    :status :active}
           lt-with-report (update lt :direct-reports conj explorer)
           updated-lt (case mission-type
                        :explore-coastline (update lt-with-report :coastline-explorer-count inc)
@@ -130,14 +130,15 @@
         lt (find-lieutenant-for-army unit)
         mission-info (when lt (lieutenant/get-mission-for-unit lt pos))
         mission-type (:mission-type mission-info)
-        target (:target mission-info)]
+        target (:target mission-info)
+        unit-id (keyword (str "army-" (hash pos)))]
     (when mission-type
       ;; Immediately update Lieutenant's counts for this mission
-      (register-mission-with-lieutenant! unit pos mission-type))
+      (register-mission-with-lieutenant! unit pos mission-type unit-id))
     (case mission-type
-      :explore-coastline (start-coastline-exploration pos unit cell target)
-      :explore-interior (start-interior-exploration pos unit cell target)
-      :hurry-up-and-wait (start-waiting-reserve pos unit cell target)
+      :explore-coastline (start-coastline-exploration pos unit cell target unit-id)
+      :explore-interior (start-interior-exploration pos unit cell target unit-id)
+      :hurry-up-and-wait (start-waiting-reserve pos unit cell target unit-id)
       ;; nil mission means waiting-for-transport - army stays awake
       nil (debug/log-action! [:army-no-mission pos :waiting-for-transport])
       ;; Unknown mission type - should not happen
@@ -153,49 +154,69 @@
         updated (engine/step unit-with-pos ctx)]
     updated))
 
+(defn- terminal-state?
+  "Returns true if fsm-state is a terminal state (a vector like [:terminal :stuck])."
+  [fsm-state]
+  (and (vector? fsm-state)
+       (= :terminal (first fsm-state))))
+
 (defn- execute-exploration
   "Executes one exploration step using the coastline explorer FSM.
    The FSM action returns :move-to in fsm-data.
    Events from the FSM are delivered to the Lieutenant.
+   Terminal states trigger wakeup and mission-ended event delivery.
    Always returns nil (army moves once per round)."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
         ;; Step FSM - action computes and returns :move-to
         unit-stepped (step-explorer-fsm unit pos)
-        ;; Deliver any events from FSM to Lieutenant
-        unit-events-delivered (deliver-fsm-events! unit-stepped)
-        fsm-data (:fsm-data unit-events-delivered)
-        next-pos (:move-to fsm-data)]
-    (if next-pos
-      (let [next-cell (get-in @atoms/game-map next-pos)
-            moved-unit (-> unit-events-delivered
-                           (assoc-in [:fsm-data :position] next-pos)
-                           ;; Clear :move-to after consuming it
-                           (update :fsm-data dissoc :move-to))]
-        (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
-        (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
-        (visibility/update-cell-visibility next-pos :computer)
-        ;; Report beach candidates at new position (free cities reported via FSM events)
-        (report-beach-discovery! next-pos moved-unit)
-        nil)
-      ;; Stuck - wake up
-      (let [adjacent-info (for [[dr dc] map-utils/neighbor-offsets
-                                :let [r (+ (first pos) dr)
-                                      c (+ (second pos) dc)
-                                      adj-cell (get-in @atoms/game-map [r c])]
-                                :when adj-cell]
-                            [[r c] (:type adj-cell)
-                             (when-let [contents (:contents adj-cell)]
-                               (:type contents))])]
-        (debug/log-action! [:army-wake pos :stuck
-                            {:fsm-state (:fsm-state unit-stepped)
-                             :adjacent (vec adjacent-info)}])
+        fsm-state (:fsm-state unit-stepped)]
+    ;; Check for terminal state first
+    (if (terminal-state? fsm-state)
+      ;; Terminal state - deliver events (including :mission-ended) and wake up
+      (do
+        (deliver-fsm-events! unit-stepped)
+        (debug/log-action! [:army-terminal pos fsm-state])
         (swap! atoms/game-map assoc-in pos
                (assoc cell :contents (-> unit
                                          (assoc :mode :awake)
                                          (dissoc :fsm :fsm-state :fsm-data :event-queue))))
-        nil))))
+        nil)
+      ;; Normal processing
+      (let [;; Deliver any events from FSM to Lieutenant
+            unit-events-delivered (deliver-fsm-events! unit-stepped)
+            fsm-data (:fsm-data unit-events-delivered)
+            next-pos (:move-to fsm-data)]
+        (if next-pos
+          (let [next-cell (get-in @atoms/game-map next-pos)
+                moved-unit (-> unit-events-delivered
+                               (assoc-in [:fsm-data :position] next-pos)
+                               ;; Clear :move-to after consuming it
+                               (update :fsm-data dissoc :move-to))]
+            (swap! atoms/game-map assoc-in pos (dissoc cell :contents))
+            (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
+            (visibility/update-cell-visibility next-pos :computer)
+            ;; Report beach candidates at new position (free cities reported via FSM events)
+            (report-beach-discovery! next-pos moved-unit)
+            nil)
+          ;; Stuck (no move computed but not terminal) - wake up
+          (let [adjacent-info (for [[dr dc] map-utils/neighbor-offsets
+                                    :let [r (+ (first pos) dr)
+                                          c (+ (second pos) dc)
+                                          adj-cell (get-in @atoms/game-map [r c])]
+                                    :when adj-cell]
+                                [[r c] (:type adj-cell)
+                                 (when-let [contents (:contents adj-cell)]
+                                   (:type contents))])]
+            (debug/log-action! [:army-wake pos :stuck
+                                {:fsm-state (:fsm-state unit-stepped)
+                                 :adjacent (vec adjacent-info)}])
+            (swap! atoms/game-map assoc-in pos
+                   (assoc cell :contents (-> unit
+                                             (assoc :mode :awake)
+                                             (dissoc :fsm :fsm-state :fsm-data :event-queue))))
+            nil))))))
 
 (defn process-army
   "Processes a computer army's turn.

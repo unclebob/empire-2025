@@ -245,6 +245,13 @@
     (and on-coast
          (not= pos start-pos))))
 
+(defn- stuck?
+  "Guard: Returns true if there are no valid moves available."
+  [ctx]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        all-moves (context/get-valid-army-moves ctx pos)]
+    (empty? all-moves)))
+
 ;; --- Actions ---
 
 (defn- seek-coast-action
@@ -381,6 +388,15 @@
     ;; Merge setup data with the action result
     (merge setup-data next-action-result)))
 
+(defn- terminal-action
+  "Action: Called when the explorer is stuck with no valid moves.
+   Emits a :mission-ended event to notify the Lieutenant."
+  [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+
 ;; --- FSM Definition ---
 
 (def coastline-explorer-fsm
@@ -391,29 +407,37 @@
    - :moving-to-start - Moving to Lieutenant-directed starting position
    - :seeking-coast   - Heading in random direction toward coast
    - :following-coast - Following the coastline
-   - :skirting-city   - Walking around a port city blocking the coastal path"
+   - :skirting-city   - Walking around a port city blocking the coastal path
+   - [:terminal :stuck] - No valid moves available, mission ended"
   [;; Moving to start transitions
-   [:moving-to-start  at-destination-on-coast?      :following-coast arrive-at-start-action]
-   [:moving-to-start  at-destination-not-on-coast?  :seeking-coast   arrive-at-start-action]
-   [:moving-to-start  not-at-destination?           :moving-to-start move-to-start-action]
+   [:moving-to-start  stuck?                        [:terminal :stuck] terminal-action]
+   [:moving-to-start  at-destination-on-coast?      :following-coast   arrive-at-start-action]
+   [:moving-to-start  at-destination-not-on-coast?  :seeking-coast     arrive-at-start-action]
+   [:moving-to-start  not-at-destination?           :moving-to-start   move-to-start-action]
    ;; Seeking coast transitions
-   [:seeking-coast    on-coast?      :following-coast follow-coast-action]
-   [:seeking-coast    not-on-coast?  :seeking-coast   seek-coast-action]
+   [:seeking-coast    stuck?         [:terminal :stuck] terminal-action]
+   [:seeking-coast    on-coast?      :following-coast   follow-coast-action]
+   [:seeking-coast    not-on-coast?  :seeking-coast     seek-coast-action]
    ;; Following coast transitions
-   [:following-coast  at-port-city?  :skirting-city   skirt-city-action]
-   [:following-coast  always         :following-coast follow-coast-action]
+   [:following-coast  stuck?         [:terminal :stuck] terminal-action]
+   [:following-coast  at-port-city?  :skirting-city     skirt-city-action]
+   [:following-coast  always         :following-coast   follow-coast-action]
    ;; Skirting city transitions
-   [:skirting-city    back-on-coast? :following-coast follow-coast-action]
-   [:skirting-city    always         :skirting-city   skirt-city-action]])
+   [:skirting-city    stuck?         [:terminal :stuck] terminal-action]
+   [:skirting-city    back-on-coast? :following-coast   follow-coast-action]
+   [:skirting-city    always         :skirting-city     skirt-city-action]])
 
 ;; --- Create Explorer ---
 
 (defn create-explorer-data
   "Create FSM data for a new coastline explorer mission at given position.
-   Optional target parameter sets destination for :moving-to-start state."
+   Optional target parameter sets destination for :moving-to-start state.
+   Optional unit-id parameter identifies the unit for mission tracking."
   ([pos]
-   (create-explorer-data pos nil))
+   (create-explorer-data pos nil nil))
   ([pos target]
+   (create-explorer-data pos target nil))
+  ([pos target unit-id]
    (let [on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)
          has-target? (and target (not= pos target))]
      {:fsm coastline-explorer-fsm
@@ -425,4 +449,5 @@
                  :destination (when has-target? target)
                  :explore-direction (random-direction)
                  :recent-moves [pos]
-                 :found-coast on-coast?}})))
+                 :found-coast on-coast?
+                 :unit-id unit-id}})))

@@ -125,7 +125,8 @@
   {:unit-id unit-id
    :coords coords
    :mission-type mission-type
-   :fsm-state :exploring})
+   :fsm-state :exploring
+   :status :active})
 
 (defn- mission-for-counts
   "Returns the next mission type based on current counts, starting from a given phase.
@@ -161,6 +162,15 @@
     :explore-coastline (update lieutenant :coastline-explorer-count inc)
     :explore-interior  (update lieutenant :interior-explorer-count inc)
     :hurry-up-and-wait (update lieutenant :waiting-army-count inc)
+    lieutenant))
+
+(defn- decrement-explorer-count
+  "Decrement the appropriate explorer count for the given mission type."
+  [lieutenant mission-type]
+  (case mission-type
+    :explore-coastline (update lieutenant :coastline-explorer-count dec)
+    :explore-interior  (update lieutenant :interior-explorer-count dec)
+    :hurry-up-and-wait (update lieutenant :waiting-army-count dec)
     lieutenant))
 
 (defn- handle-unit-needs-orders
@@ -217,11 +227,34 @@
             lieutenant
             cells)))
 
+(defn- find-report-by-unit-id
+  "Find a direct report by unit-id."
+  [lieutenant unit-id]
+  (first (filter #(= (:unit-id %) unit-id) (:direct-reports lieutenant))))
+
+(defn- handle-mission-ended
+  "Handle mission-ended event: mark unit as ended and decrement count."
+  [lieutenant event]
+  (let [unit-id (get-in event [:data :unit-id])
+        reason (get-in event [:data :reason])
+        report (find-report-by-unit-id lieutenant unit-id)
+        mission-type (:mission-type report)]
+    (-> lieutenant
+        (update :direct-reports
+                (fn [reports]
+                  (mapv (fn [r]
+                          (if (= (:unit-id r) unit-id)
+                            (assoc r :status :ended :end-reason reason)
+                            r))
+                        reports)))
+        (decrement-explorer-count mission-type))))
+
 (defn- process-event
   "Process a single event from the queue."
   [lieutenant event]
   (case (:type event)
     :unit-needs-orders (handle-unit-needs-orders lieutenant event)
+    :mission-ended (handle-mission-ended lieutenant event)
     :free-city-found (handle-free-city-found lieutenant event)
     :city-conquered (handle-city-conquered lieutenant event)
     :coastline-mapped (handle-coastline-mapped lieutenant event)
