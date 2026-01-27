@@ -1,0 +1,177 @@
+# Move-with-Squad FSM Plan
+
+**STATUS: TENTATIVE**
+
+## Overview
+
+Army mission to move as part of a squad toward a target. Used during squad `:moving` state. The squad coordinates movement; individual armies execute move orders while staying cohesive with the group.
+
+---
+
+## Behavioral Requirements
+
+1. **Follow Squad Orders**: Execute movement orders issued by squad
+2. **Stay Cohesive**: Don't get too far from squad center/other units
+3. **Sidestepping**: Navigate around obstacles while maintaining formation
+4. **Report Position**: Keep squad informed of current position
+5. **Transition Ready**: Be ready to transition to attack when squad orders
+
+**Terminal Conditions:**
+- Squad transitions to `:attacking` state (mission changes to attack-city)
+- Squad disbanded or army reassigned
+
+---
+
+## FSM States
+
+```
+:awaiting-orders  →  Waiting for movement order from squad
+       ↓
+:executing-move   →  Moving to ordered position
+       ↓
+:awaiting-orders  →  Move complete, wait for next order
+```
+
+This is an **order-driven FSM** - it cycles between waiting and executing rather than having a fixed goal.
+
+---
+
+## FSM Transitions
+
+```clojure
+(def move-with-squad-fsm
+  [;; Awaiting orders from squad
+   [:awaiting-orders  has-move-order?      :executing-move   accept-order-action]
+   [:awaiting-orders  squad-attacking?     [:terminal :attack-mode]  nil]
+   [:awaiting-orders  always               :awaiting-orders  nil]
+
+   ;; Executing move order
+   [:executing-move   at-ordered-position?  :awaiting-orders  report-position-action]
+   [:executing-move   can-move-toward?      :executing-move   move-toward-action]
+   [:executing-move   needs-sidestep?       :executing-move   sidestep-action]
+   [:executing-move   move-blocked?         :awaiting-orders  report-blocked-action]])
+```
+
+---
+
+## FSM Data Structure
+
+```clojure
+{:fsm move-with-squad-fsm
+ :fsm-state :awaiting-orders
+ :fsm-data {:mission-type :move-with-squad
+            :position [row col]
+            :ordered-position nil         ; set when order received
+            :squad-id id
+            :lieutenant-id id
+            :recent-moves [[r c] ...]}
+ :event-queue []}
+```
+
+---
+
+## Squad Coordination Model
+
+### Option A: Squad Issues Individual Orders
+Squad calculates path to target, issues move orders to each army:
+```clojure
+;; Squad posts to army's event queue
+{:type :move-order
+ :data {:target [row col]}}
+```
+
+### Option B: Squad Broadcasts Next Waypoint
+Squad announces next waypoint, armies independently pathfind:
+```clojure
+;; Squad updates shared waypoint
+{:type :squad-waypoint
+ :data {:waypoint [row col]}}
+```
+
+### Option C: Follow-the-Leader
+Armies follow the squad leader (first army), maintaining relative positions.
+
+**Tentative Choice**: Option A - explicit move orders for predictable behavior.
+
+---
+
+## Guards
+
+### `has-move-order?`
+```clojure
+(defn has-move-order? [ctx]
+  (context/has-event? ctx :move-order))
+```
+
+### `squad-attacking?`
+```clojure
+(defn squad-attacking? [ctx]
+  (context/has-event? ctx :squad-attacking))
+```
+
+### `at-ordered-position?`
+```clojure
+(defn at-ordered-position? [ctx]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        ordered (get-in ctx [:entity :fsm-data :ordered-position])]
+    (= pos ordered)))
+```
+
+---
+
+## Actions
+
+### `accept-order-action`
+Pop move order from queue, set as current target.
+
+```clojure
+(defn accept-order-action [ctx]
+  (let [[event _] (engine/pop-event (:entity ctx))
+        target (get-in event [:data :target])]
+    {:ordered-position target}))
+```
+
+### `report-position-action`
+Notify squad of arrival at ordered position.
+
+```clojure
+(defn report-position-action [ctx]
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    {:ordered-position nil  ; clear order
+     :events [{:type :unit-position-report
+               :priority :normal
+               :data {:unit-id (get-in ctx [:entity :unit-id])
+                      :coords pos}}]}))
+```
+
+### `report-blocked-action`
+Notify squad that movement is blocked.
+
+```clojure
+(defn report-blocked-action [ctx]
+  {:ordered-position nil
+   :events [{:type :unit-blocked
+             :priority :high
+             :data {:unit-id (get-in ctx [:entity :unit-id])
+                    :coords (get-in ctx [:entity :fsm-data :position])}}]})
+```
+
+---
+
+## Cohesion Considerations
+
+To keep the squad together:
+1. Squad waits for all units before issuing next move order
+2. Or: Squad issues orders based on slowest unit's progress
+3. Or: Armies have max-distance-from-squad-center constraint
+
+---
+
+## Open Questions (Tentative)
+
+1. How does squad decide movement path? (pathfinding at squad level?)
+2. Should armies move simultaneously or sequentially?
+3. How to handle one army getting blocked while others advance?
+4. What's the formation - line, cluster, spread out?
+5. Should armies auto-attack enemies encountered en route?
+6. How to handle army destruction during movement?
