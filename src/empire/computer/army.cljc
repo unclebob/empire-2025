@@ -8,6 +8,7 @@
             [empire.fsm.coastline-explorer :as explorer]
             [empire.fsm.interior-explorer :as interior]
             [empire.fsm.waiting-reserve :as reserve]
+            [empire.fsm.hurry-up-and-wait :as huaw]
             [empire.fsm.context :as context]
             [empire.fsm.lieutenant :as lieutenant]
             [empire.debug :as debug]))
@@ -100,6 +101,16 @@
                          (dissoc :reason :visited))]
     (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
 
+(defn- start-hurry-up-and-wait
+  "Start hurry-up-and-wait mission: move to target and enter sentry mode."
+  [pos unit cell target unit-id]
+  (let [huaw-data (huaw/create-hurry-up-and-wait-data pos target unit-id)
+        updated-unit (-> unit
+                         (assoc :mode :explore)  ; Use :explore mode for FSM-driven behavior
+                         (merge huaw-data)
+                         (dissoc :reason :visited))]
+    (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
+
 (defn- register-mission-with-lieutenant!
   "Immediately registers the mission assignment with the Lieutenant.
    Updates explorer counts and direct-reports so subsequent mission
@@ -138,7 +149,7 @@
     (case mission-type
       :explore-coastline (start-coastline-exploration pos unit cell target unit-id)
       :explore-interior (start-interior-exploration pos unit cell target unit-id)
-      :hurry-up-and-wait (start-waiting-reserve pos unit cell target unit-id)
+      :hurry-up-and-wait (start-hurry-up-and-wait pos unit cell target unit-id)
       ;; nil mission means waiting-for-transport - army stays awake
       nil (debug/log-action! [:army-no-mission pos :waiting-for-transport])
       ;; Unknown mission type - should not happen
@@ -174,13 +185,15 @@
         fsm-state (:fsm-state unit-stepped)]
     ;; Check for terminal state first
     (if (terminal-state? fsm-state)
-      ;; Terminal state - deliver events (including :mission-ended) and wake up
-      (do
+      ;; Terminal state - deliver events (including :mission-ended)
+      ;; Check for :enter-sentry-mode flag to set unit mode appropriately
+      (let [enter-sentry? (get-in unit-stepped [:fsm-data :enter-sentry-mode])
+            new-mode (if enter-sentry? :sentry :awake)]
         (deliver-fsm-events! unit-stepped)
-        (debug/log-action! [:army-terminal pos fsm-state])
+        (debug/log-action! [:army-terminal pos fsm-state {:enter-sentry enter-sentry?}])
         (swap! atoms/game-map assoc-in pos
                (assoc cell :contents (-> unit
-                                         (assoc :mode :awake)
+                                         (assoc :mode new-mode)
                                          (dissoc :fsm :fsm-state :fsm-data :event-queue))))
         nil)
       ;; Normal processing
