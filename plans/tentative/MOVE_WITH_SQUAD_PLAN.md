@@ -41,15 +41,17 @@ This is an **order-driven FSM** - it cycles between waiting and executing rather
 ```clojure
 (def move-with-squad-fsm
   [;; Awaiting orders from squad
-   [:awaiting-orders  has-move-order?      :executing-move   accept-order-action]
-   [:awaiting-orders  squad-attacking?     [:terminal :attack-mode]  nil]
-   [:awaiting-orders  always               :awaiting-orders  nil]
+   [:awaiting-orders  squad-disbanded?     [:terminal :disbanded]    terminal-disbanded-action]
+   [:awaiting-orders  squad-attacking?     [:terminal :attack-mode]  terminal-attack-action]
+   [:awaiting-orders  has-move-order?      :executing-move           accept-order-action]
+   [:awaiting-orders  always               :awaiting-orders          nil]
 
    ;; Executing move order
-   [:executing-move   at-ordered-position?  :awaiting-orders  report-position-action]
-   [:executing-move   can-move-toward?      :executing-move   move-toward-action]
-   [:executing-move   needs-sidestep?       :executing-move   sidestep-action]
-   [:executing-move   move-blocked?         :awaiting-orders  report-blocked-action]])
+   [:executing-move   stuck?               [:terminal :stuck]        terminal-action]
+   [:executing-move   at-ordered-position? :awaiting-orders          report-position-action]
+   [:executing-move   can-move-toward?     :executing-move           move-toward-action]
+   [:executing-move   needs-sidestep?      :executing-move           sidestep-action]
+   [:executing-move   move-blocked?        :awaiting-orders          report-blocked-action]])
 ```
 
 ---
@@ -63,7 +65,7 @@ This is an **order-driven FSM** - it cycles between waiting and executing rather
             :position [row col]
             :ordered-position nil         ; set when order received
             :squad-id id
-            :lieutenant-id id
+            :unit-id id                   ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -121,6 +123,39 @@ Armies follow the squad leader (first army), maintaining relative positions.
 
 ## Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
+### `terminal-disbanded-action`
+Called when squad is disbanded. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-disbanded-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :disbanded}}]}))
+```
+
+### `terminal-attack-action`
+Called when squad transitions to attack. Notifies Lieutenant of mission change.
+
+```clojure
+(defn- terminal-attack-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :attack-mode}}]}))
+```
+
 ### `accept-order-action`
 Pop move order from queue, set as current target.
 
@@ -154,6 +189,26 @@ Notify squad that movement is blocked.
              :priority :high
              :data {:unit-id (get-in ctx [:entity :unit-id])
                     :coords (get-in ctx [:entity :fsm-data :position])}}]})
+```
+
+---
+
+## Creation Function
+
+```clojure
+(defn create-move-with-squad-data
+  "Create FSM data for move-with-squad mission."
+  ([pos squad-id]
+   (create-move-with-squad-data pos squad-id nil))
+  ([pos squad-id unit-id]
+   {:fsm move-with-squad-fsm
+    :fsm-state :awaiting-orders
+    :fsm-data {:mission-type :move-with-squad
+               :position pos
+               :ordered-position nil
+               :squad-id squad-id
+               :unit-id unit-id
+               :recent-moves [pos]}}))
 ```
 
 ---

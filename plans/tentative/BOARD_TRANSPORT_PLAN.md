@@ -40,16 +40,16 @@ Army mission to move to a transport ship and board it. Used for base establishme
 ```clojure
 (def board-transport-fsm
   [;; Moving to coastal boarding point
-   [:moving-to-coast  adjacent-to-transport?  :boarding          prepare-board-action]
-   [:moving-to-coast  transport-gone?         [:terminal :aborted]  report-abort-action]
-   [:moving-to-coast  can-move-toward?        :moving-to-coast   move-toward-action]
-   [:moving-to-coast  needs-sidestep?         :moving-to-coast   sidestep-action]
-   [:moving-to-coast  no-path?                [:terminal :aborted]  report-no-path-action]
+   [:moving-to-coast  stuck?                  [:terminal :stuck]    terminal-action]
+   [:moving-to-coast  transport-gone?         [:terminal :aborted]  terminal-abort-action]
+   [:moving-to-coast  adjacent-to-transport?  :boarding             prepare-board-action]
+   [:moving-to-coast  can-move-toward?        :moving-to-coast      move-toward-action]
+   [:moving-to-coast  needs-sidestep?         :moving-to-coast      sidestep-action]
 
    ;; Boarding
+   [:boarding  transport-gone?      [:terminal :aborted]  terminal-abort-action]
    [:boarding  transport-has-room?  [:terminal :boarded]  board-action]
-   [:boarding  transport-full?      :moving-to-coast      find-alternate-transport-action]
-   [:boarding  transport-gone?      [:terminal :aborted]  report-abort-action]])
+   [:boarding  transport-full?      :moving-to-coast      find-alternate-transport-action]])
 ```
 
 ---
@@ -64,7 +64,7 @@ Army mission to move to a transport ship and board it. Used for base establishme
             :transport-id id              ; specific transport to board
             :transport-pos [row col]      ; current transport location
             :boarding-point [row col]     ; coastal cell to reach
-            :lieutenant-id id
+            :unit-id id                   ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -113,17 +113,43 @@ Transport no longer at expected position (moved or destroyed).
 
 ## Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
+### `terminal-abort-action`
+Called when transport is gone. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-abort-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :aborted}}]}))
+```
+
 ### `board-action`
-Execute boarding - army moves onto transport.
+Execute boarding - army moves onto transport. Notifies Lieutenant.
 
 ```clojure
 (defn board-action [ctx]
-  (let [transport-pos (get-in ctx [:entity :fsm-data :transport-pos])]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])
+        transport-id (get-in ctx [:entity :fsm-data :transport-id])
+        transport-pos (get-in ctx [:entity :fsm-data :transport-pos])]
     {:board-transport transport-pos
      :events [{:type :army-boarded
                :priority :normal
-               :data {:transport-id (get-in ctx [:entity :fsm-data :transport-id])
-                      :army-id (get-in ctx [:entity :unit-id])}}]}))
+               :data {:transport-id transport-id :army-id unit-id}}
+              {:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :boarded}}]}))
 ```
 
 ### `prepare-board-action`
@@ -133,6 +159,28 @@ Prepare for boarding, verify transport still present.
 (defn prepare-board-action [ctx]
   ;; Could update transport position if it has moved nearby
   nil)
+```
+
+---
+
+## Creation Function
+
+```clojure
+(defn create-board-transport-data
+  "Create FSM data for board-transport mission."
+  ([pos transport-id transport-pos]
+   (create-board-transport-data pos transport-id transport-pos nil))
+  ([pos transport-id transport-pos unit-id]
+   (let [boarding-point (find-boarding-point pos transport-pos @atoms/game-map)]
+     {:fsm board-transport-fsm
+      :fsm-state :moving-to-coast
+      :fsm-data {:mission-type :board-transport
+                 :position pos
+                 :transport-id transport-id
+                 :transport-pos transport-pos
+                 :boarding-point boarding-point
+                 :unit-id unit-id
+                 :recent-moves [pos]}})))
 ```
 
 ---

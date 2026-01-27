@@ -36,6 +36,7 @@ Army mission to take a defensive position around a conquered city. Used during s
 ```clojure
 (def defend-city-fsm
   [;; Moving to defensive position
+   [:moving  stuck?              [:terminal :stuck]      terminal-action]
    [:moving  at-position?        [:terminal :defending]  enter-defense-action]
    [:moving  position-blocked?   :moving                 reassign-position-action]
    [:moving  can-move-toward?    :moving                 move-toward-action]
@@ -54,7 +55,7 @@ Army mission to take a defensive position around a conquered city. Used during s
             :defensive-position [row col]  ; assigned spot around city
             :city-coords [row col]         ; city being defended
             :squad-id id
-            :lieutenant-id id
+            :unit-id id                    ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -92,13 +93,28 @@ A city has up to 8 adjacent cells. To avoid blocking:
 
 ## Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
 ### `enter-defense-action`
-Enter sentry mode at defensive position.
+Enter sentry mode at defensive position. Notifies Lieutenant mission complete.
 
 ```clojure
 (defn enter-defense-action [ctx]
-  {:enter-sentry-mode true
-   :wake-conditions [:enemy-adjacent :attacked]})
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:enter-sentry-mode true
+     :wake-conditions [:enemy-adjacent :attacked]
+     :events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :defending}}]}))
 ```
 
 ### `reassign-position-action`
@@ -110,6 +126,27 @@ If assigned position is now blocked, request new position from squad.
         current-pos (get-in ctx [:entity :fsm-data :position])
         new-position (find-alternate-defensive-position ctx city current-pos)]
     {:defensive-position new-position}))
+```
+
+---
+
+## Creation Function
+
+```clojure
+(defn create-defend-city-data
+  "Create FSM data for defend-city mission."
+  ([pos defensive-position city-coords squad-id]
+   (create-defend-city-data pos defensive-position city-coords squad-id nil))
+  ([pos defensive-position city-coords squad-id unit-id]
+   {:fsm defend-city-fsm
+    :fsm-state :moving
+    :fsm-data {:mission-type :defend-city
+               :position pos
+               :defensive-position defensive-position
+               :city-coords city-coords
+               :squad-id squad-id
+               :unit-id unit-id
+               :recent-moves [pos]}}))
 ```
 
 ---

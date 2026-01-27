@@ -43,11 +43,11 @@ Army mission after being unloaded from a transport onto a beachhead. Army moves 
    [:disembarked  no-rally-point?   :disembarked    request-orders-action]
 
    ;; Moving inland to rally point
+   [:moving-inland  stuck?               [:terminal :stuck]     terminal-action]
    [:moving-inland  at-rally-point?      [:terminal :reported]  report-to-lieutenant-action]
    [:moving-inland  rally-blocked?       :moving-inland         find-alternate-rally-action]
    [:moving-inland  can-move-toward?     :moving-inland         move-toward-action]
-   [:moving-inland  needs-sidestep?      :moving-inland         sidestep-action]
-   [:moving-inland  no-path?             [:terminal :stranded]  report-stranded-action]])
+   [:moving-inland  needs-sidestep?      :moving-inland         sidestep-action]])
 ```
 
 ---
@@ -62,6 +62,7 @@ Army mission after being unloaded from a transport onto a beachhead. Army moves 
             :rally-point [row col]        ; inland assembly point
             :new-lieutenant-id id         ; Lieutenant for new territory
             :transport-id id              ; transport that delivered us
+            :unit-id id                   ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -93,6 +94,17 @@ Cannot find any path to rally point (completely blocked).
 
 ## Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
 ### `begin-inland-move-action`
 Start moving toward rally point, clear beach for next army.
 
@@ -104,17 +116,20 @@ Start moving toward rally point, clear beach for next army.
 ```
 
 ### `report-to-lieutenant-action`
-Register with new Lieutenant, request mission assignment.
+Register with new Lieutenant, request mission assignment. Ends current mission.
 
 ```clojure
 (defn report-to-lieutenant-action [ctx]
-  (let [lt-id (get-in ctx [:entity :fsm-data :new-lieutenant-id])
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])
+        lt-id (get-in ctx [:entity :fsm-data :new-lieutenant-id])
         pos (get-in ctx [:entity :fsm-data :position])]
     {:events [{:type :unit-needs-orders
                :priority :normal
                :to lt-id
-               :data {:unit-id (get-in ctx [:entity :unit-id])
-                      :coords pos}}]}))
+               :data {:unit-id unit-id :coords pos}}
+              {:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :reported}}]}))
 ```
 
 ### `request-orders-action`
@@ -122,10 +137,32 @@ No rally point assigned, request orders from Lieutenant.
 
 ```clojure
 (defn request-orders-action [ctx]
-  {:events [{:type :unit-needs-rally-point
-             :priority :high
-             :data {:unit-id (get-in ctx [:entity :unit-id])
-                    :coords (get-in ctx [:entity :fsm-data :position])}}]})
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :unit-needs-rally-point
+               :priority :high
+               :data {:unit-id unit-id
+                      :coords (get-in ctx [:entity :fsm-data :position])}}]}))
+```
+
+---
+
+## Creation Function
+
+```clojure
+(defn create-disembark-and-rally-data
+  "Create FSM data for disembark-and-rally mission."
+  ([pos rally-point new-lieutenant-id transport-id]
+   (create-disembark-and-rally-data pos rally-point new-lieutenant-id transport-id nil))
+  ([pos rally-point new-lieutenant-id transport-id unit-id]
+   {:fsm disembark-and-rally-fsm
+    :fsm-state :disembarked
+    :fsm-data {:mission-type :disembark-and-rally
+               :position pos
+               :rally-point rally-point
+               :new-lieutenant-id new-lieutenant-id
+               :transport-id transport-id
+               :unit-id unit-id
+               :recent-moves [pos]}}))
 ```
 
 ---

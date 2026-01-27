@@ -40,10 +40,11 @@ Army mission to capture a target city. Used during squad `:attacking` state. Arm
 ```clojure
 (def attack-city-fsm
   [;; Approaching target city
-   [:approaching  adjacent-to-target?   :attacking    prepare-attack-action]
-   [:approaching  can-move-toward?      :approaching  move-toward-action]
-   [:approaching  needs-sidestep?       :approaching  sidestep-action]
+   [:approaching  stuck?                [:terminal :stuck]      terminal-action]
    [:approaching  city-already-ours?    [:terminal :conquered]  report-already-captured-action]
+   [:approaching  adjacent-to-target?   :attacking              prepare-attack-action]
+   [:approaching  can-move-toward?      :approaching            move-toward-action]
+   [:approaching  needs-sidestep?       :approaching            sidestep-action]
 
    ;; Attacking
    [:attacking  city-captured?          [:terminal :conquered]  report-conquest-action]
@@ -64,7 +65,7 @@ Army mission to capture a target city. Used during squad `:attacking` state. Arm
             :position [row col]
             :target-city [row col]
             :squad-id id                  ; parent squad
-            :lieutenant-id id
+            :unit-id id                   ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -96,6 +97,17 @@ Same as `city-captured?` - city already belongs to computer.
 
 ## Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
 ### `attempt-capture-action`
 Trigger movement into city cell, which initiates combat/conquest.
 
@@ -106,14 +118,49 @@ Trigger movement into city cell, which initiates combat/conquest.
 ```
 
 ### `report-conquest-action`
-Report successful capture to squad.
+Report successful capture to squad and Lieutenant.
 
 ```clojure
 (defn report-conquest-action [ctx]
-  (let [target (get-in ctx [:entity :fsm-data :target-city])]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])
+        target (get-in ctx [:entity :fsm-data :target-city])]
     {:events [{:type :city-conquered
                :priority :high
-               :data {:coords target}}]}))
+               :data {:coords target :unit-id unit-id}}
+              {:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :conquered}}]}))
+```
+
+### `report-already-captured-action`
+City already ours - report mission complete.
+
+```clojure
+(defn report-already-captured-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :conquered}}]}))
+```
+
+---
+
+## Creation Function
+
+```clojure
+(defn create-attack-city-data
+  "Create FSM data for attack-city mission."
+  ([pos target-city squad-id]
+   (create-attack-city-data pos target-city squad-id nil))
+  ([pos target-city squad-id unit-id]
+   {:fsm attack-city-fsm
+    :fsm-state :approaching
+    :fsm-data {:mission-type :attack-city
+               :position pos
+               :target-city target-city
+               :squad-id squad-id
+               :unit-id unit-id
+               :recent-moves [pos]}}))
 ```
 
 ---

@@ -40,12 +40,14 @@ Army mission to move to a designated rally point and join a squad. Used during s
 ```clojure
 (def rally-to-squad-fsm
   [;; Moving toward rally point
+   [:moving  stuck?                  [:terminal :stuck]     terminal-action]
    [:moving  at-rally-point?         [:terminal :joined]    join-squad-action]
    [:moving  rally-blocked?          :sidestepping-rally    begin-sidestep-action]
    [:moving  can-move-toward?        :moving                move-toward-action]
    [:moving  needs-sidestep?         :moving                sidestep-action]
 
    ;; Sidestepping blocked rally point
+   [:sidestepping-rally  stuck?          [:terminal :stuck]     terminal-action]
    [:sidestepping-rally  on-empty-land?  [:terminal :joined]    join-squad-action]
    [:sidestepping-rally  always          :sidestepping-rally    sidestep-to-land-action]])
 ```
@@ -61,7 +63,7 @@ Army mission to move to a designated rally point and join a squad. Used during s
             :position [row col]
             :rally-point [row col]        ; designated assembly location
             :squad-id id                  ; squad to join
-            :lieutenant-id id
+            :unit-id id                   ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -70,17 +72,51 @@ Army mission to move to a designated rally point and join a squad. Used during s
 
 ## Key Actions
 
+### `terminal-action`
+Called when stuck with no valid moves. Notifies Lieutenant.
+
+```clojure
+(defn- terminal-action [ctx]
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
+    {:events [{:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :stuck}}]}))
+```
+
 ### `join-squad-action`
-Notify squad that army has arrived and is ready to join.
+Notify squad that army has arrived and Lieutenant that mission ended.
 
 ```clojure
 (defn join-squad-action [ctx]
-  {:join-squad true
-   :squad-id (get-in ctx [:entity :fsm-data :squad-id])
-   :events [{:type :unit-arrived
-             :priority :high
-             :data {:unit-id (get-in ctx [:entity :unit-id])
-                    :coords (get-in ctx [:entity :fsm-data :position])}}]})
+  (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])
+        squad-id (get-in ctx [:entity :fsm-data :squad-id])
+        pos (get-in ctx [:entity :fsm-data :position])]
+    {:events [{:type :unit-arrived
+               :priority :high
+               :data {:unit-id unit-id :squad-id squad-id :coords pos}}
+              {:type :mission-ended
+               :priority :high
+               :data {:unit-id unit-id :reason :joined}}]}))
+```
+
+---
+
+## Creation Function
+
+```clojure
+(defn create-rally-to-squad-data
+  "Create FSM data for rally-to-squad mission."
+  ([pos rally-point squad-id]
+   (create-rally-to-squad-data pos rally-point squad-id nil))
+  ([pos rally-point squad-id unit-id]
+   {:fsm rally-to-squad-fsm
+    :fsm-state :moving
+    :fsm-data {:mission-type :rally-to-squad
+               :position pos
+               :rally-point rally-point
+               :squad-id squad-id
+               :unit-id unit-id
+               :recent-moves [pos]}}))
 ```
 
 ---
