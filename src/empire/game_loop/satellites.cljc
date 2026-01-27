@@ -19,6 +19,23 @@
              :when (= (:type contents) :satellite)]
          [i j])))
 
+(defn- remove-satellite!
+  "Removes a satellite from the map and updates visibility."
+  [coords owner]
+  (swap! atoms/game-map update-in coords dissoc :contents)
+  (visibility/update-cell-visibility coords owner)
+  nil)
+
+(defn- end-of-round-update!
+  "Handles end-of-round satellite state: decrements turns and removes if expired.
+   Returns coords if satellite survives, nil if removed."
+  [coords sat]
+  (let [new-turns (dec (:turns-remaining sat 1))]
+    (if (<= new-turns 0)
+      (remove-satellite! coords (:owner sat))
+      (do (swap! atoms/game-map assoc-in (conj coords :contents :turns-remaining) new-turns)
+          coords))))
+
 (defn- move-satellite-steps
   "Moves a satellite the number of steps based on its speed.
    Decrements turns-remaining once per round.
@@ -29,30 +46,10 @@
     (let [cell (get-in @atoms/game-map coords)
           sat (:contents cell)]
       (cond
-        ;; No satellite here (already removed or error)
-        (not sat)
-        nil
-
-        ;; Satellite expired
-        (<= (:turns-remaining sat 0) 0)
-        (do (swap! atoms/game-map update-in coords dissoc :contents)
-            (visibility/update-cell-visibility coords (:owner sat))
-            nil)
-
-        ;; No more steps this round - decrement turns-remaining once per round
-        (zero? steps-left)
-        (let [new-turns (dec (:turns-remaining sat 1))]
-          (if (<= new-turns 0)
-            (do (swap! atoms/game-map update-in coords dissoc :contents)
-                (visibility/update-cell-visibility coords (:owner sat))
-                nil)
-            (do (swap! atoms/game-map assoc-in (conj coords :contents :turns-remaining) new-turns)
-                coords)))
-
-        ;; Move one step
-        :else
-        (let [new-coords (satellite/move-satellite coords)]
-          (recur new-coords (dec steps-left)))))))
+        (not sat) nil
+        (<= (:turns-remaining sat 0) 0) (remove-satellite! coords (:owner sat))
+        (zero? steps-left) (end-of-round-update! coords sat)
+        :else (recur (satellite/move-satellite coords) (dec steps-left))))))
 
 (defn move-satellites
   "Moves all satellites according to their speed.
