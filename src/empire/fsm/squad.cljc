@@ -34,11 +34,15 @@
 
 (def squad-fsm
   "FSM transitions for the Squad.
-   Format: [current-state guard-fn new-state action-fn]"
-  [[:assembling all-units-present? :moving (constantly nil)]
-   [:moving any-unit-adjacent-to-target? :attacking (constantly nil)]
-   [:attacking has-city-conquered? :defending (constantly nil)]
-   [:defending (constantly false) :defending identity]])
+   Format: state-grouped with 3-tuples [guard-fn new-state action-fn]"
+  [[:assembling
+    [all-units-present? :moving (constantly nil)]]
+   [:moving
+    [any-unit-adjacent-to-target? :attacking (constantly nil)]]
+   [:attacking
+    [has-city-conquered? :defending (constantly nil)]]
+   [:defending
+    [(constantly false) :defending identity]]])
 
 (defn create-squad
   "Create a new Squad with the given target and expected units."

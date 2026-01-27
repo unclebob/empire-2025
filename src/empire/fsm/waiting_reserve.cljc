@@ -85,18 +85,18 @@
 
 (def waiting-reserve-fsm
   "FSM transitions for waiting reserve.
-   Format: [current-state guard-fn new-state action-fn]
+   Format: state-grouped with 3-tuples [guard-fn new-state action-fn]
 
    States:
    - :moving-to-station - Moving to assigned station
    - :holding           - Holding at station, ready for orders
    - [:terminal :stuck] - No path to station, mission ended"
-  [;; Moving to station transitions
-   [:moving-to-station  stuck?          [:terminal :stuck]  terminal-action]
-   [:moving-to-station  at-station?     :holding            arrive-at-station-action]
-   [:moving-to-station  not-at-station? :moving-to-station  move-to-station-action]
-   ;; Holding transitions
-   [:holding            always          :holding            hold-action]])
+  [[:moving-to-station
+    [stuck?          [:terminal :stuck]  terminal-action]
+    [at-station?     :holding            arrive-at-station-action]
+    [not-at-station? :moving-to-station  move-to-station-action]]
+   [:holding
+    [always          :holding            hold-action]]])
 
 ;; --- Create Waiting Reserve ---
 

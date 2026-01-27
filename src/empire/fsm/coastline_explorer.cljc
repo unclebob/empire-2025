@@ -354,7 +354,9 @@
 
 (def coastline-explorer-fsm
   "FSM transitions for coastline explorer.
-   Format: [current-state guard-fn new-state action-fn]
+   Format: state-grouped with 3-tuples [guard-fn new-state action-fn]
+
+   Super-state :exploring handles the stuck? check for all sub-states.
 
    States:
    - :moving-to-start - Moving to Lieutenant-directed starting position
@@ -362,23 +364,23 @@
    - :following-coast - Following the coastline
    - :skirting-city   - Walking around a port city blocking the coastal path
    - [:terminal :stuck] - No valid moves available, mission ended"
-  [;; Moving to start transitions
-   [:moving-to-start  stuck?                        [:terminal :stuck] terminal-action]
-   [:moving-to-start  at-destination-on-coast?      :following-coast   arrive-at-start-action]
-   [:moving-to-start  at-destination-not-on-coast?  :seeking-coast     arrive-at-start-action]
-   [:moving-to-start  not-at-destination?           :moving-to-start   move-to-start-action]
-   ;; Seeking coast transitions
-   [:seeking-coast    stuck?         [:terminal :stuck] terminal-action]
-   [:seeking-coast    on-coast?      :following-coast   follow-coast-action]
-   [:seeking-coast    not-on-coast?  :seeking-coast     seek-coast-action]
-   ;; Following coast transitions
-   [:following-coast  stuck?         [:terminal :stuck] terminal-action]
-   [:following-coast  at-port-city?  :skirting-city     skirt-city-action]
-   [:following-coast  always         :following-coast   follow-coast-action]
-   ;; Skirting city transitions
-   [:skirting-city    stuck?         [:terminal :stuck] terminal-action]
-   [:skirting-city    back-on-coast? :following-coast   follow-coast-action]
-   [:skirting-city    always         :skirting-city     skirt-city-action]])
+  [;; Super-state with inherited stuck? transition
+   [:exploring
+    [stuck? [:terminal :stuck] terminal-action]]
+   ;; Sub-states
+   [[:moving-to-start :exploring]
+    [at-destination-on-coast?      :following-coast   arrive-at-start-action]
+    [at-destination-not-on-coast?  :seeking-coast     arrive-at-start-action]
+    [not-at-destination?           :moving-to-start   move-to-start-action]]
+   [[:seeking-coast :exploring]
+    [on-coast?      :following-coast   follow-coast-action]
+    [not-on-coast?  :seeking-coast     seek-coast-action]]
+   [[:following-coast :exploring]
+    [at-port-city?  :skirting-city     skirt-city-action]
+    [always         :following-coast   follow-coast-action]]
+   [[:skirting-city :exploring]
+    [back-on-coast? :following-coast   follow-coast-action]
+    [always         :skirting-city     skirt-city-action]]])
 
 ;; --- Create Explorer ---
 

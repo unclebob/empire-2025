@@ -327,7 +327,11 @@
 
 (def interior-explorer-fsm
   "FSM transitions for interior explorer.
-   Format: [current-state guard-fn new-state action-fn]
+   Format: state-grouped with 3-tuples [guard-fn new-state action-fn]
+
+   Note: stuck? must be checked first in each state (before no-reachable-unexplored?)
+   because being stuck is the more fundamental condition. Super-states check after
+   sub-state transitions, so we explicitly include stuck? in each state.
 
    States:
    - :moving-to-target      - Moving to Lieutenant-directed starting position
@@ -335,23 +339,21 @@
    - :rastering             - Back-and-forth between coasts
    - [:terminal :stuck]     - No valid moves available
    - [:terminal :no-unexplored] - Mission complete, no unexplored cells"
-  [;; Moving to target transitions
-   [:moving-to-target  stuck?               [:terminal :stuck]           terminal-stuck-action]
-   [:moving-to-target  at-target?           :exploring                   arrive-at-target-action]
-   [:moving-to-target  not-at-target?       :moving-to-target            move-to-target-action]
-
-   ;; Exploring transitions (diagonal sweep)
-   [:exploring  stuck?                  [:terminal :stuck]          terminal-stuck-action]
-   [:exploring  no-reachable-unexplored? [:terminal :no-unexplored] terminal-no-unexplored-action]
-   [:exploring  reached-coast?          :rastering                  start-raster-action]
-   [:exploring  can-continue-exploring? :exploring                  explore-diagonal-action]
-   [:exploring  needs-routing?          :exploring                  route-around-action]
-
-   ;; Rastering transitions
-   [:rastering  stuck?                  [:terminal :stuck]          terminal-stuck-action]
-   [:rastering  no-reachable-unexplored? [:terminal :no-unexplored] terminal-no-unexplored-action]
-   [:rastering  can-continue-rastering? :rastering                  raster-action]
-   [:rastering  needs-routing?          :rastering                  route-around-action]])
+  [[:moving-to-target
+    [stuck?                  [:terminal :stuck]           terminal-stuck-action]
+    [at-target?              :exploring                   arrive-at-target-action]
+    [not-at-target?          :moving-to-target            move-to-target-action]]
+   [:exploring
+    [stuck?                   [:terminal :stuck]           terminal-stuck-action]
+    [no-reachable-unexplored? [:terminal :no-unexplored]   terminal-no-unexplored-action]
+    [reached-coast?           :rastering                   start-raster-action]
+    [can-continue-exploring?  :exploring                   explore-diagonal-action]
+    [needs-routing?           :exploring                   route-around-action]]
+   [:rastering
+    [stuck?                   [:terminal :stuck]           terminal-stuck-action]
+    [no-reachable-unexplored? [:terminal :no-unexplored]   terminal-no-unexplored-action]
+    [can-continue-rastering?  :rastering                   raster-action]
+    [needs-routing?           :rastering                   route-around-action]]])
 
 ;; --- Create Explorer ---
 

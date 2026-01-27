@@ -33,17 +33,18 @@
 
 (def lieutenant-fsm
   "FSM transitions for the Lieutenant.
-   Format: [current-state guard-fn new-state action-fn]"
-  [[:start-exploring-coastline coastline-quota-met?   :start-exploring-interior (constantly nil)]
-   [:start-exploring-coastline (constantly false)     :start-exploring-coastline identity]
-
-   [:start-exploring-interior  interior-quota-met?    :recruiting-for-transport (constantly nil)]
-   [:start-exploring-interior  (constantly false)     :start-exploring-interior identity]
-
-   [:recruiting-for-transport  transport-quota-met?   :waiting-for-transport (constantly nil)]
-   [:recruiting-for-transport  (constantly false)     :recruiting-for-transport identity]
-
-   [:waiting-for-transport     (constantly false)     :waiting-for-transport identity]])
+   Format: state-grouped with 3-tuples [guard-fn new-state action-fn]"
+  [[:start-exploring-coastline
+    [coastline-quota-met?   :start-exploring-interior (constantly nil)]
+    [(constantly false)     :start-exploring-coastline identity]]
+   [:start-exploring-interior
+    [interior-quota-met?    :recruiting-for-transport (constantly nil)]
+    [(constantly false)     :start-exploring-interior identity]]
+   [:recruiting-for-transport
+    [transport-quota-met?   :waiting-for-transport (constantly nil)]
+    [(constantly false)     :recruiting-for-transport identity]]
+   [:waiting-for-transport
+    [(constantly false)     :waiting-for-transport identity]]])
 
 (defn create-lieutenant
   "Create a new Lieutenant with the given name and assigned city."

@@ -34,9 +34,11 @@
 
 (def general-fsm
   "FSM transitions for the General.
-   Format: [current-state guard-fn new-state action-fn]"
-  [[:awaiting-city has-city-needs-orders? :operational handle-city-needs-orders]
-   [:operational (constantly false) :operational identity]])
+   Format: state-grouped with 3-tuples [guard-fn new-state action-fn]"
+  [[:awaiting-city
+    [has-city-needs-orders? :operational handle-city-needs-orders]]
+   [:operational
+    [(constantly false) :operational identity]]])
 
 (defn create-general
   "Create a new General in initial state."
