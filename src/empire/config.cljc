@@ -1,4 +1,12 @@
 (ns empire.config
+  "Game configuration constants and utility functions.
+
+   Contains:
+   - Map generation parameters (land fraction, city count, smoothing)
+   - Color definitions for rendering (terrain, units, UI elements)
+   - Key bindings for movement and production
+   - Message strings for game events
+   - Delegating functions to unit dispatcher for stats lookup"
   (:require [empire.units.dispatcher :as dispatcher]
             [empire.units.registry]))
 

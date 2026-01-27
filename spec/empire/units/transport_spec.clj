@@ -3,28 +3,9 @@
             [empire.units.transport :as transport]))
 
 (describe "transport unit module"
-  (describe "configuration"
-    (it "has speed of 2"
-      (should= 2 transport/speed))
-
-    (it "has cost of 30"
-      (should= 30 transport/cost))
-
-    (it "has 1 hit point"
-      (should= 1 transport/hits))
-
-    (it "displays as T"
-      (should= "T" transport/display-char))
-
+  (describe "configuration constants"
     (it "has capacity of 6"
-      (should= 6 transport/capacity))
-
-    (it "has visibility radius of 1"
-      (should= 1 transport/visibility-radius)))
-
-  (describe "initial-state"
-    (it "starts with no armies and been-to-sea true"
-      (should= {:army-count 0 :awake-armies 0 :been-to-sea true} (transport/initial-state))))
+      (should= 6 transport/capacity)))
 
   (describe "can-move-to?"
     (it "returns true for sea"

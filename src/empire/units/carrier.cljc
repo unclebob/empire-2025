@@ -1,20 +1,8 @@
 (ns empire.units.carrier
   (:require [empire.units.dispatcher :as dispatcher]))
 
-;; Configuration
-(def speed 2)
-(def cost 30)
-(def hits 8)
-(def strength 1)
-(def display-char "C")
+;; Configuration constants
 (def capacity 8)
-(def visibility-radius 1)
-
-(defn initial-state
-  "Returns initial state fields for a new carrier."
-  []
-  {:fighter-count 0
-   :awake-fighters 0})
 
 (defn can-move-to?
   "Carriers can only move on sea."
@@ -70,13 +58,9 @@
       (update :fighter-count (fnil dec 0))
       (update :awake-fighters (fnil dec 0))))
 
-;; Register with dispatcher
-(defmethod dispatcher/speed :carrier [_] speed)
-(defmethod dispatcher/cost :carrier [_] cost)
-(defmethod dispatcher/hits :carrier [_] hits)
-(defmethod dispatcher/strength :carrier [_] strength)
-(defmethod dispatcher/display-char :carrier [_] display-char)
-(defmethod dispatcher/visibility-radius :carrier [_] visibility-radius)
-(defmethod dispatcher/initial-state :carrier [_] (initial-state))
-(defmethod dispatcher/can-move-to? :carrier [_ cell] (can-move-to? cell))
-(defmethod dispatcher/needs-attention? :carrier [unit] (needs-attention? unit))
+(dispatcher/defunit :carrier
+  {:speed 2, :cost 30, :hits 8, :strength 1,
+   :display-char "C", :visibility-radius 1}
+  (fn [] {:fighter-count 0 :awake-fighters 0})
+  can-move-to?
+  needs-attention?)

@@ -1,4 +1,13 @@
 (ns empire.movement.visibility
+  "Fog-of-war visibility management for player and computer maps.
+
+   Each combatant maintains a separate visible map that gets revealed
+   as their units move around. Units reveal cells within their visibility
+   radius (typically 1 cell, or 2 for satellites).
+
+   Key functions:
+   - update-combatant-map: Bulk reveal all cells around owned units
+   - update-cell-visibility: Reveal cells around a specific position"
   (:require [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]))
 

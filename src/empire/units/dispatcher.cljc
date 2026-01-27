@@ -59,3 +59,22 @@
 
 (defn naval-unit? [unit-type]
   (contains? naval-units unit-type))
+
+;; Registration macro
+(defmacro defunit
+  "Register a unit type with the dispatcher.
+   config: map with :speed :cost :hits :strength :display-char :visibility-radius
+   initial-state-fn: 0-arity fn returning initial state map
+   can-move-to-fn: 1-arity fn [cell] -> boolean
+   needs-attention-fn: 1-arity fn [unit] -> boolean"
+  [unit-type config initial-state-fn can-move-to-fn needs-attention-fn]
+  `(do
+     (defmethod speed ~unit-type [~'_] ~(:speed config))
+     (defmethod cost ~unit-type [~'_] ~(:cost config))
+     (defmethod hits ~unit-type [~'_] ~(:hits config))
+     (defmethod strength ~unit-type [~'_] ~(:strength config))
+     (defmethod display-char ~unit-type [~'_] ~(:display-char config))
+     (defmethod visibility-radius ~unit-type [~'_] ~(:visibility-radius config))
+     (defmethod initial-state ~unit-type [~'_] (~initial-state-fn))
+     (defmethod can-move-to? ~unit-type [~'_ cell#] (~can-move-to-fn cell#))
+     (defmethod needs-attention? ~unit-type [unit#] (~needs-attention-fn unit#))))

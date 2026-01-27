@@ -3,26 +3,6 @@
             [empire.units.army :as army]))
 
 (describe "army unit module"
-  (describe "configuration"
-    (it "has speed of 1"
-      (should= 1 army/speed))
-
-    (it "has cost of 5"
-      (should= 5 army/cost))
-
-    (it "has 1 hit point"
-      (should= 1 army/hits))
-
-    (it "displays as A"
-      (should= "A" army/display-char))
-
-    (it "has visibility radius of 1"
-      (should= 1 army/visibility-radius)))
-
-  (describe "initial-state"
-    (it "returns empty map"
-      (should= {} (army/initial-state))))
-
   (describe "can-move-to?"
     (it "returns true for land"
       (should (army/can-move-to? {:type :land})))

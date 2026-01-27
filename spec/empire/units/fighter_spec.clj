@@ -3,31 +3,12 @@
             [empire.units.fighter :as fighter]))
 
 (describe "fighter unit module"
-  (describe "configuration"
-    (it "has speed of 8"
-      (should= 8 fighter/speed))
-
-    (it "has cost of 10"
-      (should= 10 fighter/cost))
-
-    (it "has 1 hit point"
-      (should= 1 fighter/hits))
-
-    (it "displays as F"
-      (should= "F" fighter/display-char))
-
+  (describe "configuration constants"
     (it "has fuel of 32"
       (should= 32 fighter/fuel))
 
-    (it "has visibility radius of 1"
-      (should= 1 fighter/visibility-radius))
-
     (it "has bingo threshold of 8 (quarter of fuel)"
       (should= 8 fighter/bingo-threshold)))
-
-  (describe "initial-state"
-    (it "includes full fuel"
-      (should= {:fuel 32} (fighter/initial-state))))
 
   (describe "can-move-to?"
     (it "returns true for any cell type"

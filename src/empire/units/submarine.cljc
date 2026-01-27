@@ -1,19 +1,6 @@
 (ns empire.units.submarine
   (:require [empire.units.dispatcher :as dispatcher]))
 
-;; Configuration
-(def speed 2)
-(def cost 20)
-(def hits 2)
-(def strength 3)
-(def display-char "S")
-(def visibility-radius 1)
-
-(defn initial-state
-  "Returns initial state fields for a new submarine."
-  []
-  {})
-
 (defn can-move-to?
   "Submarines can only move on sea."
   [cell]
@@ -25,13 +12,9 @@
   [unit]
   (= (:mode unit) :awake))
 
-;; Register with dispatcher
-(defmethod dispatcher/speed :submarine [_] speed)
-(defmethod dispatcher/cost :submarine [_] cost)
-(defmethod dispatcher/hits :submarine [_] hits)
-(defmethod dispatcher/strength :submarine [_] strength)
-(defmethod dispatcher/display-char :submarine [_] display-char)
-(defmethod dispatcher/visibility-radius :submarine [_] visibility-radius)
-(defmethod dispatcher/initial-state :submarine [_] (initial-state))
-(defmethod dispatcher/can-move-to? :submarine [_ cell] (can-move-to? cell))
-(defmethod dispatcher/needs-attention? :submarine [unit] (needs-attention? unit))
+(dispatcher/defunit :submarine
+  {:speed 2, :cost 20, :hits 2, :strength 3,
+   :display-char "S", :visibility-radius 1}
+  (fn [] {})
+  can-move-to?
+  needs-attention?)

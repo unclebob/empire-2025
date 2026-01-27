@@ -3,28 +3,9 @@
             [empire.units.carrier :as carrier]))
 
 (describe "carrier unit module"
-  (describe "configuration"
-    (it "has speed of 2"
-      (should= 2 carrier/speed))
-
-    (it "has cost of 30"
-      (should= 30 carrier/cost))
-
-    (it "has 8 hit points"
-      (should= 8 carrier/hits))
-
-    (it "displays as C"
-      (should= "C" carrier/display-char))
-
+  (describe "configuration constants"
     (it "has capacity of 8"
-      (should= 8 carrier/capacity))
-
-    (it "has visibility radius of 1"
-      (should= 1 carrier/visibility-radius)))
-
-  (describe "initial-state"
-    (it "starts with no fighters"
-      (should= {:fighter-count 0 :awake-fighters 0} (carrier/initial-state))))
+      (should= 8 carrier/capacity)))
 
   (describe "can-move-to?"
     (it "returns true for sea"

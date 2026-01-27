@@ -3,26 +3,6 @@
             [empire.units.destroyer :as destroyer]))
 
 (describe "destroyer unit module"
-  (describe "configuration"
-    (it "has speed of 2"
-      (should= 2 destroyer/speed))
-
-    (it "has cost of 20"
-      (should= 20 destroyer/cost))
-
-    (it "has 3 hit points"
-      (should= 3 destroyer/hits))
-
-    (it "displays as D"
-      (should= "D" destroyer/display-char))
-
-    (it "has visibility radius of 1"
-      (should= 1 destroyer/visibility-radius)))
-
-  (describe "initial-state"
-    (it "returns empty map"
-      (should= {} (destroyer/initial-state))))
-
   (describe "can-move-to?"
     (it "returns true for sea"
       (should (destroyer/can-move-to? {:type :sea})))

@@ -3,26 +3,6 @@
             [empire.units.submarine :as submarine]))
 
 (describe "submarine unit module"
-  (describe "configuration"
-    (it "has speed of 2"
-      (should= 2 submarine/speed))
-
-    (it "has cost of 20"
-      (should= 20 submarine/cost))
-
-    (it "has 2 hit points"
-      (should= 2 submarine/hits))
-
-    (it "displays as S"
-      (should= "S" submarine/display-char))
-
-    (it "has visibility radius of 1"
-      (should= 1 submarine/visibility-radius)))
-
-  (describe "initial-state"
-    (it "returns empty map"
-      (should= {} (submarine/initial-state))))
-
   (describe "can-move-to?"
     (it "returns true for sea"
       (should (submarine/can-move-to? {:type :sea})))

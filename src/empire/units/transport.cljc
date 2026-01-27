@@ -1,21 +1,8 @@
 (ns empire.units.transport
   (:require [empire.units.dispatcher :as dispatcher]))
 
-;; Configuration
-(def speed 2)
-(def cost 30)
-(def hits 1)
-(def strength 1)
-(def display-char "T")
+;; Configuration constants
 (def capacity 6)
-(def visibility-radius 1)
-
-(defn initial-state
-  "Returns initial state fields for a new transport."
-  []
-  {:army-count 0
-   :awake-armies 0
-   :been-to-sea true})
 
 (defn can-move-to?
   "Transports can only move on sea."
@@ -71,13 +58,9 @@
       (update :army-count (fnil dec 0))
       (update :awake-armies (fnil dec 0))))
 
-;; Register with dispatcher
-(defmethod dispatcher/speed :transport [_] speed)
-(defmethod dispatcher/cost :transport [_] cost)
-(defmethod dispatcher/hits :transport [_] hits)
-(defmethod dispatcher/strength :transport [_] strength)
-(defmethod dispatcher/display-char :transport [_] display-char)
-(defmethod dispatcher/visibility-radius :transport [_] visibility-radius)
-(defmethod dispatcher/initial-state :transport [_] (initial-state))
-(defmethod dispatcher/can-move-to? :transport [_ cell] (can-move-to? cell))
-(defmethod dispatcher/needs-attention? :transport [unit] (needs-attention? unit))
+(dispatcher/defunit :transport
+  {:speed 2, :cost 30, :hits 1, :strength 1,
+   :display-char "T", :visibility-radius 1}
+  (fn [] {:army-count 0 :awake-armies 0 :been-to-sea true})
+  can-move-to?
+  needs-attention?)

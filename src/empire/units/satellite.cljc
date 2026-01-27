@@ -2,19 +2,8 @@
   (:require [empire.atoms :as atoms]
             [empire.units.dispatcher :as dispatcher]))
 
-;; Configuration
-(def speed 10)
-(def cost 50)
-(def hits 1)
-(def strength 1)
-(def display-char "Z")
+;; Configuration constants
 (def turns 50)
-(def visibility-radius 2)
-
-(defn initial-state
-  "Returns initial state fields for a new satellite."
-  []
-  {:turns-remaining turns})
 
 (defn can-move-to?
   "Satellites can move anywhere (they're in orbit)."
@@ -97,13 +86,9 @@
             (swap! atoms/game-map assoc-in (conj new-pos :contents) satellite)
             new-pos))))))
 
-;; Register with dispatcher
-(defmethod dispatcher/speed :satellite [_] speed)
-(defmethod dispatcher/cost :satellite [_] cost)
-(defmethod dispatcher/hits :satellite [_] hits)
-(defmethod dispatcher/strength :satellite [_] strength)
-(defmethod dispatcher/display-char :satellite [_] display-char)
-(defmethod dispatcher/visibility-radius :satellite [_] visibility-radius)
-(defmethod dispatcher/initial-state :satellite [_] (initial-state))
-(defmethod dispatcher/can-move-to? :satellite [_ cell] (can-move-to? cell))
-(defmethod dispatcher/needs-attention? :satellite [unit] (needs-attention? unit))
+(dispatcher/defunit :satellite
+  {:speed 10, :cost 50, :hits 1, :strength 1,
+   :display-char "Z", :visibility-radius 2}
+  (fn [] {:turns-remaining turns})
+  can-move-to?
+  needs-attention?)

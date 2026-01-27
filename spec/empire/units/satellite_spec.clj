@@ -6,28 +6,10 @@
 
 (describe "satellite unit module"
   (before (reset-all-atoms!))
-  (describe "configuration"
-    (it "has speed of 10"
-      (should= 10 satellite/speed))
 
-    (it "has cost of 50"
-      (should= 50 satellite/cost))
-
-    (it "has 1 hit point"
-      (should= 1 satellite/hits))
-
-    (it "displays as Z"
-      (should= "Z" satellite/display-char))
-
+  (describe "configuration constants"
     (it "has 50 turns lifespan"
-      (should= 50 satellite/turns))
-
-    (it "has visibility radius of 2"
-      (should= 2 satellite/visibility-radius)))
-
-  (describe "initial-state"
-    (it "includes turns-remaining"
-      (should= {:turns-remaining 50} (satellite/initial-state))))
+      (should= 50 satellite/turns)))
 
   (describe "can-move-to?"
     (it "returns true for any cell"

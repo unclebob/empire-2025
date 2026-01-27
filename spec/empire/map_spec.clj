@@ -6,6 +6,7 @@
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.ui.input :as input]
+            [empire.ui.input-movement :as input-move]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement :as movement]
@@ -427,7 +428,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [4 0] (#'input/calculate-extended-target [0 0] [1 0])))
+    (should= [4 0] (#'input-move/calculate-extended-target [0 0] [1 0])))
 
   (it "calculates target at map edge going south"
     (reset! atoms/game-map (build-test-map ["#####"
@@ -435,7 +436,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [0 4] (#'input/calculate-extended-target [0 0] [0 1])))
+    (should= [0 4] (#'input-move/calculate-extended-target [0 0] [0 1])))
 
   (it "calculates target at map edge going southeast"
     (reset! atoms/game-map (build-test-map ["#####"
@@ -443,7 +444,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [4 4] (#'input/calculate-extended-target [0 0] [1 1])))
+    (should= [4 4] (#'input-move/calculate-extended-target [0 0] [1 1])))
 
   (it "calculates target at map edge going west"
     (reset! atoms/game-map (build-test-map ["#####"
@@ -451,7 +452,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [0 2] (#'input/calculate-extended-target [4 2] [-1 0])))
+    (should= [0 2] (#'input-move/calculate-extended-target [4 2] [-1 0])))
 
   (it "calculates target at map edge going north"
     (reset! atoms/game-map (build-test-map ["#####"
@@ -459,7 +460,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [2 0] (#'input/calculate-extended-target [2 4] [0 -1])))
+    (should= [2 0] (#'input-move/calculate-extended-target [2 4] [0 -1])))
 
   (it "returns starting position when already at edge"
     (reset! atoms/game-map (build-test-map ["#####"
@@ -467,7 +468,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [0 0] (#'input/calculate-extended-target [0 0] [-1 0])))
+    (should= [0 0] (#'input-move/calculate-extended-target [0 0] [-1 0])))
 
   (it "works with non-square maps"
     (reset! atoms/game-map (build-test-map ["###"
@@ -480,4 +481,4 @@
                                              "###"
                                              "###"
                                              "###"]))
-    (should= [9 1] (#'input/calculate-extended-target [0 1] [1 0]))))
+    (should= [9 1] (#'input-move/calculate-extended-target [0 1] [1 0]))))

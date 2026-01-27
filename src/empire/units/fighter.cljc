@@ -1,20 +1,9 @@
 (ns empire.units.fighter
   (:require [empire.units.dispatcher :as dispatcher]))
 
-;; Configuration
-(def speed 8)
-(def cost 10)
-(def hits 1)
-(def strength 1)
-(def display-char "F")
+;; Configuration constants
 (def fuel 32)
-(def visibility-radius 1)
 (def bingo-threshold (quot fuel 4))
-
-(defn initial-state
-  "Returns initial state fields for a new fighter."
-  []
-  {:fuel fuel})
 
 (defn can-move-to?
   "Fighters can fly anywhere (they're in the air)."
@@ -66,13 +55,9 @@
          (= (:owner contents) owner)
          (< (:fighter-count contents 0) carrier-capacity))))
 
-;; Register with dispatcher
-(defmethod dispatcher/speed :fighter [_] speed)
-(defmethod dispatcher/cost :fighter [_] cost)
-(defmethod dispatcher/hits :fighter [_] hits)
-(defmethod dispatcher/strength :fighter [_] strength)
-(defmethod dispatcher/display-char :fighter [_] display-char)
-(defmethod dispatcher/visibility-radius :fighter [_] visibility-radius)
-(defmethod dispatcher/initial-state :fighter [_] (initial-state))
-(defmethod dispatcher/can-move-to? :fighter [_ cell] (can-move-to? cell))
-(defmethod dispatcher/needs-attention? :fighter [unit] (needs-attention? unit))
+(dispatcher/defunit :fighter
+  {:speed 8, :cost 10, :hits 1, :strength 1,
+   :display-char "F", :visibility-radius 1}
+  (fn [] {:fuel fuel})
+  can-move-to?
+  needs-attention?)
