@@ -19,7 +19,17 @@
 
     (it "returns :army when no unit counts provided"
       (let [lt (lieutenant/create-lieutenant "Alpha" [5 5])]
-        (should= :army (fsm-prod/decide-production lt [5 5] nil)))))
+        (should= :army (fsm-prod/decide-production lt [5 5] nil))))
+
+    (it "returns nil when lieutenant is in :waiting-for-transport state"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [5 5])
+                   (assoc :fsm-state :waiting-for-transport))]
+        (should-be-nil (fsm-prod/decide-production lt [5 5] {}))))
+
+    (it "returns :army when lieutenant is in :recruiting-for-transport state"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [5 5])
+                   (assoc :fsm-state :recruiting-for-transport))]
+        (should= :army (fsm-prod/decide-production lt [5 5] {})))))
 
   (describe "find-lieutenant-for-city"
     (before
@@ -57,6 +67,26 @@
       (production/set-city-production [0 1] :fighter)
       (fsm-prod/process-computer-city-production [0 1])
       (should= :fighter (get-in @atoms/production [[0 1] :item]))))
+
+  (describe "production stopping in :waiting-for-transport"
+    (before
+      (reset-all-atoms!)
+      (reset! atoms/game-map (build-test-map ["~X~"
+                                               "~~~"
+                                               "~~~"]))
+      (integration/initialize-general)
+      (integration/process-general-turn)
+      ;; Set lieutenant to waiting-for-transport state
+      (let [gen @atoms/commanding-general
+            lt (first (:lieutenants gen))
+            updated-lt (assoc lt :fsm-state :waiting-for-transport)
+            updated-gen (assoc gen :lieutenants [updated-lt])]
+        (reset! atoms/commanding-general updated-gen)))
+
+    (it "does not set production when lieutenant is waiting for transport"
+      (should-be-nil (get @atoms/production [0 1]))
+      (fsm-prod/process-computer-city-production [0 1])
+      (should-be-nil (get @atoms/production [0 1]))))
 
   (describe "integration with computer/production"
     (before

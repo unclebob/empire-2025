@@ -145,6 +145,11 @@
    Remains until overwritten by another message."
   (atom ""))
 
+(def debug-hover-lines
+  "Vector of 3 strings for debug hover display [line1 line2 line3].
+   Shows cell contents when hovering over the map."
+  (atom ["" "" ""]))
+
 (def action-log
   "Circular buffer of recent game actions for debugging. Capped at 100 entries.
    Each entry is {:timestamp <ms> :action <vector describing the action>}."
