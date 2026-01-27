@@ -47,21 +47,19 @@ Squad failed → Lieutenant creates new Squad
 
 ```clojure
 (def squad-fsm
-  [;; Assembling - waiting for armies to rally
-   [:assembling  assembly-complete?   :moving              begin-movement-action]
-   [:assembling  assembly-timeout?    :moving              begin-with-available-action]
-   [:assembling  squad-cancelled?     [:terminal :failed]  disband-cancelled-action]
-   [:assembling  always               :assembling          wait-for-armies-action]
-
-   ;; Moving toward target city
-   [:moving      squad-destroyed?     [:terminal :failed]  disband-failure-action]
-   [:moving      at-target-city?      :attacking           begin-attack-action]
-   [:moving      always               :moving              issue-move-orders-action]
-
-   ;; Attacking the city
-   [:attacking   city-conquered?      [:terminal :success] disband-success-action]
-   [:attacking   squad-destroyed?     [:terminal :failed]  disband-failure-action]
-   [:attacking   always               :attacking           continue-attack-action]])
+  [[:assembling
+     [assembly-complete?   :moving              begin-movement-action]
+     [assembly-timeout?    :moving              begin-with-available-action]
+     [squad-cancelled?     [:terminal :failed]  disband-cancelled-action]
+     [always               :assembling          wait-for-armies-action]]
+   [:moving
+     [squad-destroyed?     [:terminal :failed]  disband-failure-action]
+     [at-target-city?      :attacking           begin-attack-action]
+     [always               :moving              issue-move-orders-action]]
+   [:attacking
+     [city-conquered?      [:terminal :success] disband-success-action]
+     [squad-destroyed?     [:terminal :failed]  disband-failure-action]
+     [always               :attacking           continue-attack-action]]])
 ```
 
 ---

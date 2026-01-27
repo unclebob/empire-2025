@@ -39,17 +39,16 @@ Army mission to capture a target city. Used during squad `:attacking` state. Arm
 
 ```clojure
 (def attack-city-fsm
-  [;; Approaching target city
-   [:approaching  stuck?                [:terminal :stuck]      terminal-action]
-   [:approaching  city-already-ours?    [:terminal :conquered]  report-already-captured-action]
-   [:approaching  adjacent-to-target?   :attacking              prepare-attack-action]
-   [:approaching  can-move-toward?      :approaching            move-toward-action]
-   [:approaching  needs-sidestep?       :approaching            sidestep-action]
-
-   ;; Attacking
-   [:attacking  city-captured?          [:terminal :conquered]  report-conquest-action]
-   [:attacking  city-already-ours?      [:terminal :conquered]  report-already-captured-action]
-   [:attacking  always                  :attacking              attempt-capture-action]])
+  [[:approaching
+     [stuck?                [:terminal :stuck]      terminal-action]
+     [city-already-ours?    [:terminal :conquered]  report-already-captured-action]
+     [adjacent-to-target?   :attacking              prepare-attack-action]
+     [can-move-toward?      :approaching            move-toward-action]
+     [needs-sidestep?       :approaching            sidestep-action]]
+   [:attacking
+     [city-captured?          [:terminal :conquered]  report-conquest-action]
+     [city-already-ours?      [:terminal :conquered]  report-already-captured-action]
+     [always                  :attacking              attempt-capture-action]]])
 ```
 
 **Note**: Army destruction during combat is handled by the combat system, not the FSM. If army is destroyed, the entity ceases to exist.

@@ -38,16 +38,15 @@ Army mission after being unloaded from a transport onto a beachhead. Army moves 
 
 ```clojure
 (def disembark-and-rally-fsm
-  [;; Just disembarked
-   [:disembarked  has-rally-point?  :moving-inland  begin-inland-move-action]
-   [:disembarked  no-rally-point?   :disembarked    request-orders-action]
-
-   ;; Moving inland to rally point
-   [:moving-inland  stuck?               [:terminal :stuck]     terminal-action]
-   [:moving-inland  at-rally-point?      [:terminal :reported]  report-to-lieutenant-action]
-   [:moving-inland  rally-blocked?       :moving-inland         find-alternate-rally-action]
-   [:moving-inland  can-move-toward?     :moving-inland         move-toward-action]
-   [:moving-inland  needs-sidestep?      :moving-inland         sidestep-action]])
+  [[:disembarked
+     [has-rally-point?  :moving-inland  begin-inland-move-action]
+     [no-rally-point?   :disembarked    request-orders-action]]
+   [:moving-inland
+     [stuck?               [:terminal :stuck]     terminal-action]
+     [at-rally-point?      [:terminal :reported]  report-to-lieutenant-action]
+     [rally-blocked?       :moving-inland         find-alternate-rally-action]
+     [can-move-toward?     :moving-inland         move-toward-action]
+     [needs-sidestep?      :moving-inland         sidestep-action]]])
 ```
 
 ---

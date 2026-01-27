@@ -40,18 +40,17 @@ This is an **order-driven FSM** - it cycles between waiting and executing rather
 
 ```clojure
 (def move-with-squad-fsm
-  [;; Awaiting orders from squad
-   [:awaiting-orders  squad-disbanded?     [:terminal :disbanded]    terminal-disbanded-action]
-   [:awaiting-orders  squad-attacking?     [:terminal :attack-mode]  terminal-attack-action]
-   [:awaiting-orders  has-move-order?      :executing-move           accept-order-action]
-   [:awaiting-orders  always               :awaiting-orders          nil]
-
-   ;; Executing move order
-   [:executing-move   stuck?               [:terminal :stuck]        terminal-action]
-   [:executing-move   at-ordered-position? :awaiting-orders          report-position-action]
-   [:executing-move   can-move-toward?     :executing-move           move-toward-action]
-   [:executing-move   needs-sidestep?      :executing-move           sidestep-action]
-   [:executing-move   move-blocked?        :awaiting-orders          report-blocked-action]])
+  [[:awaiting-orders
+     [squad-disbanded?     [:terminal :disbanded]    terminal-disbanded-action]
+     [squad-attacking?     [:terminal :attack-mode]  terminal-attack-action]
+     [has-move-order?      :executing-move           accept-order-action]
+     [always               :awaiting-orders          nil]]
+   [:executing-move
+     [stuck?               [:terminal :stuck]        terminal-action]
+     [at-ordered-position? :awaiting-orders          report-position-action]
+     [can-move-toward?     :executing-move           move-toward-action]
+     [needs-sidestep?      :executing-move           sidestep-action]
+     [move-blocked?        :awaiting-orders          report-blocked-action]]])
 ```
 
 ---

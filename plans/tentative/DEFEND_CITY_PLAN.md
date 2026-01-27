@@ -45,12 +45,12 @@ Army mission to take a defensive position around a conquered city. Used during s
 
 ```clojure
 (def defend-city-fsm
-  [;; Moving to defensive position
-   [:moving  stuck?              [:terminal :stuck]      terminal-action]
-   [:moving  at-position?        [:terminal :defending]  enter-defense-action]
-   [:moving  position-blocked?   :moving                 reassign-position-action]
-   [:moving  can-move-toward?    :moving                 move-toward-action]
-   [:moving  needs-sidestep?     :moving                 sidestep-action]])
+  [[:moving
+     [stuck?              [:terminal :stuck]      terminal-action]
+     [at-position?        [:terminal :defending]  enter-defense-action]
+     [position-blocked?   :moving                 reassign-position-action]
+     [can-move-toward?    :moving                 move-toward-action]
+     [needs-sidestep?     :moving                 sidestep-action]]])
 ```
 
 ---

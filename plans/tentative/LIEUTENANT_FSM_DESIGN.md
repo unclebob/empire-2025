@@ -8,6 +8,97 @@ The Lieutenant manages concurrent concerns that don't fit a simple linear state 
 
 ---
 
+## Super-State Architecture
+
+The Lieutenant FSM uses **super-states** (hierarchical state machine) because the General will issue directives that change the Lieutenant's overall mode of operation.
+
+### Why Super-States?
+
+1. **General's directives change mode** - "Prepare to attack enemy continent X" shifts priorities
+2. **Same sub-activities, different priorities** - Event handling continues in all modes, but responses differ
+3. **Clean mode switching** - Transitions between modes are explicit and testable
+
+### Super-States (Modes)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  :normal-operations                                         │
+│    - Explore, conquer free cities, prepare invasions        │
+│    - Default production priorities                          │
+│    - Transports explore for new continents                  │
+└─────────────────────────────────────────────────────────────┘
+         │                                    ▲
+         │ :prepare-attack                    │ :resume-normal
+         ▼                                    │
+┌─────────────────────────────────────────────────────────────┐
+│  :attack-preparation                                        │
+│    - Focus resources on specific target continent           │
+│    - Prioritize army/transport production                   │
+│    - Transports directed to known target                    │
+└─────────────────────────────────────────────────────────────┘
+         │                                    ▲
+         │ :assume-defensive                  │ :resume-normal
+         ▼                                    │
+┌─────────────────────────────────────────────────────────────┐
+│  :defensive-posture                                         │
+│    - Fortify beaches, increase sentry coverage              │
+│    - Prioritize fighter/patrol boat production              │
+│    - Recall or hold transports                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Shared Sub-Activities Within All Modes
+
+Regardless of super-state, the Lieutenant:
+- Processes events (`:free-city-found`, `:mission-ended`, etc.)
+- Manages squads
+- Tracks armies and their missions
+- Reports to General
+
+But **priorities and responses differ by mode**:
+
+| Event | :normal-operations | :attack-preparation | :defensive-posture |
+|-------|-------------------|--------------------|--------------------|
+| `:free-city-found` | Form squad to conquer | Queue for later | Queue for later |
+| New army produced | Assign by quota | Assign to transport staging | Assign to defense |
+| Transport loaded | Explore for continent | Sail to target | Hold at beach |
+
+### Priority-Based Transitions Within a Mode
+
+Within each super-state, guards are evaluated in priority order:
+
+```clojure
+[[:normal-ops
+   [enemy-invasion?        :normal-ops  handle-invasion]
+   [unassigned-free-city?  :normal-ops  form-squad]
+   [transport-ready?       :normal-ops  load-transport]
+   [need-explorers?        :normal-ops  commission-explorer]
+   [has-events?            :normal-ops  process-event]
+   [always                 :normal-ops  nil]]]
+```
+
+### Mode Transition Events from General
+
+```clojure
+;; General directs attack preparation
+{:type :prepare-attack
+ :data {:target-continent-id id
+        :target-beach [r c]}}
+
+;; General directs defensive posture
+{:type :assume-defensive
+ :data {:threat-level :high|:medium}}
+
+;; General returns to normal operations
+{:type :resume-normal}
+```
+
+### Open Question
+
+Does the current FSM engine support super-states, or does it need extension?
+
+---
+
 ## Why Not a Linear FSM?
 
 The current implementation is strictly sequential:
@@ -262,16 +353,17 @@ Squad coordinates multiple armies to conquer a free city.
 ### FSM Transitions
 ```clojure
 (def squad-fsm
-  [[:assembling  assembly-complete?   :moving      begin-movement-action]
-   [:assembling  assembly-timeout?    :moving      begin-with-partial-action]
-   [:assembling  always               :assembling  nil]
-
-   [:moving      at-target-city?      :attacking   begin-attack-action]
-   [:moving      always               :moving      advance-squad-action]
-
-   [:attacking   city-conquered?      :disbanded   disband-success-action]
-   [:attacking   squad-destroyed?     :disbanded   disband-failure-action]
-   [:attacking   always               :attacking   continue-attack-action]])
+  [[:assembling
+     [assembly-complete?   :moving      begin-movement-action]
+     [assembly-timeout?    :moving      begin-with-partial-action]
+     [always               :assembling  nil]]
+   [:moving
+     [at-target-city?      :attacking   begin-attack-action]
+     [always               :moving      advance-squad-action]]
+   [:attacking
+     [city-conquered?      :disbanded   disband-success-action]
+     [squad-destroyed?     :disbanded   disband-failure-action]
+     [always               :attacking   continue-attack-action]]])
 ```
 
 ### Data Structure
@@ -308,21 +400,22 @@ Transport manages the invasion cycle: load armies, sail, unload, return.
 ### FSM Transitions
 ```clojure
 (def transport-fsm
-  [[:loading    fully-loaded?         :sailing     depart-action]
-   [:loading    always                :loading     load-army-action]
-
-   [:sailing    at-destination?       :unloading   begin-unload-action]
-   [:sailing    exploring-found-land? :scouting    scout-coast-action]
-   [:sailing    always                :sailing     sail-action]
-
-   [:scouting   found-beach?          :unloading   begin-unload-action]
-   [:scouting   always                :scouting    continue-scout-action]
-
-   [:unloading  fully-unloaded?       :returning   depart-home-action]
-   [:unloading  always                :unloading   unload-army-action]
-
-   [:returning  at-home-beach?        :loading     arrive-home-action]
-   [:returning  always                :returning   sail-action]])
+  [[:loading
+     [fully-loaded?         :sailing     depart-action]
+     [always                :loading     load-army-action]]
+   [:sailing
+     [at-destination?       :unloading   begin-unload-action]
+     [exploring-found-land? :scouting    scout-coast-action]
+     [always                :sailing     sail-action]]
+   [:scouting
+     [found-beach?          :unloading   begin-unload-action]
+     [always                :scouting    continue-scout-action]]
+   [:unloading
+     [fully-unloaded?       :returning   depart-home-action]
+     [always                :unloading   unload-army-action]]
+   [:returning
+     [at-home-beach?        :loading     arrive-home-action]
+     [always                :returning   sail-action]]])
 ```
 
 ### Data Structure
@@ -359,19 +452,20 @@ Fighter patrols in random directions, reporting sightings.
 ### FSM Transitions
 ```clojure
 (def fighter-patrol-fsm
-  [[:launching   clear-of-city?       :flying-out   pick-direction-action]
-   [:launching   always               :launching    takeoff-action]
-
-   [:flying-out  fuel-half?           :returning    turn-back-action]
-   [:flying-out  enemy-spotted?       :flying-out   report-and-sidestep-action]
-   [:flying-out  always               :flying-out   fly-action]
-
-   [:returning   at-base?             :landing      land-action]
-   [:returning   enemy-spotted?       :returning    report-and-sidestep-action]
-   [:returning   always               :returning    fly-toward-base-action]
-
-   [:landing     refueled?            :launching    nil]
-   [:landing     always               :landing      nil]])
+  [[:launching
+     [clear-of-city?       :flying-out   pick-direction-action]
+     [always               :launching    takeoff-action]]
+   [:flying-out
+     [fuel-half?           :returning    turn-back-action]
+     [enemy-spotted?       :flying-out   report-and-sidestep-action]
+     [always               :flying-out   fly-action]]
+   [:returning
+     [at-base?             :landing      land-action]
+     [enemy-spotted?       :returning    report-and-sidestep-action]
+     [always               :returning    fly-toward-base-action]]
+   [:landing
+     [refueled?            :launching    nil]
+     [always               :landing      nil]]])
 ```
 
 ---
@@ -393,12 +487,13 @@ Patrol boat explores the entire world, reporting findings.
 ### FSM Transitions
 ```clojure
 (def patrol-boat-fsm
-  [[:exploring  enemy-adjacent?       :fleeing     flee-and-report-action]
-   [:exploring  unexplored-nearby?    :exploring   explore-action]
-   [:exploring  always                :exploring   circumnavigate-action]
-
-   [:fleeing    safe-distance?        :exploring   resume-explore-action]
-   [:fleeing    always                :fleeing     flee-action]])
+  [[:exploring
+     [enemy-adjacent?       :fleeing     flee-and-report-action]
+     [unexplored-nearby?    :exploring   explore-action]
+     [always                :exploring   circumnavigate-action]]
+   [:fleeing
+     [safe-distance?        :exploring   resume-explore-action]
+     [always                :fleeing     flee-action]]])
 ```
 
 ---

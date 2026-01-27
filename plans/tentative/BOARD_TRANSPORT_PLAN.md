@@ -39,17 +39,16 @@ Army mission to move to a transport ship and board it. Used for base establishme
 
 ```clojure
 (def board-transport-fsm
-  [;; Moving to coastal boarding point
-   [:moving-to-coast  stuck?                  [:terminal :stuck]    terminal-action]
-   [:moving-to-coast  transport-gone?         [:terminal :aborted]  terminal-abort-action]
-   [:moving-to-coast  adjacent-to-transport?  :boarding             prepare-board-action]
-   [:moving-to-coast  can-move-toward?        :moving-to-coast      move-toward-action]
-   [:moving-to-coast  needs-sidestep?         :moving-to-coast      sidestep-action]
-
-   ;; Boarding
-   [:boarding  transport-gone?      [:terminal :aborted]  terminal-abort-action]
-   [:boarding  transport-has-room?  [:terminal :boarded]  board-action]
-   [:boarding  transport-full?      :moving-to-coast      find-alternate-transport-action]])
+  [[:moving-to-coast
+     [stuck?                  [:terminal :stuck]    terminal-action]
+     [transport-gone?         [:terminal :aborted]  terminal-abort-action]
+     [adjacent-to-transport?  :boarding             prepare-board-action]
+     [can-move-toward?        :moving-to-coast      move-toward-action]
+     [needs-sidestep?         :moving-to-coast      sidestep-action]]
+   [:boarding
+     [transport-gone?      [:terminal :aborted]  terminal-abort-action]
+     [transport-has-room?  [:terminal :boarded]  board-action]
+     [transport-full?      :moving-to-coast      find-alternate-transport-action]]])
 ```
 
 ---

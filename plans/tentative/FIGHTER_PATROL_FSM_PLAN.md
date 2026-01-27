@@ -40,24 +40,21 @@ Fighter patrols provide aerial reconnaissance for early warning of enemy approac
 
 ```clojure
 (def fighter-patrol-fsm
-  [;; Launching from city
-   [:launching  clear-of-city?           :flying-out    pick-direction-action]
-   [:launching  always                   :launching     takeoff-action]
-
-   ;; Flying outbound
-   [:flying-out  fuel-at-half?           :returning     turn-back-action]
-   [:flying-out  enemy-adjacent?         :flying-out    report-and-sidestep-action]
-   [:flying-out  at-map-edge?            :returning     turn-back-action]
-   [:flying-out  always                  :flying-out    fly-outbound-action]
-
-   ;; Returning to base
-   [:returning   at-base?                :landing       land-action]
-   [:returning   enemy-adjacent?         :returning     report-and-sidestep-action]
-   [:returning   always                  :returning     fly-toward-base-action]
-
-   ;; Landing/refueling
-   [:landing     refueled?               :launching     nil]
-   [:landing     always                  :landing       refuel-action]])
+  [[:launching
+     [clear-of-city?           :flying-out    pick-direction-action]
+     [always                   :launching     takeoff-action]]
+   [:flying-out
+     [fuel-at-half?           :returning     turn-back-action]
+     [enemy-adjacent?         :flying-out    report-and-sidestep-action]
+     [at-map-edge?            :returning     turn-back-action]
+     [always                  :flying-out    fly-outbound-action]]
+   [:returning
+     [at-base?                :landing       land-action]
+     [enemy-adjacent?         :returning     report-and-sidestep-action]
+     [always                  :returning     fly-toward-base-action]]
+   [:landing
+     [refueled?               :launching     nil]
+     [always                  :landing       refuel-action]]])
 ```
 
 ---

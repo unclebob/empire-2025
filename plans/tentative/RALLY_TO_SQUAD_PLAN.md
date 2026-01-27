@@ -39,17 +39,16 @@ Army mission to move to a designated rally point and join a squad. Used during s
 
 ```clojure
 (def rally-to-squad-fsm
-  [;; Moving toward rally point
-   [:moving  stuck?                  [:terminal :stuck]     terminal-action]
-   [:moving  at-rally-point?         [:terminal :joined]    join-squad-action]
-   [:moving  rally-blocked?          :sidestepping-rally    begin-sidestep-action]
-   [:moving  can-move-toward?        :moving                move-toward-action]
-   [:moving  needs-sidestep?         :moving                sidestep-action]
-
-   ;; Sidestepping blocked rally point
-   [:sidestepping-rally  stuck?          [:terminal :stuck]     terminal-action]
-   [:sidestepping-rally  on-empty-land?  [:terminal :joined]    join-squad-action]
-   [:sidestepping-rally  always          :sidestepping-rally    sidestep-to-land-action]])
+  [[:moving
+     [stuck?                  [:terminal :stuck]     terminal-action]
+     [at-rally-point?         [:terminal :joined]    join-squad-action]
+     [rally-blocked?          :sidestepping-rally    begin-sidestep-action]
+     [can-move-toward?        :moving                move-toward-action]
+     [needs-sidestep?         :moving                sidestep-action]]
+   [:sidestepping-rally
+     [stuck?          [:terminal :stuck]     terminal-action]
+     [on-empty-land?  [:terminal :joined]    join-squad-action]
+     [always          :sidestepping-rally    sidestep-to-land-action]]])
 ```
 
 ---

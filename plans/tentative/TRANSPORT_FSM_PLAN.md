@@ -56,35 +56,29 @@ Transport returns to home beach
 
 ```clojure
 (def transport-fsm
-  [;; Moving to beach after production
-   [:moving-to-beach  at-home-beach?       :loading       arrive-beach-action]
-   [:moving-to-beach  always               :moving-to-beach  sail-to-beach-action]
-
-   ;; Loading armies at beach
-   [:loading  fully-loaded?                :sailing|:exploring  depart-action]
-   [:loading  army-adjacent?               :loading             load-army-action]
-   [:loading  always                       :loading             wait-for-army-action]
-
-   ;; Sailing to directed target
-   [:sailing  at-destination?              :unloading     begin-unload-action]
-   [:sailing  always                       :sailing       sail-toward-target-action]
-
-   ;; Exploring for new continent
-   [:exploring  land-found?                :scouting      begin-scout-action]
-   [:exploring  always                     :exploring     explore-action]
-
-   ;; Scouting coastline for beach
-   [:scouting  beach-found?                :unloading     begin-unload-action]
-   [:scouting  coastline-complete?         :exploring     resume-explore-action]
-   [:scouting  always                      :scouting      scout-coast-action]
-
-   ;; Unloading armies at beachhead
-   [:unloading  fully-unloaded?            :returning     depart-home-action]
-   [:unloading  always                     :unloading     unload-army-action]
-
-   ;; Returning to home base
-   [:returning  at-home-beach?             :loading       arrive-home-action]
-   [:returning  always                     :returning     sail-home-action]])
+  [[:moving-to-beach
+     [at-home-beach?       :loading          arrive-beach-action]
+     [always               :moving-to-beach  sail-to-beach-action]]
+   [:loading
+     [fully-loaded?        :sailing|:exploring  depart-action]
+     [army-adjacent?       :loading             load-army-action]
+     [always               :loading             wait-for-army-action]]
+   [:sailing
+     [at-destination?      :unloading     begin-unload-action]
+     [always               :sailing       sail-toward-target-action]]
+   [:exploring
+     [land-found?          :scouting      begin-scout-action]
+     [always               :exploring     explore-action]]
+   [:scouting
+     [beach-found?         :unloading     begin-unload-action]
+     [coastline-complete?  :exploring     resume-explore-action]
+     [always               :scouting      scout-coast-action]]
+   [:unloading
+     [fully-unloaded?      :returning     depart-home-action]
+     [always               :unloading     unload-army-action]]
+   [:returning
+     [at-home-beach?       :loading       arrive-home-action]
+     [always               :returning     sail-home-action]]])
 ```
 
 ---

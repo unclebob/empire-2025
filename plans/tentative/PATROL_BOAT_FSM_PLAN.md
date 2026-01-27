@@ -36,20 +36,18 @@ Patrol boats provide long-range naval reconnaissance by exploring the world's oc
 
 ```clojure
 (def patrol-boat-fsm
-  [;; Exploring open sea
-   [:exploring  enemy-adjacent?         :fleeing           flee-and-report-action]
-   [:exploring  land-adjacent?          :following-coast   begin-coast-follow-action]
-   [:exploring  unexplored-sea-nearby?  :exploring         explore-sea-action]
-   [:exploring  always                  :exploring         seek-unexplored-action]
-
-   ;; Following coastline of discovered land
-   [:following-coast  enemy-adjacent?         :fleeing           flee-and-report-action]
-   [:following-coast  coast-complete?         :exploring         resume-explore-action]
-   [:following-coast  always                  :following-coast   follow-coast-action]
-
-   ;; Fleeing from enemy
-   [:fleeing  safe-distance?                  :exploring         resume-explore-action]
-   [:fleeing  always                          :fleeing           flee-action]])
+  [[:exploring
+     [enemy-adjacent?         :fleeing           flee-and-report-action]
+     [land-adjacent?          :following-coast   begin-coast-follow-action]
+     [unexplored-sea-nearby?  :exploring         explore-sea-action]
+     [always                  :exploring         seek-unexplored-action]]
+   [:following-coast
+     [enemy-adjacent?         :fleeing           flee-and-report-action]
+     [coast-complete?         :exploring         resume-explore-action]
+     [always                  :following-coast   follow-coast-action]]
+   [:fleeing
+     [safe-distance?          :exploring         resume-explore-action]
+     [always                  :fleeing           flee-action]]])
 ```
 
 ---
