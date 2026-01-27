@@ -8,18 +8,10 @@
             [empire.movement.map-utils :as map-utils]
             [empire.movement.pathfinding :as pathfinding]
             [empire.fsm.context :as context]
+            [empire.fsm.explorer-utils :as utils]
             [empire.debug :as debug]))
 
-(def backtrack-limit 10)
-
 ;; --- City Detection ---
-
-(defn find-adjacent-free-city
-  "Find a free city adjacent to the given position. Returns [row col] or nil."
-  [pos]
-  (first (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets
-                                           #(and (= :city (:type %))
-                                                 (= :free (:city-status %))))))
 
 (defn find-adjacent-port-city
   "Find any city adjacent to position that is also adjacent to sea (port city).
@@ -29,27 +21,6 @@
                    (map-utils/adjacent-to-sea? city-pos atoms/game-map))
                  (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets
                                                    #(= :city (:type %))))))
-
-(defn- make-free-city-event
-  "Create a :free-city-found event for the given city position."
-  [city-pos]
-  {:type :free-city-found
-   :priority :high
-   :data {:coords city-pos}})
-
-(defn- get-terrain-type
-  "Returns :coastal if pos is land adjacent to sea, :landlocked otherwise."
-  [pos]
-  (if (map-utils/adjacent-to-sea? pos atoms/game-map)
-    :coastal
-    :landlocked))
-
-(defn- make-cells-discovered-event
-  "Create a :cells-discovered event for the given position."
-  [pos]
-  {:type :cells-discovered
-   :priority :low
-   :data {:cells [{:pos pos :terrain (get-terrain-type pos)}]}})
 
 ;; --- Movement Logic ---
 
@@ -79,22 +50,12 @@
       (when (seq moves-to-consider)
         (rand-nth moves-to-consider)))))
 
-(defn- count-unexplored-neighbors
-  "Count how many neighbors of pos are unexplored in the computer-map."
-  [pos computer-map]
-  (count (filter (fn [[dr dc]]
-                   (let [nr (+ (first pos) dr)
-                         nc (+ (second pos) dc)
-                         cell (get-in computer-map [nr nc])]
-                     (= :unexplored (:type cell))))
-                 map-utils/neighbor-offsets)))
-
 (defn- pick-best-by-unexplored
   "From a list of moves, pick the one(s) with most unexplored neighbors.
    Returns a random choice among the best moves."
   [moves computer-map]
   (when (seq moves)
-    (let [scored (map (fn [m] [m (count-unexplored-neighbors m computer-map)]) moves)
+    (let [scored (map (fn [m] [m (utils/count-unexplored-neighbors m computer-map)]) moves)
           max-score (apply max (map second scored))
           best-moves (map first (filter #(= (second %) max-score) scored))]
       (rand-nth best-moves))))
@@ -179,14 +140,6 @@
   []
   (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
 
-(defn update-recent-moves
-  "Adds new position to recent-moves, keeping only the last backtrack-limit entries."
-  [recent-moves new-pos]
-  (let [updated (conj (vec recent-moves) new-pos)]
-    (if (> (count updated) backtrack-limit)
-      (vec (drop (- (count updated) backtrack-limit) updated))
-      updated)))
-
 ;; --- Guards ---
 
 (defn- on-coast?
@@ -266,13 +219,13 @@
         next-pos (pick-seeking-move pos all-moves recent-moves explore-direction)
         on-coast? (map-utils/adjacent-to-sea? pos atoms/game-map)
         ;; Check for adjacent free cities to report
-        free-city (find-adjacent-free-city pos)
+        free-city (utils/find-adjacent-free-city pos)
         ;; Build events list: always include cells-discovered, optionally free-city
-        events (cond-> [(make-cells-discovered-event pos)]
-                 free-city (conj (make-free-city-event free-city)))]
+        events (cond-> [(utils/make-cells-discovered-event pos)]
+                 free-city (conj (utils/make-free-city-event free-city)))]
     (when next-pos
       {:move-to next-pos
-       :recent-moves (update-recent-moves recent-moves next-pos)
+       :recent-moves (utils/update-recent-moves recent-moves next-pos)
        :found-coast on-coast?
        :events events})))
 
@@ -293,13 +246,13 @@
         all-moves (context/get-valid-army-moves ctx pos)
         next-pos (pick-following-move pos all-moves recent-moves computer-map explore-direction)
         ;; Check for adjacent free cities to report
-        free-city (find-adjacent-free-city pos)
+        free-city (utils/find-adjacent-free-city pos)
         ;; Build events list: always include cells-discovered, optionally free-city
-        events (cond-> [(make-cells-discovered-event pos)]
-                 free-city (conj (make-free-city-event free-city)))]
+        events (cond-> [(utils/make-cells-discovered-event pos)]
+                 free-city (conj (utils/make-free-city-event free-city)))]
     (when next-pos
       {:move-to next-pos
-       :recent-moves (update-recent-moves recent-moves next-pos)
+       :recent-moves (utils/update-recent-moves recent-moves next-pos)
        :found-coast true
        :events events})))
 
@@ -328,10 +281,10 @@
         next-pos (when city-pos
                    (pick-skirting-move pos all-moves recent-moves city-pos computer-map))
         ;; Check for adjacent free cities to report
-        free-city (find-adjacent-free-city pos)
+        free-city (utils/find-adjacent-free-city pos)
         ;; Build events list: always include cells-discovered, optionally free-city
-        events (cond-> [(make-cells-discovered-event pos)]
-                 free-city (conj (make-free-city-event free-city)))]
+        events (cond-> [(utils/make-cells-discovered-event pos)]
+                 free-city (conj (utils/make-free-city-event free-city)))]
     ;; Debug logging when stuck
     (when (nil? next-pos)
       (let [adjacent-to-city (filter #(adjacent-to? % city-pos) all-moves)]
@@ -342,7 +295,7 @@
                              :recent-moves (vec recent-moves)}])))
     (when next-pos
       {:move-to next-pos
-       :recent-moves (update-recent-moves recent-moves next-pos)
+       :recent-moves (utils/update-recent-moves recent-moves next-pos)
        :city-being-skirted city-pos
        :skirt-start-pos start-pos
        :found-coast true
@@ -363,7 +316,7 @@
     (when next-pos
       {:move-to next-pos
        :destination dest
-       :recent-moves (update-recent-moves recent-moves next-pos)})))
+       :recent-moves (utils/update-recent-moves recent-moves next-pos)})))
 
 ;; Public version for testing
 (def move-to-start-action-public move-to-start-action)

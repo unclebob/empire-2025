@@ -1,6 +1,7 @@
 (ns empire.fsm.coastline-explorer-spec
   (:require [speclj.core :refer :all]
             [empire.fsm.coastline-explorer :as explorer]
+            [empire.fsm.explorer-utils :as utils]
             [empire.fsm.context :as context]
             [empire.fsm.engine :as engine]
             [empire.atoms :as atoms]
@@ -25,7 +26,7 @@
 
     (it "detects adjacent free port city"
       (let [pos [1 2]  ; land at [1,2] adjacent to port city at [1,1]
-            city-pos (explorer/find-adjacent-free-city pos)]
+            city-pos (utils/find-adjacent-free-city pos)]
         (should= [1 1] city-pos)))
 
     (it "returns nil when no adjacent free city"
@@ -35,7 +36,7 @@
                                                "~###"
                                                "~###"]))
       (let [pos [3 3]  ; interior land, not adjacent to city at [1 1]
-            city-pos (explorer/find-adjacent-free-city pos)]
+            city-pos (utils/find-adjacent-free-city pos)]
         (should-be-nil city-pos)))
 
     (it "seek-coast-action returns event when adjacent to free city"
@@ -89,7 +90,7 @@
 
     (it "detects adjacent free inland city"
       (let [pos [1 2]  ; land at [1,2] adjacent to inland city at [1,1]
-            city-pos (explorer/find-adjacent-free-city pos)]
+            city-pos (utils/find-adjacent-free-city pos)]
         (should= [1 1] city-pos))))
 
   (describe "port city detection for skirting"

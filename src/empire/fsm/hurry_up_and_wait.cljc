@@ -5,7 +5,7 @@
    Terminal: Arrive and signal :enter-sentry-mode, or get stuck."
   (:require [empire.atoms :as atoms]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.map-utils :as map-utils]
+            [empire.fsm.explorer-utils :as utils]
             [empire.ui.coordinates :as coords]))
 
 ;; --- Helper Functions ---
@@ -23,32 +23,19 @@
           (= :army (:type (:contents cell)))
           (= :computer (:owner (:contents cell)))))))
 
-(defn- get-valid-moves
-  "Get all valid moves for army at given position (empty land cells)."
-  [pos]
-  (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets
-                                    #(and (= :land (:type %))
-                                          (nil? (:contents %)))))
-
 (defn- find-sidestep-move
   "Find a move that makes progress toward destination while avoiding direct path.
-   Returns [row col] or nil."
-  [pos dest]
-  (let [valid-moves (get-valid-moves pos)]
-    (when (seq valid-moves)
+   Prefers non-backtrack moves. Returns [row col] or nil."
+  [pos dest recent-moves]
+  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
+        non-backtrack (remove (set recent-moves) valid-moves)
+        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
+    (when (seq moves-to-try)
       ;; Score moves by distance to destination, pick closest
-      (let [scored (map (fn [m]
-                          [m (coords/manhattan-distance m dest)])
-                        valid-moves)
+      (let [scored (map (fn [m] [m (coords/manhattan-distance m dest)]) moves-to-try)
             min-dist (apply min (map second scored))
             best-moves (filter #(= min-dist (second %)) scored)]
         (first (rand-nth best-moves))))))
-
-(defn- find-empty-land-near
-  "Find empty land cell adjacent to or near the given position.
-   Returns [row col] or nil."
-  [pos]
-  (first (get-valid-moves pos)))
 
 ;; --- Guards ---
 
@@ -56,15 +43,14 @@
   "Guard: Returns true if there are no valid moves available."
   [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (get-valid-moves pos)]
+        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
     (empty? valid-moves)))
 
 (defn- at-destination?
   "Guard: Returns true if current position equals destination."
   [ctx]
-  (let [fsm-data (get-in ctx [:entity :fsm-data])
-        pos (:position fsm-data)
-        dest (:destination fsm-data)]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])]
     (or (nil? dest) (= pos dest))))
 
 (defn- destination-blocked?
@@ -76,29 +62,26 @@
 (defn- can-move-toward?
   "Guard: Returns true if pathfinding can find next step toward destination."
   [ctx]
-  (let [fsm-data (get-in ctx [:entity :fsm-data])
-        pos (:position fsm-data)
-        dest (:destination fsm-data)
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])
         next-pos (when dest (pathfinding/next-step-toward pos dest))]
     (boolean next-pos)))
 
 (defn- needs-sidestep?
   "Guard: Returns true if direct path is blocked but sidestep move exists."
   [ctx]
-  (let [fsm-data (get-in ctx [:entity :fsm-data])
-        pos (:position fsm-data)
-        dest (:destination fsm-data)]
-    (boolean (find-sidestep-move pos dest))))
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])
+        recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
+    (boolean (find-sidestep-move pos dest recent-moves))))
 
 (defn- on-empty-land?
-  "Guard: Returns true if current position is empty land (valid arrival spot)."
+  "Guard: Returns true if current position is empty land cell.
+   In sidestepping state, we're already on the cell, so just verify it's land."
   [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
         cell (get-in @atoms/game-map pos)]
-    (and (= :land (:type cell))
-         ;; Cell should be empty (contents will be the unit itself, but
-         ;; we consider it "empty" for arrival purposes since we're already there)
-         true)))
+    (= :land (:type cell))))
 
 (defn- always [_ctx] true)
 
@@ -109,9 +92,7 @@
    Emits a :mission-ended event to notify the Lieutenant."
   [ctx]
   (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
-    {:events [{:type :mission-ended
-               :priority :high
-               :data {:unit-id unit-id :reason :stuck}}]}))
+    {:events [(utils/make-mission-ended-event unit-id :stuck)]}))
 
 (defn- arrive-action
   "Action: Called when arriving at destination or suitable land.
@@ -119,51 +100,53 @@
   [ctx]
   (let [unit-id (get-in ctx [:entity :fsm-data :unit-id])]
     {:enter-sentry-mode true
-     :events [{:type :mission-ended
-               :priority :high
-               :data {:unit-id unit-id :reason :arrived}}]}))
+     :events [(utils/make-mission-ended-event unit-id :arrived)]}))
 
 (defn- begin-sidestep-action
   "Action: Begin sidestepping to find empty land near blocked destination.
    Computes first move toward alternate landing spot."
   [ctx]
-  (let [fsm-data (get-in ctx [:entity :fsm-data])
-        pos (:position fsm-data)
-        dest (:destination fsm-data)
-        sidestep-pos (find-sidestep-move pos dest)]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])
+        recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
+        sidestep-pos (find-sidestep-move pos dest recent-moves)]
     (when sidestep-pos
-      {:move-to sidestep-pos})))
+      {:move-to sidestep-pos
+       :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
 
 (defn- move-toward-action
   "Action: Move toward destination using pathfinding.
    Returns {:move-to [row col]}"
   [ctx]
-  (let [fsm-data (get-in ctx [:entity :fsm-data])
-        pos (:position fsm-data)
-        dest (:destination fsm-data)
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])
+        recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
         next-pos (pathfinding/next-step-toward pos dest)]
     (when next-pos
-      {:move-to next-pos})))
+      {:move-to next-pos
+       :recent-moves (utils/update-recent-moves recent-moves next-pos)})))
 
 (defn- sidestep-action
   "Action: Sidestep around obstacle while moving toward destination."
   [ctx]
-  (let [fsm-data (get-in ctx [:entity :fsm-data])
-        pos (:position fsm-data)
-        dest (:destination fsm-data)
-        sidestep-pos (find-sidestep-move pos dest)]
+  (let [pos (get-in ctx [:entity :fsm-data :position])
+        dest (get-in ctx [:entity :fsm-data :destination])
+        recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
+        sidestep-pos (find-sidestep-move pos dest recent-moves)]
     (when sidestep-pos
-      {:move-to sidestep-pos})))
+      {:move-to sidestep-pos
+       :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
 
 (defn- sidestep-to-land-action
   "Action: Continue sidestepping to find empty land."
   [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
         dest (get-in ctx [:entity :fsm-data :destination])
-        ;; Try to find empty land nearby destination
-        sidestep-pos (find-sidestep-move pos dest)]
+        recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
+        sidestep-pos (find-sidestep-move pos dest recent-moves)]
     (when sidestep-pos
-      {:move-to sidestep-pos})))
+      {:move-to sidestep-pos
+       :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
 
 ;; --- FSM Definition ---
 
@@ -205,4 +188,5 @@
       :fsm-state (if has-destination? :moving [:terminal :arrived])
       :fsm-data {:position pos
                  :destination (when has-destination? destination)
+                 :recent-moves [pos]
                  :unit-id unit-id}})))

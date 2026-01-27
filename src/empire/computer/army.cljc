@@ -156,7 +156,7 @@
       (debug/log-action! [:army-unknown-mission pos mission-type]))))
 
 (defn- step-explorer-fsm
-  "Step the coastline explorer FSM and return updated unit."
+  "Step the unit's FSM and return updated unit."
   [unit pos]
   (let [;; Build context with position for guards
         unit-with-pos (assoc-in unit [:fsm-data :position] pos)
