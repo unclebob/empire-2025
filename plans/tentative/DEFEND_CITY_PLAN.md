@@ -1,8 +1,18 @@
 # Defend-City FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: TENTATIVE - UNDER REASSESSMENT**
 
-## Overview
+## Reassessment Note
+
+Per the Lieutenant plan, armies after conquest go to **transport staging at beaches**, not to city defense. This FSM may be repurposed for:
+- **Coast sentry duty** - Armies guarding gaps between beaches
+- **Future: siege defense** - If enemy attacks our cities
+
+For now, consider using **Hurry-Up-And-Wait** with appropriate wake conditions for defensive positioning.
+
+---
+
+## Original Overview (May Be Obsolete)
 
 Army mission to take a defensive position around a conquered city. Used during squad `:defending` state. Key constraint: **do not block city exits** so units can still be produced and leave.
 

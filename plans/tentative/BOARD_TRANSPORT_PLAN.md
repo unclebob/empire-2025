@@ -218,11 +218,39 @@ If transport moves while army is en route:
 
 ---
 
+## Multi-Round Loading
+
+Loading is a multi-round process coordinated between armies and transport:
+
+### Beach Queuing
+- Beach cells (adjacent to transport's sea cell) hold boarding armies
+- If beach is full, armies queue one cell back
+- As armies board, queued armies advance to beach cells
+
+### Boarding Priority
+- Armies on beach cells board first
+- One army boards per beach cell per round
+- Transport waits until full (6 armies)
+
+### Army State During Loading
+```
+:at-beach      - On beach cell, ready to board this round
+:queued        - One cell back, waiting for beach space
+:boarded       - Successfully on transport
+```
+
+### Coordination
+- Transport sends `:ready-for-boarding` when at beach
+- Armies check if transport is adjacent before boarding
+- Lieutenant tracks which armies are assigned to which transport
+
+---
+
 ## Open Questions (Tentative)
 
-1. How to handle multiple armies trying to board same transport?
-2. Priority/ordering for boarding?
+1. ~~How to handle multiple armies trying to board same transport?~~ → Queuing system
+2. ~~Priority/ordering for boarding?~~ → Beach cells first, then queued
 3. What if transport moves away repeatedly?
-4. Should army wait at coast if transport is en route?
+4. ~~Should army wait at coast if transport is en route?~~ → Yes, queue up
 5. How to coordinate with transport's movement orders?
-6. Should Lieutenant assign specific boarding points to avoid congestion?
+6. ~~Should Lieutenant assign specific boarding points to avoid congestion?~~ → Yes, beach cell assignment
