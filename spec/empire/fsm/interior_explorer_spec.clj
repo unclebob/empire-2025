@@ -35,16 +35,13 @@
       ;; ~####
       ;; ~####
       ;; ~~~~~
-      (reset! atoms/game-map (build-test-map ["~~~~~"
-                                               "~####"
-                                               "~####"
-                                               "~####"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~"
-                                                   "~####"
-                                                   "~####"
-                                                   "~####"
-                                                   "~~~~~"])))
+      (let [test-map (build-test-map ["~~~~~"
+                                       "~####"
+                                       "~####"
+                                       "~####"
+                                       "~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map)))
 
     (it "transitions from :moving-to-start to :exploring-interior at destination"
       (let [data (interior/create-interior-explorer-data [2 2] [2 2])
@@ -138,16 +135,13 @@
       ;; ~####
       ;; ~####
       ;; ~~~~~
-      (reset! atoms/game-map (build-test-map ["~~~~~"
-                                               "~####"
-                                               "~####"
-                                               "~####"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~"
-                                                   "~####"
-                                                   "~####"
-                                                   "~####"
-                                                   "~~~~~"])))
+      (let [test-map (build-test-map ["~~~~~"
+                                       "~####"
+                                       "~####"
+                                       "~####"
+                                       "~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map)))
 
     (it "avoids moving to coastal cells when interior options exist"
       ;; This test verifies the preference for interior over coastal

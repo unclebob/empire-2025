@@ -53,12 +53,11 @@
           (should= [1 1] (get-in (first city-events) [:data :coords])))))
 
     (it "follow-coast-action returns event when adjacent to free city"
-      (reset! atoms/game-map (build-test-map ["~~~"
-                                               "~+#"
-                                               "~##"]))
-      (reset! atoms/computer-map (build-test-map ["~~~"
-                                                   "~+#"
-                                                   "~##"]))
+      (let [test-map (build-test-map ["~~~"
+                                       "~+#"
+                                       "~##"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map))
       (let [explorer-data (explorer/create-explorer-data [2 1])
             entity {:fsm (:fsm explorer-data)
                     :fsm-state :following-coast
@@ -227,16 +226,13 @@
       ;; ~#####   Unit at [2,2] - adjacent to city: [1,2], [2,1], [3,1]
       ;; ~#####                 - NOT adjacent: [2,3], [3,2], [3,3]
       ;; ~~~~~~
-      (reset! atoms/game-map (build-test-map ["~~~~~~"
-                                               "~X####"
-                                               "~#####"
-                                               "~#####"
-                                               "~~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~~"
-                                                   "~X####"
-                                                   "~#####"
-                                                   "~#####"
-                                                   "~~~~~~"]))
+      (let [test-map (build-test-map ["~~~~~~"
+                                       "~X####"
+                                       "~#####"
+                                       "~#####"
+                                       "~~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map))
       (let [pos [2 2]
             city-pos [1 1]
             all-moves [[1 2] [1 3] [2 1] [2 3] [3 1] [3 2] [3 3]]
@@ -253,16 +249,13 @@
       ;; ~#####   Unit at [3,3] - only non-adjacent moves available
       ;; ~#####
       ;; ~~~~~~
-      (reset! atoms/game-map (build-test-map ["~~~~~~"
-                                               "~X####"
-                                               "~#####"
-                                               "~#####"
-                                               "~~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~~"
-                                                   "~X####"
-                                                   "~#####"
-                                                   "~#####"
-                                                   "~~~~~~"]))
+      (let [test-map (build-test-map ["~~~~~~"
+                                       "~X####"
+                                       "~#####"
+                                       "~#####"
+                                       "~~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map))
       (let [pos [3 3]
             city-pos [1 1]
             ;; Only moves NOT adjacent to city at [1,1]
@@ -375,16 +368,13 @@
 
     (it "reports landlocked cells correctly"
       ;; Need a larger map where [2,2] is truly landlocked (no adjacent sea)
-      (reset! atoms/game-map (build-test-map ["~~~~~~"
-                                               "~#####"
-                                               "~#####"
-                                               "~#####"
-                                               "~~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~~"
-                                                   "~#####"
-                                                   "~#####"
-                                                   "~#####"
-                                                   "~~~~~~"]))
+      (let [test-map (build-test-map ["~~~~~~"
+                                       "~#####"
+                                       "~#####"
+                                       "~#####"
+                                       "~~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map))
       (let [explorer-data (explorer/create-explorer-data [2 2])
             entity {:fsm (:fsm explorer-data)
                     :fsm-state :following-coast
@@ -403,14 +393,12 @@
 
     (it "seek-coast-action emits cells-discovered event"
       ;; Set up inland position
-      (reset! atoms/game-map (build-test-map ["~~~~~"
-                                               "~####"
-                                               "~####"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~"
-                                                   "~####"
-                                                   "~####"
-                                                   "~~~~~"]))
+      (let [test-map (build-test-map ["~~~~~"
+                                       "~####"
+                                       "~####"
+                                       "~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map))
       (let [explorer-data (explorer/create-explorer-data [2 2])
             entity {:fsm (:fsm explorer-data)
                     :fsm-state :seeking-coast
@@ -538,16 +526,13 @@
 
     (it "transitions to seeking-coast when reaching non-coastal destination"
       ;; Larger map with interior destination
-      (reset! atoms/game-map (build-test-map ["~~~~~~~"
-                                               "~#####~"
-                                               "~#####~"
-                                               "~#####~"
-                                               "~~~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~~~"
-                                                   "~#####~"
-                                                   "~#####~"
-                                                   "~#####~"
-                                                   "~~~~~~~"]))
+      (let [test-map (build-test-map ["~~~~~~~"
+                                       "~#####~"
+                                       "~#####~"
+                                       "~#####~"
+                                       "~~~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map))
       (let [;; Unit at interior position, destination is also interior
             data (explorer/create-explorer-data [2 2] [2 4])
             entity (-> data

@@ -427,27 +427,29 @@
 
   (it "adds coastal cells around city to known-coastal-cells"
     ;; Computer has explored the area around the city
-    (reset! atoms/computer-map (build-test-map ["~~~"
-                                                 "~X#"
-                                                 "~##"]))
-    (let [lt (lieutenant/create-lieutenant "Alpha" [1 1])
-          initialized (lieutenant/initialize-with-visible-cells lt)]
-      ;; City at [1,1] is adjacent to sea, so it's coastal
-      ;; Land at [1,2] is adjacent to sea at [0,2], so coastal
-      ;; Land at [2,1] is adjacent to sea at [2,0], so coastal
-      ;; Land at [2,2] is NOT adjacent to sea, so landlocked
-      (should (contains? (:known-coastal-cells initialized) [1 1]))
-      (should (contains? (:known-coastal-cells initialized) [1 2]))
-      (should (contains? (:known-coastal-cells initialized) [2 1]))))
+    (let [test-map (build-test-map ["~~~"
+                                     "~X#"
+                                     "~##"])]
+      (reset! atoms/computer-map test-map)
+      (let [lt (lieutenant/create-lieutenant "Alpha" [1 1])
+            initialized (lieutenant/initialize-with-visible-cells lt)]
+        ;; City at [1,1] is adjacent to sea, so it's coastal
+        ;; Land at [1,2] is adjacent to sea at [0,2], so coastal
+        ;; Land at [2,1] is adjacent to sea at [2,0], so coastal
+        ;; Land at [2,2] is NOT adjacent to sea, so landlocked
+        (should (contains? (:known-coastal-cells initialized) [1 1]))
+        (should (contains? (:known-coastal-cells initialized) [1 2]))
+        (should (contains? (:known-coastal-cells initialized) [2 1])))))
 
   (it "adds landlocked cells to known-landlocked-cells"
-    (reset! atoms/computer-map (build-test-map ["~~~"
-                                                 "~X#"
-                                                 "~##"]))
-    (let [lt (lieutenant/create-lieutenant "Alpha" [1 1])
-          initialized (lieutenant/initialize-with-visible-cells lt)]
-      ;; Land at [2,2] is NOT adjacent to sea, so landlocked
-      (should (contains? (:known-landlocked-cells initialized) [2 2]))))
+    (let [test-map (build-test-map ["~~~"
+                                     "~X#"
+                                     "~##"])]
+      (reset! atoms/computer-map test-map)
+      (let [lt (lieutenant/create-lieutenant "Alpha" [1 1])
+            initialized (lieutenant/initialize-with-visible-cells lt)]
+        ;; Land at [2,2] is NOT adjacent to sea, so landlocked
+        (should (contains? (:known-landlocked-cells initialized) [2 2])))))
 
   (it "only includes explored cells from computer-map"
     ;; Only partial exploration - column 2 is unexplored

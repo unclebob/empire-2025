@@ -35,16 +35,13 @@
       ;; ~####
       ;; ~####
       ;; ~~~~~
-      (reset! atoms/game-map (build-test-map ["~~~~~"
-                                               "~####"
-                                               "~####"
-                                               "~####"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~"
-                                                   "~####"
-                                                   "~####"
-                                                   "~####"
-                                                   "~~~~~"])))
+      (let [test-map (build-test-map ["~~~~~"
+                                       "~####"
+                                       "~####"
+                                       "~####"
+                                       "~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map)))
 
     (it "transitions from :moving-to-station to :holding at station"
       (let [data (reserve/create-waiting-reserve-data [2 2] [2 2])
@@ -79,16 +76,13 @@
   (describe "hold-action"
     (before
       (reset-all-atoms!)
-      (reset! atoms/game-map (build-test-map ["~~~~~"
-                                               "~####"
-                                               "~####"
-                                               "~####"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~"
-                                                   "~####"
-                                                   "~####"
-                                                   "~####"
-                                                   "~~~~~"])))
+      (let [test-map (build-test-map ["~~~~~"
+                                       "~####"
+                                       "~####"
+                                       "~####"
+                                       "~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map)))
 
     (it "returns nil for move-to in holding state"
       (let [data (reserve/create-waiting-reserve-data [2 2] nil)
@@ -113,16 +107,13 @@
   (describe "moving-to-station"
     (before
       (reset-all-atoms!)
-      (reset! atoms/game-map (build-test-map ["~~~~~"
-                                               "~####"
-                                               "~####"
-                                               "~####"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map (build-test-map ["~~~~~"
-                                                   "~####"
-                                                   "~####"
-                                                   "~####"
-                                                   "~~~~~"])))
+      (let [test-map (build-test-map ["~~~~~"
+                                       "~####"
+                                       "~####"
+                                       "~####"
+                                       "~~~~~"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/computer-map test-map)))
 
     (it "returns move-to toward station"
       (let [data (reserve/create-waiting-reserve-data [1 1] [3 3])

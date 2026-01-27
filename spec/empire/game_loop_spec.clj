@@ -217,8 +217,9 @@
   (before
     (reset-all-atoms!)
     (reset! atoms/game-map (build-test-map ["O"]))
-    (reset! atoms/player-map (build-test-map ["#"]))
-    (reset! atoms/computer-map (build-test-map ["#"]))
+    (let [fog-map (build-test-map ["#"])]
+      (reset! atoms/player-map fog-map)
+      (reset! atoms/computer-map fog-map))
     (reset! atoms/production {})
     (reset! atoms/round-number 0)
     (reset! atoms/player-items [])
@@ -250,8 +251,9 @@
     (reset! atoms/game-map (-> (build-test-map ["C"])
                                (assoc-in [0 0 :contents :fighter-count] 2)
                                (assoc-in [0 0 :contents :awake-fighters] 0)))
-    (reset! atoms/player-map (build-test-map ["~"]))
-    (reset! atoms/computer-map (build-test-map ["~"]))
+    (let [fog-map (build-test-map ["~"])]
+      (reset! atoms/player-map fog-map)
+      (reset! atoms/computer-map fog-map))
     (game-loop/start-new-round)
     (let [carrier (:contents (get-in @atoms/game-map [0 0]))]
       (should= 0 (:awake-fighters carrier 0)))))
@@ -260,8 +262,9 @@
   (before (reset-all-atoms!))
   (it "starts new round when player-items is empty"
     (reset! atoms/game-map (build-test-map ["O"]))
-    (reset! atoms/player-map (build-test-map ["#"]))
-    (reset! atoms/computer-map (build-test-map ["#"]))
+    (let [fog-map (build-test-map ["#"])]
+      (reset! atoms/player-map fog-map)
+      (reset! atoms/computer-map fog-map))
     (reset! atoms/production {})
     (reset! atoms/player-items [])
     (reset! atoms/round-number 0)
@@ -301,8 +304,9 @@
   (before
     (reset-all-atoms!)
     (reset! atoms/game-map (build-test-map ["O"]))
-    (reset! atoms/player-map (build-test-map ["#"]))
-    (reset! atoms/computer-map (build-test-map ["#"]))
+    (let [fog-map (build-test-map ["#"])]
+      (reset! atoms/player-map fog-map)
+      (reset! atoms/computer-map fog-map))
     (reset! atoms/production {})
     (reset! atoms/player-items [])
     (reset! atoms/round-number 0))
@@ -566,8 +570,9 @@
 
   (describe "advance-game pauses at round end"
     (it "pauses at end of round when pause-requested"
-      (reset! atoms/game-map (build-test-map ["#"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
+      (let [test-map (build-test-map ["#"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/player-map test-map))
       (reset! atoms/production {})
       (reset! atoms/player-items [])  ;; Empty means end of round
       (reset! atoms/pause-requested true)
@@ -580,8 +585,9 @@
         (should= round-before @atoms/round-number)))
 
     (it "does not start new round when paused"
-      (reset! atoms/game-map (build-test-map ["#"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
+      (let [test-map (build-test-map ["#"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/player-map test-map))
       (reset! atoms/production {})
       (reset! atoms/player-items [])
       (reset! atoms/paused true)
@@ -591,8 +597,9 @@
         (should= round-before @atoms/round-number)))
 
     (it "starts new round normally when not paused"
-      (reset! atoms/game-map (build-test-map ["#"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
+      (let [test-map (build-test-map ["#"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/player-map test-map))
       (reset! atoms/production {})
       (reset! atoms/player-items [])
       (reset! atoms/paused false)
@@ -620,9 +627,10 @@
       (should @atoms/pause-requested))
 
     (it "starts new round when paused and lists are empty"
-      (reset! atoms/game-map (build-test-map ["#"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
-      (reset! atoms/computer-map (build-test-map ["#"]))
+      (let [test-map (build-test-map ["#"])]
+        (reset! atoms/game-map test-map)
+        (reset! atoms/player-map test-map)
+        (reset! atoms/computer-map test-map))
       (reset! atoms/production {})
       (reset! atoms/paused true)
       (reset! atoms/pause-requested false)
@@ -636,8 +644,9 @@
     (it "processes computer items when player items empty"
       (reset! atoms/game-map (build-test-map ["#a"]))
       (set-test-unit atoms/game-map "a" :mode :sentry)
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (let [fog-map (build-test-map ["##"])]
+        (reset! atoms/player-map fog-map)
+        (reset! atoms/computer-map fog-map))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (reset! atoms/player-items [])
@@ -648,8 +657,9 @@
 
     (it "processes computer city without unit"
       (reset! atoms/game-map (build-test-map ["X#"]))
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (let [fog-map (build-test-map ["##"])]
+        (reset! atoms/player-map fog-map)
+        (reset! atoms/computer-map fog-map))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (reset! atoms/player-items [])
