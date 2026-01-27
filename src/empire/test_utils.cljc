@@ -164,6 +164,7 @@
   (reset! atoms/debug-drag-start nil)
   (reset! atoms/debug-drag-current nil)
   (reset! atoms/debug-message "")
+  (reset! atoms/debug-hover-lines ["" "" ""])
   (reset! atoms/action-log [])
   (reset! atoms/commanding-general nil)
   (pathfinding/clear-path-cache))

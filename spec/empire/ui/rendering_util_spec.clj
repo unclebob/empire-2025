@@ -66,7 +66,30 @@
   (it "formats army with destination and fsm-state"
     (let [unit {:type :army :hits 1 :mode :moving :owner :computer
                 :destination [5 10] :fsm-state :seeking-coast}]
-      (should= "computer army [1/1] moving -> [5,10] seeking-coast" (ru/format-unit-status unit)))))
+      (should= "computer army [1/1] moving -> [5,10] seeking-coast" (ru/format-unit-status unit))))
+
+  (it "formats computer army with mission-fsm from lieutenant"
+    (let [unit {:type :army :hits 1 :mode :explore :owner :computer :fsm-state :seeking-coast}
+          mission-info {:mission-type :explore-coastline}]
+      (should= "computer army [1/1] explore seeking-coast [explore-coastline]"
+               (ru/format-unit-status unit mission-info))))
+
+  (it "formats computer army with interior exploration mission"
+    (let [unit {:type :army :hits 1 :mode :explore :owner :computer :fsm-state :exploring}
+          mission-info {:mission-type :explore-interior}]
+      (should= "computer army [1/1] explore exploring [explore-interior]"
+               (ru/format-unit-status unit mission-info))))
+
+  (it "formats computer army with hurry-up-and-wait mission"
+    (let [unit {:type :army :hits 1 :mode :sentry :owner :computer}
+          mission-info {:mission-type :hurry-up-and-wait}]
+      (should= "computer army [1/1] sentry [hurry-up-and-wait]"
+               (ru/format-unit-status unit mission-info))))
+
+  (it "formats player unit ignoring mission-info"
+    (let [unit {:type :army :hits 1 :mode :awake :owner :player}
+          mission-info {:mission-type :explore-coastline}]
+      (should= "player army [1/1] awake" (ru/format-unit-status unit mission-info)))))
 
 (describe "format-city-status"
   (it "formats player city with production"
@@ -241,3 +264,65 @@
 
   (it "returns false when both are false"
     (should-not (ru/should-show-paused? false false))))
+
+(describe "format-cell-debug"
+  (it "formats simple land cell"
+    (let [cell {:type :land}
+          result (ru/format-cell-debug [5 10] cell nil nil)]
+      (should= ["[5,10] land" "" ""] result)))
+
+  (it "formats sea cell"
+    (let [cell {:type :sea}
+          result (ru/format-cell-debug [3 7] cell nil nil)]
+      (should= ["[3,7] sea" "" ""] result)))
+
+  (it "formats unexplored cell"
+    (let [cell {:type :unexplored}
+          result (ru/format-cell-debug [0 0] cell nil nil)]
+      (should= ["[0,0] unexplored" "" ""] result)))
+
+  (it "formats land cell with unit on line 2"
+    (let [cell {:type :land :contents {:type :army :hits 1 :mode :awake :owner :player}}
+          result (ru/format-cell-debug [5 10] cell nil nil)]
+      (should= ["[5,10] land" "player army [1/1] awake" ""] result)))
+
+  (it "formats city with unit"
+    (let [cell {:type :city :city-status :player :fighter-count 2
+                :contents {:type :army :hits 1 :mode :awake :owner :player}}
+          result (ru/format-cell-debug [5 10] cell {:item :army :remaining-rounds 3} nil)]
+      (should= ["[5,10] city:player producing:army fighters:2"
+                "player army [1/1] awake"
+                ""] result)))
+
+  (it "formats cell with waypoint on line 3"
+    (let [cell {:type :land :waypoint {:marching-orders [15 25]}}
+          result (ru/format-cell-debug [2 3] cell nil nil)]
+      (should= ["[2,3] land" "" "waypoint -> [15,25]"] result)))
+
+  (it "formats cell with unit and waypoint"
+    (let [cell {:type :land
+                :contents {:type :army :hits 1 :mode :moving :owner :player}
+                :waypoint {:marching-orders [20 30]}}
+          result (ru/format-cell-debug [1 2] cell nil nil)]
+      (should= ["[1,2] land" "player army [1/1] moving" "waypoint -> [20,30]"] result)))
+
+  (it "formats computer army with mission-fsm info"
+    (let [cell {:type :land :contents {:type :army :hits 1 :mode :explore :owner :computer :fsm-state :seeking-coast}}
+          mission-info {:mission-type :explore-coastline}
+          result (ru/format-cell-debug [5 10] cell nil mission-info)]
+      (should= ["[5,10] land" "computer army [1/1] explore seeking-coast [explore-coastline]" ""] result)))
+
+  (it "formats city with shipyard on line 3"
+    (let [cell {:type :city :city-status :player
+                :shipyard [{:type :destroyer :hits 2} {:type :battleship :hits 7}]}
+          result (ru/format-cell-debug [5 10] cell nil nil)]
+      (should= ["[5,10] city:player" "" "dock: D[2/3] B[7/10]"] result)))
+
+  (it "formats city with unit and shipyard"
+    (let [cell {:type :city :city-status :player :fighter-count 1
+                :contents {:type :army :hits 1 :mode :awake :owner :player}
+                :shipyard [{:type :transport :hits 1}]}
+          result (ru/format-cell-debug [5 10] cell {:item :fighter :remaining-rounds 10} nil)]
+      (should= ["[5,10] city:player producing:fighter fighters:1"
+                "player army [1/1] awake"
+                "dock: T[1/1]"] result))))

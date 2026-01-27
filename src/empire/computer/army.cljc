@@ -6,6 +6,8 @@
             [empire.fsm.engine :as engine]
             [empire.fsm.base-establishment :as base]
             [empire.fsm.coastline-explorer :as explorer]
+            [empire.fsm.interior-explorer :as interior]
+            [empire.fsm.waiting-reserve :as reserve]
             [empire.fsm.context :as context]
             [empire.fsm.lieutenant :as lieutenant]
             [empire.debug :as debug]))
@@ -68,29 +70,78 @@
                                                :data {:coords pos}})]
         (update-lieutenant! updated-lt)))))
 
-(defn- start-exploration-at
-  "Start exploring at the given position, optionally with a target destination."
-  ([pos unit cell]
-   (start-exploration-at pos unit cell nil))
-  ([pos unit cell target]
-   (let [explorer-data (explorer/create-explorer-data pos target)
-         updated-unit (-> unit
-                          (assoc :mode :explore)
-                          (merge explorer-data)
-                          (dissoc :reason :visited))]
-     (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit)))))
+(defn- start-coastline-exploration
+  "Start coastline exploration at the given position, optionally with a target."
+  [pos unit cell target]
+  (let [explorer-data (explorer/create-explorer-data pos target)
+        updated-unit (-> unit
+                         (assoc :mode :explore)
+                         (merge explorer-data)
+                         (dissoc :reason :visited))]
+    (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
+
+(defn- start-interior-exploration
+  "Start interior exploration at the given position, optionally with a target."
+  [pos unit cell target]
+  (let [explorer-data (interior/create-interior-explorer-data pos target)
+        updated-unit (-> unit
+                         (assoc :mode :explore)
+                         (merge explorer-data)
+                         (dissoc :reason :visited))]
+    (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
+
+(defn- start-waiting-reserve
+  "Start waiting reserve mission at the given position, with station target."
+  [pos unit cell station]
+  (let [reserve-data (reserve/create-waiting-reserve-data pos station)
+        updated-unit (-> unit
+                         (assoc :mode :explore)  ; Use :explore mode for FSM-driven behavior
+                         (merge reserve-data)
+                         (dissoc :reason :visited))]
+    (swap! atoms/game-map assoc-in pos (assoc cell :contents updated-unit))))
+
+(defn- register-mission-with-lieutenant!
+  "Immediately registers the mission assignment with the Lieutenant.
+   Updates explorer counts and direct-reports so subsequent mission
+   assignments see the correct state."
+  [unit pos mission-type]
+  (when-let [lt (find-lieutenant-for-army unit)]
+    (let [unit-id (keyword (str "army-" (hash pos)))
+          explorer {:unit-id unit-id
+                    :coords pos
+                    :mission-type mission-type
+                    :fsm-state :exploring}
+          lt-with-report (update lt :direct-reports conj explorer)
+          updated-lt (case mission-type
+                       :explore-coastline (update lt-with-report :coastline-explorer-count inc)
+                       :explore-interior (update lt-with-report :interior-explorer-count inc)
+                       :hurry-up-and-wait (update lt-with-report :waiting-army-count inc)
+                       lt-with-report)]
+      (update-lieutenant! updated-lt))))
 
 (defn- assign-exploration-mission
-  "Assigns exploration mission to an awake army.
-   If Lieutenant knows of a better frontier position, directs army there via FSM.
-   Otherwise initializes coastline explorer FSM at current position."
+  "Assigns mission to an awake army based on Lieutenant's orders.
+   Mission type is determined by Lieutenant's current state and quotas.
+   Immediately updates Lieutenant's counts to ensure correct mission
+   assignment for subsequent armies in the same turn."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)
         lt (find-lieutenant-for-army unit)
-        target (when lt (lieutenant/get-exploration-target lt pos))]
-    ;; Always start in explore mode - FSM handles moving to target if needed
-    (start-exploration-at pos unit cell target)))
+        mission-info (when lt (lieutenant/get-mission-for-unit lt pos))
+        mission-type (:mission-type mission-info)
+        target (:target mission-info)]
+    (when mission-type
+      ;; Immediately update Lieutenant's counts for this mission
+      (register-mission-with-lieutenant! unit pos mission-type))
+    (case mission-type
+      :explore-coastline (start-coastline-exploration pos unit cell target)
+      :explore-interior (start-interior-exploration pos unit cell target)
+      :hurry-up-and-wait (start-waiting-reserve pos unit cell target)
+      ;; nil mission means waiting-for-transport - army stays awake
+      nil (debug/log-action! [:army-no-mission pos :waiting-for-transport])
+      ;; Unknown mission type - should not happen
+      (debug/log-action! [:army-unknown-mission pos mission-type]))))
 
 (defn- step-explorer-fsm
   "Step the coastline explorer FSM and return updated unit."

@@ -8,9 +8,21 @@
 (describe "Lieutenant FSM"
 
   (describe "create-lieutenant"
-    (it "creates lieutenant in :initializing state"
+    (it "creates lieutenant in :start-exploring-coastline state"
       (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
-        (should= :initializing (:fsm-state lt))))
+        (should= :start-exploring-coastline (:fsm-state lt))))
+
+    (it "starts with zero coastline-explorer-count"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
+        (should= 0 (:coastline-explorer-count lt))))
+
+    (it "starts with zero interior-explorer-count"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
+        (should= 0 (:interior-explorer-count lt))))
+
+    (it "starts with zero waiting-army-count"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
+        (should= 0 (:waiting-army-count lt))))
 
     (it "assigns the given name"
       (let [lt (lieutenant/create-lieutenant "Bravo" [10 20])]
@@ -47,19 +59,57 @@
   (describe "state transitions"
     (before (reset-all-atoms!))
 
-    (it "transitions from :initializing to :exploring when unit-needs-orders received"
-      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
-            lt-with-event (engine/post-event lt {:type :unit-needs-orders
-                                                  :priority :high
-                                                  :data {:unit-id :army-1 :coords [10 20]}
-                                                  :from :army-1})
-            result (lieutenant/process-lieutenant lt-with-event)]
-        (should= :exploring (:fsm-state result))))
+    (it "stays in :start-exploring-coastline when less than 2 coastline explorers"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 1))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :start-exploring-coastline (:fsm-state result))))
 
-    (it "stays in :initializing when no events"
+    (it "transitions to :start-exploring-interior when 2 coastline explorers"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 2))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :start-exploring-interior (:fsm-state result))))
+
+    (it "stays in :start-exploring-interior when less than 2 interior explorers"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :start-exploring-interior)
+                   (assoc :coastline-explorer-count 2 :interior-explorer-count 1))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :start-exploring-interior (:fsm-state result))))
+
+    (it "transitions to :recruiting-for-transport when 2 interior explorers"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :start-exploring-interior)
+                   (assoc :coastline-explorer-count 2 :interior-explorer-count 2))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :recruiting-for-transport (:fsm-state result))))
+
+    (it "stays in :recruiting-for-transport when less than 6 waiting armies"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :recruiting-for-transport)
+                   (assoc :waiting-army-count 5))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :recruiting-for-transport (:fsm-state result))))
+
+    (it "transitions to :waiting-for-transport when 6 waiting armies"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :recruiting-for-transport)
+                   (assoc :waiting-army-count 6))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :waiting-for-transport (:fsm-state result))))
+
+    (it "stays in :waiting-for-transport indefinitely"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :waiting-for-transport)
+                   (assoc :waiting-army-count 6))
+            result (lieutenant/process-lieutenant lt)]
+        (should= :waiting-for-transport (:fsm-state result))))
+
+    (it "stays in :start-exploring-coastline when no events"
       (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
             result (lieutenant/process-lieutenant lt)]
-        (should= :initializing (:fsm-state result)))))
+        (should= :start-exploring-coastline (:fsm-state result)))))
 
   (describe "handling :unit-needs-orders"
     (before (reset-all-atoms!))
@@ -90,7 +140,93 @@
                                                   :data {:unit-id :army-1 :coords [11 20]}
                                                   :from :army-1})
             result (lieutenant/process-lieutenant lt-with-event)]
-        (should= [] (:event-queue result)))))
+        (should= [] (:event-queue result))))
+
+    (it "assigns first army :explore-coastline mission"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-1 :coords [11 20]}})
+            result (lieutenant/process-lieutenant lt-with-event)
+            unit (first (:direct-reports result))]
+        (should= :explore-coastline (:mission-type unit))))
+
+    (it "assigns second army :explore-coastline mission"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 1))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-2 :coords [11 21]}})
+            result (lieutenant/process-lieutenant lt-with-event)
+            unit (first (:direct-reports result))]
+        (should= :explore-coastline (:mission-type unit))))
+
+    (it "assigns third army :explore-interior mission"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 2))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-3 :coords [11 22]}})
+            result (lieutenant/process-lieutenant lt-with-event)
+            unit (first (:direct-reports result))]
+        (should= :explore-interior (:mission-type unit))))
+
+    (it "assigns fourth army :explore-interior mission"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 2 :interior-explorer-count 1))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-4 :coords [11 23]}})
+            result (lieutenant/process-lieutenant lt-with-event)
+            unit (first (:direct-reports result))]
+        (should= :explore-interior (:mission-type unit))))
+
+    (it "assigns fifth army :hurry-up-and-wait mission in recruiting-for-transport state"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 2 :interior-explorer-count 2)
+                   (assoc :fsm-state :recruiting-for-transport))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-5 :coords [11 24]}})
+            result (lieutenant/process-lieutenant lt-with-event)
+            unit (first (:direct-reports result))]
+        (should= :hurry-up-and-wait (:mission-type unit))))
+
+    (it "increments waiting-army-count when assigning hurry-up-and-wait mission"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :recruiting-for-transport))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-5 :coords [11 24]}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= 1 (:waiting-army-count result))))
+
+    (it "does not add unit to direct-reports in :waiting-for-transport state"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :fsm-state :waiting-for-transport)
+                   (assoc :waiting-army-count 6))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-11 :coords [11 25]}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= 0 (count (:direct-reports result)))))
+
+    (it "increments coastline-explorer-count when assigning coastline mission"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-1 :coords [11 20]}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= 1 (:coastline-explorer-count result))))
+
+    (it "increments interior-explorer-count when assigning interior mission"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :coastline-explorer-count 2))
+            lt-with-event (engine/post-event lt {:type :unit-needs-orders
+                                                  :priority :high
+                                                  :data {:unit-id :army-3 :coords [11 22]}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= 1 (:interior-explorer-count result)))))
 
   (describe "handling :free-city-found"
     (before (reset-all-atoms!))
@@ -326,3 +462,23 @@
       ;; [1,1] (city) and [2,1] (land) are explored and coastal
       (should (contains? (:known-coastal-cells initialized) [1 1]))
       (should (contains? (:known-coastal-cells initialized) [2 1])))))
+
+(describe "should-produce?"
+  (it "returns true in :start-exploring-coastline state"
+    (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
+      (should (lieutenant/should-produce? lt))))
+
+  (it "returns true in :start-exploring-interior state"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :fsm-state :start-exploring-interior))]
+      (should (lieutenant/should-produce? lt))))
+
+  (it "returns true in :recruiting-for-transport state"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :fsm-state :recruiting-for-transport))]
+      (should (lieutenant/should-produce? lt))))
+
+  (it "returns false in :waiting-for-transport state"
+    (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                 (assoc :fsm-state :waiting-for-transport))]
+      (should-not (lieutenant/should-produce? lt)))))

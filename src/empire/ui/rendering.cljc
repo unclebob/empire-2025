@@ -85,7 +85,7 @@
         (draw-waypoint col row cell cell-w cell-h)))))
 
 (defn update-hover-status
-  "Updates hover-message based on mouse position.
+  "Updates hover-message and debug-hover-lines based on mouse position.
    Shows contents from the currently displayed map."
   []
   (let [x (q/mouse-x)
@@ -99,9 +99,17 @@
                       :actual-map @atoms/game-map)
             cell (get-in the-map coords)
             production (get @atoms/production coords)
-            status (ru/format-hover-status coords cell production)]
-        (reset! atoms/hover-message (or status "")))
-      (reset! atoms/hover-message ""))))
+            ;; Look up mission info for computer units
+            mission-info (when (and (:contents cell)
+                                    (= :computer (:owner (:contents cell))))
+                           (ru/find-mission-info coords))
+            status (ru/format-hover-status coords cell production mission-info)
+            debug-lines (ru/format-cell-debug coords cell production mission-info)]
+        (reset! atoms/hover-message (or status ""))
+        (reset! atoms/debug-hover-lines debug-lines))
+      (do
+        (reset! atoms/hover-message "")
+        (reset! atoms/debug-hover-lines ["" "" ""])))))
 
 (defn- draw-line-1
   "Draws the main message on line 1."
@@ -133,14 +141,34 @@
     (q/text text x y)))
 
 (defn- draw-debug-window
-  "Draws the debug window (middle section, 3 lines), centered."
+  "Draws the debug window (middle section, 3 lines), centered.
+   Shows debug hover lines when hovering over map cells,
+   or debug-message when set (e.g., debug file output)."
   [text-x text-y text-w]
-  (when (seq @atoms/debug-message)
-    (let [center-x (+ text-x (/ text-w 2))
-          msg @atoms/debug-message
-          msg-width (q/text-width msg)
-          x (- center-x (/ msg-width 2))]
-      (q/text msg x (+ text-y 10)))))
+  (let [center-x (+ text-x (/ text-w 2))
+        [line1 line2 line3] @atoms/debug-hover-lines
+        has-hover-content? (or (seq line1) (seq line2) (seq line3))]
+    (if has-hover-content?
+      ;; Show debug hover lines (cell contents)
+      (do
+        (when (seq line1)
+          (let [width (q/text-width line1)
+                x (- center-x (/ width 2))]
+            (q/text line1 x (+ text-y 10))))
+        (when (seq line2)
+          (let [width (q/text-width line2)
+                x (- center-x (/ width 2))]
+            (q/text line2 x (+ text-y 30))))
+        (when (seq line3)
+          (let [width (q/text-width line3)
+                x (- center-x (/ width 2))]
+            (q/text line3 x (+ text-y 50)))))
+      ;; Fallback to debug-message if no hover content
+      (when (seq @atoms/debug-message)
+        (let [msg @atoms/debug-message
+              msg-width (q/text-width msg)
+              x (- center-x (/ msg-width 2))]
+          (q/text msg x (+ text-y 10)))))))
 
 (defn- draw-status
   "Draws the status area on the right (3 lines), right-justified."

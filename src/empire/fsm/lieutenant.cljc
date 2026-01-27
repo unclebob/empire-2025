@@ -16,18 +16,40 @@
   [ctx]
   (boolean (seq (:event-queue ctx))))
 
+(defn- coastline-quota-met?
+  "Guard: check if 2 coastline explorers are commissioned."
+  [ctx]
+  (>= (get (:entity ctx) :coastline-explorer-count 0) 2))
+
+(defn- interior-quota-met?
+  "Guard: check if 2 interior explorers are commissioned."
+  [ctx]
+  (>= (get (:entity ctx) :interior-explorer-count 0) 2))
+
+(defn- transport-quota-met?
+  "Guard: check if 6 waiting armies are recruited."
+  [ctx]
+  (>= (get (:entity ctx) :waiting-army-count 0) 6))
+
 (def lieutenant-fsm
   "FSM transitions for the Lieutenant.
    Format: [current-state guard-fn new-state action-fn]"
-  [[:initializing has-unit-needs-orders? :exploring (constantly nil)]
-   [:exploring (constantly false) :exploring identity]
-   [:established (constantly false) :established identity]])
+  [[:start-exploring-coastline coastline-quota-met?   :start-exploring-interior (constantly nil)]
+   [:start-exploring-coastline (constantly false)     :start-exploring-coastline identity]
+
+   [:start-exploring-interior  interior-quota-met?    :recruiting-for-transport (constantly nil)]
+   [:start-exploring-interior  (constantly false)     :start-exploring-interior identity]
+
+   [:recruiting-for-transport  transport-quota-met?   :waiting-for-transport (constantly nil)]
+   [:recruiting-for-transport  (constantly false)     :recruiting-for-transport identity]
+
+   [:waiting-for-transport     (constantly false)     :waiting-for-transport identity]])
 
 (defn create-lieutenant
   "Create a new Lieutenant with the given name and assigned city."
   [name city-coords]
   {:fsm lieutenant-fsm
-   :fsm-state :initializing
+   :fsm-state :start-exploring-coastline
    :fsm-data {:mission-type :explore-conquer}
    :event-queue []
    :name name
@@ -37,7 +59,10 @@
    :beach-candidates []
    :known-coastal-cells #{}
    :known-landlocked-cells #{}
-   :frontier-coastal-cells #{}})
+   :frontier-coastal-cells #{}
+   :coastline-explorer-count 0
+   :interior-explorer-count 0
+   :waiting-army-count 0})
 
 (defn- classify-cell
   "Returns :coastal if pos is land adjacent to sea, :landlocked if land not adjacent to sea, nil otherwise."
@@ -96,19 +121,63 @@
 
 (defn- create-explorer
   "Create an explorer unit record for a direct report."
-  [unit-id coords]
+  [unit-id coords mission-type]
   {:unit-id unit-id
    :coords coords
-   :mission-type :explore-coastline  ; Default to coastline exploration
+   :mission-type mission-type
    :fsm-state :exploring})
 
+(defn- mission-for-counts
+  "Returns the next mission type based on current counts, starting from a given phase.
+   Phase 0 = coastline, 1 = interior, 2 = waiting, 3+ = nil (done)."
+  [coastline-count interior-count waiting-count starting-phase]
+  (cond
+    (and (<= starting-phase 0) (< coastline-count 2)) :explore-coastline
+    (and (<= starting-phase 1) (< interior-count 2)) :explore-interior
+    (and (<= starting-phase 2) (< waiting-count 6)) :hurry-up-and-wait
+    :else nil))
+
+(def ^:private state->phase
+  {:start-exploring-coastline 0
+   :start-exploring-interior 1
+   :recruiting-for-transport 2
+   :waiting-for-transport 3})
+
+(defn- determine-mission-type
+  "Determine which mission to assign based on FSM state and counts.
+   FSM state acts as a floor - we never regress to earlier phases.
+   Within current phase, counts determine if we've met quota for transition."
+  [lieutenant]
+  (let [phase (get state->phase (:fsm-state lieutenant) 0)
+        coastline-count (get lieutenant :coastline-explorer-count 0)
+        interior-count (get lieutenant :interior-explorer-count 0)
+        waiting-count (get lieutenant :waiting-army-count 0)]
+    (mission-for-counts coastline-count interior-count waiting-count phase)))
+
+(defn- increment-explorer-count
+  "Increment the appropriate explorer count for the given mission type."
+  [lieutenant mission-type]
+  (case mission-type
+    :explore-coastline (update lieutenant :coastline-explorer-count inc)
+    :explore-interior  (update lieutenant :interior-explorer-count inc)
+    :hurry-up-and-wait (update lieutenant :waiting-army-count inc)
+    lieutenant))
+
 (defn- handle-unit-needs-orders
-  "Handle unit-needs-orders event: assign explorer mission."
+  "Handle unit-needs-orders event: assign explorer mission based on FSM state.
+   In :waiting-for-transport state, no mission is assigned (army stays awake)."
   [lieutenant event]
-  (let [unit-id (get-in event [:data :unit-id])
-        coords (get-in event [:data :coords])
-        explorer (create-explorer unit-id coords)]
-    (update lieutenant :direct-reports conj explorer)))
+  (let [mission-type (determine-mission-type lieutenant)]
+    (if (nil? mission-type)
+      ;; In waiting-for-transport: don't assign mission, leave army awake
+      lieutenant
+      ;; Normal case: assign mission
+      (let [unit-id (get-in event [:data :unit-id])
+            coords (get-in event [:data :coords])
+            explorer (create-explorer unit-id coords mission-type)]
+        (-> lieutenant
+            (update :direct-reports conj explorer)
+            (increment-explorer-count mission-type))))))
 
 (defn- handle-free-city-found
   "Handle free-city-found event: add to known list if not duplicate."
@@ -190,6 +259,63 @@
       (->> frontier-cells
            (sort-by #(manhattan-distance current-pos %))
            first))))
+
+(defn get-interior-exploration-target
+  "Find the best landlocked cell to start interior exploration from.
+   Returns the nearest known landlocked cell adjacent to unexplored territory,
+   or nil if no such cell exists or if current-pos is already a good starting point."
+  [lieutenant current-pos]
+  (let [landlocked-cells (:known-landlocked-cells lieutenant)
+        ;; Filter to cells adjacent to unexplored
+        frontier-cells (filter has-unexplored-neighbor? landlocked-cells)
+        ;; Exclude current position
+        frontier-cells (remove #(= % current-pos) frontier-cells)]
+    (when (seq frontier-cells)
+      (->> frontier-cells
+           (sort-by #(manhattan-distance current-pos %))
+           first))))
+
+(defn- is-empty-land-cell?
+  "Returns true if the position is empty land (no unit contents)."
+  [pos]
+  (let [cell (get-in @atoms/game-map pos)]
+    (and (= :land (:type cell))
+         (nil? (:contents cell)))))
+
+(defn get-waiting-area
+  "Find an empty explored coastal cell for a reserve army.
+   Returns the nearest known coastal cell that is empty,
+   or nil if no such cell exists."
+  [lieutenant current-pos]
+  (let [coastal-cells (:known-coastal-cells lieutenant)
+        ;; Filter to empty cells
+        empty-cells (filter is-empty-land-cell? coastal-cells)
+        ;; Exclude current position
+        candidates (remove #(= % current-pos) empty-cells)]
+    (when (seq candidates)
+      (->> candidates
+           (sort-by #(manhattan-distance current-pos %))
+           first))))
+
+(defn get-mission-for-unit
+  "Determine mission assignment for a newly awakened army.
+   Returns {:mission-type :target} where target may be nil."
+  [lieutenant current-pos]
+  (let [mission-type (determine-mission-type lieutenant)]
+    (case mission-type
+      :explore-coastline {:mission-type :explore-coastline
+                          :target (get-exploration-target lieutenant current-pos)}
+      :explore-interior {:mission-type :explore-interior
+                         :target (get-interior-exploration-target lieutenant current-pos)}
+      :hurry-up-and-wait {:mission-type :hurry-up-and-wait
+                          :target (get-waiting-area lieutenant current-pos)}
+      {:mission-type mission-type :target nil})))
+
+(defn should-produce?
+  "Returns true if Lieutenant's cities should continue producing.
+   Production stops when Lieutenant enters :waiting-for-transport state."
+  [lieutenant]
+  (not= :waiting-for-transport (:fsm-state lieutenant)))
 
 (defn process-lieutenant
   "Process one step of the Lieutenant FSM.
