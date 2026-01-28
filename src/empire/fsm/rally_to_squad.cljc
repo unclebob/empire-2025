@@ -5,55 +5,16 @@
    Terminal: Join squad and emit :unit-arrived event, or get stuck."
   (:require [empire.atoms :as atoms]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.fsm.explorer-utils :as utils]
-            [empire.ui.coordinates :as coords]))
+            [empire.fsm.explorer-utils :as utils]))
 
-;; --- Helper Functions ---
-
-(defn- blocked-by-army-or-city?
-  "Returns true if the cell at pos contains a friendly army or is a friendly city."
-  [pos]
-  (let [cell (get-in @atoms/game-map pos)]
-    (or
-     ;; Friendly city
-     (and (= :city (:type cell))
-          (= :computer (:city-status cell)))
-     ;; Friendly army
-     (and (:contents cell)
-          (= :army (:type (:contents cell)))
-          (= :computer (:owner (:contents cell)))))))
-
-(defn- adjacent?
-  "Returns true if pos1 and pos2 are orthogonally or diagonally adjacent."
-  [pos1 pos2]
-  (let [[r1 c1] pos1
-        [r2 c2] pos2
-        dr (Math/abs (- r1 r2))
-        dc (Math/abs (- c1 c2))]
-    (and (<= dr 1) (<= dc 1) (not (and (= dr 0) (= dc 0))))))
-
-(defn- find-sidestep-move
-  "Find a move that makes progress toward rally-point while avoiding direct path.
-   Prefers non-backtrack moves. Returns [row col] or nil."
-  [pos rally-point recent-moves]
-  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
-        non-backtrack (remove (set recent-moves) valid-moves)
-        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
-    (when (seq moves-to-try)
-      ;; Score moves by distance to rally-point, pick closest
-      (let [scored (map (fn [m] [m (coords/manhattan-distance m rally-point)]) moves-to-try)
-            min-dist (apply min (map second scored))
-            best-moves (filter #(= min-dist (second %)) scored)]
-        (first (rand-nth best-moves))))))
 
 ;; --- Guards ---
 
 (defn- stuck?
   "Guard: Returns true if there are no valid moves available."
   [ctx]
-  (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
-    (empty? valid-moves)))
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    (utils/stuck? pos @atoms/game-map)))
 
 (defn- at-rally-point?
   "Guard: Returns true if current position equals rally-point."
@@ -68,8 +29,8 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])]
     (and rally-point
-         (adjacent? pos rally-point)
-         (blocked-by-army-or-city? rally-point))))
+         (utils/adjacent? pos rally-point)
+         (utils/blocked-by-army-or-city? rally-point @atoms/game-map))))
 
 (defn- can-move-toward?
   "Guard: Returns true if pathfinding can find next step toward rally-point."
@@ -85,7 +46,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
-    (boolean (find-sidestep-move pos rally-point recent-moves))))
+    (boolean (utils/find-sidestep-move pos rally-point recent-moves @atoms/game-map))))
 
 (defn- on-empty-land-adjacent-to-rally?
   "Guard: Returns true if current position is empty land cell adjacent to rally-point.
@@ -95,9 +56,7 @@
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         cell (get-in @atoms/game-map pos)]
     (and (= :land (:type cell))
-         (adjacent? pos rally-point))))
-
-(defn- always [_ctx] true)
+         (utils/adjacent? pos rally-point))))
 
 ;; --- Event Creation ---
 
@@ -134,7 +93,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos rally-point recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos rally-point recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -157,7 +116,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos rally-point recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos rally-point recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -168,7 +127,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos rally-point recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos rally-point recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -194,7 +153,7 @@
    ;; Sidestepping transitions
    [:sidestepping-rally  stuck?                           [:terminal :stuck]    terminal-action]
    [:sidestepping-rally  on-empty-land-adjacent-to-rally? [:terminal :joined]   join-squad-action]
-   [:sidestepping-rally  always                           :sidestepping-rally   sidestep-to-land-action]])
+   [:sidestepping-rally  utils/always                     :sidestepping-rally   sidestep-to-land-action]])
 
 ;; --- Create Mission ---
 

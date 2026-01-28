@@ -6,51 +6,21 @@
             [empire.movement.pathfinding :as pathfinding]
             [empire.fsm.explorer-utils :as utils]))
 
-;; --- Helper Functions ---
-
-(defn- adjacent?
-  "Returns true if pos1 and pos2 are orthogonally or diagonally adjacent."
-  [pos1 pos2]
-  (let [[r1 c1] pos1
-        [r2 c2] pos2
-        dr (Math/abs (- r1 r2))
-        dc (Math/abs (- c1 c2))]
-    (and (<= dr 1) (<= dc 1) (not (and (= dr 0) (= dc 0))))))
-
-(defn- find-sidestep-move
-  "Find a move that makes progress toward target while avoiding direct path.
-   Prefers non-backtrack moves. Returns [row col] or nil."
-  [pos target recent-moves]
-  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
-        non-backtrack (remove (set recent-moves) valid-moves)
-        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
-    (when (seq moves-to-try)
-      ;; Score moves by distance to target, pick closest
-      (let [scored (map (fn [m]
-                          (let [[mr mc] m
-                                [tr tc] target
-                                dist (+ (Math/abs (- mr tr)) (Math/abs (- mc tc)))]
-                            [m dist]))
-                        moves-to-try)
-            min-dist (apply min (map second scored))
-            best-moves (filter #(= min-dist (second %)) scored)]
-        (first (rand-nth best-moves))))))
 
 ;; --- Guards ---
 
 (defn- stuck?
   "Guard: Returns true if there are no valid moves available."
   [ctx]
-  (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
-    (empty? valid-moves)))
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    (utils/stuck? pos @atoms/game-map)))
 
 (defn adjacent-to-target?
   "Guard: Returns true if current position is adjacent to target city."
   [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
         target (get-in ctx [:entity :fsm-data :target-city])]
-    (adjacent? pos target)))
+    (utils/adjacent? pos target)))
 
 (defn city-captured?
   "Guard: Returns true if target city belongs to computer."
@@ -76,9 +46,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         target (get-in ctx [:entity :fsm-data :target-city])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
-    (boolean (find-sidestep-move pos target recent-moves))))
-
-(defn- always [_ctx] true)
+    (boolean (utils/find-sidestep-move pos target recent-moves @atoms/game-map))))
 
 ;; --- Actions ---
 
@@ -133,7 +101,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         target (get-in ctx [:entity :fsm-data :target-city])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos target recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos target recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -159,7 +127,7 @@
    ;; Attacking transitions
    [:attacking  city-captured?       [:terminal :conquered]  report-conquest-action]
    [:attacking  city-already-ours?   [:terminal :conquered]  report-already-captured-action]
-   [:attacking  always               :attacking              attempt-capture-action]])
+   [:attacking  utils/always         :attacking              attempt-capture-action]])
 
 ;; --- Create Mission ---
 

@@ -2,7 +2,8 @@
   "Shared utilities for FSM explorers.
    Common functions for movement, event creation, and backtracking."
   (:require [empire.atoms :as atoms]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.movement.map-utils :as map-utils]
+            [empire.ui.coordinates :as coords]))
 
 (def backtrack-limit 10)
 
@@ -92,3 +93,52 @@
                          cell (get-in computer-map [nr nc])]
                      (= :unexplored (:type cell))))
                  map-utils/neighbor-offsets)))
+
+;; --- Position Utilities ---
+
+(defn adjacent?
+  "Returns true if pos1 and pos2 are orthogonally or diagonally adjacent."
+  [pos1 pos2]
+  (let [[r1 c1] pos1
+        [r2 c2] pos2
+        dr (Math/abs (- r1 r2))
+        dc (Math/abs (- c1 c2))]
+    (and (<= dr 1) (<= dc 1) (not (and (= dr 0) (= dc 0))))))
+
+(defn blocked-by-army-or-city?
+  "Returns true if the cell at pos contains a friendly army or is a friendly city."
+  [pos game-map]
+  (let [cell (get-in game-map pos)]
+    (or
+     (and (= :city (:type cell))
+          (= :computer (:city-status cell)))
+     (and (:contents cell)
+          (= :army (:type (:contents cell)))
+          (= :computer (:owner (:contents cell)))))))
+
+;; --- Sidestep Movement ---
+
+(defn find-sidestep-move
+  "Find a move that makes progress toward target while avoiding direct path.
+   Prefers non-backtrack moves. Returns [row col] or nil."
+  [pos target recent-moves game-map]
+  (let [valid-moves (get-valid-moves pos game-map)
+        non-backtrack (remove (set recent-moves) valid-moves)
+        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
+    (when (seq moves-to-try)
+      (let [scored (map (fn [m] [m (coords/manhattan-distance m target)]) moves-to-try)
+            min-dist (apply min (map second scored))
+            best-moves (filter #(= min-dist (second %)) scored)]
+        (first (rand-nth best-moves))))))
+
+;; --- Common Guards ---
+
+(defn stuck?
+  "Guard: Returns true if there are no valid moves available."
+  [pos game-map]
+  (empty? (get-valid-moves pos game-map)))
+
+(defn always
+  "Guard: Always returns true."
+  [_ctx]
+  true)

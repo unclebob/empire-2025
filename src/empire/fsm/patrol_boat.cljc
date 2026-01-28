@@ -3,7 +3,8 @@
    Explores oceans, maps coastlines, discovers continents, and reports enemies.
    Flees from threats rather than engaging."
   (:require [empire.atoms :as atoms]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.movement.map-utils :as map-utils]
+            [empire.fsm.explorer-utils :as utils]))
 
 ;; --- Helper Functions ---
 
@@ -129,8 +130,6 @@
         enemies (find-all-enemies ctx)]
     (not-any? #(<= (manhattan-distance pos %) 3) enemies)))
 
-(defn- always [_ctx] true)
-
 ;; --- Actions ---
 
 (defn- explore-sea-action
@@ -250,16 +249,16 @@
    [:exploring  enemy-adjacent?        :fleeing          flee-and-report-action]
    [:exploring  land-adjacent?         :following-coast  begin-coast-follow-action]
    [:exploring  unexplored-sea-nearby? :exploring        explore-sea-action]
-   [:exploring  always                 :exploring        seek-unexplored-action]
+   [:exploring  utils/always                 :exploring        seek-unexplored-action]
 
    ;; Following-coast transitions
    [:following-coast  enemy-adjacent?  :fleeing    flee-and-report-action]
    [:following-coast  coast-complete?  :exploring  resume-explore-action]
-   [:following-coast  always           :following-coast  follow-coast-action]
+   [:following-coast  utils/always           :following-coast  follow-coast-action]
 
    ;; Fleeing transitions
    [:fleeing  safe-distance?  :exploring  resume-explore-action]
-   [:fleeing  always          :fleeing    flee-action]])
+   [:fleeing  utils/always          :fleeing    flee-action]])
 
 ;; --- Create Patrol Boat ---
 
