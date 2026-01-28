@@ -1,8 +1,10 @@
 (ns empire.fsm.squad
   "Squad FSM - tactical unit group with shared mission.
-   Coordinates 2-6 units for attack and defense operations."
+   Coordinates 2-6 units for attack and defense operations.
+   Squad owns its armies and steps them each turn."
   (:require [empire.fsm.engine :as engine]
-            [empire.fsm.context :as context]))
+            [empire.fsm.context :as context]
+            [empire.atoms :as atoms]))
 
 (defn adjacent?
   "Returns true if two [row col] positions are adjacent (including diagonals)."
@@ -87,3 +89,132 @@
     (if event
       (process-event sq-after-pop event)
       sq-after-pop)))
+
+;; --- Expanded Squad Functionality ---
+
+(defn create-squad-for-city
+  "Create a squad to conquer a free city.
+   squad-id - unique identifier for this squad
+   target-city - [r c] coordinates of city to conquer
+   rally-point - [r c] assembly point near target
+   lieutenant-id - owning Lieutenant for reporting
+   target-size - desired number of armies (3-5)
+   current-round - current game round for deadline calculation"
+  [squad-id target-city rally-point lieutenant-id target-size current-round]
+  {:fsm squad-fsm
+   :fsm-state :assembling
+   :fsm-data {:squad-id squad-id
+              :target target-city
+              :target-city target-city
+              :rally-point rally-point
+              :mission-type :attack-city
+              :expected-units []
+              :target-size target-size
+              :assembly-deadline (+ current-round 10)
+              :armies []
+              :armies-present-count 0}
+   :event-queue []
+   :units []
+   :lieutenant-id lieutenant-id})
+
+(defn add-army
+  "Add an army to the squad with :rallying status."
+  [squad army-id]
+  (update-in squad [:fsm-data :armies] conj
+             {:unit-id army-id :status :rallying :coords nil}))
+
+(defn- update-army
+  "Update an army's fields by unit-id."
+  [squad army-id updates]
+  (update-in squad [:fsm-data :armies]
+             (fn [armies]
+               (mapv (fn [a]
+                       (if (= army-id (:unit-id a))
+                         (merge a updates)
+                         a))
+                     armies))))
+
+(defn mark-army-arrived
+  "Mark army as :present and record its coordinates."
+  [squad army-id coords]
+  (-> squad
+      (update-army army-id {:status :present :coords coords})
+      (update-in [:fsm-data :armies-present-count] inc)))
+
+(defn mark-army-lost
+  "Mark army as :lost (destroyed)."
+  [squad army-id]
+  (let [current-army (first (filter #(= army-id (:unit-id %))
+                                    (get-in squad [:fsm-data :armies])))
+        was-present? (= :present (:status current-army))]
+    (cond-> (update-army squad army-id {:status :lost})
+      was-present? (update-in [:fsm-data :armies-present-count] dec))))
+
+(defn get-surviving-armies
+  "Get all armies not marked as :lost."
+  [squad]
+  (filter #(not= :lost (:status %))
+          (get-in squad [:fsm-data :armies])))
+
+;; --- Guards for Expanded FSM ---
+
+(defn assembly-complete?
+  "Guard: All target-size armies have arrived."
+  [ctx]
+  (let [target-size (get-in ctx [:entity :fsm-data :target-size])
+        present-count (get-in ctx [:entity :fsm-data :armies-present-count])]
+    (>= present-count target-size)))
+
+(defn assembly-timeout?
+  "Guard: Assembly deadline reached with at least 3 armies present."
+  [ctx]
+  (let [deadline (get-in ctx [:entity :fsm-data :assembly-deadline])
+        current-round (:round-number ctx)
+        present-count (get-in ctx [:entity :fsm-data :armies-present-count])]
+    (and (>= current-round deadline)
+         (>= present-count 3))))
+
+(defn squad-destroyed?
+  "Guard: All armies have been lost."
+  [ctx]
+  (let [armies (get-in ctx [:entity :fsm-data :armies])
+        active (filter #(not= :lost (:status %)) armies)]
+    (and (seq armies) (empty? active))))
+
+(defn city-conquered?
+  "Guard: Target city now belongs to computer."
+  [ctx]
+  (let [target (get-in ctx [:entity :fsm-data :target-city])
+        cell (get-in (:game-map ctx) target)]
+    (= :computer (:city-status cell))))
+
+;; --- Actions for Expanded FSM ---
+
+(defn disband-success-action
+  "Action: City conquered. Notify Lieutenant, release armies to staging."
+  [ctx]
+  (let [squad-id (get-in ctx [:entity :fsm-data :squad-id])
+        lt-id (:lieutenant-id (:entity ctx))
+        target (get-in ctx [:entity :fsm-data :target-city])
+        armies (get-in ctx [:entity :fsm-data :armies])
+        survivors (filter #(not= :lost (:status %)) armies)]
+    {:events [{:type :squad-mission-complete
+               :priority :high
+               :to lt-id
+               :data {:squad-id squad-id
+                      :result :success
+                      :city-conquered target
+                      :surviving-armies (mapv :unit-id survivors)}}]}))
+
+(defn disband-failure-action
+  "Action: Squad failed. Notify Lieutenant to create new squad."
+  [ctx]
+  (let [squad-id (get-in ctx [:entity :fsm-data :squad-id])
+        lt-id (:lieutenant-id (:entity ctx))
+        target (get-in ctx [:entity :fsm-data :target-city])]
+    {:events [{:type :squad-mission-complete
+               :priority :high
+               :to lt-id
+               :data {:squad-id squad-id
+                      :result :failed
+                      :target-city target}}]}))

@@ -3,6 +3,7 @@
    Controls cities, assigns missions to units, forms squads."
   (:require [empire.fsm.engine :as engine]
             [empire.fsm.context :as context]
+            [empire.fsm.squad :as squad]
             [empire.atoms :as atoms]
             [empire.movement.map-utils :as map-utils]))
 
@@ -63,7 +64,14 @@
    :frontier-coastal-cells #{}
    :coastline-explorer-count 0
    :interior-explorer-count 0
-   :waiting-army-count 0})
+   :waiting-army-count 0
+   ;; New fields for expanded functionality
+   :squads []
+   :transports []
+   :transport-landings []
+   :waiting-armies []
+   :beach-assignments {}
+   :next-squad-id 1})
 
 (defn- classify-cell
   "Returns :coastal if pos is land adjacent to sea, :landlocked if land not adjacent to sea, nil otherwise."
@@ -250,6 +258,57 @@
                         reports)))
         (decrement-explorer-count mission-type))))
 
+;; --- Squad Management ---
+
+(defn create-squad-for-free-city
+  "Create a new squad targeting a free city.
+   Returns updated lieutenant with new squad added."
+  [lieutenant target-city]
+  (let [squad-id (keyword (str "squad-" (:next-squad-id lieutenant)))
+        ;; Simple rally point: 2 cells toward the city from first owned city
+        first-city (first (:cities lieutenant))
+        [tr tc] target-city
+        [fr fc] first-city
+        rally-point [(+ fr (if (> tr fr) 2 (if (< tr fr) -2 0)))
+                     (+ fc (if (> tc fc) 2 (if (< tc fc) -2 0)))]
+        current-round @atoms/round-number
+        new-squad (squad/create-squad-for-city squad-id target-city rally-point
+                                                (:name lieutenant) 3 current-round)]
+    (-> lieutenant
+        (update :squads conj new-squad)
+        (update :next-squad-id inc))))
+
+(defn- handle-squad-mission-complete
+  "Handle squad-mission-complete event: remove squad, process survivors."
+  [lieutenant event]
+  (let [squad-id (get-in event [:data :squad-id])
+        result (get-in event [:data :result])
+        surviving-armies (get-in event [:data :surviving-armies])]
+    (-> lieutenant
+        (update :squads (fn [squads]
+                          (vec (remove #(= squad-id (get-in % [:fsm-data :squad-id])) squads))))
+        (update :waiting-armies into surviving-armies))))
+
+;; --- Transport-Landing Management ---
+
+(defn- handle-transport-landing-found
+  "Handle transport-landing-found event: add to list."
+  [lieutenant event]
+  (let [landing-data (:data event)]
+    (update lieutenant :transport-landings conj landing-data)))
+
+(defn- handle-transport-returned
+  "Handle transport-returned event: mark transport as available for loading."
+  [lieutenant event]
+  (let [transport-id (get-in event [:data :transport-id])]
+    (update lieutenant :transports
+            (fn [transports]
+              (mapv (fn [t]
+                      (if (= transport-id (:transport-id t))
+                        (assoc t :status :loading)
+                        t))
+                    transports)))))
+
 (defn- process-event
   "Process a single event from the queue."
   [lieutenant event]
@@ -260,6 +319,9 @@
     :city-conquered (handle-city-conquered lieutenant event)
     :coastline-mapped (handle-coastline-mapped lieutenant event)
     :cells-discovered (handle-cells-discovered lieutenant event)
+    :squad-mission-complete (handle-squad-mission-complete lieutenant event)
+    :transport-landing-found (handle-transport-landing-found lieutenant event)
+    :transport-returned (handle-transport-returned lieutenant event)
     lieutenant))
 
 (defn- manhattan-distance
