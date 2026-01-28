@@ -5,45 +5,16 @@
    Terminal: Report to new Lieutenant, or get stuck."
   (:require [empire.atoms :as atoms]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.fsm.explorer-utils :as utils]
-            [empire.ui.coordinates :as coords]))
+            [empire.fsm.explorer-utils :as utils]))
 
-;; --- Helper Functions ---
-
-(defn- blocked-by-army-or-city?
-  "Returns true if the cell at pos contains a friendly army or is a friendly city."
-  [pos]
-  (let [cell (get-in @atoms/game-map pos)]
-    (or
-     ;; Friendly city
-     (and (= :city (:type cell))
-          (= :computer (:city-status cell)))
-     ;; Friendly army
-     (and (:contents cell)
-          (= :army (:type (:contents cell)))
-          (= :computer (:owner (:contents cell)))))))
-
-(defn- find-sidestep-move
-  "Find a move that makes progress toward rally-point while avoiding direct path.
-   Prefers non-backtrack moves. Returns [row col] or nil."
-  [pos rally-point recent-moves]
-  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
-        non-backtrack (remove (set recent-moves) valid-moves)
-        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
-    (when (seq moves-to-try)
-      (let [scored (map (fn [m] [m (coords/manhattan-distance m rally-point)]) moves-to-try)
-            min-dist (apply min (map second scored))
-            best-moves (filter #(= min-dist (second %)) scored)]
-        (first (rand-nth best-moves))))))
 
 ;; --- Guards ---
 
 (defn- stuck?
   "Guard: Returns true if there are no valid moves available."
   [ctx]
-  (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
-    (empty? valid-moves)))
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    (utils/stuck? pos @atoms/game-map)))
 
 (defn- has-rally-point?
   "Guard: Returns true if rally-point has been assigned."
@@ -76,9 +47,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
-    (boolean (find-sidestep-move pos rally-point recent-moves))))
-
-(defn- always [_ctx] true)
+    (boolean (utils/find-sidestep-move pos rally-point recent-moves @atoms/game-map))))
 
 ;; --- Actions ---
 
@@ -138,7 +107,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         rally-point (get-in ctx [:entity :fsm-data :rally-point])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos rally-point recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos rally-point recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))

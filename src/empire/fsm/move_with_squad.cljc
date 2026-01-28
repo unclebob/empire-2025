@@ -7,25 +7,6 @@
             [empire.fsm.context :as context]
             [empire.fsm.explorer-utils :as utils]))
 
-;; --- Helper Functions ---
-
-(defn- find-sidestep-move
-  "Find a move that makes progress toward target while avoiding direct path.
-   Prefers non-backtrack moves. Returns [row col] or nil."
-  [pos target recent-moves]
-  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
-        non-backtrack (remove (set recent-moves) valid-moves)
-        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
-    (when (seq moves-to-try)
-      (let [scored (map (fn [m]
-                          (let [[mr mc] m
-                                [tr tc] target
-                                dist (+ (Math/abs (- mr tr)) (Math/abs (- mc tc)))]
-                            [m dist]))
-                        moves-to-try)
-            min-dist (apply min (map second scored))
-            best-moves (filter #(= min-dist (second %)) scored)]
-        (first (rand-nth best-moves))))))
 
 ;; --- Guards ---
 
@@ -54,9 +35,8 @@
 (defn- stuck?
   "Guard: No valid moves available."
   [ctx]
-  (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
-    (empty? valid-moves)))
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    (utils/stuck? pos @atoms/game-map)))
 
 (defn- can-move-toward?
   "Guard: Pathfinding can find next step toward ordered position."
@@ -72,7 +52,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         target (get-in ctx [:entity :fsm-data :ordered-position])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
-    (boolean (and target (find-sidestep-move pos target recent-moves)))))
+    (boolean (and target (utils/find-sidestep-move pos target recent-moves @atoms/game-map)))))
 
 (defn- move-blocked?
   "Guard: Cannot move toward target (for reporting blocked status)."
@@ -81,10 +61,8 @@
         target (get-in ctx [:entity :fsm-data :ordered-position])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
         next-step (when target (pathfinding/next-step-toward pos target))
-        sidestep (when target (find-sidestep-move pos target recent-moves))]
+        sidestep (when target (utils/find-sidestep-move pos target recent-moves @atoms/game-map))]
     (and target (nil? next-step) (nil? sidestep))))
-
-(defn- always [_ctx] true)
 
 ;; --- Actions ---
 
@@ -151,7 +129,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         target (get-in ctx [:entity :fsm-data :ordered-position])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos target recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos target recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -172,7 +150,7 @@
    [:awaiting-orders  squad-disbanded?  [:terminal :disbanded]    terminal-disbanded-action]
    [:awaiting-orders  squad-attacking?  [:terminal :attack-mode]  terminal-attack-action]
    [:awaiting-orders  has-move-order?   :executing-move           accept-order-action]
-   [:awaiting-orders  always            :awaiting-orders          (constantly nil)]
+   [:awaiting-orders  utils/always      :awaiting-orders          (constantly nil)]
 
    ;; Executing-move transitions
    [:executing-move  stuck?               [:terminal :stuck]   terminal-action]

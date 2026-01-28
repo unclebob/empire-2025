@@ -5,19 +5,9 @@
    Terminal: Successfully boarded, stuck, or transport gone."
   (:require [empire.atoms :as atoms]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.fsm.explorer-utils :as utils]
-            [empire.ui.coordinates :as coords]))
+            [empire.fsm.explorer-utils :as utils]))
 
 ;; --- Helper Functions ---
-
-(defn- adjacent?
-  "Returns true if pos1 and pos2 are orthogonally or diagonally adjacent."
-  [pos1 pos2]
-  (let [[r1 c1] pos1
-        [r2 c2] pos2
-        dr (Math/abs (- r1 r2))
-        dc (Math/abs (- c1 c2))]
-    (and (<= dr 1) (<= dc 1) (not (and (= dr 0) (= dc 0))))))
 
 (defn- transport-at-landing?
   "Returns true if a computer transport is at the transport-landing position."
@@ -34,27 +24,13 @@
   (let [cell (get-in @atoms/game-map transport-pos)]
     (get cell :army-count 0)))
 
-(defn- find-sidestep-move
-  "Find a move that makes progress toward beach cell while avoiding direct path.
-   Prefers non-backtrack moves. Returns [row col] or nil."
-  [pos beach-cell recent-moves]
-  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
-        non-backtrack (remove (set recent-moves) valid-moves)
-        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
-    (when (seq moves-to-try)
-      (let [scored (map (fn [m] [m (coords/manhattan-distance m beach-cell)]) moves-to-try)
-            min-dist (apply min (map second scored))
-            best-moves (filter #(= min-dist (second %)) scored)]
-        (first (rand-nth best-moves))))))
-
 ;; --- Guards ---
 
 (defn- stuck?
   "Guard: Returns true if there are no valid moves available."
   [ctx]
-  (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
-    (empty? valid-moves)))
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    (utils/stuck? pos @atoms/game-map)))
 
 (defn- transport-gone?
   "Guard: Returns true if transport is no longer at expected transport-landing."
@@ -67,7 +43,7 @@
   [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
         transport-landing (get-in ctx [:entity :fsm-data :transport-landing])]
-    (adjacent? pos transport-landing)))
+    (utils/adjacent? pos transport-landing)))
 
 (defn- transport-has-room?
   "Guard: Returns true if transport has space for another army (max 6)."
@@ -97,9 +73,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         beach-cell (get-in ctx [:entity :fsm-data :assigned-beach-cell])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
-    (boolean (find-sidestep-move pos beach-cell recent-moves))))
-
-(defn- always [_ctx] true)
+    (boolean (utils/find-sidestep-move pos beach-cell recent-moves @atoms/game-map))))
 
 ;; --- Actions ---
 
@@ -154,7 +128,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         beach-cell (get-in ctx [:entity :fsm-data :assigned-beach-cell])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos beach-cell recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos beach-cell recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -182,7 +156,7 @@
    [:boarding  transport-gone?        [:terminal :aborted]  terminal-abort-action]
    [:boarding  transport-has-room?    [:terminal :boarded]  board-action]
    [:boarding  transport-full?        :boarding             wait-for-space-action]
-   [:boarding  always                 :boarding             wait-for-space-action]])
+   [:boarding  utils/always           :boarding             wait-for-space-action]])
 
 ;; --- Create Mission ---
 
@@ -195,7 +169,7 @@
    unit-id - for Lieutenant tracking"
   [pos transport-id transport-landing assigned-beach-cell unit-id]
   (let [at-beach-adjacent? (and (= pos assigned-beach-cell)
-                                (adjacent? pos transport-landing))]
+                                (utils/adjacent? pos transport-landing))]
     {:fsm board-transport-fsm
      :fsm-state (if at-beach-adjacent? :boarding :moving-to-beach)
      :fsm-data {:mission-type :board-transport

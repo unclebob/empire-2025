@@ -3,7 +3,8 @@
    Launched from city, flies outbound in random direction, turns back at half fuel,
    returns to base to refuel, then repeats. Reports enemy sightings to Lieutenant."
   (:require [empire.atoms :as atoms]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.movement.map-utils :as map-utils]
+            [empire.fsm.explorer-utils :as utils]))
 
 ;; --- Helper Functions ---
 
@@ -115,8 +116,6 @@
         max-fuel (get-in ctx [:entity :fsm-data :max-fuel])]
     (= fuel max-fuel)))
 
-(defn- always [_ctx] true)
-
 ;; --- Actions ---
 
 (defn pick-direction-action
@@ -208,22 +207,22 @@
    - :landing     - At base, refueling"
   [;; Launching transitions
    [:launching  clear-of-city?  :flying-out  pick-direction-action]
-   [:launching  always          :launching   takeoff-action]
+   [:launching  utils/always          :launching   takeoff-action]
 
    ;; Flying out transitions
    [:flying-out  fuel-at-half?    :returning   turn-back-action]
    [:flying-out  enemy-adjacent?  :flying-out  report-and-sidestep-action]
    [:flying-out  at-map-edge?     :returning   turn-back-action]
-   [:flying-out  always           :flying-out  fly-outbound-action]
+   [:flying-out  utils/always           :flying-out  fly-outbound-action]
 
    ;; Returning transitions
    [:returning  at-base?         :landing    land-action]
    [:returning  enemy-adjacent?  :returning  report-and-sidestep-action]
-   [:returning  always           :returning  fly-toward-base-action]
+   [:returning  utils/always           :returning  fly-toward-base-action]
 
    ;; Landing transitions
    [:landing  refueled?  :launching  (constantly nil)]
-   [:landing  always     :landing    refuel-action]])
+   [:landing  utils/always     :landing    refuel-action]])
 
 ;; --- Create Patrol ---
 

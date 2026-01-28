@@ -5,46 +5,15 @@
    Terminal: Arrive and signal :enter-sentry-mode, or get stuck."
   (:require [empire.atoms :as atoms]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.fsm.explorer-utils :as utils]
-            [empire.ui.coordinates :as coords]))
-
-;; --- Helper Functions ---
-
-(defn- blocked-by-army-or-city?
-  "Returns true if the cell at pos contains a friendly army or is a friendly city."
-  [pos]
-  (let [cell (get-in @atoms/game-map pos)]
-    (or
-     ;; Friendly city
-     (and (= :city (:type cell))
-          (= :computer (:city-status cell)))
-     ;; Friendly army
-     (and (:contents cell)
-          (= :army (:type (:contents cell)))
-          (= :computer (:owner (:contents cell)))))))
-
-(defn- find-sidestep-move
-  "Find a move that makes progress toward destination while avoiding direct path.
-   Prefers non-backtrack moves. Returns [row col] or nil."
-  [pos dest recent-moves]
-  (let [valid-moves (utils/get-valid-moves pos @atoms/game-map)
-        non-backtrack (remove (set recent-moves) valid-moves)
-        moves-to-try (if (seq non-backtrack) non-backtrack valid-moves)]
-    (when (seq moves-to-try)
-      ;; Score moves by distance to destination, pick closest
-      (let [scored (map (fn [m] [m (coords/manhattan-distance m dest)]) moves-to-try)
-            min-dist (apply min (map second scored))
-            best-moves (filter #(= min-dist (second %)) scored)]
-        (first (rand-nth best-moves))))))
+            [empire.fsm.explorer-utils :as utils]))
 
 ;; --- Guards ---
 
 (defn- stuck?
   "Guard: Returns true if there are no valid moves available."
   [ctx]
-  (let [pos (get-in ctx [:entity :fsm-data :position])
-        valid-moves (utils/get-valid-moves pos @atoms/game-map)]
-    (empty? valid-moves)))
+  (let [pos (get-in ctx [:entity :fsm-data :position])]
+    (utils/stuck? pos @atoms/game-map)))
 
 (defn- at-destination?
   "Guard: Returns true if current position equals destination."
@@ -57,7 +26,7 @@
   "Guard: Returns true if destination is occupied by friendly army or city."
   [ctx]
   (let [dest (get-in ctx [:entity :fsm-data :destination])]
-    (and dest (blocked-by-army-or-city? dest))))
+    (and dest (utils/blocked-by-army-or-city? dest @atoms/game-map))))
 
 (defn- can-move-toward?
   "Guard: Returns true if pathfinding can find next step toward destination."
@@ -73,7 +42,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         dest (get-in ctx [:entity :fsm-data :destination])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])]
-    (boolean (find-sidestep-move pos dest recent-moves))))
+    (boolean (utils/find-sidestep-move pos dest recent-moves @atoms/game-map))))
 
 (defn- on-empty-land?
   "Guard: Returns true if current position is empty land cell.
@@ -83,7 +52,6 @@
         cell (get-in @atoms/game-map pos)]
     (= :land (:type cell))))
 
-(defn- always [_ctx] true)
 
 ;; --- Actions ---
 
@@ -109,7 +77,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         dest (get-in ctx [:entity :fsm-data :destination])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos dest recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos dest recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -132,7 +100,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         dest (get-in ctx [:entity :fsm-data :destination])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos dest recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos dest recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -143,7 +111,7 @@
   (let [pos (get-in ctx [:entity :fsm-data :position])
         dest (get-in ctx [:entity :fsm-data :destination])
         recent-moves (or (get-in ctx [:entity :fsm-data :recent-moves]) [])
-        sidestep-pos (find-sidestep-move pos dest recent-moves)]
+        sidestep-pos (utils/find-sidestep-move pos dest recent-moves @atoms/game-map)]
     (when sidestep-pos
       {:move-to sidestep-pos
        :recent-moves (utils/update-recent-moves recent-moves sidestep-pos)})))
@@ -169,7 +137,7 @@
    ;; Sidestepping transitions
    [:sidestepping-destination  stuck?          [:terminal :stuck]             terminal-action]
    [:sidestepping-destination  on-empty-land?  [:terminal :arrived]           arrive-action]
-   [:sidestepping-destination  always          :sidestepping-destination      sidestep-to-land-action]])
+   [:sidestepping-destination  utils/always    :sidestepping-destination      sidestep-to-land-action]])
 
 ;; --- Create Mission ---
 
