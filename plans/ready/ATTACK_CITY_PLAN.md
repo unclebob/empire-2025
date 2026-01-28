@@ -1,6 +1,6 @@
 # Attack-City FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
@@ -175,10 +175,28 @@ The FSM orchestrates the approach and triggers the move; combat resolution is ex
 
 ---
 
-## Open Questions (Tentative)
+## Resolved Questions
 
-1. Should multiple armies attack simultaneously, or take turns?
-2. How does squad coordinate attack order?
-3. If first army fails, does next army automatically attack?
-4. Should army retreat if heavily damaged? (hits remaining)
-5. How to handle city defended by enemy units?
+1. **Should multiple armies attack simultaneously, or take turns?**
+   - Armies attack independently once squad enters `:attacking` state
+   - Each army executes its own attack-city FSM
+   - First army to successfully capture the city triggers squad success
+
+2. **How does squad coordinate attack order?**
+   - Squad issues `:attack-city` missions to all armies when `at-target-city?` is true
+   - Armies then act independently - no turn-taking coordination needed
+   - See SQUAD_FSM_PLAN.md `begin-attack-action`
+
+3. **If first army fails, does next army automatically attack?**
+   - Yes - remaining armies continue their attack-city FSM
+   - Army destruction during combat is handled by combat system, not FSM
+   - Squad tracks army losses via `:lost` status
+
+4. **Should army retreat if heavily damaged?**
+   - No - armies attack until city is captured or army is destroyed
+   - Simplifies FSM; retreat logic could be added later if needed
+
+5. **How to handle city defended by enemy units?**
+   - Combat system handles this - army moves into city cell
+   - Combat resolves between army and defender
+   - If army survives, it continues; if destroyed, squad notes loss

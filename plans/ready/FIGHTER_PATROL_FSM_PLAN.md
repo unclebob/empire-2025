@@ -1,6 +1,6 @@
 # Fighter Patrol FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
@@ -277,8 +277,19 @@ Refuel at base.
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. Should patrol direction be truly random, or biased away from explored areas?
-2. Should fighter engage lone enemy fighters, or always avoid?
-3. How to handle fighter shot down during patrol?
+1. **Should patrol direction be truly random, or biased away from explored areas?**
+   - Truly random for simplicity
+   - Provides good coverage over time without complex tracking
+   - Can be enhanced later if needed
+
+2. **Should fighter engage lone enemy fighters, or always avoid?**
+   - Always avoid - patrol mission is reconnaissance, not combat
+   - Sidestep enemies and report sightings
+   - Preserves fighters for continued patrol duty
+
+3. **How to handle fighter shot down during patrol?**
+   - Fighter entity is destroyed by combat system
+   - Lieutenant detects missing fighter (not stepped/no longer in list)
+   - Lieutenant produces replacement if under quota (max 3 fighters)
