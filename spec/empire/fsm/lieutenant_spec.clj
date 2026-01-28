@@ -590,3 +590,83 @@
           unit2 (first (filter #(= :army-2 (:unit-id %)) (:direct-reports result)))]
       (should= :ended (:status unit1))
       (should= :active (:status unit2)))))
+
+(describe "Squad management"
+  (before (reset-all-atoms!))
+
+  (describe "create-squad-for-free-city"
+    (it "creates a squad targeting the free city"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
+        (reset! atoms/round-number 100)
+        (let [result (lieutenant/create-squad-for-free-city lt [15 25])]
+          (should= 1 (count (:squads result)))
+          (should= [15 25] (get-in (first (:squads result)) [:fsm-data :target-city])))))
+
+    (it "generates unique squad-id"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])]
+        (reset! atoms/round-number 100)
+        (let [result (lieutenant/create-squad-for-free-city lt [15 25])
+              squad (first (:squads result))]
+          (should-not-be-nil (get-in squad [:fsm-data :squad-id]))))))
+
+  (describe "handling :squad-mission-complete"
+    (it "removes squad from squads list on success"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :squads [{:fsm-data {:squad-id :squad-1 :target-city [15 25]}}]))
+            lt-with-event (engine/post-event lt {:type :squad-mission-complete
+                                                  :priority :high
+                                                  :data {:squad-id :squad-1
+                                                         :result :success
+                                                         :surviving-armies [:army-1 :army-2]}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= 0 (count (:squads result)))))
+
+    (it "adds surviving armies to waiting-armies on success"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :squads [{:fsm-data {:squad-id :squad-1 :target-city [15 25]}}]))
+            lt-with-event (engine/post-event lt {:type :squad-mission-complete
+                                                  :priority :high
+                                                  :data {:squad-id :squad-1
+                                                         :result :success
+                                                         :surviving-armies [:army-1 :army-2]}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= [:army-1 :army-2] (:waiting-armies result))))))
+
+(describe "Transport-landing management"
+  (before (reset-all-atoms!))
+
+  (describe "handling :transport-landing-found"
+    (it "adds transport-landing to list"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
+            lt-with-event (engine/post-event lt {:type :transport-landing-found
+                                                  :priority :normal
+                                                  :data {:transport-landing [5 10]
+                                                         :beach [[5 9] [6 9] [6 10]]
+                                                         :capacity 3}})
+            result (lieutenant/process-lieutenant lt-with-event)]
+        (should= 1 (count (:transport-landings result)))))
+
+    (it "stores transport-landing data correctly"
+      (let [lt (lieutenant/create-lieutenant "Alpha" [10 20])
+            landing-data {:transport-landing [5 10]
+                          :beach [[5 9] [6 9] [6 10]]
+                          :capacity 3}
+            lt-with-event (engine/post-event lt {:type :transport-landing-found
+                                                  :priority :normal
+                                                  :data landing-data})
+            result (lieutenant/process-lieutenant lt-with-event)
+            stored-landing (first (:transport-landings result))]
+        (should= [5 10] (:transport-landing stored-landing))
+        (should= [[5 9] [6 9] [6 10]] (:beach stored-landing))
+        (should= 3 (:capacity stored-landing)))))
+
+  (describe "handling :transport-returned"
+    (it "increments available-transport count"
+      (let [lt (-> (lieutenant/create-lieutenant "Alpha" [10 20])
+                   (assoc :transports [{:transport-id :t1 :status :sailing}]))
+            lt-with-event (engine/post-event lt {:type :transport-returned
+                                                  :priority :normal
+                                                  :data {:transport-id :t1}})
+            result (lieutenant/process-lieutenant lt-with-event)
+            transport (first (:transports result))]
+        (should= :loading (:status transport))))))

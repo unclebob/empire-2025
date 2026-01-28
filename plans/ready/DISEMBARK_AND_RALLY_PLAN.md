@@ -1,10 +1,16 @@
 # Disembark-and-Rally FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
-Army mission after being unloaded from a transport onto a beachhead. Army moves inland to a rally point and reports to the new Lieutenant controlling the territory. Used when establishing a new base overseas.
+Army mission after being unloaded from a transport onto a beach. Army moves inland to a rally point and reports to the new Lieutenant controlling the territory. Used when establishing a new base overseas.
+
+## Terminology
+
+- **Transport-landing**: Sea cell where transport docked
+- **Beach**: Land cells adjacent to transport-landing where armies disembark
+- Army disembarks to beach cell, then moves inland to rally point
 
 ---
 
@@ -57,11 +63,11 @@ Army mission after being unloaded from a transport onto a beachhead. Army moves 
 {:fsm disembark-and-rally-fsm
  :fsm-state :disembarked
  :fsm-data {:mission-type :disembark-and-rally
-            :position [row col]           ; beach landing position
+            :position [row col]           ; beach cell where disembarked
             :rally-point [row col]        ; inland assembly point
             :new-lieutenant-id id         ; Lieutenant for new territory
             :transport-id id              ; transport that delivered us
-            :unit-id id                   ; for Lieutenant tracking
+            :unit-id id                   ; for tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -201,11 +207,11 @@ Similar structure, with additions:
 
 ---
 
-## Open Questions (Tentative)
+## Resolved Questions
 
-1. Who assigns rally points - transport, original Lieutenant, or new Lieutenant?
-2. How to coordinate unloading order with rally point assignment?
-3. What if beach is contested (enemies nearby)?
-4. Should army defend beach while others unload?
-5. Priority: clear beach vs. move to rally point vs. explore?
-6. What happens if new Lieutenant doesn't exist yet? (first army creates it?)
+1. **Who assigns rally points?** - New Lieutenant (spawned by transport on first unload)
+2. **Unloading order/rally assignment?** - Transport unloads one at a time, new Lieutenant assigns rally points
+3. **Beach contested?** - Army moves to rally point; combat handled if enemy encountered
+4. **Defend beach while others unload?** - No, priority is clear beach for next army
+5. **Priority?** - Clear beach cell immediately so next army can disembark
+6. **New Lieutenant doesn't exist yet?** - Transport spawns new Lieutenant when first army disembarks; that Lieutenant assigns rally points to all armies

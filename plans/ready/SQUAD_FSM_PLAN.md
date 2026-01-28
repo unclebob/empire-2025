@@ -1,10 +1,12 @@
 # Squad FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
 The Squad is a command entity that coordinates multiple armies to conquer a free city. Created by the Lieutenant when a free city is discovered. The squad manages army assembly, movement to target, and attack coordination.
+
+**Ownership**: Squad is owned by Lieutenant. Squad owns its armies. Lieutenant steps squads; squads step their armies.
 
 ---
 
@@ -21,9 +23,9 @@ Squad moves toward city (move-with-squad missions)
         ↓
 Squad attacks city (attack-city missions)
         ↓
-City conquered → Squad disbanded → Armies to staging
+City conquered → Squad disbanded → Armies return to Lieutenant → Beach staging
         OR
-Squad failed → Lieutenant creates new Squad
+Squad failed → Squad disbanded → Armies return to Lieutenant → New Squad formed
 ```
 
 ---
@@ -100,6 +102,8 @@ All recruited armies have arrived at rally point.
 ### `assembly-timeout?`
 Assembly deadline reached with at least 3 armies present.
 
+**Note**: If deadline reached with fewer than 3 armies, deadline is extended (not cancelled).
+
 ```clojure
 (defn assembly-timeout? [ctx]
   (let [deadline (get-in ctx [:entity :fsm-data :assembly-deadline])
@@ -107,6 +111,15 @@ Assembly deadline reached with at least 3 armies present.
         present-count (get-in ctx [:entity :fsm-data :armies-present-count])]
     (and (>= current-round deadline)
          (>= present-count 3))))
+
+;; If < 3 at deadline, extend deadline
+(defn extend-deadline-if-needed [ctx]
+  (let [deadline (get-in ctx [:entity :fsm-data :assembly-deadline])
+        current-round (:round ctx)
+        present-count (get-in ctx [:entity :fsm-data :armies-present-count])]
+    (when (and (>= current-round deadline)
+               (< present-count 3))
+      {:assembly-deadline (+ current-round 5)})))  ; extend by 5 rounds
 ```
 
 ### `at-target-city?`
@@ -288,9 +301,50 @@ Lieutenant chooses rally point based on:
 
 ---
 
-## Open Questions
+---
 
-1. How does squad track army positions during movement?
-2. Should squad issue individual move orders, or just waypoints?
-3. How to handle stragglers who fall behind during movement?
-4. Should squad wait for all armies before attacking, or attack with first arrivals?
+## Stepping and Ownership
+
+### Squad Steps Its Armies
+
+Each turn when Lieutenant steps the squad:
+1. Squad processes its own FSM (state transitions, actions)
+2. Squad steps each contained army's FSM
+3. Squad collects army movement results
+4. Squad updates army positions
+
+```clojure
+(defn step-squad [squad ctx]
+  (-> squad
+      (engine/step ctx)              ; step squad's own FSM
+      (step-contained-armies ctx)))  ; step each army
+
+(defn step-contained-armies [squad ctx]
+  (update squad :armies
+          (fn [armies]
+            (mapv #(step-army % ctx) armies))))
+```
+
+### Army Ownership Transfer
+
+**On squad creation**: Lieutenant transfers armies to squad
+```clojure
+;; Armies removed from Lieutenant's direct-reports
+;; Armies added to Squad's :armies list
+```
+
+**On squad dissolution**: Lieutenant receives armies back
+```clojure
+;; Squad reports :squad-mission-complete with :surviving-armies
+;; Lieutenant adds survivors to direct-reports
+;; Lieutenant removes squad from :squads list
+```
+
+---
+
+## Resolved Questions
+
+1. **How does squad track army positions?** - Squad steps armies, armies report position in fsm-data
+2. **Individual orders or waypoints?** - Individual move orders (Option A from original plan)
+3. **Stragglers?** - Squad waits for slowest army before issuing next move order
+4. **Wait for all or attack with first arrivals?** - Attack with first arrivals (at least one adjacent)
