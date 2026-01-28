@@ -1,17 +1,23 @@
 # Board-Transport FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
-Army mission to move to a transport ship and board it. Used for base establishment when Lieutenant loads 6 armies onto a transport for overseas deployment.
+Army mission to move to a transport ship and board it. Used for invasion preparation when Lieutenant loads 6 armies onto a transport for overseas deployment.
+
+## Terminology
+
+- **Transport-landing**: Sea cell where transport docks
+- **Beach**: Land cells adjacent to transport-landing where armies stage
+- Armies move to beach cells, then board transport at transport-landing
 
 ---
 
 ## Behavioral Requirements
 
-1. **Move to Coast**: Navigate to a coastal cell adjacent to the transport
-2. **Board Transport**: When adjacent to transport, board it
+1. **Move to Beach**: Navigate to assigned beach cell adjacent to transport-landing
+2. **Board Transport**: When on beach cell adjacent to transport, board it
 3. **Sidestepping**: Navigate around friendly armies and cities
 4. **Handle Moving Transport**: If transport moves, update target location
 5. **Report Boarded**: Notify Lieutenant when successfully boarded
@@ -19,16 +25,16 @@ Army mission to move to a transport ship and board it. Used for base establishme
 **Terminal Conditions:**
 - Successfully boarded transport
 - Transport destroyed or no longer available
-- No path to transport (landlocked)
+- No path to beach (landlocked)
 
 ---
 
 ## FSM States
 
 ```
-:moving-to-coast  →  Pathfinding toward coastal boarding point
+:moving-to-beach  →  Pathfinding toward assigned beach cell
        ↓
-:boarding         →  Adjacent to transport, boarding
+:boarding         →  On beach cell adjacent to transport, boarding
        ↓
 [:terminal :boarded]  →  Successfully on transport
 ```
@@ -39,16 +45,16 @@ Army mission to move to a transport ship and board it. Used for base establishme
 
 ```clojure
 (def board-transport-fsm
-  [[:moving-to-coast
+  [[:moving-to-beach
      [stuck?                  [:terminal :stuck]    terminal-action]
      [transport-gone?         [:terminal :aborted]  terminal-abort-action]
      [adjacent-to-transport?  :boarding             prepare-board-action]
-     [can-move-toward?        :moving-to-coast      move-toward-action]
-     [needs-sidestep?         :moving-to-coast      sidestep-action]]
+     [can-move-toward?        :moving-to-beach      move-toward-action]
+     [needs-sidestep?         :moving-to-beach      sidestep-action]]
    [:boarding
      [transport-gone?      [:terminal :aborted]  terminal-abort-action]
      [transport-has-room?  [:terminal :boarded]  board-action]
-     [transport-full?      :moving-to-coast      find-alternate-transport-action]]])
+     [transport-full?      :moving-to-beach      find-alternate-transport-action]]])
 ```
 
 ---
@@ -57,13 +63,13 @@ Army mission to move to a transport ship and board it. Used for base establishme
 
 ```clojure
 {:fsm board-transport-fsm
- :fsm-state :moving-to-coast
+ :fsm-state :moving-to-beach
  :fsm-data {:mission-type :board-transport
             :position [row col]
-            :transport-id id              ; specific transport to board
-            :transport-pos [row col]      ; current transport location
-            :boarding-point [row col]     ; coastal cell to reach
-            :unit-id id                   ; for Lieutenant tracking
+            :transport-id id                    ; specific transport to board
+            :transport-landing [row col]        ; transport-landing (sea cell)
+            :assigned-beach-cell [row col]      ; specific beach cell to reach
+            :unit-id id                         ; for Lieutenant tracking
             :recent-moves [[r c] ...]}
  :event-queue []}
 ```
@@ -73,14 +79,13 @@ Army mission to move to a transport ship and board it. Used for base establishme
 ## Guards
 
 ### `adjacent-to-transport?`
-Army is on a coastal cell adjacent to the transport's sea cell.
+Army is on a beach cell adjacent to the transport-landing.
 
 ```clojure
 (defn adjacent-to-transport? [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
-        transport-pos (get-in ctx [:entity :fsm-data :transport-pos])]
-    (and (adjacent? pos transport-pos)
-         (coastal-cell? ctx pos))))
+        transport-landing (get-in ctx [:entity :fsm-data :transport-landing])]
+    (adjacent? pos transport-landing)))
 ```
 
 ### `transport-has-room?`
@@ -95,13 +100,13 @@ Transport has space for another army (max 6).
 ```
 
 ### `transport-gone?`
-Transport no longer at expected position (moved or destroyed).
+Transport no longer at expected transport-landing (moved or destroyed).
 
 ```clojure
 (defn transport-gone? [ctx]
-  (let [transport-pos (get-in ctx [:entity :fsm-data :transport-pos])
+  (let [transport-landing (get-in ctx [:entity :fsm-data :transport-landing])
         transport-id (get-in ctx [:entity :fsm-data :transport-id])
-        cell (get-in (:game-map ctx) transport-pos)
+        cell (get-in (:game-map ctx) transport-landing)
         contents (:contents cell)]
     (or (nil? contents)
         (not= :transport (:type contents))
@@ -167,37 +172,36 @@ Prepare for boarding, verify transport still present.
 ```clojure
 (defn create-board-transport-data
   "Create FSM data for board-transport mission."
-  ([pos transport-id transport-pos]
-   (create-board-transport-data pos transport-id transport-pos nil))
-  ([pos transport-id transport-pos unit-id]
-   (let [boarding-point (find-boarding-point pos transport-pos @atoms/game-map)]
-     {:fsm board-transport-fsm
-      :fsm-state :moving-to-coast
-      :fsm-data {:mission-type :board-transport
-                 :position pos
-                 :transport-id transport-id
-                 :transport-pos transport-pos
-                 :boarding-point boarding-point
-                 :unit-id unit-id
-                 :recent-moves [pos]}})))
+  [pos transport-id transport-landing assigned-beach-cell unit-id]
+  {:fsm board-transport-fsm
+   :fsm-state :moving-to-beach
+   :fsm-data {:mission-type :board-transport
+              :position pos
+              :transport-id transport-id
+              :transport-landing transport-landing
+              :assigned-beach-cell assigned-beach-cell
+              :unit-id unit-id
+              :recent-moves [pos]}})
 ```
+
+**Note**: Lieutenant assigns the beach cell before creating the mission.
 
 ---
 
-## Boarding Point Selection
+## Beach Cell Assignment
 
-The boarding point is a coastal land cell adjacent to the transport's sea cell.
+The Lieutenant assigns a specific beach cell to each army. Beach cells are land cells adjacent to the transport-landing.
 
 ```clojure
-(defn find-boarding-point [army-pos transport-pos game-map]
-  (let [;; Find land cells adjacent to transport
-        coastal-cells (get-matching-neighbors
-                        transport-pos game-map neighbor-offsets
-                        #(= :land (:type %)))
+(defn assign-beach-cell [army-pos transport-landing beach-cells occupied-cells]
+  (let [;; Find unoccupied beach cells
+        available (remove occupied-cells beach-cells)
         ;; Sort by distance from army
-        sorted (sort-by #(manhattan-distance army-pos %) coastal-cells)]
+        sorted (sort-by #(manhattan-distance army-pos %) available)]
     (first sorted)))
 ```
+
+**Note**: Lieutenant tracks beach cell assignments to avoid congestion. Army receives assigned cell in mission data.
 
 ---
 
@@ -245,11 +249,11 @@ Loading is a multi-round process coordinated between armies and transport:
 
 ---
 
-## Open Questions (Tentative)
+## Resolved Questions
 
-1. ~~How to handle multiple armies trying to board same transport?~~ → Queuing system
-2. ~~Priority/ordering for boarding?~~ → Beach cells first, then queued
-3. What if transport moves away repeatedly?
-4. ~~Should army wait at coast if transport is en route?~~ → Yes, queue up
-5. How to coordinate with transport's movement orders?
-6. ~~Should Lieutenant assign specific boarding points to avoid congestion?~~ → Yes, beach cell assignment
+1. **Multiple armies boarding same transport?** - Lieutenant assigns specific beach cells, queuing system for overflow
+2. **Priority/ordering for boarding?** - Beach cells first, then queued armies advance
+3. **Transport moves away?** - Army's mission updated with new transport-landing location
+4. **Army wait if transport en route?** - Yes, wait on assigned beach cell
+5. **Coordinate with transport?** - Transport waits at transport-landing until fully loaded (6 armies)
+6. **Lieutenant assign boarding points?** - Yes, each army gets assigned beach cell

@@ -1,10 +1,16 @@
 # Transport FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
 The Transport is a naval unit that carries up to 6 armies for invasion. Managed by the Lieutenant, it cycles through loading, sailing, unloading, and returning. When exploring, it searches for new continents; when directed, it sails to a known target.
+
+## Terminology
+
+- **Transport-landing**: Sea cell where transport docks (3-7 adjacent land cells)
+- **Beach**: The land cells adjacent to a transport-landing (where armies stage/board)
+- Transports use transport-landings; armies use beaches
 
 ---
 
@@ -13,17 +19,17 @@ The Transport is a naval unit that carries up to 6 armies for invasion. Managed 
 ```
 Lieutenant produces transport at coastal city
         ↓
-Transport moves to beach for loading
+Transport moves to transport-landing for loading
         ↓
-Armies board (multi-round, up to 6)
+Armies board from beach (multi-round, up to 6)
         ↓
 Transport sails to target (exploring or directed)
         ↓
-Transport finds beach on new continent
+Transport finds transport-landing on new continent
         ↓
-Armies disembark (new Lieutenant spawned)
+Armies disembark to beach (new Lieutenant spawned)
         ↓
-Transport returns to home beach
+Transport returns to home transport-landing
         ↓
 (cycle repeats)
 ```
@@ -33,21 +39,21 @@ Transport returns to home beach
 ## FSM States
 
 ```
-:moving-to-beach  →  Newly produced, sailing to home beach
+:moving-to-landing  →  Newly produced, sailing to home transport-landing
        ↓
-:loading          →  At beach, armies boarding
+:loading            →  At transport-landing, armies boarding from beach
        ↓
-:sailing          →  En route to target (directed invasion)
+:sailing            →  En route to target (directed invasion)
        OR
-:exploring        →  Searching for new continent
+:exploring          →  Searching for new continent
        ↓
-:scouting         →  Found land, searching for suitable beach
+:scouting           →  Found land, searching for suitable transport-landing
        ↓
-:unloading        →  At beachhead, armies disembarking
+:unloading          →  At foreign transport-landing, armies disembarking to beach
        ↓
-:returning        →  Sailing back to home base
+:returning          →  Sailing back to home transport-landing
        ↓
-:loading          →  (cycle repeats)
+:loading            →  (cycle repeats)
 ```
 
 ---
@@ -56,9 +62,9 @@ Transport returns to home beach
 
 ```clojure
 (def transport-fsm
-  [[:moving-to-beach
-     [at-home-beach?       :loading          arrive-beach-action]
-     [always               :moving-to-beach  sail-to-beach-action]]
+  [[:moving-to-landing
+     [at-home-landing?     :loading            arrive-landing-action]
+     [always               :moving-to-landing  sail-to-landing-action]]
    [:loading
      [fully-loaded?        :sailing|:exploring  depart-action]
      [army-adjacent?       :loading             load-army-action]
@@ -70,15 +76,17 @@ Transport returns to home beach
      [land-found?          :scouting      begin-scout-action]
      [always               :exploring     explore-action]]
    [:scouting
-     [beach-found?         :unloading     begin-unload-action]
+     [landing-found?       :unloading     begin-unload-action]
      [coastline-complete?  :exploring     resume-explore-action]
      [always               :scouting      scout-coast-action]]
    [:unloading
      [fully-unloaded?      :returning     depart-home-action]
      [always               :unloading     unload-army-action]]
    [:returning
-     [at-home-beach?       :loading       arrive-home-action]
+     [at-home-landing?     :loading       arrive-home-action]
      [always               :returning     sail-home-action]]])
+
+;; Transports wait for full load (6 armies) before departing
 ```
 
 ---
@@ -87,12 +95,12 @@ Transport returns to home beach
 
 ```clojure
 {:fsm transport-fsm
- :fsm-state :moving-to-beach
+ :fsm-state :moving-to-landing
  :fsm-data {:transport-id id
             :position [r c]
             :lieutenant-id id           ; owning Lieutenant
-            :home-beach {:sea-cell [r c]
-                         :beach-cells [[r c] ...]}
+            :home-landing {:transport-landing [r c]    ; sea cell
+                           :beach [[r c] ...]}         ; adjacent land cells
             :target {:type :directed|:exploring
                      :continent-id id|nil
                      :coords [r c]|nil}
@@ -108,14 +116,14 @@ Transport returns to home beach
 
 ## Guards
 
-### `at-home-beach?`
-Transport is at its designated home beach sea cell.
+### `at-home-landing?`
+Transport is at its designated home transport-landing (sea cell).
 
 ```clojure
-(defn at-home-beach? [ctx]
+(defn at-home-landing? [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
-        home-sea (get-in ctx [:entity :fsm-data :home-beach :sea-cell])]
-    (= pos home-sea)))
+        home-landing (get-in ctx [:entity :fsm-data :home-landing :transport-landing])]
+    (= pos home-landing)))
 ```
 
 ### `fully-loaded?`
@@ -133,15 +141,15 @@ An army waiting to board is on an adjacent beach cell.
 ```clojure
 (defn army-adjacent? [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
-        beach-cells (get-in ctx [:entity :fsm-data :home-beach :beach-cells])
+        beach (get-in ctx [:entity :fsm-data :home-landing :beach])
         game-map (:game-map ctx)]
-    (some (fn [bc]
-            (let [cell (get-in game-map bc)]
+    (some (fn [beach-cell]
+            (let [cell (get-in game-map beach-cell)]
               (and (= :army (get-in cell [:contents :type]))
                    (= :computer (get-in cell [:contents :owner]))
                    ;; Army has board-transport mission for this transport
                    )))
-          beach-cells)))
+          beach)))
 ```
 
 ### `land-found?`
@@ -153,14 +161,15 @@ While exploring, transport has detected land.
     (some #(land-cell? ctx %) (neighbors pos))))
 ```
 
-### `beach-found?`
-While scouting, transport found a suitable beach (3+ adjacent land cells).
+### `landing-found?`
+While scouting, transport found a suitable transport-landing (3-7 adjacent land cells).
 
 ```clojure
-(defn beach-found? [ctx]
+(defn landing-found? [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
         adjacent-land (count-adjacent-land-cells ctx pos)]
-    (>= adjacent-land 3)))
+    (and (>= adjacent-land 3)
+         (<= adjacent-land 7))))
 ```
 
 ### `fully-unloaded?`
@@ -279,14 +288,14 @@ When no directive from General, transport explores:
 1. **Sail away from home** - Pick direction away from home continent
 2. **Scan for land** - Check adjacent cells for land while moving
 3. **Upon finding land** - Transition to :scouting
-4. **Scout coastline** - Follow coast looking for beach (3+ land cells)
-5. **Found beach** - Transition to :unloading
+4. **Scout coastline** - Follow coast looking for transport-landing (3-7 adjacent land cells)
+5. **Found transport-landing** - Transition to :unloading (armies disembark to beach)
 
 ```clojure
 (defn explore-action [ctx]
   (let [pos (get-in ctx [:entity :fsm-data :position])
-        home (get-in ctx [:entity :fsm-data :home-beach :sea-cell])
-        direction (away-from home pos)]
+        home-landing (get-in ctx [:entity :fsm-data :home-landing :transport-landing])
+        direction (away-from home-landing pos)]
     {:move-to (add-coords pos direction)}))
 ```
 
@@ -313,13 +322,13 @@ When no directive from General, transport explores:
 ```clojure
 (defn create-transport
   "Create a transport for invasion operations."
-  [transport-id production-city-pos home-beach lieutenant-id]
+  [transport-id production-city-pos home-landing lieutenant-id]
   {:fsm transport-fsm
-   :fsm-state :moving-to-beach
+   :fsm-state :moving-to-landing
    :fsm-data {:transport-id transport-id
               :position production-city-pos
               :lieutenant-id lieutenant-id
-              :home-beach home-beach
+              :home-landing home-landing   ; {:transport-landing [r c] :beach [[r c] ...]}
               :target {:type :exploring :coords nil}
               :cargo []
               :spawned-lieutenant-id nil
@@ -329,9 +338,9 @@ When no directive from General, transport explores:
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. How long should transport wait for full load vs. departing with partial?
-2. Should transport prefer returning to same beachhead on subsequent trips?
-3. How to handle transport destroyed during voyage?
-4. Should exploring transport report all land found, or only suitable beaches?
+1. **Wait for full load vs. partial?** - Transports wait for full load (6 armies)
+2. **Return to same beachhead?** - Yes, transport returns to same spawned Lieutenant's transport-landing
+3. **Transport destroyed?** - Armies lost, Lieutenant notified, may produce replacement
+4. **Report all land or only landings?** - Report transport-landings found (suitable for unloading)
