@@ -1,6 +1,6 @@
 # Move-with-Squad FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
@@ -221,11 +221,34 @@ To keep the squad together:
 
 ---
 
-## Open Questions (Tentative)
+## Resolved Questions
 
-1. How does squad decide movement path? (pathfinding at squad level?)
-2. Should armies move simultaneously or sequentially?
-3. How to handle one army getting blocked while others advance?
-4. What's the formation - line, cluster, spread out?
-5. Should armies auto-attack enemies encountered en route?
-6. How to handle army destruction during movement?
+1. **How does squad decide movement path?**
+   - Squad calculates path to target city
+   - Issues individual move orders to each army (Option A - explicit orders)
+   - See SQUAD_FSM_PLAN.md `issue-move-orders-action`
+
+2. **Should armies move simultaneously or sequentially?**
+   - Simultaneously - each army receives move order, executes independently
+   - Squad waits for slowest army before issuing next move order
+   - See SQUAD_FSM_PLAN.md "Stragglers" resolution
+
+3. **How to handle one army getting blocked while others advance?**
+   - Army reports `:unit-blocked` to squad
+   - Squad may issue alternative order or wait
+   - Army continues attempting movement or sidestepping
+
+4. **What's the formation?**
+   - No rigid formation - armies cluster around rally point then target
+   - Squad issues waypoint-based orders; armies find paths independently
+   - Natural clustering from converging on same destination
+
+5. **Should armies auto-attack enemies encountered en route?**
+   - No - armies follow move orders to maintain cohesion
+   - Combat only occurs if enemy blocks the ordered position
+   - Squad coordinates attack phase separately
+
+6. **How to handle army destruction during movement?**
+   - Squad tracks army status; marks destroyed army as `:lost`
+   - Squad continues with remaining armies
+   - If all armies lost, squad transitions to `[:terminal :failed]`

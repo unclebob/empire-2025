@@ -1,6 +1,6 @@
 # Patrol Boat FSM Plan
 
-**STATUS: TENTATIVE**
+**STATUS: READY FOR IMPLEMENTATION**
 
 ## Overview
 
@@ -274,9 +274,24 @@ To ensure complete coverage:
 
 ---
 
-## Open Questions
+## Resolved Questions
 
-1. Should two patrol boats coordinate to cover different areas?
-2. How to handle patrol boat destroyed?
-3. Should patrol boat return to base periodically, or patrol indefinitely?
-4. Report enemy cities as well as units?
+1. **Should two patrol boats coordinate to cover different areas?**
+   - No coordination - each patrols independently
+   - Random exploration provides good coverage over time
+   - Simplifies implementation; coordination could be added later
+
+2. **How to handle patrol boat destroyed?**
+   - Patrol boat entity is destroyed by combat system
+   - Lieutenant detects missing patrol boat (not stepped/no longer in list)
+   - Lieutenant produces replacement if under quota (max 2 patrol boats)
+
+3. **Should patrol boat return to base periodically, or patrol indefinitely?**
+   - Patrol indefinitely - no fuel or maintenance requirements
+   - Maximizes exploration coverage
+   - Simpler FSM without return-to-base cycles
+
+4. **Report enemy cities as well as units?**
+   - Yes - report all enemy sightings
+   - `:enemy-spotted` event includes enemy type (unit or city)
+   - Lieutenant/General can use city locations for invasion planning
