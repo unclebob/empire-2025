@@ -254,15 +254,20 @@
   (before (reset-all-atoms!))
 
   (it "process-fighter patrols when fuel allows"
-    (reset! atoms/game-map [[{:type :city :city-status :computer}
-                              {:type :land :contents {:type :fighter :owner :computer
-                                                       :fuel 20 :hits 1}}
-                              {:type :land}]])
-    (reset! atoms/computer-map @atoms/game-map)
-    (let [unit (:contents (get-in @atoms/game-map [0 1]))]
-      (fighter/process-fighter [0 1] unit)
-      ;; Fighter should have moved from [0 1] to [0 0] or [0 2]
-      (should-be-nil (get-in @atoms/game-map [0 1 :contents])))))
+    (let [row (vec (concat [{:type :city :city-status :computer}
+                             {:type :land :contents {:type :fighter :owner :computer
+                                                      :fuel 20 :hits 1}}]
+                            (repeat 10 {:type :land})))]
+      (reset! atoms/game-map [row])
+      ;; Computer map has unexplored cells to the right, giving patrol direction
+      (reset! atoms/computer-map [(vec (concat [{:type :city :city-status :computer}
+                                                 {:type :land :contents {:type :fighter :owner :computer
+                                                                          :fuel 20 :hits 1}}]
+                                                (repeat 10 nil)))])
+      (let [unit (get-in @atoms/game-map [0 1 :contents])]
+        (fighter/process-fighter [0 1] unit)
+        ;; Fighter should have moved from [0 1] toward unexplored territory
+        (should-be-nil (get-in @atoms/game-map [0 1 :contents]))))))
 
 (describe "VMS ship module"
   (before (reset-all-atoms!))

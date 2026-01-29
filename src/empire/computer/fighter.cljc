@@ -112,29 +112,29 @@
 
       :else nil)))
 
-(defn- patrol
-  "Patrol randomly or toward interesting targets."
-  [pos fuel]
-  ;; Don't patrol if low on fuel
-  (when-not (should-return-to-city? pos fuel)
-    (let [target (find-patrol-target pos)
-          passable (get-passable-neighbors pos)]
-      (if target
-        ;; Move toward target
-        (let [closest (core/move-toward pos target passable)]
-          (when closest
-            (core/move-unit-to pos closest)
-            (visibility/update-cell-visibility pos :computer)
-            (visibility/update-cell-visibility closest :computer)
-            closest))
-        ;; Random patrol - prefer unexplored edges
-        (let [frontier (filter core/adjacent-to-computer-unexplored? passable)
-              target (or (first frontier) (first passable))]
-          (when target
-            (core/move-unit-to pos target)
-            (visibility/update-cell-visibility pos :computer)
-            (visibility/update-cell-visibility target :computer)
-            target))))))
+(defn- do-patrol
+  "Execute one patrol step toward a target or unexplored area."
+  [pos]
+  (let [target (find-patrol-target pos)
+        passable (get-passable-neighbors pos)]
+    (if target
+      ;; Move toward target
+      (let [closest (core/move-toward pos target passable)]
+        (when closest
+          (core/move-unit-to pos closest)
+          (visibility/update-cell-visibility pos :computer)
+          (visibility/update-cell-visibility closest :computer)
+          closest))
+      ;; Random patrol - prefer unexplored edges
+      (let [frontier (filter core/adjacent-to-computer-unexplored? passable)
+            target (or (first frontier) (first passable))]
+        (when target
+          (core/move-unit-to pos target)
+          (visibility/update-cell-visibility pos :computer)
+          (visibility/update-cell-visibility target :computer)
+          target)))))
+
+(def ^:private fighter-speed 8)
 
 (defn- land-at-city
   "Land fighter at city to refuel."
@@ -145,32 +145,74 @@
     ;; Add to city's airport
     (swap! atoms/game-map update-in (conj city-pos :fighter-count) (fnil inc 0))
     (visibility/update-cell-visibility pos :computer)
-    nil))
+    :landed))
+
+(defn- consume-fighter-fuel
+  "Decrement fuel on the fighter at pos. Returns false if fighter died."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        new-fuel (dec (:fuel unit config/fighter-fuel))]
+    (if (<= new-fuel 0)
+      (do (swap! atoms/game-map update-in pos dissoc :contents)
+          (visibility/update-cell-visibility pos :computer)
+          false)
+      (do (swap! atoms/game-map assoc-in (conj pos :contents :fuel) new-fuel)
+          true))))
+
+(defn- move-fighter-once
+  "Execute one step of fighter priority logic.
+   Returns new position if moved and alive, :landed if landed at city, nil if died or stuck."
+  [pos unit]
+  (let [fuel (:fuel unit config/fighter-fuel)]
+    ;; Priority 1: Attack adjacent enemy
+    (if-let [enemy-pos (find-adjacent-enemy pos)]
+      (when-let [new-pos (attack-enemy pos enemy-pos)]
+        (if (consume-fighter-fuel new-pos)
+          new-pos
+          nil))
+
+      ;; Priority 2: Return to city if low on fuel
+      (if (should-return-to-city? pos fuel)
+        (let [city (find-nearest-friendly-city pos)]
+          (cond
+            (and city (= pos city))
+            (land-at-city pos city)
+
+            (and city (some #{city} (core/get-neighbors pos)))
+            (land-at-city pos city)
+
+            city
+            (when-let [new-pos (move-toward-city pos)]
+              (if (consume-fighter-fuel new-pos)
+                new-pos
+                nil))
+
+            ;; No city to return to - patrol desperately
+            :else
+            (when-let [new-pos (do-patrol pos)]
+              (if (consume-fighter-fuel new-pos)
+                new-pos
+                nil))))
+
+        ;; Priority 3: Patrol
+        (when-let [new-pos (do-patrol pos)]
+          (if (consume-fighter-fuel new-pos)
+            new-pos
+            nil))))))
 
 (defn process-fighter
   "Processes a computer fighter using VMS Empire style logic.
-   Priority: Attack adjacent > Return to city if low fuel > Patrol
-   Returns nil after processing - fighters only move once per round."
+   Moves up to fighter-speed (8) cells per round, consuming fuel each step.
+   Priority each step: Attack adjacent > Return to city if low fuel > Patrol
+   Returns nil."
   [pos unit]
   (when (and unit (= :computer (:owner unit)) (= :fighter (:type unit)))
-    (let [fuel (:fuel unit config/fighter-fuel)]
-
-      ;; Priority 1: Attack adjacent enemy
-      (if-let [enemy-pos (find-adjacent-enemy pos)]
-        (attack-enemy pos enemy-pos)
-
-        ;; Priority 2: Return to city if low on fuel
-        (if (should-return-to-city? pos fuel)
-          (let [city (find-nearest-friendly-city pos)]
-            (if (and city (= pos city))
-              ;; Already at city - land
-              (land-at-city pos city)
-              (if (and city (some #{city} (core/get-neighbors pos)))
-                ;; Adjacent to city - land
-                (land-at-city pos city)
-                ;; Move toward city
-                (move-toward-city pos))))
-
-          ;; Priority 3: Patrol
-          (patrol pos fuel)))))
+    (loop [current-pos pos
+           steps-remaining fighter-speed]
+      (when (pos? steps-remaining)
+        (let [unit (get-in @atoms/game-map (conj current-pos :contents))]
+          (when (and unit (= :fighter (:type unit)))
+            (let [result (move-fighter-once current-pos unit)]
+              (when (and result (not= result :landed))
+                (recur result (dec steps-remaining)))))))))
   nil)
