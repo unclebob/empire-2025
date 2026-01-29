@@ -29,9 +29,9 @@
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :army-count 3}}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (let [result (ship/process-ship [0 0] :destroyer)]
-        ;; Destroyer should move toward transport
-        (should= [0 1] result))))
+      (ship/process-ship [0 0] :destroyer)
+      ;; Destroyer should have moved toward transport
+      (should= :destroyer (get-in @atoms/game-map [0 1 :contents :type]))))
 
   (describe "exploration behavior"
     (it "explores toward unexplored sea"
@@ -41,18 +41,18 @@
       (reset! atoms/game-map [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
                                 {:type :sea}
                                 {:type :sea}]])
-      (let [result (ship/process-ship [0 0] :patrol-boat)]
-        ;; Ship should move toward unexplored
-        (should= [0 1] result)))
+      (ship/process-ship [0 0] :patrol-boat)
+      ;; Ship should have moved toward unexplored
+      (should= :patrol-boat (get-in @atoms/game-map [0 1 :contents :type])))
 
     (it "moves to available sea cell when fully explored"
       (reset! atoms/game-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2}}
                                 {:type :sea}
                                 {:type :land}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (let [result (ship/process-ship [0 0] :submarine)]
-        ;; Ship should move to available sea
-        (should= [0 1] result))))
+      (ship/process-ship [0 0] :submarine)
+      ;; Ship should have moved to available sea
+      (should= :submarine (get-in @atoms/game-map [0 1 :contents :type]))))
 
   (describe "hunting behavior"
     (it "moves toward visible player ship"
@@ -61,9 +61,9 @@
                                 {:type :sea}
                                 {:type :sea :contents {:type :destroyer :owner :player :hits 3}}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (let [result (ship/process-ship [0 0] :battleship)]
-        ;; Battleship should move toward player ship
-        (should= [0 1] result))))
+      (ship/process-ship [0 0] :battleship)
+      ;; Battleship should have moved toward player ship
+      (should= :battleship (get-in @atoms/game-map [0 1 :contents :type]))))
 
   (describe "ignores non-computer ships"
     (it "returns nil for player ship"

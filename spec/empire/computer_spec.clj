@@ -246,9 +246,9 @@
   (it "process-army moves army toward unexplored territory"
     (reset! atoms/game-map (build-test-map ["a#"]))
     (reset! atoms/computer-map (build-test-map ["a#"]))
-    (let [result (army/process-army [0 0])]
-      ;; Army should have moved
-      (should= [0 1] result))))
+    (army/process-army [0 0])
+    ;; Army should have moved to [0 1]
+    (should= :army (get-in @atoms/game-map [0 1 :contents :type]))))
 
 (describe "VMS fighter module"
   (before (reset-all-atoms!))
@@ -259,10 +259,10 @@
                                                        :fuel 20 :hits 1}}
                               {:type :land}]])
     (reset! atoms/computer-map @atoms/game-map)
-    (let [unit (:contents (get-in @atoms/game-map [0 1]))
-          result (fighter/process-fighter [0 1] unit)]
-      ;; Fighter should move
-      (should (or (= [0 0] result) (= [0 2] result))))))
+    (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+      (fighter/process-fighter [0 1] unit)
+      ;; Fighter should have moved from [0 1] to [0 0] or [0 2]
+      (should-be-nil (get-in @atoms/game-map [0 1 :contents])))))
 
 (describe "VMS ship module"
   (before (reset-all-atoms!))
@@ -270,9 +270,9 @@
   (it "process-ship explores sea"
     (reset! atoms/game-map (build-test-map ["d~"]))
     (reset! atoms/computer-map (build-test-map ["d~"]))
-    (let [result (ship/process-ship [0 0] :destroyer)]
-      ;; Destroyer should move to sea
-      (should= [0 1] result))))
+    (ship/process-ship [0 0] :destroyer)
+    ;; Destroyer should have moved to [0 1]
+    (should= :destroyer (get-in @atoms/game-map [0 1 :contents :type]))))
 
 (describe "VMS transport module"
   (before (reset-all-atoms!))
@@ -284,9 +284,9 @@
                               {:type :sea}
                               {:type :land}]])
     (reset! atoms/computer-map @atoms/game-map)
-    (let [result (transport/process-transport [0 0])]
-      ;; Transport should move
-      (should= [0 1] result))))
+    (transport/process-transport [0 0])
+    ;; Transport should have moved to [0 1]
+    (should= :transport (get-in @atoms/game-map [0 1 :contents :type]))))
 
 (describe "VMS production module"
   (before (reset-all-atoms!))
@@ -310,8 +310,10 @@
     (reset! atoms/game-map (build-test-map ["a#"]))
     (reset! atoms/computer-map (build-test-map ["a#"]))
     (let [result (computer/process-computer-unit [0 0])]
-      ;; Army should move
-      (should= [0 1] result)))
+      ;; Army module returns nil (units processed once per round)
+      (should-be-nil result)
+      ;; But army should have moved
+      (should= :army (get-in @atoms/game-map [0 1 :contents :type]))))
 
   (it "dispatches to fighter module"
     (reset! atoms/game-map [[{:type :city :city-status :computer}
@@ -319,15 +321,17 @@
                                                        :fuel 20 :hits 1}}]])
     (reset! atoms/computer-map @atoms/game-map)
     (let [result (computer/process-computer-unit [0 1])]
-      ;; Fighter should move (to city or patrol)
-      (should (or (= [0 0] result) (nil? result)))))
+      ;; Fighter module returns nil (units processed once per round)
+      (should-be-nil result)))
 
   (it "dispatches to ship module"
     (reset! atoms/game-map (build-test-map ["d~"]))
     (reset! atoms/computer-map (build-test-map ["d~"]))
     (let [result (computer/process-computer-unit [0 0])]
-      ;; Ship should move
-      (should= [0 1] result)))
+      ;; Ship module returns nil (units processed once per round)
+      (should-be-nil result)
+      ;; But ship should have moved
+      (should= :destroyer (get-in @atoms/game-map [0 1 :contents :type]))))
 
   (it "dispatches to transport module"
     (reset! atoms/game-map [[{:type :sea :contents {:type :transport :owner :computer
@@ -337,8 +341,10 @@
                               {:type :land}]])
     (reset! atoms/computer-map @atoms/game-map)
     (let [result (computer/process-computer-unit [0 0])]
-      ;; Transport should move
-      (should= [0 1] result)))
+      ;; Transport module returns nil (units processed once per round)
+      (should-be-nil result)
+      ;; But transport should have moved
+      (should= :transport (get-in @atoms/game-map [0 1 :contents :type]))))
 
   (it "returns nil for non-computer unit"
     (reset! atoms/game-map (build-test-map ["A#"]))

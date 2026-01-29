@@ -31,10 +31,10 @@
                                 {:type :land :contents {:type :fighter :owner :computer
                                                          :fuel 3 :hits 1}}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (let [unit (:contents (get-in @atoms/game-map [0 2]))
-            result (fighter/process-fighter [0 2] unit)]
-        ;; Fighter should move toward city
-        (should= [0 1] result)))
+      (let [unit (:contents (get-in @atoms/game-map [0 2]))]
+        (fighter/process-fighter [0 2] unit)
+        ;; Fighter should have moved toward city
+        (should= :fighter (get-in @atoms/game-map [0 1 :contents :type]))))
 
     (it "lands at adjacent city"
       (reset! atoms/game-map [[{:type :city :city-status :computer}
@@ -56,10 +56,10 @@
                                 {:type :land}
                                 {:type :land :contents {:type :army :owner :player :hits 1}}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (let [unit (:contents (get-in @atoms/game-map [0 1]))
-            result (fighter/process-fighter [0 1] unit)]
-        ;; Fighter should move toward player army
-        (should= [0 2] result)))
+      (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+        (fighter/process-fighter [0 1] unit)
+        ;; Fighter should have moved toward player army
+        (should= :fighter (get-in @atoms/game-map [0 2 :contents :type]))))
 
     (it "explores toward unexplored territory"
       (reset! atoms/computer-map [[{:type :city :city-status :computer}
@@ -70,10 +70,10 @@
                                 {:type :land :contents {:type :fighter :owner :computer
                                                          :fuel 20 :hits 1}}
                                 {:type :land}]])
-      (let [unit (:contents (get-in @atoms/game-map [0 1]))
-            result (fighter/process-fighter [0 1] unit)]
-        ;; Fighter should move toward unexplored
-        (should= [0 2] result))))
+      (let [unit (:contents (get-in @atoms/game-map [0 1]))]
+        (fighter/process-fighter [0 1] unit)
+        ;; Fighter should have moved toward unexplored
+        (should= :fighter (get-in @atoms/game-map [0 2 :contents :type])))))
 
   (describe "ignores non-computer fighters"
     (it "returns nil for player fighter"
