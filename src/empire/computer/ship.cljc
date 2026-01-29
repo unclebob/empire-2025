@@ -115,7 +115,8 @@
 
 (defn process-ship
   "Processes a computer ship using VMS Empire style logic.
-   Priority: Retreat if damaged > Attack adjacent > Escort transports > Hunt enemies > Explore"
+   Priority: Retreat if damaged > Attack adjacent > Escort transports > Hunt enemies > Explore
+   Returns nil after processing - ships only move once per round."
   [pos ship-type]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)]
@@ -128,8 +129,7 @@
         (do
           (core/move-unit-to pos retreat-pos)
           (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility retreat-pos :computer)
-          retreat-pos)
+          (visibility/update-cell-visibility retreat-pos :computer))
 
         ;; Priority 1: Attack adjacent enemy ship
         (if-let [enemy-pos (find-adjacent-enemy-ship pos)]
@@ -149,4 +149,5 @@
               (move-toward pos enemy-sighting)
 
               ;; Priority 4: Explore sea
-              (explore-sea pos))))))))
+              (explore-sea pos)))))))
+  nil)

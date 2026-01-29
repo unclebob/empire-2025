@@ -149,7 +149,8 @@
 
 (defn process-fighter
   "Processes a computer fighter using VMS Empire style logic.
-   Priority: Attack adjacent > Return to city if low fuel > Patrol"
+   Priority: Attack adjacent > Return to city if low fuel > Patrol
+   Returns nil after processing - fighters only move once per round."
   [pos unit]
   (when (and unit (= :computer (:owner unit)) (= :fighter (:type unit)))
     (let [fuel (:fuel unit config/fighter-fuel)]
@@ -171,4 +172,5 @@
                 (move-toward-city pos))))
 
           ;; Priority 3: Patrol
-          (patrol pos fuel))))))
+          (patrol pos fuel)))))
+  nil)

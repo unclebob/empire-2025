@@ -1,6 +1,7 @@
 (ns empire.movement.coastline
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.move-log :as move-log]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.explore :as explore]))
@@ -172,6 +173,8 @@
               moved-unit (if post-wake
                            (make-woken-unit unit post-wake)
                            (make-continuing-unit unit remaining-steps visited next-pos coords))]
+          (move-log/log-move! coords next-pos (:type unit) (:owner unit)
+                              (str "coastline steps-left:" remaining-steps))
           (swap! atoms/game-map assoc-in coords (dissoc cell :contents))
           (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
           (visibility/update-cell-visibility next-pos (:owner unit))

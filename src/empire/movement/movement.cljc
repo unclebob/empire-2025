@@ -3,6 +3,7 @@
             [empire.player.combat :as combat]
             [empire.config :as config]
             [empire.containers.ops :as container-ops]
+            [empire.move-log :as move-log]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]
@@ -148,7 +149,10 @@
         processed-unit (process-consumables final-unit to-cell)
         original-target (:target (:contents cell))
         move-type (classify-move processed-unit to-cell original-target final-pos)
-        updated-to-cell (update-destination-cell move-type to-cell processed-unit)]
+        updated-to-cell (update-destination-cell move-type to-cell processed-unit)
+        unit (:contents cell)]
+    (move-log/log-move! from-coords final-pos (:type unit) (:owner unit)
+                        (str "target:" (pr-str original-target) " mode:" (:mode unit)))
     (swap! atoms/game-map assoc-in from-coords from-cell)
     (swap! atoms/game-map assoc-in final-pos updated-to-cell)
     (visibility/update-cell-visibility final-pos (:owner (:contents cell)))

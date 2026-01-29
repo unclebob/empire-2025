@@ -1,6 +1,7 @@
 (ns empire.movement.explore
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.move-log :as move-log]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]))
@@ -85,6 +86,8 @@
                            (-> unit
                                (assoc :explore-steps remaining-steps)
                                (assoc :visited (conj visited next-pos))))]
+          (move-log/log-move! coords next-pos :army (:owner unit)
+                              (str "explore steps-left:" remaining-steps))
           (swap! atoms/game-map assoc-in coords (dissoc cell :contents))
           (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
           (visibility/update-cell-visibility next-pos (:owner unit))

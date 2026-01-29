@@ -1,5 +1,6 @@
 (ns empire.ui.input
   (:require [empire.atoms :as atoms]
+            [empire.debug :as debug]
             [empire.player.attention :as attention]
             [empire.player.combat :as combat]
             [empire.config :as config]
@@ -426,7 +427,54 @@
             (:waypoint cell)
             (waypoint/set-waypoint-orders-by-direction [cx cy] direction)))))))
 
+;; Debug drag functions
+
+(defn modifier-held?
+  "Returns true if a modifier key (ctrl, meta, alt) is held."
+  [modifiers]
+  (or (:ctrl modifiers) (:meta modifiers) (:alt modifiers)))
+
+(defn debug-drag-start!
+  "Starts a debug drag operation at the given screen coordinates."
+  [x y]
+  (reset! atoms/debug-drag-start [x y])
+  (reset! atoms/debug-drag-current [x y]))
+
+(defn debug-drag-update!
+  "Updates the current drag position. Only updates if a drag is active."
+  [x y]
+  (when @atoms/debug-drag-start
+    (reset! atoms/debug-drag-current [x y])))
+
+(defn- has-area?
+  "Returns true if the cell range covers more than one cell."
+  [[[start-row start-col] [end-row end-col]]]
+  (or (not= start-row end-row)
+      (not= start-col end-col)))
+
+(defn debug-drag-cancel!
+  "Cancels a debug drag operation without writing a dump."
+  []
+  (reset! atoms/debug-drag-start nil)
+  (reset! atoms/debug-drag-current nil))
+
+(defn debug-drag-end!
+  "Ends a debug drag operation and triggers the dump if ctrl is held and selection has area.
+   Converts screen coordinates to cell range and writes the dump file."
+  [x y modifiers]
+  (when @atoms/debug-drag-start
+    (when (modifier-held? modifiers)
+      (let [start @atoms/debug-drag-start
+            end [x y]
+            cell-range (debug/screen-coords-to-cell-range start end)]
+        (when (has-area? cell-range)
+          (let [filename (debug/write-dump! (first cell-range) (second cell-range))]
+            (reset! atoms/debug-message (str "Debug: " filename))))))
+    (reset! atoms/debug-drag-start nil)
+    (reset! atoms/debug-drag-current nil)))
+
 (defn key-down [k]
+  (debug/log-action! [:key-pressed k])
   ;; Handle key down events
   (if @atoms/backtick-pressed
     (do

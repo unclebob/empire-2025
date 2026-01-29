@@ -3,6 +3,7 @@
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.init :as init]
+            [empire.move-log :as move-log]
             [empire.ui.input :as input]
             [empire.ui.rendering :as rendering]
             [quil.core :as q]
@@ -47,6 +48,7 @@
 (defn setup
   "Initial setup for the game state."
   []
+  (move-log/init-log!)
   (create-fonts)
   (calculate-screen-dimensions)
   (init/make-initial-map @atoms/map-size config/smooth-count config/land-fraction config/number-of-cities config/min-city-distance)
@@ -69,6 +71,7 @@
                   :computer-map @atoms/computer-map
                   :actual-map @atoms/game-map)]
     (rendering/draw-map the-map)
+    (rendering/draw-debug-selection-rectangle)
     (rendering/draw-message-area)))
 
 (defn key-pressed [state _]
@@ -82,8 +85,32 @@
 (defn key-released [_ _]
   (reset! atoms/last-key nil))
 
-(defn mouse-pressed [_ _]
-  (input/mouse-down (q/mouse-x) (q/mouse-y) (q/mouse-button)))
+(defn- get-modifiers
+  "Returns a map of modifier key states."
+  []
+  (let [mods (q/key-modifiers)]
+    {:ctrl (:control mods)
+     :meta (:meta mods)
+     :alt (:alt mods)}))
+
+(defn mouse-pressed [state _]
+  (let [x (q/mouse-x)
+        y (q/mouse-y)
+        button (q/mouse-button)
+        mods (get-modifiers)]
+    ;; On macOS, Ctrl+Click becomes right-click, so accept any button with modifier
+    (if (input/modifier-held? mods)
+      (input/debug-drag-start! x y)
+      (input/mouse-down x y button)))
+  state)
+
+(defn mouse-dragged [state _]
+  (input/debug-drag-update! (q/mouse-x) (q/mouse-y))
+  state)
+
+(defn mouse-released [state _]
+  (input/debug-drag-end! (q/mouse-x) (q/mouse-y) (get-modifiers))
+  state)
 
 (defn on-close [_]
   (q/no-loop)
@@ -103,6 +130,8 @@
                :key-pressed key-pressed
                :key-released key-released
                :mouse-pressed mouse-pressed
+               :mouse-dragged mouse-dragged
+               :mouse-released mouse-released
                :features []
                :middleware [m/fun-mode]
                :on-close on-close

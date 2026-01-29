@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.ui.rendering-util :as ru]
             [quil.core :as q]))
@@ -48,6 +49,24 @@
     (let [[r g b] config/waypoint-color]
       (q/fill r g b)
       (q/text "*" (+ (* col cell-w) 2) (+ (* row cell-h) 12)))))
+
+(defn draw-debug-selection-rectangle
+  "Draws the debug selection rectangle if a drag is active.
+   Uses screen coordinates from debug-drag-start and debug-drag-current atoms."
+  []
+  (when-let [start @atoms/debug-drag-start]
+    (when-let [current @atoms/debug-drag-current]
+      (let [[x1 y1] start
+            [x2 y2] current
+            left (min x1 x2)
+            top (min y1 y2)
+            width (abs (- x2 x1))
+            height (abs (- y2 y1))]
+        (q/no-fill)
+        (q/stroke 255 255 0)
+        (q/stroke-weight 2)
+        (q/rect left top width height)
+        (q/stroke-weight 1)))))
 
 (defn draw-map
   "Draws the map on the screen."
@@ -132,6 +151,18 @@
         x (- right-edge text-width)]
     (q/text text x y)))
 
+(defn- draw-debug-window
+  "Draws the debug window in the middle section of the message area."
+  [text-x text-y text-w]
+  (when (seq @atoms/debug-message)
+    ;; Position in the middle third of the screen
+    (let [center-x (+ text-x (/ text-w 2))
+          msg-width (q/text-width @atoms/debug-message)
+          msg-x (- center-x (/ msg-width 2))]
+      (q/fill 0 255 255)  ;; Cyan for debug messages
+      (q/text @atoms/debug-message msg-x (+ text-y 50))
+      (q/fill 255))))
+
 (defn- draw-status
   "Draws the status area on the right (3 lines), right-justified."
   [text-x text-y text-w]
@@ -160,4 +191,5 @@
     (draw-line-1 text-x text-y)
     (draw-line-2 text-x text-y)
     (draw-line-3 text-x text-y)
+    (draw-debug-window text-x text-y text-w)
     (draw-status text-x text-y text-w)))

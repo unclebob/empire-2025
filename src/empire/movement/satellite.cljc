@@ -1,5 +1,6 @@
 (ns empire.movement.satellite
   (:require [empire.atoms :as atoms]
+            [empire.move-log :as move-log]
             [empire.movement.visibility :as visibility]))
 
 (defn- extend-to-boundary
@@ -78,6 +79,8 @@
           (let [dx (Integer/signum (- tx x))
                 dy (Integer/signum (- ty y))
                 new-pos [(+ x dx) (+ y dy)]]
+            (move-log/log-move! [x y] new-pos :satellite (:owner satellite)
+                                (str "target:" (pr-str target)))
             ;; Remove from old position
             (swap! atoms/game-map assoc-in [x y :contents] nil)
             ;; Place at new position

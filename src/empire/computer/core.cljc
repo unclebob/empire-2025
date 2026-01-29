@@ -1,6 +1,7 @@
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
   (:require [empire.atoms :as atoms]
+            [empire.move-log :as move-log]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]))
 
@@ -46,13 +47,18 @@
                                    nil?))
 
 (defn move-unit-to
-  "Moves a unit from from-pos to to-pos. Returns to-pos."
+  "Moves a unit from from-pos to to-pos. Returns to-pos if moved, nil if target occupied."
   [from-pos to-pos]
   (let [from-cell (get-in @atoms/game-map from-pos)
+        to-cell (get-in @atoms/game-map to-pos)
         unit (:contents from-cell)]
-    (swap! atoms/game-map assoc-in from-pos (dissoc from-cell :contents))
-    (swap! atoms/game-map assoc-in (conj to-pos :contents) unit)
-    to-pos))
+    (if (:contents to-cell)
+      nil
+      (do
+        (move-log/log-move! from-pos to-pos (:type unit) (:owner unit) "computer-ai")
+        (swap! atoms/game-map assoc-in from-pos (dissoc from-cell :contents))
+        (swap! atoms/game-map assoc-in (conj to-pos :contents) unit)
+        to-pos))))
 
 (defn attempt-conquest-computer
   "Computer army attempts to conquer a city. Returns new position or nil if army died."
