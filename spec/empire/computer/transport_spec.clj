@@ -143,7 +143,7 @@
         (reset! atoms/game-map game-map)
         (reset! atoms/computer-map game-map)
         (let [origin-continent (continent/flood-fill-continent [0 0])
-              target (transport/find-unload-target origin-continent)]
+              target (transport/find-unload-target origin-continent [3 1])]
           ;; Should return the city on continent B, not continent A
           (should-not-be-nil target)
           (should= [5 0] target))))
@@ -217,4 +217,83 @@
                                          :let [cell (get-in @atoms/game-map [r c])]
                                          :when (= :army (:type (:contents cell)))]
                                      true))]
-          (should= 0 armies-on-land))))))
+          (should= 0 armies-on-land)))))
+
+  (describe "transport target diversification"
+    (it "two transports pick different cities"
+      ;; Origin continent (rows 0-1), two target continents each with a player city
+      ;; Continent B at row 4, Continent C at row 7
+      (let [game-map (build-test-map ["X##"
+                                      "###"
+                                      "~~~"
+                                      "~~~"
+                                      "O##"
+                                      "###"
+                                      "~~~"
+                                      "O##"
+                                      "###"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (reset! atoms/claimed-transport-targets #{})
+        (let [origin-continent (continent/flood-fill-continent [0 0])
+              target1 (transport/find-unload-target origin-continent [2 1])
+              target2 (transport/find-unload-target origin-continent [3 1])]
+          (should-not-be-nil target1)
+          (should-not-be-nil target2)
+          (should-not= target1 target2))))
+
+    (it "falls back when all targets claimed"
+      ;; Only one off-continent city - both transports must target it
+      (let [game-map (build-test-map ["X##"
+                                      "###"
+                                      "~~~"
+                                      "~~~"
+                                      "O##"
+                                      "###"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (reset! atoms/claimed-transport-targets #{})
+        (let [origin-continent (continent/flood-fill-continent [0 0])
+              target1 (transport/find-unload-target origin-continent [2 1])
+              target2 (transport/find-unload-target origin-continent [3 1])]
+          (should-not-be-nil target1)
+          (should-not-be-nil target2)
+          (should= target1 target2))))
+
+    (it "prefers continent without computer cities"
+      ;; Two target continents: one with computer city, one without
+      ;; Transport should prefer the one without computer presence
+      (let [game-map (build-test-map ["###"
+                                      "~~~"
+                                      "~~~"
+                                      "O#X"  ;; continent with computer city
+                                      "###"
+                                      "~~~"
+                                      "O##"  ;; continent without computer city
+                                      "###"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (reset! atoms/claimed-transport-targets #{})
+        (let [origin-continent (continent/flood-fill-continent [0 0])
+              target (transport/find-unload-target origin-continent [2 1])]
+          ;; Should pick the city on continent without computer presence
+          (should= [6 0] target))))
+
+    (it "prefers nearer target when continents are similar"
+      ;; Two equidistant-ish continents, transport closer to one
+      (let [game-map (build-test-map ["###"
+                                      "~~~"
+                                      "O##"   ;; closer target
+                                      "###"
+                                      "~~~"
+                                      "~~~"
+                                      "~~~"
+                                      "O##"   ;; farther target
+                                      "###"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (reset! atoms/claimed-transport-targets #{})
+        (let [origin-continent (continent/flood-fill-continent [0 0])
+              ;; Transport at row 1 is closer to city at row 2 than row 7
+              target (transport/find-unload-target origin-continent [1 1])]
+          (should= [2 0] target))))))

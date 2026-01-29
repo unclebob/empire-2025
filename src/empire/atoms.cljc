@@ -150,6 +150,10 @@
   "Per-round set of objectives already claimed by computer armies."
   (atom #{}))
 
+(def claimed-transport-targets
+  "Per-round set of target cities already claimed by computer transports."
+  (atom #{}))
+
 (def action-log
   "Circular buffer of recent game actions for debugging. Capped at 100 entries.
    Each entry is {:timestamp <ms> :action <vector describing the action>}."

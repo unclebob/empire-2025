@@ -59,15 +59,40 @@
                        (and cell (#{:land :city} (:type cell)))))
                    (core/get-neighbors pos)))))
 
+(defn- score-target-city
+  "Score a target city for a transport. Lower = more attractive.
+   Factors: distance, continent attackable cities, computer presence."
+  [transport-pos target-city]
+  (let [dist (core/distance transport-pos target-city)
+        target-continent (continent/flood-fill-continent target-city)
+        scan (when target-continent (continent/scan-continent target-continent))
+        attackable (+ (:player-cities scan 0) (:free-cities scan 0))
+        continent-factor (if (pos? attackable)
+                           (/ 100.0 attackable)
+                           100.0)
+        presence-penalty (if (pos? (:computer-cities scan 0)) 10.0 1.0)]
+    (* dist continent-factor presence-penalty)))
+
 (defn find-unload-target
-  "Find an enemy city to unload armies near, excluding cities on origin continent."
-  [origin-continent]
+  "Find best enemy city to unload near, excluding origin continent.
+   Prefers unclaimed targets to spread transports."
+  [origin-continent transport-pos]
   (let [player-cities (core/find-visible-cities #{:player})
         free-cities (core/find-visible-cities #{:free})
-        all-targets (concat player-cities free-cities)]
-    (if origin-continent
-      (first (remove #(contains? origin-continent %) all-targets))
-      (first all-targets))))
+        all-targets (concat player-cities free-cities)
+        off-continent (if origin-continent
+                        (remove #(contains? origin-continent %) all-targets)
+                        all-targets)]
+    (when (seq off-continent)
+      (let [claimed @atoms/claimed-transport-targets
+            unclaimed (remove claimed off-continent)
+            candidates (if (seq unclaimed) unclaimed off-continent)
+            best (apply min-key
+                        #(score-target-city transport-pos %)
+                        candidates)]
+        (when best
+          (swap! atoms/claimed-transport-targets conj best)
+          best)))))
 
 (defn- find-unload-position
   "Find a sea cell adjacent to land near the target city.
@@ -165,7 +190,7 @@
 (defn- move-toward-unload-or-explore
   "Try to move toward a cross-continent unload target. If none, explore sea."
   [pos origin-continent]
-  (if-let [target (find-unload-target origin-continent)]
+  (if-let [target (find-unload-target origin-continent pos)]
     (when-let [unload-pos (find-unload-position target origin-continent)]
       (move-toward-position pos unload-pos))
     (explore-sea pos)))

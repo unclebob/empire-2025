@@ -302,6 +302,7 @@
   (wake-airport-fighters)
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
   (reset! atoms/claimed-objectives #{})
+  (reset! atoms/claimed-transport-targets #{})
   (reset! atoms/player-items (vec (build-player-items)))
   (reset! atoms/computer-items (vec (build-computer-items)))
   (reset! atoms/waiting-for-input false)
