@@ -66,3 +66,17 @@ GIVEN A is waiting for input.
 WHEN the player presses d.
 
 THEN at the next step the attention message contains :cant-move-into-city.
+
+;===============================================================
+; Computer map updated when player conquers computer city.
+;===============================================================
+GIVEN game map
+  AX
+GIVEN computer map
+  .X
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN cell [1 0] is a player city.
+THEN on the computer-map cell [1 0] is a player city.

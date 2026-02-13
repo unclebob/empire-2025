@@ -114,7 +114,7 @@
 ;; --- GIVEN parsing ---
 
 (def ^:private unit-prop-extractors
-  [{:regex #"(?:is|has mode|mode)\s+(\w+)"
+  [{:regex #"(?:is|has mode|mode)\s+([\w-]+)"
     :extract-fn (fn [[_ mode]] {:props {:mode (keyword mode)}})}
    {:regex #"(?:has\s+)?fuel\s+(\d+)"
     :extract-fn (fn [[_ n]] {:props {:fuel (Integer/parseInt n)}})}
@@ -731,7 +731,7 @@
     :handler then-handle-unit-waiting-for-input}
    {:regex #"^(\w+)\s+wakes\s+up\s+and\s+asks\s+for\s+input"
     :handler then-handle-unit-waiting-for-input}
-   {:regex #"^(\w+)\s+is\s+at\s+\[(\d+)\s+(\d+)\]\s+in\s+mode\s+(\w+)"
+   {:regex #"^(\w+)\s+is\s+at\s+\[(\d+)\s+(\d+)\]\s+in\s+mode\s+([\w-]+)"
     :handler then-handle-unit-at-position-with-mode}
    {:regex #"^(\w+)\s+is\s+at\s+\[(\d+)\s+(\d+)\]"
     :handler then-handle-unit-at-coords}
@@ -769,6 +769,10 @@
     :handler then-handle-player-map-nil}
    {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(\S+)"
     :handler then-handle-cell-prop}
+   {:regex #"on\s+(?:the\s+)?computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+a\s+(player|computer)\s+city"
+    :handler (fn [[_ x y status]]
+               {:type :cell-prop :coords [(Integer/parseInt x) (Integer/parseInt y)]
+                :property :city-status :expected (keyword status) :target :computer-map})}
    {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+is\s+a\s+(player|computer)\s+city"
     :handler (fn [[_ x y status]]
                {:type :cell-prop :coords [(Integer/parseInt x) (Integer/parseInt y)]
@@ -838,9 +842,11 @@
     :handler then-handle-unit-has-mission}
    {:regex #"^(\w+)\s+has\s+refueling\s+position\s+near\s+(\S+)$"
     :handler then-handle-refueling-position-near}
+   {:regex #"^(\w+)\s+has\s+no\s+([\w-]+)$"
+    :handler then-handle-unit-prop-absent}
    {:regex #"^(\w+)\s+has\s+(\w[\w-]*)\s+(.+)$"
     :handler then-handle-unit-has-prop}
-   {:regex #"^(\w+)\s+(?:has\s+mode|is)\s+(\w+)$"
+   {:regex #"^(\w+)\s+(?:has\s+mode|is)\s+([\w-]+)$"
     :handler then-handle-unit-is-mode}
    {:regex #"^(\w+)\s+does\s+not\s+have\s+(\S+)"
     :handler then-handle-unit-prop-absent}])

@@ -460,7 +460,22 @@
     (swap! atoms/game-map assoc-in [1 1 :contents]
            {:type :transport :owner :player :mode :awake :army-count 4 :awake-armies 0})
     (should (wake-at [1 1]))
-    (should= 4 (get-in @atoms/game-map [1 1 :contents :awake-armies]))))
+    (should= 4 (get-in @atoms/game-map [1 1 :contents :awake-armies])))
+
+  (it "clears coastline state when waking a coastline-follow unit"
+    (swap! atoms/game-map assoc-in [1 1 :contents]
+           {:type :patrol-boat :owner :player :mode :coastline-follow :hits 2
+            :coastline-steps 5 :visited #{[0 0] [1 0]} :start-pos [0 0] :prev-pos [1 0]
+            :target [2 2] :reason :something})
+    (should (wake-at [1 1]))
+    (let [unit (get-in @atoms/game-map [1 1 :contents])]
+      (should= :awake (:mode unit))
+      (should-be-nil (:coastline-steps unit))
+      (should-be-nil (:visited unit))
+      (should-be-nil (:start-pos unit))
+      (should-be-nil (:prev-pos unit))
+      (should-be-nil (:target unit))
+      (should-be-nil (:reason unit)))))
 
 (describe "combat during movement"
   (before (reset-all-atoms!))

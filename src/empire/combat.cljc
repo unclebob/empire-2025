@@ -61,7 +61,8 @@
       (do
         (swap! atoms/game-map assoc-in city-coords (assoc city-cell :city-status :player))
         (conquer-city-contents city-coords :player)
-        (visibility/update-cell-visibility city-coords :player))
+        (visibility/update-cell-visibility city-coords :player)
+        (swap! atoms/computer-map assoc-in (conj city-coords :city-status) :player))
       (atoms/set-error-message (:conquest-failed config/messages) config/error-message-duration))
     true))
 

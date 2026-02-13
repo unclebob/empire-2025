@@ -633,8 +633,9 @@
   (let [atom-str (area->atom area)]
     (str "    (should= \"\" @" atom-str ")")))
 
-(defn- generate-cell-prop-then [{:keys [coords property expected]}]
-  (str "    (should= " (pr-str expected) " (:" (name property) " (get-in @atoms/game-map " (pr-str coords) ")))"))
+(defn- generate-cell-prop-then [{:keys [coords property expected target]}]
+  (let [map-atom (if (= target :computer-map) "atoms/computer-map" "atoms/game-map")]
+    (str "    (should= " (pr-str expected) " (:" (name property) " (get-in @" map-atom " " (pr-str coords) ")))")))
 
 (defn- generate-cell-type-then [{:keys [coords expected]}]
   (str "    (should= " (pr-str expected) " (:type (get-in @atoms/game-map " (pr-str coords) ")))"))

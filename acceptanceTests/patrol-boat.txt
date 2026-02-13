@@ -87,3 +87,17 @@ WHEN a new round starts and P is waiting for input.
 
 THEN P is awake.
 THEN the attention message contains :enemy-spotted.
+
+;===============================================================
+; Coastline-follow patrol boat wakes when player presses u.
+;===============================================================
+GIVEN game map
+  ~P~~~
+  ~####
+P has mode coastline-follow.
+P has coastline-steps 5.
+
+WHEN the mouse is at cell [1 0] and the player presses u.
+
+THEN P has mode awake.
+THEN P has no coastline-steps.

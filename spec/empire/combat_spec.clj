@@ -727,4 +727,11 @@
       (swap! atoms/production assoc [0 0] {:item :fighter :remaining-rounds 5})
       (combat/attempt-city-conquest [0 0])
       (should= :player (get-in @atoms/game-map [0 0 :city-status]))
-      (should-be-nil (get @atoms/production [0 0])))))
+      (should-be-nil (get @atoms/production [0 0]))))
+
+  (it "updates computer-map city-status on successful conquest"
+    (with-redefs [rand (constantly 0.1)]
+      (reset! atoms/game-map (build-test-map ["X"]))
+      (reset! atoms/computer-map (build-test-map ["X"]))
+      (combat/attempt-city-conquest [0 0])
+      (should= :player (get-in @atoms/computer-map [0 0 :city-status])))))

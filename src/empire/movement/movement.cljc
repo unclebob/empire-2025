@@ -398,7 +398,10 @@
       (and contents
            (= (:owner contents) :player)
            (not= (:mode contents) :awake))
-      (do (swap! atoms/game-map assoc-in [cx cy :contents :mode] :awake)
+      (do (swap! atoms/game-map assoc-in [cx cy :contents]
+                 (-> contents
+                     (assoc :mode :awake)
+                     (dissoc :coastline-steps :visited :start-pos :prev-pos :target :reason)))
           true)
 
       :else nil)))
