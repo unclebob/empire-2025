@@ -255,7 +255,9 @@
 (defn- try-interior-move
   "Attempts to move in a direction, clearing direction if blocked or at coast."
   [pos target]
-  (if (and (in-bounds? target) (try-move pos target))
+  (if (and (in-bounds? target)
+           (#{:land :city} (:type (get-in @atoms/game-map target)))
+           (try-move pos target))
     (do (when (adjacent-to-sea? target)
           (swap! atoms/game-map update-in (conj target :contents) dissoc :interior-explore-direction))
         target)
