@@ -252,3 +252,96 @@
         (#'empire.movement.visibility/reveal-cell!
           atoms/player-map 1 1 game-cell 5 visible-map)
         (should-not (get-in @atoms/game-map [1 1 :country-id]))))))
+
+(describe "is-players?"
+  (it "returns true for player city"
+    (should (#'empire.movement.visibility/is-players? {:type :city :city-status :player})))
+
+  (it "returns true for cell with player unit"
+    (should (#'empire.movement.visibility/is-players? {:type :land :contents {:owner :player}})))
+
+  (it "returns false for computer city"
+    (should-not (#'empire.movement.visibility/is-players? {:type :city :city-status :computer})))
+
+  (it "returns false for cell with computer unit"
+    (should-not (#'empire.movement.visibility/is-players? {:type :land :contents {:owner :computer}})))
+
+  (it "returns false for empty cell"
+    (should-not (#'empire.movement.visibility/is-players? {:type :land})))
+
+  (it "returns false for free city"
+    (should-not (#'empire.movement.visibility/is-players? {:type :city :city-status :free}))))
+
+(describe "is-computers?"
+  (it "returns true for computer city"
+    (should (#'empire.movement.visibility/is-computers? {:type :city :city-status :computer})))
+
+  (it "returns true for cell with computer unit"
+    (should (#'empire.movement.visibility/is-computers? {:type :land :contents {:owner :computer}})))
+
+  (it "returns false for player city"
+    (should-not (#'empire.movement.visibility/is-computers? {:type :city :city-status :player})))
+
+  (it "returns false for cell with player unit"
+    (should-not (#'empire.movement.visibility/is-computers? {:type :land :contents {:owner :player}})))
+
+  (it "returns false for empty cell"
+    (should-not (#'empire.movement.visibility/is-computers? {:type :land}))))
+
+(describe "cell-visibility-radius"
+  (it "returns 1 for cell without unit"
+    (should= 1 (#'empire.movement.visibility/cell-visibility-radius {:type :land})))
+
+  (it "returns 1 for cell with army"
+    (should= 1 (#'empire.movement.visibility/cell-visibility-radius
+                  {:type :land :contents {:type :army}})))
+
+  (it "returns 2 for cell with satellite"
+    (should= 2 (#'empire.movement.visibility/cell-visibility-radius
+                  {:type :land :contents {:type :satellite}})))
+
+  (it "returns 1 for cell with fighter"
+    (should= 1 (#'empire.movement.visibility/cell-visibility-radius
+                  {:type :land :contents {:type :fighter}})))
+
+  (it "returns 1 for city cell without unit"
+    (should= 1 (#'empire.movement.visibility/cell-visibility-radius
+                  {:type :city :city-status :player}))))
+
+(describe "reveal-surrounding-cells!"
+  (it "reveals cells within radius 1"
+    (let [game-map [[{:type :land} {:type :sea} {:type :land}]
+                     [{:type :sea} {:type :land} {:type :sea}]
+                     [{:type :land} {:type :sea} {:type :land}]]
+          result (transient (mapv transient (vec (repeat 3 (vec (repeat 3 nil))))))]
+      (#'empire.movement.visibility/reveal-surrounding-cells! result game-map 1 1 3 3 1)
+      (let [final (mapv persistent! (persistent! result))]
+        (should= {:type :land} (get-in final [0 0]))
+        (should= {:type :sea} (get-in final [1 0]))
+        (should= {:type :land} (get-in final [2 0]))
+        (should= {:type :sea} (get-in final [0 1]))
+        (should= {:type :land} (get-in final [1 1]))
+        (should= {:type :sea} (get-in final [2 1]))
+        (should= {:type :land} (get-in final [0 2]))
+        (should= {:type :sea} (get-in final [1 2]))
+        (should= {:type :land} (get-in final [2 2])))))
+
+  (it "clamps at map edges"
+    (let [game-map [[{:type :land} {:type :sea}]
+                     [{:type :sea} {:type :land}]]
+          result (transient (mapv transient (vec (repeat 2 (vec (repeat 2 nil))))))]
+      (#'empire.movement.visibility/reveal-surrounding-cells! result game-map 0 0 2 2 1)
+      (let [final (mapv persistent! (persistent! result))]
+        (should= {:type :land} (get-in final [0 0]))
+        (should= {:type :sea} (get-in final [1 0]))
+        (should= {:type :sea} (get-in final [0 1]))
+        (should= {:type :land} (get-in final [1 1])))))
+
+  (it "reveals larger area with radius 2"
+    (let [game-map (vec (repeat 5 (vec (repeat 5 {:type :land}))))
+          result (transient (mapv transient (vec (repeat 5 (vec (repeat 5 nil))))))]
+      (#'empire.movement.visibility/reveal-surrounding-cells! result game-map 2 2 5 5 2)
+      (let [final (mapv persistent! (persistent! result))]
+        ;; All 25 cells should be revealed (radius 2 from center of 5x5)
+        (doseq [r (range 5) c (range 5)]
+          (should= {:type :land} (get-in final [r c])))))))

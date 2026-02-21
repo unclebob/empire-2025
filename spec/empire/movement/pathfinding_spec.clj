@@ -618,3 +618,109 @@
         (should-not-be-nil step)
         ;; The step should move toward increasing column
         (should (>= (second step) 1))))))
+
+(describe "chebyshev"
+  (it "returns 0 for same position"
+    (should= 0 (#'empire.movement.pathfinding/chebyshev [3 3] [3 3])))
+
+  (it "returns 1 for adjacent position"
+    (should= 1 (#'empire.movement.pathfinding/chebyshev [3 3] [4 4])))
+
+  (it "returns max of row/col difference"
+    (should= 5 (#'empire.movement.pathfinding/chebyshev [0 0] [3 5])))
+
+  (it "handles negative direction"
+    (should= 4 (#'empire.movement.pathfinding/chebyshev [5 5] [1 3]))))
+
+(describe "reconstruct-path"
+  (it "reconstructs path from came-from map"
+    (let [came-from {[1 0] [0 0]
+                     [2 0] [1 0]
+                     [3 0] [2 0]}]
+      (should= [[0 0] [1 0] [2 0] [3 0]]
+               (#'empire.movement.pathfinding/reconstruct-path came-from [0 0] [3 0]))))
+
+  (it "returns single element for start=goal"
+    (should= [[0 0]]
+             (#'empire.movement.pathfinding/reconstruct-path {} [0 0] [0 0])))
+
+  (it "reconstructs two-step path"
+    (let [came-from {[1 1] [0 0]}]
+      (should= [[0 0] [1 1]]
+               (#'empire.movement.pathfinding/reconstruct-path came-from [0 0] [1 1])))))
+
+(describe "sea-reaches-edge?"
+  (before (reset-all-atoms!))
+
+  (it "returns true when sea cell is on edge"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "###"
+                                             "###"]))
+    (should (pathfinding/sea-reaches-edge? [0 0])))
+
+  (it "returns true when sea connects to edge"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~#"
+                                             "#~~"]))
+    ;; [1 1] connects via [2 1] or [1 2] or [2 2] to edge
+    (should (pathfinding/sea-reaches-edge? [1 1])))
+
+  (it "returns false for landlocked sea"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#~~~#"
+                                             "#~~~#"
+                                             "#~~~#"
+                                             "#####"]))
+    (should-not (pathfinding/sea-reaches-edge? [2 2])))
+
+  (it "returns true for sea cell directly on edge"
+    (reset! atoms/game-map (build-test-map ["~#"
+                                             "#~"]))
+    (should (pathfinding/sea-reaches-edge? [0 0])))
+
+  (it "returns true for corner sea cell"
+    (reset! atoms/game-map (build-test-map ["##"
+                                             "#~"]))
+    (should (pathfinding/sea-reaches-edge? [1 1]))))
+
+(describe "adjacent-to-unexplored?"
+  (it "returns truthy when neighbor is nil"
+    (let [computer-map [[{:type :sea} nil]
+                         [{:type :sea} {:type :sea}]]]
+      (should (#'empire.movement.pathfinding/adjacent-to-unexplored? [0 0] computer-map))))
+
+  (it "returns truthy when neighbor is {:type :unexplored}"
+    (let [computer-map [[{:type :sea} {:type :unexplored}]
+                         [{:type :sea} {:type :sea}]]]
+      (should (#'empire.movement.pathfinding/adjacent-to-unexplored? [0 0] computer-map))))
+
+  (it "returns falsy when all neighbors are explored"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                         [{:type :sea} {:type :sea}]]]
+      (should-not (#'empire.movement.pathfinding/adjacent-to-unexplored? [0 0] computer-map))))
+
+  (it "handles edge position correctly"
+    (let [computer-map [[{:type :sea}]]]
+      ;; Single cell, no neighbors within bounds, should return falsy
+      (should-not (#'empire.movement.pathfinding/adjacent-to-unexplored? [0 0] computer-map)))))
+
+(describe "at-exploration-frontier?"
+  (it "returns truthy when adjacent to both unexplored and known land"
+    (let [computer-map [[{:type :sea} nil]
+                         [{:type :land} {:type :sea}]]]
+      ;; [0 0] is adjacent to nil [1 0] (unexplored) and [0 1] is land
+      (should (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map))))
+
+  (it "returns falsy when only adjacent to unexplored (no known land)"
+    (let [computer-map [[{:type :sea} nil]
+                         [{:type :sea} {:type :sea}]]]
+      (should-not (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map))))
+
+  (it "returns falsy when only adjacent to known land (no unexplored)"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                         [{:type :land} {:type :sea}]]]
+      (should-not (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map))))
+
+  (it "returns falsy when no neighbors"
+    (let [computer-map [[{:type :sea}]]]
+      (should-not (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map)))))
