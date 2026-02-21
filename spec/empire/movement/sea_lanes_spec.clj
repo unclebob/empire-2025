@@ -236,4 +236,109 @@
       (should (>= (count (:nodes net)) 4))
       (should (>= (count (:segments net)) 3)))))
 
+(describe "duplicate-segment?"
+  (it "detects duplicate segment between same nodes with same length"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 3] :segment-ids #{1}})
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                            :length 3}))]
+      (should (#'empire.movement.sea-lanes/duplicate-segment? net 1 2 3))))
+
+  (it "detects duplicate when node order is reversed"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 3] :segment-ids #{1}})
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                            :length 3}))]
+      (should (#'empire.movement.sea-lanes/duplicate-segment? net 2 1 3))))
+
+  (it "returns falsy for different length"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 3] :segment-ids #{1}})
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                            :length 3}))]
+      (should-not (#'empire.movement.sea-lanes/duplicate-segment? net 1 2 5))))
+
+  (it "returns falsy for different nodes"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 3] :segment-ids #{1}})
+                  (assoc-in [:nodes 3] {:id 3 :pos [0 5] :segment-ids #{}})
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                            :length 3}))]
+      (should-not (#'empire.movement.sea-lanes/duplicate-segment? net 1 3 3))))
+
+  (it "returns falsy for node with no segments"
+    (let [net (assoc-in sl/empty-network [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{}})]
+      (should-not (#'empire.movement.sea-lanes/duplicate-segment? net 1 2 3)))))
+
+(describe "split-cells-at"
+  (it "splits cells at interior position"
+    (let [[left right] (#'empire.movement.sea-lanes/split-cells-at
+                          [[0 0] [0 1] [0 2] [0 3]] [0 2])]
+      (should= [[0 0] [0 1] [0 2]] left)
+      (should= [[0 2] [0 3]] right)))
+
+  (it "splits at first position"
+    (let [[left right] (#'empire.movement.sea-lanes/split-cells-at
+                          [[0 0] [0 1] [0 2]] [0 0])]
+      (should= [[0 0]] left)
+      (should= [[0 0] [0 1] [0 2]] right)))
+
+  (it "splits at last position"
+    (let [[left right] (#'empire.movement.sea-lanes/split-cells-at
+                          [[0 0] [0 1] [0 2]] [0 2])]
+      (should= [[0 0] [0 1] [0 2]] left)
+      (should= [[0 2]] right))))
+
+(describe "network-at-capacity?"
+  (it "returns false for empty network"
+    (should-not (#'empire.movement.sea-lanes/network-at-capacity? sl/empty-network)))
+
+  (it "returns true when nodes at max"
+    (let [net (assoc sl/empty-network :nodes
+                     (into {} (for [i (range config/max-sea-lane-nodes)]
+                                [i {:id i}])))]
+      (should (#'empire.movement.sea-lanes/network-at-capacity? net))))
+
+  (it "returns true when segments at max"
+    (let [net (assoc sl/empty-network :segments
+                     (into {} (for [i (range config/max-sea-lane-segments)]
+                                [i {:id i}])))]
+      (should (#'empire.movement.sea-lanes/network-at-capacity? net))))
+
+  (it "returns false when below both limits"
+    (let [net (-> sl/empty-network
+                  (assoc :nodes {1 {:id 1} 2 {:id 2}})
+                  (assoc :segments {1 {:id 1}}))]
+      (should-not (#'empire.movement.sea-lanes/network-at-capacity? net)))))
+
+(describe "split-segment-at"
+  (before (reset-all-atoms!))
+
+  (it "splits segment creating new node at intersection"
+    (let [;; Build a network with one segment from node 1 to node 2
+          net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 4] :segment-ids #{1}})
+                  (assoc-in [:pos->node [0 0]] 1)
+                  (assoc-in [:pos->node [0 4]] 2)
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                            :direction [0 1]
+                                            :cells [[0 0] [0 1] [0 2] [0 3] [0 4]]
+                                            :length 4})
+                  (assoc-in [:pos->seg [0 1]] 1)
+                  (assoc-in [:pos->seg [0 2]] 1)
+                  (assoc-in [:pos->seg [0 3]] 1)
+                  (assoc :next-node-id 3 :next-segment-id 2))
+          result (#'empire.movement.sea-lanes/split-segment-at net 1 [0 2])]
+      ;; Original segment 1 should be removed
+      (should-not (get-in result [:segments 1]))
+      ;; New node at [0 2] should exist
+      (should (get-in result [:pos->node [0 2]]))
+      ;; Should have at least 2 segments (left and right of split)
+      (should (>= (count (:segments result)) 2)))))
+
 (run-specs)

@@ -88,7 +88,44 @@
                 :shipyard [{:type :submarine :hits 1}]}
           production {:item :army :remaining-rounds 3}]
       (should= "city:player producing:army fighters:2 dock:S[1/2]"
-               (ru/format-city-status cell production)))))
+               (ru/format-city-status cell production))))
+
+  (it "formats city with transport in shipyard"
+    (let [cell {:type :city :city-status :player
+                :shipyard [{:type :transport :hits 1}]}]
+      (should= "city:player dock:T[1/1]" (ru/format-city-status cell nil))))
+
+  (it "formats city with carrier in shipyard"
+    (let [cell {:type :city :city-status :player
+                :shipyard [{:type :carrier :hits 5}]}]
+      (should= "city:player dock:C[5/8]" (ru/format-city-status cell nil))))
+
+  (it "formats city with patrol-boat in shipyard"
+    (let [cell {:type :city :city-status :player
+                :shipyard [{:type :patrol-boat :hits 1}]}]
+      (should= "city:player dock:P[1/1]" (ru/format-city-status cell nil))))
+
+  (it "formats city with empty shipyard"
+    (let [cell {:type :city :city-status :player :shipyard []}]
+      (should= "city:player" (ru/format-city-status cell nil))))
+
+  (it "formats city with lookaround marching orders"
+    (let [cell {:type :city :city-status :player :fighter-count 0
+                :marching-orders :lookaround}]
+      (should= "city:player lookaround" (ru/format-city-status cell nil))))
+
+  (it "formats city with flight path"
+    (let [cell {:type :city :city-status :player :fighter-count 0
+                :flight-path [5 10]}]
+      (should= "city:player flight" (ru/format-city-status cell nil))))
+
+  (it "formats free city"
+    (let [cell {:type :city :city-status :free :fighter-count 0}]
+      (should= "city:free" (ru/format-city-status cell nil))))
+
+  (it "formats city with production none"
+    (let [cell {:type :city :city-status :player :fighter-count 0}]
+      (should= "city:player producing:none" (ru/format-city-status cell :none)))))
 
 (describe "format-hover-status"
   (it "returns unit status with coordinates"
