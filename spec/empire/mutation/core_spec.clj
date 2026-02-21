@@ -1,6 +1,7 @@
 (ns empire.mutation.core-spec
   (:require [speclj.core :refer :all]
             [empire.mutation.core :as core]
+            [empire.mutation.coverage :as coverage]
             [empire.mutation.runner :as runner]))
 
 (describe "read-source-forms"
@@ -50,14 +51,42 @@
         (should-contain :error result)
         (.delete temp)))))
 
+(describe "partition-by-coverage"
+  (it "separates covered from uncovered sites"
+    (let [sites [{:line 1 :original '+} {:line 2 :original '-} {:line 3 :original '>}]
+          covered-lines #{1 3}
+          [covered uncovered] (core/partition-by-coverage sites covered-lines)]
+      (should= 2 (count covered))
+      (should= 1 (count uncovered))
+      (should= 2 (:line (first uncovered)))))
+
+  (it "treats nil-line sites as covered"
+    (let [sites [{:line nil :original '+} {:line 5 :original '-}]
+          covered-lines #{5}
+          [covered uncovered] (core/partition-by-coverage sites covered-lines)]
+      (should= 2 (count covered))
+      (should= 0 (count uncovered))))
+
+  (it "treats all sites as covered when coverage is nil"
+    (let [sites [{:line 1 :original '+} {:line 2 :original '-}]
+          [covered uncovered] (core/partition-by-coverage sites nil)]
+      (should= 2 (count covered))
+      (should= 0 (count uncovered)))))
+
 (describe "format-report"
   (it "produces summary with kill count"
     (let [results [{:site {:description "+ -> -"} :result :killed}
                    {:site {:description "1 -> 0"} :result :survived}]
-          report (core/format-report "src/empire/foo.cljc" "spec/empire/foo_spec.clj" results)]
+          report (core/format-report "src/empire/foo.cljc" "spec/empire/foo_spec.clj" results 0)]
       (should-contain "1/2 mutants killed" report)
       (should-contain "SURVIVED" report)
-      (should-contain "KILLED" report))))
+      (should-contain "KILLED" report)))
+
+  (it "includes uncovered count in summary"
+    (let [results [{:site {:description "+ -> -"} :result :killed}]
+          report (core/format-report "src/empire/foo.cljc" "spec/empire/foo_spec.clj" results 3)]
+      (should-contain "1/1 mutants killed" report)
+      (should-contain "3 uncovered" report))))
 
 (describe "integration: discover mutations in a real source file"
   (it "finds mutation sites in combat.cljc"

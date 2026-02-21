@@ -1,6 +1,7 @@
 (ns empire.mutation.mutations-spec
   (:require [speclj.core :refer :all]
-            [empire.mutation.mutations :as m]))
+            [empire.mutation.mutations :as m]
+            [empire.mutation.core :as core]))
 
 (describe "mutation-rules"
   (it "contains the core mutation set"
@@ -57,6 +58,25 @@
   (it "does not suppress > -> >= for non-rand comparisons"
     (let [sites (m/find-mutations '(if (> hits 0) :a :b))]
       (should (some #(and (= (:original %) '>) (= (:mutant %) '>=)) sites)))))
+
+(describe "line numbers"
+  (it "attaches :line from reader metadata for symbols"
+    (let [forms (core/read-source-forms "(defn foo [] (+ 1 2))")
+          sites (m/find-mutations (first forms))
+          plus-site (first (filter #(= (:original %) '+) sites))]
+      (should-not-be-nil (:line plus-site))))
+
+  (it "attaches :line from parent metadata for literals"
+    (let [forms (core/read-source-forms "(defn foo [] (+ 1 2))")
+          sites (m/find-mutations (first forms))
+          one-site (first (filter #(= (:original %) 1) sites))]
+      (should-not-be-nil (:line one-site))))
+
+  (it "returns nil :line for forms without metadata"
+    (let [form (list (symbol "+") 1 2)
+          sites (m/find-mutations form)
+          plus-site (first (filter #(= (:original %) '+) sites))]
+      (should-be-nil (:line plus-site)))))
 
 (describe "apply-mutation"
   (it "applies mutation at a specific index"

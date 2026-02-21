@@ -14,7 +14,7 @@
 					                         "--optimizations" "none"
 					                         "--compile" "empire.ui.core"
 																	 ]}
-					 :cov {:main-opts ["-m" "speclj.cloverage" "--" "-p" "src" "-s" "spec"]
+					 :cov {:main-opts ["-m" "speclj.cloverage" "--" "-p" "src" "-s" "spec" "--lcov"]
 					                  :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}}
 					                  :extra-paths ["spec"]}
 					 :parse-tests {:main-opts ["-m" "empire.acceptance.parser"]

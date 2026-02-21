@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.tools.reader :as reader]
             [clojure.tools.reader.reader-types :as reader-types]
+            [empire.mutation.coverage :as coverage]
             [empire.mutation.mutations :as mutations]
             [empire.mutation.runner :as runner])
   (:import [java.io File]))
@@ -27,6 +28,17 @@
            (map #(assoc % :form-index idx)
                 (mutations/find-mutations form)))
          (range) forms)))
+
+(defn partition-by-coverage
+  "Split sites into [covered uncovered] based on covered-lines set.
+   Sites with nil :line are treated as covered. If covered-lines is nil,
+   all sites are treated as covered."
+  [sites covered-lines]
+  (if (nil? covered-lines)
+    [sites []]
+    (let [covered? #(or (nil? (:line %)) (contains? covered-lines (:line %)))
+          grouped (group-by covered? sites)]
+      [(vec (get grouped true [])) (vec (get grouped false []))])))
 
 (defn- serialize-forms
   "Serialize a vector of forms to a string."
@@ -57,7 +69,7 @@
 
 (defn format-report
   "Format mutation testing results as a console report string."
-  [source-path spec-path results]
+  [source-path spec-path results uncovered-count]
   (let [total (count results)
         killed (count (filter #(= :killed (:result %)) results))
         pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
@@ -69,6 +81,8 @@
       (apply str (map-indexed #(format-line %1 total %2) results))
       (format "%n=== Summary ===%n")
       (format "%d/%d mutants killed (%.1f%%)%n" killed total pct)
+      (when (pos? uncovered-count)
+        (format "%d uncovered mutations skipped%n" uncovered-count))
       (when (seq survivors)
         (str "Survivors:\n"
              (apply str (map format-survivor survivors)))))))
@@ -97,9 +111,18 @@
                    (:description site)))
   (flush))
 
-(defn- print-summary [killed total pct survivors]
+(defn- print-uncovered [uncovered]
+  (when (seq uncovered)
+    (println (format "\n=== Coverage Gaps (%d mutations on uncovered lines) ==="
+                     (count uncovered)))
+    (doseq [site uncovered]
+      (println (format "  line %d: %s" (:line site) (:description site))))))
+
+(defn- print-summary [killed total pct survivors uncovered-count]
   (println (format "\n=== Summary ==="))
   (println (format "%d/%d mutants killed (%.1f%%)" killed total pct))
+  (when (pos? uncovered-count)
+    (println (format "%d uncovered mutations skipped" uncovered-count)))
   (when (seq survivors)
     (println "Survivors:")
     (doseq [r survivors]
@@ -112,10 +135,14 @@
   [source-path spec-path]
   (let [original-content (slurp source-path)
         forms (read-source-forms original-content)
-        sites (discover-all-mutations forms)]
+        all-sites (discover-all-mutations forms)
+        covered-lines (coverage/load-coverage source-path)
+        [sites uncovered] (partition-by-coverage all-sites covered-lines)]
     (println (format "=== Mutation Testing: %s ===" source-path))
     (println (format "Spec: %s" spec-path))
-    (println (format "Found %d mutation sites.\n" (count sites)))
+    (println (format "Found %d mutation sites (%d covered, %d uncovered).\n"
+                     (count all-sites) (count sites) (count uncovered)))
+    (print-uncovered uncovered)
     (let [results (doall
                     (map-indexed
                       (fn [i site]
@@ -128,7 +155,7 @@
           total (count results)
           pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
           survivors (filter #(= :survived (:result %)) results)]
-      (print-summary killed total pct survivors))))
+      (print-summary killed total pct survivors (count uncovered)))))
 
 (defn -main [& args]
   (let [validated (validate-args (vec args))]

@@ -47,6 +47,13 @@
 (defn- first-matching-rule [parent node]
   (first (filter #(matches-rule? % parent node) rules)))
 
+(defn- node-line
+  "Extract line number for a mutation site.
+   Symbols get reader metadata; literals use parent's metadata."
+  [parent node]
+  (or (-> node meta :line)
+      (-> parent meta :line)))
+
 (defn- walk-children
   "Recurse into child nodes of any collection type."
   [walk-fn parent node]
@@ -68,6 +75,7 @@
                                    :original (:original rule)
                                    :mutant (:mutant rule)
                                    :category (:category rule)
+                                   :line (node-line parent node)
                                    :description (str (:original rule) " -> " (:mutant rule))})
                 (swap! counter inc))
               (walk-children walk parent node))]
