@@ -1,0 +1,53 @@
+; Computer Ship Repair
+;
+; Damaged computer ships dock at friendly cities for repair.
+; Ships repair 1 hit per round while docked.
+; Fully repaired ships launch to adjacent sea.
+
+;===============================================================
+; Damaged computer destroyer docks at computer city for repair.
+;===============================================================
+GIVEN game map
+  BdX
+GIVEN d has hits 2.
+
+WHEN a new round starts.
+
+THEN there is no d on the map.
+THEN X has a destroyer with 2 hits in its shipyard.
+
+;===============================================================
+; Docked ship repairs 1 hit per round.
+;===============================================================
+GIVEN game map
+  ~X~
+GIVEN X has a destroyer with 1 hit in its shipyard.
+
+WHEN a new round starts.
+
+THEN X has a destroyer with 2 hits in its shipyard.
+
+;===============================================================
+; Fully repaired ship launches to adjacent sea.
+;===============================================================
+GIVEN game map
+  ~X#
+GIVEN X has a destroyer with 2 hits in its shipyard.
+
+WHEN a new round starts.
+
+THEN X has no ships in its shipyard.
+THEN the map is dX#.
+
+;===============================================================
+; Repaired ship launches even when city is occupied.
+;===============================================================
+GIVEN game map
+  ~X#
+GIVEN X has a destroyer with 2 hits in its shipyard.
+GIVEN X has a computer army.
+
+WHEN a new round starts.
+
+THEN X has no ships in its shipyard.
+THEN the map is dX#.

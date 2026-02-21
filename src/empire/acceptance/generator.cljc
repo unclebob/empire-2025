@@ -86,6 +86,8 @@
                 (some #(and (= :production (:type %))
                             (city-spec? (:city %))) givens)
                 (some #(= :city-prop (:type %)) givens)
+                (some #(#{:shipyard-state :city-unit} (:type %)) givens)
+                (some #(#{:shipyard-has-ship :shipyard-empty} (:type %)) thens)
                 (some #(and (= :waiting-for-input (:type %))
                             (city-spec? (:unit %))) givens)
                 (some #(and (= :unit-props (:type %))
