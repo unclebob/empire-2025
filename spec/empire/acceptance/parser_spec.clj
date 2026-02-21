@@ -391,6 +391,12 @@
         (should= [{:type :stub
                    :bindings [{:var "empire.computer.ship/find-carrier-position"
                                :value "(constantly [0 0])"}]}]
+                 (:givens result))))
+
+    (it "parses 'X has a destroyer with 2 hits in its shipyard'"
+      (let [lines ["X has a destroyer with 2 hits in its shipyard."]
+            result (parser/parse-given lines {})]
+        (should= [{:type :shipyard-state :city "X" :ship-type :destroyer :hits 2}]
                  (:givens result)))))
 
   (describe "parse-when"

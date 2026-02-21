@@ -367,6 +367,12 @@
 (defn- generate-no-production-given [_]
   "    (reset! atoms/production {})")
 
+(defn- generate-shipyard-state-given [{:keys [city ship-type hits]}]
+  (let [pos-expr (target-pos-expr city)]
+    (str "    (let [" (str/lower-case city) "-pos " pos-expr "]\n"
+         "      (swap! atoms/game-map update-in " (str/lower-case city) "-pos\n"
+         "        update :shipyard (fnil conj []) {:type :" (name ship-type) " :hits " hits "}))")))
+
 (defn generate-given
   "Generate code string for a single GIVEN IR node."
   ([given] (generate-given given []))
@@ -385,6 +391,7 @@
      :player-items (generate-player-items-given given)
      :waiting-for-input-state (generate-waiting-for-input-state-given given)
      :no-production (generate-no-production-given given)
+     :shipyard-state (generate-shipyard-state-given given)
      :stub ""
      :unrecognized (str "    (pending \"Unrecognized: " (:text given) "\")")
      (str "    ;; Unknown given type: " (:type given)))))

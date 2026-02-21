@@ -255,6 +255,10 @@
 (defn- given-handle-unit-target [[_ unit target] _ctx]
   {:directive :unit-target :ir {:type :unit-target :unit unit :target target}})
 
+(defn- given-handle-shipyard-state [[_ city ship-type hits] _ctx]
+  {:directive :shipyard-state
+   :ir {:type :shipyard-state :city city :ship-type (keyword ship-type) :hits (Integer/parseInt hits)}})
+
 ;; --- GIVEN parsing: pattern tables ---
 
 (def ^:private given-map-patterns
@@ -297,6 +301,8 @@
     :handler given-handle-waiting-for-input-bare}
    {:regex #"(\w+)'s\s+target\s+is\s+(\S+)"
     :handler given-handle-unit-target}
+   {:regex #"(\w+)\s+has\s+(?:a|an)\s+(\w+)\s+with\s+(\d+)\s+hits?\s+in\s+its\s+shipyard"
+    :handler given-handle-shipyard-state}
    {:regex #"(?:the\s+)?computer\s+controls?\s+(\d+)\s+cit(?:y|ies)"
     :handler (fn [[_ n] _ctx]
                {:directive :stub
@@ -378,7 +384,8 @@
                   (swap! i inc))
 
               (:production :no-production :round :destination :cell-props
-               :player-items :waiting-for-input-bare :unit-target :city-prop :stub)
+               :player-items :waiting-for-input-bare :unit-target :city-prop :stub
+               :shipyard-state)
               (do (swap! givens conj (:ir parsed))
                   (swap! i inc))
 
