@@ -5,6 +5,7 @@
             [empire.config :as config]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
+            [empire.movement.map-utils :as map-utils]
             [empire.movement.satellite :as satellite]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]
@@ -162,10 +163,16 @@
   (doseq [coords (find-satellite-coords)]
     (move-satellite-steps coords)))
 
+(defn- find-adjacent-empty-sea
+  "Returns the first adjacent empty sea cell, or nil if none."
+  [pos]
+  (first (map-utils/get-matching-neighbors
+          pos @atoms/game-map map-utils/neighbor-offsets
+          #(and (= :sea (:type %)) (nil? (:contents %))))))
+
 (defn- repair-city-ships
   "Repairs all ships in a city's shipyard by 1 hit each.
-   Launches fully repaired ships if the city cell is empty.
-   Returns indices of ships that were launched (in reverse order for safe removal)."
+   Launches fully repaired ships to city cell or adjacent sea."
   [city-coords]
   (let [cell (get-in @atoms/game-map city-coords)
         shipyard (uc/get-shipyard-ships cell)]
@@ -173,16 +180,19 @@
       ;; First, repair all ships
       (let [repaired-ships (mapv uc/repair-ship shipyard)]
         (swap! atoms/game-map assoc-in (conj city-coords :shipyard) repaired-ships))
-      ;; Then, launch fully repaired ships if city is empty
+      ;; Then, launch fully repaired ships
       ;; Process from end to avoid index shifting issues
       (let [updated-cell (get-in @atoms/game-map city-coords)
             updated-shipyard (uc/get-shipyard-ships updated-cell)]
         (doseq [i (reverse (range (count updated-shipyard)))]
           (let [current-cell (get-in @atoms/game-map city-coords)
                 ship (get-in current-cell [:shipyard i])]
-            (when (and (uc/ship-fully-repaired? ship)
-                       (nil? (:contents current-cell)))
-              (container-ops/launch-ship-from-shipyard city-coords i))))))))
+            (when (uc/ship-fully-repaired? ship)
+              (let [launch-pos (if (nil? (:contents current-cell))
+                                 city-coords
+                                 (find-adjacent-empty-sea city-coords))]
+                (when launch-pos
+                  (container-ops/launch-ship-from-shipyard city-coords i launch-pos))))))))))
 
 (defn repair-damaged-ships
   "Repairs ships in all friendly city shipyards by 1 hit per round.

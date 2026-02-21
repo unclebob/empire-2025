@@ -5,10 +5,26 @@
             [empire.computer.core :as core]
             [empire.config :as config]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-unit]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-unit]]
+            [empire.containers.helpers :as uc]))
 
 (describe "process-ship"
   (before (reset-all-atoms!))
+
+  (describe "dock behavior"
+    (it "damaged computer ship docks at adjacent friendly city"
+      (reset! atoms/game-map (build-test-map ["BdX"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-unit atoms/game-map "d" :hits 2)
+      (ship/process-ship [1 0] :destroyer)
+      ;; Ship should be removed from map
+      (should-be-nil (get-in @atoms/game-map [1 0 :contents]))
+      ;; Ship should be in city X's shipyard
+      (let [city (get-in @atoms/game-map [2 0])
+            shipyard (uc/get-shipyard-ships city)]
+        (should= 1 (count shipyard))
+        (should= :destroyer (:type (first shipyard)))
+        (should= 2 (:hits (first shipyard))))))
 
   (describe "attack behavior"
     (it "attacks adjacent player ship"

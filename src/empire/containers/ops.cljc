@@ -216,20 +216,26 @@
 
 (defn launch-ship-from-shipyard
   "Removes ship at given index from city's shipyard and places on map.
-   Reconstructs full unit from minimal shipyard data."
-  [city-coords ship-index]
-  (let [cell (get-in @atoms/game-map city-coords)
-        ship-data (get-in cell [:shipyard ship-index])
-        owner (case (:city-status cell)
-                :player :player
-                :computer :computer
-                :player)  ; default to player for free cities
-        ship (-> {:type (:type ship-data)
-                  :owner owner
-                  :hits (:hits ship-data)
-                  :mode :awake
-                  :steps-remaining (dispatcher/effective-speed (:type ship-data) (:hits ship-data))}
-                 (production/stamp-unit-fields cell))
-        updated-city (uc/remove-ship-from-shipyard cell ship-index)]
-    (swap! atoms/game-map assoc-in city-coords (assoc updated-city :contents ship))
-    (visibility/update-cell-visibility city-coords owner)))
+   Reconstructs full unit from minimal shipyard data.
+   When launch-pos is provided, places ship there instead of at city."
+  ([city-coords ship-index]
+   (launch-ship-from-shipyard city-coords ship-index city-coords))
+  ([city-coords ship-index launch-pos]
+   (let [cell (get-in @atoms/game-map city-coords)
+         ship-data (get-in cell [:shipyard ship-index])
+         owner (case (:city-status cell)
+                 :player :player
+                 :computer :computer
+                 :player)  ; default to player for free cities
+         ship (-> {:type (:type ship-data)
+                   :owner owner
+                   :hits (:hits ship-data)
+                   :mode :awake
+                   :steps-remaining (dispatcher/effective-speed (:type ship-data) (:hits ship-data))}
+                  (production/stamp-unit-fields cell))
+         updated-city (uc/remove-ship-from-shipyard cell ship-index)]
+     (swap! atoms/game-map assoc-in city-coords updated-city)
+     (if (= launch-pos city-coords)
+       (swap! atoms/game-map assoc-in city-coords (assoc updated-city :contents ship))
+       (swap! atoms/game-map assoc-in (conj launch-pos :contents) ship))
+     (visibility/update-cell-visibility launch-pos owner))))

@@ -259,7 +259,7 @@
         ;; Computer ships should be repaired at computer cities
         (should= [{:type :destroyer :hits 2}] (:shipyard city)))))
 
-  (it "does not launch ship if city already has contents"
+  (it "launches repaired ship to adjacent sea when city is occupied"
     (let [game-map (tu/build-test-map ["~O~"])]
       (reset! atoms/game-map game-map)
       (swap! atoms/game-map assoc-in [1 0 :shipyard]
@@ -270,13 +270,16 @@
              {:type :submarine :owner :player :hits 2 :mode :sentry})
       (game-loop/repair-damaged-ships)
       (let [city (get-in @atoms/game-map [1 0])]
-        ;; Destroyer should stay in shipyard since city is occupied
-        ;; Battleship stays too since not fully repaired
-        (should= [{:type :destroyer :hits 3}
-                  {:type :battleship :hits 6}]
+        ;; Destroyer should launch to adjacent sea since city is occupied
+        (should= [{:type :battleship :hits 6}]
                  (:shipyard city))
-        ;; Original ship still there
-        (should= :submarine (:type (:contents city)))))))
+        ;; Original ship still on city
+        (should= :submarine (:type (:contents city)))
+        ;; Destroyer should be on adjacent sea cell
+        (let [sea0 (get-in @atoms/game-map [0 0])
+              sea2 (get-in @atoms/game-map [2 0])]
+          (should (or (= :destroyer (:type (:contents sea0)))
+                      (= :destroyer (:type (:contents sea2))))))))))
 
 (describe "launch-ship-from-shipyard"
   (before

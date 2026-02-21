@@ -482,7 +482,13 @@
 
 (defn- generate-start-new-round-when [_]
   (str "    (game-loop/start-new-round)\n"
-       "    (game-loop/advance-game)"))
+       "    (loop [n 200]\n"
+       "      (when (and (pos? n)\n"
+       "                 (not @atoms/waiting-for-input)\n"
+       "                 (not @atoms/paused)\n"
+       "                 (or (seq @atoms/player-items) (seq @atoms/computer-items)))\n"
+       "        (game-loop/advance-game)\n"
+       "        (recur (dec n))))"))
 
 (defn- generate-advance-game-when [_]
   "    (game-loop/advance-game)")
@@ -761,11 +767,10 @@
        "        (should= (:type exp-cell) (:type act-cell))\n"
        "        (when (:city-status exp-cell)\n"
        "          (should= (:city-status exp-cell) (:city-status act-cell)))\n"
-       "        (if (:contents exp-cell)\n"
-       "          (do (should-not-be-nil (:contents act-cell))\n"
-       "              (should= (:type (:contents exp-cell)) (:type (:contents act-cell)))\n"
-       "              (should= (:owner (:contents exp-cell)) (:owner (:contents act-cell))))\n"
-       "          (should-be-nil (:contents act-cell)))))"))
+       "        (when (:contents exp-cell)\n"
+       "          (should-not-be-nil (:contents act-cell))\n"
+       "          (should= (:type (:contents exp-cell)) (:type (:contents act-cell)))\n"
+       "          (should= (:owner (:contents exp-cell)) (:owner (:contents act-cell))))))"))
 
 (defn- generate-refueling-position-near-then [{:keys [unit target]}]
   (let [target-expr (target-pos-expr target)]

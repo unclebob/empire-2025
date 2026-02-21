@@ -8,6 +8,7 @@
             [empire.computer.core :as core]
             [empire.computer.navigation :as nav]
             [empire.computer.threat :as threat]
+            [empire.containers.helpers :as uc]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]))
 
@@ -828,6 +829,25 @@
         :pursuing (process-pursuit pos)
         nil))))
 
+(defn- find-adjacent-dock-city
+  "Finds an adjacent friendly city where a damaged ship can dock for repair."
+  [pos unit]
+  (first (filter (fn [neighbor]
+                   (uc/ship-can-dock? unit (get-in @atoms/game-map neighbor)))
+                 (core/get-neighbors pos))))
+
+(defn- dock-computer-ship
+  "Docks a damaged computer ship into a friendly city's shipyard."
+  [ship-pos city-pos]
+  (let [cell (get-in @atoms/game-map ship-pos)
+        unit (:contents cell)
+        city-cell (get-in @atoms/game-map city-pos)
+        updated-city (uc/add-ship-to-shipyard city-cell (:type unit) (:hits unit))]
+    (swap! atoms/game-map assoc-in ship-pos (dissoc cell :contents))
+    (swap! atoms/game-map assoc-in city-pos updated-city)
+    (visibility/update-cell-visibility city-pos :computer)
+    city-pos))
+
 (defn process-ship
   "Processes a computer ship using VMS Empire style logic.
    Priority: Retreat if damaged > Attack adjacent > Escort transports > Hunt enemies > Explore
@@ -849,7 +869,11 @@
                (:carrier-mode unit))
         (process-carrier pos)
 
-      ;; Priority 0: Retreat if damaged and under threat
+      ;; Priority 0: Dock at adjacent friendly city if damaged
+      (if-let [dock-city (find-adjacent-dock-city pos unit)]
+        (dock-computer-ship pos dock-city)
+
+      ;; Priority 0.5: Retreat if damaged and under threat
       (if-let [retreat-pos (retreat-if-damaged pos unit)]
         (do
           (core/move-unit-to pos retreat-pos)
@@ -883,5 +907,5 @@
                 (move-toward pos enemy-sighting)
 
                 ;; Priority 5: Explore sea
-                (explore-sea pos ship-type)))))))))))
+                (explore-sea pos ship-type))))))))))))
   nil)
