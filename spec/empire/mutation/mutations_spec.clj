@@ -28,7 +28,14 @@
 
   (it "finds nested mutation sites"
     (let [sites (m/find-mutations '(if (> x 0) (+ x 1) (- x 1)))]
-      (should (>= (count sites) 5)))))
+      (should (>= (count sites) 5))))
+
+  (it "finds mutations inside vectors (let bindings)"
+    (let [sites (m/find-mutations '(let [x 0] (+ x 1)))]
+      (should (some #(and (= (:original %) 0) (= (:category %) :constant)) sites))))
+
+  (it "returns empty vector for form with no matches"
+    (should= [] (m/find-mutations '(foo bar baz)))))
 
 (describe "apply-mutation"
   (it "applies mutation at a specific index"
