@@ -535,12 +535,6 @@
         (should= [{:type :evaluate-production :city "X"}]
                  (:whens result))))
 
-    (it "parses production updates"
-      (let [lines ["WHEN production updates."]
-            result (parser/parse-when lines {})]
-        (should= [{:type :update-production}]
-                 (:whens result))))
-
     (it "parses 'the computer chooses production at X'"
       (let [lines ["WHEN the computer chooses production at X."]
             result (parser/parse-when lines {})]

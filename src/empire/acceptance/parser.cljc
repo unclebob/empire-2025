@@ -447,9 +447,6 @@
   (let [keys (str/split (str/trim keys-str) #"\s+")]
     (mapv (fn [k] (merge {:type :key-press} (determine-key-type k ctx))) keys)))
 
-(defn- when-handle-mouse-click [[_ x y] _ctx]
-  [{:type :mouse-click :coords [(Integer/parseInt x) (Integer/parseInt y)]}])
-
 (defn- when-handle-new-round-and-waiting [[_ unit] _ctx]
   [{:type :start-new-round}
    {:type :advance-until-waiting :unit unit}])
@@ -471,9 +468,6 @@
 
 (defn- when-handle-visibility-update [_ _ctx]
   [{:type :visibility-update}])
-
-(defn- when-handle-production-updates [_ _ctx]
-  [{:type :update-production}])
 
 (defn- when-handle-standalone-waiting [[_ unit] _ctx]
   [{:type :waiting-for-input :unit unit :set-mode true}])
@@ -504,8 +498,6 @@
     :handler when-handle-key-press}
    {:regex #"player\s+types\s+(.*)"
     :handler when-handle-types-keys}
-   {:regex #"player\s+clicks\s+(?:cell\s+)?\[(\d+)\s+(\d+)\]"
-    :handler when-handle-mouse-click}
    {:regex #"new\s+round\s+starts\s+and\s+(\w+)\s+is\s+waiting\s+for\s+input"
     :handler when-handle-new-round-and-waiting}
    {:regex #"(?:new\s+round\s+starts|next\s+round\s+begins)"
@@ -521,8 +513,6 @@
                [{:type :cell-visibility-update :unit unit}])}
    {:regex #"visibility\s+updates"
     :handler when-handle-visibility-update}
-   {:regex #"production\s+updates"
-    :handler when-handle-production-updates}
    {:regex #"production\s+for\s+(\w+)\s+is\s+evaluated"
     :handler when-handle-evaluate-production}
    {:regex #"computer\s+chooses\s+production\s+at\s+(\w+)"
