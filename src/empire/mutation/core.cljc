@@ -3,7 +3,8 @@
             [clojure.tools.reader :as reader]
             [clojure.tools.reader.reader-types :as reader-types]
             [empire.mutation.mutations :as mutations]
-            [empire.mutation.runner :as runner]))
+            [empire.mutation.runner :as runner])
+  (:import [java.io File]))
 
 (defn read-source-forms
   "Parse a source string into a vector of top-level forms.
@@ -71,3 +72,67 @@
       (when (seq survivors)
         (str "Survivors:\n"
              (apply str (map format-survivor survivors)))))))
+
+(defn validate-args
+  "Validate command-line arguments. Returns {:source-path ... :spec-path ...}
+   or {:error \"message\"}."
+  [args]
+  (cond
+    (empty? args)
+    {:error "Usage: clj -M:mutate <source-file.cljc>"}
+
+    (not (.exists (File. (first args))))
+    {:error (str "Source file not found: " (first args))}
+
+    :else
+    (let [spec-path (runner/source->spec-path (first args))]
+      (if (runner/spec-exists? spec-path)
+        {:source-path (first args) :spec-path spec-path}
+        {:error (str "No spec found at: " spec-path)}))))
+
+(defn- print-progress [i total result site]
+  (println (format "[%3d/%d] %-8s  %s"
+                   (inc i) total
+                   (result-label result)
+                   (:description site)))
+  (flush))
+
+(defn- print-summary [killed total pct survivors]
+  (println (format "\n=== Summary ==="))
+  (println (format "%d/%d mutants killed (%.1f%%)" killed total pct))
+  (when (seq survivors)
+    (println "Survivors:")
+    (doseq [r survivors]
+      (println (format "  #%d  %s"
+                       (inc (:index (:site r)))
+                       (:description (:site r)))))))
+
+(defn run-mutation-testing
+  "Run mutation testing on a single source file."
+  [source-path spec-path]
+  (let [original-content (slurp source-path)
+        forms (read-source-forms original-content)
+        sites (discover-all-mutations forms)]
+    (println (format "=== Mutation Testing: %s ===" source-path))
+    (println (format "Spec: %s" spec-path))
+    (println (format "Found %d mutation sites.\n" (count sites)))
+    (let [results (doall
+                    (map-indexed
+                      (fn [i site]
+                        (let [result (mutate-and-test source-path original-content
+                                                      forms site spec-path)]
+                          (print-progress i (count sites) result site)
+                          result))
+                      sites))
+          killed (count (filter #(= :killed (:result %)) results))
+          total (count results)
+          pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
+          survivors (filter #(= :survived (:result %)) results)]
+      (print-summary killed total pct survivors))))
+
+(defn -main [& args]
+  (let [validated (validate-args (vec args))]
+    (if (:error validated)
+      (do (println (:error validated))
+          (System/exit 1))
+      (run-mutation-testing (:source-path validated) (:spec-path validated)))))

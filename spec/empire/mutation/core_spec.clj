@@ -34,6 +34,22 @@
           (should= original-content (slurp temp-path))))
       (.delete temp-file))))
 
+(describe "validate-args"
+  (it "returns error when no args given"
+    (let [result (core/validate-args [])]
+      (should-contain :error result)))
+
+  (it "returns error when source file doesn't exist"
+    (let [result (core/validate-args ["nonexistent.cljc"])]
+      (should-contain :error result)))
+
+  (it "returns error when spec file doesn't exist"
+    (with-redefs [runner/spec-exists? (fn [_] false)]
+      (let [temp (java.io.File/createTempFile "src" ".cljc")
+            result (core/validate-args [(.getPath temp)])]
+        (should-contain :error result)
+        (.delete temp)))))
+
 (describe "format-report"
   (it "produces summary with kill count"
     (let [results [{:site {:description "+ -> -"} :result :killed}

@@ -21,5 +21,8 @@
 					               :extra-paths ["spec"]}
 					 :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
 					                  :extra-paths ["generated-acceptance-specs"]}
+					 :mutate {:main-opts ["-m" "empire.mutation.core"]
+					          :extra-deps {org.clojure/tools.reader {:mvn/version "1.4.2"}}
+					          :extra-paths ["spec"]}
 				 }
 			 }
