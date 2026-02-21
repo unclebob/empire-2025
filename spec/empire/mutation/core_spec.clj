@@ -59,4 +59,12 @@
       (should-contain "SURVIVED" report)
       (should-contain "KILLED" report))))
 
+(describe "integration: discover mutations in a real source file"
+  (it "finds mutation sites in combat.cljc"
+    (let [content (slurp "src/empire/combat.cljc")
+          forms (core/read-source-forms content)
+          sites (core/discover-all-mutations forms)]
+      (should (> (count sites) 0))
+      (println (format "Found %d mutation sites in combat.cljc" (count sites))))))
+
 (run-specs)
