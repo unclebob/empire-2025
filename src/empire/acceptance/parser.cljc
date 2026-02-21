@@ -727,6 +727,9 @@
 (defn- then-handle-shipyard-empty [[_ city]]
   {:type :shipyard-empty :city city})
 
+(defn- then-handle-map-is [[_ map-str]]
+  {:type :map-is :expected (strip-trailing-period map-str)})
+
 ;; --- THEN parsing: pattern tables ---
 
 (def ^:private then-bare-patterns
@@ -780,6 +783,8 @@
     :handler then-handle-shipyard-has-ship}
    {:regex #"^(\w+)\s+has\s+no\s+ships?\s+in\s+its\s+shipyard"
     :handler then-handle-shipyard-empty}
+   {:regex #"^(?:the\s+)?map\s+is\s+(\S+)"
+    :handler then-handle-map-is}
    {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(\S+)"
     :handler then-handle-cell-prop}
    {:regex #"on\s+(?:the\s+)?computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+a\s+(player|computer)\s+city"

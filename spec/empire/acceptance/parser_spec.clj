@@ -970,6 +970,12 @@
       (let [lines ["THEN X has no ships in its shipyard."]
             result (parser/parse-then lines {})]
         (should= [{:type :shipyard-empty :city "X"}]
+                 (:thens result))))
+
+    (it "parses 'the map is dX#'"
+      (let [lines ["THEN the map is dX#."]
+            result (parser/parse-then lines {})]
+        (should= [{:type :map-is :expected "dX#"}]
                  (:thens result)))))
 
   (describe "parse-file integration"

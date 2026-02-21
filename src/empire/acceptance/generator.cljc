@@ -748,6 +748,23 @@
          "          shipyard (:shipyard cell [])]\n"
          "      (should= [] shipyard))")))
 
+(defn- generate-map-is-then [{:keys [expected]}]
+  (str "    (let [expected (build-test-map [\"" expected "\"])\n"
+       "          actual @atoms/game-map]\n"
+       "      (doseq [col (range (count expected))\n"
+       "              row (range (count (first expected)))\n"
+       "              :let [exp-cell (get-in expected [col row])\n"
+       "                    act-cell (get-in actual [col row])]\n"
+       "              :when exp-cell]\n"
+       "        (should= (:type exp-cell) (:type act-cell))\n"
+       "        (when (:city-status exp-cell)\n"
+       "          (should= (:city-status exp-cell) (:city-status act-cell)))\n"
+       "        (if (:contents exp-cell)\n"
+       "          (do (should-not-be-nil (:contents act-cell))\n"
+       "              (should= (:type (:contents exp-cell)) (:type (:contents act-cell)))\n"
+       "              (should= (:owner (:contents exp-cell)) (:owner (:contents act-cell))))\n"
+       "          (should-be-nil (:contents act-cell)))))"))
+
 (defn- generate-refueling-position-near-then [{:keys [unit target]}]
   (let [target-expr (target-pos-expr target)]
     (str "    (let [unit-data (:unit (get-test-unit atoms/game-map \"" unit "\"))\n"
@@ -798,6 +815,7 @@
     :refueling-position-near (generate-refueling-position-near-then then-ir)
     :shipyard-has-ship (generate-shipyard-has-ship-then then-ir)
     :shipyard-empty (generate-shipyard-empty-then then-ir)
+    :map-is (generate-map-is-then then-ir)
     :unrecognized (str "    (pending \"Unrecognized: " (:text then-ir) "\")")
     (str "    ;; Unknown then type: " (:type then-ir))))
 
