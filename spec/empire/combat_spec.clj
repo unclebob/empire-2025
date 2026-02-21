@@ -838,4 +838,17 @@
     (swap! atoms/game-map assoc-in [0 0 :contents]
            {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
     (reset! atoms/error-message "")
-    (should (combat/attempt-fighter-overfly [0 0] [1 0]))))
+    (should (combat/attempt-fighter-overfly [0 0] [1 0])))
+
+  (it "places shot-down fighter on city with 0 hits and 0 steps-remaining"
+    (reset! atoms/game-map (build-test-map ["FX"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
+            :steps-remaining 5})
+    (reset! atoms/error-message "")
+    (combat/attempt-fighter-overfly [0 0] [1 0])
+    (let [shot-down (:contents (get-in @atoms/game-map [1 0]))]
+      (should= :fighter (:type shot-down))
+      (should= 0 (:hits shot-down))
+      (should= 0 (:steps-remaining shot-down))
+      (should= :awake (:mode shot-down)))))
