@@ -209,7 +209,8 @@
     (reset! atoms/computer-map [[{:type :city} {:type :sea}]
                                  [{:type :land} {:type :sea}]])
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
-    (production/update-production)
+    (with-redefs [rand (constantly 0.9)]
+      (production/update-production))
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :awake (:mode unit))
       (should-be-nil (:coast-direction unit))))

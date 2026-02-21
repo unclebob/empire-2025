@@ -235,8 +235,9 @@
   "If army is on a coastal cell, go sentry. Otherwise move toward nearest unoccupied one."
   [pos country-id]
   (cond
-    ;; Already on a coastal cell → go sentry
-    (and country-id (adjacent-to-sea? pos))
+    ;; Already on an empty coastal cell (not a city) → go sentry
+    (and country-id (adjacent-to-sea? pos)
+         (not= :city (:type (get-in @atoms/game-map pos))))
     (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
         pos)
 
@@ -295,7 +296,8 @@
 (defn- process-random-explore
   "Moves army in stored random-explore direction. Goes sentry on coast or when blocked."
   [pos country-id]
-  (if (adjacent-to-sea? pos)
+  (if (and (adjacent-to-sea? pos)
+           (not= :city (:type (get-in @atoms/game-map pos))))
     (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
         pos)
     (let [unit (get-in @atoms/game-map (conj pos :contents))
