@@ -27,14 +27,20 @@
     unit))
 
 (defn- apply-patrol-fields
-  "Stamps patrol boat fields on computer patrol boats spawned from a country city."
+  "Stamps patrol boat fields on computer patrol boats spawned from a country city.
+   Tracks patrol-number per country (1st coastline, 2nd+ heading-based)."
   [unit cell]
   (if (and (= :patrol-boat (:type unit))
            (= :computer (:city-status cell))
            (:country-id cell))
-    (assoc unit :patrol-country-id (:country-id cell)
-                :patrol-direction :clockwise
-                :patrol-mode :homing)
+    (let [country-id (:country-id cell)
+          produced (get @atoms/patrol-boats-produced country-id 0)
+          patrol-num (inc produced)]
+      (swap! atoms/patrol-boats-produced update country-id (fnil inc 0))
+      (assoc unit :patrol-country-id country-id
+                  :patrol-direction :clockwise
+                  :patrol-mode :homing
+                  :patrol-number patrol-num))
     unit))
 
 (defn- apply-carrier-fields
@@ -81,28 +87,20 @@
       (apply-patrol-fields cell)))
 
 (defn apply-coast-walk-fields
-  "Stamps coast-walk mode on first 2 computer armies per country.
-   First army gets clockwise, second gets counter-clockwise."
+  "Stamps coast-walk mode on all computer armies while coastal cells are unexplored.
+   Alternates clockwise/counter-clockwise."
   [unit item cell coords]
   (if (and (= item :army)
            (= (:city-status cell) :computer)
-           (:country-id cell))
+           (:country-id cell)
+           (not ((requiring-resolve 'empire.computer.production/country-coastal-cells-explored?)
+                 (:country-id cell))))
     (let [country-id (:country-id cell)
-          produced (get @atoms/coast-walkers-produced country-id 0)]
-      (cond
-        (zero? produced)
-        (do (swap! atoms/coast-walkers-produced update country-id (fnil inc 0))
-            (assoc unit :mode :coast-walk
-                        :coast-direction :clockwise
-                        :coast-start coords
-                        :coast-visited [coords]))
-
-        (= produced 1)
-        (do (swap! atoms/coast-walkers-produced update country-id inc)
-            (assoc unit :mode :coast-walk
-                        :coast-direction :counter-clockwise
-                        :coast-start coords
-                        :coast-visited [coords]))
-
-        :else unit))
+          produced (get @atoms/coast-walkers-produced country-id 0)
+          direction (if (even? produced) :clockwise :counter-clockwise)]
+      (swap! atoms/coast-walkers-produced update country-id (fnil inc 0))
+      (assoc unit :mode :coast-walk
+                  :coast-direction direction
+                  :coast-start coords
+                  :coast-visited [coords]))
     unit))

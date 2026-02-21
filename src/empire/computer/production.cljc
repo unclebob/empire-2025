@@ -85,6 +85,87 @@
     0
     (map-indexed vector @atoms/game-map)))
 
+(defn count-country-coastal-cells
+  "Counts land cells with matching country-id that are adjacent to sea."
+  [country-id]
+  (let [game-map @atoms/game-map]
+    (count (for [i (range (count game-map))
+                 j (range (count (first game-map)))
+                 :let [cell (get-in game-map [i j])]
+                 :when (and (= :land (:type cell))
+                            (= country-id (:country-id cell))
+                            (some (fn [n]
+                                    (= :sea (:type (get-in game-map n))))
+                                  (get-neighbors [i j])))]
+             true))))
+
+(defn country-coastal-cells-explored?
+  "Returns true if all coastal cells of the country are visible on computer-map."
+  [country-id]
+  (let [game-map @atoms/game-map
+        comp-map @atoms/computer-map]
+    (every? (fn [[i j]]
+              (some? (get-in comp-map [i j])))
+            (for [i (range (count game-map))
+                  j (range (count (first game-map)))
+                  :let [cell (get-in game-map [i j])]
+                  :when (and (= :land (:type cell))
+                             (= country-id (:country-id cell))
+                             (some (fn [n] (= :sea (:type (get-in game-map n))))
+                                   (get-neighbors [i j])))]
+              [i j]))))
+
+(defn count-country-coastal-armies
+  "Counts computer armies on coastal cells (land adjacent to sea) with matching country-id."
+  [country-id]
+  (let [game-map @atoms/game-map]
+    (count (for [i (range (count game-map))
+                 j (range (count (first game-map)))
+                 :let [cell (get-in game-map [i j])
+                       unit (:contents cell)]
+                 :when (and unit
+                            (= :computer (:owner unit))
+                            (= :army (:type unit))
+                            (= country-id (:country-id unit))
+                            (= :land (:type cell))
+                            (some (fn [n]
+                                    (= :sea (:type (get-in game-map n))))
+                                  (get-neighbors [i j])))]
+             true))))
+
+(defn country-has-waiting-armies?
+  "Returns true if country has coastal armies and all transports are full or unloading."
+  [country-id]
+  (let [game-map @atoms/game-map
+        has-coastal-army (some (fn [[i row]]
+                                 (some (fn [[j cell]]
+                                         (let [unit (:contents cell)]
+                                           (and unit
+                                                (= :computer (:owner unit))
+                                                (= :army (:type unit))
+                                                (= country-id (:country-id unit))
+                                                (= :land (:type cell))
+                                                (some (fn [n]
+                                                        (= :sea (:type (get-in game-map n))))
+                                                      (get-neighbors [i j])))))
+                                       (map-indexed vector row)))
+                               (map-indexed vector game-map))
+        transports (for [i (range (count game-map))
+                         j (range (count (first game-map)))
+                         :let [cell (get-in game-map [i j])
+                               unit (:contents cell)]
+                         :when (and unit
+                                    (= :computer (:owner unit))
+                                    (= :transport (:type unit))
+                                    (= country-id (:country-id unit)))]
+                     unit)]
+    (and has-coastal-army
+         (or (empty? transports)
+             (every? (fn [t]
+                       (or (>= (:army-count t 0) 6)
+                           (= :unloading (:transport-mission t))))
+                     transports)))))
+
 (defn- count-country-fighters
   "Counts live fighters belonging to the given country-id."
   [country-id]
@@ -153,23 +234,39 @@
                 (map-indexed vector row)))
         (map-indexed vector @atoms/game-map)))
 
+(defn has-unoccupied-coastal-cells?
+  "Returns true if the country has any coastal land cell with no unit on it."
+  [country-id]
+  (let [game-map @atoms/game-map]
+    (boolean
+      (some (fn [i]
+              (some (fn [j]
+                      (let [cell (get-in game-map [i j])]
+                        (and (= :land (:type cell))
+                             (= country-id (:country-id cell))
+                             (nil? (:contents cell))
+                             (some (fn [n] (= :sea (:type (get-in game-map n))))
+                                   (get-neighbors [i j])))))
+                    (range (count (first game-map)))))
+            (range (count game-map))))))
+
 (defn- decide-country-production
   "Per-country production priorities. Returns unit type or nil. CC=5."
   [city-pos country-id coastal? unit-counts]
   (cond
-    ;; 1. Transport: < max per country, coastal, need enough armies first, no other city producing
+    ;; 1. Transport: coastal, enough armies, waiting armies with all transports full/unloading
     (and coastal?
-         (< (count-country-transports country-id) config/max-transports-per-country)
          (>= (count-country-armies country-id) config/armies-before-transport)
+         (country-has-waiting-armies? country-id)
          (not (country-city-producing-transports? city-pos country-id)))
     :transport
 
-    ;; 2. Army: < max per country, no other city producing armies
-    (and (< (count-country-armies country-id) config/max-armies-per-country)
+    ;; 2. Army: unoccupied coastal cells exist (countries always have coast)
+    (and (has-unoccupied-coastal-cells? country-id)
          (not (country-city-producing-armies? city-pos country-id)))
     :army
 
-    ;; 3. Patrol boat: < max per country, coastal
+    ;; 3. Patrol boat: < 4 per country, coastal
     (and coastal?
          (< (count-country-patrol-boats country-id) config/max-patrol-boats-per-country))
     :patrol-boat

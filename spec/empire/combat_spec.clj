@@ -649,10 +649,11 @@
         (should-not-be-nil prod)
         (should= :army (:item prod)))))
 
-  (it "conquered city does not produce armies when country has 20+ armies"
+  (it "conquered city produces armies when no other city in country is producing"
     (with-redefs [rand (constantly 0.1)]
       ;; Build a wider map with room for 20 armies and the conquering army + city
-      ;; 20 armies in row 0 (cols 0-19), plus city at col 20, and conquering army in row 1
+      ;; With coastal-fill system, army count alone doesn't block production;
+      ;; only duplicate production in the same country blocks it
       (reset! atoms/game-map (build-test-map ["aaaaaaaaaaaaaaaaaaaaO"
                                               "a####################"]))
       (reset! atoms/computer-map @atoms/game-map)
@@ -664,8 +665,10 @@
       (computer-core/attempt-conquest-computer [0 0] [20 0])
       ;; City should be computer-owned
       (should= :computer (get-in @atoms/game-map [20 0 :city-status]))
-      ;; Production should NOT be set (20 armies still alive after conquering army removed)
-      (should-be-nil (get @atoms/production [20 0]))))
+      ;; Production SHOULD be set (no other city in country 3 producing armies)
+      (let [prod (get @atoms/production [20 0])]
+        (should-not-be-nil prod)
+        (should= :army (:item prod)))))
 
   (it "conquered city does not produce armies when another city in country is already producing"
     (with-redefs [rand (constantly 0.1)]

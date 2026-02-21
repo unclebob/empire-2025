@@ -217,7 +217,108 @@
       (reset! atoms/computer-map @atoms/game-map)
       (ship/process-ship [0 1] :patrol-boat)
       ;; Patrol boat should have fled to [0 0] (away from destroyer at [0 2])
-      (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type]))))
+      (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type])))
+
+    (it "2nd patrol boat sails in random heading instead of coastline patrol"
+      ;; Patrol boat with patrol-number 2 should sail heading-based, not coastline
+      (let [game-map (build-test-map ["~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [2 2 :contents]
+               {:type :patrol-boat :owner :computer :hits 1
+                :patrol-country-id 1 :patrol-number 2})
+        (with-redefs [rand-int (constantly 180)]  ; heading south
+          (ship/process-ship [2 2] :patrol-boat))
+        ;; Should have moved south via heading-based sailing
+        (let [unit (:contents (get-in @atoms/game-map [2 3]))]
+          (should= :patrol-boat (:type unit))
+          (should= 180 (:patrol-heading unit)))))
+
+    (it "sailing patrol boat switches to coastline exploration at unexplored coast"
+      ;; Patrol boat at [2 2] heading east. Land at col 4 is unexplored.
+      ;; [3 2] is sea adjacent to unexplored land → should switch to coastline patrol.
+      (let [game-map (build-test-map ["~~~~#"
+                                      "~~~~#"
+                                      "~~~~#"
+                                      "~~~~#"
+                                      "~~~~#"])]
+        (reset! atoms/game-map game-map)
+        ;; Sea explored, land at col 4 unexplored
+        (reset! atoms/computer-map [(vec (repeat 5 {:type :sea}))
+                                    (vec (repeat 5 {:type :sea}))
+                                    (vec (repeat 5 {:type :sea}))
+                                    (vec (repeat 5 {:type :sea}))
+                                    (vec (repeat 5 nil))])
+        (swap! atoms/game-map assoc-in [2 2 :contents]
+               {:type :patrol-boat :owner :computer :hits 1
+                :patrol-country-id 1 :patrol-number 2 :patrol-heading 90})
+        (with-redefs [rand-int (constantly 10)]
+          (ship/process-ship [2 2] :patrol-boat))
+        ;; Should have moved to [3 2] and switched to coastline exploration
+        (let [unit (:contents (get-in @atoms/game-map [3 2]))]
+          (should= :patrol-boat (:type unit))
+          (should= :coastline-exploring (:patrol-mode unit)))))
+
+    (it "patrol boat in coastline-exploring mode does coastline patrol"
+      ;; Patrol boat at [1 2] heading east (away from coast).
+      ;; Land at col 0. If heading sailing, would move to [2 2].
+      ;; In coastline-exploring mode, should move along coast (stay adjacent to land).
+      (reset! atoms/game-map (build-test-map ["#~~~~"
+                                               "#~~~~"
+                                               "#~~~~"
+                                               "#~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 2 :contents]
+             {:type :patrol-boat :owner :computer :hits 1
+              :patrol-country-id 1 :patrol-number 2
+              :patrol-mode :coastline-exploring :patrol-heading 90})
+      (ship/process-ship [1 2] :patrol-boat)
+      ;; Should move to a coastal cell (adjacent to land at col 0), NOT [2 2]
+      (let [new-pos (first (for [c (range 5) r (range 4)
+                                  :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
+                              [c r]))]
+        (should-not-be-nil new-pos)
+        ;; Should still be adjacent to land (col 0 or col 1)
+        (should (<= (first new-pos) 1))))
+
+    (it "sailing patrol boat reflects off map border"
+      ;; Patrol boat at top edge heading north → should reflect
+      (let [game-map (build-test-map ["~~~"
+                                      "~~~"
+                                      "~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [1 0 :contents]
+               {:type :patrol-boat :owner :computer :hits 1
+                :patrol-country-id 1 :patrol-number 3 :patrol-heading 0})
+        (with-redefs [rand-int (constantly 10)]
+          (ship/process-ship [1 0] :patrol-boat))
+        ;; Should stay put with reflected heading
+        (let [unit (:contents (get-in @atoms/game-map [1 0]))]
+          (should= :patrol-boat (:type unit))
+          (should-not= 0 (:patrol-heading unit)))))
+
+    (it "1st patrol boat does coastline patrol as before"
+      ;; Patrol boat with patrol-number 1 still does coastline patrol
+      (reset! atoms/game-map (build-test-map ["~~~"
+                                               "~#~"
+                                               "~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 0 :contents]
+             {:type :patrol-boat :owner :computer :hits 1
+              :patrol-country-id 1 :patrol-number 1
+              :patrol-direction :clockwise :patrol-mode :patrolling})
+      (ship/process-ship [1 0] :patrol-boat)
+      ;; Should have done coastline move (adjacent to land)
+      (should-be-nil (:contents (get-in @atoms/game-map [1 0])))
+      (let [new-pos (first (for [c (range 3) r (range 3)
+                                  :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
+                              [c r]))]
+        (should-not-be-nil new-pos))))
 
   (describe "destroyer escort behavior"
     (it "seeking destroyer adopts unadopted transport"
@@ -280,6 +381,122 @@
       (let [destroyer (get-in @atoms/game-map [0 0 :contents])]
         (should= :seeking (:escort-mode destroyer))
         (should-be-nil (:escort-transport-id destroyer)))))
+
+  (describe "pursue-and-kill behavior"
+    (it "escorting destroyer pursues when transport spots enemy"
+      ;; Destroyer at [0 0] escorting transport at [0 2].
+      ;; Player sub at [0 3] — adjacent to transport, not to destroyer.
+      ;; Destroyer should detect sighting via transport and pursue.
+      (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                       :destroyer-id 1 :escort-mode :escorting
+                                                       :escort-transport-id 1}}
+                                {:type :sea}
+                                {:type :sea :contents {:type :transport :owner :computer :hits 3
+                                                       :transport-id 1 :escort-destroyer-id 1
+                                                       :transport-mission :loading :army-count 0}}
+                                {:type :sea :contents {:type :submarine :owner :player :hits 2}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 0] :destroyer)
+      ;; Destroyer should move toward enemy and enter pursuing mode
+      (let [destroyer (get-in @atoms/game-map [0 1 :contents])]
+        (should= :destroyer (:type destroyer))
+        (should= :pursuing (:escort-mode destroyer))
+        (should= [0 3] (:pursuit-target destroyer))
+        (should= 5 (:pursuit-steps-remaining destroyer))))
+
+    (it "pursuing destroyer moves toward cell enemy could have gone to"
+      ;; Destroyer at [2 2] pursuing, target was [3 2]. Transport at [1 2].
+      ;; Enemy has moved. Destroyer should pick a neighbor of [3 2] that is
+      ;; NOT visible to transport [1 2] or destroyer [2 2], and move toward it.
+      ;; 5x5 all-sea map.
+      (let [game-map (build-test-map ["~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [1 2 :contents]
+               {:type :transport :owner :computer :hits 3
+                :transport-id 1 :transport-mission :loading :army-count 0})
+        (swap! atoms/game-map assoc-in [2 2 :contents]
+               {:type :destroyer :owner :computer :hits 3
+                :destroyer-id 1 :escort-mode :pursuing
+                :escort-transport-id 1
+                :pursuit-target [3 2] :pursuit-steps-remaining 5})
+        (ship/process-ship [2 2] :destroyer)
+        ;; Destroyer should have moved and decremented steps
+        (should-be-nil (:contents (get-in @atoms/game-map [2 2])))
+        (let [new-pos (first (for [c (range 5) r (range 5)
+                                   :when (= :destroyer (get-in @atoms/game-map [c r :contents :type]))]
+                               [c r]))
+              destroyer (get-in @atoms/game-map (conj new-pos :contents))]
+          (should-not-be-nil new-pos)
+          (should= :pursuing (:escort-mode destroyer))
+          (should= 4 (:pursuit-steps-remaining destroyer)))))
+
+    (it "pursuing destroyer returns to escorting when steps exhausted"
+      ;; Destroyer with 1 step remaining should revert to escorting
+      (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                       :destroyer-id 1 :escort-mode :pursuing
+                                                       :escort-transport-id 1
+                                                       :pursuit-target [0 3]
+                                                       :pursuit-steps-remaining 1}}
+                                {:type :sea}
+                                {:type :sea :contents {:type :transport :owner :computer :hits 3
+                                                       :transport-id 1 :transport-mission :loading
+                                                       :army-count 0}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 0] :destroyer)
+      (let [destroyer (get-in @atoms/game-map [0 0 :contents])]
+        (should= :escorting (:escort-mode destroyer))
+        (should-be-nil (:pursuit-target destroyer))
+        (should-be-nil (:pursuit-steps-remaining destroyer))))
+
+    (it "pursuing destroyer ends pursuit when all candidate cells visible"
+      ;; Destroyer at [1 0] pursuing target [1 1]. Transport at [1 2].
+      ;; 3x3 map. All neighbors of [1 1] are visible to destroyer or transport.
+      ;; No hidden cells for enemy — pursuit should end.
+      (reset! atoms/game-map (build-test-map ["~~~"
+                                              "~~~"
+                                              "~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 0 :contents]
+             {:type :destroyer :owner :computer :hits 3
+              :destroyer-id 1 :escort-mode :pursuing
+              :escort-transport-id 1
+              :pursuit-target [1 1] :pursuit-steps-remaining 4})
+      (swap! atoms/game-map assoc-in [1 2 :contents]
+             {:type :transport :owner :computer :hits 3
+              :transport-id 1 :transport-mission :loading :army-count 0})
+      (ship/process-ship [1 0] :destroyer)
+      ;; All neighbors of [1 1] visible to group — pursuit ends
+      (let [destroyer (first (for [c (range 3) r (range 3)
+                                   :let [unit (get-in @atoms/game-map [c r :contents])]
+                                   :when (= :destroyer (:type unit))]
+                               unit))]
+        (should= :escorting (:escort-mode destroyer))
+        (should-be-nil (:pursuit-target destroyer))))
+
+    (it "pursuing destroyer attacks adjacent enemy via priority 1"
+      ;; Destroyer pursuing, player sub adjacent. Priority 1 should attack.
+      (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                       :destroyer-id 1 :escort-mode :pursuing
+                                                       :escort-transport-id 1
+                                                       :pursuit-target [0 3]
+                                                       :pursuit-steps-remaining 3}}
+                                {:type :sea :contents {:type :submarine :owner :player :hits 2}}
+                                {:type :sea}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 0] :destroyer)
+      ;; Combat should have occurred (priority 1 attack)
+      (let [cell0 (get-in @atoms/game-map [0 0])
+            cell1 (get-in @atoms/game-map [0 1])]
+        (should (or (nil? (:contents cell0))
+                    (= :computer (:owner (:contents cell1))))))))
 
   (describe "carrier positioning behavior"
     (before (reset-all-atoms!))
@@ -560,7 +777,64 @@
         (should= :submarine (:type sub))
         (should= :intercepting (:escort-mode sub))
         (should= 1 (:escort-carrier-id sub))
-        (should= [2] (:group-submarine-ids carrier))))) ;; end carrier group escort
+        (should= [2] (:group-submarine-ids carrier))))
+
+    (it "orbiting battleship pursues when carrier spots enemy"
+      ;; 7x7 all-sea. Carrier at [3 3], battleship at [1 1] orbiting.
+      ;; Player transport at [3 4] — adjacent to carrier, not to battleship.
+      ;; Battleship should detect sighting via carrier and pursue.
+      (let [game-map (build-test-map ["~~~~~~~"
+                                      "~~~~~~~"
+                                      "~~~~~~~"
+                                      "~~~~~~~"
+                                      "~~~~~~~"
+                                      "~~~~~~~"
+                                      "~~~~~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [3 3 :contents]
+               {:type :carrier :owner :computer :hits 8
+                :carrier-id 1 :carrier-mode :holding
+                :group-battleship-id 1 :group-submarine-ids []})
+        (swap! atoms/game-map assoc-in [1 1 :contents]
+               {:type :battleship :owner :computer :hits 8
+                :escort-id 1 :escort-mode :orbiting
+                :escort-carrier-id 1 :orbit-angle 0})
+        (swap! atoms/game-map assoc-in [3 4 :contents]
+               {:type :transport :owner :player :hits 3})
+        (ship/process-ship [1 1] :battleship)
+        ;; Battleship should enter pursuit mode
+        (let [bb (first (for [c (range 7) r (range 7)
+                              :let [unit (get-in @atoms/game-map [c r :contents])]
+                              :when (= :battleship (:type unit))]
+                          unit))]
+          (should= :pursuing (:escort-mode bb))
+          (should= [3 4] (:pursuit-target bb))
+          (should= 5 (:pursuit-steps-remaining bb)))))
+
+    (it "pursuing battleship returns to orbiting after steps exhausted"
+      ;; Battleship pursuing with 1 step remaining, carrier still on map.
+      ;; Should revert to orbiting (not escorting).
+      (let [game-map (build-test-map ["~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"
+                                      "~~~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [2 2 :contents]
+               {:type :carrier :owner :computer :hits 8
+                :carrier-id 1 :carrier-mode :holding
+                :group-battleship-id 1 :group-submarine-ids []})
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :battleship :owner :computer :hits 8
+                :escort-id 1 :escort-mode :pursuing
+                :escort-carrier-id 1
+                :pursuit-target [4 4] :pursuit-steps-remaining 1})
+        (ship/process-ship [0 0] :battleship)
+        (let [bb (get-in @atoms/game-map [0 0 :contents])]
+          (should= :orbiting (:escort-mode bb))
+          (should-be-nil (:pursuit-target bb)))))) ;; end carrier group escort
 ) ;; end process-ship
 
 (describe "compute-distant-city-pairs"

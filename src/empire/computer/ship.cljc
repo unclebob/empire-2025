@@ -6,9 +6,12 @@
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.computer.core :as core]
+            [empire.computer.navigation :as nav]
             [empire.computer.threat :as threat]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]))
+
+(declare find-carrier-by-id)
 
 (defn- get-passable-sea-neighbors
   "Returns passable sea neighbors for a ship."
@@ -181,15 +184,110 @@
           (swap! atoms/game-map assoc-in (conj target :contents :patrol-history) new-history))
         target))))
 
+(defn- in-bounds?
+  "Returns true if position is within map bounds."
+  [pos]
+  (let [[c r] pos
+        game-map @atoms/game-map]
+    (and (>= c 0) (>= r 0)
+         (< c (count game-map))
+         (< r (count (first game-map))))))
+
+(defn- detect-reflection-surface
+  "Returns :horizontal or :vertical reflection surface for map border."
+  [pos]
+  (let [[c r] pos
+        game-map @atoms/game-map
+        max-c (dec (count game-map))
+        max-r (dec (count (first game-map)))]
+    (cond
+      (or (<= r 0) (>= r max-r)) :horizontal
+      (or (<= c 0) (>= c max-c)) :vertical
+      :else nil)))
+
+(defn- unexplored-coast?
+  "Returns true if pos is a sea cell adjacent to land NOT on computer-map."
+  [pos]
+  (let [game-map @atoms/game-map
+        cell (get-in game-map pos)]
+    (and cell
+         (= :sea (:type cell))
+         (some (fn [neighbor]
+                 (let [gm-cell (get-in game-map neighbor)
+                       cm-cell (get-in @atoms/computer-map neighbor)]
+                   (and gm-cell
+                        (#{:land :city} (:type gm-cell))
+                        (nil? cm-cell))))
+               (core/get-neighbors pos)))))
+
+(defn- patrol-sail-one-step
+  "Moves patrol boat one step along its heading.
+   Stops at unexplored coast, switching to coastline exploration.
+   Returns new position or nil if reflected."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        heading (:patrol-heading unit)
+        next-pos (nav/apply-heading pos heading)]
+    (cond
+      (not (in-bounds? next-pos))
+      (let [surface (or (detect-reflection-surface pos) :horizontal)
+            new-heading (nav/reflect-heading heading surface)]
+        (swap! atoms/game-map assoc-in (conj pos :contents :patrol-heading) new-heading)
+        nil)
+
+      (unexplored-coast? next-pos)
+      (do
+        (core/move-unit-to pos next-pos)
+        (visibility/update-cell-visibility pos :computer)
+        (visibility/update-cell-visibility next-pos :computer)
+        (swap! atoms/game-map assoc-in
+               (conj next-pos :contents :patrol-mode) :coastline-exploring)
+        next-pos)
+
+      (and (= :sea (:type (get-in @atoms/game-map next-pos)))
+           (nil? (:contents (get-in @atoms/game-map next-pos))))
+      (do
+        (core/move-unit-to pos next-pos)
+        (visibility/update-cell-visibility pos :computer)
+        (visibility/update-cell-visibility next-pos :computer)
+        next-pos)
+
+      (nav/is-explored-coast? next-pos)
+      (let [surface (or (detect-reflection-surface pos) :horizontal)
+            new-heading (nav/reflect-heading heading surface)]
+        (swap! atoms/game-map assoc-in (conj pos :contents :patrol-heading) new-heading)
+        nil)
+
+      :else
+      (let [new-heading (nav/reflect-heading heading :horizontal)]
+        (swap! atoms/game-map assoc-in (conj pos :contents :patrol-heading) new-heading)
+        nil))))
+
+(defn- process-sailing-patrol-boat
+  "Processes a 2nd+ patrol boat using heading-based sailing."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))]
+    (when-not (:patrol-heading unit)
+      (swap! atoms/game-map assoc-in
+             (conj pos :contents :patrol-heading) (rand-int 360)))
+    (patrol-sail-one-step pos)))
+
 (defn- process-patrol-boat
   "Processes a computer patrol boat with patrol-specific behavior.
-   Priority: Attack adjacent transport > Flee non-transport enemy > Coastline patrol."
+   1st patrol boat: Attack transport > Flee enemy > Coastline patrol.
+   2nd+ patrol boats: Heading-based sailing until unexplored coast,
+   then coastline exploration."
   [pos]
-  (if-let [transport-pos (find-adjacent-player-transport pos)]
-    (attack-enemy pos transport-pos)
-    (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
-      (flee-from pos enemy-pos)
-      (coastline-move pos))))
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        patrol-num (:patrol-number unit 1)]
+    (if (and (> patrol-num 1)
+             (not= :coastline-exploring (:patrol-mode unit)))
+      (process-sailing-patrol-boat pos)
+      (if-let [transport-pos (find-adjacent-player-transport pos)]
+        (attack-enemy pos transport-pos)
+        (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
+          (flee-from pos enemy-pos)
+          (coastline-move pos))))))
 
 ;; --- Destroyer escort helpers ---
 
@@ -234,43 +332,131 @@
                             (= transport-id (:transport-id unit)))]
              [i j]))))
 
+(defn- find-enemy-near-positions
+  "Finds a player ship adjacent to any of the given positions.
+   Returns enemy position or nil."
+  [positions]
+  (let [game-map @atoms/game-map]
+    (first (for [gpos positions
+                 neighbor (core/get-neighbors gpos)
+                 :let [cell (get-in game-map neighbor)
+                       contents (:contents cell)]
+                 :when (and contents
+                            (= :player (:owner contents))
+                            (#{:patrol-boat :destroyer :submarine :transport
+                               :carrier :battleship} (:type contents)))]
+             neighbor))))
+
+(defn- find-enemy-near-destroyer-group
+  "Finds a player ship adjacent to destroyer or its escorted transport."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        transport-pos (when (:escort-transport-id unit)
+                        (find-transport-by-id (:escort-transport-id unit)))]
+    (find-enemy-near-positions (filter some? [pos transport-pos]))))
+
+(defn- begin-pursuit
+  "Switches an escort ship to pursuing mode, targeting the enemy."
+  [pos enemy-pos]
+  (swap! atoms/game-map update-in (conj pos :contents)
+         assoc :escort-mode :pursuing
+               :pursuit-target enemy-pos
+               :pursuit-steps-remaining 5)
+  (move-toward pos enemy-pos))
+
+(defn- group-positions
+  "Returns positions of all ships in the escort group (self + transport or carrier)."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        transport-pos (when (:escort-transport-id unit)
+                        (find-transport-by-id (:escort-transport-id unit)))
+        carrier-pos (when (:escort-carrier-id unit)
+                      (find-carrier-by-id (:escort-carrier-id unit)))]
+    (filter some? [pos transport-pos carrier-pos])))
+
+(defn- visible-to-group?
+  "Returns true if pos is within visibility (Chebyshev 1) of any group member."
+  [target-pos group-poss]
+  (some (fn [gpos] (<= (core/chebyshev-distance target-pos gpos) 1)) group-poss))
+
+(defn- end-pursuit
+  "Reverts a pursuing ship back to its pre-pursuit mode.
+   Destroyers return to :escorting, carrier group escorts to :orbiting."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        return-mode (if (:escort-carrier-id unit) :orbiting :escorting)]
+    (swap! atoms/game-map update-in (conj pos :contents)
+           #(-> % (assoc :escort-mode return-mode)
+                (dissoc :pursuit-target :pursuit-steps-remaining)))))
+
+(defn- process-pursuit
+  "Continues pursuit: move toward a cell the enemy could have gone to,
+   excluding cells visible to group members. Decrements steps remaining."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        target (:pursuit-target unit)
+        steps (:pursuit-steps-remaining unit)
+        group (group-positions pos)
+        ;; Cells the enemy could have moved to (neighbors + stayed)
+        candidates (conj (set (core/get-neighbors target)) target)
+        ;; Filter to sea cells not visible to group
+        sea-candidates (filter (fn [c]
+                                 (let [cell (get-in @atoms/game-map c)]
+                                   (and cell (= :sea (:type cell))
+                                        (not (visible-to-group? c group)))))
+                               candidates)]
+    (if (or (<= steps 1) (empty? sea-candidates))
+      (end-pursuit pos)
+      (let [chosen (rand-nth (vec sea-candidates))
+            new-pos (move-toward pos chosen)]
+        (when new-pos
+          (swap! atoms/game-map update-in (conj new-pos :contents)
+                 assoc :pursuit-target chosen
+                       :pursuit-steps-remaining (dec steps)))))))
+
 (defn- process-escort-destroyer
   "Processes a destroyer in escort mode."
   [pos]
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         mode (:escort-mode unit)]
-    (case mode
-      :seeking
-      (when-let [transport-pos (find-unadopted-transport pos)]
-        (adopt-transport pos transport-pos)
-        (move-toward pos transport-pos))
-
-      :intercepting
-      (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
-        (if (<= (core/distance pos transport-pos) 1)
-          ;; Adjacent - switch to escorting
-          (swap! atoms/game-map update-in (conj pos :contents)
-                 assoc :escort-mode :escorting)
+    ;; Escorting destroyers check for enemies near group before normal behavior
+    (if-let [enemy-pos (when (= :escorting mode)
+                         (find-enemy-near-destroyer-group pos))]
+      (begin-pursuit pos enemy-pos)
+      (case mode
+        :seeking
+        (when-let [transport-pos (find-unadopted-transport pos)]
+          (adopt-transport pos transport-pos)
           (move-toward pos transport-pos))
-        ;; Transport gone - back to seeking
-        (do (swap! atoms/game-map update-in (conj pos :contents)
-                   #(-> % (assoc :escort-mode :seeking)
-                        (dissoc :escort-transport-id)))
-            nil))
 
-      :escorting
-      (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
-        ;; Stay adjacent - if already adjacent, stay put. If not, move closer.
-        (when (> (core/distance pos transport-pos) 1)
-          (move-toward pos transport-pos))
-        ;; Transport gone - back to seeking
-        (do (swap! atoms/game-map update-in (conj pos :contents)
-                   #(-> % (assoc :escort-mode :seeking)
-                        (dissoc :escort-transport-id)))
-            nil))
+        :intercepting
+        (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
+          (if (<= (core/distance pos transport-pos) 1)
+            ;; Adjacent - switch to escorting
+            (swap! atoms/game-map update-in (conj pos :contents)
+                   assoc :escort-mode :escorting)
+            (move-toward pos transport-pos))
+          ;; Transport gone - back to seeking
+          (do (swap! atoms/game-map update-in (conj pos :contents)
+                     #(-> % (assoc :escort-mode :seeking)
+                          (dissoc :escort-transport-id)))
+              nil))
 
-      ;; Default (including nil) - fall through to normal ship behavior
-      nil)))
+        :escorting
+        (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
+          ;; Stay adjacent - if already adjacent, stay put. If not, move closer.
+          (when (> (core/distance pos transport-pos) 1)
+            (move-toward pos transport-pos))
+          ;; Transport gone - back to seeking
+          (do (swap! atoms/game-map update-in (conj pos :contents)
+                     #(-> % (assoc :escort-mode :seeking)
+                          (dissoc :escort-transport-id)))
+              nil))
+
+        :pursuing (process-pursuit pos)
+
+        ;; Default (including nil) - fall through to normal ship behavior
+        nil))))
 
 ;; --- Carrier positioning helpers ---
 
@@ -618,16 +804,29 @@
       ;; Carrier gone
       (revert-escort-to-seeking pos))))
 
+(defn- find-enemy-near-carrier-group
+  "Finds a player ship adjacent to escort or its carrier."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        carrier-pos (when (:escort-carrier-id unit)
+                      (find-carrier-by-id (:escort-carrier-id unit)))]
+    (find-enemy-near-positions (filter some? [pos carrier-pos]))))
+
 (defn- process-carrier-group-escort
   "Processes a battleship or submarine in carrier group escort mode."
   [pos unit-type]
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         mode (:escort-mode unit)]
-    (case mode
-      :seeking (process-escort-seeking pos unit-type)
-      :intercepting (process-escort-intercepting pos)
-      :orbiting (process-escort-orbiting pos)
-      nil)))
+    ;; Orbiting escorts check for enemies near carrier group
+    (if-let [enemy-pos (when (= :orbiting mode)
+                         (find-enemy-near-carrier-group pos))]
+      (begin-pursuit pos enemy-pos)
+      (case mode
+        :seeking (process-escort-seeking pos unit-type)
+        :intercepting (process-escort-intercepting pos)
+        :orbiting (process-escort-orbiting pos)
+        :pursuing (process-pursuit pos)
+        nil))))
 
 (defn process-ship
   "Processes a computer ship using VMS Empire style logic.

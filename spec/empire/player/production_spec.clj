@@ -174,8 +174,12 @@
     (reset! atoms/production {}))
 
   (it "first computer army gets clockwise coast-walk"
+    ;; Need coastal land cells unexplored on computer-map for coast-walk to trigger
     (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
+                              {:type :sea}]
+                             [{:type :land :country-id 1}
                               {:type :sea}]])
+    ;; computer-map is {} so land at [1 0] is unexplored → coastal cells not explored
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -187,6 +191,8 @@
   (it "second computer army gets counter-clockwise coast-walk"
     (reset! atoms/coast-walkers-produced {1 1})
     (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
+                              {:type :sea}]
+                             [{:type :land :country-id 1}
                               {:type :sea}]])
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
@@ -194,10 +200,14 @@
       (should= :coast-walk (:mode unit))
       (should= :counter-clockwise (:coast-direction unit))))
 
-  (it "third computer army gets normal mode (no coast-walk)"
-    (reset! atoms/coast-walkers-produced {1 2})
+  (it "no coast-walk when all coastal cells explored"
     (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
+                              {:type :sea}]
+                             [{:type :land :country-id 1}
                               {:type :sea}]])
+    ;; Make all coastal cells visible on computer-map
+    (reset! atoms/computer-map [[{:type :city} {:type :sea}]
+                                 [{:type :land} {:type :sea}]])
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -206,6 +216,8 @@
 
   (it "player army does not get coast-walk"
     (reset! atoms/game-map [[{:type :city :city-status :player :country-id 1}
+                              {:type :sea}]
+                             [{:type :land :country-id 1}
                               {:type :sea}]])
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)

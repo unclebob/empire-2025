@@ -3,7 +3,7 @@
             [empire.computer.stamping :as stamping]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 
 (describe "stamp-computer-fields"
   (before (reset-all-atoms!))
@@ -86,6 +86,17 @@
         (should= 2 (:patrol-country-id stamped))
         (should= :clockwise (:patrol-direction stamped))
         (should= :homing (:patrol-mode stamped))))
+
+    (it "stamps patrol-number incrementing per country"
+      (reset! atoms/patrol-boats-produced {})
+      (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
+            cell {:type :city :city-status :computer :country-id 2}
+            first-boat (stamping/stamp-computer-fields unit cell)
+            second-boat (stamping/stamp-computer-fields unit cell)
+            third-boat (stamping/stamp-computer-fields unit cell)]
+        (should= 1 (:patrol-number first-boat))
+        (should= 2 (:patrol-number second-boat))
+        (should= 3 (:patrol-number third-boat))))
 
     (it "does not stamp patrol fields on patrol-boats from non-country cities"
       (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
@@ -174,27 +185,33 @@
 (describe "apply-coast-walk-fields"
   (before (reset-all-atoms!))
 
-  (it "first computer army gets clockwise coast-walk"
+  (it "all armies get coast-walk while coastal cells unexplored"
+    ;; Map with unexplored coastal cells
+    (reset! atoms/game-map (build-test-map ["~###~"]))
+    (doseq [col [1 2 3]]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+    ;; Computer map: coastal cells unexplored
+    (reset! atoms/computer-map [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
-          cell {:type :city :city-status :computer :country-id 1}
-          stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
-      (should= :coast-walk (:mode stamped))
-      (should= :clockwise (:coast-direction stamped))
-      (should= [3 4] (:coast-start stamped))
-      (should= [[3 4]] (:coast-visited stamped))
-      (should= {1 1} @atoms/coast-walkers-produced)))
+          cell {:type :city :city-status :computer :country-id 1}]
+      ;; First → clockwise
+      (let [s (stamping/apply-coast-walk-fields unit :army cell [3 4])]
+        (should= :coast-walk (:mode s))
+        (should= :clockwise (:coast-direction s))
+        (should= [3 4] (:coast-start s))
+        (should= [[3 4]] (:coast-visited s)))
+      ;; Second → counter-clockwise
+      (let [s (stamping/apply-coast-walk-fields unit :army cell [3 5])]
+        (should= :counter-clockwise (:coast-direction s)))
+      ;; Third → clockwise again (no 2-army limit)
+      (let [s (stamping/apply-coast-walk-fields unit :army cell [3 6])]
+        (should= :clockwise (:coast-direction s)))))
 
-  (it "second computer army gets counter-clockwise coast-walk"
-    (reset! atoms/coast-walkers-produced {1 1})
-    (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
-          cell {:type :city :city-status :computer :country-id 1}
-          stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
-      (should= :coast-walk (:mode stamped))
-      (should= :counter-clockwise (:coast-direction stamped))
-      (should= {1 2} @atoms/coast-walkers-produced)))
-
-  (it "third computer army gets no coast-walk"
-    (reset! atoms/coast-walkers-produced {1 2})
+  (it "no coast-walk when all coastal cells explored"
+    (reset! atoms/game-map (build-test-map ["~###~"]))
+    (reset! atoms/computer-map (build-test-map ["~###~"]))
+    (doseq [col [1 2 3]]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
           cell {:type :city :city-status :computer :country-id 1}
           stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
@@ -202,6 +219,10 @@
       (should-not-contain :coast-direction stamped)))
 
   (it "player army does not get coast-walk"
+    (reset! atoms/game-map (build-test-map ["~###~"]))
+    (reset! atoms/computer-map [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
+    (doseq [col [1 2 3]]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
     (let [unit {:type :army :owner :player :hits 1 :mode :awake}
           cell {:type :city :city-status :player :country-id 1}
           stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]

@@ -33,10 +33,10 @@
       v)))
 
 (defn- terminate-coast-walk
-  "Switches army from coast-walk to explore mode."
+  "Switches army from coast-walk to awake mode for priority-based actions."
   [pos]
   (swap! atoms/game-map update-in (conj pos :contents)
-         #(-> % (assoc :mode :explore :explore-steps 50)
+         #(-> % (assoc :mode :awake)
               (dissoc :coast-direction :coast-start :coast-visited))))
 
 ;; Standard army helpers
@@ -116,25 +116,20 @@
 
       :else nil)))
 
-(defn- find-land-objective
-  "Find a land objective not already claimed by another army.
-   VMS-style: distributes armies across different targets.
-   Priority: player cities > free cities > unexplored."
+(defn- find-city-objective
+  "Find a city objective not already claimed by another army.
+   Targets player and free cities only (not unexplored territory)."
   [pos]
   (let [cont-positions (land-objectives/flood-fill-continent pos)
         all-objectives (land-objectives/find-all-objectives-on-continent cont-positions)
         comp-map @atoms/computer-map
-        ;; Categorize objectives
         player-cities (filter #(= :player (:city-status (get-in comp-map %))) all-objectives)
         free-cities (filter #(= :free (:city-status (get-in comp-map %))) all-objectives)
-        unexplored (filter #(nil? (get-in comp-map %)) all-objectives)
-        ;; Priority order: player > free > unexplored
+        cities (concat player-cities free-cities)
         target (or (find-nearest-unclaimed player-cities pos)
                    (find-nearest-unclaimed free-cities pos)
-                   (find-nearest-unclaimed unexplored pos)
-                   ;; Fallback: any claimed objective
-                   (when (seq all-objectives)
-                     (apply min-key #(core/distance pos %) all-objectives)))]
+                   (when (seq cities)
+                     (apply min-key #(core/distance pos %) cities)))]
     (when target
       (swap! atoms/claimed-objectives conj target)
       target)))
@@ -220,16 +215,84 @@
             (do (terminate-coast-walk target) target)
             target))))))
 
+(defn- find-nearest-unoccupied-coastal-cell
+  "Finds nearest land cell with matching country-id, adjacent to sea, with no unit."
+  [pos country-id]
+  (when country-id
+    (let [game-map @atoms/game-map]
+      (first
+        (sort-by #(core/distance pos %)
+                 (for [i (range (count game-map))
+                       j (range (count (first game-map)))
+                       :let [cell (get-in game-map [i j])]
+                       :when (and (= :land (:type cell))
+                                  (= country-id (:country-id cell))
+                                  (nil? (:contents cell))
+                                  (adjacent-to-sea? [i j]))]
+                   [i j]))))))
+
+(defn- fill-coastal-cell
+  "If army is on a coastal cell, go sentry. Otherwise move toward nearest unoccupied one."
+  [pos country-id]
+  (cond
+    ;; Already on a coastal cell → go sentry
+    (and country-id (adjacent-to-sea? pos))
+    (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+        pos)
+
+    ;; Find nearest unoccupied coastal cell and move toward it
+    :else
+    (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
+      (move-toward-objective pos target country-id))))
+
+(defn- in-bounds? [pos]
+  (let [[c r] pos
+        game-map @atoms/game-map]
+    (and (>= c 0) (>= r 0)
+         (< c (count game-map))
+         (< r (count (first game-map))))))
+
+(defn- try-interior-move
+  "Attempts to move in a direction, clearing direction if blocked or at coast."
+  [pos target]
+  (if (and (in-bounds? target) (try-move pos target))
+    (do (when (adjacent-to-sea? target)
+          (swap! atoms/game-map update-in (conj target :contents) dissoc :interior-explore-direction))
+        target)
+    (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :interior-explore-direction)
+        nil)))
+
+(defn- start-interior-exploration
+  "Picks a random direction and takes first step of interior exploration."
+  [pos _country-id]
+  (let [direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+        [dc dr] direction
+        [c r] pos
+        target [(+ c dc) (+ r dr)]]
+    (swap! atoms/game-map assoc-in (conj pos :contents :interior-explore-direction) direction)
+    (try-interior-move pos target)))
+
+(defn- process-interior-explore
+  "Continues interior exploration in stored direction."
+  [pos _country-id]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        [dc dr] (:interior-explore-direction unit)
+        [c r] pos
+        target [(+ c dc) (+ r dr)]]
+    (try-interior-move pos target)))
+
 (defn- find-and-execute-land-action [pos country-id]
-  (if-let [objective (find-land-objective pos)]
-    (move-toward-objective pos objective country-id)
-    (if (core/find-loading-transport)
+  (or (when-let [objective (find-city-objective pos)]
+        (move-toward-objective pos objective country-id))
+      (when (and country-id (< (rand) 1/3))
+        (start-interior-exploration pos country-id))
+      (fill-coastal-cell pos country-id)
       (find-and-board-transport pos country-id)
-      (explore-randomly pos country-id))))
+      (explore-randomly pos country-id)))
 
 (defn process-army
-  "Processes a computer army's turn using VMS Empire style logic.
-   Priority: Attack adjacent > Coast-walk (if mode) > Land objective > Board transport > Explore
+  "Processes a computer army's turn.
+   Priority: Attack > Coast-walk > Interior explore > City > 1/3 explore > Coastal fill > Transport > Explore
    Returns nil after processing - armies only move once per round."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
@@ -240,5 +303,6 @@
         (cond
           enemy-pos (attack-enemy pos enemy-pos)
           (= :coast-walk (:mode unit)) (process-coast-walk pos country-id)
+          (:interior-explore-direction unit) (process-interior-explore pos country-id)
           :else (find-and-execute-land-action pos country-id))))
     nil))

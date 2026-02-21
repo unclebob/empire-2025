@@ -282,15 +282,14 @@
 (describe "VMS transport module"
   (before (reset-all-atoms!))
 
-  (it "process-transport stays put when loading with no armies and no unexplored"
+  (it "process-transport stays put when loading in open sea with no unexplored"
     (reset! atoms/game-map [[{:type :sea :contents {:type :transport :owner :computer
                                                      :transport-mission :loading
                                                      :army-count 0}}
-                              {:type :sea}
-                              {:type :land}]])
+                              {:type :sea}]])
     (reset! atoms/computer-map @atoms/game-map)
     (transport/process-transport [0 0])
-    ;; Transport stays put - no armies, no unexplored territory
+    ;; Transport stays put - open sea, no coastal targets, no unexplored territory
     (should= :transport (get-in @atoms/game-map [0 0 :contents :type]))))
 
 (describe "VMS production module"
@@ -343,13 +342,12 @@
     (reset! atoms/game-map [[{:type :sea :contents {:type :transport :owner :computer
                                                      :transport-mission :loading
                                                      :army-count 0}}
-                              {:type :sea}
-                              {:type :land}]])
+                              {:type :sea}]])
     (reset! atoms/computer-map @atoms/game-map)
     (let [result (computer/process-computer-unit [0 0])]
       ;; Transport module returns nil (units processed once per round)
       (should-be-nil result)
-      ;; Transport stays put - no armies, no unexplored territory
+      ;; Transport stays put - open sea, no coastal targets, no unexplored territory
       (should= :transport (get-in @atoms/game-map [0 0 :contents :type]))))
 
   (it "returns nil for non-computer unit"

@@ -185,6 +185,11 @@
    First army gets clockwise, second gets counter-clockwise, 3+ get normal explore."
   (atom {}))
 
+(def patrol-boats-produced
+  "Map of country-id -> count of patrol boats produced for that country.
+   1st patrols coastline, 2nd-4th sail random headings."
+  (atom {}))
+
 (def action-log
   "Circular buffer of recent game actions for debugging. Capped at 100 entries.
    Each entry is {:timestamp <ms> :action <vector describing the action>}."

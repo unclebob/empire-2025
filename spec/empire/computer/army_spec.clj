@@ -149,8 +149,9 @@
         ;; Should claim free city [2 0], not unexplored
         (should (contains? @atoms/claimed-objectives [2 0]))))
 
-    (it "explores when only unexplored cells exist"
+    (it "does not target unexplored cells as objectives"
       ;; Army at [0 0], no cities, only unexplored territory
+      ;; New behavior: unexplored cells are NOT targeted via find-land-objective
       (let [land {:type :land}
             army-cell {:type :land :contents {:type :army :owner :computer}}]
         (reset! atoms/game-map [[army-cell land land]
@@ -161,9 +162,10 @@
                                      [{:type :land} {:type :land} {:type :land}]
                                      [{:type :land} {:type :land} nil]])
         (reset! atoms/claimed-objectives #{})
-        (army/process-army [0 0])
-        ;; Should claim unexplored [2 2]
-        (should (contains? @atoms/claimed-objectives [2 2])))))
+        (with-redefs [rand (constantly 0.5)]
+          (army/process-army [0 0]))
+        ;; Should NOT claim unexplored [2 2] - no longer an objective
+        (should-not (contains? @atoms/claimed-objectives [2 2])))))
 
   (describe "objective distribution"
     (it "two armies on same continent target different free cities"
@@ -249,9 +251,9 @@
               :mode :coast-walk :coast-direction :clockwise
               :coast-start [0 0] :coast-visited [[0 0] [1 1]]})
       (army/process-army [1 1])
-      ;; Should have terminated - switched to explore mode
+      ;; Should have terminated - switched to awake mode
       (let [unit (get-in @atoms/game-map [1 1 :contents])]
-        (should= :explore (:mode unit))
+        (should= :awake (:mode unit))
         (should-be-nil (:coast-direction unit))))
 
     (it "terminates when returning to start position"
@@ -268,7 +270,7 @@
       ;; Army should have moved to [1 0] (coast-start) and terminated
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (should= :army (:type unit))
-        (should= :explore (:mode unit))
+        (should= :awake (:mode unit))
         (should-be-nil (:coast-direction unit))))
 
     (it "prefers unexplored territory"
@@ -421,9 +423,9 @@
                                [{:type :sea} {:type :sea} {:type :sea}]])
       (reset! atoms/computer-map @atoms/game-map)
       (army/process-army [0 0])
-      ;; Should terminate coast-walk and switch to explore
+      ;; Should terminate coast-walk and switch to awake
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
-        (should= :explore (:mode unit))
+        (should= :awake (:mode unit))
         (should-be-nil (:coast-direction unit))))
 
     (it "army can still attack adjacent enemy across sovereignty border"
@@ -496,4 +498,135 @@
       ;; Army should be gone from land (boarded)
       (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
       ;; Transport should have 1 army
-      (should= 1 (get-in @atoms/game-map [0 1 :contents :army-count])))))
+      (should= 1 (get-in @atoms/game-map [0 1 :contents :army-count]))))
+
+  (describe "coastal fill behavior"
+    (it "goes sentry on coastal cell when no cities to target"
+      ;; Army at [1 0] on coastal cell (adjacent to sea at row 1)
+      ;; Fully explored, no player/free cities
+      (reset! atoms/game-map (build-test-map ["####"
+                                               "~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [col (range 4)]
+        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (swap! atoms/game-map assoc-in [1 0 :contents]
+             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      (with-redefs [rand (constantly 0.5)]
+        (army/process-army [1 0]))
+      ;; Army should go sentry - already on coastal cell, nothing else to do
+      (should= :sentry (get-in @atoms/game-map [1 0 :contents :mode])))
+
+    (it "moves toward unoccupied coastal cell from interior"
+      ;; Army at [1 0] (interior), coastal cells at row 2
+      ;; ####
+      ;; ####
+      ;; ####
+      ;; ~~~~
+      (reset! atoms/game-map (build-test-map ["####"
+                                               "####"
+                                               "####"
+                                               "~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [col (range 4) row (range 3)]
+        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+      (swap! atoms/game-map assoc-in [1 0 :contents]
+             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      (with-redefs [rand (constantly 0.5)]
+        (army/process-army [1 0]))
+      ;; Army should have moved toward coastal cell (row 2)
+      (should-be-nil (:contents (get-in @atoms/game-map [1 0])))
+      (should= :army (get-in @atoms/game-map [1 1 :contents :type])))
+
+    (it "moves toward transport when no coastal cell to fill"
+      ;; Army without country-id → fill-coastal-cell returns nil → board transport
+      ;; Army at [0 0] (land), transport at [0 1] (sea, adjacent)
+      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
+                                                        :mode :awake}}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :loading
+                                                        :army-count 0}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [rand (constantly 0.5)]
+        (army/process-army [0 0]))
+      ;; Army should have boarded the transport (no country-id → no coastal fill)
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+      (should= 1 (get-in @atoms/game-map [0 1 :contents :army-count]))))
+
+  (describe "interior exploration"
+    (it "1-in-3 armies explore interior instead of going sentry"
+      ;; Army at [1 2] (coastal, adjacent to sea at row 3)
+      ;; ####
+      ;; ####
+      ;; ####
+      ;; ~~~~
+      (reset! atoms/game-map (build-test-map ["####"
+                                               "####"
+                                               "####"
+                                               "~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [col (range 4) row (range 3)]
+        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+      (swap! atoms/game-map assoc-in [1 2 :contents]
+             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      ;; Mock rand < 1/3, rand-nth picks direction [0 -1] (north, toward interior)
+      (with-redefs [rand (constantly 0.2)
+                    rand-nth (constantly [0 -1])]
+        (army/process-army [1 2]))
+      ;; Army should have moved north to [1 1] with explore direction set
+      (let [unit (get-in @atoms/game-map [1 1 :contents])]
+        (should= :army (:type unit))
+        (should= [0 -1] (:interior-explore-direction unit))))
+
+    (it "interior explorer continues walking in its direction"
+      ;; Army at [1 1] with interior-explore-direction already set
+      (reset! atoms/game-map (build-test-map ["####"
+                                               "####"
+                                               "####"
+                                               "~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [col (range 4) row (range 3)]
+        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
+              :interior-explore-direction [0 -1]})
+      (army/process-army [1 1])
+      ;; Army should have moved north to [1 0]
+      (let [unit (get-in @atoms/game-map [1 0 :contents])]
+        (should= :army (:type unit))
+        (should= [0 -1] (:interior-explore-direction unit))))
+
+    (it "interior explorer clears direction when reaching coast"
+      ;; Army at [1 1] heading south [0 1] toward sea
+      (reset! atoms/game-map (build-test-map ["####"
+                                               "####"
+                                               "####"
+                                               "~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [col (range 4) row (range 3)]
+        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
+              :interior-explore-direction [0 1]})
+      (army/process-army [1 1])
+      ;; Army at [1 2] (coastal) should have direction cleared
+      (let [unit (get-in @atoms/game-map [1 2 :contents])]
+        (should= :army (:type unit))
+        (should-be-nil (:interior-explore-direction unit))))
+
+    (it "interior explorer clears direction when blocked"
+      ;; Army at [0 0] heading north [0 -1] — would go off map
+      (reset! atoms/game-map (build-test-map ["####"
+                                               "####"
+                                               "####"
+                                               "~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [col (range 4) row (range 3)]
+        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
+              :interior-explore-direction [0 -1]})
+      (army/process-army [0 0])
+      ;; Army should still be at [0 0] but direction cleared
+      (let [unit (get-in @atoms/game-map [0 0 :contents])]
+        (should= :army (:type unit))
+        (should-be-nil (:interior-explore-direction unit))))))
