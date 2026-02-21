@@ -104,7 +104,9 @@
    Returns new coords if launched, nil otherwise."
   (let [flight-path (or (:flight-path cell)
                         (:flight-path (:contents cell)))
-        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
+        cell-occupied? (:contents cell)
+        has-awake-airport-fighter? (and (not cell-occupied?)
+                                        (uc/has-awake? cell :awake-fighters))
         has-awake-carrier-fighter? (and (= (:type (:contents cell)) :carrier)
                                         (uc/has-awake? (:contents cell) :awake-fighters))]
     (when flight-path

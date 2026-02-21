@@ -402,6 +402,22 @@
     (let [fighter-at-target (get-in @atoms/game-map [1 0])]
       (should= :fighter (:type (:contents fighter-at-target)))))
 
+  (it "does not launch fighter when army is on city"
+    (reset! atoms/game-map (-> (build-test-map ["O#"])
+                               (assoc-in [0 0 :flight-path] [1 0])
+                               (assoc-in [0 0 :awake-fighters] 1)
+                               (assoc-in [0 0 :fighter-count] 1)
+                               (assoc-in [0 0 :contents] {:type :army :mode :moving :target [1 0] :hits 1 :owner :player})))
+    (reset! atoms/player-map (build-test-map ["##"]))
+    (reset! atoms/production {})
+    (reset! atoms/player-items [[0 0]])
+    (reset! atoms/waiting-for-input false)
+    (game-loop/advance-game)
+    ;; Army should still exist, not overwritten by fighter
+    (let [city (get-in @atoms/game-map [0 0])]
+      (should= 1 (:awake-fighters city))
+      (should= 1 (:fighter-count city))))
+
   (it "launches fighter from carrier with flight-path"
     (reset! atoms/game-map (build-test-map ["C~"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :flight-path [1 0] :awake-fighters 1 :fighter-count 1)
