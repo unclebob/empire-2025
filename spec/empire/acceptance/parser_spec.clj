@@ -397,6 +397,12 @@
       (let [lines ["X has a destroyer with 2 hits in its shipyard."]
             result (parser/parse-given lines {})]
         (should= [{:type :shipyard-state :city "X" :ship-type :destroyer :hits 2}]
+                 (:givens result))))
+
+    (it "parses 'X has a computer army'"
+      (let [lines ["X has a computer army."]
+            result (parser/parse-given lines {})]
+        (should= [{:type :city-unit :city "X" :unit-type :army :owner :computer}]
                  (:givens result)))))
 
   (describe "parse-when"

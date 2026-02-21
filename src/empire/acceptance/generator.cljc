@@ -367,6 +367,12 @@
 (defn- generate-no-production-given [_]
   "    (reset! atoms/production {})")
 
+(defn- generate-city-unit-given [{:keys [city unit-type owner]}]
+  (let [pos-expr (target-pos-expr city)]
+    (str "    (let [" (str/lower-case city) "-pos " pos-expr "]\n"
+         "      (swap! atoms/game-map assoc-in (conj " (str/lower-case city) "-pos :contents)\n"
+         "        {:type :" (name unit-type) " :owner :" (name owner) " :mode :sentry :hits 1}))")))
+
 (defn- generate-shipyard-state-given [{:keys [city ship-type hits]}]
   (let [pos-expr (target-pos-expr city)]
     (str "    (let [" (str/lower-case city) "-pos " pos-expr "]\n"
@@ -392,6 +398,7 @@
      :waiting-for-input-state (generate-waiting-for-input-state-given given)
      :no-production (generate-no-production-given given)
      :shipyard-state (generate-shipyard-state-given given)
+     :city-unit (generate-city-unit-given given)
      :stub ""
      :unrecognized (str "    (pending \"Unrecognized: " (:text given) "\")")
      (str "    ;; Unknown given type: " (:type given)))))
