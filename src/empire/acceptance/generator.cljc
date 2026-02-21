@@ -51,7 +51,8 @@
         given-pi-targets (mapcat :items (filter #(= :player-items (:type %)) givens))
         given-ut-targets (keep :target (filter #(= :unit-target (:type %)) givens))
         given-prod-cities (keep :city (filter #(= :production (:type %)) givens))
-        all-targets (concat then-targets given-pi-targets given-ut-targets given-prod-cities)
+        given-vtc-refs (keep :ref (filter #(= :visible-to-computer (:type %)) givens))
+        all-targets (concat then-targets given-pi-targets given-ut-targets given-prod-cities given-vtc-refs)
         map-rows (:rows (first (filter #(= :map (:type %)) givens)))
         wfi-units (keep #(when (= :waiting-for-input (:type %)) (:unit %)) givens)]
     {:givens givens :whens whens :thens thens
@@ -97,7 +98,8 @@
                                    (not (some #(str/includes? % u) map-rows)))) wfi-units)))}
    {:need :make-initial-test-map
     :pred (fn [{:keys [givens whens]}]
-            (some #(= :waiting-for-input (:type %)) (concat givens whens)))}
+            (or (some #(= :waiting-for-input (:type %)) (concat givens whens))
+                (some #(= :visible-to-computer (:type %)) givens)))}
    {:need :advance-until-waiting-helper
     :needs-also #{:quil :game-loop}
     :pred (fn [{:keys [whens thens]}]
@@ -390,6 +392,14 @@
          "      (swap! atoms/game-map update-in " (str/lower-case city) "-pos\n"
          "        update :shipyard (fnil conj []) {:type :" (name ship-type) " :hits " hits "}))")))
 
+(defn- generate-visible-to-computer-given [{:keys [ref]}]
+  (let [pos-expr (target-pos-expr ref)]
+    (str "    (let [pos " pos-expr "\n"
+         "          gm @atoms/game-map]\n"
+         "      (when (not (vector? @atoms/computer-map))\n"
+         "        (reset! atoms/computer-map (make-initial-test-map (count (first gm)) (count gm) nil)))\n"
+         "      (swap! atoms/computer-map assoc-in pos (get-in gm pos)))")))
+
 (defn generate-given
   "Generate code string for a single GIVEN IR node."
   ([given] (generate-given given []))
@@ -411,6 +421,7 @@
      :shipyard-state (generate-shipyard-state-given given)
      :city-unit (generate-city-unit-given given)
      :territory-around (generate-territory-around-given given)
+     :visible-to-computer (generate-visible-to-computer-given given)
      :stub ""
      :unrecognized (str "    (pending \"Unrecognized: " (:text given) "\")")
      (str "    ;; Unknown given type: " (:type given)))))

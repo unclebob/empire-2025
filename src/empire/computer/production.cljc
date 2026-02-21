@@ -261,9 +261,8 @@
          (not (country-city-producing-transports? city-pos country-id)))
     :transport
 
-    ;; 2. Army: unoccupied coastal cells exist (countries always have coast)
-    (and (has-unoccupied-coastal-cells? country-id)
-         (not (country-city-producing-armies? city-pos country-id)))
+    ;; 2. Army: unoccupied coastal cells exist
+    (has-unoccupied-coastal-cells? country-id)
     :army
 
     ;; 3. Patrol boat: < 4 per country, coastal
@@ -278,8 +277,9 @@
          (not (country-city-producing-destroyers? city-pos country-id)))
     :destroyer
 
-    ;; 5. Fighter: < max per country
-    (< (count-country-fighters country-id) config/max-fighters-per-country)
+    ;; 5. Fighter: < max per country, one city at a time
+    (and (< (count-country-fighters country-id) config/max-fighters-per-country)
+         (not (country-city-producing? city-pos country-id :fighter)))
     :fighter))
 
 (defn- count-carrier-producers
@@ -333,7 +333,8 @@
     (or (when country-id
           (decide-country-production city-pos country-id coastal? unit-counts))
         (when country-id
-          (decide-global-production coastal? unit-counts)))))
+          (decide-global-production coastal? unit-counts))
+        :army)))
 
 (defn process-computer-city
   "Processes a computer city - sets production if not already set."

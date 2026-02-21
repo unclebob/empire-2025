@@ -157,12 +157,12 @@
   (describe "origin continent tracking"
     (it "records pickup-continent-pos when transport becomes full"
       ;; Transport at [1,1] (sea) adjacent to land at [0,0..2]
-      ;; Player city on separate continent at [4,1]
+      ;; No visible cities on computer-map so transport sails (not directed)
       (let [game-map (build-test-map ["###"
                                       "~t~"
                                       "~~~"
                                       "~~~"
-                                      "~O~"])]
+                                      "~~~"])]
         (reset! atoms/game-map game-map)
         (reset! atoms/computer-map game-map)
         (swap! atoms/game-map assoc-in [1 1 :contents]
@@ -909,4 +909,134 @@
       (let [unit (:contents (get-in @atoms/game-map [0 0]))]
         (should= :transport (:type unit))
         (should= 5 (:stuck-since-round unit))
-        (should= [0 0] (:produced-at unit))))))
+        (should= [0 0] (:produced-at unit)))))
+
+  (describe "directed transport assignment"
+    (it "full loading transport gets assigned to free city on computer-map"
+      (let [game-map (build-test-map ["t~~+"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map (build-test-map ["~~~+"]))
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 6
+                :stuck-since-round 0})
+        (transport/process-transport [0 0])
+        (let [t-pos (first (for [c (range 4)
+                                  :when (= :transport (get-in @atoms/game-map [c 0 :contents :type]))]
+                              [c 0]))
+              transport (get-in @atoms/game-map (conj t-pos :contents))]
+          (should= :directed (:transport-mission transport))
+          (should= [3 0] (:target-city transport))
+          (should (vector? (:path transport))))))
+
+    (it "full loading transport gets assigned to player city on computer-map"
+      (let [game-map (build-test-map ["t~~O"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map (build-test-map ["~~~O"]))
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 6
+                :stuck-since-round 0})
+        (transport/process-transport [0 0])
+        (let [t-pos (first (for [c (range 4)
+                                  :when (= :transport (get-in @atoms/game-map [c 0 :contents :type]))]
+                              [c 0]))
+              transport (get-in @atoms/game-map (conj t-pos :contents))]
+          (should= :directed (:transport-mission transport))
+          (should= [3 0] (:target-city transport)))))
+
+    (it "not-full transport is not assigned"
+      (let [game-map (build-test-map ["t~~+"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map (build-test-map ["~~~+"]))
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 5
+                :stuck-since-round 0})
+        (transport/process-transport [0 0])
+        (let [t-pos (first (for [c (range 4)
+                                  :when (= :transport (get-in @atoms/game-map [c 0 :contents :type]))]
+                              [c 0]))
+              transport (get-in @atoms/game-map (conj t-pos :contents))]
+          (should= :loading (:transport-mission transport)))))
+
+    (it "directed transport follows stored path"
+      (reset! atoms/game-map (build-test-map ["t~~+"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :directed :army-count 6
+              :target-city [3 0] :path [[1 0] [2 0]]
+              :stuck-since-round 0})
+      (transport/process-transport [0 0])
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+      (let [transport (:contents (get-in @atoms/game-map [1 0]))]
+        (should= :transport (:type transport))
+        (should= :directed (:transport-mission transport))
+        (should= [[2 0]] (:path transport))))
+
+    (it "directed transport waits when next step is blocked"
+      (reset! atoms/game-map (build-test-map ["td~+"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :directed :army-count 6
+              :target-city [3 0] :path [[1 0] [2 0]]
+              :stuck-since-round 0})
+      (transport/process-transport [0 0])
+      (should= :transport (get-in @atoms/game-map [0 0 :contents :type]))
+      (should= [[1 0] [2 0]] (:path (get-in @atoms/game-map [0 0 :contents]))))
+
+    (it "directed transport with empty path unloads and resumes loading"
+      (reset! atoms/game-map [[{:type :sea}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :directed
+                                                        :army-count 2
+                                                        :target-city [0 3]
+                                                        :path []}}
+                                {:type :land}
+                                {:type :city :city-status :free}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      (should= :army (get-in @atoms/game-map [0 2 :contents :type]))
+      (let [transport (:contents (get-in @atoms/game-map [0 1]))]
+        (should= :loading (:transport-mission transport))
+        (should-be-nil (:target-city transport))
+        (should-be-nil (:path transport))))
+
+    (it "assignment drops when target city is computer-owned"
+      (let [game-map (build-test-map ["t~~X"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [3 0 :city-status] :computer)
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :directed :army-count 6
+                :target-city [3 0] :path [[1 0] [2 0]]
+                :stuck-since-round 0})
+        (transport/process-transport [0 0])
+        (let [t-pos (first (for [c (range 4)
+                                  :when (= :transport (get-in @atoms/game-map [c 0 :contents :type]))]
+                              [c 0]))
+              transport (get-in @atoms/game-map (conj t-pos :contents))]
+          (should= :loading (:transport-mission transport))
+          (should-be-nil (:target-city transport))
+          (should-be-nil (:path transport)))))
+
+    (it "ignores computer-owned cities for assignment"
+      (let [game-map (build-test-map ["t~~X"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map (build-test-map ["~~~X"]))
+        (swap! atoms/game-map assoc-in [3 0 :city-status] :computer)
+        (swap! atoms/computer-map assoc-in [3 0 :city-status] :computer)
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 6
+                :stuck-since-round 0})
+        (with-redefs [rand-int (constantly 90)]
+          (transport/process-transport [0 0]))
+        (let [t-pos (first (for [c (range 4)
+                                  :when (= :transport (get-in @atoms/game-map [c 0 :contents :type]))]
+                              [c 0]))
+              transport (get-in @atoms/game-map (conj t-pos :contents))]
+          (should= :sailing (:transport-mission transport)))))))

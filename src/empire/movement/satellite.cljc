@@ -52,6 +52,22 @@
       :else
       [x y])))
 
+(defn- blocked-cell?
+  "Returns true if a cell contains a city or another unit."
+  [cell]
+  (or (= :city (:type cell))
+      (some? (:contents cell))))
+
+(defn- find-open-cell
+  "Scans from [nx ny] in direction [dx dy] for the first non-blocked cell.
+   Returns the position or nil if none found before the map boundary."
+  [[nx ny] [dx dy] map-height map-width]
+  (loop [cx nx cy ny]
+    (cond
+      (or (< cx 0) (>= cx map-height) (< cy 0) (>= cy map-width)) nil
+      (blocked-cell? (get-in @atoms/game-map [cx cy])) (recur (+ cx dx) (+ cy dy))
+      :else [cx cy])))
+
 (defn- bounce-direction
   "Returns a random direction vector pointing away from the map edge.
    Filters the 8 compass directions to those that move inward from the edge."
@@ -85,18 +101,23 @@
         map-height (count @atoms/game-map)
         map-width (count (first @atoms/game-map))]
     (if (and (>= nx 0) (< nx map-height) (>= ny 0) (< ny map-width))
-      (do (swap! atoms/game-map assoc-in [x y :contents] nil)
-          (swap! atoms/game-map assoc-in [nx ny :contents] satellite)
-          (visibility/update-cell-visibility [nx ny] (:owner satellite))
-          [nx ny])
+      (if-let [dest (find-open-cell [nx ny] [dx dy] map-height map-width)]
+        (do (swap! atoms/game-map assoc-in [x y :contents] nil)
+            (swap! atoms/game-map assoc-in (conj dest :contents) satellite)
+            (visibility/update-cell-visibility dest (:owner satellite))
+            dest)
+        [x y])
       (if-let [new-dir (bounce-direction [x y] map-height map-width)]
-        (let [bx (+ x (first new-dir))
-              by (+ y (second new-dir))
+        (let [[bx by] new-dir
+              dest-x (+ x bx)
+              dest-y (+ y by)
               updated (assoc satellite :direction new-dir)]
-          (swap! atoms/game-map assoc-in [x y :contents] nil)
-          (swap! atoms/game-map assoc-in [bx by :contents] updated)
-          (visibility/update-cell-visibility [bx by] (:owner satellite))
-          [bx by])
+          (if (blocked-cell? (get-in @atoms/game-map [dest-x dest-y]))
+            [x y]
+            (do (swap! atoms/game-map assoc-in [x y :contents] nil)
+                (swap! atoms/game-map assoc-in [dest-x dest-y :contents] updated)
+                (visibility/update-cell-visibility [dest-x dest-y] (:owner satellite))
+                [dest-x dest-y])))
         [x y]))))
 
 (defn move-satellite
@@ -124,13 +145,13 @@
                 (swap! atoms/game-map assoc-in [x y :contents] updated-satellite)
                 (visibility/update-cell-visibility [x y] (:owner satellite))
                 [x y])
-              ;; Not at target - move toward it
+              ;; Not at target - move toward it, skipping blocked cells
               (let [dx (Integer/signum (- tx x))
                     dy (Integer/signum (- ty y))
-                    new-pos [(+ x dx) (+ y dy)]]
-                ;; Remove from old position
-                (swap! atoms/game-map assoc-in [x y :contents] nil)
-                ;; Place at new position
-                (swap! atoms/game-map assoc-in (conj new-pos :contents) satellite)
-                (visibility/update-cell-visibility new-pos (:owner satellite))
-                new-pos))))))))
+                    next-pos [(+ x dx) (+ y dy)]]
+                (if-let [dest (find-open-cell next-pos [dx dy] map-height map-width)]
+                  (do (swap! atoms/game-map assoc-in [x y :contents] nil)
+                      (swap! atoms/game-map assoc-in (conj dest :contents) satellite)
+                      (visibility/update-cell-visibility dest (:owner satellite))
+                      dest)
+                  [x y])))))))))

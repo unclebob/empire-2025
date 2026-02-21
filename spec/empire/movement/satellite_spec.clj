@@ -350,6 +350,55 @@
       (should-not= pos1 pos2)
       (should (:contents (get-in @atoms/game-map pos2)))))
 
+  (it "skips over a city when moving in direction"
+    (reset! atoms/game-map (build-test-map ["##v##O##"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 1 8 nil))
+    (let [new-pos (move-satellite [2 0])]
+      ;; Should skip city at [5 0] and land at [4 0] (one step east from [3 0]... wait, it starts at [2 0] going east, next is [3 0])
+      ;; Actually: from [2 0], direction [1 0], next cell is [3 0] which is land — normal move
+      (should= [3 0] new-pos)
+      (should-be-nil (:contents (get-in @atoms/game-map [2 0])))
+      (should (:contents (get-in @atoms/game-map [3 0])))))
+
+  (it "skips directly over adjacent city"
+    (reset! atoms/game-map (build-test-map ["##vO####"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 1 8 nil))
+    (let [new-pos (move-satellite [2 0])]
+      ;; Next cell [3 0] is a city — should skip to [4 0]
+      (should= [4 0] new-pos)
+      (should-be-nil (:contents (get-in @atoms/game-map [2 0])))
+      (should-be-nil (:contents (get-in @atoms/game-map [3 0])))
+      (should (:contents (get-in @atoms/game-map [4 0])))))
+
+  (it "skips over a unit when moving in direction"
+    (reset! atoms/game-map (build-test-map ["##va####"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 1 8 nil))
+    (let [new-pos (move-satellite [2 0])]
+      ;; Next cell [3 0] has an army — should skip to [4 0]
+      (should= [4 0] new-pos)
+      (should (:contents (get-in @atoms/game-map [3 0])))  ;; army still there
+      (should (:contents (get-in @atoms/game-map [4 0])))))
+
+  (it "skips multiple consecutive blocked cells"
+    (reset! atoms/game-map (build-test-map ["##vOO###"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 1 8 nil))
+    (let [new-pos (move-satellite [2 0])]
+      ;; Cells [3 0] and [4 0] are both cities — should skip to [5 0]
+      (should= [5 0] new-pos)))
+
+  (it "stays put when all forward cells are blocked or off map"
+    (reset! atoms/game-map (build-test-map ["##vO"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 1 4 nil))
+    (let [new-pos (move-satellite [2 0])]
+      ;; Next cell is city, beyond that is off map — should stay put
+      (should= [2 0] new-pos)
+      (should (:contents (get-in @atoms/game-map [2 0])))))
+
   (it "player satellite without :direction uses target-based movement"
     (reset! atoms/game-map (build-test-map ["#####"
                                              "#V###"
@@ -362,3 +411,42 @@
     ;; Player satellite should use target-based movement, moving toward [4 4]
     (should (:contents (get-in @atoms/game-map [2 2])))
     (should-be-nil (:contents (get-in @atoms/game-map [1 1])))))
+
+(describe "player satellite skipping"
+  (before (reset-all-atoms!))
+
+  (it "skips over a city when moving toward target"
+    (reset! atoms/game-map (build-test-map ["#VO####"]))
+    (set-test-unit atoms/game-map "V" :target [6 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 1 7 nil))
+    (let [new-pos (move-satellite [1 0])]
+      ;; Next cell [2 0] is a player city — should skip to [3 0]
+      (should= [3 0] new-pos)
+      (should-be-nil (:contents (get-in @atoms/game-map [1 0])))
+      (should (:contents (get-in @atoms/game-map [3 0])))))
+
+  (it "skips over a unit when moving toward target"
+    (reset! atoms/game-map (build-test-map ["#VA####"]))
+    (set-test-unit atoms/game-map "V" :target [6 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 1 7 nil))
+    (let [new-pos (move-satellite [1 0])]
+      ;; Next cell [2 0] has a player army — should skip to [3 0]
+      (should= [3 0] new-pos)
+      (should (:contents (get-in @atoms/game-map [2 0])))  ;; army still there
+      (should (:contents (get-in @atoms/game-map [3 0])))))
+
+  (it "skips over a free city"
+    (reset! atoms/game-map (build-test-map ["#V+####"]))
+    (set-test-unit atoms/game-map "V" :target [6 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 1 7 nil))
+    (let [new-pos (move-satellite [1 0])]
+      ;; Next cell [2 0] is a free city — should skip to [3 0]
+      (should= [3 0] new-pos)))
+
+  (it "skips over a computer city"
+    (reset! atoms/game-map (build-test-map ["#VX####"]))
+    (set-test-unit atoms/game-map "V" :target [6 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 1 7 nil))
+    (let [new-pos (move-satellite [1 0])]
+      ;; Next cell [2 0] is a computer city — should skip to [3 0]
+      (should= [3 0] new-pos))))

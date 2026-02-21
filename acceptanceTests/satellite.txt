@@ -50,3 +50,36 @@ GIVEN V is waiting for input.
 WHEN the player presses D.
 
 THEN at next round V will be at =.
+
+;===============================================================
+; Satellite skips over a city.
+;===============================================================
+GIVEN game map
+  V####O#####%
+GIVEN V is waiting for input.
+
+WHEN the player presses D.
+
+THEN at next round V will be at %.
+
+;===============================================================
+; Satellite skips over a unit.
+;===============================================================
+GIVEN game map
+  V####A#####%
+GIVEN V is waiting for input.
+
+WHEN the player presses D.
+
+THEN at next round V will be at %.
+
+;===============================================================
+; Computer satellite skips over a player city.
+;===============================================================
+GIVEN game map
+  v####O#####%
+GIVEN v has direction [1 0].
+
+WHEN a new round starts.
+
+THEN v is at [11 0].

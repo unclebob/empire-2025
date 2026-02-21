@@ -70,7 +70,7 @@ THEN c has refueling position near %.
 ;===============================================================
 ; Computer does not produce carrier when no sea path exists
 ; between distant cities. Land blocks the refueling position.
-; City idles since per-country needs are satisfied.
+; City produces army since per-country needs are satisfied.
 ;===============================================================
 GIVEN game map
   X#################Xtffpppp
@@ -90,4 +90,4 @@ GIVEN computer controls 12 cities.
 
 WHEN the computer chooses production at X1.
 
-THEN there is no production at X1.
+THEN production at X1 is army.

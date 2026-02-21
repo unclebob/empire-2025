@@ -153,8 +153,16 @@
    ;; "has heading <degrees>" for sailing heading
    {:regex #"(?:with|has)\s+heading\s+(\d+)"
     :extract-fn (fn [[_ n]] {:props {:heading (Integer/parseInt n)}})}
+   ;; "has path [...]" for EDN vector values (e.g., path [[1 0] [2 0]])
+   {:regex #"(?:with|has)\s+path\s+(\[.*\])"
+    :extract-fn (fn [[_ v]]
+                  {:props {:path (edn/read-string v)}})}
+   ;; "has <property> [x y]" for coordinate values (e.g., target-city [2 0])
+   {:regex #"(?:with|has)\s+([\w][\w-]*)\s+\[(\d+)\s+(\d+)\]"
+    :extract-fn (fn [[_ k x y]]
+                  {:props {(keyword k) [(Integer/parseInt x) (Integer/parseInt y)]}})}
    ;; Catch-all: "has <hyphenated-property> <value>" for unit properties like country-id, patrol-country-id, been-to-sea
-   {:regex #"(?:with|has)\s+([\w]+-[\w-]+)\s+(\S+)"
+   {:regex #"(?:with|has)\s+([\w]+-[\w-]+)\s+([^\[\s]+)"
     :extract-fn (fn [[_ k v]]
                   (when-not (#{"army-count" "fighter-count" "awake-fighters"} k)
                     {:props {(keyword k) (or (parse-number v)
@@ -324,6 +332,15 @@
                 :ir {:type :stub
                      :bindings [{:var "empire.computer.ship/find-carrier-position"
                                  :value "(constantly [0 0])"}]}})}
+   {:regex #"([+\w]+)\s+is\s+visible\s+to\s+computer"
+    :handler (fn [[_ ref] _ctx]
+               {:directive :visible-to-computer
+                :ir {:type :visible-to-computer :ref ref}})}
+   {:regex #"(\w+)\s+has\s+city-status\s+(\w+)"
+    :handler (fn [[_ ref status] _ctx]
+               (when (contains? city-chars ref)
+                 {:directive :city-prop
+                  :ir {:type :city-prop :city ref :prop :city-status :value (keyword status)}}))}
    {:regex #"territory\s+around\s+(\w+)\s+belongs\s+to\s+country\s+(\d+)"
     :handler (fn [[_ ref n] _ctx]
                {:directive :territory-around
@@ -398,7 +415,7 @@
 
               (:production :no-production :round :destination :cell-props
                :player-items :waiting-for-input-bare :unit-target :city-prop :stub
-               :shipyard-state :city-unit :territory-around)
+               :shipyard-state :city-unit :territory-around :visible-to-computer)
               (do (swap! givens conj (:ir parsed))
                   (swap! i inc))
 

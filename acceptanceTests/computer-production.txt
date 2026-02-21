@@ -172,7 +172,7 @@ GIVEN production at X is army with 1 round remaining.
 WHEN a new round starts.
 
 THEN there is an a at [1 1].
-THEN there is no production at X.
+THEN production at X is army.
 
 ;===============================================================
 ; Carrier produced when city count and position stubs are met.

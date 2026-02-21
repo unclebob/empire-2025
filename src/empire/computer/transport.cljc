@@ -453,8 +453,103 @@
         nil))))
 
 
+(defn- find-assigned-cities
+  "Returns set of target-city positions from all directed transports on the map."
+  []
+  (let [game-map @atoms/game-map]
+    (into #{}
+          (for [i (range (count game-map))
+                j (range (count (first game-map)))
+                :let [unit (get-in game-map [i j :contents])]
+                :when (and unit
+                           (= :transport (:type unit))
+                           (= :computer (:owner unit))
+                           (= :directed (:transport-mission unit))
+                           (:target-city unit))]
+            (:target-city unit)))))
+
+(defn- find-unassigned-city
+  "Find nearest free or player city on computer-map not targeted by any directed transport."
+  [pos]
+  (let [comp-map @atoms/computer-map
+        assigned (find-assigned-cities)]
+    (when comp-map
+      (let [candidates (for [i (range (count comp-map))
+                              j (range (count (first comp-map)))
+                              :let [cell (get-in comp-map [i j])]
+                              :when (and cell
+                                         (= :city (:type cell))
+                                         (#{:free :player} (:city-status cell))
+                                         (not (contains? assigned [i j])))]
+                          [i j])]
+        (when (seq candidates)
+          (apply min-key #(core/distance pos %) candidates))))))
+
+(defn- find-nearest-coastal-cell
+  "Find the nearest sea cell adjacent to target city, closest to transport."
+  [target-city transport-pos]
+  (let [game-map @atoms/game-map
+        neighbors (core/get-neighbors target-city)
+        sea-neighbors (filter (fn [n]
+                                (let [cell (get-in game-map n)]
+                                  (and cell (= :sea (:type cell)))))
+                              neighbors)]
+    (when (seq sea-neighbors)
+      (apply min-key #(core/distance transport-pos %) sea-neighbors))))
+
+(defn- compute-sea-path
+  "Compute A* path from transport position to destination through sea cells.
+   Returns path excluding the start position, or empty vector if no path."
+  [from to]
+  (if (and from to)
+    (let [full-path (pathfinding/a-star from to :transport @atoms/game-map)]
+      (if full-path
+        (vec (rest full-path))
+        []))
+    []))
+
+(defn- clear-directed-assignment
+  "Remove directed assignment data from transport."
+  [pos]
+  (swap! atoms/game-map update-in (conj pos :contents) dissoc :target-city :path)
+  (set-transport-mission pos :loading))
+
+(defn- process-directed
+  "Handle a directed transport. Follow path or unload at destination."
+  [pos transport]
+  (let [target-city (:target-city transport)
+        path (:path transport)
+        target-cell (when target-city (get-in @atoms/game-map target-city))]
+    (cond
+      ;; Target city conquered → drop assignment
+      (and target-city
+           (or (nil? target-cell)
+               (not (= :city (:type target-cell)))
+               (= :computer (:city-status target-cell))))
+      (clear-directed-assignment pos)
+
+      ;; At destination (empty path) → unload
+      (empty? path)
+      (do (unload-armies pos nil)
+          (clear-directed-assignment pos))
+
+      ;; Follow path
+      :else
+      (let [next-pos (first path)]
+        (if (and next-pos
+                 (nil? (:contents (get-in @atoms/game-map next-pos))))
+          ;; Move to next step
+          (do (core/move-unit-to pos next-pos)
+              (visibility/update-cell-visibility pos :computer)
+              (visibility/update-cell-visibility next-pos :computer)
+              (swap! atoms/game-map assoc-in (conj next-pos :contents :path) (vec (rest path)))
+              (reset-stuck-counter next-pos))
+          ;; Blocked → wait
+          nil)))))
+
 (defn process-transport
   "Processes a transport unit using VMS Empire style logic.
+   Directed: follow stored A* path to target city, unload on arrival
    Loading: move toward armies, collect them
    Unloading: move toward enemy cities on OTHER continents, drop armies
    Returns nil after processing - transports only move once per round."
@@ -478,17 +573,27 @@
 
           (let [current-mission (or (:transport-mission transport) :loading)]
             (cond
-              ;; Full transport - assign heading and start sailing
+              ;; Directed transport - follow stored path
+              (= current-mission :directed)
+              (process-directed pos transport)
+
+              ;; Full transport - check for unassigned city, else sail
               (>= army-count 6)
-              (do
-                (set-transport-mission pos :sailing)
-                (mint-unload-event-id pos transport)
-                (record-pickup-continent-pos pos transport)
-                (when-not (:heading transport)
-                  (swap! atoms/game-map assoc-in
-                         (conj pos :contents :heading) (rand-int 360)))
-                (when-let [new-pos (sail-one-step pos)]
-                  (reset-stuck-counter new-pos)))
+              (if-let [target-city (find-unassigned-city pos)]
+                (let [coastal (find-nearest-coastal-cell target-city pos)
+                      path (compute-sea-path pos coastal)]
+                  (set-transport-mission pos :directed)
+                  (swap! atoms/game-map assoc-in (conj pos :contents :target-city) target-city)
+                  (swap! atoms/game-map assoc-in (conj pos :contents :path) path))
+                (do
+                  (set-transport-mission pos :sailing)
+                  (mint-unload-event-id pos transport)
+                  (record-pickup-continent-pos pos transport)
+                  (when-not (:heading transport)
+                    (swap! atoms/game-map assoc-in
+                           (conj pos :contents :heading) (rand-int 360)))
+                  (when-let [new-pos (sail-one-step pos)]
+                    (reset-stuck-counter new-pos))))
 
               ;; Loading transport - coastal crawl, auto-load armies
               (= current-mission :loading)

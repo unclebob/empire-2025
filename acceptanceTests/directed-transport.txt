@@ -1,0 +1,104 @@
+; Directed Transport Assignment
+;
+; When a full loading transport (6 armies) is processed, it checks
+; for free or player cities on the computer-map with no transport
+; already assigned. If found, it picks the nearest city, computes
+; an A* sea-path to the nearest sea cell adjacent to that city,
+; stores the path, and follows it step by step. On arrival the
+; transport unloads and resumes loading. Assignment drops when the
+; transport unloads or the city is conquered.
+
+;===============================================================
+; Full loading transport is assigned to free city.
+;===============================================================
+GIVEN game map
+  t~~+
+GIVEN t has transport-mission loading.
+GIVEN t has 6 armies.
+GIVEN + is visible to computer.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission directed.
+
+;===============================================================
+; Full loading transport is assigned to player city.
+;===============================================================
+GIVEN game map
+  t~~O
+GIVEN t has transport-mission loading.
+GIVEN t has 6 armies.
+GIVEN O is visible to computer.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission directed.
+
+;===============================================================
+; Not-full transport is not assigned.
+;===============================================================
+GIVEN game map
+  t~~+
+GIVEN t has transport-mission loading.
+GIVEN t has 5 armies.
+GIVEN + is visible to computer.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission loading.
+
+;===============================================================
+; Directed transport moves toward target city.
+;===============================================================
+GIVEN game map
+  t~+
+GIVEN t has transport-mission directed.
+GIVEN t has 6 armies.
+GIVEN t has target-city [2 0].
+GIVEN t has path [[1 0]].
+
+WHEN computer transport t is processed.
+
+THEN t is at [1 0].
+
+;===============================================================
+; Directed transport waits when next step is blocked.
+;===============================================================
+GIVEN game map
+  td+
+GIVEN t has transport-mission directed.
+GIVEN t has 6 armies.
+GIVEN t has target-city [2 0].
+GIVEN t has path [[1 0]].
+
+WHEN computer transport t is processed.
+
+THEN t is at [0 0].
+
+;===============================================================
+; Directed transport unloads at destination and resumes loading.
+;===============================================================
+GIVEN game map
+  ~##
+  ~t#
+GIVEN t has transport-mission directed.
+GIVEN t has 2 armies.
+GIVEN t has path [].
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission loading.
+THEN there are 2 computer armies on the map.
+
+;===============================================================
+; Assignment drops when target city is conquered.
+;===============================================================
+GIVEN game map
+  t~~X
+GIVEN t has transport-mission directed.
+GIVEN t has 6 armies.
+GIVEN t has target-city [3 0].
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission loading.

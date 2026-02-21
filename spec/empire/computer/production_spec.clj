@@ -475,7 +475,7 @@
       (reset! atoms/computer-map game-map)
       (add-sea-column)
       (satisfy-coastal-per-country 0)
-      (should-be-nil (production/decide-production [0 0]))))
+      (should= :army (production/decide-production [0 0]))))
 
   (it "does not produce satellite when <=15 cities"
     (let [city-row (vec (for [i (range 30)]
@@ -487,7 +487,7 @@
       (reset! atoms/computer-map game-map)
       (add-sea-column)
       (satisfy-coastal-per-country 0)
-      (should-be-nil (production/decide-production [0 0])))))
+      (should= :army (production/decide-production [0 0])))))
 
 (describe "process-computer-city"
   (before (reset-all-atoms!))
@@ -741,7 +741,7 @@
     (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
     (should= :fighter (production/decide-production [1 0])))
 
-  (it "produces nil when country already has 2 fighters and all priorities met"
+  (it "produces army when country already has 2 fighters and all priorities met"
     ;; 4 patrol boats, 2 fighters, transport with escort, 20 armies
     (reset! atoms/game-map (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppff"]))
     (reset! atoms/computer-map @atoms/game-map)
@@ -755,4 +755,4 @@
       (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
     (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
     (swap! atoms/game-map assoc-in [31 0 :contents :country-id] 1)
-    (should-be-nil (production/decide-production [1 0]))))
+    (should= :army (production/decide-production [1 0]))))
