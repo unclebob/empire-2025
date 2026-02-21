@@ -14,12 +14,15 @@
 					                         "--optimizations" "none"
 					                         "--compile" "empire.ui.core"
 																	 ]}
-					 :cov {:main-opts ["-m" "speclj.cloverage" "--" "-p" "src" "-s" "spec"]
+					 :cov {:main-opts ["-m" "speclj.cloverage" "--" "-p" "src" "-s" "spec" "--lcov"]
 					                  :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}}
 					                  :extra-paths ["spec"]}
 					 :parse-tests {:main-opts ["-m" "empire.acceptance.parser"]
 					               :extra-paths ["spec"]}
 					 :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
 					                  :extra-paths ["generated-acceptance-specs"]}
+					 :mutate {:main-opts ["-m" "empire.mutation.core"]
+					          :extra-deps {org.clojure/tools.reader {:mvn/version "1.4.2"}}
+					          :extra-paths ["spec"]}
 				 }
 			 }

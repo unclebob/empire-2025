@@ -657,6 +657,42 @@
       (should-not @atoms/paused)
       (should-not @atoms/pause-requested)))
 
+  (describe "step-one-round"
+    (it "does nothing when not paused"
+      (reset! atoms/paused false)
+      (reset! atoms/round-number 5)
+      (game-loop/step-one-round)
+      (should-not @atoms/paused)
+      (should= 5 @atoms/round-number))
+
+    (it "unpauses and requests pause when paused"
+      (reset! atoms/paused true)
+      (reset! atoms/pause-requested false)
+      (reset! atoms/player-items [[0 0]])
+      (game-loop/step-one-round)
+      (should-not @atoms/paused)
+      (should @atoms/pause-requested))
+
+    (it "starts new round when paused and items empty"
+      (reset! atoms/game-map (build-test-map ["O"]))
+      (reset! atoms/player-map (build-test-map ["#"]))
+      (reset! atoms/computer-map (build-test-map ["#"]))
+      (reset! atoms/production {})
+      (reset! atoms/paused true)
+      (reset! atoms/player-items [])
+      (reset! atoms/computer-items [])
+      (reset! atoms/round-number 5)
+      (game-loop/step-one-round)
+      (should= 6 @atoms/round-number))
+
+    (it "does not start new round when player-items not empty"
+      (reset! atoms/paused true)
+      (reset! atoms/player-items [[0 0]])
+      (reset! atoms/computer-items [])
+      (reset! atoms/round-number 5)
+      (game-loop/step-one-round)
+      (should= 5 @atoms/round-number)))
+
   (describe "advance-game pauses at round end"
     (it "pauses at end of round when pause-requested"
       (reset! atoms/game-map (build-test-map ["#"]))

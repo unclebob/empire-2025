@@ -247,9 +247,7 @@
                                        (:winner result))
             dead-unit (if (= :attacker (:winner result)) defender attacker)]
         (swap! atoms/game-map assoc-in (conj attacker-coords :contents) nil)
-        (if (= :attacker (:winner result))
-          (swap! atoms/game-map assoc-in (conj target-coords :contents) (:survivor result))
-          (swap! atoms/game-map assoc-in (conj target-coords :contents) (:survivor result)))
+        (swap! atoms/game-map assoc-in (conj target-coords :contents) (:survivor result))
         ;; Drown excess cargo if surviving container took damage
         (drown-excess-cargo target-coords (:survivor result))
         ;; Clear escort pairing if destroyer or transport died
