@@ -143,6 +143,22 @@
         (should-not (:contents city))
         (should-not (:contents origin)))))
 
+  (it "damaged ship docks at city that has a unit on it"
+    (let [game-map (tu/build-test-map ["~D~"
+                                       "~O~"
+                                       "~~~"])]
+      (reset! atoms/game-map game-map)
+      (tu/set-test-unit atoms/game-map "D" :hits 2 :mode :moving :target [1 1])
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :army :mode :moving :target [2 1] :hits 1 :owner :player})
+      (let [result (movement/move-unit [1 0] [1 1]
+                                       (get-in @atoms/game-map [1 0])
+                                       atoms/game-map)
+            city (get-in @atoms/game-map [1 1])]
+        (should= :docked (:result result))
+        (should= [{:type :destroyer :hits 2}] (:shipyard city))
+        (should= :army (:type (:contents city))))))
+
   (it "undamaged ship cannot enter city"
     (let [game-map (tu/build-test-map ["~D~"
                                        "~O~"

@@ -365,7 +365,21 @@
       (game-loop/move-current-unit fighter-coords)
       (let [city (get-in @atoms/game-map city-coords)]
         (should= 1 (:fighter-count city))
-        (should-be-nil (:contents city))))))
+        (should-be-nil (:contents city)))))
+
+  (it "fighter lands at city with army on it"
+    (reset! atoms/game-map (build-test-map ["-FO"]))
+    (let [fighter-coords (:pos (get-test-unit atoms/game-map "F"))
+          city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (set-test-unit atoms/game-map "F" :mode :moving :target city-coords :fuel 10 :steps-remaining 1 :hits 1)
+      (swap! atoms/game-map assoc-in (conj city-coords :fighter-count) 0)
+      (swap! atoms/game-map assoc-in (conj city-coords :contents)
+             {:type :army :mode :moving :target [2 0] :hits 1 :owner :player})
+      (reset! atoms/player-map (make-initial-test-map 1 3 nil))
+      (game-loop/move-current-unit fighter-coords)
+      (let [city (get-in @atoms/game-map city-coords)]
+        (should= 1 (:fighter-count city))
+        (should= :army (:type (:contents city)))))))
 
 (describe "get-active-unit airport fighter"
   (before (reset-all-atoms!))

@@ -59,11 +59,18 @@
          (= (:owner next-contents) (:owner unit))
          (not (uc/full? next-contents :fighter-count (dispatcher/effective-capacity :carrier (:hits next-contents)))))))
 
+(defn- fighter-landing-at-city? [unit next-cell]
+  (and (= (:type unit) :fighter)
+       (= (:type next-cell) :city)
+       (= (:city-status next-cell) :player)))
+
 (defn- blocking-wake-reason
   "Returns the wake reason if the unit is blocked, nil otherwise."
   [unit next-cell]
   (cond
-    (and (:contents next-cell) (not (fighter-landing-on-carrier? unit next-cell)))
+    (and (:contents next-cell)
+         (not (fighter-landing-on-carrier? unit next-cell))
+         (not (fighter-landing-at-city? unit next-cell)))
     :somethings-in-the-way
 
     (and (= (:type unit) :army) (= (:type next-cell) :sea))
