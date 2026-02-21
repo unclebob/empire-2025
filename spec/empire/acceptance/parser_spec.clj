@@ -958,7 +958,19 @@
         (should= {:type :player-map-visibility :rows [".##." ".##."]}
                  (first (:thens result)))
         (should= {:type :unit-at :unit "A" :coords [0 0]}
-                 (second (:thens result))))))
+                 (second (:thens result)))))
+
+    (it "parses 'X has a destroyer with 2 hits in its shipyard' in THEN"
+      (let [lines ["THEN X has a destroyer with 2 hits in its shipyard."]
+            result (parser/parse-then lines {})]
+        (should= [{:type :shipyard-has-ship :city "X" :ship-type :destroyer :hits 2}]
+                 (:thens result))))
+
+    (it "parses 'X has no ships in its shipyard'"
+      (let [lines ["THEN X has no ships in its shipyard."]
+            result (parser/parse-then lines {})]
+        (should= [{:type :shipyard-empty :city "X"}]
+                 (:thens result)))))
 
   (describe "parse-file integration"
     (it "parses army.txt correctly"

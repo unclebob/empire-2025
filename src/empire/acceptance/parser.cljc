@@ -721,6 +721,12 @@
 (defn- then-handle-unit-present-target [[_ unit target]]
   {:type :unit-present :unit unit :target target})
 
+(defn- then-handle-shipyard-has-ship [[_ city ship-type hits]]
+  {:type :shipyard-has-ship :city city :ship-type (keyword ship-type) :hits (Integer/parseInt hits)})
+
+(defn- then-handle-shipyard-empty [[_ city]]
+  {:type :shipyard-empty :city city})
+
 ;; --- THEN parsing: pattern tables ---
 
 (def ^:private then-bare-patterns
@@ -770,6 +776,10 @@
     :handler then-handle-player-map-not-nil}
    {:regex #"(?:the\s+)?player\s+cannot\s+see\s+\[(\d+)\s+(\d+)\]"
     :handler then-handle-player-map-nil}
+   {:regex #"^(\w+)\s+has\s+(?:a|an)\s+(\w+)\s+with\s+(\d+)\s+hits?\s+in\s+its\s+shipyard"
+    :handler then-handle-shipyard-has-ship}
+   {:regex #"^(\w+)\s+has\s+no\s+ships?\s+in\s+its\s+shipyard"
+    :handler then-handle-shipyard-empty}
    {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(\S+)"
     :handler then-handle-cell-prop}
    {:regex #"on\s+(?:the\s+)?computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+a\s+(player|computer)\s+city"

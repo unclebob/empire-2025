@@ -736,6 +736,18 @@
        "                         true))]\n"
        "      (should= " expected " count))"))
 
+(defn- generate-shipyard-has-ship-then [{:keys [city ship-type hits]}]
+  (let [pos-expr (target-pos-expr city)]
+    (str "    (let [cell (get-in @atoms/game-map " pos-expr ")\n"
+         "          shipyard (:shipyard cell [])]\n"
+         "      (should (some #(and (= :" (name ship-type) " (:type %)) (= " hits " (:hits %))) shipyard)))")))
+
+(defn- generate-shipyard-empty-then [{:keys [city]}]
+  (let [pos-expr (target-pos-expr city)]
+    (str "    (let [cell (get-in @atoms/game-map " pos-expr ")\n"
+         "          shipyard (:shipyard cell [])]\n"
+         "      (should= [] shipyard))")))
+
 (defn- generate-refueling-position-near-then [{:keys [unit target]}]
   (let [target-expr (target-pos-expr target)]
     (str "    (let [unit-data (:unit (get-test-unit atoms/game-map \"" unit "\"))\n"
@@ -784,6 +796,8 @@
     :unit-prop-absent (generate-unit-prop-absent-then then-ir)
     :computer-army-count (generate-computer-army-count-then then-ir)
     :refueling-position-near (generate-refueling-position-near-then then-ir)
+    :shipyard-has-ship (generate-shipyard-has-ship-then then-ir)
+    :shipyard-empty (generate-shipyard-empty-then then-ir)
     :unrecognized (str "    (pending \"Unrecognized: " (:text then-ir) "\")")
     (str "    ;; Unknown then type: " (:type then-ir))))
 
