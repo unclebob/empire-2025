@@ -185,7 +185,7 @@
 (describe "apply-coast-walk-fields"
   (before (reset-all-atoms!))
 
-  (it "all armies get coast-walk while coastal cells unexplored"
+  (it "first 2 armies get coast-walk while coastal cells unexplored"
     ;; Map with unexplored coastal cells
     (reset! atoms/game-map (build-test-map ["~###~"]))
     (doseq [col [1 2 3]]
@@ -203,9 +203,9 @@
       ;; Second → counter-clockwise
       (let [s (stamping/apply-coast-walk-fields unit :army cell [3 5])]
         (should= :counter-clockwise (:coast-direction s)))
-      ;; Third → clockwise again (no 2-army limit)
+      ;; Third → no coast-walk (limit of 2 per country)
       (let [s (stamping/apply-coast-walk-fields unit :army cell [3 6])]
-        (should= :clockwise (:coast-direction s)))))
+        (should= :awake (:mode s)))))
 
   (it "no coast-walk when all coastal cells explored"
     (reset! atoms/game-map (build-test-map ["~###~"]))

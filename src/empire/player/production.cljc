@@ -57,6 +57,7 @@
         unit (-> (create-base-unit item owner)
                  (stamp-unit-fields cell)
                  (computer-stamping/apply-coast-walk-fields item cell coords)
+                 (computer-stamping/apply-random-explore-fields item cell)
                  (apply-movement-orders item marching-orders flight-path)
                  (cond-> (= item :transport) (assoc :produced-at coords)))]
     (swap! atoms/game-map assoc-in (conj coords :contents) unit)

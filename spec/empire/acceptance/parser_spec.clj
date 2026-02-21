@@ -982,7 +982,7 @@
     (it "parses army.txt correctly"
       (let [result (parser/parse-file "acceptanceTests/army.txt")]
         (should= "army.txt" (:source result))
-        (should= 7 (count (:tests result)))
+        (should= 12 (count (:tests result)))
         (should= 7 (:line (first (:tests result))))
         (should= "Army put to sentry mode." (:description (first (:tests result))))))
 

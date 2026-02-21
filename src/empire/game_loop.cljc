@@ -3,6 +3,7 @@
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.computer.army :as army]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]
@@ -84,6 +85,7 @@
         computer-items (vec (build-computer-items))]
     (reset! atoms/player-items player-items)
     (reset! atoms/computer-items computer-items)
+    (army/assign-city-attacks)
     ;; Check for game over: no player cities or units
     (when (and @atoms/game-over-check-enabled (empty? player-items))
       (reset! atoms/paused true)

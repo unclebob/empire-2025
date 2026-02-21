@@ -80,3 +80,74 @@ WHEN the player presses d and wins the battle.
 
 THEN cell [1 0] is a player city.
 THEN on the computer-map cell [1 0] is a player city.
+
+;===============================================================
+; Computer sentry army on coast stays put.
+;===============================================================
+GIVEN game map
+  ~a~+
+GIVEN a has mode sentry.
+GIVEN a belongs to country 1.
+GIVEN territory around a belongs to country 1.
+
+WHEN a new round starts.
+
+THEN a remains unmoved.
+
+;===============================================================
+; Random-explore army goes sentry on coast.
+;===============================================================
+GIVEN game map
+  ~a##
+GIVEN a has mode random-explore.
+GIVEN a belongs to country 1.
+GIVEN territory around a belongs to country 1.
+GIVEN a has random-explore-direction [1 0].
+
+WHEN a new round starts.
+
+THEN a has mode sentry.
+
+;===============================================================
+; Random-explore army moves when inland.
+;===============================================================
+GIVEN game map
+  ####
+  #a##
+  ####
+GIVEN a has mode random-explore.
+GIVEN a belongs to country 1.
+GIVEN territory around a belongs to country 1.
+GIVEN a has random-explore-direction [1 0].
+
+WHEN a new round starts.
+
+THEN a is at [2 1].
+
+;===============================================================
+; Sentry army wakes for attack assignment.
+;===============================================================
+GIVEN game map
+  ~a~~+
+GIVEN a has mode sentry.
+GIVEN a belongs to country 1.
+GIVEN territory around a belongs to country 1.
+GIVEN + is visible to computer.
+
+WHEN a new round starts.
+
+THEN a has attack-target [4 0].
+
+;===============================================================
+; Coast-walk terminates at map boundary.
+;===============================================================
+GIVEN game map
+  a~
+GIVEN a has mode coast-walk.
+GIVEN a has coast-direction clockwise.
+GIVEN a has coast-start [0 0].
+GIVEN a belongs to country 1.
+
+WHEN a new round starts.
+
+THEN a has mode sentry.

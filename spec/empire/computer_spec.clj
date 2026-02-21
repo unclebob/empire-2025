@@ -243,9 +243,12 @@
 (describe "VMS army module"
   (before (reset-all-atoms!))
 
-  (it "process-army moves army toward unexplored territory"
+  (it "process-army moves army in random-explore direction"
     (reset! atoms/game-map (build-test-map ["a#"]))
     (reset! atoms/computer-map (build-test-map ["a#"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :army :owner :computer :hits 1
+            :mode :random-explore :random-explore-direction [1 0]})
     (army/process-army [0 0])
     ;; Army should have moved to [1 0]
     (should= :army (get-in @atoms/game-map [1 0 :contents :type]))))
@@ -314,6 +317,9 @@
   (it "dispatches to army module"
     (reset! atoms/game-map (build-test-map ["a#"]))
     (reset! atoms/computer-map (build-test-map ["a#"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :army :owner :computer :hits 1
+            :mode :random-explore :random-explore-direction [1 0]})
     (let [result (computer/process-computer-unit [0 0])]
       ;; Army module returns nil (units processed once per round)
       (should-be-nil result)

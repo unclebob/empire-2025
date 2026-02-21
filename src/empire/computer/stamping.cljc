@@ -87,12 +87,13 @@
       (apply-patrol-fields cell)))
 
 (defn apply-coast-walk-fields
-  "Stamps coast-walk mode on all computer armies while coastal cells are unexplored.
+  "Stamps coast-walk mode on first 2 computer armies per country.
    Alternates clockwise/counter-clockwise."
   [unit item cell coords]
   (if (and (= item :army)
            (= (:city-status cell) :computer)
            (:country-id cell)
+           (< (get @atoms/coast-walkers-produced (:country-id cell) 0) 2)
            (not ((requiring-resolve 'empire.computer.production/country-coastal-cells-explored?)
                  (:country-id cell))))
     (let [country-id (:country-id cell)
@@ -103,4 +104,17 @@
                   :coast-direction direction
                   :coast-start coords
                   :coast-visited [coords]))
+    unit))
+
+(defn apply-random-explore-fields
+  "Stamps random-explore mode on 1/3 of non-coast-walk computer armies."
+  [unit item cell]
+  (if (and (= item :army)
+           (= :computer (:owner unit))
+           (not= :coast-walk (:mode unit))
+           (:country-id cell)
+           (< (rand) 1/3))
+    (assoc unit :mode :random-explore
+                :random-explore-direction
+                (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
     unit))

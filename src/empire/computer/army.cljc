@@ -33,10 +33,10 @@
       v)))
 
 (defn- terminate-coast-walk
-  "Switches army from coast-walk to awake mode for priority-based actions."
+  "Switches army from coast-walk to sentry mode."
   [pos]
   (swap! atoms/game-map update-in (conj pos :contents)
-         #(-> % (assoc :mode :awake)
+         #(-> % (assoc :mode :sentry)
               (dissoc :coast-direction :coast-start :coast-visited))))
 
 ;; Standard army helpers
@@ -292,9 +292,43 @@
       (find-and-board-transport pos country-id)
       (explore-randomly pos country-id)))
 
+(defn- process-random-explore
+  "Moves army in stored random-explore direction. Goes sentry on coast or when blocked."
+  [pos country-id]
+  (if (adjacent-to-sea? pos)
+    (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+        pos)
+    (let [unit (get-in @atoms/game-map (conj pos :contents))
+          [dc dr] (:random-explore-direction unit)
+          [c r] pos
+          target [(+ c dc) (+ r dr)]]
+      (if (and (in-bounds? target)
+               (sovereign-passable? country-id (get-in @atoms/game-map target))
+               (nil? (:contents (get-in @atoms/game-map target)))
+               (try-move pos target))
+        (when (adjacent-to-sea? target)
+          (swap! atoms/game-map assoc-in (conj target :contents :mode) :sentry)
+          target)
+        ;; Blocked or off-map → go sentry
+        (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+            pos)))))
+
+(defn- process-attack-target
+  "Moves army toward its attack-target city. Clears target if conquered or gone."
+  [pos country-id]
+  (let [target (get-in @atoms/game-map (conj pos :contents :attack-target))
+        comp-cell (get-in @atoms/computer-map target)]
+    (if (and comp-cell
+             (= :city (:type comp-cell))
+             (#{:free :player} (:city-status comp-cell)))
+      (move-toward-objective pos target country-id)
+      ;; Target conquered or not visible → clear it
+      (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :attack-target)
+          nil))))
+
 (defn process-army
   "Processes a computer army's turn.
-   Priority: Attack > Coast-walk > Interior explore > City > 1/3 explore > Coastal fill > Transport > Explore
+   Priority: Attack > Attack-target > Sentry > Coast-walk > Random-explore > Coastal fill
    Returns nil after processing - armies only move once per round."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
@@ -304,7 +338,50 @@
             country-id (:country-id unit)]
         (cond
           enemy-pos (attack-enemy pos enemy-pos)
+          (:attack-target unit) (process-attack-target pos country-id)
+          (= :sentry (:mode unit)) nil
           (= :coast-walk (:mode unit)) (process-coast-walk pos country-id)
+          (= :random-explore (:mode unit)) (process-random-explore pos country-id)
           (:interior-explore-direction unit) (process-interior-explore pos country-id)
-          :else (find-and-execute-land-action pos country-id))))
+          :else (fill-coastal-cell pos country-id))))
     nil))
+
+(defn- find-assignable-armies
+  "Finds all computer armies eligible for city attack assignment (not coast-walking)."
+  []
+  (let [game-map @atoms/game-map]
+    (for [i (range (count game-map))
+          j (range (count (first game-map)))
+          :let [cell (get-in game-map [i j])
+                unit (:contents cell)]
+          :when (and unit
+                     (= :computer (:owner unit))
+                     (= :army (:type unit))
+                     (not= :coast-walk (:mode unit)))]
+      {:pos [i j] :unit unit})))
+
+(defn- find-visible-target-cities
+  "Finds free/player cities visible on the computer-map."
+  []
+  (let [comp-map @atoms/computer-map]
+    (when (vector? comp-map)
+      (for [i (range (count comp-map))
+            j (range (count (first comp-map)))
+            :let [cell (get-in comp-map [i j])]
+            :when (and cell
+                       (= :city (:type cell))
+                       (#{:free :player} (:city-status cell)))]
+        [i j]))))
+
+(defn assign-city-attacks
+  "Scans computer-map for visible free/player cities and assigns up to 6 closest armies each."
+  []
+  (let [cities (find-visible-target-cities)
+        armies (find-assignable-armies)
+        assigned (atom #{})]
+    (doseq [city cities]
+      (let [available (remove #(contains? @assigned (:pos %)) armies)
+            closest (take 6 (sort-by #(core/distance (:pos %) city) available))]
+        (doseq [{:keys [pos]} closest]
+          (swap! atoms/game-map assoc-in (conj pos :contents :attack-target) city)
+          (swap! assigned conj pos))))))
