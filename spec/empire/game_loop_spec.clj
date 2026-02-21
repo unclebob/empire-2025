@@ -815,21 +815,13 @@
     ;; Step 2: user moves first army to attack computer army
     (movement/set-unit-movement [0 0] [1 0])
     (game-loop/item-processed)
-    ;; After item-processed, if combat killed last computer unit, victory should be declared
-    ;; Victory check happens in item-processed
-    (if @atoms/paused
-      ;; Victory was declared - verify state
-      (do
-        (should= "****YOU WIN!*****" @atoms/error-message)
-        (should= :actual-map @atoms/map-to-display)
-        ;; Player items should be flushed
-        (should= [] (vec @atoms/player-items)))
-      ;; Combat hasn't happened yet - advance game to trigger combat
-      (do
-        (game-loop/advance-game)
-        ;; Now check if victory was declared
-        (should @atoms/paused)
-        (should= "****YOU WIN!*****" @atoms/error-message)))))
+    ;; Step 3: advance-game triggers combat; mock rand so player wins
+    (with-redefs [rand (constantly 0.0)]
+      (game-loop/advance-game))
+    (should @atoms/paused)
+    (should= "****YOU WIN!*****" @atoms/error-message)
+    (should= :actual-map @atoms/map-to-display)
+    (should= [] (vec @atoms/player-items))))
 
 (describe "advance-game-batch"
   (before (reset-all-atoms!))
