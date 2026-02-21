@@ -37,6 +37,27 @@
   (it "returns empty vector for form with no matches"
     (should= [] (m/find-mutations '(foo bar baz)))))
 
+(describe "equivalent mutant suppression"
+  (it "suppresses < -> <= when comparing (rand) to a number"
+    (let [sites (m/find-mutations '(if (< (rand) 0.5) :a :b))]
+      (should-not (some #(and (= (:original %) '<) (= (:mutant %) '<=)) sites))))
+
+  (it "suppresses <= -> < when comparing (rand) to a number"
+    (let [sites (m/find-mutations '(if (<= (rand) 0.5) :a :b))]
+      (should-not (some #(and (= (:original %) '<=) (= (:mutant %) '<)) sites))))
+
+  (it "does not suppress < -> <= for non-rand comparisons"
+    (let [sites (m/find-mutations '(if (< x 10) :a :b))]
+      (should (some #(and (= (:original %) '<) (= (:mutant %) '<=)) sites))))
+
+  (it "suppresses > -> >= when comparing (rand) to a number"
+    (let [sites (m/find-mutations '(if (> (rand) 0.5) :a :b))]
+      (should-not (some #(and (= (:original %) '>) (= (:mutant %) '>=)) sites))))
+
+  (it "does not suppress > -> >= for non-rand comparisons"
+    (let [sites (m/find-mutations '(if (> hits 0) :a :b))]
+      (should (some #(and (= (:original %) '>) (= (:mutant %) '>=)) sites)))))
+
 (describe "apply-mutation"
   (it "applies mutation at a specific index"
     (let [form '(+ 1 2)

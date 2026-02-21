@@ -1,15 +1,25 @@
 (ns empire.mutation.mutations)
 
+(defn- rand-comparison?
+  "True if parent is a comparison form with (rand) as second element.
+   e.g. (< (rand) 0.5) — mutating < to <= is equivalent on doubles."
+  [parent]
+  (and (seq? parent)
+       (>= (count parent) 3)
+       (let [second-elem (second parent)]
+         (and (seq? second-elem)
+              (= 'rand (first second-elem))))))
+
 (def rules
   [{:original '+   :mutant '-   :category :arithmetic :position :head}
    {:original '-   :mutant '+   :category :arithmetic :position :head}
    {:original '*   :mutant '/   :category :arithmetic :position :head}
    {:original 'inc :mutant 'dec :category :arithmetic :position :head}
    {:original 'dec :mutant 'inc :category :arithmetic :position :head}
-   {:original '>   :mutant '>=  :category :comparison :position :head}
-   {:original '>=  :mutant '>   :category :comparison :position :head}
-   {:original '<   :mutant '<=  :category :comparison :position :head}
-   {:original '<=  :mutant '<   :category :comparison :position :head}
+   {:original '>   :mutant '>=  :category :comparison :position :head :suppress-when rand-comparison?}
+   {:original '>=  :mutant '>   :category :comparison :position :head :suppress-when rand-comparison?}
+   {:original '<   :mutant '<=  :category :comparison :position :head :suppress-when rand-comparison?}
+   {:original '<=  :mutant '<   :category :comparison :position :head :suppress-when rand-comparison?}
    {:original '=   :mutant 'not= :category :equality :position :head}
    {:original 'not= :mutant '= :category :equality :position :head}
    {:original true  :mutant false :category :boolean :position :any}
@@ -24,9 +34,11 @@
 (defn matches-rule?
   "True if rule matches node. For :head rules, node must be
    a list/seq and the symbol must be its first element.
-   parent-form is the enclosing list (or nil at top level)."
+   Suppressed if :suppress-when predicate returns true for parent."
   [rule parent-form node]
   (and (= (:original rule) node)
+       (not (when-let [suppress (:suppress-when rule)]
+              (suppress parent-form)))
        (or (= :any (:position rule))
            (and (= :head (:position rule))
                 (seq? parent-form)
