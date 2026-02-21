@@ -606,6 +606,20 @@
           (should= 4 (:fighter-count survivor))
           (should (<= (:awake-fighters survivor) 4))))))
 
+  (it "handles carrier with missing cargo keys (defaults to 0)"
+    ;; Carrier with no :fighter-count or :awake-fighters keys
+    (reset! atoms/game-map (build-test-map ["Ca"]))
+    (set-test-unit atoms/game-map "C" :hits 8)
+    (swap! atoms/game-map update-in [0 0 :contents] dissoc :fighter-count :awake-fighters)
+    (set-test-unit atoms/game-map "a" :hits 1)
+    (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
+      (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
+        (combat/attempt-attack [0 0] [1 0])
+        (let [survivor (:contents (get-in @atoms/game-map [1 0]))]
+          (should= :carrier (:type survivor))
+          ;; Should not crash — 0 cargo, nothing to drown
+          (should= 4 (:hits survivor))))))
+
   (it "drowns cargo when defending carrier takes damage"
     ;; Computer army attacks player carrier. Carrier wins but takes damage.
     (reset! atoms/game-map (build-test-map ["aC"]))
@@ -632,6 +646,83 @@
           (should= :carrier (:type survivor))
           (should= 2 (:hits survivor))
           (should= 2 (:fighter-count survivor)))))))
+
+(describe "clear-escort-on-death"
+  (before (reset-all-atoms!))
+
+  (it "dead destroyer clears transport's escort-destroyer-id"
+    ;; Destroyer at [0,0] paired with transport at [2,0]. Enemy army kills destroyer.
+    (reset! atoms/game-map (build-test-map ["D#Ta"]))
+    (set-test-unit atoms/game-map "D" :hits 3
+                   :escort-transport-id 42 :escort-id 99)
+    (swap! atoms/game-map assoc-in [2 0 :contents]
+           {:type :transport :owner :player :mode :sentry :hits 1
+            :transport-id 42 :escort-destroyer-id 99 :army-count 0 :awake-armies 0})
+    (set-test-unit atoms/game-map "a" :hits 1)
+    ;; Destroyer attacks army. Roll 0.6 = defender hits, 0.6 again, 0.6 again => destroyer dies
+    (with-redefs [rand (constantly 0.6)]
+      (combat/attempt-attack [0 0] [3 0])
+      (let [transport (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :transport (:type transport))
+        (should-be-nil (:escort-destroyer-id transport)))))
+
+  (it "dead transport sets paired destroyer to seeking"
+    ;; Transport at [0,0] paired with destroyer at [2,0]. Enemy sub kills transport.
+    (reset! atoms/game-map (build-test-map ["T#Ds"]))
+    (set-test-unit atoms/game-map "T" :hits 1
+                   :escort-destroyer-id 77 :army-count 0 :awake-armies 0)
+    (swap! atoms/game-map assoc-in [2 0 :contents]
+           {:type :destroyer :owner :player :mode :moving :hits 3
+            :destroyer-id 77 :escort-transport-id 42 :escort-mode :escorting})
+    (set-test-unit atoms/game-map "s" :hits 2)
+    ;; Transport attacks sub. Roll 0.6 = sub hits transport (3 damage), transport dies.
+    (with-redefs [rand (constantly 0.6)]
+      (combat/attempt-attack [0 0] [3 0])
+      (let [destroyer (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :destroyer (:type destroyer))
+        (should= :seeking (:escort-mode destroyer))
+        (should-be-nil (:escort-transport-id destroyer))))))
+
+(describe "clear-carrier-group-on-death"
+  (before (reset-all-atoms!))
+
+  (it "dead battleship clears carrier's group-battleship-id"
+    ;; Battleship at [0,0] in carrier group. Carrier at [2,0]. Enemy sub kills battleship.
+    (reset! atoms/game-map (build-test-map ["B#Cs"]))
+    (set-test-unit atoms/game-map "B" :hits 10
+                   :escort-carrier-id 55 :escort-id 88)
+    (swap! atoms/game-map assoc-in [2 0 :contents]
+           {:type :carrier :owner :player :mode :sentry :hits 8
+            :carrier-id 55 :group-battleship-id 88
+            :fighter-count 0 :awake-fighters 0})
+    (set-test-unit atoms/game-map "s" :hits 2)
+    ;; Battleship attacks sub. Sub hits battleship 5 times (2 damage each = 10 total), battleship dies.
+    (with-redefs [rand (constantly 0.6)]
+      (combat/attempt-attack [0 0] [3 0])
+      (let [carrier (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :carrier (:type carrier))
+        (should-be-nil (:group-battleship-id carrier)))))
+
+  (it "dead carrier releases escorts to seeking"
+    ;; Carrier at [0,0] with submarine escort at [2,0]. Enemy sub kills carrier.
+    (reset! atoms/game-map (build-test-map ["C#Ss"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :carrier :owner :player :mode :sentry :hits 8
+            :carrier-id 55 :fighter-count 0 :awake-fighters 0})
+    (swap! atoms/game-map assoc-in [2 0 :contents]
+           {:type :submarine :owner :player :mode :moving :hits 2
+            :escort-carrier-id 55 :escort-mode :escorting :orbit-angle 0.5})
+    (set-test-unit atoms/game-map "s" :hits 2)
+    ;; Carrier attacks sub. Roll 0.6 = sub hits carrier (3 damage each). 3 hits => 8-9=-1 dead after 3.
+    ;; Actually sub has strength 3, so: 0.6 -> sub hits carrier (3 dmg, 5 left),
+    ;; 0.6 -> sub hits carrier (3 dmg, 2 left), 0.6 -> sub hits carrier (3 dmg, -1) carrier dies
+    (with-redefs [rand (constantly 0.6)]
+      (combat/attempt-attack [0 0] [3 0])
+      (let [escort (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :submarine (:type escort))
+        (should= :seeking (:escort-mode escort))
+        (should-be-nil (:escort-carrier-id escort))
+        (should-be-nil (:orbit-angle escort))))))
 
 (describe "auto-produce armies on conquest"
   (before (reset-all-atoms!))
@@ -738,3 +829,13 @@
       (reset! atoms/computer-map (build-test-map ["X"]))
       (combat/attempt-city-conquest [0 0])
       (should= :player (get-in @atoms/computer-map [0 0 :city-status])))))
+
+(describe "attempt-fighter-overfly"
+  (before (reset-all-atoms!))
+
+  (it "returns true"
+    (reset! atoms/game-map (build-test-map ["FX"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
+    (reset! atoms/error-message "")
+    (should (combat/attempt-fighter-overfly [0 0] [1 0]))))
