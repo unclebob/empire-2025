@@ -1,19 +1,26 @@
-; Computer Transport Loading and Exploring
+; Computer Transport Loading and Sailing
 ;
 ; Computer transports use a mission-based state machine:
 ;   - idle: newly created, no mission assigned yet
-;   - loading: seeking armies to pick up; moves toward the nearest
-;     army, or explores unexplored sea when no army is found
-;   - unloading: transport is full (6 armies); seeks enemy or free
-;     cities on different continents to drop off armies
+;   - loading: coastal crawl along shoreline, auto-load adjacent armies
+;   - sailing: heading-based movement with reflection off borders/explored coasts
+;   - unloading: drop armies onto adjacent land at unexplored coast
 ;
 ; Loading details:
-;   - The transport scans the entire game-map for computer armies
-;     (perfect knowledge, not fog-of-war limited).
-;   - When pickup-continent-pos is set, only armies on that continent
-;     are considered.
-;   - There is no separate "exploring" state; exploring is a per-round
-;     fallback within the loading mission when no army is found.
+;   - The transport follows the coastline (coastal crawl) while
+;     auto-loading adjacent computer armies.
+;   - When not near land, the transport explores toward the nearest
+;     unexplored coastline.
+;   - When the transport reaches 6 armies, it transitions to sailing.
+;
+; Sailing details:
+;   - The transport picks a random heading and sails in that direction.
+;   - On hitting unexplored coast, it switches to unloading.
+;   - On hitting map borders or explored coast, the heading reflects.
+;
+; Unloading details:
+;   - Armies are dropped onto adjacent empty land cells.
+;   - When fully emptied, the transport returns to loading.
 
 ;===============================================================
 ; Idle transport transitions to loading on first processing.
@@ -26,15 +33,16 @@ WHEN a new round starts.
 THEN t has transport-mission loading.
 
 ;===============================================================
-; Loading transport moves toward nearest army.
+; Loading transport coastal-crawls along shoreline.
 ;===============================================================
 GIVEN game map
-  t~~a
+  ~t
+  ##
 GIVEN t has transport-mission loading.
 
 WHEN a new round starts.
 
-THEN t is at [1 0].
+THEN t is at [0 0].
 
 ;===============================================================
 ; Loading transport explores when no army on the map.
@@ -50,7 +58,7 @@ WHEN a new round starts.
 THEN t is at [1 0].
 
 ;===============================================================
-; Full transport switches to unloading.
+; Full transport switches to sailing.
 ;===============================================================
 GIVEN game map
   ~~~
@@ -61,19 +69,18 @@ GIVEN t has 6 armies.
 
 WHEN a new round starts.
 
-THEN t has transport-mission unloading.
+THEN t has transport-mission sailing.
 
 ;===============================================================
-; Full transport moves toward free city.
+; Sailing transport unloads at unexplored coast.
 ;===============================================================
 GIVEN game map
-  ~t~~~+
-GIVEN computer map
-  .....+
-GIVEN t has transport-mission loading.
+  ~t~#
+GIVEN t has transport-mission sailing.
 GIVEN t has 6 armies.
+GIVEN t has heading 90.
 
 WHEN a new round starts.
 
-THEN t has transport-mission unloading.
 THEN t is at [2 0].
+THEN t has transport-mission unloading.

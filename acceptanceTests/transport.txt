@@ -120,48 +120,29 @@ WHEN the player presses s.
 THEN T has mode sentry.
 
 ;===============================================================
-; Computer transport heads toward other armies after unloading,
-; not back toward the armies it just dropped.
+; Transport unloads armies onto adjacent land and switches
+; to loading when empty.
 ;===============================================================
 GIVEN game map
-  a###
-  =~~~
-  ~t##
-  ~###
-GIVEN t belongs to country 1.
-GIVEN t has 3 armies.
+  ~t#
+  ~##
+GIVEN t has 2 armies.
 GIVEN t has mission unloading.
-GIVEN t has unload-event-id 42.
-GIVEN a belongs to country 1.
 
 WHEN computer transport t is processed.
-WHEN 5 computer rounds pass.
 
-THEN t is at =.
-THEN there are 4 computer armies on the map.
+THEN t has transport-mission loading.
+THEN there are 2 computer armies on the map.
 
 ;===============================================================
-; Computer transport prioritizes player city over free city.
+; Sailing transport moves along its heading.
 ;===============================================================
 GIVEN game map
-  ~t~
-  ~~~
-  +##
-  ###
-  ~~~
-  O##
-  ###
-GIVEN computer map
-  ~t~
-  ~~~
-  +##
-  ###
-  ~~~
-  O##
-  ###
+  ~~t~~
+GIVEN t has transport-mission sailing.
 GIVEN t has 6 armies.
-GIVEN t has mission unloading.
+GIVEN t has heading 270.
 
 WHEN computer transport t is processed.
 
-THEN t has unload-target-city [0 5].
+THEN t is at [1 0].

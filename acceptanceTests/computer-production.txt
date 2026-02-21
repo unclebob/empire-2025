@@ -6,11 +6,12 @@
 ; spawning).
 ;
 ; Per-country priorities (cities assigned to a country-id):
-;   1. Transport (coastal city, country has >= 6 armies but < 1 transport,
-;      and no sibling city is already producing transports)
-;   2. Army (if country has < 20 armies and no sibling city is already
-;      producing armies)
-;   3. Patrol-boat (coastal, country has < 1 patrol-boat)
+;   1. Transport (coastal city, country has >= 6 armies, waiting
+;      armies with all transports full/unloading, and no sibling
+;      city is already producing transports)
+;   2. Army (country has unoccupied coastal land cells with matching
+;      country-id, and no sibling city is already producing armies)
+;   3. Patrol-boat (coastal, country has < 4 patrol-boats)
 ;   4. Destroyer (coastal, country has an unadopted transport — one
 ;      without an escort destroyer, and no sibling city is already
 ;      producing destroyers)
@@ -38,8 +39,13 @@
 ;   destroyer in priority. A destroyer is only produced when there is
 ;   an "unadopted" transport (one without an escort destroyer).
 ;
-; - Inland city fallback to fighter: When a country's army cap (20) is
-;   met but the city is inland (not coastal), it cannot produce
+; - Coastal-fill army production: Armies are produced to fill
+;   unoccupied coastal land cells belonging to the country. Once all
+;   coastal cells have units, army production stops. The patrol-boat
+;   limit is 4 per country.
+;
+; - Inland city fallback to fighter: When a country's coastal cells
+;   are filled but the city is inland (not coastal), it cannot produce
 ;   transport, patrol-boat, or destroyer. It skips straight to fighter.
 ;   This is the only non-coastal production besides army and satellite.
 ;
@@ -48,12 +54,12 @@
 ;   prevents runaway production of a single unit type.
 
 ;===============================================================
-; Country produces army when zero armies.
+; Country produces army when unoccupied coastal cells exist.
 ;===============================================================
 GIVEN game map
-  X#
-  ##
+  X#~
 GIVEN X belongs to country 1.
+GIVEN territory around X belongs to country 1.
 
 WHEN the computer chooses production at X.
 
@@ -79,12 +85,13 @@ WHEN the computer chooses production at X.
 THEN production at X is transport.
 
 ;===============================================================
-; Country inland city skips transport, produces army.
+; Inland city produces army when coastal cells need filling.
 ;===============================================================
 GIVEN game map
   X#~
   ##t
 GIVEN X belongs to country 1.
+GIVEN territory around X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has 6 armies.
 
@@ -94,7 +101,7 @@ THEN production at X is army.
 
 ;===============================================================
 ; Country produces patrol-boat when army and transport caps met.
-; 1 transport with 20 armies satisfies both army and transport caps.
+; 1 transport with 20 armies, no unoccupied coastal cells.
 ;===============================================================
 GIVEN game map
   X~~~
@@ -108,17 +115,18 @@ WHEN the computer chooses production at X.
 THEN production at X is patrol-boat.
 
 ;===============================================================
-; Country produces destroyer when unadopted transport exists.
-; 1 transport with 20 armies, patrol boat, but no escort destroyer.
+; Country produces destroyer when patrol-boat cap met and
+; unadopted transport exists.
 ;===============================================================
 GIVEN game map
-  X~~~
-  ##t#
-  p###
+  X~tpppp
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has 20 armies.
-GIVEN p patrols for country 1.
+GIVEN p1 patrols for country 1.
+GIVEN p2 patrols for country 1.
+GIVEN p3 patrols for country 1.
+GIVEN p4 patrols for country 1.
 
 WHEN the computer chooses production at X.
 
@@ -171,16 +179,19 @@ THEN there is no production at X.
 ; Country 1 with satisfied per-country priorities.
 ;===============================================================
 GIVEN game map
-  ~X~tffp
+  ~X~tffpppp
 GIVEN computer map
-  ~~~~~~~
+  ~~~~~~~~~~
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort-destroyer-id 1.
 GIVEN t has 20 armies.
 GIVEN f1 belongs to country 1.
 GIVEN f2 belongs to country 1.
-GIVEN p patrols for country 1.
+GIVEN p1 patrols for country 1.
+GIVEN p2 patrols for country 1.
+GIVEN p3 patrols for country 1.
+GIVEN p4 patrols for country 1.
 GIVEN computer controls 12 cities.
 GIVEN a valid carrier position exists.
 
@@ -193,16 +204,19 @@ THEN production at X is carrier.
 ; Country 1 with satisfied per-country priorities.
 ;===============================================================
 GIVEN game map
-  ~X~ctffp
+  ~X~ctffpppp
 GIVEN computer map
-  ~~~~~~~~
+  ~~~~~~~~~~~
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort-destroyer-id 1.
 GIVEN t has 20 armies.
 GIVEN f1 belongs to country 1.
 GIVEN f2 belongs to country 1.
-GIVEN p patrols for country 1.
+GIVEN p1 patrols for country 1.
+GIVEN p2 patrols for country 1.
+GIVEN p3 patrols for country 1.
+GIVEN p4 patrols for country 1.
 
 WHEN the computer chooses production at X.
 
@@ -213,16 +227,19 @@ THEN production at X is battleship.
 ; Country 1 with satisfied per-country priorities.
 ;===============================================================
 GIVEN game map
-  ~X~cbtffp
+  ~X~cbtffpppp
 GIVEN computer map
-  ~~~~~~~~~
+  ~~~~~~~~~~~~
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort-destroyer-id 1.
 GIVEN t has 20 armies.
 GIVEN f1 belongs to country 1.
 GIVEN f2 belongs to country 1.
-GIVEN p patrols for country 1.
+GIVEN p1 patrols for country 1.
+GIVEN p2 patrols for country 1.
+GIVEN p3 patrols for country 1.
+GIVEN p4 patrols for country 1.
 
 WHEN the computer chooses production at X.
 
@@ -233,16 +250,19 @@ THEN production at X is submarine.
 ; Country 1 with satisfied per-country priorities.
 ;===============================================================
 GIVEN game map
-  #X#t~ffp
+  #X#t~ffpppp
 GIVEN computer map
-  ########
+  ###########
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort-destroyer-id 1.
 GIVEN t has 20 armies.
 GIVEN f1 belongs to country 1.
 GIVEN f2 belongs to country 1.
-GIVEN p patrols for country 1.
+GIVEN p1 patrols for country 1.
+GIVEN p2 patrols for country 1.
+GIVEN p3 patrols for country 1.
+GIVEN p4 patrols for country 1.
 GIVEN computer controls 16 cities.
 
 WHEN the computer chooses production at X.
@@ -257,6 +277,7 @@ GIVEN game map
   X~t
   ###
 GIVEN X belongs to country 1.
+GIVEN territory around X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has 6 armies.
 
@@ -265,13 +286,14 @@ WHEN the computer chooses production at X.
 THEN production at X is army.
 
 ;===============================================================
-; Country produces army when under 20 (new limit).
-; Even with 19 armies in transport, still below cap.
+; Country produces army when coastal cells need filling.
+; Even with 19 armies in transport, still has coastal cells.
 ;===============================================================
 GIVEN game map
   X~t
   ###
 GIVEN X belongs to country 1.
+GIVEN territory around X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has 19 armies.
 

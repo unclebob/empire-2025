@@ -150,6 +150,9 @@
    ;; "has escort destroyer" - natural language for escort-destroyer-id
    {:regex #"(?:with|has)\s+(?:an?\s+)?escort\s+destroyer"
     :extract-fn (fn [_] {:props {:escort-destroyer-id 1}})}
+   ;; "has heading <degrees>" for sailing heading
+   {:regex #"(?:with|has)\s+heading\s+(\d+)"
+    :extract-fn (fn [[_ n]] {:props {:heading (Integer/parseInt n)}})}
    ;; Catch-all: "has <hyphenated-property> <value>" for unit properties like country-id, patrol-country-id, been-to-sea
    {:regex #"(?:with|has)\s+([\w]+-[\w-]+)\s+(\S+)"
     :extract-fn (fn [[_ k v]]
@@ -321,6 +324,10 @@
                 :ir {:type :stub
                      :bindings [{:var "empire.computer.ship/find-carrier-position"
                                  :value "(constantly [0 0])"}]}})}
+   {:regex #"territory\s+around\s+(\w+)\s+belongs\s+to\s+country\s+(\d+)"
+    :handler (fn [[_ ref n] _ctx]
+               {:directive :territory-around
+                :ir {:type :territory-around :city ref :country-id (Integer/parseInt n)}})}
    {:regex #"(\w+)\s+belongs\s+to\s+country\s+(\d+)"
     :handler (fn [[_ ref n] _ctx]
                (let [country-id (Integer/parseInt n)]
@@ -391,7 +398,7 @@
 
               (:production :no-production :round :destination :cell-props
                :player-items :waiting-for-input-bare :unit-target :city-prop :stub
-               :shipyard-state :city-unit)
+               :shipyard-state :city-unit :territory-around)
               (do (swap! givens conj (:ir parsed))
                   (swap! i inc))
 

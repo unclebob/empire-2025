@@ -345,6 +345,15 @@
     (str "    (let [" (str/lower-case city) "-pos " pos-expr "]\n"
          "      (swap! atoms/game-map update-in " (str/lower-case city) "-pos assoc :" (name prop) " " value "))")))
 
+(defn- generate-territory-around-given [{:keys [city country-id]}]
+  (let [pos-expr (target-pos-expr city)]
+    (str "    (let [center " pos-expr "]\n"
+         "      (doseq [[di dj] [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]]\n"
+         "        (let [npos [(+ (first center) di) (+ (second center) dj)]\n"
+         "              cell (get-in @atoms/game-map npos)]\n"
+         "          (when (and cell (#{:land :city} (:type cell)))\n"
+         "            (swap! atoms/game-map assoc-in (conj npos :country-id) " country-id ")))))")))
+
 (defn- generate-unit-target-given [{:keys [unit target]}]
   (let [target-expr (target-pos-expr target)]
     (str "    (set-test-unit atoms/game-map \"" unit "\" :mode :moving :target " target-expr ")")))
@@ -401,6 +410,7 @@
      :no-production (generate-no-production-given given)
      :shipyard-state (generate-shipyard-state-given given)
      :city-unit (generate-city-unit-given given)
+     :territory-around (generate-territory-around-given given)
      :stub ""
      :unrecognized (str "    (pending \"Unrecognized: " (:text given) "\")")
      (str "    ;; Unknown given type: " (:type given)))))

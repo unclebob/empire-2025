@@ -356,7 +356,7 @@
       (let [city (get-in @atoms/game-map [1 0])]
         (should= [{:type :destroyer :hits 1}] (:shipyard city)))))
 
-  (it "does not launch ship if city already has contents"
+  (it "launches repaired ship to adjacent sea when city is occupied"
     (let [game-map (build-test-map ["~O~"])]
       (reset! atoms/game-map game-map)
       (swap! atoms/game-map assoc-in [1 0 :shipyard] [{:type :destroyer :hits 2}])
@@ -364,8 +364,12 @@
              {:type :submarine :owner :player :hits 2 :mode :sentry})
       (setup/repair-damaged-ships)
       (let [city (get-in @atoms/game-map [1 0])]
-        ;; Fully repaired but not launched because city is occupied
-        (should= [{:type :destroyer :hits 3}] (:shipyard city))
-        (should= :submarine (:type (:contents city)))))))
+        ;; Fully repaired and launched to adjacent sea
+        (should= [] (:shipyard city))
+        (should= :submarine (:type (:contents city)))
+        (let [sea0 (get-in @atoms/game-map [0 0])
+              sea2 (get-in @atoms/game-map [2 0])]
+          (should (or (= :destroyer (:type (:contents sea0)))
+                      (= :destroyer (:type (:contents sea2))))))))))
 
 (run-specs)
