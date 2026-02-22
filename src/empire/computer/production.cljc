@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-22
 (ns empire.computer.production
   "Computer production module - priority-based production."
   (:require [empire.atoms :as atoms]

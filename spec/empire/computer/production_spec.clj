@@ -756,3 +756,276 @@
     (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
     (swap! atoms/game-map assoc-in [31 0 :contents :country-id] 1)
     (should= :army (production/decide-production [1 0]))))
+
+;; --- Mutation-killing tests ---
+
+(describe "count-country-armies default army-count (L79)"
+  (before (reset-all-atoms!))
+
+  (it "counts 0 armies aboard transport with no :army-count key"
+    ;; Transport with no :army-count key should default to 0, not 1
+    (reset! atoms/game-map (build-test-map ["~t"]))
+    (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
+    (swap! atoms/game-map assoc-in [1 0 :contents :army-count] nil)
+    (swap! atoms/game-map update-in [1 0 :contents] dissoc :army-count)
+    (should= 0 (production/count-country-armies 1))))
+
+(describe "country-coastal-cells-explored? country filter (L113)"
+  (before (reset-all-atoms!))
+
+  (it "only checks cells of the given country-id"
+    ;; Country 1 has all coastal cells explored, country 2 has unexplored ones
+    ;; If L113 = -> not=, it would check country 2's cells instead and return false
+    (reset! atoms/game-map (build-test-map ["~##~"]))
+    (reset! atoms/computer-map [[{:type :sea}] [{:type :land}] [nil] [{:type :sea}]])
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (swap! atoms/game-map assoc-in [2 0 :country-id] 2)
+    ;; Country 1's coastal cell [1,0] is explored (non-nil in computer-map)
+    ;; Country 2's coastal cell [2,0] is unexplored (nil in computer-map)
+    (should (production/country-coastal-cells-explored? 1))))
+
+(describe "country-has-waiting-armies? coastal check (L148)"
+  (before (reset-all-atoms!))
+
+  (it "does not flag inland army as waiting"
+    ;; Army on interior land (not adjacent to sea) should not trigger waiting-armies
+    ;; L148: if = -> not=, non-sea neighbors would satisfy the coastal check
+    (reset! atoms/game-map (build-test-map ["####"
+                                             "####"]))
+    (doseq [col (range 4) row (range 2)]
+      (swap! atoms/game-map assoc-in [col row :country-id] 1))
+    (swap! atoms/game-map assoc-in [1 0 :contents]
+           {:type :army :owner :computer :country-id 1 :hits 1 :mode :sentry})
+    (should-not (production/country-has-waiting-armies? 1))))
+
+(describe "transport full boundary (L164)"
+  (before (reset-all-atoms!))
+
+  (it "considers transport with exactly 6 armies as full"
+    ;; L164: >= -> > would miss the boundary case of exactly 6
+    (reset! atoms/game-map (build-test-map ["~Xaaaaaaa~t"
+                                             "~~~~~~~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (doseq [col (range 2 9)]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
+      (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+    (swap! atoms/game-map assoc-in [10 0 :contents :country-id] 1)
+    (swap! atoms/game-map assoc-in [10 0 :contents :transport-id] 1)
+    (swap! atoms/game-map assoc-in [10 0 :contents :army-count] 6)
+    (should= :transport (production/decide-production [1 0])))
+
+  (it "considers transport with 0 army-count as not full"
+    ;; L164: 0 -> 1 default would make transport with no army-count appear to have 1
+    (reset! atoms/game-map (build-test-map ["~Xaaaaaaa~t"
+                                             "~~~~~~~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (doseq [col (range 2 9)]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
+      (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+    (swap! atoms/game-map assoc-in [10 0 :contents :country-id] 1)
+    (swap! atoms/game-map assoc-in [10 0 :contents :transport-id] 1)
+    ;; Transport with no army-count should be considered not full (default 0)
+    (should-not= :transport (production/decide-production [1 0]))))
+
+(describe "has-unoccupied-coastal-cells? country filter (L247)"
+  (before (reset-all-atoms!))
+
+  (it "only checks cells of the given country-id"
+    ;; Country 1's coastal cells are all occupied, country 2 has unoccupied ones
+    ;; L247 vicinity: if country filter flipped, would find country 2's unoccupied cell
+    (reset! atoms/game-map (build-test-map ["~a#~"]))
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
+    (swap! atoms/game-map assoc-in [2 0 :country-id] 2)
+    ;; Country 1's only coastal cell [1,0] is occupied (has army)
+    ;; Country 2's coastal cell [2,0] is unoccupied (no contents)
+    (should-not (production/has-unoccupied-coastal-cells? 1))))
+
+(describe "should-rotate-transport? (L270)"
+  (before (reset-all-atoms!))
+
+  (it "rotates when same city was last transport producer"
+    ;; L270: = -> not= would invert the check
+    (reset! atoms/game-map (build-test-map ["~X~X~"
+                                             "~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+    (reset! atoms/last-transport-city {1 [1 0]})
+    ;; City [1,0] was last producer for country 1, and there's another coastal city [3,0]
+    ;; So [1,0] should rotate (skip transport).
+    ;; Place enough armies for transport priority
+    (reset! atoms/game-map (build-test-map ["~X~Xaaaaaaa"
+                                             "~~~~~~~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+    (doseq [col (range 4 11)]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
+      (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+    (reset! atoms/last-transport-city {1 [1 0]})
+    ;; Should NOT produce transport at [1,0] because rotation says skip
+    (should-not= :transport (production/decide-production [1 0]))))
+
+(describe "destroyer transport default (L297)"
+  (before (reset-all-atoms!))
+
+  (it "does not produce destroyer when no transports exist"
+    ;; L297: 0 -> 1 for transport default would make (< destroyers 1) true
+    ;; when no transports exist, allowing destroyer production inappropriately
+    (reset! atoms/game-map (build-test-map ["~Xaa~pppp"
+                                             "~~~~~~~~~"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    (doseq [col [2 3]]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
+      (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+    (doseq [col [5 6 7 8]]
+      (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+    ;; No transports exist → should not produce destroyer
+    (should-not= :destroyer (production/decide-production [1 0]))))
+
+(describe "count-carrier-producers (L312)"
+  (before (reset-all-atoms!))
+
+  (it "counts cities producing carriers"
+    ;; L312: = -> not= would count non-carrier producers instead
+    (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+                              [0 2] {:item :army :remaining-rounds 5}})
+    (should= 1 (#'production/count-carrier-producers)))
+
+  (it "counts zero when no cities producing carriers"
+    (reset! atoms/production {[0 0] {:item :army :remaining-rounds 5}})
+    (should= 0 (#'production/count-carrier-producers))))
+
+(describe "carrier threshold boundary (L322-L324)"
+  (before (reset-all-atoms!))
+
+  (it "does not produce carrier when exactly at city threshold"
+    ;; L322: > -> >= would produce carrier at exactly 10 cities
+    ;; Need exactly 10 computer cities (= carrier-city-threshold), with distant pairs
+    (let [cells (vec (for [j (range 80)]
+                       (cond
+                         (and (even? j) (<= j 18)) {:type :city :city-status :computer :country-id 1}
+                         (<= j 18) {:type :land :country-id 1}
+                         ;; Distant cities to create carrier pair
+                         (and (even? j) (>= j 60) (<= j 60)) {:type :city :city-status :computer}
+                         :else {:type :sea})))]
+      ;; 10 cities at j=0,2,...,18 (no distant city adds to count beyond 10)
+      ;; Actually distant city would make 11. Use 9 close + distant pair setup via mock.
+      (reset! atoms/game-map [cells])
+      (reset! atoms/computer-map [cells])
+      (satisfy-coastal-per-country 18)
+      (ship/update-distant-city-pairs!)
+      ;; Count is 10 + 1 distant = 11... need exact 10.
+      ;; Use with-redefs to mock find-carrier-position and count
+      (with-redefs [ship/find-carrier-position (fn [] {:position [0 25] :pair #{[0 0] [0 50]}})]
+        ;; 10 cities at j=0,2,...,18 = exactly 10 = threshold
+        ;; With > mutation to >=, (>= 10 10) would be true
+        (let [cells2 (vec (for [j (range 40)]
+                            (cond
+                              (and (even? j) (<= j 18)) {:type :city :city-status :computer :country-id 1}
+                              (<= j 18) {:type :land :country-id 1}
+                              :else {:type :sea})))]
+          (reset! atoms/game-map [cells2])
+          (reset! atoms/computer-map [cells2])
+          (satisfy-coastal-per-country 18)
+          (should-not= :carrier (production/decide-production [0 18]))))))
+
+  (it "does not produce carrier when at max live carriers"
+    ;; L323: < -> <= would produce carrier when at max (8)
+    (with-redefs [ship/find-carrier-position (fn [] {:position [0 40] :pair #{[0 0] [0 50]}})]
+      (let [cells (vec (for [j (range 80)]
+                         (cond
+                           (and (even? j) (<= j 22)) {:type :city :city-status :computer :country-id 1}
+                           (<= j 22) {:type :land :country-id 1}
+                           (<= 30 j 37) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
+                           :else {:type :sea})))]
+        (reset! atoms/game-map [cells])
+        (reset! atoms/computer-map [cells])
+        (satisfy-coastal-per-country 22)
+        ;; 12 cities > 10 threshold, 8 live carriers = max → should not produce
+        (should-not= :carrier (production/decide-production [0 22])))))
+
+  (it "does not produce carrier when at max producers"
+    ;; L324: < -> <= would produce carrier with 2 already producing
+    (with-redefs [ship/find-carrier-position (fn [] {:position [0 40] :pair #{[0 0] [0 50]}})]
+      (let [cells (vec (for [j (range 80)]
+                         (cond
+                           (and (even? j) (<= j 22)) {:type :city :city-status :computer :country-id 1}
+                           (<= j 22) {:type :land :country-id 1}
+                           :else {:type :sea})))]
+        (reset! atoms/game-map [cells])
+        (reset! atoms/computer-map [cells])
+        (satisfy-coastal-per-country 22)
+        (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+                                  [0 2] {:item :carrier :remaining-rounds 10}})
+        ;; 12 cities, 0 live carriers, but 2 producing = max → should not produce another
+        (should-not= :carrier (production/decide-production [0 22]))))))
+
+(describe "country-coastal-cells-explored? sea check (L114)"
+  (before (reset-all-atoms!))
+
+  (it "only considers cells adjacent to sea as coastal"
+    ;; L114: = -> not= would invert the sea check, making interior cells appear "coastal"
+    ;; Map: #### — all land, no sea. Interior cell [1,0] unexplored on computer-map.
+    ;; With correct code: no coastal cells → every? over empty seq → true
+    ;; With mutation: interior cells wrongly "coastal" → unexplored → false
+    (reset! atoms/game-map (build-test-map ["~###~"]))
+    (reset! atoms/computer-map [[{:type :sea}] [{:type :land}] [nil] [{:type :land}] [{:type :sea}]])
+    (doseq [col [1 2 3]]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+    ;; Cell [2,0] is interior (not adjacent to sea) and unexplored on computer-map (nil)
+    ;; Cell [1,0] is coastal (adj to [0,0] sea) and explored
+    ;; Cell [3,0] is coastal (adj to [4,0] sea) and explored
+    ;; So all coastal cells are explored → should return true
+    ;; If mutation inverts sea check, [2,0] becomes "coastal" (adj to non-sea) → nil → false
+    (should (production/country-coastal-cells-explored? 1))))
+
+(describe "has-unoccupied-coastal-cells? sea check (L248)"
+  (before (reset-all-atoms!))
+
+  (it "does not count interior unoccupied cells as coastal"
+    ;; L248: = -> not= inverts sea check — interior cells would appear "coastal"
+    ;; Map: #### — all land interior cells
+    ;; Country 1 has unoccupied interior cell but NO coastal cells
+    (reset! atoms/game-map (build-test-map ["####"
+                                             "####"]))
+    (doseq [col (range 4) row (range 2)]
+      (swap! atoms/game-map assoc-in [col row :country-id] 1))
+    ;; Interior cells [1,0], [2,0] are unoccupied but not coastal
+    ;; With mutation, they'd wrongly be found as "coastal unoccupied"
+    (should-not (production/has-unoccupied-coastal-cells? 1))))
+
+(describe "country-has-other-coastal-city? self-exclusion (L263)"
+  (before (reset-all-atoms!))
+
+  (it "does not count the city itself as 'another' coastal city"
+    ;; L263: not= -> = would check if city-pos IS [i j] instead of ISN'T
+    ;; Single coastal computer city — no OTHER coastal city exists
+    (reset! atoms/game-map (build-test-map ["~X~"]))
+    (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+    ;; City [1,0] is the only coastal city in country 1
+    ;; should-rotate needs other-coastal-city to return true; with only self, should return falsy
+    (should-not (#'production/country-has-other-coastal-city? [1 0] 1))))
+
+(describe "submarine carrier-default (L335)"
+  (before (reset-all-atoms!))
+
+  (it "does not produce submarine when no carriers exist"
+    ;; L335: 0 -> 1 for carrier count default would make (* 2 1) = 2
+    ;; allowing submarines when there are no carriers
+    (let [cells (vec (for [j (range 60)]
+                       (cond
+                         (and (even? j) (<= j 22)) {:type :city :city-status :computer :country-id 1}
+                         (<= j 22) {:type :land :country-id 1}
+                         (= j 30) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
+                         :else {:type :sea})))]
+      (reset! atoms/game-map [cells])
+      (reset! atoms/computer-map [cells])
+      (satisfy-coastal-per-country 22)
+      ;; No carriers, 1 battleship → battleships >= carriers, skip BB
+      ;; No carriers → submarines should not be produced (0 < 2*0 = 0 is false)
+      (should-not= :submarine (production/decide-production [0 22])))))
