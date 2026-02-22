@@ -355,6 +355,9 @@
                                      (fill-coastal-cell pos country-id)
                                      (find-and-board-transport pos country-id))
           (:interior-explore-direction unit) (process-interior-explore pos country-id)
+          (nil? country-id) (or (when-let [obj (find-city-objective pos)]
+                                  (move-toward-objective pos obj nil))
+                                (explore-randomly pos nil))
           :else (fill-coastal-cell pos country-id))))
     nil))
 

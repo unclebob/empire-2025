@@ -326,8 +326,11 @@
         army-count (:army-count transport 0)
         to-unload (min army-count (count land-cells))]
     (doseq [land-pos (take to-unload land-cells)]
-      (let [army {:type :army :owner :computer :mode :awake :hits 1}]
+      (let [army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
+                   (:unload-event-id transport)
+                   (assoc :unload-event-id (:unload-event-id transport)))]
         (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
+        (core/stamp-territory land-pos army)
         (visibility/update-cell-visibility land-pos :computer)))))
 
 (defn- mark-city-landlocked
@@ -612,9 +615,23 @@
               (do
                 ;; Load any adjacent armies first
                 (load-adjacent-armies pos)
-                ;; Coastal crawl if near land, otherwise explore toward coastline
-                (when-let [new-pos (or (coastal-crawl-move pos) (explore-sea pos))]
-                  (reset-stuck-counter new-pos)))
+                ;; Clear pickup-continent-pos once adjacent to that continent
+                (when-let [pcp (:pickup-continent-pos transport)]
+                  (when (adjacent-to-land? pos)
+                    (let [continent (land-objectives/flood-fill-continent
+                                     (find-adjacent-land-pos pos))]
+                      (when (contains? continent pcp)
+                        (swap! atoms/game-map update-in (conj pos :contents)
+                               dissoc :pickup-continent-pos)))))
+                ;; Navigate toward pickup continent if set, else coastal crawl
+                (let [transport' (get-in @atoms/game-map (conj pos :contents))]
+                  (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
+                                       (or (move-toward-position pos pcp)
+                                           (coastal-crawl-move pos)
+                                           (explore-sea pos))
+                                       (or (coastal-crawl-move pos)
+                                           (explore-sea pos)))]
+                    (reset-stuck-counter new-pos))))
 
               ;; Sailing transport - continue along heading
               (= current-mission :sailing)
