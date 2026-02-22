@@ -575,13 +575,16 @@
                   (swap! atoms/game-map assoc-in
                          (conj pos :contents :sailing-start) pos))
                 (let [transport' (get-in @atoms/game-map (conj pos :contents))]
-                  (if (:heading transport')
-                    ;; Phase 2: have heading — sail along it
-                    (sail-one-step pos)
-                    ;; Phase 1: navigate toward fog of war
+                  (or
+                    (when (:heading transport')
+                      ;; Phase 2: have heading — sail along it
+                      (sail-one-step pos))
+                    ;; Phase 1 (or Phase 2 fallback): navigate toward fog of war
                     (let [target (or (pathfinding/find-nearest-unexplored-coastline pos :transport)
                                      (pathfinding/find-nearest-unexplored pos :transport))]
                       (when target
+                        ;; Clear stale heading so BFS drives movement
+                        (swap! atoms/game-map update-in (conj pos :contents) dissoc :heading)
                         (when-let [new-pos (move-toward-position pos target)]
                           ;; Reached BFS target? Compute heading for Phase 2
                           (when (= new-pos target)
@@ -589,8 +592,7 @@
                                   start (:sailing-start t)
                                   heading (nav/heading-from-to (or start pos) new-pos)]
                               (swap! atoms/game-map assoc-in
-                                     (conj new-pos :contents :heading) heading)))))))))
-)
+                                     (conj new-pos :contents :heading) heading))))))))))
 
             ;; Loading transport - coastal crawl, auto-load armies
             (= current-mission :loading)
