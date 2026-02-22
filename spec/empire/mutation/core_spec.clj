@@ -88,6 +88,56 @@
       (should-contain "1/1 mutants killed" report)
       (should-contain "3 uncovered" report))))
 
+(describe "extract-mutation-date"
+  (it "returns nil when no mutation comment exists"
+    (should= nil (core/extract-mutation-date "(ns foo)\n(defn bar [] 42)")))
+
+  (it "extracts date from mutation comment at start of file"
+    (should= "2026-02-22"
+             (core/extract-mutation-date
+               ";; mutation-tested: 2026-02-22\n(ns foo)\n(defn bar [] 42)")))
+
+  (it "returns nil when comment is not at start of file"
+    (should= nil
+             (core/extract-mutation-date
+               "(ns foo)\n;; mutation-tested: 2026-02-22\n(defn bar [] 42)"))))
+
+(describe "stamp-mutation-date"
+  (it "adds date comment to file without one"
+    (should= ";; mutation-tested: 2026-02-22\n(ns foo)\n(defn bar [] 42)"
+             (core/stamp-mutation-date "(ns foo)\n(defn bar [] 42)" "2026-02-22")))
+
+  (it "replaces existing date comment"
+    (should= ";; mutation-tested: 2026-02-23\n(ns foo)\n(defn bar [] 42)"
+             (core/stamp-mutation-date
+               ";; mutation-tested: 2026-02-22\n(ns foo)\n(defn bar [] 42)"
+               "2026-02-23"))))
+
+(describe "run-mutation-testing stamps date"
+  (it "stamps the source file with today's date after testing"
+    (let [temp-file (java.io.File/createTempFile "mutant" ".cljc")
+          temp-path (.getPath temp-file)
+          original "(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
+      (spit temp-path original)
+      (with-redefs [runner/run-spec (fn [_] :killed)
+                    coverage/load-coverage (fn [_] nil)]
+        (core/run-mutation-testing temp-path "fake_spec.clj")
+        (let [stamped (slurp temp-path)]
+          (should-not-be-nil (core/extract-mutation-date stamped))))
+      (.delete temp-file)))
+
+  (it "reports previous mutation test date"
+    (let [temp-file (java.io.File/createTempFile "mutant" ".cljc")
+          temp-path (.getPath temp-file)
+          original ";; mutation-tested: 2026-01-15\n(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
+      (spit temp-path original)
+      (with-redefs [runner/run-spec (fn [_] :killed)
+                    coverage/load-coverage (fn [_] nil)]
+        (let [captured (with-out-str
+                         (core/run-mutation-testing temp-path "fake_spec.clj"))]
+          (should-contain "Previous mutation test: 2026-01-15" captured)))
+      (.delete temp-file))))
+
 (describe "integration: discover mutations in a real source file"
   (it "finds mutation sites in combat.cljc"
     (let [content (slurp "src/empire/combat.cljc")
