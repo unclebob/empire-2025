@@ -723,4 +723,98 @@
 
   (it "returns falsy when no neighbors"
     (let [computer-map [[{:type :sea}]]]
-      (should-not (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map)))))
+      (should-not (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map))))
+
+  (it "recognizes :city as known land for frontier detection"
+    (let [computer-map [[{:type :sea} nil]
+                         [{:type :city} {:type :sea}]]]
+      (should (#'empire.movement.pathfinding/at-exploration-frontier? [0 0] computer-map)))))
+
+(describe "mutation-killing tests"
+  (before
+    (reset-all-atoms!)
+    (pathfinding/clear-path-cache))
+
+  (describe "bounded-a-star"
+    (it "returns [start] when start equals goal"
+      (reset! atoms/game-map (build-test-map ["~~~"]))
+      (should= [[0 0]] (pathfinding/bounded-a-star [0 0] [0 0] :destroyer @atoms/game-map))))
+
+  (describe "adjacent-to-target-continent-land? with city"
+    (it "recognizes :city as target-continent land"
+      (let [game-map [[{:type :sea} {:type :city :city-status :free}]
+                       [{:type :sea} {:type :sea}]]]
+        (should (#'empire.movement.pathfinding/adjacent-to-target-continent-land?
+                  [0 0] #{[0 1]} game-map)))))
+
+  (describe "find-nearest-unload-position start-skip"
+    (it "does not return start even when start is valid unload position"
+      ;; Start [0,0] is sea, empty, adjacent to target continent land [1,0]
+      (reset! atoms/game-map (build-test-map ["~#" "~#"]))
+      (let [target-continent #{[1 0] [1 1]}
+            result (pathfinding/find-nearest-unload-position [0 0] target-continent)]
+        (should-not-be-nil result)
+        (should-not= [0 0] result)))
+
+    (it "finds unload position adjacent to city on target continent"
+      (reset! atoms/game-map [[{:type :sea} {:type :city :city-status :free}]
+                               [{:type :sea} {:type :sea}]])
+      (let [target-continent #{[0 1]}
+            result (pathfinding/find-nearest-unload-position [1 0] target-continent)]
+        (should-not-be-nil result)
+        (should= [0 0] result))))
+
+  (describe "sea-reaches-edge? edge isolation"
+    (it "detects right edge only (kills dec-rows mutation)"
+      ;; Sea at [2,1]: r=2=dec(3), c=1. Only (= r (dec rows)) fires.
+      (reset! atoms/game-map (build-test-map ["###" "##~" "###"]))
+      (should (pathfinding/sea-reaches-edge? [2 1])))
+
+    (it "detects bottom edge only (kills dec-cols mutation)"
+      ;; Sea at [1,1]: r=1, c=1=dec(2). 3 cols, 2 rows.
+      ;; Only (= c (dec cols)) fires.
+      (reset! atoms/game-map (build-test-map ["###" "#~#"]))
+      (should (pathfinding/sea-reaches-edge? [1 1])))
+
+    (it "detects left edge only (kills zero-r mutation)"
+      ;; Sea at [0,1]: r=0, c=1. 4 cols, 3 rows.
+      ;; Only (zero? r) fires (c=1 ≠ 0, r=0 ≠ dec(4)=3, c=1 ≠ dec(3)=2)
+      (reset! atoms/game-map (build-test-map ["~###" "~###" "~###"]))
+      (should (pathfinding/sea-reaches-edge? [0 1])))
+
+    (it "detects top edge only (kills zero-c mutation)"
+      ;; Sea at [2,0]: r=2, c=0. 5 cols, 3 rows.
+      ;; Only (zero? c) fires (r=2 ≠ 0, r=2 ≠ dec(5)=4, c=0 ≠ dec(3)=2)
+      (reset! atoms/game-map (build-test-map ["##~##" "##~##" "##~##"]))
+      (should (pathfinding/sea-reaches-edge? [2 0]))))
+
+  (describe "next-step sea lane recording with passability-fn"
+    (it "does not record naval paths when passability-fn is provided"
+      (reset! atoms/game-map (build-test-map ["~~~~~~"]))
+      (let [pass-fn (fn [cell] (and cell (= :sea (:type cell))))]
+        (pathfinding/next-step [0 0] [5 0] :destroyer pass-fn :custom)
+        (should= 0 (count (:segments @atoms/sea-lane-network))))))
+
+  (describe "cache-sub-paths! two-element path"
+    (it "caches the final two-element sub-path"
+      (reset! atoms/game-map (build-test-map ["a###"]))
+      ;; Compute path [0,0]→[3,0], sub-paths include [2,0]→[3,0]
+      (pathfinding/next-step [0 0] [3 0] :army)
+      ;; Change terrain so [3,0] is sea (unreachable by army)
+      (reset! atoms/game-map (build-test-map ["a##~"]))
+      ;; If 2-element sub-path was cached, returns [3,0] from cache
+      ;; If not cached, A* on new map finds no path → nil
+      (let [step (pathfinding/next-step [2 0] [3 0] :army)]
+        (should= [3 0] step))))
+
+  (describe "find-nearest-unexplored-coastline start-skip"
+    (it "does not return start even when start is at coastal frontier"
+      ;; game-map: col0=[sea,sea], col1=[land,sea]
+      ;; computer-map: col0=[sea,nil], col1=[land,sea]
+      ;; [0,0] is adjacent to known land [1,0] and unexplored [0,1] → frontier
+      (reset! atoms/game-map (build-test-map ["~#" "~~"]))
+      (reset! atoms/computer-map [[{:type :sea} nil]
+                                   [{:type :land} {:type :sea}]])
+      (let [result (pathfinding/find-nearest-unexplored-coastline [0 0] :transport)]
+        (should-not-be-nil result)
+        (should-not= [0 0] result)))))
