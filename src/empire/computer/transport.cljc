@@ -367,6 +367,34 @@
     (swap! atoms/game-map assoc-in
            (conj pos :contents :unload-event-id) id)))
 
+(def ^:private max-landlocked-flood 200)
+
+(defn- landlocked?
+  "Returns true if transport at pos is in a fully-explored enclosed body of water.
+   Flood-fills through sea cells on game-map, limited to max-landlocked-flood cells.
+   If ALL reachable sea cells are explored on computer-map (no fog of war
+   encountered), the transport is landlocked."
+  [pos]
+  (let [game-map @atoms/game-map
+        computer-map @atoms/computer-map]
+    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY pos)
+           visited #{pos}]
+      (if (>= (count visited) max-landlocked-flood)
+        false ;; too many cells — not a small lake
+        (if-let [current (peek queue)]
+          (let [cell-on-comp (get-in computer-map current)]
+            (if (nil? cell-on-comp)
+              false ;; fog of war — indeterminate, not landlocked
+              (let [neighbors (filter (fn [n]
+                                        (let [cell (get-in game-map n)]
+                                          (and cell (= :sea (:type cell))
+                                               (not (visited n)))))
+                                      (core/get-neighbors current))
+                    new-visited (into visited neighbors)
+                    new-queue (into (pop queue) neighbors)]
+                (recur new-queue new-visited))))
+          true)))))
+
 (defn- record-pickup-continent-pos
   "When transport becomes full, record the nearest adjacent land position
    as the pickup continent reference point."
@@ -385,6 +413,7 @@
     (and (>= c 0) (>= r 0)
          (< c (count game-map))
          (< r (count (first game-map))))))
+
 
 (defn- unexplored-coast?
   "Returns true if pos is a sea cell adjacent to land NOT visible on computer-map."
@@ -608,14 +637,38 @@
                 (swap! atoms/game-map assoc-in (conj pos :contents :target-city) target-city)
                 (swap! atoms/game-map assoc-in (conj pos :contents :path) path))
               (do
-                (set-transport-mission pos :sailing)
-                (mint-unload-event-id pos transport)
-                (record-pickup-continent-pos pos transport)
-                (when-not (:heading transport)
+                (when (not= current-mission :sailing)
+                  (set-transport-mission pos :sailing)
+                  (mint-unload-event-id pos transport)
+                  (record-pickup-continent-pos pos transport)
                   (swap! atoms/game-map assoc-in
-                         (conj pos :contents :heading) (rand-int 360)))
-                (when-let [new-pos (sail-one-step pos)]
-                  (reset-stuck-counter new-pos))))
+                         (conj pos :contents :sailing-start) pos))
+                (let [transport' (get-in @atoms/game-map (conj pos :contents))]
+                  (if (:heading transport')
+                    ;; Phase 2: have heading — sail along it
+                    (when-let [new-pos (sail-one-step pos)]
+                      (reset-stuck-counter new-pos))
+                    ;; Phase 1: navigate toward fog of war
+                    (let [target (or (pathfinding/find-nearest-unexplored-coastline pos :transport)
+                                     (pathfinding/find-nearest-unexplored pos :transport))]
+                      (if target
+                        (if-let [new-pos (move-toward-position pos target)]
+                          (do (reset-stuck-counter new-pos)
+                              ;; Reached BFS target? Compute heading for Phase 2
+                              (when (= new-pos target)
+                                (let [t (get-in @atoms/game-map (conj new-pos :contents))
+                                      start (:sailing-start t)
+                                      heading (nav/heading-from-to (or start pos) new-pos)]
+                                  (swap! atoms/game-map assoc-in
+                                         (conj new-pos :contents :heading) heading))))
+                          nil) ;; blocked — stuck counter will handle
+                        ;; No unexplored territory — check if landlocked
+                        (when (landlocked? pos)
+                          (debug/log-computer-event! :transport-scuttle pos
+                                                     {:reason :landlocked :armies army-count})
+                          (scuttle-unload pos transport')
+                          (mark-city-landlocked (:produced-at transport'))
+                          (swap! atoms/game-map assoc-in (conj pos :contents) nil))))))))
 
             ;; Loading transport - coastal crawl, auto-load armies
             (= current-mission :loading)

@@ -35,6 +35,16 @@
         jitter (- (rand-int 21) 10)]
     (mod (+ reflected jitter 360) 360)))
 
+(defn heading-from-to
+  "Computes heading in degrees from pos1 to pos2.
+   Positions are [col row]. 0=N, 90=E, 180=S, 270=W."
+  [[c1 r1] [c2 r2]]
+  (let [dc (- c2 c1)
+        dr (- r2 r1)]
+    (if (and (zero? dc) (zero? dr))
+      0
+      (mod (+ (Math/toDegrees (Math/atan2 (double dc) (double (- dr)))) 360) 360))))
+
 (defn is-explored-coast?
   "Returns true if pos is a sea cell adjacent to visible land on computer-map."
   [pos]
