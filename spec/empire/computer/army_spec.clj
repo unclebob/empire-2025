@@ -510,6 +510,22 @@
         (should= :army (:type unit))
         (should-be-nil (:interior-explore-direction unit))))))
 
+(describe "backtrack memory"
+  (before (reset-all-atoms!))
+
+  (it "records move-history after moving"
+    (reset! atoms/game-map (build-test-map ["a##"]))
+    (reset! atoms/computer-map @atoms/game-map)
+    (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
+    (swap! atoms/game-map assoc-in [0 0 :contents :mode] :awake)
+    (doseq [col (range 3)]
+      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+    ;; Give interior-explore-direction to force predictable move
+    (swap! atoms/game-map assoc-in [0 0 :contents :interior-explore-direction] [1 0])
+    (army/process-army [0 0])
+    ;; Army should be at [1 0] with move-history containing [0 0]
+    (should= [[0 0]] (get-in @atoms/game-map [1 0 :contents :move-history]))))
+
 (describe "army stamping"
   (before (reset-all-atoms!))
 

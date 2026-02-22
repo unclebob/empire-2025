@@ -33,6 +33,14 @@
       (subvec v (- (count v) 10))
       v)))
 
+(defn- update-move-history
+  "Adds pos to move-history vector, keeping at most 4 entries."
+  [history pos]
+  (let [v (conj (or history []) pos)]
+    (if (> (count v) 4)
+      (subvec v (- (count v) 4))
+      v)))
+
 (defn- terminate-coast-walk
   "Switches army from coast-walk to sentry (or awake if in a city)."
   [pos]
@@ -146,6 +154,8 @@
   [pos target]
   (when (core/move-unit-to pos target)
     (debug/log-computer-event! :army-move pos {:to target})
+    (swap! atoms/game-map update-in (conj target :contents :move-history)
+           update-move-history pos)
     (visibility/update-cell-visibility pos :computer)
     (visibility/update-cell-visibility target :computer)
     target))
