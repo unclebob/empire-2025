@@ -104,21 +104,30 @@
         (str "Survivors:\n"
              (apply str (map format-survivor survivors)))))))
 
+(defn- parse-lines-arg
+  "Parse --lines L1,L2,... into a set of integers, or nil if not present."
+  [args]
+  (when-let [idx (some #(when (= "--lines" (nth args %)) %) (range (count args)))]
+    (when (< (inc idx) (count args))
+      (set (map #(parse-long (str/trim %))
+                (str/split (nth args (inc idx)) #","))))))
+
 (defn validate-args
-  "Validate command-line arguments. Returns {:source-path ... :spec-path ...}
+  "Validate command-line arguments. Returns {:source-path ... :spec-path ... :lines ...}
    or {:error \"message\"}."
   [args]
   (cond
     (empty? args)
-    {:error "Usage: clj -M:mutate <source-file.cljc>"}
+    {:error "Usage: clj -M:mutate <source-file.cljc> [--lines L1,L2,...]"}
 
     (not (.exists (File. (first args))))
     {:error (str "Source file not found: " (first args))}
 
     :else
-    (let [spec-path (runner/source->spec-path (first args))]
+    (let [spec-path (runner/source->spec-path (first args))
+          lines (parse-lines-arg args)]
       (if (runner/spec-exists? spec-path)
-        {:source-path (first args) :spec-path spec-path}
+        {:source-path (first args) :spec-path spec-path :lines lines}
         {:error (str "No spec found at: " spec-path)}))))
 
 (defn- print-progress [i total result site]
@@ -153,40 +162,57 @@
   (.format (java.time.LocalDate/now)
            (java.time.format.DateTimeFormatter/ISO_LOCAL_DATE)))
 
+(defn- filter-by-lines
+  "Filter mutation sites to only those on the specified lines."
+  [sites lines]
+  (if lines
+    (vec (filter #(contains? lines (:line %)) sites))
+    sites))
+
 (defn run-mutation-testing
-  "Run mutation testing on a single source file."
-  [source-path spec-path]
-  (let [original-content (slurp source-path)
-        prev-date (extract-mutation-date original-content)
-        forms (read-source-forms original-content)
-        all-sites (discover-all-mutations forms)
-        covered-lines (coverage/load-coverage source-path)
-        [sites uncovered] (partition-by-coverage all-sites covered-lines)]
-    (println (format "=== Mutation Testing: %s ===" source-path))
-    (println (format "Spec: %s" spec-path))
-    (when prev-date
-      (println (format "Previous mutation test: %s" prev-date)))
-    (println (format "Found %d mutation sites (%d covered, %d uncovered).\n"
-                     (count all-sites) (count sites) (count uncovered)))
-    (print-uncovered uncovered)
-    (let [results (doall
-                    (map-indexed
-                      (fn [i site]
-                        (let [result (mutate-and-test source-path original-content
-                                                      forms site spec-path)]
-                          (print-progress i (count sites) result site)
-                          result))
-                      sites))
-          killed (count (filter #(= :killed (:result %)) results))
-          total (count results)
-          pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
-          survivors (filter #(= :survived (:result %)) results)]
-      (print-summary killed total pct survivors (count uncovered))
-      (spit source-path (stamp-mutation-date original-content (today-str))))))
+  "Run mutation testing on a single source file.
+   Optional lines arg: set of line numbers to restrict testing to."
+  ([source-path spec-path] (run-mutation-testing source-path spec-path nil))
+  ([source-path spec-path lines]
+   (let [original-content (slurp source-path)
+         prev-date (extract-mutation-date original-content)
+         forms (read-source-forms original-content)
+         all-sites (discover-all-mutations forms)
+         covered-lines (coverage/load-coverage source-path)
+         [covered-sites uncovered] (partition-by-coverage all-sites covered-lines)
+         sites (filter-by-lines covered-sites lines)]
+     (println (format "=== Mutation Testing: %s ===" source-path))
+     (println (format "Spec: %s" spec-path))
+     (when prev-date
+       (println (format "Previous mutation test: %s" prev-date)))
+     (println (format "Found %d mutation sites (%d covered, %d uncovered)."
+                      (count all-sites) (count covered-sites) (count uncovered)))
+     (when lines
+       (println (format "Filtering to lines: %s → %d mutations to test."
+                        (str/join "," (sort lines)) (count sites))))
+     (println)
+     (when-not lines (print-uncovered uncovered))
+     (let [results (doall
+                     (map-indexed
+                       (fn [i site]
+                         (let [result (mutate-and-test source-path original-content
+                                                       forms site spec-path)]
+                           (print-progress i (count sites) result site)
+                           result))
+                       sites))
+           killed (count (filter #(= :killed (:result %)) results))
+           total (count results)
+           pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
+           survivors (filter #(= :survived (:result %)) results)]
+       (print-summary killed total pct survivors (if lines 0 (count uncovered)))
+       (when-not lines
+         (spit source-path (stamp-mutation-date original-content (today-str))))))))
 
 (defn -main [& args]
   (let [validated (validate-args (vec args))]
     (if (:error validated)
       (do (println (:error validated))
           (System/exit 1))
-      (run-mutation-testing (:source-path validated) (:spec-path validated)))))
+      (run-mutation-testing (:source-path validated)
+                            (:spec-path validated)
+                            (:lines validated)))))
