@@ -189,7 +189,16 @@
             defender {:type :army :hits 1 :owner :computer}
             [_ new-defender log-entry] (combat/fight-round attacker defender)]
         (should= 0 (:hits new-defender))
-        (should= {:hit :defender :damage 1} log-entry)))))
+        (should= {:hit :defender :damage 1} log-entry))))
+
+  (it "defender hits at exactly 0.5"
+    (with-redefs [rand (constantly 0.5)]
+      (let [attacker {:type :destroyer :hits 3 :owner :player}
+            defender {:type :destroyer :hits 3 :owner :computer}
+            [new-attacker new-defender log-entry] (combat/fight-round attacker defender)]
+        (should= 2 (:hits new-attacker))
+        (should= 3 (:hits new-defender))
+        (should= {:hit :attacker :damage 1} log-entry)))))
 
 (describe "resolve-combat"
   (it "attacker wins when always hitting"
@@ -395,6 +404,48 @@
       (should= :destroyer (:type unit))
       (should= :awake (:mode unit))
       (should-be-nil (:target unit))))
+
+  (it "flips a patrol-boat at the city to new owner"
+    (reset! atoms/game-map (build-test-map ["X"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :patrol-boat :owner :computer :mode :sentry :hits 1 :target [3 3]})
+    (combat/conquer-city-contents [0 0] :player)
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should= :player (:owner unit))
+      (should= :patrol-boat (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))))
+
+  (it "flips a submarine at the city to new owner"
+    (reset! atoms/game-map (build-test-map ["X"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :submarine :owner :computer :mode :moving :hits 2 :target [4 4]})
+    (combat/conquer-city-contents [0 0] :player)
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should= :player (:owner unit))
+      (should= :submarine (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))))
+
+  (it "flips a battleship at the city to new owner"
+    (reset! atoms/game-map (build-test-map ["X"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :battleship :owner :computer :mode :moving :hits 10 :target [7 7]})
+    (combat/conquer-city-contents [0 0] :player)
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should= :player (:owner unit))
+      (should= :battleship (:type unit))
+      (should= :awake (:mode unit))
+      (should-be-nil (:target unit))))
+
+  (it "clears :reason on flipped units"
+    (reset! atoms/game-map (build-test-map ["X"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :computer :mode :moving :hits 1 :fuel 20
+            :target [5 5] :reason :some-reason})
+    (combat/conquer-city-contents [0 0] :player)
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should-be-nil (:reason unit))))
 
   (it "kills army standing on the city"
     (reset! atoms/game-map (build-test-map ["X"]))
@@ -703,6 +754,24 @@
         (should= :carrier (:type carrier))
         (should-be-nil (:group-battleship-id carrier)))))
 
+  (it "dead submarine removes from carrier's group-submarine-ids"
+    ;; Submarine at [0,0] in carrier group. Carrier at [2,0]. Enemy destroyer kills submarine.
+    (reset! atoms/game-map (build-test-map ["S#Cd"]))
+    (set-test-unit atoms/game-map "S" :hits 2
+                   :escort-carrier-id 55 :escort-id 77)
+    (swap! atoms/game-map assoc-in [2 0 :contents]
+           {:type :carrier :owner :player :mode :sentry :hits 8
+            :carrier-id 55 :group-submarine-ids [77 99]
+            :fighter-count 0 :awake-fighters 0})
+    (set-test-unit atoms/game-map "d" :hits 3)
+    ;; Submarine attacks destroyer. Roll 0.6 = defender hits (1 damage each).
+    ;; Sub has 2 hits, takes 1 damage per hit -> 2 rounds to die.
+    (with-redefs [rand (constantly 0.6)]
+      (combat/attempt-attack [0 0] [3 0])
+      (let [carrier (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :carrier (:type carrier))
+        (should= [99] (:group-submarine-ids carrier)))))
+
   (it "dead carrier releases escorts to seeking"
     ;; Carrier at [0,0] with submarine escort at [2,0]. Enemy sub kills carrier.
     (reset! atoms/game-map (build-test-map ["C#Ss"]))
@@ -851,4 +920,39 @@
       (should= :fighter (:type shot-down))
       (should= 0 (:hits shot-down))
       (should= 0 (:steps-remaining shot-down))
-      (should= :awake (:mode shot-down)))))
+      (should= :awake (:mode shot-down))))
+
+  (it "removes fighter from original cell"
+    (reset! atoms/game-map (build-test-map ["FX"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
+            :steps-remaining 5})
+    (reset! atoms/error-message "")
+    (combat/attempt-fighter-overfly [0 0] [1 0])
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+  (it "sets :reason to :fighter-shot-down on shot-down fighter"
+    (reset! atoms/game-map (build-test-map ["FX"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
+            :steps-remaining 5})
+    (reset! atoms/error-message "")
+    (combat/attempt-fighter-overfly [0 0] [1 0])
+    (should= :fighter-shot-down (:reason (:contents (get-in @atoms/game-map [1 0])))))
+
+  (it "sets error message to fighter-destroyed-by-city"
+    (reset! atoms/game-map (build-test-map ["FX"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
+    (reset! atoms/error-message "")
+    (combat/attempt-fighter-overfly [0 0] [1 0])
+    (should= (:fighter-destroyed-by-city config/messages) @atoms/error-message))
+
+  (it "preserves fighter owner on shot-down fighter"
+    (reset! atoms/game-map (build-test-map ["FX"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
+            :steps-remaining 5})
+    (reset! atoms/error-message "")
+    (combat/attempt-fighter-overfly [0 0] [1 0])
+    (should= :player (:owner (:contents (get-in @atoms/game-map [1 0]))))))
