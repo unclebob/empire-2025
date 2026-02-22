@@ -379,9 +379,10 @@
           ;; Heading should have changed from 0 (north) to something southward
           (should-not= 0 (:heading transport)))))
 
-    (it "sailing transport stops at unexplored coast and begins unloading"
+    (it "sailing transport at unexplored coast unloads army opportunistically"
       ;; Transport at [2 2] heading east (90). Land at col 4 is unexplored.
-      ;; [3 2] is sea adjacent to unexplored land → transport stops and unloads.
+      ;; [3 2] is sea adjacent to unexplored land → transport moves there and
+      ;; opportunistically unloads an army.
       (let [game-map (build-test-map ["~~~~#"
                                       "~~~~#"
                                       "~~~~#"
@@ -400,10 +401,17 @@
                 :heading 90})
         (with-redefs [rand-int (constantly 10)]
           (transport/process-transport [2 2]))
-        ;; Transport should move to [3 2] and switch to unloading
+        ;; Transport should move to [3 2] and unload an army
         (let [transport (:contents (get-in @atoms/game-map [3 2]))]
           (should= :transport (:type transport))
-          (should= :unloading (:transport-mission transport)))))
+          (should= :sailing (:transport-mission transport))
+          (should= 5 (:army-count transport)))
+        ;; An army should appear on adjacent land (col 4)
+        (let [armies-on-land (count (for [r (range 5)
+                                          :let [cell (get-in @atoms/game-map [4 r])]
+                                          :when (= :army (:type (:contents cell)))]
+                                     true))]
+          (should (pos? armies-on-land)))))
 
     (it "transport does NOT unload on same continent"
       ;; Integration test: full transport near origin continent, only city on origin continent
@@ -425,7 +433,35 @@
                                          :let [cell (get-in @atoms/game-map [c r])]
                                          :when (= :army (:type (:contents cell)))]
                                      true))]
-          (should= 0 armies-on-land)))))
+          (should= 0 armies-on-land))))
+
+    (it "transport does NOT unload on own-country land"
+      ;; Transport adjacent to land that has country-id (claimed). Should not unload.
+      (reset! atoms/game-map [[{:type :land :country-id 1}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :sailing :army-count 2
+                                                        :heading 90
+                                                        :country-id 1}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      ;; No army should appear on the claimed land
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+    (it "sailing transport adjacent to empty land unloads opportunistically"
+      ;; Transport sailing with armies, adjacent to empty land.
+      ;; Opportunistic unload fires before sailing logic.
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :sailing :army-count 2
+                                                        :heading 90}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      ;; Army should be unloaded onto the empty land
+      (should= :army (get-in @atoms/game-map [0 0 :contents :type]))
+      ;; Transport should have fewer armies
+      (should= 1 (get-in @atoms/game-map [0 1 :contents :army-count]))))
 
   (describe "player city priority"
     (it "chooses player city over free city when both visible"
@@ -558,10 +594,9 @@
           (should= [0 2] target)))))
 
   (describe "unload target persistence"
-    (it "transport reuses stored unload-target-city"
-      ;; Two player cities on different continents. Transport has stored target [10,0].
-      ;; Even though [5,0] is closer, transport should use stored target.
-      ;; Transport at [3,2] with no adjacent land (surrounded by sea).
+    (it "stuck unloading transport in open sea switches to sailing"
+      ;; Transport in :unloading mode in open sea (no adjacent unclaimed land).
+      ;; Should switch to :sailing and move.
       (let [game-map (build-test-map ["X####"
                                       "#####"
                                       "~~~~~"
@@ -579,18 +614,16 @@
         (swap! atoms/game-map assoc-in [3 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
-                :pickup-continent-pos [0 1]
-                :unload-target-city [0 10]})
+                :pickup-continent-pos [0 1]})
         (transport/process-transport [3 2])
-        ;; Transport should still have [0,10] as its unload-target-city (not re-picked)
         (let [transport-pos (first (for [c (range 5) r (range 12)
                                         :when (= :transport (get-in @atoms/game-map [c r :contents :type]))]
                                     [c r]))
               transport (get-in @atoms/game-map (conj transport-pos :contents))]
-          (should= [0 10] (:unload-target-city transport)))))
+          (should= :sailing (:transport-mission transport)))))
 
-    (it "full unloading transport in open sea stays unloading"
-      ;; Full transport in unloading mode with no adjacent land stays unloading.
+    (it "full unloading transport in open sea switches to sailing"
+      ;; Full transport in unloading mode with no adjacent land — switches to sailing.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
@@ -608,7 +641,7 @@
                                :let [unit (get-in @atoms/game-map [c r :contents])]
                                :when (= :transport (:type unit))]
                            unit))]
-          (should= :unloading (:transport-mission t)))))
+          (should= :sailing (:transport-mission t)))))
 
     (it "unload-target-city cleared when transport transitions to loading"
       ;; Transport with 1 army unloads completely, transitioning to loading.
@@ -624,25 +657,11 @@
         (should= :loading (:transport-mission transport))
         (should-be-nil (:unload-target-city transport)))))
 
-  (describe "find-unload-position bias fix"
-    (it "picks sea cell closest to transport, not NW-biased"
-      ;; Target city at [3,0]. Only row 1 has sea adjacent to land.
-      ;; Transport at [6,2] - closest candidate is [6,1] (distance 1), not [0,1].
-      (let [game-map (build-test-map ["###O###"
-                                      "~~~~~~~"
-                                      "~~~~~~~"])]
-        (reset! atoms/game-map game-map)
-        (swap! atoms/game-map assoc-in [6 2 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :unloading :army-count 6})
-        (let [result (#'empire.computer.transport/find-unload-position [3 0] nil [6 2])]
-          ;; Should pick [6,1] (distance 1) not [0,1] (distance 7)
-          (should= [6 1] result)))))
 
   (describe "global BFS unload (VMS-consistent)"
-    (it "full transport with unloading mission stays unloading"
-      ;; Full transport marked :unloading keeps mission even though army-count >= 6.
-      ;; In open sea with no adjacent land, unload does nothing but mission is preserved.
+    (it "stuck unloading transport with no adjacent land switches to sailing"
+      ;; Full transport in :unloading mode with no adjacent unclaimed land.
+      ;; Should switch to :sailing and try to move away.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"
@@ -658,10 +677,13 @@
                 :transport-mission :unloading :army-count 6
                 :pickup-continent-pos [0 1]})
         (transport/process-transport [2 2])
-        ;; Transport stays in unloading mode (no land to unload onto)
-        (let [t (get-in @atoms/game-map [2 2 :contents])]
+        ;; Transport should switch to sailing and try to move
+        (let [t (first (for [c (range 5) r (range 5)
+                               :let [unit (get-in @atoms/game-map [c r :contents])]
+                               :when (= :transport (:type unit))]
+                           unit))]
           (should= :transport (:type t))
-          (should= :unloading (:transport-mission t)))))
+          (should= :sailing (:transport-mission t)))))
 
     (it "full transport explores regardless of nearby computer cities"
       ;; Full transport explores toward fog, ignoring computer cities
