@@ -182,7 +182,48 @@
     (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
                                     "~~~"]))]
-      (should-not (map-utils/orthogonally-adjacent-to-land? [1 1] game-map)))))
+      (should-not (map-utils/orthogonally-adjacent-to-land? [1 1] game-map))))
+
+  (it "detects land only to the west"
+    (let [game-map (atom (build-test-map ["#~~"
+                                    "~~~"]))]
+      (should (map-utils/orthogonally-adjacent-to-land? [1 0] game-map))))
+
+  (it "detects land only to the north"
+    (let [game-map (atom (build-test-map ["~~~"
+                                    "#~~"
+                                    "~~~"]))]
+      (should (map-utils/orthogonally-adjacent-to-land? [0 2] game-map))))
+
+  (it "detects land only to the south"
+    (let [game-map (atom (build-test-map ["~~"
+                                    "#~"
+                                    "~~"]))]
+      (should (map-utils/orthogonally-adjacent-to-land? [0 0] game-map)))))
+
+(describe "get-matching-neighbors"
+  (before (reset-all-atoms!))
+  (it "returns matching neighbors in offset order"
+    (let [the-map (build-test-map ["~#~"
+                                   "#~#"
+                                   "~#~"])]
+      (should= [[0 1] [1 0] [1 2] [2 1]]
+               (vec (map-utils/get-matching-neighbors [1 1] the-map
+                      map-utils/neighbor-offsets #(= :land (:type %)))))))
+
+  (it "finds neighbors at map origin boundaries"
+    (let [the-map (build-test-map ["~#"
+                                   "#~"])]
+      (should= [[0 1] [1 0]]
+               (vec (map-utils/get-matching-neighbors [0 0] the-map
+                      map-utils/neighbor-offsets #(= :land (:type %)))))))
+
+  (it "returns empty when no neighbors match"
+    (let [the-map (build-test-map ["~~"
+                                   "~~"])]
+      (should= []
+               (vec (map-utils/get-matching-neighbors [0 0] the-map
+                      map-utils/neighbor-offsets #(= :land (:type %))))))))
 
 (describe "completely-surrounded-by-sea?"
   (before (reset-all-atoms!))

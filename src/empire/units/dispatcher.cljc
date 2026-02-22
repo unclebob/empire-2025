@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-22
 (ns empire.units.dispatcher
   "Dispatches to the appropriate unit module based on unit type.
    Provides a unified interface for accessing unit configuration and behavior."

@@ -42,7 +42,15 @@
 
   (it "returns nil for path with fewer than 2 cells"
     (should-be-nil (sl/decompose-path [[0 0]]))
-    (should-be-nil (sl/decompose-path []))))
+    (should-be-nil (sl/decompose-path [])))
+
+  (it "includes final segment at exact minimum length"
+    ;; Right 2 then down 2 — final segment length = min-segment-length = 2
+    (let [path [[0 0] [0 1] [0 2] [1 2] [2 2]]
+          result (sl/decompose-path path)]
+      (should= 2 (count result))
+      (should= [1 0] (:direction (second result)))
+      (should= [2 2] (:end-pos (second result))))))
 
 (describe "record-path!"
   (before (reset-all-atoms!))
@@ -91,7 +99,27 @@
     (sl/record-path! [[0 0] [0 1]])
     (let [net @atoms/sea-lane-network]
       (should= 0 (count (:nodes net)))
-      (should= 0 (count (:segments net))))))
+      (should= 0 (count (:segments net)))))
+
+  (it "records path with exactly 3 cells"
+    (sl/record-path! [[0 0] [0 1] [0 2]])
+    (let [net @atoms/sea-lane-network]
+      (should= 2 (count (:nodes net)))
+      (should= 1 (count (:segments net)))))
+
+  (it "records segment with correct length"
+    (sl/record-path! [[0 0] [0 1] [0 2] [0 3]])
+    (let [net @atoms/sea-lane-network
+          seg (first (vals (:segments net)))]
+      (should= 3 (:length seg))))
+
+  (it "indexes interior cells but not endpoints in pos->seg"
+    (sl/record-path! [[0 0] [0 1] [0 2] [0 3]])
+    (let [net @atoms/sea-lane-network]
+      (should (get-in net [:pos->seg [0 1]]))
+      (should (get-in net [:pos->seg [0 2]]))
+      (should-be-nil (get-in net [:pos->seg [0 0]]))
+      (should-be-nil (get-in net [:pos->seg [0 3]])))))
 
 (describe "dijkstra"
   (it "finds path through single segment"
@@ -126,7 +154,30 @@
     (let [net (-> sl/empty-network
                   (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{}})
                   (assoc-in [:nodes 2] {:id 2 :pos [5 5] :segment-ids #{}}))]
-      (should-be-nil (sl/dijkstra net 1 2)))))
+      (should-be-nil (sl/dijkstra net 1 2))))
+
+  (it "chooses shorter path among alternatives"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1 3}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 3] :segment-ids #{1 2}})
+                  (assoc-in [:nodes 3] {:id 3 :pos [3 3] :segment-ids #{2 3}})
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                           :length 3
+                                           :cells [[0 0] [0 1] [0 2] [0 3]]
+                                           :direction [0 1]})
+                  (assoc-in [:segments 2] {:id 2 :node-a-id 2 :node-b-id 3
+                                           :length 3
+                                           :cells [[0 3] [1 3] [2 3] [3 3]]
+                                           :direction [1 0]})
+                  (assoc-in [:segments 3] {:id 3 :node-a-id 1 :node-b-id 3
+                                           :length 10
+                                           :cells (vec (concat [[0 0]]
+                                                               (for [i (range 1 10)] [i i])
+                                                               [[3 3]]))
+                                           :direction [1 1]}))
+          result (sl/dijkstra net 1 3)]
+      ;; Shorter path via node 2 (total 6) beats direct (10)
+      (should= [1 2] result))))
 
 (describe "find-nearest-node"
   (it "finds node within local radius"
@@ -147,7 +198,22 @@
                   (assoc-in [:nodes 2] {:id 2 :pos [10 11] :segment-ids #{}})
                   (assoc-in [:pos->node [10 10]] 1)
                   (assoc-in [:pos->node [10 11]] 2))]
-      (should= 2 (sl/find-nearest-node net [10 12] 5)))))
+      (should= 2 (sl/find-nearest-node net [10 12] 5))))
+
+  (it "includes node at exact radius boundary"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [10 10] :segment-ids #{}})
+                  (assoc-in [:pos->node [10 10]] 1))]
+      ;; Chebyshev dist from [10 10] to [10 15] = max(0,5) = 5 = radius
+      (should= 1 (sl/find-nearest-node net [10 15] 5))))
+
+  (it "uses Chebyshev distance not Manhattan"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [14 12] :segment-ids #{}})
+                  (assoc-in [:pos->node [14 12]] 1))]
+      ;; Chebyshev from [10 10] to [14 12] = max(4,2) = 4, outside radius 3
+      ;; Manhattan = 6, min = 2 — both differ from Chebyshev
+      (should-be-nil (sl/find-nearest-node net [10 10] 3)))))
 
 (describe "assemble-path"
   (it "assembles path from single segment forward"
@@ -186,7 +252,12 @@
                                            :cells [[0 3] [1 3] [2 3] [3 3]]
                                            :length 3}))
           result (sl/assemble-path net [1 2] 1)]
-      (should= [[0 0] [0 1] [0 2] [0 3] [1 3] [2 3] [3 3]] result))))
+      (should= [[0 0] [0 1] [0 2] [0 3] [1 3] [2 3] [3 3]] result)))
+
+  (it "returns single node position for empty segment list"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [5 5] :segment-ids #{}}))]
+      (should= [[5 5]] (sl/assemble-path net [] 1)))))
 
 (describe "route-through-network"
   (before (reset-all-atoms!))
@@ -221,7 +292,58 @@
       (let [result (sl/route-through-network net [0 0] [5 5] :transport {} fake-bounded-a*)]
         (should-not-be-nil result)
         (should= [0 0] (first result))
-        (should= [5 5] (last result))))))
+        (should= [5 5] (last result)))))
+
+  (it "uses extended radius when local radius fails"
+    (with-redefs [config/sea-lane-local-radius 2
+                  config/sea-lane-extended-radius 10
+                  config/sea-lane-min-network-nodes 2]
+      (let [net (-> sl/empty-network
+                    (assoc-in [:nodes 1] {:id 1 :pos [5 0] :segment-ids #{1}})
+                    (assoc-in [:nodes 2] {:id 2 :pos [5 10] :segment-ids #{1}})
+                    (assoc-in [:pos->node [5 0]] 1)
+                    (assoc-in [:pos->node [5 10]] 2)
+                    (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                             :direction [0 1]
+                                             :cells (mapv #(vector 5 %) (range 11))
+                                             :length 10}))
+            ;; Start [0 0] to [5 0]: Chebyshev=5, local=2 miss, extended=10 hit
+            fake-a* (fn [s g _ _] [s g])]
+        (should-not-be-nil
+          (sl/route-through-network net [0 0] [10 10] :transport {} fake-a*)))))
+
+  (it "returns nil when bounded A* fails for a leg"
+    (with-redefs [config/sea-lane-min-network-nodes 2]
+      (let [net (-> sl/empty-network
+                    (assoc-in [:nodes 1] {:id 1 :pos [0 5] :segment-ids #{1}})
+                    (assoc-in [:nodes 2] {:id 2 :pos [0 10] :segment-ids #{1}})
+                    (assoc-in [:pos->node [0 5]] 1)
+                    (assoc-in [:pos->node [0 10]] 2)
+                    (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                             :direction [0 1]
+                                             :cells [[0 5] [0 6] [0 7] [0 8] [0 9] [0 10]]
+                                             :length 5}))
+            ;; First leg: start [0 0] != entry [0 5], calls A* → nil
+            ;; Last leg: exit [0 10] == goal, returns [goal] (no A* call)
+            fail-a* (fn [_ _ _ _] nil)]
+        (should-be-nil
+          (sl/route-through-network net [0 0] [0 10] :transport {} fail-a*)))))
+
+  (it "does not duplicate cells at leg/segment joins"
+    (with-redefs [config/sea-lane-min-network-nodes 2]
+      (let [net (-> sl/empty-network
+                    (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                    (assoc-in [:nodes 2] {:id 2 :pos [0 5] :segment-ids #{1}})
+                    (assoc-in [:pos->node [0 0]] 1)
+                    (assoc-in [:pos->node [0 5]] 2)
+                    (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                             :direction [0 1]
+                                             :cells [[0 0] [0 1] [0 2] [0 3] [0 4] [0 5]]
+                                             :length 5}))
+            ;; start==entry, exit==goal — no A* calls needed
+            fake-a* (fn [_ _ _ _] nil)]
+        (let [result (sl/route-through-network net [0 0] [0 5] :transport {} fake-a*)]
+          (should= (count result) (count (distinct result))))))))
 
 (describe "integration: record and route"
   (before (reset-all-atoms!))
@@ -314,6 +436,23 @@
                   (assoc :nodes {1 {:id 1} 2 {:id 2}})
                   (assoc :segments {1 {:id 1}}))]
       (should-not (#'empire.movement.sea-lanes/network-at-capacity? net)))))
+
+(describe "remove-segment"
+  (it "removes segment-id from both endpoint nodes"
+    (let [net (-> sl/empty-network
+                  (assoc-in [:nodes 1] {:id 1 :pos [0 0] :segment-ids #{1}})
+                  (assoc-in [:nodes 2] {:id 2 :pos [0 3] :segment-ids #{1}})
+                  (assoc-in [:segments 1] {:id 1 :node-a-id 1 :node-b-id 2
+                                           :cells [[0 0] [0 1] [0 2] [0 3]]
+                                           :length 3})
+                  (assoc-in [:pos->seg [0 1]] 1)
+                  (assoc-in [:pos->seg [0 2]] 1))
+          result (#'empire.movement.sea-lanes/remove-segment net 1)]
+      (should= #{} (get-in result [:nodes 1 :segment-ids]))
+      (should= #{} (get-in result [:nodes 2 :segment-ids]))
+      (should-be-nil (get-in result [:segments 1]))
+      (should-be-nil (get-in result [:pos->seg [0 1]]))
+      (should-be-nil (get-in result [:pos->seg [0 2]])))))
 
 (describe "split-segment-at"
   (before (reset-all-atoms!))

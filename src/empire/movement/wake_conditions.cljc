@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
   (:require [empire.atoms :as atoms]
             [empire.config :as config]

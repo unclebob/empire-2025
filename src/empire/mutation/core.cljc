@@ -7,6 +7,23 @@
             [empire.mutation.runner :as runner])
   (:import [java.io File]))
 
+(def ^:private mutation-comment-re #"^;; mutation-tested: (\d{4}-\d{2}-\d{2})")
+
+(defn extract-mutation-date
+  "Extract the mutation test date from a source file's content.
+   Returns the date string or nil."
+  [content]
+  (when-let [m (re-find mutation-comment-re content)]
+    (second m)))
+
+(defn stamp-mutation-date
+  "Add or replace the mutation-tested comment at the top of source content."
+  [content date-str]
+  (let [comment-line (str ";; mutation-tested: " date-str)]
+    (if (re-find mutation-comment-re content)
+      (str/replace content mutation-comment-re comment-line)
+      (str comment-line "\n" content))))
+
 (defn read-source-forms
   "Parse a source string into a vector of top-level forms.
    Handles .cljc reader conditionals."
@@ -130,16 +147,23 @@
                        (inc (:index (:site r)))
                        (:description (:site r)))))))
 
+(defn- today-str []
+  (.format (java.time.LocalDate/now)
+           (java.time.format.DateTimeFormatter/ISO_LOCAL_DATE)))
+
 (defn run-mutation-testing
   "Run mutation testing on a single source file."
   [source-path spec-path]
   (let [original-content (slurp source-path)
+        prev-date (extract-mutation-date original-content)
         forms (read-source-forms original-content)
         all-sites (discover-all-mutations forms)
         covered-lines (coverage/load-coverage source-path)
         [sites uncovered] (partition-by-coverage all-sites covered-lines)]
     (println (format "=== Mutation Testing: %s ===" source-path))
     (println (format "Spec: %s" spec-path))
+    (when prev-date
+      (println (format "Previous mutation test: %s" prev-date)))
     (println (format "Found %d mutation sites (%d covered, %d uncovered).\n"
                      (count all-sites) (count sites) (count uncovered)))
     (print-uncovered uncovered)
@@ -155,7 +179,8 @@
           total (count results)
           pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
           survivors (filter #(= :survived (:result %)) results)]
-      (print-summary killed total pct survivors (count uncovered)))))
+      (print-summary killed total pct survivors (count uncovered))
+      (spit source-path (stamp-mutation-date original-content (today-str))))))
 
 (defn -main [& args]
   (let [validated (validate-args (vec args))]
