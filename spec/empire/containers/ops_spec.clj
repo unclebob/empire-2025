@@ -1,6 +1,8 @@
 (ns empire.containers.ops-spec
   (:require [empire.atoms :as atoms]
+            [empire.config :as config]
             [empire.containers.ops :refer :all]
+            [empire.containers.helpers :as uc]
             [empire.test-utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit]]
             [speclj.core :refer :all]))
 
@@ -34,6 +36,29 @@
       (let [transport (:contents (get-in @atoms/game-map transport-coords))]
         (should= 0 (:army-count transport 0)))
       (should-not= nil (:contents (get-in @atoms/game-map army-coords)))))
+
+  (it "does not load non-army units onto transport"
+    (reset! atoms/game-map (build-test-map ["-#--"
+                                            "-DT-"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
+    (set-test-unit atoms/game-map "D" :mode :sentry :hits 1)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 0 (:army-count transport 0)))))
+
+  (it "loads army at map edge onto transport at edge"
+    ;; Transport at [0 0] — army at [1 0] or [0 1]
+    ;; This kills mutations on bounds-check arithmetic (+ -> -)
+    (reset! atoms/game-map (build-test-map ["TA-"
+                                            "~#-"]))
+    ;; After transpose: T at [0 0], A at [1 0]
+    (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
+    (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 1 (:army-count transport)))))
 
   (it "wakes transport after loading armies if at beach"
     (reset! atoms/game-map (build-test-map ["-#---"
@@ -102,7 +127,9 @@
         (should= 2 (:army-count transport))
         (should= 2 (:awake-armies transport))
         (should= :army (:type disembarked))
-        (should= :awake (:mode disembarked)))))
+        (should= :awake (:mode disembarked))
+        (should= 1 (:hits disembarked))
+        (should= (config/unit-speed :army) (:steps-remaining disembarked)))))
 
   (it "wakes transport when last army disembarks"
     (reset! atoms/game-map (build-test-map ["-T-"
@@ -147,6 +174,7 @@
         (should= 1 (:awake-armies transport))
         (should= :army (:type army))
         (should= :moving (:mode army))
+        (should= 1 (:hits army))
         (should= target-coords (:target army))
         (should= 0 (:steps-remaining army))))))
 
@@ -167,6 +195,9 @@
         (should= 1 (:awake-armies transport))
         (should= :army (:type army))
         (should= :explore (:mode army))
+        (should= 1 (:hits army))
+        (should= (config/unit-speed :army) (:steps-remaining army))
+        (should= config/explore-steps (:explore-steps army))
         (should= #{land-coords} (:visited army))))))
 
 (describe "wake-fighters-on-carrier"
@@ -223,6 +254,73 @@
         (should= :sentry (:mode carrier))
         (should= 0 (:fighter-count carrier)))))
 
+  (it "launches fighter toward target in negative x direction"
+    (reset! atoms/game-map (build-test-map ["-~C-"]))
+    ;; After transpose: C at [2 0], ~ at [1 0]
+    (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          target-coords [(- (first carrier-coords) 2) (second carrier-coords)]
+          expected-step [(dec (first carrier-coords)) (second carrier-coords)]
+          result (launch-fighter-from-carrier carrier-coords target-coords)]
+      (should= expected-step result)
+      (let [fighter (:contents (get-in @atoms/game-map expected-step))]
+        (should= :fighter (:type fighter))
+        (should= target-coords (:target fighter)))))
+
+  (it "launches fighter toward target in y direction"
+    (reset! atoms/game-map (build-test-map ["--"
+                                             "-C"
+                                             "-~"
+                                             "--"]))
+    ;; After transpose: C at [1 1], ~ at [1 2]
+    (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          target-coords [(first carrier-coords) (+ 2 (second carrier-coords))]
+          expected-step [(first carrier-coords) (inc (second carrier-coords))]
+          result (launch-fighter-from-carrier carrier-coords target-coords)]
+      (should= expected-step result)
+      (let [fighter (:contents (get-in @atoms/game-map expected-step))]
+        (should= :fighter (:type fighter))
+        (should= 1 (:hits fighter)))))
+
+  (it "launches fighter toward target in negative y direction"
+    ;; Carrier at y=3, target at y=1, so dy should be -1
+    ;; This kills the mutant (+ ty cy) because ty=1, cy=3, (+ 1 3)=4>0 gives dy=1 (wrong)
+    (reset! atoms/game-map (build-test-map ["----"
+                                             "----"
+                                             "----"
+                                             "-~C-"
+                                             "----"]))
+    ;; After transpose: C at [2 3], ~ at [1 3]
+    (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          ;; Target at same x, y=1 (negative y direction)
+          target-coords [(first carrier-coords) 1]
+          expected-step [(first carrier-coords) (dec (second carrier-coords))]
+          result (launch-fighter-from-carrier carrier-coords target-coords)]
+      (should= expected-step result)
+      (let [fighter (:contents (get-in @atoms/game-map expected-step))]
+        (should= :fighter (:type fighter))
+        (should= 1 (:hits fighter))
+        (should= target-coords (:target fighter)))))
+
+  (it "launches fighter along x-axis when target at same y"
+    ;; Kills M27: (- ty cy) → (+ ty cy) in zero? check
+    ;; When carrier at y=1 and target at y=1, (+ 1 1) = 2 ≠ 0 makes mutant give wrong dy
+    (reset! atoms/game-map (build-test-map ["---"
+                                             "-C~"
+                                             "---"]))
+    ;; After transpose: C at [1 1], ~ at [2 1]
+    (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
+    (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
+          target-coords [(+ 2 (first carrier-coords)) (second carrier-coords)]
+          expected-step [(inc (first carrier-coords)) (second carrier-coords)]
+          result (launch-fighter-from-carrier carrier-coords target-coords)]
+      (should= expected-step result)
+      (let [fighter (:contents (get-in @atoms/game-map expected-step))]
+        (should= :fighter (:type fighter))
+        (should= (second carrier-coords) (second (:target fighter))))))
+
   (it "sets steps-remaining to speed minus one"
     (reset! atoms/game-map (build-test-map ["-C~-"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
@@ -247,7 +345,8 @@
       (should= 1 (:awake-fighters city))
       (should= :fighter (:type fighter))
       (should= :moving (:mode fighter))
-      (should= [3 0] (:target fighter)))))
+      (should= [3 0] (:target fighter))
+      (should= 1 (:hits fighter)))))
 
 (describe "remove-army-from-transport"
   (before (reset-all-atoms!))
@@ -282,3 +381,33 @@
         (should= :transport-at-beach (:reason transport))
         (should= 2 (:army-count transport))
         (should= 1 (:awake-armies transport))))))
+
+(describe "launch-ship-from-shipyard"
+  (before (reset-all-atoms!))
+
+  (it "launches ship at city coords when no launch-pos given"
+    (reset! atoms/game-map (build-test-map ["-O-"]))
+    (swap! atoms/game-map assoc-in [1 0 :shipyard]
+           [{:type :destroyer :hits 3}])
+    (launch-ship-from-shipyard [1 0] 0)
+    (let [city (get-in @atoms/game-map [1 0])
+          ship (:contents city)]
+      (should= [] (:shipyard city))
+      (should-not-be-nil ship)
+      (should= :destroyer (:type ship))
+      (should= :player (:owner ship))
+      (should= 3 (:hits ship))
+      (should= :awake (:mode ship))))
+
+  (it "launches ship at separate launch-pos when provided"
+    (reset! atoms/game-map (build-test-map ["-O~-"]))
+    (swap! atoms/game-map assoc-in [1 0 :shipyard]
+           [{:type :destroyer :hits 3}])
+    (launch-ship-from-shipyard [1 0] 0 [2 0])
+    (let [city (get-in @atoms/game-map [1 0])
+          ship (:contents (get-in @atoms/game-map [2 0]))]
+      (should= [] (:shipyard city))
+      (should-be-nil (:contents city))
+      (should-not-be-nil ship)
+      (should= :destroyer (:type ship))
+      (should= :player (:owner ship)))))

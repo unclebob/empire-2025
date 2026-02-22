@@ -82,6 +82,18 @@
       (should-contain "SURVIVED" report)
       (should-contain "KILLED" report)))
 
+  (it "includes line numbers in progress lines"
+    (let [results [{:site {:description "+ -> -" :line 42} :result :killed}
+                   {:site {:description "1 -> 0" :line 99 :index 1} :result :survived}]
+          report (core/format-report "src/empire/foo.cljc" "spec/empire/foo_spec.clj" results 0)]
+      (should-contain "L42" report)
+      (should-contain "L99" report)))
+
+  (it "includes line numbers in survivor summary"
+    (let [results [{:site {:description "1 -> 0" :line 207 :index 0} :result :survived}]
+          report (core/format-report "src/empire/foo.cljc" "spec/empire/foo_spec.clj" results 0)]
+      (should-contain "L207" report)))
+
   (it "includes uncovered count in summary"
     (let [results [{:site {:description "+ -> -"} :result :killed}]
           report (core/format-report "src/empire/foo.cljc" "spec/empire/foo_spec.clj" results 3)]
