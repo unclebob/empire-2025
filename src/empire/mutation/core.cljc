@@ -78,11 +78,11 @@
   (if (= :killed (:result r)) "KILLED" "SURVIVED"))
 
 (defn- format-line [i total r]
-  (format "[%3d/%d] %-8s  %s%n"
-          (inc i) total (result-label r) (:description (:site r))))
+  (format "[%3d/%d] %-8s  L%-4d %s%n"
+          (inc i) total (result-label r) (or (:line (:site r)) 0) (:description (:site r))))
 
 (defn- format-survivor [r]
-  (format "  #%d  %s%n" (inc (or (:index (:site r)) 0)) (:description (:site r))))
+  (format "  #%d  L%-4d %s%n" (inc (or (:index (:site r)) 0)) (or (:line (:site r)) 0) (:description (:site r))))
 
 (defn format-report
   "Format mutation testing results as a console report string."
@@ -122,9 +122,10 @@
         {:error (str "No spec found at: " spec-path)}))))
 
 (defn- print-progress [i total result site]
-  (println (format "[%3d/%d] %-8s  %s"
+  (println (format "[%3d/%d] %-8s  L%-4d %s"
                    (inc i) total
                    (result-label result)
+                   (or (:line site) 0)
                    (:description site)))
   (flush))
 
@@ -143,8 +144,9 @@
   (when (seq survivors)
     (println "Survivors:")
     (doseq [r survivors]
-      (println (format "  #%d  %s"
+      (println (format "  #%d  L%-4d %s"
                        (inc (:index (:site r)))
+                       (or (:line (:site r)) 0)
                        (:description (:site r)))))))
 
 (defn- today-str []
