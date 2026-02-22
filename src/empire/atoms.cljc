@@ -1,5 +1,9 @@
 (ns empire.atoms)
 
+(def random-seed
+  "Random seed for reproducible map generation, or nil for random."
+  (atom nil))
+
 (def map-size (atom [0 0]))
 
 (def map-size-constants

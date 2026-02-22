@@ -390,8 +390,8 @@
   "Moves transport one step along its heading. Handles:
    - Open sea: move there
    - Map border: reflect heading
-   - Explored coast: reflect heading (skip own country coast)
-   - Unexplored coast: stop and begin unloading
+   - Foreign or unexplored coast: stop and begin unloading
+   - Own country coast: sail through
    Returns new position or nil if no move."
   [pos]
   (let [transport (get-in @atoms/game-map (conj pos :contents))
@@ -405,22 +405,16 @@
         (swap! atoms/game-map assoc-in (conj pos :contents :heading) new-heading)
         nil)
 
-      ;; Unexplored coast → stop, switch to unloading
-      (unexplored-coast? next-pos)
+      ;; Unexplored or foreign explored coast → stop, switch to unloading
+      (or (unexplored-coast? next-pos)
+          (and (nav/is-explored-coast? next-pos)
+               (not (own-country-coast? next-pos (:country-id transport)))))
       (do
         (core/move-unit-to pos next-pos)
         (visibility/update-cell-visibility pos :computer)
         (visibility/update-cell-visibility next-pos :computer)
         (set-transport-mission next-pos :unloading)
         next-pos)
-
-      ;; Explored coast of foreign country → reflect
-      (and (nav/is-explored-coast? next-pos)
-           (not (own-country-coast? next-pos (:country-id transport))))
-      (let [surface (or (detect-reflection-surface pos) :horizontal)
-            new-heading (nav/reflect-heading heading surface)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :heading) new-heading)
-        nil)
 
       ;; Sea cell with no unit → move there (includes own-country coast)
       (and (= :sea (:type (get-in @atoms/game-map next-pos)))
@@ -559,6 +553,12 @@
             (= current-mission :directed)
             (process-directed pos transport)
 
+            ;; Unloading transport - unload armies at current location
+            (= current-mission :unloading)
+            (let [pickup-continent (when-let [pcp (:pickup-continent-pos transport)]
+                                     (land-objectives/flood-fill-continent pcp))]
+              (unload-armies pos pickup-continent))
+
             ;; Full transport - check for unassigned city, else sail
             (>= army-count 6)
             (if-let [target-city (find-unassigned-city pos)]
@@ -582,17 +582,25 @@
                     ;; Phase 1 (or Phase 2 fallback): navigate toward fog of war
                     (let [target (or (pathfinding/find-nearest-unexplored-coastline pos :transport)
                                      (pathfinding/find-nearest-unexplored pos :transport))]
-                      (when target
-                        ;; Clear stale heading so BFS drives movement
-                        (swap! atoms/game-map update-in (conj pos :contents) dissoc :heading)
-                        (when-let [new-pos (move-toward-position pos target)]
-                          ;; Reached BFS target? Compute heading for Phase 2
-                          (when (= new-pos target)
-                            (let [t (get-in @atoms/game-map (conj new-pos :contents))
-                                  start (:sailing-start t)
-                                  heading (nav/heading-from-to (or start pos) new-pos)]
-                              (swap! atoms/game-map assoc-in
-                                     (conj new-pos :contents :heading) heading))))))))))
+                      (if target
+                        (do
+                          ;; Clear stale heading so BFS drives movement
+                          (swap! atoms/game-map update-in (conj pos :contents) dissoc :heading)
+                          (when-let [new-pos (move-toward-position pos target)]
+                            ;; Reached BFS target? Compute heading for Phase 2
+                            (when (= new-pos target)
+                              (let [t (get-in @atoms/game-map (conj new-pos :contents))
+                                    start (:sailing-start t)
+                                    heading (nav/heading-from-to (or start pos) new-pos)]
+                                (swap! atoms/game-map assoc-in
+                                       (conj new-pos :contents :heading) heading)))))
+                        ;; No fog left — unload at nearest coast
+                        (let [pickup-continent
+                              (when-let [pcp (:pickup-continent-pos transport')]
+                                (land-objectives/flood-fill-continent pcp))]
+                          (if (adjacent-to-land? pos)
+                            (unload-armies pos pickup-continent)
+                            (explore-sea pos)))))))))
 
             ;; Loading transport - coastal crawl, auto-load armies
             (= current-mission :loading)
@@ -620,14 +628,6 @@
             ;; Sailing transport - continue along heading
             (= current-mission :sailing)
             (sail-one-step pos)
-
-            ;; Unloading transport - unload armies at current location
-            (= current-mission :unloading)
-            (let [pickup-continent (when-let [ocp (:pickup-continent-pos transport)]
-                                     (land-objectives/flood-fill-continent ocp))]
-              (when (unload-armies pos pickup-continent)
-                ;; After unloading, check if empty → switch to loading
-                nil))
 
             :else nil)))))
   nil)

@@ -589,13 +589,12 @@
               transport (get-in @atoms/game-map (conj transport-pos :contents))]
           (should= [0 10] (:unload-target-city transport)))))
 
-    (it "full transport with stored target explores instead"
-      ;; Full transports ignore stored targets and explore toward fog of war.
+    (it "full unloading transport in open sea stays unloading"
+      ;; Full transport in unloading mode with no adjacent land stays unloading.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
         (reset! atoms/game-map game-map)
-        ;; Row 2 unexplored — transport should explore
         (reset! atoms/computer-map
                 (vec (for [c (range 5)]
                        (vec (for [r (range 3)]
@@ -605,12 +604,11 @@
                 :transport-mission :unloading :army-count 6
                 :unload-target-city [0 5]})
         (transport/process-transport [2 1])
-        ;; Transport should explore toward unexplored, ignoring stored target
         (let [t (first (for [c (range 5) r (range 3)
                                :let [unit (get-in @atoms/game-map [c r :contents])]
                                :when (= :transport (:type unit))]
                            unit))]
-          (should= :sailing (:transport-mission t)))))
+          (should= :unloading (:transport-mission t)))))
 
     (it "unload-target-city cleared when transport transitions to loading"
       ;; Transport with 1 army unloads completely, transitioning to loading.
@@ -642,9 +640,9 @@
           (should= [6 1] result)))))
 
   (describe "global BFS unload (VMS-consistent)"
-    (it "full transport with unloading mission transitions to sailing"
-      ;; Full transport marked :unloading overridden by (>= army-count 6) check.
-      ;; Unexplored cells to the south for transport to explore toward.
+    (it "full transport with unloading mission stays unloading"
+      ;; Full transport marked :unloading keeps mission even though army-count >= 6.
+      ;; In open sea with no adjacent land, unload does nothing but mission is preserved.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"
@@ -658,16 +656,12 @@
         (swap! atoms/game-map assoc-in [2 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
-                :pickup-continent-pos [0 1]
-})
+                :pickup-continent-pos [0 1]})
         (transport/process-transport [2 2])
-        ;; Transport should have moved and be in sailing mode
-        (let [t (first (for [c (range 5) r (range 5)
-                               :let [unit (get-in @atoms/game-map [c r :contents])]
-                               :when (= :transport (:type unit))]
-                           unit))]
+        ;; Transport stays in unloading mode (no land to unload onto)
+        (let [t (get-in @atoms/game-map [2 2 :contents])]
           (should= :transport (:type t))
-          (should= :sailing (:transport-mission t)))))
+          (should= :unloading (:transport-mission t)))))
 
     (it "full transport explores regardless of nearby computer cities"
       ;; Full transport explores toward fog, ignoring computer cities

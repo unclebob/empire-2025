@@ -180,6 +180,7 @@
   (vec (repeat cols (vec (repeat rows value)))))
 
 (defn reset-all-atoms! []
+  (reset! atoms/random-seed nil)
   (reset! atoms/map-size [0 0])
   (reset! atoms/map-size-constants {})
   (reset! atoms/last-key nil)

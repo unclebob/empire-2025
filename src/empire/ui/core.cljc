@@ -41,6 +41,14 @@
   []
   (create-fonts)
   (calculate-screen-dimensions)
+  (when-let [seed @atoms/random-seed]
+    (let [rng (java.util.Random. seed)]
+      (alter-var-root #'clojure.core/rand
+                      (constantly (fn
+                                   ([] (.nextDouble rng))
+                                   ([n] (* n (.nextDouble rng))))))
+      (alter-var-root #'clojure.core/rand-int
+                      (constantly (fn [n] (.nextInt rng (int n)))))))
   (let [num-cities (:number-of-cities @atoms/map-size-constants config/number-of-cities)]
     (init/make-initial-map @atoms/map-size config/smooth-count config/land-fraction num-cities config/min-city-distance))
   (q/frame-rate 30)
@@ -118,9 +126,13 @@
 
 (declare empire)
 (defn -main [& args]
-  (let [[cols rows] (if (>= (count args) 2)
-                      [(Integer/parseInt (first args))
-                       (Integer/parseInt (second args))]
+  (let [seed-arg (some #(when (.startsWith ^String % "--seed=")
+                          (Long/parseLong (subs % 7)))
+                       args)
+        non-seed-args (remove #(.startsWith ^String % "--seed=") args)
+        [cols rows] (if (>= (count non-seed-args) 2)
+                      [(Integer/parseInt (first non-seed-args))
+                       (Integer/parseInt (second non-seed-args))]
                       config/default-map-size)
         [cell-w cell-h] config/cell-size
         text-area-h (* config/text-area-rows cell-h)
@@ -129,6 +141,8 @@
         [screen-w screen-h] (screen-dimensions)
         max-cols (quot screen-w cell-w)
         max-rows (quot (- screen-h text-area-h config/text-area-gap) cell-h)]
+    (when seed-arg
+      (reset! atoms/random-seed seed-arg))
     (when (or (> window-w screen-w) (> window-h screen-h))
       (println (format "Map size [%d %d] exceeds monitor bounds (%dx%d pixels)."
                        cols rows screen-w screen-h))
@@ -137,7 +151,9 @@
       (System/exit 1))
     (reset! atoms/map-size [cols rows])
     (reset! atoms/map-size-constants (config/compute-size-constants cols rows))
-    (println (format "empire has begun. Map size: [%d %d]" cols rows))
+    (if seed-arg
+      (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows seed-arg))
+      (println (format "empire has begun. Map size: [%d %d]" cols rows)))
     (q/defsketch empire
                  :title "Empire: Global Conquest"
                  :size [window-w window-h]
