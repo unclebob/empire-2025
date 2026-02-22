@@ -1,6 +1,7 @@
 (ns empire.containers.helpers-spec
   (:require [speclj.core :refer :all]
-            [empire.containers.helpers :as uc]))
+            [empire.containers.helpers :as uc]
+            [empire.units.dispatcher :as dispatcher]))
 
 (describe "get-count"
   (it "returns count when key exists"
@@ -73,7 +74,11 @@
 
   (it "handles missing awake key"
     (let [result (uc/wake-all {:fighter-count 3} :fighter-count :awake-fighters)]
-      (should= 3 (:awake-fighters result)))))
+      (should= 3 (:awake-fighters result))))
+
+  (it "sets awake to zero when count key is missing"
+    (let [result (uc/wake-all {} :fighter-count :awake-fighters)]
+      (should= 0 (:awake-fighters result)))))
 
 (describe "sleep-all"
   (it "sets awake count to zero"
@@ -91,7 +96,10 @@
     (should-not (uc/full? {:army-count 5} :army-count 6)))
 
   (it "returns false when count is missing"
-    (should-not (uc/full? {} :army-count 6))))
+    (should-not (uc/full? {} :army-count 6)))
+
+  (it "returns false when count is missing and capacity is 1"
+    (should-not (uc/full? {} :army-count 1))))
 
 (describe "transport-with-armies?"
   (it "returns true for transport with armies"
@@ -121,6 +129,13 @@
 
   (it "returns false for transport at beach with no armies"
     (should-not (uc/transport-at-beach? {:type :transport :reason :transport-at-beach :army-count 0})))
+
+  (it "returns false for sentry player transport with no reason"
+    (should-not (uc/transport-at-beach? {:type :transport :owner :player :mode :sentry :army-count 2})))
+
+  (it "returns false for awake player transport with non-beach reason"
+    (should-not (uc/transport-at-beach? {:type :transport :owner :player :mode :awake
+                                         :army-count 2 :reason :some-other})))
 
   (it "returns false for non-transport"
     (should-not (uc/transport-at-beach? {:type :carrier :reason :transport-at-beach :army-count 2}))))
@@ -193,5 +208,101 @@
     (should= {:type :fighter :mode :sentry}
              (uc/normal-display-unit {} nil false true)))
 
+  (it "ignores contents without type even if mode is awake"
+    (should-not (uc/normal-display-unit {} {:mode :awake} false false)))
+
+  (it "ignores non-awake contents without type"
+    (should-not (uc/normal-display-unit {} {:mode :sentry} false false)))
+
   (it "returns nil when nothing to display"
     (should-not (uc/normal-display-unit {} nil false false))))
+
+(describe "add-ship-to-shipyard"
+  (it "adds a ship to an empty shipyard"
+    (should= {:shipyard [{:type :destroyer :hits 1}]}
+             (uc/add-ship-to-shipyard {} :destroyer 1)))
+
+  (it "appends to an existing shipyard"
+    (let [city {:shipyard [{:type :submarine :hits 2}]}
+          result (uc/add-ship-to-shipyard city :destroyer 1)]
+      (should= [{:type :submarine :hits 2} {:type :destroyer :hits 1}]
+               (:shipyard result)))))
+
+(describe "remove-ship-from-shipyard"
+  (it "removes first ship"
+    (let [city {:shipyard [{:type :destroyer :hits 1} {:type :submarine :hits 2}]}]
+      (should= [{:type :submarine :hits 2}]
+               (:shipyard (uc/remove-ship-from-shipyard city 0)))))
+
+  (it "removes middle ship"
+    (let [city {:shipyard [{:type :destroyer :hits 1}
+                           {:type :submarine :hits 2}
+                           {:type :battleship :hits 3}]}]
+      (should= [{:type :destroyer :hits 1} {:type :battleship :hits 3}]
+               (:shipyard (uc/remove-ship-from-shipyard city 1)))))
+
+  (it "removes last ship"
+    (let [city {:shipyard [{:type :destroyer :hits 1} {:type :submarine :hits 2}]}]
+      (should= [{:type :destroyer :hits 1}]
+               (:shipyard (uc/remove-ship-from-shipyard city 1))))))
+
+(describe "get-shipyard-ships"
+  (it "returns ships when present"
+    (should= [{:type :destroyer :hits 1}]
+             (uc/get-shipyard-ships {:shipyard [{:type :destroyer :hits 1}]})))
+
+  (it "returns empty vector when no shipyard"
+    (should= [] (uc/get-shipyard-ships {}))))
+
+(describe "repair-ship"
+  (it "increments hits by 1"
+    (should= {:type :destroyer :hits 2}
+             (uc/repair-ship {:type :destroyer :hits 1})))
+
+  (it "caps hits at max for unit type"
+    (let [max-hits (dispatcher/hits :destroyer)]
+      (should= {:type :destroyer :hits max-hits}
+               (uc/repair-ship {:type :destroyer :hits max-hits}))))
+
+  (it "increments to max without exceeding"
+    (let [max-hits (dispatcher/hits :destroyer)]
+      (should= {:type :destroyer :hits max-hits}
+               (uc/repair-ship {:type :destroyer :hits (dec max-hits)})))))
+
+(describe "ship-fully-repaired?"
+  (it "returns true when hits equal max"
+    (let [max-hits (dispatcher/hits :destroyer)]
+      (should (uc/ship-fully-repaired? {:type :destroyer :hits max-hits}))))
+
+  (it "returns false when hits below max"
+    (should-not (uc/ship-fully-repaired? {:type :destroyer :hits 1}))))
+
+(describe "ship-can-dock?"
+  (it "returns true for damaged player ship at player city"
+    (should (uc/ship-can-dock? {:type :destroyer :hits 1 :owner :player}
+                               {:type :city :city-status :player})))
+
+  (it "returns true for damaged computer ship at computer city"
+    (should (uc/ship-can-dock? {:type :destroyer :hits 1 :owner :computer}
+                               {:type :city :city-status :computer})))
+
+  (it "returns false for fully repaired ship"
+    (let [max-hits (dispatcher/hits :destroyer)]
+      (should-not (uc/ship-can-dock? {:type :destroyer :hits max-hits :owner :player}
+                                     {:type :city :city-status :player}))))
+
+  (it "returns false for non-naval unit"
+    (should-not (uc/ship-can-dock? {:type :army :hits 1 :owner :player}
+                                   {:type :city :city-status :player})))
+
+  (it "returns false at enemy city"
+    (should-not (uc/ship-can-dock? {:type :destroyer :hits 1 :owner :player}
+                                   {:type :city :city-status :computer})))
+
+  (it "returns false at free city"
+    (should-not (uc/ship-can-dock? {:type :destroyer :hits 1 :owner :player}
+                                   {:type :city :city-status :free})))
+
+  (it "returns false at non-city"
+    (should-not (uc/ship-can-dock? {:type :destroyer :hits 1 :owner :player}
+                                   {:type :sea}))))

@@ -28,7 +28,10 @@
       (should= 15 (dispatcher/cost :patrol-boat))
       (should= 20 (dispatcher/cost :destroyer))
       (should= 20 (dispatcher/cost :submarine))
-      (should= 40 (dispatcher/cost :battleship))))
+      (should= 40 (dispatcher/cost :battleship)))
+
+    (it "returns nil for unknown type"
+      (should-be-nil (dispatcher/cost :unknown))))
 
   (describe "hits"
     (it "returns correct hits for each unit type"
@@ -40,7 +43,10 @@
       (should= 1 (dispatcher/hits :patrol-boat))
       (should= 3 (dispatcher/hits :destroyer))
       (should= 2 (dispatcher/hits :submarine))
-      (should= 10 (dispatcher/hits :battleship))))
+      (should= 10 (dispatcher/hits :battleship)))
+
+    (it "returns nil for unknown type"
+      (should-be-nil (dispatcher/hits :unknown))))
 
   (describe "display-char"
     (it "returns correct character for each unit type"
@@ -52,21 +58,54 @@
       (should= "P" (dispatcher/display-char :patrol-boat))
       (should= "D" (dispatcher/display-char :destroyer))
       (should= "S" (dispatcher/display-char :submarine))
-      (should= "B" (dispatcher/display-char :battleship))))
+      (should= "B" (dispatcher/display-char :battleship)))
+
+    (it "returns nil for unknown type"
+      (should-be-nil (dispatcher/display-char :unknown))))
 
   (describe "visibility-radius"
     (it "returns 1 for most units"
       (should= 1 (dispatcher/visibility-radius :army))
       (should= 1 (dispatcher/visibility-radius :fighter))
-      (should= 1 (dispatcher/visibility-radius :transport)))
+      (should= 1 (dispatcher/visibility-radius :transport))
+      (should= 1 (dispatcher/visibility-radius :carrier))
+      (should= 1 (dispatcher/visibility-radius :patrol-boat))
+      (should= 1 (dispatcher/visibility-radius :destroyer))
+      (should= 1 (dispatcher/visibility-radius :submarine))
+      (should= 1 (dispatcher/visibility-radius :battleship)))
 
     (it "returns 2 for satellite"
-      (should= 2 (dispatcher/visibility-radius :satellite))))
+      (should= 2 (dispatcher/visibility-radius :satellite)))
+
+    (it "returns nil for unknown type"
+      (should-be-nil (dispatcher/visibility-radius :unknown))))
+
+  (describe "strength"
+    (it "returns 1 for most units"
+      (should= 1 (dispatcher/strength :army))
+      (should= 1 (dispatcher/strength :fighter))
+      (should= 1 (dispatcher/strength :satellite))
+      (should= 1 (dispatcher/strength :transport))
+      (should= 1 (dispatcher/strength :carrier))
+      (should= 1 (dispatcher/strength :patrol-boat))
+      (should= 1 (dispatcher/strength :destroyer)))
+
+    (it "returns 3 for submarine"
+      (should= 3 (dispatcher/strength :submarine)))
+
+    (it "returns 2 for battleship"
+      (should= 2 (dispatcher/strength :battleship)))
+
+    (it "returns nil for unknown type"
+      (should-be-nil (dispatcher/strength :unknown))))
 
   (describe "initial-state"
     (it "returns empty map for simple units"
       (should= {} (dispatcher/initial-state :army))
-      (should= {} (dispatcher/initial-state :patrol-boat)))
+      (should= {} (dispatcher/initial-state :patrol-boat))
+      (should= {} (dispatcher/initial-state :destroyer))
+      (should= {} (dispatcher/initial-state :submarine))
+      (should= {} (dispatcher/initial-state :battleship)))
 
     (it "returns fuel state for fighter"
       (should= {:fuel 32} (dispatcher/initial-state :fighter)))
@@ -78,7 +117,10 @@
       (should= {:army-count 0 :awake-armies 0 :been-to-sea true} (dispatcher/initial-state :transport)))
 
     (it "returns container state for carrier"
-      (should= {:fighter-count 0 :awake-fighters 0} (dispatcher/initial-state :carrier))))
+      (should= {:fighter-count 0 :awake-fighters 0} (dispatcher/initial-state :carrier)))
+
+    (it "returns empty map for unknown type"
+      (should= {} (dispatcher/initial-state :unknown))))
 
   (describe "can-move-to?"
     (it "delegates to army module"
@@ -96,17 +138,56 @@
     (it "delegates to naval units"
       (should (dispatcher/can-move-to? :transport {:type :sea}))
       (should-not (dispatcher/can-move-to? :transport {:type :land}))
+      (should (dispatcher/can-move-to? :carrier {:type :sea}))
+      (should-not (dispatcher/can-move-to? :carrier {:type :land}))
+      (should (dispatcher/can-move-to? :patrol-boat {:type :sea}))
+      (should-not (dispatcher/can-move-to? :patrol-boat {:type :land}))
       (should (dispatcher/can-move-to? :destroyer {:type :sea}))
-      (should-not (dispatcher/can-move-to? :destroyer {:type :land}))))
+      (should-not (dispatcher/can-move-to? :destroyer {:type :land}))
+      (should (dispatcher/can-move-to? :submarine {:type :sea}))
+      (should-not (dispatcher/can-move-to? :submarine {:type :land}))
+      (should (dispatcher/can-move-to? :battleship {:type :sea}))
+      (should-not (dispatcher/can-move-to? :battleship {:type :land})))
+
+    (it "returns false for unknown type"
+      (should-not (dispatcher/can-move-to? :unknown {:type :land}))
+      (should-not (dispatcher/can-move-to? :unknown {:type :sea}))))
 
   (describe "needs-attention?"
-    (it "delegates to appropriate module"
+    (it "delegates to army module"
       (should (dispatcher/needs-attention? {:type :army :mode :awake}))
-      (should-not (dispatcher/needs-attention? {:type :army :mode :sentry}))
+      (should-not (dispatcher/needs-attention? {:type :army :mode :sentry})))
+
+    (it "delegates to fighter module"
+      (should (dispatcher/needs-attention? {:type :fighter :mode :awake}))
+      (should-not (dispatcher/needs-attention? {:type :fighter :mode :sentry})))
+
+    (it "delegates to satellite module"
       (should (dispatcher/needs-attention? {:type :satellite :target nil}))
-      (should-not (dispatcher/needs-attention? {:type :satellite :target [5 5]}))
+      (should-not (dispatcher/needs-attention? {:type :satellite :target [5 5]})))
+
+    (it "delegates to transport module"
+      (should (dispatcher/needs-attention? {:type :transport :mode :awake :awake-armies 0}))
       (should (dispatcher/needs-attention? {:type :transport :mode :sentry :awake-armies 1}))
-      (should-not (dispatcher/needs-attention? {:type :transport :mode :sentry :awake-armies 0}))))
+      (should-not (dispatcher/needs-attention? {:type :transport :mode :sentry :awake-armies 0})))
+
+    (it "delegates to carrier module"
+      (should (dispatcher/needs-attention? {:type :carrier :mode :awake :awake-fighters 0}))
+      (should (dispatcher/needs-attention? {:type :carrier :mode :sentry :awake-fighters 1}))
+      (should-not (dispatcher/needs-attention? {:type :carrier :mode :sentry :awake-fighters 0})))
+
+    (it "delegates to ship modules"
+      (should (dispatcher/needs-attention? {:type :patrol-boat :mode :awake}))
+      (should-not (dispatcher/needs-attention? {:type :patrol-boat :mode :sentry}))
+      (should (dispatcher/needs-attention? {:type :destroyer :mode :awake}))
+      (should-not (dispatcher/needs-attention? {:type :destroyer :mode :sentry}))
+      (should (dispatcher/needs-attention? {:type :submarine :mode :awake}))
+      (should-not (dispatcher/needs-attention? {:type :submarine :mode :sentry}))
+      (should (dispatcher/needs-attention? {:type :battleship :mode :awake}))
+      (should-not (dispatcher/needs-attention? {:type :battleship :mode :sentry})))
+
+    (it "returns false for unknown type"
+      (should-not (dispatcher/needs-attention? {:type :unknown :mode :awake}))))
 
   (describe "effective-speed"
     (it "returns base speed at full health for all unit types"
@@ -164,7 +245,11 @@
       (should= 6 (dispatcher/effective-capacity :carrier 6))
       (should= 5 (dispatcher/effective-capacity :carrier 5))
       (should= 3 (dispatcher/effective-capacity :carrier 3))
-      (should= 2 (dispatcher/effective-capacity :carrier 2))))
+      (should= 2 (dispatcher/effective-capacity :carrier 2)))
+
+    (it "defaults to max hits when current-hits is nil"
+      (should= 6 (dispatcher/effective-capacity :transport nil))
+      (should= 8 (dispatcher/effective-capacity :carrier nil))))
 
   (describe "naval-unit?"
     (it "returns true for naval units"
