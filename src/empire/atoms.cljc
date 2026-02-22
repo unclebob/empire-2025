@@ -175,6 +175,10 @@
   "Per-round set of target cities already claimed by computer transports."
   (atom #{}))
 
+(def last-transport-city
+  "Map of country-id to city-pos of last transport producer, for rotation."
+  (atom {}))
+
 (def fighter-leg-records
   "Global map tracking fighter coverage legs between refueling sites.
    Key is a set of two positions (unordered pair), value is {:last-flown round-number}."

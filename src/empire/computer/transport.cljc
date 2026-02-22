@@ -313,46 +313,6 @@
         (load-adjacent-armies target)
         target))))
 
-(defn- stuck?
-  "Returns true if transport hasn't moved in 10 or more rounds."
-  [transport]
-  (let [since (:stuck-since-round transport)]
-    (and since (>= (- @atoms/round-number since) 10))))
-
-(defn- scuttle-unload
-  "Unloads as many armies as possible to adjacent land before scuttling."
-  [pos transport]
-  (let [neighbors (core/get-neighbors pos)
-        game-map @atoms/game-map
-        land-cells (filter (fn [n]
-                             (let [cell (get-in game-map n)]
-                               (and cell
-                                    (#{:land :city} (:type cell))
-                                    (nil? (:contents cell)))))
-                           neighbors)
-        army-count (:army-count transport 0)
-        to-unload (min army-count (count land-cells))]
-    (debug/log-computer-event! :transport-scuttle-unload pos
-                               {:armies (:army-count transport 0) :unloaded to-unload})
-    (doseq [land-pos (take to-unload land-cells)]
-      (let [army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
-                   (:unload-event-id transport)
-                   (assoc :unload-event-id (:unload-event-id transport)))]
-        (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
-        (core/stamp-territory land-pos army)
-        (visibility/update-cell-visibility land-pos :computer)))))
-
-(defn- mark-city-landlocked
-  "Marks the producing city as landlocked so no more ships are built there."
-  [city-pos]
-  (when city-pos
-    (swap! atoms/game-map assoc-in (conj city-pos :landlocked) true)))
-
-(defn- reset-stuck-counter
-  "Resets the stuck-since-round counter after a successful move."
-  [new-pos]
-  (swap! atoms/game-map assoc-in (conj new-pos :contents :stuck-since-round) @atoms/round-number))
-
 (defn- set-transport-mission
   "Set the transport's mission state."
   [pos mission]
@@ -366,34 +326,6 @@
     (swap! atoms/next-unload-event-id inc)
     (swap! atoms/game-map assoc-in
            (conj pos :contents :unload-event-id) id)))
-
-(def ^:private max-landlocked-flood 200)
-
-(defn- landlocked?
-  "Returns true if transport at pos is in a fully-explored enclosed body of water.
-   Flood-fills through sea cells on game-map, limited to max-landlocked-flood cells.
-   If ALL reachable sea cells are explored on computer-map (no fog of war
-   encountered), the transport is landlocked."
-  [pos]
-  (let [game-map @atoms/game-map
-        computer-map @atoms/computer-map]
-    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY pos)
-           visited #{pos}]
-      (if (>= (count visited) max-landlocked-flood)
-        false ;; too many cells — not a small lake
-        (if-let [current (peek queue)]
-          (let [cell-on-comp (get-in computer-map current)]
-            (if (nil? cell-on-comp)
-              false ;; fog of war — indeterminate, not landlocked
-              (let [neighbors (filter (fn [n]
-                                        (let [cell (get-in game-map n)]
-                                          (and cell (= :sea (:type cell))
-                                               (not (visited n)))))
-                                      (core/get-neighbors current))
-                    new-visited (into visited neighbors)
-                    new-queue (into (pop queue) neighbors)]
-                (recur new-queue new-visited))))
-          true)))))
 
 (defn- record-pickup-continent-pos
   "When transport becomes full, record the nearest adjacent land position
@@ -595,10 +527,9 @@
           (do (core/move-unit-to pos next-pos)
               (visibility/update-cell-visibility pos :computer)
               (visibility/update-cell-visibility next-pos :computer)
-              (swap! atoms/game-map assoc-in (conj next-pos :contents :path) (vec (rest path)))
-              (reset-stuck-counter next-pos))
-          ;; Blocked → wait, but not stuck (has valid path)
-          (reset-stuck-counter pos))))))
+              (swap! atoms/game-map assoc-in (conj next-pos :contents :path) (vec (rest path))))
+          ;; Blocked → wait
+          nil)))))
 
 (defn process-transport
   "Processes a transport unit using VMS Empire style logic.
@@ -646,37 +577,26 @@
                 (let [transport' (get-in @atoms/game-map (conj pos :contents))]
                   (if (:heading transport')
                     ;; Phase 2: have heading — sail along it
-                    (when-let [new-pos (sail-one-step pos)]
-                      (reset-stuck-counter new-pos))
+                    (sail-one-step pos)
                     ;; Phase 1: navigate toward fog of war
                     (let [target (or (pathfinding/find-nearest-unexplored-coastline pos :transport)
                                      (pathfinding/find-nearest-unexplored pos :transport))]
-                      (if target
-                        (if-let [new-pos (move-toward-position pos target)]
-                          (do (reset-stuck-counter new-pos)
-                              ;; Reached BFS target? Compute heading for Phase 2
-                              (when (= new-pos target)
-                                (let [t (get-in @atoms/game-map (conj new-pos :contents))
-                                      start (:sailing-start t)
-                                      heading (nav/heading-from-to (or start pos) new-pos)]
-                                  (swap! atoms/game-map assoc-in
-                                         (conj new-pos :contents :heading) heading))))
-                          nil) ;; blocked — stuck counter will handle
-                        ;; No unexplored territory — check if landlocked
-                        (when (landlocked? pos)
-                          (debug/log-computer-event! :transport-scuttle pos
-                                                     {:reason :landlocked :armies army-count})
-                          (scuttle-unload pos transport')
-                          (mark-city-landlocked (:produced-at transport'))
-                          (swap! atoms/game-map assoc-in (conj pos :contents) nil))))))))
+                      (when target
+                        (when-let [new-pos (move-toward-position pos target)]
+                          ;; Reached BFS target? Compute heading for Phase 2
+                          (when (= new-pos target)
+                            (let [t (get-in @atoms/game-map (conj new-pos :contents))
+                                  start (:sailing-start t)
+                                  heading (nav/heading-from-to (or start pos) new-pos)]
+                              (swap! atoms/game-map assoc-in
+                                     (conj new-pos :contents :heading) heading)))))))))
+)
 
             ;; Loading transport - coastal crawl, auto-load armies
             (= current-mission :loading)
             (do
               ;; Load any adjacent armies first
-              (let [loaded (load-adjacent-armies pos)]
-                (when (pos? loaded)
-                  (reset-stuck-counter pos)))
+              (load-adjacent-armies pos)
               ;; Clear pickup-continent-pos once adjacent to that continent
               (when-let [pcp (:pickup-continent-pos transport)]
                 (when (adjacent-to-land? pos)
@@ -693,12 +613,11 @@
                                          (explore-sea pos))
                                      (or (coastal-crawl-move pos)
                                          (explore-sea pos)))]
-                  (reset-stuck-counter new-pos))))
+                  new-pos)))
 
             ;; Sailing transport - continue along heading
             (= current-mission :sailing)
-            (when-let [new-pos (sail-one-step pos)]
-              (reset-stuck-counter new-pos))
+            (sail-one-step pos)
 
             ;; Unloading transport - unload armies at current location
             (= current-mission :unloading)
@@ -708,16 +627,5 @@
                 ;; After unloading, check if empty → switch to loading
                 nil))
 
-            :else nil))
-
-        ;; After work: scuttle if still stuck (re-read transport from game-map)
-        (let [updated (get-in @atoms/game-map (conj pos :contents))]
-          (when (and updated (= :transport (:type updated)) (stuck? updated))
-            (debug/log-computer-event! :transport-scuttle pos
-                                       {:mission (:transport-mission updated)
-                                        :armies (:army-count updated 0)
-                                        :stuck-since (:stuck-since-round updated)})
-            (scuttle-unload pos updated)
-            (mark-city-landlocked (:produced-at updated))
-            (swap! atoms/game-map assoc-in (conj pos :contents) nil))))))
+            :else nil)))))
   nil)

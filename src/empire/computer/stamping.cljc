@@ -9,13 +9,12 @@
     unit))
 
 (defn- apply-computer-transport-fields
-  "Stamps transport-mission, stuck-since-round, and transport-id on computer transports."
+  "Stamps transport-mission and transport-id on computer transports."
   [unit]
   (if (and (= :transport (:type unit)) (= :computer (:owner unit)))
     (let [id @atoms/next-transport-id]
       (swap! atoms/next-transport-id inc)
       (assoc unit :transport-mission :idle
-                  :stuck-since-round @atoms/round-number
                   :transport-id id
                   :army-count 0))
     unit))

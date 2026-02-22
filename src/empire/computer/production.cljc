@@ -15,12 +15,11 @@
                                     some?))
 
 (defn city-is-coastal?
-  "Returns true if city has adjacent sea cells and is not landlocked."
+  "Returns true if city has adjacent sea cells."
   [city-pos]
-  (and (not (:landlocked (get-in @atoms/game-map city-pos)))
-       (some (fn [neighbor]
-               (= :sea (:type (get-in @atoms/game-map neighbor))))
-             (get-neighbors city-pos))))
+  (some (fn [neighbor]
+          (= :sea (:type (get-in @atoms/game-map neighbor))))
+        (get-neighbors city-pos)))
 
 (defn count-computer-units
   "Counts computer units by type. Returns map of type to count."
@@ -250,16 +249,39 @@
                     (range (count (first game-map)))))
             (range (count game-map))))))
 
+(defn- country-has-other-coastal-city?
+  "Returns true if the country has another coastal city besides city-pos."
+  [city-pos country-id]
+  (let [game-map @atoms/game-map]
+    (some (fn [i]
+            (some (fn [j]
+                    (let [cell (get-in game-map [i j])]
+                      (and (= :city (:type cell))
+                           (= :computer (:city-status cell))
+                           (= country-id (:country-id cell))
+                           (not= city-pos [i j])
+                           (city-is-coastal? [i j]))))
+                  (range (count (first game-map)))))
+          (range (count game-map)))))
+
+(defn- should-rotate-transport?
+  "Returns true if this city should skip transport production to let another city produce."
+  [city-pos country-id]
+  (and (= city-pos (get @atoms/last-transport-city country-id))
+       (country-has-other-coastal-city? city-pos country-id)))
+
 (defn- decide-country-production
-  "Per-country production priorities. Returns unit type or nil. CC=5."
+  "Per-country production priorities. Returns unit type or nil."
   [city-pos country-id coastal? unit-counts]
   (cond
     ;; 1. Transport: coastal, enough armies, waiting armies with all transports full/unloading
     (and coastal?
          (>= (count-country-armies country-id) config/armies-before-transport)
          (country-has-waiting-armies? country-id)
-         (not (country-city-producing-transports? city-pos country-id)))
-    :transport
+         (not (country-city-producing-transports? city-pos country-id))
+         (not (should-rotate-transport? city-pos country-id)))
+    (do (swap! atoms/last-transport-city assoc country-id city-pos)
+        :transport)
 
     ;; 2. Army: unoccupied coastal cells exist
     (has-unoccupied-coastal-cells? country-id)

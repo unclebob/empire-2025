@@ -26,14 +26,12 @@
         (should-not-contain :direction stamped))))
 
   (describe "transport fields"
-    (it "assigns transport-mission, stuck-since-round, and transport-id to computer transports"
+    (it "assigns transport-mission and transport-id to computer transports"
       (reset! atoms/next-transport-id 5)
-      (reset! atoms/round-number 7)
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= :idle (:transport-mission stamped))
-        (should= 7 (:stuck-since-round stamped))
         (should= 5 (:transport-id stamped))
         (should= 6 @atoms/next-transport-id)))
 
