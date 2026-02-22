@@ -225,6 +225,7 @@
   (reset! atoms/sea-lane-network {:nodes {} :segments {} :pos->node {} :pos->seg {}
                                    :next-node-id 1 :next-segment-id 1})
   (reset! atoms/distant-city-pairs nil)
+  (reset! atoms/computer-event-log [])
   (reset! atoms/action-log [])
   (reset! atoms/player-movement-log [])
   (reset! atoms/load-menu-open false)

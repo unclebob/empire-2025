@@ -16,7 +16,8 @@
       (swap! atoms/next-transport-id inc)
       (assoc unit :transport-mission :idle
                   :stuck-since-round @atoms/round-number
-                  :transport-id id))
+                  :transport-id id
+                  :army-count 0))
     unit))
 
 (defn- apply-country-id

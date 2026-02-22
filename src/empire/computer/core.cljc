@@ -2,6 +2,7 @@
   "Shared utilities for computer AI modules."
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.combat :as combat]
@@ -127,6 +128,7 @@
     (if (< (rand) 0.5)
       ;; Success - conquer the city, army dies
       (do
+        (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
         (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
         (swap! atoms/game-map assoc-in city-pos (assoc city-cell :city-status :computer))
         (combat/conquer-city-contents city-pos :computer)
@@ -141,6 +143,7 @@
         nil)
       ;; Failure - army dies
       (do
+        (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
         (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
         (visibility/update-cell-visibility army-pos :computer)
         nil))))

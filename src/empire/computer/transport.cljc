@@ -7,6 +7,7 @@
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.navigation :as nav]
+            [empire.debug :as debug]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]
             [empire.movement.map-utils :as map-utils]))
@@ -230,6 +231,7 @@
             (doseq [land-pos (take to-unload land-neighbors)]
               (let [army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
                            unload-eid (assoc :unload-event-id unload-eid))]
+                (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
                 (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
                 (core/stamp-territory land-pos army)
                 (visibility/update-cell-visibility land-pos :computer))))
@@ -276,10 +278,11 @@
                        neighbors)
         to-load (min capacity (count armies))]
     (doseq [army-pos (take to-load armies)]
+      (debug/log-computer-event! :transport-load-army pos {:from army-pos})
       (swap! atoms/game-map update-in army-pos dissoc :contents)
       (visibility/update-cell-visibility army-pos :computer))
     (when (pos? to-load)
-      (swap! atoms/game-map update-in (conj pos :contents :army-count) + to-load))
+      (swap! atoms/game-map update-in (conj pos :contents :army-count) (fnil + 0) to-load))
     to-load))
 
 (defn- coastal-crawl-move
@@ -325,6 +328,8 @@
                            neighbors)
         army-count (:army-count transport 0)
         to-unload (min army-count (count land-cells))]
+    (debug/log-computer-event! :transport-scuttle-unload pos
+                               {:armies (:army-count transport 0) :unloaded to-unload})
     (doseq [land-pos (take to-unload land-cells)]
       (let [army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
                    (:unload-event-id transport)
@@ -559,8 +564,8 @@
               (visibility/update-cell-visibility next-pos :computer)
               (swap! atoms/game-map assoc-in (conj next-pos :contents :path) (vec (rest path)))
               (reset-stuck-counter next-pos))
-          ;; Blocked → wait
-          nil)))))
+          ;; Blocked → wait, but not stuck (has valid path)
+          (reset-stuck-counter pos))))))
 
 (defn process-transport
   "Processes a transport unit using VMS Empire style logic.
@@ -574,77 +579,88 @@
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
-      (if (stuck? transport)
-        ;; Scuttle: unload armies, mark city landlocked, remove transport
-        (do (scuttle-unload pos transport)
-            (mark-city-landlocked (:produced-at transport))
-            (swap! atoms/game-map assoc-in (conj pos :contents) nil))
-        (let [army-count (:army-count transport 0)
-              mission (:transport-mission transport :idle)]
+      (let [army-count (:army-count transport 0)
+            mission (:transport-mission transport :idle)]
 
-          ;; Determine mission if idle
-          (when (= mission :idle)
-            (set-transport-mission pos :loading))
+        ;; Determine mission if idle
+        (when (= mission :idle)
+          (set-transport-mission pos :loading))
 
-          (let [current-mission (or (:transport-mission transport) :loading)]
-            (cond
-              ;; Directed transport - follow stored path
-              (= current-mission :directed)
-              (process-directed pos transport)
+        (let [current-mission (or (:transport-mission transport) :loading)]
+          (debug/log-computer-event! :transport-process pos
+                                     {:mission current-mission :armies army-count
+                                      :pcp (:pickup-continent-pos transport)})
+          (cond
+            ;; Directed transport - follow stored path
+            (= current-mission :directed)
+            (process-directed pos transport)
 
-              ;; Full transport - check for unassigned city, else sail
-              (>= army-count 6)
-              (if-let [target-city (find-unassigned-city pos)]
-                (let [coastal (find-nearest-coastal-cell target-city pos)
-                      path (compute-sea-path pos coastal)]
-                  (set-transport-mission pos :directed)
-                  (swap! atoms/game-map assoc-in (conj pos :contents :target-city) target-city)
-                  (swap! atoms/game-map assoc-in (conj pos :contents :path) path))
-                (do
-                  (set-transport-mission pos :sailing)
-                  (mint-unload-event-id pos transport)
-                  (record-pickup-continent-pos pos transport)
-                  (when-not (:heading transport)
-                    (swap! atoms/game-map assoc-in
-                           (conj pos :contents :heading) (rand-int 360)))
-                  (when-let [new-pos (sail-one-step pos)]
-                    (reset-stuck-counter new-pos))))
-
-              ;; Loading transport - coastal crawl, auto-load armies
-              (= current-mission :loading)
+            ;; Full transport - check for unassigned city, else sail
+            (>= army-count 6)
+            (if-let [target-city (find-unassigned-city pos)]
+              (let [coastal (find-nearest-coastal-cell target-city pos)
+                    path (compute-sea-path pos coastal)]
+                (set-transport-mission pos :directed)
+                (swap! atoms/game-map assoc-in (conj pos :contents :target-city) target-city)
+                (swap! atoms/game-map assoc-in (conj pos :contents :path) path))
               (do
-                ;; Load any adjacent armies first
-                (load-adjacent-armies pos)
-                ;; Clear pickup-continent-pos once adjacent to that continent
-                (when-let [pcp (:pickup-continent-pos transport)]
-                  (when (adjacent-to-land? pos)
-                    (let [continent (land-objectives/flood-fill-continent
-                                     (find-adjacent-land-pos pos))]
-                      (when (contains? continent pcp)
-                        (swap! atoms/game-map update-in (conj pos :contents)
-                               dissoc :pickup-continent-pos)))))
-                ;; Navigate toward pickup continent if set, else coastal crawl
-                (let [transport' (get-in @atoms/game-map (conj pos :contents))]
-                  (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
-                                       (or (move-toward-position pos pcp)
-                                           (coastal-crawl-move pos)
-                                           (explore-sea pos))
-                                       (or (coastal-crawl-move pos)
-                                           (explore-sea pos)))]
-                    (reset-stuck-counter new-pos))))
+                (set-transport-mission pos :sailing)
+                (mint-unload-event-id pos transport)
+                (record-pickup-continent-pos pos transport)
+                (when-not (:heading transport)
+                  (swap! atoms/game-map assoc-in
+                         (conj pos :contents :heading) (rand-int 360)))
+                (when-let [new-pos (sail-one-step pos)]
+                  (reset-stuck-counter new-pos))))
 
-              ;; Sailing transport - continue along heading
-              (= current-mission :sailing)
-              (when-let [new-pos (sail-one-step pos)]
-                (reset-stuck-counter new-pos))
+            ;; Loading transport - coastal crawl, auto-load armies
+            (= current-mission :loading)
+            (do
+              ;; Load any adjacent armies first
+              (let [loaded (load-adjacent-armies pos)]
+                (when (pos? loaded)
+                  (reset-stuck-counter pos)))
+              ;; Clear pickup-continent-pos once adjacent to that continent
+              (when-let [pcp (:pickup-continent-pos transport)]
+                (when (adjacent-to-land? pos)
+                  (let [continent (land-objectives/flood-fill-continent
+                                   (find-adjacent-land-pos pos))]
+                    (when (contains? continent pcp)
+                      (swap! atoms/game-map update-in (conj pos :contents)
+                             dissoc :pickup-continent-pos)))))
+              ;; Navigate toward pickup continent if set, else coastal crawl
+              (let [transport' (get-in @atoms/game-map (conj pos :contents))]
+                (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
+                                     (or (move-toward-position pos pcp)
+                                         (coastal-crawl-move pos)
+                                         (explore-sea pos))
+                                     (or (coastal-crawl-move pos)
+                                         (explore-sea pos)))]
+                  (reset-stuck-counter new-pos))))
 
-              ;; Unloading transport - unload armies at current location
-              (= current-mission :unloading)
-              (let [pickup-continent (when-let [ocp (:pickup-continent-pos transport)]
-                                       (land-objectives/flood-fill-continent ocp))]
-                (when (unload-armies pos pickup-continent)
-                  ;; After unloading, check if empty → switch to loading
-                  nil))
+            ;; Sailing transport - continue along heading
+            (= current-mission :sailing)
+            (when-let [new-pos (sail-one-step pos)]
+              (reset-stuck-counter new-pos))
 
-              :else nil))))))
+            ;; Unloading transport - unload armies at current location
+            (= current-mission :unloading)
+            (let [pickup-continent (when-let [ocp (:pickup-continent-pos transport)]
+                                     (land-objectives/flood-fill-continent ocp))]
+              (when (unload-armies pos pickup-continent)
+                ;; After unloading, check if empty → switch to loading
+                nil))
+
+            :else nil))
+
+        ;; After work: scuttle if still stuck (re-read transport from game-map)
+        (let [updated (get-in @atoms/game-map (conj pos :contents))]
+          (when (and updated (= :transport (:type updated)) (stuck? updated))
+            (debug/log-computer-event! :transport-scuttle pos
+                                       {:mission (:transport-mission updated)
+                                        :armies (:army-count updated 0)
+                                        :stuck-since (:stuck-since-round updated)})
+            (scuttle-unload pos updated)
+            (mark-city-landlocked (:produced-at updated))
+            (swap! atoms/game-map assoc-in (conj pos :contents) nil))))))
   nil)

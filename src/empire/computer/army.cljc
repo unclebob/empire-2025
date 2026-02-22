@@ -5,6 +5,7 @@
             [empire.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
+            [empire.debug :as debug]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]))
 
@@ -93,7 +94,8 @@
     (cond
       ;; Attacking a city
       (= :city (:type enemy-cell))
-      (core/attempt-conquest-computer army-pos enemy-pos)
+      (do (debug/log-computer-event! :army-attack-city army-pos {:target enemy-pos})
+          (core/attempt-conquest-computer army-pos enemy-pos))
 
       ;; Attacking a unit
       (:contents enemy-cell)
@@ -105,6 +107,8 @@
         (if (= :attacker (:winner result))
           ;; Attacker won - move to enemy position
           (do
+            (debug/log-computer-event! :army-kill army-pos
+                                       {:to enemy-pos :killed (name (:type defender))})
             (swap! atoms/game-map assoc-in (conj enemy-pos :contents) (:survivor result))
             (core/stamp-territory enemy-pos (:survivor result))
             (visibility/update-cell-visibility army-pos :computer)
@@ -112,6 +116,8 @@
             enemy-pos)
           ;; Attacker lost
           (do
+            (debug/log-computer-event! :army-died army-pos
+                                       {:killed-by (name (:type defender)) :at enemy-pos})
             (visibility/update-cell-visibility army-pos :computer)
             nil)))
 
@@ -139,6 +145,7 @@
   "Attempt to move army from pos to target. Returns target if moved, nil if blocked."
   [pos target]
   (when (core/move-unit-to pos target)
+    (debug/log-computer-event! :army-move pos {:to target})
     (visibility/update-cell-visibility pos :computer)
     (visibility/update-cell-visibility target :computer)
     target))
@@ -171,6 +178,7 @@
     ;; Check for adjacent loading transport first (excluding parent transport)
     (if-let [transport-pos (core/find-adjacent-loading-transport pos army-unload-id)]
       (do
+        (debug/log-computer-event! :army-board pos {:transport transport-pos})
         (core/board-transport pos transport-pos)
         (visibility/update-cell-visibility pos :computer)
         nil)  ; Army is now on transport, return nil
@@ -216,31 +224,45 @@
             (do (terminate-coast-walk target) target)
             target))))))
 
+(defn- adjacent-to-computer-city?
+  "Returns true if position has an adjacent computer city."
+  [pos]
+  (some (fn [neighbor]
+          (let [cell (get-in @atoms/game-map neighbor)]
+            (and (= :city (:type cell))
+                 (= :computer (:city-status cell)))))
+        (core/get-neighbors pos)))
+
 (defn- find-nearest-unoccupied-coastal-cell
-  "Finds nearest land cell with matching country-id, adjacent to sea, with no unit."
+  "Finds nearest land cell with matching country-id, adjacent to sea, with no unit.
+   Excludes cells adjacent to computer cities to avoid blocking production."
   [pos country-id]
   (when country-id
-    (let [game-map @atoms/game-map]
-      (first
-        (sort-by #(core/distance pos %)
-                 (for [i (range (count game-map))
-                       j (range (count (first game-map)))
-                       :let [cell (get-in game-map [i j])]
-                       :when (and (= :land (:type cell))
-                                  (or (nil? (:country-id cell))
-                                      (= country-id (:country-id cell)))
-                                  (nil? (:contents cell))
-                                  (adjacent-to-sea? [i j]))]
-                   [i j]))))))
+    (let [game-map @atoms/game-map
+          candidates (for [i (range (count game-map))
+                           j (range (count (first game-map)))
+                           :let [cell (get-in game-map [i j])]
+                           :when (and (= :land (:type cell))
+                                      (or (nil? (:country-id cell))
+                                          (= country-id (:country-id cell)))
+                                      (nil? (:contents cell))
+                                      (adjacent-to-sea? [i j]))]
+                       [i j])
+          away-from-city (remove adjacent-to-computer-city? candidates)]
+      (first (sort-by #(core/distance pos %)
+                      (if (seq away-from-city) away-from-city candidates))))))
 
 (defn- fill-coastal-cell
-  "If army is on a coastal cell, go sentry. Otherwise move toward nearest unoccupied one."
+  "If army is on a coastal cell away from cities, go sentry.
+   Otherwise move toward nearest unoccupied coastal cell (away from cities)."
   [pos country-id]
   (cond
-    ;; Already on an empty coastal cell (not a city) → go sentry
+    ;; On a coastal cell, not a city, and not adjacent to a computer city → go sentry
     (and country-id (adjacent-to-sea? pos)
-         (not= :city (:type (get-in @atoms/game-map pos))))
-    (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+         (not= :city (:type (get-in @atoms/game-map pos)))
+         (not (adjacent-to-computer-city? pos)))
+    (do (debug/log-computer-event! :army-sentry pos {:reason :coastal-fill :country-id country-id})
+        (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
         pos)
 
     ;; Find nearest unoccupied coastal cell and move toward it
@@ -345,15 +367,20 @@
         unit (:contents cell)]
     (when (and unit (= :computer (:owner unit)) (= :army (:type unit)))
       (let [enemy-pos (find-adjacent-enemy pos)
-            country-id (:country-id unit)]
+            country-id (:country-id unit)
+            mode (:mode unit)
+            eid (:unload-event-id unit)]
+        (debug/log-computer-event! :army-process pos
+                                   (cond-> {:mode mode}
+                                     country-id (assoc :cid country-id)
+                                     eid (assoc :eid eid)))
         (cond
           enemy-pos (attack-enemy pos enemy-pos)
           (:attack-target unit) (process-attack-target pos country-id)
-          (= :coast-walk (:mode unit)) (process-coast-walk pos country-id)
-          (= :random-explore (:mode unit)) (process-random-explore pos country-id)
-          (= :sentry (:mode unit)) (if (= :city (:type cell))
-                                     (fill-coastal-cell pos country-id)
-                                     (find-and-board-transport pos country-id))
+          (= :coast-walk mode) (process-coast-walk pos country-id)
+          (= :random-explore mode) (process-random-explore pos country-id)
+          (= :sentry mode) (when (= :city (:type cell))
+                             (fill-coastal-cell pos country-id))
           (:interior-explore-direction unit) (process-interior-explore pos country-id)
           (nil? country-id) (or (when-let [obj (find-city-objective pos)]
                                   (move-toward-objective pos obj nil))

@@ -833,6 +833,37 @@
           (should= 100 (get-in @atoms/game-map [0 0 :contents :unload-event-id]))
           (should= 101 @atoms/next-unload-event-id)))))
 
+  (describe "transport without army-count field"
+    (it "loads armies even when army-count is missing from transport"
+      ;; Bug: transports spawned without :army-count caused NPE in load-adjacent-armies
+      ;; because (+ nil to-load) throws. Armies were removed but count never incremented.
+      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1 :mode :sentry}}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :loading
+                                                        :stuck-since-round 0}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      ;; Note: transport has NO :army-count key at all
+      (transport/process-transport [0 1])
+      ;; Army should be loaded (removed from land)
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+      ;; Transport should have army-count 1
+      (let [t-pos (first (for [c (range 3)
+                                :when (= :transport (get-in @atoms/game-map [0 c :contents :type]))]
+                            [0 c]))
+            transport (get-in @atoms/game-map (conj t-pos :contents))]
+        (should= 1 (:army-count transport))))
+
+    (it "newly spawned computer transport has army-count 0"
+      (reset! atoms/round-number 5)
+      (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (reset! atoms/production {[0 0] {:item :transport :remaining-rounds 1}})
+      (player-prod/update-production)
+      (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+        (should= :transport (:type unit))
+        (should= 0 (:army-count unit)))))
+
   (describe "stuck transport scuttle"
     (it "transport scuttles after 10 rounds stuck"
       (reset! atoms/round-number 20)
@@ -897,6 +928,39 @@
               transport (get-in @atoms/game-map (conj transport-pos :contents))]
           (should-not-be-nil transport)
           (should= 10 (:stuck-since-round transport)))))
+
+    (it "loading transport resets stuck counter when armies loaded"
+      ;; Transport stuck for 10 rounds but loads an army → should NOT scuttle
+      (reset! atoms/round-number 20)
+      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1 :mode :awake}}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :loading :army-count 0
+                                                        :stuck-since-round 10}}
+                                {:type :land :contents {:type :army :owner :computer :hits 1 :mode :awake}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      ;; Transport should NOT be scuttled — it loaded armies
+      (let [transport (:contents (get-in @atoms/game-map [0 1]))]
+        (should= :transport (:type transport))
+        (should (pos? (:army-count transport)))
+        (should= 20 (:stuck-since-round transport))))
+
+    (it "directed transport resets stuck counter while waiting on blocked path"
+      ;; Directed transport, stuck 10 rounds, next cell blocked → should NOT scuttle
+      (reset! atoms/round-number 20)
+      (reset! atoms/game-map (build-test-map ["td~+"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :directed :army-count 6
+              :target-city [3 0] :path [[1 0] [2 0]]
+              :stuck-since-round 10})
+      (transport/process-transport [0 0])
+      ;; Transport should NOT be scuttled — it has a valid path, just blocked
+      (let [transport (:contents (get-in @atoms/game-map [0 0]))]
+        (should= :transport (:type transport))
+        (should= :directed (:transport-mission transport))
+        (should= 20 (:stuck-since-round transport))))
 
     (it "transport spawned with stuck-since-round and produced-at"
       ;; Test that new transports get stuck tracking fields

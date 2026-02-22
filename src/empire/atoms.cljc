@@ -190,6 +190,11 @@
    1st patrols coastline, 2nd-4th sail random headings."
   (atom {}))
 
+(def computer-event-log
+  "Circular buffer of computer unit events for debugging. Capped at 2000 entries.
+   Each entry is {:round N :event :keyword :pos [x y] :details {...}}."
+  (atom []))
+
 (def action-log
   "Circular buffer of recent game actions for debugging. Capped at 100 entries.
    Each entry is {:timestamp <ms> :action <vector describing the action>}."

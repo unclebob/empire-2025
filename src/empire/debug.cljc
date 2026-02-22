@@ -9,6 +9,7 @@
 
 (def ^:private max-action-log-size 100)
 (def ^:private max-movement-log-size 500)
+(def ^:private max-computer-event-log-size 2000)
 
 (defn log-player-movement!
   "Log a player unit movement for debugging.
@@ -27,6 +28,19 @@
              (let [new-log (conj log entry)]
                (if (> (count new-log) max-movement-log-size)
                  (vec (drop (- (count new-log) max-movement-log-size) new-log))
+                 new-log))))))
+
+(defn log-computer-event!
+  "Log a computer unit event. event is a keyword like :army-move, :army-die, etc.
+   pos is the unit's position. details is an optional map of extra info."
+  [event pos details]
+  (let [entry (cond-> {:round @atoms/round-number :event event :pos pos}
+                details (merge details))]
+    (swap! atoms/computer-event-log
+           (fn [log]
+             (let [new-log (conj log entry)]
+               (if (> (count new-log) max-computer-event-log-size)
+                 (vec (drop (- (count new-log) max-computer-event-log-size) new-log))
                  new-log))))))
 
 (defn log-action!
@@ -80,7 +94,12 @@
                          [:fuel "fuel"]
                          [:army-count "army-count"]
                          [:fighter-count "fighter-count"]
-                         [:transport-mission "transport-mission"]]
+                         [:transport-mission "transport-mission"]
+                         [:country-id "cid"]
+                         [:unload-event-id "eid"]
+                         [:attack-target "atk-target"]
+                         [:pickup-continent-pos "pcp"]
+                         [:stuck-since-round "stuck-since"]]
         optional-strs (for [[k label] optional-fields
                             :let [v (get contents k)]
                             :when v]
@@ -146,6 +165,31 @@
                                  " visited:" visited " steps:" steps-remaining)))
                 "\n"))
          "\n")))
+
+(defn- format-computer-event-entry
+  "Format a single computer event log entry."
+  [{:keys [event pos] :as entry}]
+  (let [extras (dissoc entry :round :event :pos)
+        extra-str (when (seq extras) (str " " (pr-str extras)))]
+    (str "    " (name event) " " pos extra-str)))
+
+(defn- format-computer-event-section
+  "Format computer unit event history for the last 50 rounds."
+  []
+  (let [current-round @atoms/round-number
+        min-round (max 1 (- current-round 49))
+        entries @atoms/computer-event-log
+        recent (filter #(<= min-round (:round %) current-round) entries)
+        by-round (group-by :round recent)
+        rounds (sort (keys by-round))]
+    (str "=== Computer Unit Events (last 50 rounds) ===\n"
+         (if (empty? rounds)
+           "  (no events logged)\n"
+           (str/join "\n"
+                     (for [r rounds]
+                       (str "  Round " r ":\n"
+                            (str/join "\n" (map format-computer-event-entry (get by-round r)))))))
+         "\n\n")))
 
 (defn- format-movement-entry
   "Format a single movement log entry."
@@ -243,6 +287,7 @@
                              "\n")
         sea-lane-section (format-sea-lane-section)
         coastline-section (format-coastline-section)
+        computer-event-section (format-computer-event-section)
         movement-section (format-movement-history-section)
         maps-section (str "=== Map Data ===\n"
                           (format-map-section "game-map" (:game-map region-data))
@@ -250,7 +295,7 @@
                           (format-map-section "player-map" (:player-map region-data))
                           "\n"
                           (format-map-section "computer-map" (:computer-map region-data)))]
-    (str header global-state actions-section sea-lane-section coastline-section movement-section maps-section)))
+    (str header global-state actions-section sea-lane-section coastline-section computer-event-section movement-section maps-section)))
 
 (defn generate-dump-filename
   "Generate a timestamped filename for the dump file.
