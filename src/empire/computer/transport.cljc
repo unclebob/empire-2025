@@ -277,13 +277,17 @@
                                             unloaded-countries (:country-id unit)))))))
                        neighbors)
         to-load (min capacity (count armies))]
-    (doseq [army-pos (take to-load armies)]
-      (debug/log-computer-event! :transport-load-army pos {:from army-pos})
-      (swap! atoms/game-map update-in army-pos dissoc :contents)
-      (visibility/update-cell-visibility army-pos :computer))
-    (when (pos? to-load)
-      (swap! atoms/game-map update-in (conj pos :contents :army-count) (fnil + 0) to-load))
-    to-load))
+    (let [loaded-positions (vec (take to-load armies))]
+      (doseq [army-pos loaded-positions]
+        (debug/log-computer-event! :transport-load-army pos {:from army-pos})
+        (swap! atoms/game-map update-in army-pos dissoc :contents)
+        (visibility/update-cell-visibility army-pos :computer))
+      (when (pos? to-load)
+        (swap! atoms/game-map update-in (conj pos :contents :army-count) (fnil + 0) to-load))
+      ;; Wake nearby sentries to advance the transport queue
+      (doseq [army-pos loaded-positions]
+        (core/wake-nearby-sentries army-pos 3))
+      to-load)))
 
 (defn- coastal-crawl-move
   "Moves transport to adjacent sea cell that is also adjacent to land.

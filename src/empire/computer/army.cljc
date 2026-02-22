@@ -167,15 +167,19 @@
 
 (defn- move-toward-objective
   "Move army one step toward objective. If preferred step is occupied,
-   try other empty neighbors sorted by distance to objective."
+   try other empty neighbors sorted by distance to objective.
+   Filters out cells in move-history to prevent oscillation."
   [pos objective country-id]
-  (let [pass-fn (when country-id (sovereignty-passability-fn country-id))
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        history (set (:move-history unit))
+        pass-fn (when country-id (sovereignty-passability-fn country-id))
         preferred (pathfinding/next-step pos objective :army pass-fn country-id)]
-    (or (when preferred (try-move pos preferred))
-        ;; Preferred blocked or no path - try empty neighbors closest to objective
-        (let [empty-neighbors (get-empty-passable-neighbors pos country-id)]
-          (when (seq empty-neighbors)
-            (let [sorted (sort-by #(core/distance % objective) empty-neighbors)]
+    (or (when (and preferred (not (history preferred)))
+          (try-move pos preferred))
+        (let [empty-neighbors (get-empty-passable-neighbors pos country-id)
+              filtered (remove history empty-neighbors)]
+          (when (seq filtered)
+            (let [sorted (sort-by #(core/distance % objective) filtered)]
               (try-move pos (first sorted))))))))
 
 (defn- find-and-board-transport
@@ -198,13 +202,18 @@
 
 (defn- explore-randomly
   "Move toward any unexplored territory adjacent to computer's explored area.
-   Only considers empty cells. Randomizes to avoid all armies picking the same cell."
+   Only considers empty cells. Randomizes to avoid all armies picking the same cell.
+   Filters out cells in move-history to prevent oscillation."
   [pos country-id]
-  (let [empty (get-empty-passable-neighbors pos country-id)
-        frontier (filter core/adjacent-to-computer-unexplored? empty)]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        history (set (:move-history unit))
+        empty (get-empty-passable-neighbors pos country-id)
+        filtered (remove history empty)
+        pool (if (seq filtered) filtered empty)
+        frontier (filter core/adjacent-to-computer-unexplored? pool)]
     (when-let [target (if (seq frontier)
                         (rand-nth frontier)
-                        (when (seq empty) (rand-nth empty)))]
+                        (when (seq pool) (rand-nth pool)))]
       (try-move pos target))))
 
 (defn- coast-walk-candidates
@@ -262,9 +271,36 @@
       (first (sort-by #(core/distance pos %)
                       (if (seq away-from-city) away-from-city candidates))))))
 
+(defn- find-nearest-cell-close-to-coast
+  "Finds nearest empty land cell to pos that is within 1 step of coast.
+   Used for transport queue — army lines up near coast.
+   Returns nil if no cells are actually near a coast."
+  [pos country-id]
+  (when country-id
+    (let [game-map @atoms/game-map
+          candidates (for [i (range (count game-map))
+                           j (range (count (first game-map)))
+                           :let [cell (get-in game-map [i j])]
+                           :when (and (= :land (:type cell))
+                                      (or (nil? (:country-id cell))
+                                          (= country-id (:country-id cell)))
+                                      (nil? (:contents cell)))]
+                       [i j])
+          with-coast-dist (keep (fn [c]
+                                  (let [d (if (adjacent-to-sea? c) 0
+                                            (if (some adjacent-to-sea? (core/get-neighbors c)) 1 -1))]
+                                    (when (>= d 0) [c d])))
+                                candidates)]
+      (when (seq with-coast-dist)
+        (let [best-coast-dist (apply min (map second with-coast-dist))
+              near-coast (map first (filter #(= best-coast-dist (second %)) with-coast-dist))]
+          (first (sort-by #(core/distance pos %) near-coast)))))))
+
 (defn- fill-coastal-cell
   "If army is on a coastal cell away from cities, go sentry.
-   Otherwise move toward nearest unoccupied coastal cell (away from cities)."
+   Otherwise move toward nearest unoccupied coastal cell.
+   If no coastal cell available, queue near coast and go sentry.
+   If truly stuck, wake nearby sentries."
   [pos country-id]
   (cond
     ;; On a coastal cell, not a city, and not adjacent to a computer city → go sentry
@@ -275,10 +311,20 @@
         (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
         pos)
 
-    ;; Find nearest unoccupied coastal cell and move toward it
     :else
-    (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
-      (move-toward-objective pos target country-id))))
+    (or (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
+          (move-toward-objective pos target country-id))
+        ;; No coastal cell — queue near coast
+        (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
+          (or (move-toward-objective pos target country-id)
+              ;; Already at best spot — go sentry (queue position)
+              (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
+                  (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+                  pos)))
+        ;; Truly stuck — wake nearby sentries
+        (when (pos? (core/wake-nearby-sentries pos 3))
+          (debug/log-computer-event! :army-wake-sentries pos {:reason :stuck})
+          nil))))
 
 (defn- in-bounds? [pos]
   (let [[c r] pos
