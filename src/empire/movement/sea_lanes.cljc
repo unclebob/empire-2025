@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-22
 (ns empire.movement.sea-lanes
   "Sea lane network for computer ship routing.
    Builds a persistent navigation graph from previously computed A* paths.

@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-22
 (ns empire.combat
   (:require [clojure.string]
             [empire.atoms :as atoms]
