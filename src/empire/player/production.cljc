@@ -1,7 +1,8 @@
 (ns empire.player.production
   (:require [empire.atoms :as atoms]
             [empire.computer.stamping :as computer-stamping]
-            [empire.config :as config]))
+            [empire.config :as config]
+            [empire.movement.map-utils :as map-utils]))
 
 (defn set-city-production
   "Sets the production for a city at given coordinates to the specified item."
@@ -48,6 +49,17 @@
       (apply-unit-type-attributes (:type unit))
       (computer-stamping/stamp-computer-fields cell)))
 
+(defn- stamp-adjacent-land
+  "Stamps country-id on land cells adjacent to a city when a computer army spawns."
+  [coords country-id]
+  (let [game-map @atoms/game-map
+        neighbors (map-utils/get-matching-neighbors coords game-map
+                                                    map-utils/neighbor-offsets some?)]
+    (doseq [n neighbors]
+      (let [cell (get-in game-map n)]
+        (when (and (= :land (:type cell)) (nil? (:country-id cell)))
+          (swap! atoms/game-map assoc-in (conj n :country-id) country-id))))))
+
 (defn- spawn-unit
   "Creates and places a unit at the given city coordinates."
   [coords cell item]
@@ -61,6 +73,8 @@
                  (apply-movement-orders item marching-orders flight-path)
                  (cond-> (= item :transport) (assoc :produced-at coords)))]
     (swap! atoms/game-map assoc-in (conj coords :contents) unit)
+    (when (and (= owner :computer) (= item :army) (:country-id cell))
+      (stamp-adjacent-land coords (:country-id cell)))
     owner))
 
 (defn- handle-production-complete

@@ -33,11 +33,12 @@
       v)))
 
 (defn- terminate-coast-walk
-  "Switches army from coast-walk to sentry mode."
+  "Switches army from coast-walk to sentry (or awake if in a city)."
   [pos]
-  (swap! atoms/game-map update-in (conj pos :contents)
-         #(-> % (assoc :mode :sentry)
-              (dissoc :coast-direction :coast-start :coast-visited))))
+  (let [mode (if (= :city (:type (get-in @atoms/game-map pos))) :awake :sentry)]
+    (swap! atoms/game-map update-in (conj pos :contents)
+           #(-> % (assoc :mode mode)
+                (dissoc :coast-direction :coast-start :coast-visited)))))
 
 ;; Standard army helpers
 
@@ -226,7 +227,8 @@
                        j (range (count (first game-map)))
                        :let [cell (get-in game-map [i j])]
                        :when (and (= :land (:type cell))
-                                  (= country-id (:country-id cell))
+                                  (or (nil? (:country-id cell))
+                                      (= country-id (:country-id cell)))
                                   (nil? (:contents cell))
                                   (adjacent-to-sea? [i j]))]
                    [i j]))))))
@@ -311,9 +313,15 @@
         (when (adjacent-to-sea? target)
           (swap! atoms/game-map assoc-in (conj target :contents :mode) :sentry)
           target)
-        ;; Blocked or off-map → go sentry
-        (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
-            pos)))))
+        ;; Blocked or off-map
+        (if (= :city (:type (get-in @atoms/game-map pos)))
+          ;; At a city: try any empty neighbor to leave
+          (when-let [neighbors (seq (get-empty-passable-neighbors pos country-id))]
+            (try-move pos (rand-nth (vec neighbors))))
+          ;; Not at city: clear mode so army falls to fill-coastal-cell next round
+          (do (swap! atoms/game-map update-in (conj pos :contents)
+                     #(-> % (assoc :mode :awake) (dissoc :random-explore-direction)))
+              nil))))))
 
 (defn- process-attack-target
   "Moves army toward its attack-target city. Clears target if conquered or gone."
@@ -341,9 +349,11 @@
         (cond
           enemy-pos (attack-enemy pos enemy-pos)
           (:attack-target unit) (process-attack-target pos country-id)
-          (= :sentry (:mode unit)) nil
           (= :coast-walk (:mode unit)) (process-coast-walk pos country-id)
           (= :random-explore (:mode unit)) (process-random-explore pos country-id)
+          (= :sentry (:mode unit)) (if (= :city (:type cell))
+                                     (fill-coastal-cell pos country-id)
+                                     (find-and-board-transport pos country-id))
           (:interior-explore-direction unit) (process-interior-explore pos country-id)
           :else (fill-coastal-cell pos country-id))))
     nil))

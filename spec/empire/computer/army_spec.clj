@@ -92,7 +92,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map [1 1])))
       (should= :army (get-in @atoms/game-map [2 1 :contents :type])))
 
-    (it "goes sentry when blocked"
+    (it "clears mode to awake when blocked inland"
       ;; Army at [2 0] heading right [1 0] — would go off 3-col map
       (reset! atoms/game-map (build-test-map ["###"]))
       (reset! atoms/computer-map @atoms/game-map)
@@ -100,9 +100,10 @@
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [1 0] :country-id 1})
       (army/process-army [2 0])
-      ;; Army stays, mode set to sentry
+      ;; Army stays, mode cleared to awake so it redirects to coast next round
       (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
-      (should= :sentry (get-in @atoms/game-map [2 0 :contents :mode]))))
+      (should= :awake (get-in @atoms/game-map [2 0 :contents :mode]))
+      (should-be-nil (get-in @atoms/game-map [2 0 :contents :random-explore-direction]))))
 
   (describe "attack-target behavior"
     (it "moves toward valid target"

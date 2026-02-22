@@ -402,11 +402,22 @@
       (or (<= c 0) (>= c max-c)) :vertical
       :else nil)))
 
+(defn- own-country-coast?
+  "Returns true if all explored land neighbors of pos belong to the given country-id."
+  [pos country-id]
+  (when country-id
+    (every? (fn [neighbor]
+              (let [comp-cell (get-in @atoms/computer-map neighbor)]
+                (or (nil? comp-cell)
+                    (not (#{:land :city} (:type comp-cell)))
+                    (= country-id (:country-id comp-cell)))))
+            (core/get-neighbors pos))))
+
 (defn- sail-one-step
   "Moves transport one step along its heading. Handles:
    - Open sea: move there
    - Map border: reflect heading
-   - Explored coast: reflect heading
+   - Explored coast: reflect heading (skip own country coast)
    - Unexplored coast: stop and begin unloading
    Returns new position or nil if no move."
   [pos]
@@ -430,14 +441,15 @@
         (set-transport-mission next-pos :unloading)
         next-pos)
 
-      ;; Explored coast → reflect
-      (nav/is-explored-coast? next-pos)
+      ;; Explored coast of foreign country → reflect
+      (and (nav/is-explored-coast? next-pos)
+           (not (own-country-coast? next-pos (:country-id transport))))
       (let [surface (or (detect-reflection-surface pos) :horizontal)
             new-heading (nav/reflect-heading heading surface)]
         (swap! atoms/game-map assoc-in (conj pos :contents :heading) new-heading)
         nil)
 
-      ;; Sea cell with no unit → move there
+      ;; Sea cell with no unit → move there (includes own-country coast)
       (and (= :sea (:type (get-in @atoms/game-map next-pos)))
            (nil? (:contents (get-in @atoms/game-map next-pos))))
       (do
