@@ -78,7 +78,7 @@ GIVEN game map
   ~t~#
 GIVEN t has transport-mission sailing.
 GIVEN t has 6 armies.
-GIVEN t has heading 90.
+GIVEN t has sail-path [[2 0]].
 
 WHEN a new round starts.
 

@@ -134,13 +134,13 @@ THEN t has transport-mission loading.
 THEN t has 0 armies.
 
 ;===============================================================
-; Sailing transport moves along its heading.
+; Sailing transport moves along its sail-path.
 ;===============================================================
 GIVEN game map
   ~~t~~
 GIVEN t has transport-mission sailing.
 GIVEN t has 6 armies.
-GIVEN t has heading 270.
+GIVEN t has sail-path [[1 0]].
 
 WHEN computer transport t is processed.
 

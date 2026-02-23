@@ -1,0 +1,119 @@
+; Computer Transport Sailing — Pathfinding to Fog or Unowned Land
+;
+; Replaces heading-based sailing. When a full transport (6 armies)
+; has no visible target city, it pathfinds over sea to the nearest
+; fog-of-war cell or unowned land on the computer map.
+; It follows the stored sail-path step by step without
+; re-pathfinding until arrival.
+;
+; On arrival:
+;   - Unowned land: unload armies
+;   - Sea or computer-owned land: pick new destination
+;
+; Blocked by enemy: retreat one cell back along the sail-path.
+; Empty after unloading: transition to loading.
+
+;===============================================================
+; Full transport with no target city pathfinds toward fog-of-war.
+;===============================================================
+GIVEN game map
+  t~~~~~~~~
+GIVEN computer map
+  t~~......
+GIVEN t has transport-mission loading.
+GIVEN t has 6 armies.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission sailing.
+
+;===============================================================
+; Sailing transport moves one step along its stored path.
+;===============================================================
+GIVEN game map
+  t~~~~~~~~
+GIVEN computer map
+  t~~......
+GIVEN t has transport-mission sailing.
+GIVEN t has 6 armies.
+GIVEN t has sail-path [[1 0] [2 0] [3 0]].
+
+WHEN computer transport t is processed.
+
+THEN t is at [1 0].
+
+;===============================================================
+; Sailing transport arrives at unowned land and unloads.
+;===============================================================
+GIVEN game map
+  ~~t#
+GIVEN computer map
+  ~~t#
+GIVEN t has transport-mission sailing.
+GIVEN t has 6 armies.
+GIVEN t has sail-path [].
+
+WHEN computer transport t is processed.
+
+THEN t has 5 armies.
+
+;===============================================================
+; Sailing transport arrives, fog reveals sea — picks new destination.
+;===============================================================
+GIVEN game map
+  ~~~~~t~~~~~~~
+GIVEN computer map
+  ....~t~......
+GIVEN t has transport-mission sailing.
+GIVEN t has 6 armies.
+GIVEN t has sail-path [].
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission sailing.
+
+;===============================================================
+; Sailing transport arrives at computer-owned land — picks new destination.
+;===============================================================
+GIVEN game map
+  ~~tX
+GIVEN computer map
+  ~~tX
+GIVEN t has transport-mission sailing.
+GIVEN t has 6 armies.
+GIVEN t has sail-path [].
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission sailing.
+
+;===============================================================
+; Sailing transport blocked by enemy retreats along path.
+;===============================================================
+GIVEN game map
+  ~~tD~~~~
+GIVEN computer map
+  ~~tD~...
+GIVEN t has transport-mission sailing.
+GIVEN t has 6 armies.
+GIVEN t has sail-path [[3 0] [4 0]].
+
+WHEN computer transport t is processed.
+
+THEN t is at [1 0].
+THEN t has sail-path [[2 0] [3 0] [4 0]].
+
+;===============================================================
+; Empty sailing transport transitions to loading.
+;===============================================================
+GIVEN game map
+  ~~t#
+GIVEN computer map
+  ~~t#
+GIVEN t has transport-mission sailing.
+GIVEN t has 0 armies.
+GIVEN t has sail-path [].
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission loading.

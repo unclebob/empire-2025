@@ -464,18 +464,31 @@
       (should= :satellite (production/decide-production [0 0]))))
 
   (it "does not produce satellite when one already alive"
-    (let [city-row (vec (for [i (range 32)]
-                          (if (even? i)
+    (let [city-row (vec (for [i (range 34)]
+                          (cond
+                            (even? i)
                             {:type :city :city-status :computer :country-id 1}
-                            {:type :land :country-id 1})))
-          sat-row [{:type :land :contents {:type :satellite :owner :computer :direction [1 0] :turns-remaining 50}}
-                   {:type :land}]
-          game-map (vec [city-row sat-row])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
-      (add-sea-column)
-      (satisfy-coastal-per-country 0)
-      ;; Army limit reached (coastal cells filled) → city stays idle
+                            (#{1 3} i)
+                            {:type :land :country-id 1
+                             :contents {:type :fighter :owner :computer
+                                        :country-id 1 :hits 1 :fuel 20}}
+                            (= 5 i)
+                            {:type :land :country-id 1
+                             :contents {:type :transport :owner :computer
+                                        :country-id 1 :transport-id 1
+                                        :escort-destroyer-id 1 :army-count 17 :hits 3}}
+                            (#{7 9 11 13} i)
+                            {:type :land :country-id 1
+                             :contents {:type :patrol-boat :owner :computer
+                                        :patrol-country-id 1 :hits 1}}
+                            :else
+                            {:type :land :country-id 1
+                             :contents {:type :army :owner :player :hits 1}})))]
+      (reset! atoms/game-map [city-row (vec (repeat 34 {:type :sea}))])
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 0 :contents]
+             {:type :satellite :owner :computer :direction [1 0] :turns-remaining 50})
+      ;; Army limit reached (transport armies >= coastal cells) → city stays idle
       (should-be-nil (production/decide-production [0 0]))))
 
   (it "does not produce satellite when <=15 cities"

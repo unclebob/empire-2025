@@ -153,10 +153,10 @@
    ;; "has heading <degrees>" for sailing heading
    {:regex #"(?:with|has)\s+heading\s+(\d+)"
     :extract-fn (fn [[_ n]] {:props {:heading (Integer/parseInt n)}})}
-   ;; "has path [...]" for EDN vector values (e.g., path [[1 0] [2 0]])
-   {:regex #"(?:with|has)\s+path\s+(\[.*\])"
-    :extract-fn (fn [[_ v]]
-                  {:props {:path (edn/read-string v)}})}
+   ;; "has path [...]" or "has sail-path [...]" for EDN vector values
+   {:regex #"(?:with|has)\s+((?:sail-)?path)\s+(\[.*\])"
+    :extract-fn (fn [[_ k v]]
+                  {:props {(keyword k) (edn/read-string v)}})}
    ;; "has <property> [x y]" for coordinate values (e.g., target-city [2 0])
    {:regex #"(?:with|has)\s+([\w][\w-]*)\s+\[(\d+)\s+(\d+)\]"
     :extract-fn (fn [[_ k x y]]
@@ -691,12 +691,17 @@
   (when (city-or-unit-char? unit)
     {:type :unit-prop :unit unit :property :transport-mission :expected (keyword val)}))
 
+(defn- parse-edn-value [s]
+  (when (str/starts-with? s "[")
+    (try (edn/read-string s) (catch Exception _ nil))))
+
 (defn- then-handle-unit-has-prop [[_ unit prop val]]
   (let [val (str/trim val)]
     (when (city-or-unit-char? unit)
       {:type :unit-prop :unit unit
        :property (keyword prop)
-       :expected (or (parse-number val) (parse-coords val) (keyword val))})))
+       :expected (or (parse-number val) (parse-edn-value val)
+                     (parse-coords val) (keyword val))})))
 
 (defn- then-handle-unit-is-mode [[_ unit val]]
   (when (city-or-unit-char? unit)

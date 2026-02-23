@@ -349,7 +349,8 @@
   "Returns true if the country has at least as many armies as coastal land cells."
   [country-id]
   (let [coastal-cells (count-country-coastal-cells country-id)]
-    (>= (count-country-armies country-id) coastal-cells)))
+    (and (pos? coastal-cells)
+         (>= (count-country-armies country-id) coastal-cells))))
 
 (defn decide-production
   "Decide what a computer city should produce. Returns unit type keyword.
