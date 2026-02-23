@@ -13,13 +13,13 @@
 
 (describe "matches-rule?"
   (it "matches a symbol in head position"
-    (should (m/matches-rule? {:original '+ :position :head} '(+ 1 2) '+)))
+    (should (m/matches-rule? {:original '+ :position :head} {:parent '(+ 1 2)} '+)))
 
   (it "rejects head-position rule when symbol is not first"
-    (should-not (m/matches-rule? {:original '+ :position :head} '(foo + 2) '+)))
+    (should-not (m/matches-rule? {:original '+ :position :head} {:parent '(foo + 2)} '+)))
 
   (it "matches an :any-position rule anywhere"
-    (should (m/matches-rule? {:original true :position :any} '(if true 1) true))))
+    (should (m/matches-rule? {:original true :position :any} {:parent '(if true 1)} true))))
 
 (describe "find-mutations"
   (it "finds mutation sites in a simple form"
@@ -57,6 +57,57 @@
 
   (it "does not suppress > -> >= for non-rand comparisons"
     (let [sites (m/find-mutations '(if (> hits 0) :a :b))]
+      (should (some #(and (= (:original %) '>) (= (:mutant %) '>=)) sites)))))
+
+(describe "rand-nth guard suppression"
+  (it "suppresses = inside rand-nth single-element guard"
+    (let [sites (m/find-mutations '(if (= 1 (count v)) (first v) (rand-nth v)))]
+      (should-not (some #(and (= (:original %) '=) (= (:mutant %) 'not=)) sites))))
+
+  (it "suppresses if inside rand-nth single-element guard"
+    (let [sites (m/find-mutations '(if (= 1 (count v)) (first v) (rand-nth v)))]
+      (should-not (some #(and (= (:original %) 'if) (= (:mutant %) 'if-not)) sites))))
+
+  (it "suppresses 1 inside rand-nth single-element guard"
+    (let [sites (m/find-mutations '(if (= 1 (count v)) (first v) (rand-nth v)))]
+      (should-not (some #(and (= (:original %) 1) (= (:mutant %) 0)) sites))))
+
+  (it "does not suppress = outside rand-nth guard"
+    (let [sites (m/find-mutations '(if (= 1 x) :a :b))]
+      (should (some #(and (= (:original %) '=) (= (:mutant %) 'not=)) sites))))
+
+  (it "does not suppress if outside rand-nth guard"
+    (let [sites (m/find-mutations '(if (> x 0) :a :b))]
+      (should (some #(and (= (:original %) 'if) (= (:mutant %) 'if-not)) sites)))))
+
+(describe "rand-nth literal pool suppression"
+  (it "suppresses 0 inside (rand-nth [0 1])"
+    (let [sites (m/find-mutations '(rand-nth [0 1]))]
+      (should-not (some #(and (= (:original %) 0) (= (:mutant %) 1)) sites))))
+
+  (it "suppresses 1 inside (rand-nth [0 1])"
+    (let [sites (m/find-mutations '(rand-nth [0 1]))]
+      (should-not (some #(and (= (:original %) 1) (= (:mutant %) 0)) sites))))
+
+  (it "suppresses 0 inside nested (rand-nth [[-1 0] [1 0]])"
+    (let [sites (m/find-mutations '(rand-nth [[-1 0] [1 0]]))]
+      (should-not (some #(and (= (:original %) 0) (= (:mutant %) 1)) sites))))
+
+  (it "does not suppress 0 in normal code"
+    (let [sites (m/find-mutations '(+ x 0))]
+      (should (some #(and (= (:original %) 0) (= (:mutant %) 1)) sites))))
+
+  (it "does not suppress 0 in let binding vectors"
+    (let [sites (m/find-mutations '(let [x 0] (+ x 1)))]
+      (should (some #(and (= (:original %) 0) (= (:mutant %) 1)) sites)))))
+
+(describe "subvec trim boundary suppression"
+  (it "suppresses > -> >= inside (if (> (count v) 10) (subvec ...))"
+    (let [sites (m/find-mutations '(if (> (count v) 10) (subvec v 0 10) v))]
+      (should-not (some #(and (= (:original %) '>) (= (:mutant %) '>=)) sites))))
+
+  (it "does not suppress > -> >= in non-subvec contexts"
+    (let [sites (m/find-mutations '(if (> x 10) :a :b))]
       (should (some #(and (= (:original %) '>) (= (:mutant %) '>=)) sites)))))
 
 (describe "line numbers"

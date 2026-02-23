@@ -58,21 +58,65 @@
       [(vec (get grouped true [])) (vec (get grouped false []))])))
 
 (defn- serialize-forms
-  "Serialize a vector of forms to a string."
+  "Serialize a vector of forms to a string. DEPRECATED: use mutate-source-text."
   [forms]
   (str/join "\n\n" (map pr-str forms)))
+
+(defn- token-pattern
+  "Build a regex pattern that matches only the specific token, not substrings.
+   ;; TOKEN BOUNDARY SAFETY: Each token regex must match ONLY the intended
+   ;; token, never a substring of a larger token. Test cases to verify:
+   ;;   \"=\" must NOT match inside \"not=\", \">=\", \"<=\"
+   ;;   \"0\" must NOT match inside \"10\", \"0.5\", \"100\"
+   ;;   \"1\" must NOT match inside \"10\", \"100\", \"1.5\"
+   ;;   \"<\" must NOT match inside \"<=\"
+   ;;   \">\" must NOT match inside \">=\"
+   ;;   \"+\" as arithmetic must NOT match inside \"+foo\" (namespace-qualified)"
+  [token]
+  (let [s (str token)]
+    (cond
+      (= s "=")     (re-pattern "(?<![><=!])=(?!=)")
+      (= s "not=")  (re-pattern "not=")
+      (= s ">")     (re-pattern ">(?!=)")
+      (= s ">=")    (re-pattern ">=")
+      (= s "<")     (re-pattern "<(?!=)")
+      (= s "<=")    (re-pattern "<=")
+      (re-matches #"\d+" s)
+      (re-pattern (str "(?<!\\d|\\.)" (java.util.regex.Pattern/quote s) "(?!\\d|\\.)"))
+      (re-matches #"[a-zA-Z].*" s)
+      (re-pattern (str "(?<![a-zA-Z0-9_-])" (java.util.regex.Pattern/quote s) "(?![a-zA-Z0-9_-])"))
+      :else
+      (re-pattern (str "(?<=[\\s(])" (java.util.regex.Pattern/quote s) "(?=[\\s)])")))))
+
+(defn mutate-source-text
+  "Replace a single token in the original source text, preserving formatting.
+   Uses :line and :column from the mutation site to target the right occurrence."
+  [original-content site]
+  (let [lines (str/split original-content #"\n" -1)
+        line-idx (dec (:line site))
+        line (nth lines line-idx)
+        pat (token-pattern (:original site))
+        col (:column site)
+        replaced (if col
+                   (let [search-start (max 0 (- col 2))
+                         prefix (subs line 0 search-start)
+                         suffix (subs line search-start)
+                         new-suffix (str/replace-first suffix pat (str (:mutant site)))]
+                     (str prefix new-suffix))
+                   (str/replace-first line pat (str (:mutant site))))
+        new-lines (assoc lines line-idx replaced)
+        result (str/join "\n" new-lines)]
+    result))
 
 (defn mutate-and-test
   "Apply one mutation, write file, run spec, restore original.
    Returns {:site site :result :killed/:survived}."
-  [source-path original-content forms site spec-path]
-  (let [mutated-forms (update forms (:form-index site)
-                              #(mutations/apply-mutation % (:index site)))]
-    (try
-      (spit source-path (serialize-forms mutated-forms))
-      {:site site :result (runner/run-spec spec-path)}
-      (finally
-        (spit source-path original-content)))))
+  [source-path original-content _forms site spec-path]
+  (try
+    (spit source-path (mutate-source-text original-content site))
+    {:site site :result (runner/run-spec spec-path)}
+    (finally
+      (spit source-path original-content))))
 
 (defn- result-label [r]
   (if (= :killed (:result r)) "KILLED" "SURVIVED"))
