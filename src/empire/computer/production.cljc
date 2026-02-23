@@ -345,6 +345,12 @@
     ;; 9. No production needed — city stays idle
     :else nil))
 
+(defn- country-army-limit-reached?
+  "Returns true if the country has at least as many armies as coastal land cells."
+  [country-id]
+  (let [coastal-cells (count-country-coastal-cells country-id)]
+    (>= (count-country-armies country-id) coastal-cells)))
+
 (defn decide-production
   "Decide what a computer city should produce. Returns unit type keyword.
    Per-country priorities first, then global."
@@ -357,7 +363,8 @@
           (decide-country-production city-pos country-id coastal? unit-counts))
         (when country-id
           (decide-global-production coastal? unit-counts))
-        :army)))
+        (when-not (and country-id (country-army-limit-reached? country-id))
+          :army))))
 
 (defn process-computer-city
   "Processes a computer city - sets production if not already set."
