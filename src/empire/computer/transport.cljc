@@ -582,8 +582,10 @@
             (= current-mission :directed)
             (process-directed pos transport)
 
-            ;; Opportunistic unload — sailing/unloading with armies near empty land
-            (and (#{:sailing :unloading} current-mission)
+            ;; Opportunistic unload — sailing/unloading, or loading with partial load
+            (and (pos? army-count)
+                 (or (#{:sailing :unloading} current-mission)
+                     (and (= :loading current-mission) (< army-count 6)))
                  (try-opportunistic-unload pos))
             true
 

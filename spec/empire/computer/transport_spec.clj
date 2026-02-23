@@ -79,7 +79,27 @@
                             [c r]))
             transport (get-in @atoms/game-map (conj t-pos :contents))]
         ;; Should have loaded at least 1 army (the one adjacent at start)
-        (should (pos? (:army-count transport))))))
+        (should (pos? (:army-count transport)))))
+
+    (it "loading transport with armies unloads onto foreign empty land"
+      ;; Transport at [1,1] in loading mode with 4 armies.
+      ;; Adjacent land at [0,0]-[0,2] is foreign (no country-id matching transport).
+      ;; Should opportunistically unload an army.
+      (reset! atoms/game-map (build-test-map ["###"
+                                               "~t~"
+                                               "~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :loading :army-count 4
+              :country-id 99})
+      (transport/process-transport [1 1])
+      ;; An army should appear on adjacent foreign land
+      (let [armies-on-land (for [r (range 3)
+                                 :let [cell (get-in @atoms/game-map [0 r])]
+                                 :when (= :army (:type (:contents cell)))]
+                             [0 r])]
+        (should (pos? (count armies-on-land))))))
 
   (describe "unloading behavior"
     (it "unloads armies onto adjacent land"
