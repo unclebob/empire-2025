@@ -124,31 +124,29 @@
           best)))))
 
 (defn- move-toward-position
-  "Move transport one step toward target. Returns new position."
+  "Move transport one step toward target using greedy neighbor selection."
   [pos target]
-  (if-let [next-step (pathfinding/next-step pos target :transport)]
-    (do
-      (core/move-unit-to pos next-step)
+  (let [passable (get-passable-sea-neighbors pos)
+        closest (core/move-toward pos target passable)]
+    (when closest
+      (core/move-unit-to pos closest)
       (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility next-step :computer)
-      next-step)
-    ;; No path - try direct movement
-    (let [passable (get-passable-sea-neighbors pos)
-          closest (core/move-toward pos target passable)]
-      (when closest
-        (core/move-unit-to pos closest)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility closest :computer)
-        closest))))
+      (visibility/update-cell-visibility closest :computer)
+      closest)))
 
 (defn- explore-sea
-  "Move transport toward unexplored coastline first, then any unexplored sea.
-   Stays put if all sea is explored."
+  "Move transport toward unexplored territory using local neighbor scan.
+   Picks an empty passable sea neighbor adjacent to fog. Stays put if none."
   [pos]
-  (if-let [target (pathfinding/find-nearest-unexplored-coastline pos :transport)]
-    (move-toward-position pos target)
-    (when-let [target (pathfinding/find-nearest-unexplored pos :transport)]
-      (move-toward-position pos target))))
+  (let [passable (get-passable-sea-neighbors pos)
+        empty (filter #(nil? (:contents (get-in @atoms/game-map %))) passable)
+        near-fog (filter core/adjacent-to-computer-unexplored? empty)]
+    (when (seq near-fog)
+      (let [target (rand-nth near-fog)]
+        (core/move-unit-to pos target)
+        (visibility/update-cell-visibility pos :computer)
+        (visibility/update-cell-visibility target :computer)
+        target))))
 
 (defn- find-next-pickup-continent-pos
   "After unloading, find the nearest continent with >3 computer armies,
@@ -626,38 +624,27 @@
                   (mint-unload-event-id pos transport)
                   (record-pickup-continent-pos pos transport)
                   (swap! atoms/game-map assoc-in
-                         (conj pos :contents :sailing-start) pos))
+                         (conj pos :contents :sailing-start) pos)
+                  ;; Compute heading immediately — no BFS needed
+                  (let [pcp (:pickup-continent-pos
+                              (get-in @atoms/game-map (conj pos :contents)))
+                        heading (if pcp
+                                  (nav/heading-from-to pcp pos)
+                                  (* (rand-int 8) 45))]
+                    (swap! atoms/game-map assoc-in
+                           (conj pos :contents :heading) heading)))
                 (let [transport' (get-in @atoms/game-map (conj pos :contents))]
-                  (or
-                    (when (:heading transport')
-                      ;; Phase 2: have heading — sail along it
-                      (when-let [new-pos (sail-one-step pos)]
-                        (try-opportunistic-unload new-pos)
-                        new-pos))
-                    ;; Phase 1 (or Phase 2 fallback): navigate toward fog of war
-                    (let [target (or (pathfinding/find-nearest-unexplored-coastline pos :transport)
-                                     (pathfinding/find-nearest-unexplored pos :transport))]
-                      (if target
-                        (do
-                          ;; Clear stale heading so BFS drives movement
-                          (swap! atoms/game-map update-in (conj pos :contents) dissoc :heading)
-                          (when-let [new-pos (move-toward-position pos target)]
-                            ;; Reached BFS target? Compute heading for Phase 2
-                            (when (= new-pos target)
-                              (let [t (get-in @atoms/game-map (conj new-pos :contents))
-                                    start (:sailing-start t)
-                                    heading (nav/heading-from-to (or start pos) new-pos)]
-                                (swap! atoms/game-map assoc-in
-                                       (conj new-pos :contents :heading) heading)))
-                            (try-opportunistic-unload new-pos)
-                            new-pos))
-                        ;; No fog left — unload at nearest coast
-                        (let [pickup-continent
-                              (when-let [pcp (:pickup-continent-pos transport')]
-                                (land-objectives/flood-fill-continent pcp))]
-                          (if (adjacent-to-land? pos)
-                            (unload-armies pos pickup-continent)
-                            (explore-sea pos)))))))))
+                  (if (:heading transport')
+                    (when-let [new-pos (sail-one-step pos)]
+                      (try-opportunistic-unload new-pos)
+                      new-pos)
+                    ;; No heading (shouldn't happen) — fall back to explore
+                    (let [pickup-continent
+                          (when-let [pcp (:pickup-continent-pos transport')]
+                            (land-objectives/flood-fill-continent pcp))]
+                      (if (adjacent-to-land? pos)
+                        (unload-armies pos pickup-continent)
+                        (explore-sea pos)))))))
 
             ;; Loading transport - coastal crawl, auto-load armies
             (= current-mission :loading)

@@ -1045,9 +1045,9 @@
           (should= :sailing (:transport-mission t)))))
 
   (describe "smart sailing - explore toward fog of war"
-    (it "full transport heads toward unexplored territory instead of random"
-      ;; Land at row 0 (explored). Sea rows 1-6. Unexplored cells at col 4+ row 5+.
-      ;; Transport at [2 2] full. Should compute heading toward unexplored, not random.
+    (it "full transport computes heading away from pickup continent"
+      ;; Land at row 0 (explored). Sea rows 1-6.
+      ;; Transport at [2 1] (adjacent to land). Should compute heading away from land.
       (reset! atoms/game-map (build-test-map ["#####"
                                                "~~~~~"
                                                "~~~~~"
@@ -1055,25 +1055,27 @@
                                                "~~~~~"
                                                "~~~~~"
                                                "~~~~~"]))
-      ;; computer-map: rows 0-4 explored, rows 5-6 unexplored
       (reset! atoms/computer-map
               (vec (for [c (range 5)]
                      (vec (for [r (range 7)]
                             (if (< r 5)
                               (get-in @atoms/game-map [c r])
                               nil))))))
-      (swap! atoms/game-map assoc-in [2 2 :contents]
+      (swap! atoms/game-map assoc-in [2 1 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 6
 })
-      (with-redefs [rand-int (constantly 0)]  ;; would be north if random
-        (transport/process-transport [2 2]))
-      ;; Transport should move south toward unexplored (row 5+), not north
-      (let [t-pos (first (for [c (range 5) r (range 7)
-                                :when (= :transport (get-in @atoms/game-map [c r :contents :type]))]
-                            [c r]))]
-        (should-not-be-nil t-pos)
-        (should (> (second t-pos) 2))))
+      (transport/process-transport [2 1])
+      ;; Transport should be in sailing mode with a heading pointing away from land (southward)
+      (let [t (first (for [c (range 5) r (range 7)
+                             :let [unit (get-in @atoms/game-map [c r :contents])]
+                             :when (= :transport (:type unit))]
+                         unit))]
+        (should= :sailing (:transport-mission t))
+        (should-not-be-nil (:heading t))
+        ;; Heading from land (row 0) to transport (row 1) → south (180°)
+        (should (>= (:heading t) 90))
+        (should (<= (:heading t) 270))))
 
     (it "full transport records sailing-start when entering sailing mode"
       ;; No assignable target cities. Unexplored row 6 gives fog to explore toward.
