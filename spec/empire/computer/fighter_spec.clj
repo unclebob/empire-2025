@@ -3,6 +3,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
             [empire.atoms :as atoms]
+            [empire.combat :as combat]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map build-sparse-test-map
                                        set-test-unit
@@ -615,4 +616,126 @@
         ;; the unexplored neighbor at [0 0] to be a candidate)
         (let [result (get-test-unit atoms/game-map "f")]
           (should-not-be-nil result)
-          (should-not= [1 1] (:pos result)))))))
+          (should-not= [1 1] (:pos result))))))
+
+  (describe "deterministic combat outcomes"
+    (it "attacker wins and moves to enemy position"
+      (reset! atoms/game-map (build-test-map ["fA"]))
+      (set-test-unit atoms/game-map "f" :fuel 20)
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [combat/resolve-combat
+                    (fn [atk _def] {:winner :attacker :survivor atk})]
+        (let [unit (get-in @atoms/game-map [0 0 :contents])]
+          (fighter/process-fighter [0 0] unit)
+          (should= :fighter (get-in @atoms/game-map [1 0 :contents :type]))
+          (should= :computer (get-in @atoms/game-map [1 0 :contents :owner]))
+          (should-be-nil (get-in @atoms/game-map [0 0 :contents])))))
+
+    (it "attacker loses and is removed from map"
+      (reset! atoms/game-map (build-test-map ["fA"]))
+      (set-test-unit atoms/game-map "f" :fuel 20)
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [combat/resolve-combat
+                    (fn [_atk def] {:winner :defender :survivor def})]
+        (let [unit (get-in @atoms/game-map [0 0 :contents])]
+          (fighter/process-fighter [0 0] unit)
+          (should-be-nil (get-test-unit atoms/game-map "f"))
+          (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
+          (should= :player (get-in @atoms/game-map [1 0 :contents :owner]))))))
+
+  (describe "fuel boundary precision"
+    (it "returns to refuel when fuel exactly equals return distance plus margin"
+      ;; distance=8, fuel=10 (= 8+2). should-return: (<= 10 10) = true.
+      ;; Mutation <= to < gives (< 10 10) = false → navigates away.
+      ;; With 8 steps at fighter-speed, original returns in exactly 8.
+      ;; Mutation wastes 1 step navigating away, can't return in remaining 7.
+      (reset! atoms/game-map (build-test-map ["X#######f##"]))
+      (set-test-unit atoms/game-map "f" :fuel 10
+                     :flight-mode :regular
+                     :flight-target-site [10 0]
+                     :flight-origin-site [0 0])
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [unit (get-in @atoms/game-map [8 0 :contents])]
+        (fighter/process-fighter [8 0] unit)
+        (should= 1 (:fighter-count (get-in @atoms/game-map [0 0])))))
+
+    (it "fighter with fuel 2 survives one consume step to reach city"
+      ;; distance=2, fuel=2. Moves one step (fuel 2->1), then lands.
+      ;; Mutation 0->1 in consume would kill at fuel=1.
+      (reset! atoms/game-map (build-test-map ["X#f"]))
+      (set-test-unit atoms/game-map "f" :fuel 2)
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [unit (get-in @atoms/game-map [2 0 :contents])]
+        (fighter/process-fighter [2 0] unit)
+        (should= 1 (:fighter-count (get-in @atoms/game-map [0 0]))))))
+
+  (describe "carrier detection in current-refueling-site"
+    (it "assigns flight target when adjacent to holding computer carrier"
+      ;; Fighter on sea next to computer carrier. ensure-flight-target should
+      ;; detect the carrier and assign a leg toward the distant city.
+      (reset! atoms/game-map (build-test-map ["#####~j~#######X"]))
+      (swap! atoms/game-map assoc-in [7 0 :contents]
+             {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
+      (set-test-unit atoms/game-map "f" :fuel 32)
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
+        (let [unit (get-in @atoms/game-map [6 0 :contents])]
+          (fighter/process-fighter [6 0] unit)
+          (let [result (get-test-unit atoms/game-map "f")]
+            (should-not-be-nil result)
+            (should= :regular (:flight-mode (:unit result))))))))
+
+  (describe "choose-leg distance boundary"
+    (it "includes site at exactly fighter-fuel distance"
+      ;; Two cities 32 apart (= config/fighter-fuel). Leg should be reachable.
+      ;; Mutation <= to < would exclude it.
+      (let [row-str (str "X" (apply str (repeat 31 \#)) "X")]
+        (reset! atoms/game-map (build-test-map [row-str]))
+        (swap! atoms/game-map assoc-in [0 0 :contents]
+               {:type :fighter :owner :computer :hits 1 :fuel 32})
+        (reset! atoms/computer-map @atoms/game-map)
+        (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
+          (let [unit (get-in @atoms/game-map [0 0 :contents])]
+            (fighter/process-fighter [0 0] unit)
+            (let [result (get-test-unit atoms/game-map "f")]
+              (should-not-be-nil result)
+              (should= :regular (:flight-mode (:unit result)))
+              (should= [32 0] (:flight-target-site (:unit result)))))))))
+
+  (describe "non-axis distance calculation"
+    (it "correctly computes distance when both coordinates differ"
+      ;; Fighter at [1,2], city at [0,0]. True distance=3.
+      ;; Mutation outer + -> - gives |1|-|2|=-1, changing return decision.
+      ;; fuel=4: original (<= 4 5)=true (returns). Mutation (<= 4 1)=false.
+      (reset! atoms/game-map (build-test-map ["X##"
+                                               "###"
+                                               "#f#"]))
+      (set-test-unit atoms/game-map "f" :fuel 4
+                     :flight-mode :regular
+                     :flight-target-site [2 2])
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [unit (get-in @atoms/game-map [1 2 :contents])]
+        (fighter/process-fighter [1 2] unit)
+        ;; Fighter should return toward city (not navigate to target)
+        (should= 1 (:fighter-count (get-in @atoms/game-map [0 0])))))
+
+    (it "carrier arrival works when both row indices are nonzero"
+      ;; Fighter at [2,1] adjacent to carrier at [2,2]. Both c-components nonzero.
+      ;; distance-to [2,1] [2,2] = 1. Mutation (- c1 c2) -> (+ c1 c2) gives 3.
+      ;; at-flight-target? checks (<= distance 1). Mutation: (<= 3 1) = false.
+      (reset! atoms/game-map (build-test-map ["X###"
+                                               "##j#"
+                                               "##~#"
+                                               "####"]))
+      (swap! atoms/game-map assoc-in [2 2 :contents]
+             {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
+      (set-test-unit atoms/game-map "f" :fuel 20
+                     :flight-target-site [2 2]
+                     :flight-origin-site [0 0]
+                     :flight-mode :regular)
+      (reset! atoms/computer-map @atoms/game-map)
+      (reset! atoms/round-number 10)
+      (let [unit (get-in @atoms/game-map [2 1 :contents])]
+        (fighter/process-fighter [2 1] unit)
+        ;; Arrival should record leg
+        (should= 10 (:last-flown (get @atoms/fighter-leg-records #{[0 0] [2 2]})))))))
