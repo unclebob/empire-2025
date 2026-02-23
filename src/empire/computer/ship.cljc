@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-22
 (ns empire.computer.ship
   "Computer ship module - VMS Empire style ship movement.
    Attack adjacent enemies, explore sea, protect transports, patrol."
