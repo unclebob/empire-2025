@@ -605,9 +605,9 @@
           (should= 7 (:pickup-country-id t))))))
 
   (describe "unload target persistence"
-    (it "stuck unloading transport coast-crawls to find foreign land"
+    (it "re-sails when stuck near pickup continent coast"
       ;; Transport in :unloading mode near pickup continent coast.
-      ;; Should coast-crawl (stay in unloading) to find foreign land.
+      ;; No unloadable land within reach — should re-sail toward foreign coast.
       (let [game-map (build-test-map ["X####"
                                       "#####"
                                       "~~~~~"
@@ -631,9 +631,36 @@
                                         :when (= :transport (get-in @atoms/game-map [c r :contents :type]))]
                                     [c r]))
               transport (get-in @atoms/game-map (conj transport-pos :contents))]
-          ;; Transport coast-crawls while staying in unloading mode
-          (should= :unloading (:transport-mission transport))
-          (should-not= [3 2] transport-pos))))
+          ;; Transport re-sails to find foreign coast
+          (should= :sailing (:transport-mission transport)))))
+
+    (it "re-sails when all nearby land is excluded by country-id"
+      ;; Transport at [2,2] in :unloading with 6 armies.
+      ;; Adjacent land (rows 0-1) has country-id 1 matching pcp.
+      ;; No unloadable land nearby — should re-sail, not coast-crawl forever.
+      (let [game-map (build-test-map ["#####"
+                                      "#####"
+                                      "~~t~~"
+                                      "~~~~~"
+                                      "~~~~~"])]
+        (reset! atoms/game-map game-map)
+        (doseq [c (range 5) r (range 2)]
+          (swap! atoms/game-map assoc-in [c r :country-id] 1))
+        (reset! atoms/computer-map
+                (vec (for [c (range 5)]
+                       (vec (for [r (range 5)]
+                              (if (< r 3) (get-in @atoms/game-map [c r]) nil))))))
+        (swap! atoms/game-map assoc-in [2 2 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :unloading :army-count 6
+                :country-id 1
+                :pickup-continent-pos [2 1]})
+        (transport/process-transport [2 2])
+        (let [t (first (for [c (range 5) r (range 5)
+                             :let [unit (get-in @atoms/game-map [c r :contents])]
+                             :when (= :transport (:type unit))]
+                         unit))]
+          (should= :sailing (:transport-mission t)))))
 
     (it "unloading transport in open sea with no coast starts sailing"
       ;; Full transport in unloading mode in open sea with no adjacent land.
@@ -888,6 +915,102 @@
           (#'transport/mint-unload-event-id [0 0] transport)
           (should= 100 (get-in @atoms/game-map [0 0 :contents :unload-event-id]))
           (should= 101 @atoms/next-unload-event-id)))))
+
+  (describe "unload-country-id"
+    (it "mint-unload-country-id mints fresh country-id onto transport"
+      (reset-all-atoms!)
+      (reset! atoms/next-country-id 50)
+      (let [game-map (build-test-map ["t~"])]
+        (reset! atoms/game-map game-map)
+        (#'transport/mint-unload-country-id [0 0])
+        (should= 50 (get-in @atoms/game-map [0 0 :contents :unload-country-id]))
+        (should= 51 @atoms/next-country-id)))
+
+    (it "start-sailing sets unload-country-id on transport"
+      (reset-all-atoms!)
+      (reset! atoms/next-country-id 10)
+      (let [game-map (build-test-map ["###"
+                                      "~t~"
+                                      "~~~"
+                                      "~~~"
+                                      "~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map
+                (vec (for [c (range 3)]
+                       (vec (for [r (range 5)]
+                              (if (< r 4) (get-in game-map [c r]) nil))))))
+        (swap! atoms/game-map assoc-in [1 1 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 6})
+        (transport/process-transport [1 1])
+        (let [t (first (for [c (range 3) r (range 5)
+                             :let [unit (get-in @atoms/game-map [c r :contents])]
+                             :when (= :transport (:type unit))]
+                         unit))]
+          (should= :sailing (:transport-mission t))
+          (should-not-be-nil (:unload-country-id t)))))
+
+    (it "unloaded army gets country-id from transport"
+      (reset-all-atoms!)
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :sailing :army-count 2
+                                                        :sail-path [[0 2]]
+                                                        :unload-country-id 77}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      (let [army (:contents (get-in @atoms/game-map [0 0]))]
+        (should= :army (:type army))
+        (should= 77 (:country-id army))))
+
+    (it "unloaded army stamps land with country-id"
+      (reset-all-atoms!)
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :sailing :army-count 1
+                                                        :sail-path [[0 2]]
+                                                        :unload-country-id 88}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      (should= 88 (:country-id (get-in @atoms/game-map [0 0]))))
+
+    (it "transport records unloaded country-id after unloading"
+      (reset-all-atoms!)
+      (reset! atoms/round-number 5)
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :sailing :army-count 1
+                                                        :sail-path [[0 2]]
+                                                        :unload-country-id 33}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      (let [transport (:contents (get-in @atoms/game-map [0 1]))]
+        (should= 5 (get-in transport [:unloaded-countries 33]))))
+
+    (it "transport does not reload armies it just unloaded (cycle-breaking)"
+      (reset-all-atoms!)
+      (reset! atoms/round-number 5)
+      (reset! atoms/next-country-id 100)
+      ;; Transport at [0,1] with 1 army, adjacent to empty land at [0,0].
+      ;; After unloading, army gets country-id 100 and land gets stamped.
+      ;; Transport transitions to loading but should NOT reload that army
+      ;; because its country-id was just recorded in unloaded-countries.
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :unloading :army-count 1
+                                                        :unload-country-id 100}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 1])
+      ;; Army should be on land
+      (should= :army (get-in @atoms/game-map [0 0 :contents :type]))
+      ;; Transport should have 0 armies (did NOT reload)
+      (let [transport (:contents (get-in @atoms/game-map [0 1]))]
+        (should= :loading (:transport-mission transport))
+        (should= 0 (:army-count transport)))))
 
   (describe "transport without army-count field"
     (it "loads armies even when army-count is missing from transport"

@@ -205,10 +205,12 @@
             to-unload (min army-count (count land-neighbors))]
         (when (pos? to-unload)
           ;; Unload armies onto land cells
-          (let [unload-eid (:unload-event-id transport)]
+          (let [unload-eid (:unload-event-id transport)
+                unload-cid (:unload-country-id transport)]
             (doseq [land-pos (take to-unload land-neighbors)]
               (let [army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
-                           unload-eid (assoc :unload-event-id unload-eid))]
+                           unload-eid (assoc :unload-event-id unload-eid)
+                           unload-cid (assoc :country-id unload-cid))]
                 (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
                 (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
                 (core/stamp-territory land-pos army)
@@ -281,8 +283,10 @@
     (when (seq targets)
       (let [land-pos (first targets)
             unload-eid (:unload-event-id transport)
+            unload-cid (:unload-country-id transport)
             army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
-                   unload-eid (assoc :unload-event-id unload-eid))]
+                   unload-eid (assoc :unload-event-id unload-eid)
+                   unload-cid (assoc :country-id unload-cid))]
         (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
         (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
         (core/stamp-territory land-pos army)
@@ -376,6 +380,14 @@
     (swap! atoms/game-map assoc-in
            (conj pos :contents :unload-event-id) id)))
 
+(defn- mint-unload-country-id
+  "Mint a new country-id for armies unloaded in this sailing cycle."
+  [pos]
+  (let [cid @atoms/next-country-id]
+    (swap! atoms/next-country-id inc)
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :unload-country-id) cid)))
+
 (defn- record-pickup-continent-pos
   "When transport becomes full, record the nearest adjacent land position
    as the pickup continent reference point and its country-id."
@@ -436,6 +448,47 @@
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
 
+(defn- has-nearby-unloadable-land?
+  "BFS along coastal sea cells up to max-depth hops from pos.
+   Returns true if any visited position has adjacent empty land
+   not excluded by country-id or pickup continent."
+  [pos transport max-depth]
+  (let [game-map @atoms/game-map
+        exclude-ids (pickup-exclude-ids transport)
+        pickup-continent (pickup-continent-if-needed transport)
+        unloadable-adjacent? (fn [p]
+                               (some (fn [n]
+                                       (let [cell (get-in game-map n)]
+                                         (and cell
+                                              (#{:land :city} (:type cell))
+                                              (nil? (:contents cell))
+                                              (or (empty? exclude-ids)
+                                                  (not (contains? exclude-ids (:country-id cell))))
+                                              (or (nil? pickup-continent)
+                                                  (not (contains? pickup-continent n))))))
+                                     (core/get-neighbors p)))]
+    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
+           visited #{pos}]
+      (if (empty? queue)
+        false
+        (let [[current depth] (peek queue)]
+          (cond
+            (unloadable-adjacent? current) true
+            (>= depth max-depth) (recur (pop queue) visited)
+            :else
+            (let [coastal-neighbors
+                  (filter (fn [n]
+                            (and (not (visited n))
+                                 (let [cell (get-in game-map n)]
+                                   (and cell
+                                        (= :sea (:type cell))
+                                        (or (nil? (:contents cell))
+                                            (= :computer (:owner (:contents cell))))
+                                        (adjacent-to-land? n)))))
+                          (core/get-neighbors current))]
+              (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
+                     (into visited coastal-neighbors)))))))))
+
 (defn- compute-sail-path
   "Compute BFS path from transport position to nearest unexplored coast.
    Returns path vector (excluding start) or nil."
@@ -480,6 +533,7 @@
   [pos transport]
   (set-transport-mission pos :sailing)
   (mint-unload-event-id pos transport)
+  (mint-unload-country-id pos)
   (record-pickup-continent-pos pos transport)
   (when-let [path (compute-sail-path pos)]
     (swap! atoms/game-map assoc-in
@@ -520,9 +574,11 @@
             (= current-mission :unloading)
             (if (zero? army-count)
               (transition-to-loading pos)
-              ;; Has armies: coast-crawl or compute new sail-path
-              (or (unloading-crawl-move pos)
-                  (start-sailing pos transport)))
+              ;; Has armies: coast-crawl if unloadable land nearby, else re-sail
+              (if (has-nearby-unloadable-land? pos transport 5)
+                (or (unloading-crawl-move pos)
+                    (start-sailing pos transport))
+                (start-sailing pos transport)))
 
             ;; Sailing — follow sail-path
             (= current-mission :sailing)
