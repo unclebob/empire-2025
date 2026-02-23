@@ -14,7 +14,7 @@
   (if (and (= :transport (:type unit)) (= :computer (:owner unit)))
     (let [id @atoms/next-transport-id]
       (swap! atoms/next-transport-id inc)
-      (assoc unit :transport-mission :idle
+      (assoc unit :transport-mission :loading
                   :transport-id id
                   :army-count 0))
     unit))

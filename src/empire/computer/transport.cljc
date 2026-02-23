@@ -1,12 +1,11 @@
 (ns empire.computer.transport
-  "Computer transport module - VMS Empire style transport movement.
-   Loading: coastal crawl, auto-load armies
-   Sailing: random heading with reflection off borders/explored coasts
-   Unloading: stop at unexplored coast, drop armies"
+  "Computer transport module — simplified 3-state mission flow.
+   Loading: coastal crawl, auto-load adjacent armies, sail when loaded
+   Sailing: follow BFS path to unexplored coast, opportunistic unload
+   Unloading: coast-crawl while dropping armies on empty land"
   (:require [empire.atoms :as atoms]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
-            [empire.computer.navigation :as nav]
             [empire.debug :as debug]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]
@@ -150,20 +149,6 @@
       (visibility/update-cell-visibility closest :computer)
       closest)))
 
-(defn- explore-sea
-  "Move transport toward unexplored territory using local neighbor scan.
-   Picks an empty passable sea neighbor adjacent to fog. Stays put if none."
-  [pos]
-  (let [passable (get-passable-sea-neighbors pos)
-        empty (filter #(nil? (:contents (get-in @atoms/game-map %))) passable)
-        near-fog (filter core/adjacent-to-computer-unexplored? empty)]
-    (when (seq near-fog)
-      (let [target (rand-nth near-fog)]
-        (core/move-unit-to pos target)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility target :computer)
-        target))))
-
 (defn- find-next-pickup-continent-pos
   "After unloading, find the nearest continent with >3 computer armies,
    excluding the current unload continent. Returns an army position on
@@ -266,10 +251,11 @@
             (core/get-neighbors pos))))
 
 (defn- pickup-exclude-ids
-  "Returns set of country-ids to exclude: transport's own country-id
-   plus the country-id at the pickup-continent-pos."
+  "Returns set of country-ids to exclude: transport's own country-id,
+   pickup-country-id, and the country-id at pickup-continent-pos."
   [transport]
   (disj (set [(:country-id transport)
+              (:pickup-country-id transport)
               (when-let [pcp (:pickup-continent-pos transport)]
                 (:country-id (get-in @atoms/game-map pcp)))])
         nil))
@@ -392,230 +378,119 @@
 
 (defn- record-pickup-continent-pos
   "When transport becomes full, record the nearest adjacent land position
-   as the pickup continent reference point."
+   as the pickup continent reference point and its country-id."
   [pos transport]
   (when-not (:pickup-continent-pos transport)
     (when-let [land-pos (find-adjacent-land-pos pos)]
       (swap! atoms/game-map assoc-in
-             (conj pos :contents :pickup-continent-pos) land-pos))))
+             (conj pos :contents :pickup-continent-pos) land-pos)
+      (when-let [cid (:country-id (get-in @atoms/game-map land-pos))]
+        (swap! atoms/game-map assoc-in
+               (conj pos :contents :pickup-country-id) cid)))))
 
+(defn- loadable-army-at?
+  "Returns true if neighbor n has a loadable computer army."
+  [n game-map unloaded-countries unload-eid]
+  (let [cell (get-in game-map n)
+        unit (:contents cell)]
+    (and unit
+         (= :army (:type unit))
+         (= :computer (:owner unit))
+         (not (and (seq unloaded-countries)
+                   (:country-id unit)
+                   (recently-unloaded-country?
+                     unloaded-countries (:country-id unit))))
+         (not (and unload-eid
+                   (= (:unload-event-id unit) unload-eid))))))
 
-(defn- in-bounds?
-  "Returns true if position is within map bounds."
-  [pos]
-  (let [[c r] pos
-        game-map @atoms/game-map]
-    (and (>= c 0) (>= r 0)
-         (< c (count game-map))
-         (< r (count (first game-map))))))
-
-
-(defn- unexplored-coast?
-  "Returns true if pos is a sea cell adjacent to land NOT visible on computer-map."
-  [pos]
+(defn- has-nearby-loadable-armies?
+  "BFS along coastal sea cells up to max-depth hops from pos.
+   Returns true if any adjacent land cell at any visited position
+   has a loadable computer army."
+  [pos transport max-depth]
   (let [game-map @atoms/game-map
-        cell (get-in game-map pos)]
-    (and cell
-         (= :sea (:type cell))
-         (some (fn [neighbor]
-                 (let [gm-cell (get-in game-map neighbor)
-                       cm-cell (get-in @atoms/computer-map neighbor)]
-                   (and gm-cell
-                        (#{:land :city} (:type gm-cell))
-                        (nil? cm-cell))))
-               (core/get-neighbors pos)))))
+        unloaded-countries (:unloaded-countries transport)
+        unload-eid (:unload-event-id transport)
+        check-neighbors (fn [p]
+                          (some #(loadable-army-at? % game-map unloaded-countries unload-eid)
+                                (core/get-neighbors p)))]
+    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
+           visited #{pos}]
+      (if (empty? queue)
+        false
+        (let [[current depth] (peek queue)]
+          (cond
+            (check-neighbors current) true
+            (>= depth max-depth) (recur (pop queue) visited)
+            :else
+            (let [coastal-neighbors
+                  (filter (fn [n]
+                            (and (not (visited n))
+                                 (let [cell (get-in game-map n)]
+                                   (and cell
+                                        (= :sea (:type cell))
+                                        (or (nil? (:contents cell))
+                                            (= :computer (:owner (:contents cell))))
+                                        (adjacent-to-land? n)))))
+                          (core/get-neighbors current))]
+              (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
+                     (into visited coastal-neighbors)))))))))
 
-(defn- detect-reflection-surface
-  "Returns :horizontal or :vertical reflection surface for map border,
-   or nil if not at a border."
+(defn- compute-sail-path
+  "Compute BFS path from transport position to nearest unexplored coast.
+   Returns path vector (excluding start) or nil."
   [pos]
-  (let [[c r] pos
-        game-map @atoms/game-map
-        max-c (dec (count game-map))
-        max-r (dec (count (first game-map)))]
-    (cond
-      (or (<= r 0) (>= r max-r)) :horizontal
-      (or (<= c 0) (>= c max-c)) :vertical
-      :else nil)))
+  (pathfinding/bfs-to-unexplored-coast pos @atoms/computer-map))
 
-(defn- own-country-coast?
-  "Returns true if all explored land neighbors of pos belong to the given country-id."
-  [pos country-id]
-  (when country-id
-    (every? (fn [neighbor]
-              (let [comp-cell (get-in @atoms/computer-map neighbor)]
-                (or (nil? comp-cell)
-                    (not (#{:land :city} (:type comp-cell)))
-                    (= country-id (:country-id comp-cell)))))
-            (core/get-neighbors pos))))
-
-(defn- sail-one-step
-  "Moves transport one step along its heading. Handles:
-   - Open sea: move there
-   - Map border: reflect heading
-   - Foreign or unexplored coast: stop and begin unloading
-   - Own country coast: sail through
-   Returns new position or nil if no move."
+(defn- transition-to-loading
+  "Switch an empty transport to loading mode and find next pickup continent."
   [pos]
-  (let [transport (get-in @atoms/game-map (conj pos :contents))
-        heading (:heading transport)
-        next-pos (nav/apply-heading pos heading)]
-    (cond
-      ;; Off map → reflect
-      (not (in-bounds? next-pos))
-      (let [surface (or (detect-reflection-surface pos) :horizontal)
-            new-heading (nav/reflect-heading heading surface)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :heading) new-heading)
-        nil)
+  (set-transport-mission pos :loading)
+  (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
+  (let [current-continent (when-let [lp (find-adjacent-land-pos pos)]
+                            (land-objectives/flood-fill-continent lp))
+        next-pickup (find-next-pickup-continent-pos pos current-continent)]
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :pickup-continent-pos) next-pickup)))
 
-      ;; Unexplored or foreign explored coast → move there
-      (or (unexplored-coast? next-pos)
-          (and (nav/is-explored-coast? next-pos)
-               (not (own-country-coast? next-pos (:country-id transport)))))
-      (do
-        (core/move-unit-to pos next-pos)
+(defn- unloading-crawl-move
+  "Moves unloading transport to adjacent coastal sea cell to find empty land.
+   Like coastal-crawl-move but without auto-loading armies."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        history (set (:crawl-history unit []))
+        passable (get-passable-sea-neighbors pos)
+        empty-passable (filter (fn [n]
+                                 (nil? (:contents (get-in @atoms/game-map n))))
+                               passable)
+        coastal-cells (filter adjacent-to-land? empty-passable)
+        preferred (remove history coastal-cells)
+        targets (if (seq preferred) preferred coastal-cells)]
+    (when (seq targets)
+      (let [target (rand-nth targets)]
+        (core/move-unit-to pos target)
         (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility next-pos :computer)
-        next-pos)
+        (visibility/update-cell-visibility target :computer)
+        (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
+          (swap! atoms/game-map assoc-in (conj target :contents :crawl-history) new-history))
+        target))))
 
-      ;; Sea cell with no unit → move there (includes own-country coast)
-      (and (= :sea (:type (get-in @atoms/game-map next-pos)))
-           (nil? (:contents (get-in @atoms/game-map next-pos))))
-      (do
-        (core/move-unit-to pos next-pos)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility next-pos :computer)
-        next-pos)
-
-      ;; Occupied or land → reflect
-      :else
-      (let [new-heading (nav/reflect-heading heading :horizontal)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :heading) new-heading)
-        nil))))
-
-
-(defn- find-assigned-cities
-  "Returns set of target-city positions from all directed transports on the map."
-  []
-  (let [game-map @atoms/game-map]
-    (into #{}
-          (for [i (range (count game-map))
-                j (range (count (first game-map)))
-                :let [unit (get-in game-map [i j :contents])]
-                :when (and unit
-                           (= :transport (:type unit))
-                           (= :computer (:owner unit))
-                           (= :directed (:transport-mission unit))
-                           (:target-city unit))]
-            (:target-city unit)))))
-
-(defn- find-unassigned-city
-  "Find nearest free or player city on computer-map not targeted by any directed transport."
-  [pos]
-  (let [comp-map @atoms/computer-map
-        assigned (find-assigned-cities)]
-    (when comp-map
-      (let [candidates (for [i (range (count comp-map))
-                              j (range (count (first comp-map)))
-                              :let [cell (get-in comp-map [i j])]
-                              :when (and cell
-                                         (= :city (:type cell))
-                                         (#{:free :player} (:city-status cell))
-                                         (not (contains? assigned [i j])))]
-                          [i j])]
-        (when (seq candidates)
-          (apply min-key #(core/distance pos %) candidates))))))
-
-(defn- find-nearest-coastal-cell
-  "Find the nearest sea cell adjacent to target city, closest to transport."
-  [target-city transport-pos]
-  (let [game-map @atoms/game-map
-        neighbors (core/get-neighbors target-city)
-        sea-neighbors (filter (fn [n]
-                                (let [cell (get-in game-map n)]
-                                  (and cell (= :sea (:type cell)))))
-                              neighbors)]
-    (when (seq sea-neighbors)
-      (apply min-key #(core/distance transport-pos %) sea-neighbors))))
-
-(defn- find-sail-destination
-  "Find nearest fog-of-war cell or unowned land reachable by sea.
-   Returns a sea cell adjacent to the target, or nil."
-  [transport-pos]
-  (let [comp-map @atoms/computer-map
-        game-map @atoms/game-map
-        cols (count game-map)
-        rows (when (pos? cols) (count (first game-map)))
-        candidates (when (and cols rows)
-                     (for [c (range cols)
-                           r (range rows)
-                           :let [comp-cell (get-in comp-map [c r])
-                                 gm-cell (get-in game-map [c r])]
-                           :when (or (nil? comp-cell)
-                                     (and gm-cell
-                                          (#{:land :city} (:type gm-cell))
-                                          (not= :computer (:city-status gm-cell))
-                                          (nil? (:contents gm-cell))))]
-                       [c r]))]
-    (when (seq candidates)
-      (let [nearest (apply min-key #(core/distance transport-pos %) candidates)]
-        (find-nearest-coastal-cell nearest transport-pos)))))
-
-(defn- compute-sea-path
-  "Compute A* path from transport position to destination through sea cells.
-   Returns path excluding the start position, or empty vector if no path."
-  [from to]
-  (if (and from to)
-    (let [full-path (pathfinding/a-star from to :transport @atoms/game-map)]
-      (if full-path
-        (vec (rest full-path))
-        []))
-    []))
-
-(defn- clear-directed-assignment
-  "Remove directed assignment data from transport."
-  [pos]
-  (swap! atoms/game-map update-in (conj pos :contents) dissoc :target-city :path)
-  (set-transport-mission pos :loading))
-
-(defn- process-directed
-  "Handle a directed transport. Follow path or unload at destination."
+(defn- start-sailing
+  "Transition transport from loading to sailing with BFS path."
   [pos transport]
-  (let [target-city (:target-city transport)
-        path (:path transport)
-        target-cell (when target-city (get-in @atoms/game-map target-city))]
-    (cond
-      ;; Target city conquered → drop assignment
-      (and target-city
-           (or (nil? target-cell)
-               (not (= :city (:type target-cell)))
-               (= :computer (:city-status target-cell))))
-      (clear-directed-assignment pos)
-
-      ;; At destination (empty path) → unload
-      (empty? path)
-      (do (unload-armies pos nil)
-          (clear-directed-assignment pos))
-
-      ;; Follow path
-      :else
-      (let [next-pos (first path)]
-        (if (and next-pos
-                 (nil? (:contents (get-in @atoms/game-map next-pos))))
-          ;; Move to next step
-          (do (core/move-unit-to pos next-pos)
-              (visibility/update-cell-visibility pos :computer)
-              (visibility/update-cell-visibility next-pos :computer)
-              (swap! atoms/game-map assoc-in (conj next-pos :contents :path) (vec (rest path))))
-          ;; Blocked → wait
-          nil)))))
+  (set-transport-mission pos :sailing)
+  (mint-unload-event-id pos transport)
+  (record-pickup-continent-pos pos transport)
+  (when-let [path (compute-sail-path pos)]
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :sail-path) path)))
 
 (defn process-transport
-  "Processes a transport unit using VMS Empire style logic.
-   Directed: follow stored A* path to target city, unload on arrival
-   Loading: move toward armies, collect them
-   Unloading: move toward enemy cities on OTHER continents, drop armies
-   Returns nil after processing - transports only move once per round."
+  "Processes a transport unit using simplified 3-state mission flow.
+   Loading: coastal crawl, auto-load, sail when loaded with no adjacent armies
+   Sailing: follow BFS path, opportunistic unload, unload at destination
+   Unloading: coast-crawl while dropping armies on empty land
+   Returns nil after processing — transports only move once per round."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         transport (:contents cell)]
@@ -623,21 +498,17 @@
                (= :computer (:owner transport))
                (= :transport (:type transport)))
       (let [army-count (:army-count transport 0)
-            mission (:transport-mission transport :idle)]
+            mission (:transport-mission transport)]
 
-        ;; Determine mission if idle
-        (when (= mission :idle)
+        ;; Fix idle/nil → loading
+        (when (or (nil? mission) (= :idle mission))
           (set-transport-mission pos :loading))
 
-        (let [current-mission (or (:transport-mission transport) :loading)]
+        (let [current-mission (or mission :loading)]
           (debug/log-computer-event! :transport-process pos
                                      {:mission current-mission :armies army-count
                                       :pcp (:pickup-continent-pos transport)})
           (cond
-            ;; Directed transport - follow stored path
-            (= current-mission :directed)
-            (process-directed pos transport)
-
             ;; Opportunistic unload — sailing/unloading, or loading with partial load
             (and (pos? army-count)
                  (or (#{:sailing :unloading} current-mission)
@@ -645,42 +516,28 @@
                  (try-opportunistic-unload pos))
             true
 
-            ;; Unloading fallback — no unclaimed land adjacent
+            ;; Unloading — coast-crawl to find empty land
             (= current-mission :unloading)
             (if (zero? army-count)
-              ;; Empty: switch to loading
-              (do
-                (set-transport-mission pos :loading)
-                (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
-                (let [current-continent (when-let [lp (find-adjacent-land-pos pos)]
-                                          (land-objectives/flood-fill-continent lp))
-                      next-pickup (find-next-pickup-continent-pos pos current-continent)]
-                  (swap! atoms/game-map assoc-in
-                         (conj pos :contents :pickup-continent-pos) next-pickup)))
-              ;; Has armies but nowhere to put them: switch to sailing and move away
-              (do
-                (set-transport-mission pos :sailing)
-                (mint-unload-event-id pos transport)
-                (record-pickup-continent-pos pos transport)
-                (swap! atoms/game-map assoc-in
-                       (conj pos :contents :sailing-start) pos)
-                (if (:heading transport)
-                  (sail-one-step pos)
-                  (explore-sea pos))))
+              (transition-to-loading pos)
+              ;; Has armies: coast-crawl or compute new sail-path
+              (or (unloading-crawl-move pos)
+                  (start-sailing pos transport)))
 
-            ;; Sailing transport with sail-path - pathfinding mode
-            (and (= current-mission :sailing) (contains? transport :sail-path))
+            ;; Sailing — follow sail-path
+            (= current-mission :sailing)
             (let [sail-path (:sail-path transport)]
               (cond
+                ;; Empty path, no armies → loading
                 (and (empty? sail-path) (zero? army-count))
                 (set-transport-mission pos :loading)
 
+                ;; Empty path, has armies → unloading
                 (and (empty? sail-path) (pos? army-count))
-                (when-let [dest (find-sail-destination pos)]
-                  (let [path (compute-sea-path pos dest)]
-                    (swap! atoms/game-map assoc-in
-                           (conj pos :contents :sail-path) path)))
+                (do (set-transport-mission pos :unloading)
+                    (try-opportunistic-unload pos))
 
+                ;; Follow path
                 (seq sail-path)
                 (let [next-pos (first sail-path)
                       remaining (vec (rest sail-path))]
@@ -701,24 +558,7 @@
                                (vec (cons pos sail-path)))
                         retreat))))))
 
-            ;; Full transport - check for unassigned city, else sail
-            (>= army-count 6)
-            (if-let [target-city (find-unassigned-city pos)]
-              (let [coastal (find-nearest-coastal-cell target-city pos)
-                    path (compute-sea-path pos coastal)]
-                (set-transport-mission pos :directed)
-                (swap! atoms/game-map assoc-in (conj pos :contents :target-city) target-city)
-                (swap! atoms/game-map assoc-in (conj pos :contents :path) path))
-              (do
-                (set-transport-mission pos :sailing)
-                (mint-unload-event-id pos transport)
-                (record-pickup-continent-pos pos transport)
-                (when-let [dest (find-sail-destination pos)]
-                  (let [path (compute-sea-path pos dest)]
-                    (swap! atoms/game-map assoc-in
-                           (conj pos :contents :sail-path) path)))))
-
-            ;; Loading transport - coastal crawl, auto-load armies
+            ;; Loading — load armies, check sail trigger, coastal crawl
             (= current-mission :loading)
             (do
               ;; Load any adjacent armies first
@@ -729,21 +569,20 @@
                            (adjacent-to-pickup-continent? pos pcp))
                   (swap! atoms/game-map update-in (conj pos :contents)
                          dissoc :pickup-continent-pos)))
-              ;; Navigate toward pickup continent if set, else coastal crawl
-              (let [transport' (get-in @atoms/game-map (conj pos :contents))]
-                (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
-                                     (or (move-toward-position pos pcp)
-                                         (coastal-crawl-move pos)
-                                         (explore-sea pos))
-                                     (or (coastal-crawl-move pos)
-                                         (explore-sea pos)))]
-                  new-pos)))
-
-            ;; Sailing transport - continue along heading
-            (= current-mission :sailing)
-            (when-let [new-pos (sail-one-step pos)]
-              (try-opportunistic-unload new-pos)
-              new-pos)
+              ;; Re-read transport after loading
+              (let [transport' (get-in @atoms/game-map (conj pos :contents))
+                    army-count' (:army-count transport' 0)]
+                ;; Sail trigger: full capacity, or 4+ with no nearby loadable armies
+                (if (and (>= army-count' 4)
+                         (or (>= army-count' 6)
+                             (not (has-nearby-loadable-armies? pos transport' 3))))
+                  (start-sailing pos transport')
+                  ;; Navigate toward pickup continent or coastal crawl
+                  (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
+                                       (or (move-toward-position pos pcp)
+                                           (coastal-crawl-move pos))
+                                       (coastal-crawl-move pos))]
+                    new-pos))))
 
             :else nil)))))
   nil)
