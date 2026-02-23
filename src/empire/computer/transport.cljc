@@ -82,6 +82,22 @@
                        (and cell (#{:land :city} (:type cell)))))
                    (core/get-neighbors pos)))))
 
+(defn- adjacent-to-pickup-continent?
+  "Returns true if any adjacent land cell shares a country-id with the cell
+   at pickup-continent-pos. Cheap O(neighbors) alternative to flood-fill."
+  [pos pickup-continent-pos]
+  (let [game-map @atoms/game-map
+        pcp-country-id (:country-id (get-in game-map pickup-continent-pos))]
+    (if pcp-country-id
+      (some (fn [n]
+              (let [cell (get-in game-map n)]
+                (and cell
+                     (#{:land :city} (:type cell))
+                     (= pcp-country-id (:country-id cell)))))
+            (core/get-neighbors pos))
+      ;; No country-id at pcp — fall back to distance check
+      (<= (core/distance pos pickup-continent-pos) 2))))
+
 (defn- score-target-city
   "Score a target city for a transport. Lower = more attractive.
    Factors: distance, continent attackable cities, computer presence."
@@ -235,19 +251,36 @@
 (defn- adjacent-empty-land
   "Returns adjacent land/city positions that are empty (no unit).
    Excludes positions on the pickup continent and land belonging to
-   the same country as the transport."
-  [pos pickup-continent transport-country-id]
+   any country-id in exclude-ids set."
+  [pos exclude-ids pickup-continent]
   (let [game-map @atoms/game-map]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (and cell
                      (#{:land :city} (:type cell))
                      (nil? (:contents cell))
-                     (or (nil? transport-country-id)
-                         (not= (:country-id cell) transport-country-id))
+                     (or (empty? exclude-ids)
+                         (not (contains? exclude-ids (:country-id cell))))
                      (or (nil? pickup-continent)
                          (not (contains? pickup-continent neighbor))))))
             (core/get-neighbors pos))))
+
+(defn- pickup-exclude-ids
+  "Returns set of country-ids to exclude: transport's own country-id
+   plus the country-id at the pickup-continent-pos."
+  [transport]
+  (disj (set [(:country-id transport)
+              (when-let [pcp (:pickup-continent-pos transport)]
+                (:country-id (get-in @atoms/game-map pcp)))])
+        nil))
+
+(defn- pickup-continent-if-needed
+  "Returns the pickup continent set only when country-id exclusion is
+   insufficient (no country-id at pickup pos). Uses cached flood-fill."
+  [transport]
+  (when-let [pcp (:pickup-continent-pos transport)]
+    (when-not (:country-id (get-in @atoms/game-map pcp))
+      (land-objectives/flood-fill-continent pcp))))
 
 (defn- try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,
@@ -255,10 +288,10 @@
   [pos]
   (let [transport (get-in @atoms/game-map (conj pos :contents))
         army-count (:army-count transport 0)
-        pickup-continent (when-let [pcp (:pickup-continent-pos transport)]
-                           (land-objectives/flood-fill-continent pcp))
+        exclude-ids (pickup-exclude-ids transport)
+        pickup-continent (pickup-continent-if-needed transport)
         targets (when (pos? army-count)
-                  (adjacent-empty-land pos pickup-continent (:country-id transport)))]
+                  (adjacent-empty-land pos exclude-ids pickup-continent))]
     (when (seq targets)
       (let [land-pos (first targets)
             unload-eid (:unload-event-id transport)
@@ -641,12 +674,9 @@
                       (try-opportunistic-unload new-pos)
                       new-pos)
                     ;; No heading (shouldn't happen) — fall back to explore
-                    (let [pickup-continent
-                          (when-let [pcp (:pickup-continent-pos transport')]
-                            (land-objectives/flood-fill-continent pcp))]
-                      (if (adjacent-to-land? pos)
-                        (unload-armies pos pickup-continent)
-                        (explore-sea pos)))))))
+                    (if (adjacent-to-land? pos)
+                      (unload-armies pos nil)
+                      (explore-sea pos))))))
 
             ;; Loading transport - coastal crawl, auto-load armies
             (= current-mission :loading)
@@ -655,12 +685,10 @@
               (load-adjacent-armies pos)
               ;; Clear pickup-continent-pos once adjacent to that continent
               (when-let [pcp (:pickup-continent-pos transport)]
-                (when (adjacent-to-land? pos)
-                  (let [continent (land-objectives/flood-fill-continent
-                                   (find-adjacent-land-pos pos))]
-                    (when (contains? continent pcp)
-                      (swap! atoms/game-map update-in (conj pos :contents)
-                             dissoc :pickup-continent-pos)))))
+                (when (and (adjacent-to-land? pos)
+                           (adjacent-to-pickup-continent? pos pcp))
+                  (swap! atoms/game-map update-in (conj pos :contents)
+                         dissoc :pickup-continent-pos)))
               ;; Navigate toward pickup continent if set, else coastal crawl
               (let [transport' (get-in @atoms/game-map (conj pos :contents))]
                 (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
