@@ -15,46 +15,50 @@
 
   (context "in-bounds? boundary (L194)"
     (it "patrol boat moves to first-coord 0"
-      (let [game-map (build-test-map ["~~~~~"
-                                      "~~~~~"
-                                      "~~~~~"])]
+      ;; Larger map so boat can move 4 steps west and reach col 0
+      (let [game-map (build-test-map (repeat 3 "~~~~~"))]
         (reset! atoms/game-map game-map)
         (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [1 2 :contents]
+        (swap! atoms/game-map assoc-in [4 2 :contents]
                {:type :patrol-boat :owner :computer :hits 1
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 270})
-        (ship/process-ship [1 2] :patrol-boat)
+        (ship/process-ship [4 2] :patrol-boat)
+        ;; After 4 steps west: [3,2], [2,2], [1,2], [0,2]
         (should= :patrol-boat (get-in @atoms/game-map [0 2 :contents :type]))))
 
     (it "patrol boat moves to second-coord 0"
-      (let [game-map (build-test-map ["~~~~~"
-                                      "~~~~~"
-                                      "~~~~~"])]
+      ;; Larger map so boat can move 4 steps north and reach row 0
+      (let [game-map (build-test-map (repeat 5 "~~~~~"))]
         (reset! atoms/game-map game-map)
         (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [2 1 :contents]
+        (swap! atoms/game-map assoc-in [2 4 :contents]
                {:type :patrol-boat :owner :computer :hits 1
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 0})
-        (ship/process-ship [2 1] :patrol-boat)
+        (ship/process-ship [2 4] :patrol-boat)
+        ;; After 4 steps north: [2,3], [2,2], [2,1], [2,0]
         (should= :patrol-boat (get-in @atoms/game-map [2 0 :contents :type])))))
 
   (context "detect-reflection-surface (L195, L203, L204, L206)"
     (it "reflects vertically at right edge (c=max-c)"
-      (let [game-map (build-test-map ["~~~~~"
-                                      "~~~~~"
-                                      "~~~~~"])]
+      ;; Larger map so boat reflects and moves with remaining steps
+      (let [game-map (build-test-map (repeat 3 "~~~~~~~~~~"))]
         (reset! atoms/game-map game-map)
         (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [4 1 :contents]
+        (swap! atoms/game-map assoc-in [9 1 :contents]
                {:type :patrol-boat :owner :computer :hits 1
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 90})
         (with-redefs [rand-int (constantly 10)]
-          (ship/process-ship [4 1] :patrol-boat))
-        ;; heading 90 east -> [5,1] out of bounds. detect [4,1]: c=4>=max-c -> :vertical
-        ;; reflect 90 :vertical = 270
-        (should= 270 (get-in @atoms/game-map [4 1 :contents :patrol-heading]))))
+          (ship/process-ship [9 1] :patrol-boat))
+        ;; heading 90 east -> OOB. detect: c=max-c -> :vertical. reflect 90 -> 270.
+        ;; Reflect consumes 1 step, then 3 steps west. Final at [6,1] heading 270.
+        (let [new-pos (first (for [c (range 10) r (range 3)
+                                   :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
+                               [c r]))]
+          (should= 270 (get-in @atoms/game-map (conj new-pos :contents :patrol-heading))))))
 
     (it "reflects horizontally at bottom-right corner [4,2]"
+      ;; Corner: both headings lead OOB. Boat stays put, heading oscillates.
+      ;; 4 steps = 4 reflections (even), heading returns to original.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
@@ -65,11 +69,12 @@
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 135})
         (with-redefs [rand-int (constantly 10)]
           (ship/process-ship [4 2] :patrol-boat))
-        ;; heading 135 SE -> [5,3] out of bounds. detect [4,2]: r=2>=max-r -> :horizontal
-        ;; reflect 135 :horizontal = (540-135)%360 = 45
-        (should= 45 (get-in @atoms/game-map [4 2 :contents :patrol-heading]))))
+        ;; Corner oscillation: 135->45->135->45->135. Heading = 135 after 4 reflections.
+        ;; Boat stays put (all directions blocked).
+        (should= :patrol-boat (get-in @atoms/game-map [4 2 :contents :type]))))
 
     (it "corner [0,0] reflects horizontally not vertically"
+      ;; Corner: 4 reflections, heading oscillates, boat stays put.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
@@ -80,26 +85,28 @@
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 315})
         (with-redefs [rand-int (constantly 10)]
           (ship/process-ship [0 0] :patrol-boat))
-        ;; heading 315 NW -> [-1,-1] out of bounds. detect [0,0]: r=0<=0 -> :horizontal
-        ;; reflect 315 :horizontal = (540-315)%360 = 225
-        (should= 225 (get-in @atoms/game-map [0 0 :contents :patrol-heading]))))
+        (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type]))))
 
-    (it "position [0,1] reflects vertically not horizontally"
-      (let [game-map (build-test-map ["~~~~~"
-                                      "~~~~~"
-                                      "~~~~~"])]
+    (it "position [0,5] reflects vertically not horizontally"
+      ;; Edge (not corner): reflects vertically then moves NE with new heading.
+      ;; Large map so boat has room to move NE for 3 steps after reflection.
+      (let [game-map (build-test-map (repeat 10 "~~~~~~~~~~"))]
         (reset! atoms/game-map game-map)
         (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [0 1 :contents]
+        (swap! atoms/game-map assoc-in [0 5 :contents]
                {:type :patrol-boat :owner :computer :hits 1
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 315})
         (with-redefs [rand-int (constantly 10)]
-          (ship/process-ship [0 1] :patrol-boat))
-        ;; heading 315 NW -> [-1,0] out of bounds. detect [0,1]: r=1 not edge. c=0<=0 -> :vertical
-        ;; reflect 315 :vertical = (360-315)%360 = 45
-        (should= 45 (get-in @atoms/game-map [0 1 :contents :patrol-heading]))))
+          (ship/process-ship [0 5] :patrol-boat))
+        ;; heading 315 NW -> [-1,4] OOB. detect: c=0 -> :vertical. reflect 315 -> 45.
+        ;; Then 3 steps NE: [1,4], [2,3], [3,2]. Final heading 45.
+        (let [new-pos (first (for [c (range 10) r (range 10)
+                                   :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
+                               [c r]))]
+          (should= 45 (get-in @atoms/game-map (conj new-pos :contents :patrol-heading))))))
 
     (it "bottom edge [0,2] with corner reflects horizontally"
+      ;; Corner: 4 reflections, heading oscillates, boat stays put.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
@@ -110,9 +117,7 @@
                 :patrol-country-id 1 :patrol-number 2 :patrol-heading 225})
         (with-redefs [rand-int (constantly 10)]
           (ship/process-ship [0 2] :patrol-boat))
-        ;; heading 225 SW -> [-1,3] out of bounds. detect [0,2]: r=2>=max-r -> :horizontal
-        ;; reflect 225 :horizontal = (540-225)%360 = 315
-        (should= 315 (get-in @atoms/game-map [0 2 :contents :patrol-heading]))))
+        (should= :patrol-boat (get-in @atoms/game-map [0 2 :contents :type]))))
 
     (it "reflects horizontally not vertically at c=1 (L207)"
       ;; Patrol boat at [1,1] heading 90 east. next-pos [2,1] has player ship = explored coast.

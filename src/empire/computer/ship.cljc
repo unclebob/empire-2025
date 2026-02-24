@@ -274,11 +274,8 @@
              (conj pos :contents :patrol-heading) (rand-int 360)))
     (patrol-sail-one-step pos)))
 
-(defn- process-patrol-boat
-  "Processes a computer patrol boat with patrol-specific behavior.
-   1st patrol boat: Attack transport > Flee enemy > Coastline patrol.
-   2nd+ patrol boats: Heading-based sailing until unexplored coast,
-   then coastline exploration."
+(defn- patrol-boat-step
+  "Execute one step of patrol boat movement. Returns new position or nil."
   [pos]
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         patrol-num (:patrol-number unit 1)]
@@ -290,6 +287,19 @@
         (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
           (flee-from pos enemy-pos)
           (coastline-move pos))))))
+
+(defn- process-patrol-boat
+  "Processes a computer patrol boat. Moves up to speed 4 steps per round.
+   Nil results (reflections, blocked) consume a step but loop continues.
+   Stops if unit is destroyed in combat."
+  [pos]
+  (loop [current-pos pos steps-left 4]
+    (if (or (zero? steps-left)
+            (nil? (get-in @atoms/game-map (conj current-pos :contents))))
+      current-pos
+      (if-let [new-pos (patrol-boat-step current-pos)]
+        (recur new-pos (dec steps-left))
+        (recur current-pos (dec steps-left))))))
 
 ;; --- Destroyer escort helpers ---
 
