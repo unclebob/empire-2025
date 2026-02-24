@@ -64,12 +64,12 @@
           temp-path (.getPath temp-file)
           original-content "(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
       (spit temp-path original-content)
-      (with-redefs [runner/run-spec (fn [_] :killed)]
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :killed))]
         (let [forms (core/read-source-forms original-content)
               sites (core/discover-all-mutations forms)
               plus-site (first (filter #(= (:original %) '+) sites))
               result (core/mutate-and-test temp-path original-content
-                                           forms plus-site "fake_spec.clj")]
+                                           forms plus-site "fake_spec.clj" 30000)]
           (should= :killed (:result result))
           ;; Original file should be restored
           (should= original-content (slurp temp-path))))
@@ -171,7 +171,7 @@
           temp-path (.getPath temp-file)
           original "(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
       (spit temp-path original)
-      (with-redefs [runner/run-spec (fn [_] :killed)
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :killed))
                     coverage/load-coverage (fn [_] nil)]
         (core/run-mutation-testing temp-path "fake_spec.clj")
         (let [stamped (slurp temp-path)]
@@ -183,7 +183,7 @@
           temp-path (.getPath temp-file)
           original ";; mutation-tested: 2026-01-15\n(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
       (spit temp-path original)
-      (with-redefs [runner/run-spec (fn [_] :killed)
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :killed))
                     coverage/load-coverage (fn [_] nil)]
         (let [captured (with-out-str
                          (core/run-mutation-testing temp-path "fake_spec.clj"))]

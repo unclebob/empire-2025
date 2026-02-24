@@ -24,6 +24,23 @@
       (str/replace content mutation-comment-re comment-line)
       (str comment-line "\n" content))))
 
+(defn- backup-path [source-path]
+  (str source-path ".mutation-backup"))
+
+(defn- save-backup! [source-path content]
+  (spit (backup-path source-path) content))
+
+(defn- restore-from-backup! [source-path]
+  (let [bp (backup-path source-path)]
+    (when (.exists (File. bp))
+      (spit source-path (slurp bp))
+      (.delete (File. bp))
+      true)))
+
+(defn- cleanup-backup! [source-path]
+  (let [f (File. (backup-path source-path))]
+    (when (.exists f) (.delete f))))
+
 (defn read-source-forms
   "Parse a source string into a vector of top-level forms.
    Handles .cljc reader conditionals."
@@ -110,16 +127,22 @@
 
 (defn mutate-and-test
   "Apply one mutation, write file, run spec, restore original.
-   Returns {:site site :result :killed/:survived}."
-  [source-path original-content _forms site spec-path]
+   Returns {:site site :result :killed/:survived :timeout? bool}."
+  [source-path original-content _forms site spec-path timeout-ms]
   (try
     (spit source-path (mutate-source-text original-content site))
-    {:site site :result (runner/run-spec spec-path)}
+    (let [result (runner/run-spec spec-path timeout-ms)]
+      {:site site
+       :result (if (= :timeout result) :killed result)
+       :timeout? (= :timeout result)})
     (finally
       (spit source-path original-content))))
 
 (defn- result-label [r]
-  (if (= :killed (:result r)) "KILLED" "SURVIVED"))
+  (cond
+    (:timeout? r) "TIMEOUT"
+    (= :killed (:result r)) "KILLED"
+    :else "SURVIVED"))
 
 (defn- format-line [i total r]
   (format "[%3d/%d] %-8s  L%-4d %s%n"
@@ -218,6 +241,8 @@
    Optional lines arg: set of line numbers to restrict testing to."
   ([source-path spec-path] (run-mutation-testing source-path spec-path nil))
   ([source-path spec-path lines]
+   (when (restore-from-backup! source-path)
+     (println "Restored source from backup (previous run was interrupted)."))
    (let [original-content (slurp source-path)
          prev-date (extract-mutation-date original-content)
          forms (read-source-forms original-content)
@@ -235,22 +260,34 @@
        (println (format "Filtering to lines: %s → %d mutations to test."
                         (str/join "," (sort lines)) (count sites))))
      (println)
-     (when-not lines (print-uncovered uncovered))
-     (let [results (doall
-                     (map-indexed
-                       (fn [i site]
-                         (let [result (mutate-and-test source-path original-content
-                                                       forms site spec-path)]
-                           (print-progress i (count sites) result site)
-                           result))
-                       sites))
-           killed (count (filter #(= :killed (:result %)) results))
-           total (count results)
-           pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
-           survivors (filter #(= :survived (:result %)) results)]
-       (print-summary killed total pct survivors (if lines 0 (count uncovered)))
-       (when-not lines
-         (spit source-path (stamp-mutation-date original-content (today-str))))))))
+     (print "Baseline: ") (flush)
+     (let [{baseline-result :result elapsed-ms :elapsed-ms} (runner/run-spec-timed spec-path)
+           timeout-ms (* 10 elapsed-ms)]
+       (if (= :survived baseline-result)
+         (do
+           (println (format "PASS (%.1fs, timeout %.1fs)"
+                            (/ elapsed-ms 1000.0) (/ timeout-ms 1000.0)))
+           (when-not lines (print-uncovered uncovered))
+           (save-backup! source-path original-content)
+           (try
+             (let [results (doall
+                             (map-indexed
+                               (fn [i site]
+                                 (let [result (mutate-and-test source-path original-content
+                                                               forms site spec-path timeout-ms)]
+                                   (print-progress i (count sites) result site)
+                                   result))
+                               sites))
+                   killed (count (filter #(= :killed (:result %)) results))
+                   total (count results)
+                   pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
+                   survivors (filter #(= :survived (:result %)) results)]
+               (print-summary killed total pct survivors (if lines 0 (count uncovered)))
+               (when-not lines
+                 (spit source-path (stamp-mutation-date original-content (today-str)))))
+             (finally
+               (cleanup-backup! source-path))))
+         (println "FAIL — spec does not pass without mutations. Aborting."))))))
 
 (defn -main [& args]
   (let [validated (validate-args (vec args))]

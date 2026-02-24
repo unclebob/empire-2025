@@ -1,6 +1,5 @@
 (ns empire.mutation.runner-spec
   (:require [speclj.core :refer :all]
-            [clojure.java.shell :as shell]
             [empire.mutation.runner :as runner]))
 
 (describe "source->spec-path"
@@ -24,12 +23,35 @@
     (should-not (runner/spec-exists? "spec/empire/nonexistent_spec.clj"))))
 
 (describe "run-spec"
-  (it "returns :killed when spec fails (exit non-zero)"
-    (with-redefs [clojure.java.shell/sh (fn [& _] {:exit 1 :out "" :err ""})]
-      (should= :killed (runner/run-spec "spec/empire/combat_spec.clj"))))
+  (it "returns :killed when spec fails (real spec with syntax error)"
+    (spit "/tmp/failing_spec.clj"
+          "(ns failing-spec (:require [speclj.core :refer :all]))
+           (describe \"fail\" (it \"fails\" (should= 1 2)))
+           (run-specs)")
+    (should= :killed (runner/run-spec "/tmp/failing_spec.clj")))
 
-  (it "returns :survived when spec passes (exit 0)"
-    (with-redefs [clojure.java.shell/sh (fn [& _] {:exit 0 :out "" :err ""})]
-      (should= :survived (runner/run-spec "spec/empire/combat_spec.clj")))))
+  (it "returns :survived when spec passes (real spec)"
+    (spit "/tmp/passing_spec.clj"
+          "(ns passing-spec (:require [speclj.core :refer :all]))
+           (describe \"pass\" (it \"passes\" (should= 1 1)))
+           (run-specs)")
+    (should= :survived (runner/run-spec "/tmp/passing_spec.clj")))
+
+  (it "returns :timeout when spec exceeds timeout"
+    (spit "/tmp/hanging_spec.clj"
+          "(ns hanging-spec (:require [speclj.core :refer :all]))
+           (describe \"hang\" (it \"hangs\" (Thread/sleep 60000) (should= 1 1)))
+           (run-specs)")
+    (should= :timeout (runner/run-spec "/tmp/hanging_spec.clj" 3000))))
+
+(describe "run-spec-timed"
+  (it "returns result and elapsed time"
+    (spit "/tmp/timed_spec.clj"
+          "(ns timed-spec (:require [speclj.core :refer :all]))
+           (describe \"timed\" (it \"passes\" (should= 1 1)))
+           (run-specs)")
+    (let [{:keys [result elapsed-ms]} (runner/run-spec-timed "/tmp/timed_spec.clj")]
+      (should= :survived result)
+      (should (pos? elapsed-ms)))))
 
 (run-specs)
