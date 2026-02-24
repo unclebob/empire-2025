@@ -44,18 +44,18 @@
       (= c \)) (update state :depth dec)
       :else state)))
 
+(def ^:private token-delimiters #{\space \newline \tab \( \) \"})
+
 (defn- extract-token [chars i]
   (let [n (count chars)
         start (inc i)]
     (when (< start n)
-      (let [end (loop [j start]
-                  (if (or (>= j n)
-                          (let [ch (nth chars j)]
-                            (or (= ch \space) (= ch \newline)
-                                (= ch \tab) (= ch \()
-                                (= ch \)) (= ch \"))))
-                    j
-                    (recur (inc j))))]
+      (let [end (reduce (fn [_ j]
+                          (if (token-delimiters (nth chars j))
+                            (reduced j)
+                            (inc j)))
+                        start
+                        (range start n))]
         (when (> end start)
           (apply str (subvec chars start end)))))))
 
