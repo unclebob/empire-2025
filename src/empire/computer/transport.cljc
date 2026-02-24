@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-24
 (ns empire.computer.transport
   "Computer transport module — simplified 3-state mission flow.
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
@@ -25,49 +26,11 @@
                          (= :computer (:owner (:contents cell)))))))
             (core/get-neighbors pos))))
 
-(defn- find-armies-to-load
-  "Find computer armies that should board transports."
-  []
-  (let [game-map @atoms/game-map]
-    (for [i (range (count game-map))
-          j (range (count (first game-map)))
-          :let [cell (get-in game-map [i j])
-                unit (:contents cell)]
-          :when (and unit
-                     (= :computer (:owner unit))
-                     (= :army (:type unit)))]
-      [i j])))
-
 (defn- recently-unloaded-country?
   "Returns true if the country-id was unloaded to within the last 10 rounds."
   [unloaded-countries country-id]
   (when-let [unload-round (get unloaded-countries country-id)]
     (< (- @atoms/round-number unload-round) 10)))
-
-(defn- find-nearest-army
-  "Find the nearest army to the transport. When pickup-continent is provided,
-   only considers armies on that continent. Excludes armies from countries
-   the transport recently unloaded into. Excludes armies with matching
-   transport-unload-event-id to prevent reloading just-unloaded armies."
-  [transport-pos pickup-continent unloaded-countries transport-unload-event-id]
-  (let [armies (find-armies-to-load)
-        candidates (cond->> armies
-                     pickup-continent
-                     (filter #(contains? pickup-continent %))
-
-                     (seq unloaded-countries)
-                     (remove (fn [army-pos]
-                               (let [unit (get-in @atoms/game-map (conj army-pos :contents))]
-                                 (and (:country-id unit)
-                                      (recently-unloaded-country?
-                                        unloaded-countries (:country-id unit))))))
-
-                     transport-unload-event-id
-                     (remove (fn [army-pos]
-                               (let [unit (get-in @atoms/game-map (conj army-pos :contents))]
-                                 (= (:unload-event-id unit) transport-unload-event-id)))))]
-    (when (seq candidates)
-      (apply min-key #(core/distance transport-pos %) candidates))))
 
 (defn- adjacent-to-land?
   "Returns true if position has adjacent land cell."

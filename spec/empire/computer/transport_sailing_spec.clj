@@ -12,38 +12,6 @@
   (before (reset-all-atoms!))
 
   (context "unload-event-id filtering"
-    (it "find-nearest-army skips armies with matching unload-event-id"
-      (reset-all-atoms!)
-      (let [game-map (build-test-map ["a~~"
-                                      "~~~"
-                                      "~t~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [0 0 :contents :unload-event-id] 42)
-        (let [result (#'transport/find-nearest-army [1 2] nil nil 42)]
-          (should-be-nil result))))
-
-    (it "find-nearest-army finds armies with different unload-event-id"
-      (reset-all-atoms!)
-      (let [game-map (build-test-map ["a~~"
-                                      "~~~"
-                                      "~t~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [0 0 :contents :unload-event-id] 99)
-        (let [result (#'transport/find-nearest-army [1 2] nil nil 42)]
-          (should= [0 0] result))))
-
-    (it "find-nearest-army finds armies with no unload-event-id"
-      (reset-all-atoms!)
-      (let [game-map (build-test-map ["a~~"
-                                      "~~~"
-                                      "~t~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (let [result (#'transport/find-nearest-army [1 2] nil nil 42)]
-          (should= [0 0] result))))
-
     (it "mint-unload-event-id always mints new ID even when one exists"
       (reset-all-atoms!)
       (reset! atoms/next-unload-event-id 100)
