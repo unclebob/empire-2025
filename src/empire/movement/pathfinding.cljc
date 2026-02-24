@@ -388,6 +388,66 @@
                        new-visited
                        new-came-from)))))))))
 
+;; BFS lookahead: after finding the first target, continue for 4 more
+;; BFS levels collecting alternatives. Prefer unowned coast (invasion
+;; target) over unexplored coast (scouting target); within each
+;; category pick the nearest.
+(def ^:private coast-lookahead 4)
+
+(defn bfs-to-coast-target
+  "Combined BFS over explored sea cells seeking cells adjacent to
+   unowned land/city (game-map) or unexplored territory (computer-map).
+   Continues coast-lookahead levels past the first hit so that a
+   slightly farther unowned coast beats a nearer unexplored cell."
+  [start computer-map game-map]
+  (let [passable-sea? (fn [pos]
+                        (let [cell (get-in computer-map pos)]
+                          (and cell (= :sea (:type cell)))))]
+    (when (passable-sea? start)
+      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
+             visited #{start}
+             came-from {}
+             first-hit-depth nil
+             best-unowned nil
+             best-unexplored nil]
+        (if (or (empty? queue)
+                (and first-hit-depth
+                     (> (second (peek queue))
+                        (+ first-hit-depth coast-lookahead))))
+          (when-let [target (or best-unowned best-unexplored)]
+            (vec (rest (reconstruct-path came-from start target))))
+          (let [[current depth] (peek queue)
+                rest-queue (pop queue)
+                unowned? (and (not= current start)
+                              (adjacent-to-unowned? current game-map))
+                unexplored? (and (not= current start)
+                                 (adjacent-to-unexplored?
+                                   current computer-map))
+                hit? (or unowned? unexplored?)
+                first-hit-depth (if (and hit? (nil? first-hit-depth))
+                                  depth first-hit-depth)
+                best-unowned (if (and unowned? (nil? best-unowned))
+                               current best-unowned)
+                best-unexplored (if (and unexplored?
+                                         (nil? best-unexplored))
+                                  current best-unexplored)
+                [x y] current
+                neighbors (for [[dx dy] neighbor-offsets
+                                :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
+                                :when (and (not (visited n))
+                                           (passable-sea? n))]
+                            n)
+                new-visited (into visited neighbors)
+                new-came-from (reduce #(assoc %1 %2 current)
+                                      came-from neighbors)]
+            (recur (reduce #(conj %1 [%2 (inc depth)])
+                           rest-queue neighbors)
+                   new-visited
+                   new-came-from
+                   first-hit-depth
+                   best-unowned
+                   best-unexplored)))))))
+
 (defn- adjacent-to-target-continent-land?
   "Returns true if any neighbor of pos is land/city on target-continent."
   [pos target-continent game-map]

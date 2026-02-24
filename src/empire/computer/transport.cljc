@@ -514,11 +514,11 @@
     (when (passable-sea? candidate) candidate)))
 
 (defn- compute-sail-path
-  "Compute BFS path from transport position to nearest unexplored coast
-   or unowned land. Returns path vector (excluding start) or nil."
+  "Compute BFS path from transport position to best coastal target.
+   Looks 4 levels past first hit; prefers unowned coast over unexplored."
   [pos]
-  (or (pathfinding/bfs-to-unexplored-coast pos @atoms/computer-map)
-      (pathfinding/bfs-to-unowned-coast pos @atoms/computer-map @atoms/game-map)))
+  (pathfinding/bfs-to-coast-target
+    pos @atoms/computer-map @atoms/game-map))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."

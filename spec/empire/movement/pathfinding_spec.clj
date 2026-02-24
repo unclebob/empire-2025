@@ -590,6 +590,58 @@
           computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
       (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)))))
 
+(describe "bfs-to-coast-target"
+  (before (reset-all-atoms!))
+
+  (it "prefers unowned coast over nearer unexplored"
+    ;; Row 0: start sea.  Row 1: sea.  Row 2: sea adjacent to unexplored.
+    ;; Row 3: sea adjacent to free city.
+    ;; Unexplored at depth 2, unowned at depth 3 — within lookahead.
+    (let [computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :sea}] [{:type :sea}] [nil]]
+          game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :free}]]]
+      (let [path (pathfinding/bfs-to-coast-target
+                   [0 0] computer-map game-map)]
+        ;; Should pick [3,0] (adjacent to free city) not [3,0] (adjacent to fog)
+        ;; Path ends at sea cell adjacent to free city
+        (should= [3 0] (last path)))))
+
+  (it "falls back to unexplored when no unowned within lookahead"
+    ;; Only unexplored territory, no unowned land at all
+    (let [computer-map [[{:type :sea}] [{:type :sea}] [nil]]
+          game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
+      (let [path (pathfinding/bfs-to-coast-target
+                   [0 0] computer-map game-map)]
+        (should= [[1 0]] path))))
+
+  (it "returns nil when no targets exist"
+    (let [computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]
+          game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
+      (should-be-nil (pathfinding/bfs-to-coast-target
+                       [0 0] computer-map game-map))))
+
+  (it "returns nil when start is not sea"
+    (let [computer-map [[{:type :land}] [{:type :sea}] [nil]]
+          game-map [[{:type :land}] [{:type :sea}] [{:type :sea}]]]
+      (should-be-nil (pathfinding/bfs-to-coast-target
+                       [0 0] computer-map game-map))))
+
+  (it "does not look past lookahead limit"
+    ;; Unexplored at depth 1, unowned at depth 6 (beyond 1+4=5)
+    ;; Should pick unexplored since unowned is too far past first hit
+    (let [computer-map (vec (for [r (range 8)]
+                              [(if (= r 2) nil {:type :sea})]))
+          game-map (vec (for [r (range 8)]
+                          [(if (= r 7)
+                             {:type :city :city-status :free}
+                             {:type :sea})]))]
+      (let [path (pathfinding/bfs-to-coast-target
+                   [0 0] computer-map game-map)]
+        ;; Unexplored at row 2, so path ends at [1,0]
+        (should= [1 0] (last path))))))
+
 (describe "sovereignty-aware pathfinding"
   (before (reset-all-atoms!))
 
