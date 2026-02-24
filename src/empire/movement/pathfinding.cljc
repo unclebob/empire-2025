@@ -394,6 +394,38 @@
 ;; category pick the nearest.
 (def ^:private coast-lookahead 4)
 
+(defn- bfs-past-lookahead?
+  [queue first-hit-depth]
+  (or (empty? queue)
+      (and first-hit-depth
+           (> (second (peek queue))
+              (+ first-hit-depth coast-lookahead)))))
+
+(defn- update-first-match
+  [flag? current-best new-value]
+  (if (and flag? (nil? current-best)) new-value current-best))
+
+(defn- classify-coastal
+  [current start game-map computer-map]
+  (if (= current start)
+    [false false]
+    [(adjacent-to-unowned? current game-map)
+     (adjacent-to-unexplored? current computer-map)]))
+
+(defn- bfs-sea-neighbors
+  [current visited passable-sea?]
+  (let [[x y] current]
+    (for [[dx dy] neighbor-offsets
+          :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
+          :when (and (not (visited n))
+                     (passable-sea? n))]
+      n)))
+
+(defn- build-coast-path
+  [best-unowned best-unexplored came-from start]
+  (when-let [target (or best-unowned best-unexplored)]
+    (vec (rest (reconstruct-path came-from start target)))))
+
 (defn bfs-to-coast-target
   "Combined BFS over explored sea cells seeking cells adjacent to
    unowned land/city (game-map) or unexplored territory (computer-map).
@@ -410,43 +442,19 @@
              first-hit-depth nil
              best-unowned nil
              best-unexplored nil]
-        (if (or (empty? queue)
-                (and first-hit-depth
-                     (> (second (peek queue))
-                        (+ first-hit-depth coast-lookahead))))
-          (when-let [target (or best-unowned best-unexplored)]
-            (vec (rest (reconstruct-path came-from start target))))
+        (if (bfs-past-lookahead? queue first-hit-depth)
+          (build-coast-path best-unowned best-unexplored came-from start)
           (let [[current depth] (peek queue)
-                rest-queue (pop queue)
-                unowned? (and (not= current start)
-                              (adjacent-to-unowned? current game-map))
-                unexplored? (and (not= current start)
-                                 (adjacent-to-unexplored?
-                                   current computer-map))
+                [unowned? unexplored?] (classify-coastal current start game-map computer-map)
                 hit? (or unowned? unexplored?)
-                first-hit-depth (if (and hit? (nil? first-hit-depth))
-                                  depth first-hit-depth)
-                best-unowned (if (and unowned? (nil? best-unowned))
-                               current best-unowned)
-                best-unexplored (if (and unexplored?
-                                         (nil? best-unexplored))
-                                  current best-unexplored)
-                [x y] current
-                neighbors (for [[dx dy] neighbor-offsets
-                                :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
-                                :when (and (not (visited n))
-                                           (passable-sea? n))]
-                            n)
-                new-visited (into visited neighbors)
-                new-came-from (reduce #(assoc %1 %2 current)
-                                      came-from neighbors)]
-            (recur (reduce #(conj %1 [%2 (inc depth)])
-                           rest-queue neighbors)
-                   new-visited
+                neighbors (bfs-sea-neighbors current visited passable-sea?)
+                new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+            (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
+                   (into visited neighbors)
                    new-came-from
-                   first-hit-depth
-                   best-unowned
-                   best-unexplored)))))))
+                   (update-first-match hit? first-hit-depth depth)
+                   (update-first-match unowned? best-unowned current)
+                   (update-first-match unexplored? best-unexplored current))))))))
 
 (defn- adjacent-to-target-continent-land?
   "Returns true if any neighbor of pos is land/city on target-continent."
