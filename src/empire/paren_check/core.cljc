@@ -69,9 +69,6 @@
         (and (= parent-form "describe") (= form "describe"))
         (str "ERROR line " line ": (describe) inside (describe) at line " (:line parent))
 
-        (and (= parent-form "context") (= form "context"))
-        (str "ERROR line " line ": (context) inside (context) at line " (:line parent))
-
         (and (= parent-form "context") (= form "describe"))
         (str "ERROR line " line ": (describe) inside (context) at line " (:line parent))))))
 

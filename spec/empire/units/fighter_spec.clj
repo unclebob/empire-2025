@@ -3,7 +3,7 @@
             [empire.units.fighter :as fighter]))
 
 (describe "fighter unit module"
-  (describe "configuration"
+  (context "configuration"
     (it "has speed of 8"
       (should= 8 fighter/speed))
 
@@ -25,17 +25,17 @@
     (it "has bingo threshold of 8 (quarter of fuel)"
       (should= 8 fighter/bingo-threshold)))
 
-  (describe "initial-state"
+  (context "initial-state"
     (it "includes full fuel"
       (should= {:fuel 32} (fighter/initial-state))))
 
-  (describe "can-move-to?"
+  (context "can-move-to?"
     (it "returns true for any cell type"
       (should (fighter/can-move-to? {:type :land}))
       (should (fighter/can-move-to? {:type :sea}))
       (should (fighter/can-move-to? {:type :city}))))
 
-  (describe "needs-attention?"
+  (context "needs-attention?"
     (it "returns true when awake"
       (should (fighter/needs-attention? {:type :fighter :mode :awake})))
 
@@ -48,7 +48,7 @@
     (it "returns false when exploring"
       (should-not (fighter/needs-attention? {:type :fighter :mode :explore}))))
 
-  (describe "consume-fuel"
+  (context "consume-fuel"
     (it "decrements fuel by 1"
       (let [unit {:type :fighter :fuel 20}
             result (fighter/consume-fuel unit)]
@@ -63,13 +63,13 @@
             result (fighter/consume-fuel unit)]
         (should= 31 (:fuel result)))))
 
-  (describe "refuel"
+  (context "refuel"
     (it "sets fuel to full capacity"
       (let [unit {:type :fighter :fuel 5}
             result (fighter/refuel unit)]
         (should= 32 (:fuel result)))))
 
-  (describe "bingo?"
+  (context "bingo?"
     (it "returns true when fuel is at threshold"
       (should (fighter/bingo? {:type :fighter :fuel 8})))
 
@@ -79,7 +79,7 @@
     (it "returns false when fuel is above threshold"
       (should-not (fighter/bingo? {:type :fighter :fuel 20}))))
 
-  (describe "out-of-fuel?"
+  (context "out-of-fuel?"
     (it "returns true when fuel is 1"
       (should (fighter/out-of-fuel? {:type :fighter :fuel 1})))
 
@@ -89,7 +89,7 @@
     (it "returns false when fuel is above 1"
       (should-not (fighter/out-of-fuel? {:type :fighter :fuel 2}))))
 
-  (describe "can-land-at-city?"
+  (context "can-land-at-city?"
     (it "returns true for player city"
       (should (fighter/can-land-at-city? {:type :city :city-status :player})))
 
@@ -102,7 +102,7 @@
     (it "returns false for non-city"
       (should-not (fighter/can-land-at-city? {:type :land}))))
 
-  (describe "can-land-on-carrier?"
+  (context "can-land-on-carrier?"
     (it "returns true for friendly carrier with space"
       (let [cell {:contents {:type :carrier :owner :player :fighter-count 3}}]
         (should (fighter/can-land-on-carrier? cell :player 8))))

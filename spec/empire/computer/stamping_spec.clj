@@ -8,7 +8,7 @@
 (describe "stamp-computer-fields"
   (before (reset-all-atoms!))
 
-  (describe "satellite direction"
+  (context "satellite direction"
     (it "adds random direction to computer satellites"
       (let [unit {:type :satellite :owner :computer :hits 1 :mode :awake
                   :turns-remaining config/satellite-turns}
@@ -25,7 +25,7 @@
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :direction stamped))))
 
-  (describe "transport fields"
+  (context "transport fields"
     (it "assigns transport-mission and transport-id to computer transports"
       (reset! atoms/next-transport-id 5)
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
@@ -45,7 +45,7 @@
         (should-not-contain :transport-id stamped)
         (should= 5 @atoms/next-transport-id))))
 
-  (describe "country-id"
+  (context "country-id"
     (it "assigns city country-id to computer armies"
       (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer :country-id 3}
@@ -76,7 +76,7 @@
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :country-id stamped))))
 
-  (describe "patrol fields"
+  (context "patrol fields"
     (it "stamps patrol fields on computer patrol-boats from country cities"
       (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer :country-id 2}
@@ -108,7 +108,7 @@
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :patrol-country-id stamped))))
 
-  (describe "carrier fields"
+  (context "carrier fields"
     (it "stamps carrier fields on computer carriers"
       (reset! atoms/next-carrier-id 3)
       (let [unit {:type :carrier :owner :computer :hits 8 :mode :awake}
@@ -128,7 +128,7 @@
         (should-not-contain :carrier-mode stamped)
         (should= 3 @atoms/next-carrier-id))))
 
-  (describe "escort fields"
+  (context "escort fields"
     (it "stamps escort fields on computer battleships"
       (reset! atoms/next-escort-id 10)
       (let [unit {:type :battleship :owner :computer :hits 12 :mode :awake}
@@ -155,7 +155,7 @@
         (should-not-contain :escort-id stamped)
         (should= 10 @atoms/next-escort-id))))
 
-  (describe "destroyer fields"
+  (context "destroyer fields"
     (it "stamps destroyer-id and escort-mode on computer destroyers"
       (reset! atoms/next-destroyer-id 4)
       (let [unit {:type :destroyer :owner :computer :hits 3 :mode :awake}
@@ -173,7 +173,7 @@
         (should-not-contain :destroyer-id stamped)
         (should= 4 @atoms/next-destroyer-id))))
 
-  (describe "no-op for player units"
+  (context "no-op for player units"
     (it "returns unit unchanged for player army"
       (let [unit {:type :army :owner :player :hits 1 :mode :awake}
             cell {:type :city :city-status :player}

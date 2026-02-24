@@ -12,7 +12,7 @@
 (describe "process-fighter"
   (before (reset-all-atoms!))
 
-  (describe "attack behavior"
+  (context "attack behavior"
     (it "attacks adjacent player unit"
       (reset! atoms/game-map (build-test-map ["fA"]))
       (set-test-unit atoms/game-map "f" :fuel 20)
@@ -26,7 +26,7 @@
                       (nil? (:contents cell1))
                       (= :computer (:owner (:contents cell1)))))))))
 
-  (describe "fuel management"
+  (context "fuel management"
     (it "returns to city when low on fuel"
       (reset! atoms/game-map (build-test-map ["X#f"]))
       (set-test-unit atoms/game-map "f" :fuel 3)
@@ -99,7 +99,7 @@
         ;; Fighter should NOT be on the map as a unit
         (should-be-nil (get-test-unit atoms/game-map "f")))))
 
-  (describe "patrol behavior"
+  (context "patrol behavior"
     (it "patrols toward player units when fuel allows"
       ;; Wide map so fighter patrols toward player unit
       ;; but doesn't reach it to avoid random combat outcomes
@@ -155,7 +155,7 @@
             ;; Should have moved toward SE, not NW
             (should (or (> fr 2) (> fc 2))))))))
 
-  (describe "ignores non-computer fighters"
+  (context "ignores non-computer fighters"
     (it "returns nil for player fighter"
       (reset! atoms/game-map (build-test-map ["F"]))
       (set-test-unit atoms/game-map "F" :fuel 20)
@@ -167,7 +167,7 @@
       (let [unit (:contents (get-in @atoms/game-map [0 0]))]
         (should-be-nil (fighter/process-fighter [0 0] unit)))))
 
-  (describe "leg-based coverage"
+  (context "leg-based coverage"
     (it "picks unflown leg target over previously flown leg"
       ;; 20x20 map: city at [10,10], carrier A at [10,0] (north), carrier B at [0,10] (west)
       (let [land-row (apply str (repeat 20 \#))
@@ -276,7 +276,7 @@
           (should-not-be-nil result)
           (should (> fighter-col 1))))))
 
-  (describe "no phantom contents on blocked patrol"
+  (context "no phantom contents on blocked patrol"
     (it "does not create phantom contents when patrol move is blocked"
       ;; Fighter at [0 0] on a 1-row map. All neighbors occupied by friendly armies.
       ;; No unexplored cells on computer-map, but a player army far away to give a patrol target.
@@ -290,7 +290,7 @@
         ;; Cell [1 0] has a friendly army - should still be an army, not phantom fuel
         (should= :army (:type (:contents (get-in @atoms/game-map [1 0])))))))
 
-  (describe "sidestepping"
+  (context "sidestepping"
     (it "sidesteps around friendly unit blocking direct path"
       ;; 3x3 map: fighter at [0 0], friendly army blocking [1 0], target city at [2 0]
       ;; Fighter should move diagonally to [0 1] or [1 1] to go around
@@ -343,7 +343,7 @@
         ;; Fighter should be dead - fuel burned to 0 while stuck
         (should-be-nil (get-test-unit atoms/game-map "f")))))
 
-  (describe "fuel burn when stuck"
+  (context "fuel burn when stuck"
     (it "stuck fighter with 8 fuel burns all fuel and dies"
       ;; Fighter completely surrounded, with exactly 8 fuel (one per step)
       (reset! atoms/game-map (build-test-map ["aaa"
@@ -370,7 +370,7 @@
           (should-not-be-nil result)
           (should= 2 (:fuel (:unit result)))))))
 
-  (describe "flight mode selection"
+  (context "flight mode selection"
     (it "assigns regular leg when rand >= 0.5"
       ;; Two cities within fuel range, fighter on city A with no flight-mode.
       ;; With rand returning 0.6, ensure-flight-target should assign :regular mode.
@@ -443,7 +443,7 @@
           (should-not-be-nil result)
           (should= :regular (:flight-mode (:unit result)))))))
 
-  (describe "exploration heading"
+  (context "exploration heading"
     (it "picks direction with most unexplored cells"
       ;; 5x5 map: all explored except east side (columns 3-4 unexplored)
       ;; Fighter at [2 2] on city. Heading should favor east.
@@ -472,7 +472,7 @@
               (should-not-be-nil result)
               (should (pos? (first (:explore-heading (:unit result)))))))))))
 
-  (describe "exploration sortie movement"
+  (context "exploration sortie movement"
     (it "sortie flies outbound with steps-remaining decreasing"
       ;; Fighter mid-sortie, 10 steps remaining, heading east on wide map
       (reset! atoms/game-map (build-test-map ["X#f################"]))
@@ -536,7 +536,7 @@
           (should-not-be-nil result)
           (should-not= [2 1] (:pos result))))))
 
-  (describe "drone movement"
+  (context "drone movement"
     (it "drone flies until fuel exhaustion and dies"
       ;; Drone fighter with 3 fuel on open map, no city nearby
       (reset! atoms/game-map (build-test-map ["f##########"]))
@@ -552,7 +552,7 @@
         ;; Drone should have burned all fuel and died
         (should-be-nil (get-test-unit atoms/game-map "f")))))
 
-  (describe "handle-arrival cleanup"
+  (context "handle-arrival cleanup"
     (it "arrival clears exploration fields from unit"
       ;; Fighter arriving at target city — should clear explore fields
       (reset! atoms/game-map (build-test-map ["X#fX"]))
@@ -573,7 +573,7 @@
           (should-be-nil (:explore-heading (:unit result)))
           (should-be-nil (:explore-steps-remaining (:unit result)))))))
 
-  (describe "returning sortie arrival"
+  (context "returning sortie arrival"
     (it "does not crash when origin equals target (returning sortie)"
       ;; A returning sortie has flight-target-site == flight-origin-site (same city).
       ;; handle-arrival must not try to create #{origin origin} which throws.
@@ -591,7 +591,7 @@
               city-fighters (:fighter-count (get-in @atoms/game-map [0 0]))]
           (should (or fighter (and city-fighters (pos? city-fighters))))))))
 
-  (describe "navigate-toward-target enhancement"
+  (context "navigate-toward-target enhancement"
     (it "allows +1 distance sideways jog to unexplored cell"
       ;; Fighter navigating toward target with unexplored cell 1 step off direct path
       ;; With the +1 distance allowance, fighter should prefer the unexplored cell
@@ -618,7 +618,7 @@
           (should-not-be-nil result)
           (should-not= [1 1] (:pos result))))))
 
-  (describe "deterministic combat outcomes"
+  (context "deterministic combat outcomes"
     (it "attacker wins and moves to enemy position"
       (reset! atoms/game-map (build-test-map ["fA"]))
       (set-test-unit atoms/game-map "f" :fuel 20)
@@ -643,7 +643,7 @@
           (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
           (should= :player (get-in @atoms/game-map [1 0 :contents :owner]))))))
 
-  (describe "fuel boundary precision"
+  (context "fuel boundary precision"
     (it "returns to refuel when fuel exactly equals return distance plus margin"
       ;; distance=8, fuel=10 (= 8+2). should-return: (<= 10 10) = true.
       ;; Mutation <= to < gives (< 10 10) = false → navigates away.
@@ -669,7 +669,7 @@
         (fighter/process-fighter [2 0] unit)
         (should= 1 (:fighter-count (get-in @atoms/game-map [0 0]))))))
 
-  (describe "carrier detection in current-refueling-site"
+  (context "carrier detection in current-refueling-site"
     (it "assigns flight target when adjacent to holding computer carrier"
       ;; Fighter on sea next to computer carrier. ensure-flight-target should
       ;; detect the carrier and assign a leg toward the distant city.
@@ -685,7 +685,7 @@
             (should-not-be-nil result)
             (should= :regular (:flight-mode (:unit result))))))))
 
-  (describe "choose-leg distance boundary"
+  (context "choose-leg distance boundary"
     (it "includes site at exactly fighter-fuel distance"
       ;; Two cities 32 apart (= config/fighter-fuel). Leg should be reachable.
       ;; Mutation <= to < would exclude it.
@@ -702,7 +702,7 @@
               (should= :regular (:flight-mode (:unit result)))
               (should= [32 0] (:flight-target-site (:unit result)))))))))
 
-  (describe "non-axis distance calculation"
+  (context "non-axis distance calculation"
     (it "correctly computes distance when both coordinates differ"
       ;; Fighter at [1,2], city at [0,0]. True distance=3.
       ;; Mutation outer + -> - gives |1|-|2|=-1, changing return decision.

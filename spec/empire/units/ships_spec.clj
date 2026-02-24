@@ -3,7 +3,7 @@
             [empire.units.ships :as ships]))
 
 (describe "ships data-driven module"
-  (describe "patrol-boat configuration"
+  (context "patrol-boat configuration"
     (it "has speed of 4" (should= 4 (ships/config :patrol-boat :speed)))
     (it "has cost of 15" (should= 15 (ships/config :patrol-boat :cost)))
     (it "has 1 hit point" (should= 1 (ships/config :patrol-boat :hits)))
@@ -11,7 +11,7 @@
     (it "displays as P" (should= "P" (ships/config :patrol-boat :display-char)))
     (it "has visibility radius of 1" (should= 1 (ships/config :patrol-boat :visibility-radius))))
 
-  (describe "destroyer configuration"
+  (context "destroyer configuration"
     (it "has speed of 2" (should= 2 (ships/config :destroyer :speed)))
     (it "has cost of 20" (should= 20 (ships/config :destroyer :cost)))
     (it "has 3 hit points" (should= 3 (ships/config :destroyer :hits)))
@@ -19,7 +19,7 @@
     (it "displays as D" (should= "D" (ships/config :destroyer :display-char)))
     (it "has visibility radius of 1" (should= 1 (ships/config :destroyer :visibility-radius))))
 
-  (describe "submarine configuration"
+  (context "submarine configuration"
     (it "has speed of 2" (should= 2 (ships/config :submarine :speed)))
     (it "has cost of 20" (should= 20 (ships/config :submarine :cost)))
     (it "has 2 hit points" (should= 2 (ships/config :submarine :hits)))
@@ -27,7 +27,7 @@
     (it "displays as S" (should= "S" (ships/config :submarine :display-char)))
     (it "has visibility radius of 1" (should= 1 (ships/config :submarine :visibility-radius))))
 
-  (describe "battleship configuration"
+  (context "battleship configuration"
     (it "has speed of 2" (should= 2 (ships/config :battleship :speed)))
     (it "has cost of 40" (should= 40 (ships/config :battleship :cost)))
     (it "has 10 hit points" (should= 10 (ships/config :battleship :hits)))
@@ -35,12 +35,12 @@
     (it "displays as B" (should= "B" (ships/config :battleship :display-char)))
     (it "has visibility radius of 1" (should= 1 (ships/config :battleship :visibility-radius))))
 
-  (describe "shared behavior"
-    (describe "initial-state"
+  (context "shared behavior"
+    (context "initial-state"
       (it "returns empty map"
         (should= {} (ships/initial-state))))
 
-    (describe "can-move-to?"
+    (context "can-move-to?"
       (it "returns true for sea"
         (should (ships/can-move-to? {:type :sea})))
       (it "returns false for land"
@@ -50,7 +50,7 @@
       (it "returns false for nil"
         (should-not (ships/can-move-to? nil))))
 
-    (describe "needs-attention?"
+    (context "needs-attention?"
       (it "returns true when awake"
         (should (ships/needs-attention? {:mode :awake})))
       (it "returns false when sentry"

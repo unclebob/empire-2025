@@ -56,9 +56,9 @@
     (let [result (pc/scan "(describe \"x\"\n  (describe \"y\"))")]
       (should= 1 (count (:errors result)))))
 
-  (it "detects (context) inside (context)"
+  (it "allows (context) inside (context)"
     (let [result (pc/scan "(describe \"x\"\n  (context \"a\"\n    (context \"b\")))")]
-      (should= 1 (count (:errors result)))))
+      (should= 0 (count (:errors result)))))
 
   (it "detects (describe) inside (it)"
     (let [result (pc/scan "(describe \"x\"\n  (it \"y\"\n    (describe \"z\")))")]

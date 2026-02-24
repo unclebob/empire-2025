@@ -644,7 +644,7 @@
     (reset! atoms/paused false)
     (reset! atoms/pause-requested false))
 
-  (describe "toggle-pause"
+  (context "toggle-pause"
     (it "sets pause-requested when game is running"
       (reset! atoms/paused false)
       (game-loop/toggle-pause)
@@ -657,7 +657,7 @@
       (should-not @atoms/paused)
       (should-not @atoms/pause-requested)))
 
-  (describe "step-one-round"
+  (context "step-one-round"
     (it "does nothing when not paused"
       (reset! atoms/paused false)
       (reset! atoms/round-number 5)
@@ -693,7 +693,7 @@
       (game-loop/step-one-round)
       (should= 5 @atoms/round-number)))
 
-  (describe "advance-game pauses at round end"
+  (context "advance-game pauses at round end"
     (it "pauses at end of round when pause-requested"
       (reset! atoms/game-map (build-test-map ["#"]))
       (reset! atoms/player-map (build-test-map ["#"]))

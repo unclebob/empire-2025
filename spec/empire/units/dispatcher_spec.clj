@@ -3,7 +3,7 @@
             [empire.units.dispatcher :as dispatcher]))
 
 (describe "unit dispatcher module"
-  (describe "speed"
+  (context "speed"
     (it "returns correct speed for each unit type"
       (should= 1 (dispatcher/speed :army))
       (should= 8 (dispatcher/speed :fighter))
@@ -18,7 +18,7 @@
     (it "returns nil for unknown type"
       (should-be-nil (dispatcher/speed :unknown))))
 
-  (describe "cost"
+  (context "cost"
     (it "returns correct cost for each unit type"
       (should= 5 (dispatcher/cost :army))
       (should= 10 (dispatcher/cost :fighter))
@@ -33,7 +33,7 @@
     (it "returns nil for unknown type"
       (should-be-nil (dispatcher/cost :unknown))))
 
-  (describe "hits"
+  (context "hits"
     (it "returns correct hits for each unit type"
       (should= 1 (dispatcher/hits :army))
       (should= 1 (dispatcher/hits :fighter))
@@ -48,7 +48,7 @@
     (it "returns nil for unknown type"
       (should-be-nil (dispatcher/hits :unknown))))
 
-  (describe "display-char"
+  (context "display-char"
     (it "returns correct character for each unit type"
       (should= "A" (dispatcher/display-char :army))
       (should= "F" (dispatcher/display-char :fighter))
@@ -63,7 +63,7 @@
     (it "returns nil for unknown type"
       (should-be-nil (dispatcher/display-char :unknown))))
 
-  (describe "visibility-radius"
+  (context "visibility-radius"
     (it "returns 1 for most units"
       (should= 1 (dispatcher/visibility-radius :army))
       (should= 1 (dispatcher/visibility-radius :fighter))
@@ -80,7 +80,7 @@
     (it "returns nil for unknown type"
       (should-be-nil (dispatcher/visibility-radius :unknown))))
 
-  (describe "strength"
+  (context "strength"
     (it "returns 1 for most units"
       (should= 1 (dispatcher/strength :army))
       (should= 1 (dispatcher/strength :fighter))
@@ -99,7 +99,7 @@
     (it "returns nil for unknown type"
       (should-be-nil (dispatcher/strength :unknown))))
 
-  (describe "initial-state"
+  (context "initial-state"
     (it "returns empty map for simple units"
       (should= {} (dispatcher/initial-state :army))
       (should= {} (dispatcher/initial-state :patrol-boat))
@@ -122,7 +122,7 @@
     (it "returns empty map for unknown type"
       (should= {} (dispatcher/initial-state :unknown))))
 
-  (describe "can-move-to?"
+  (context "can-move-to?"
     (it "delegates to army module"
       (should (dispatcher/can-move-to? :army {:type :land}))
       (should-not (dispatcher/can-move-to? :army {:type :sea})))
@@ -153,7 +153,7 @@
       (should-not (dispatcher/can-move-to? :unknown {:type :land}))
       (should-not (dispatcher/can-move-to? :unknown {:type :sea}))))
 
-  (describe "needs-attention?"
+  (context "needs-attention?"
     (it "delegates to army module"
       (should (dispatcher/needs-attention? {:type :army :mode :awake}))
       (should-not (dispatcher/needs-attention? {:type :army :mode :sentry})))
@@ -189,7 +189,7 @@
     (it "returns false for unknown type"
       (should-not (dispatcher/needs-attention? {:type :unknown :mode :awake}))))
 
-  (describe "effective-speed"
+  (context "effective-speed"
     (it "returns base speed at full health for all unit types"
       (should= 1 (dispatcher/effective-speed :army 1))
       (should= 8 (dispatcher/effective-speed :fighter 1))
@@ -219,7 +219,7 @@
     (it "returns 1 for carrier at 1/8 hits"
       (should= 1 (dispatcher/effective-speed :carrier 1))))
 
-  (describe "capacity"
+  (context "capacity"
     (it "returns correct capacity for container units"
       (should= 6 (dispatcher/capacity :transport))
       (should= 8 (dispatcher/capacity :carrier)))
@@ -229,7 +229,7 @@
       (should-be-nil (dispatcher/capacity :fighter))
       (should-be-nil (dispatcher/capacity :destroyer))))
 
-  (describe "effective-capacity"
+  (context "effective-capacity"
     (it "returns base capacity at full health"
       (should= 6 (dispatcher/effective-capacity :transport 1))
       (should= 8 (dispatcher/effective-capacity :carrier 8)))
@@ -251,7 +251,7 @@
       (should= 6 (dispatcher/effective-capacity :transport nil))
       (should= 8 (dispatcher/effective-capacity :carrier nil))))
 
-  (describe "naval-unit?"
+  (context "naval-unit?"
     (it "returns true for naval units"
       (should (dispatcher/naval-unit? :transport))
       (should (dispatcher/naval-unit? :carrier))

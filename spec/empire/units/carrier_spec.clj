@@ -3,7 +3,7 @@
             [empire.units.carrier :as carrier]))
 
 (describe "carrier unit module"
-  (describe "configuration"
+  (context "configuration"
     (it "has speed of 2"
       (should= 2 carrier/speed))
 
@@ -22,11 +22,11 @@
     (it "has visibility radius of 1"
       (should= 1 carrier/visibility-radius)))
 
-  (describe "initial-state"
+  (context "initial-state"
     (it "starts with no fighters"
       (should= {:fighter-count 0 :awake-fighters 0} (carrier/initial-state))))
 
-  (describe "can-move-to?"
+  (context "can-move-to?"
     (it "returns true for sea"
       (should (carrier/can-move-to? {:type :sea})))
 
@@ -39,7 +39,7 @@
     (it "returns false for nil"
       (should-not (carrier/can-move-to? nil))))
 
-  (describe "needs-attention?"
+  (context "needs-attention?"
     (it "returns true when awake"
       (should (carrier/needs-attention? {:type :carrier :mode :awake})))
 
@@ -52,7 +52,7 @@
     (it "returns false when moving"
       (should-not (carrier/needs-attention? {:type :carrier :mode :moving :awake-fighters 0}))))
 
-  (describe "full?"
+  (context "full?"
     (it "returns true at capacity"
       (should (carrier/full? {:fighter-count 8})))
 
@@ -65,42 +65,42 @@
     (it "returns false for empty carrier"
       (should-not (carrier/full? {:fighter-count 0}))))
 
-  (describe "has-fighters?"
+  (context "has-fighters?"
     (it "returns true when has fighters"
       (should (carrier/has-fighters? {:fighter-count 4})))
 
     (it "returns false when empty"
       (should-not (carrier/has-fighters? {:fighter-count 0}))))
 
-  (describe "has-awake-fighters?"
+  (context "has-awake-fighters?"
     (it "returns true when has awake fighters"
       (should (carrier/has-awake-fighters? {:awake-fighters 3})))
 
     (it "returns false when no awake fighters"
       (should-not (carrier/has-awake-fighters? {:awake-fighters 0}))))
 
-  (describe "add-fighter"
+  (context "add-fighter"
     (it "increments fighter count"
       (should= 5 (:fighter-count (carrier/add-fighter {:fighter-count 4}))))
 
     (it "handles nil fighter count"
       (should= 1 (:fighter-count (carrier/add-fighter {})))))
 
-  (describe "remove-fighter"
+  (context "remove-fighter"
     (it "decrements fighter count"
       (should= 3 (:fighter-count (carrier/remove-fighter {:fighter-count 4})))))
 
-  (describe "wake-fighters"
+  (context "wake-fighters"
     (it "sets awake-fighters to fighter-count"
       (let [result (carrier/wake-fighters {:fighter-count 6 :awake-fighters 0})]
         (should= 6 (:awake-fighters result)))))
 
-  (describe "sleep-fighters"
+  (context "sleep-fighters"
     (it "sets awake-fighters to 0"
       (let [result (carrier/sleep-fighters {:fighter-count 6 :awake-fighters 4})]
         (should= 0 (:awake-fighters result)))))
 
-  (describe "remove-awake-fighter"
+  (context "remove-awake-fighter"
     (it "decrements both fighter-count and awake-fighters"
       (let [result (carrier/remove-awake-fighter {:fighter-count 5 :awake-fighters 3})]
         (should= 4 (:fighter-count result))

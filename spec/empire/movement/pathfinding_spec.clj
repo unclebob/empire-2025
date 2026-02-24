@@ -735,19 +735,19 @@
     (reset-all-atoms!)
     (pathfinding/clear-path-cache))
 
-  (describe "bounded-a-star"
+  (context "bounded-a-star"
     (it "returns [start] when start equals goal"
       (reset! atoms/game-map (build-test-map ["~~~"]))
       (should= [[0 0]] (pathfinding/bounded-a-star [0 0] [0 0] :destroyer @atoms/game-map))))
 
-  (describe "adjacent-to-target-continent-land? with city"
+  (context "adjacent-to-target-continent-land? with city"
     (it "recognizes :city as target-continent land"
       (let [game-map [[{:type :sea} {:type :city :city-status :free}]
                        [{:type :sea} {:type :sea}]]]
         (should (#'empire.movement.pathfinding/adjacent-to-target-continent-land?
                   [0 0] #{[0 1]} game-map)))))
 
-  (describe "find-nearest-unload-position start-skip"
+  (context "find-nearest-unload-position start-skip"
     (it "does not return start even when start is valid unload position"
       ;; Start [0,0] is sea, empty, adjacent to target continent land [1,0]
       (reset! atoms/game-map (build-test-map ["~#" "~#"]))
@@ -764,7 +764,7 @@
         (should-not-be-nil result)
         (should= [0 0] result))))
 
-  (describe "sea-reaches-edge? edge isolation"
+  (context "sea-reaches-edge? edge isolation"
     (it "detects right edge only (kills dec-rows mutation)"
       ;; Sea at [2,1]: r=2=dec(3), c=1. Only (= r (dec rows)) fires.
       (reset! atoms/game-map (build-test-map ["###" "##~" "###"]))
@@ -788,14 +788,14 @@
       (reset! atoms/game-map (build-test-map ["##~##" "##~##" "##~##"]))
       (should (pathfinding/sea-reaches-edge? [2 0]))))
 
-  (describe "next-step sea lane recording with passability-fn"
+  (context "next-step sea lane recording with passability-fn"
     (it "does not record naval paths when passability-fn is provided"
       (reset! atoms/game-map (build-test-map ["~~~~~~"]))
       (let [pass-fn (fn [cell] (and cell (= :sea (:type cell))))]
         (pathfinding/next-step [0 0] [5 0] :destroyer pass-fn :custom)
         (should= 0 (count (:segments @atoms/sea-lane-network))))))
 
-  (describe "cache-sub-paths! two-element path"
+  (context "cache-sub-paths! two-element path"
     (it "caches the final two-element sub-path"
       (reset! atoms/game-map (build-test-map ["a###"]))
       ;; Compute path [0,0]→[3,0], sub-paths include [2,0]→[3,0]
@@ -807,7 +807,7 @@
       (let [step (pathfinding/next-step [2 0] [3 0] :army)]
         (should= [3 0] step))))
 
-  (describe "find-nearest-unexplored-coastline start-skip"
+  (context "find-nearest-unexplored-coastline start-skip"
     (it "does not return start even when start is at coastal frontier"
       ;; game-map: col0=[sea,sea], col1=[land,sea]
       ;; computer-map: col0=[sea,nil], col1=[land,sea]
