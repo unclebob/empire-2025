@@ -67,21 +67,24 @@
 
 (defn hop-over-friendly
   "When the best neighbor toward target is occupied by a computer unit, scan
-   forward along the direction of travel, skipping friendly-occupied cells.
-   Land on the first empty passable cell. Returns {:dest pos :hops n} or nil."
+   forward along the direction of travel, skipping all consecutive
+   friendly-occupied cells. Land on the first empty passable cell.
+   Returns {:dest pos :hops n} or nil."
   [pos target]
   (let [passable (get-passable-neighbors pos)
-        best (best-neighbor-toward pos target passable)]
+        [br bc :as best] (best-neighbor-toward pos target passable)]
     (when best
       (if-not (occupied? best)
         {:dest best :hops 1}
         (when (friendly-occupied? best)
-          (let [dir (direction-from pos best)
-                [dr dc] dir
-                scan-pos [(+ (first best) dr) (+ (second best) dc)]]
-            (when (and (in-bounds? scan-pos)
-                       (not (occupied? scan-pos)))
-              {:dest scan-pos :hops 2})))))))
+          (let [[dr dc] (direction-from pos best)]
+            (loop [sr br sc bc hops 1]
+              (let [next-pos [(+ sr dr) (+ sc dc)]]
+                (when (in-bounds? next-pos)
+                  (if-not (occupied? next-pos)
+                    {:dest next-pos :hops (inc hops)}
+                    (when (friendly-occupied? next-pos)
+                      (recur (+ sr dr) (+ sc dc) (inc hops)))))))))))))
 
 (defn- move-toward-with-sidestep
   "Like core/move-toward but excludes occupied cells and prefers diagonals on ties.

@@ -765,4 +765,27 @@
     (it "returns nil when friendly unit blocks and cell beyond is off-map"
       ;; Fighter at [0 0], friendly army at [1 0], nothing beyond
       (reset! atoms/game-map (build-test-map ["fa"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [1 0])))))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [1 0]))))
+
+  (describe "multi-unit hop"
+    (it "hops over two consecutive friendly units"
+      ;; Fighter at [0 0], armies at [1 0] and [2 0], empty at [3 0], target at [4 0]
+      (reset! atoms/game-map (build-test-map ["faa##"]))
+      (let [result (fighter/hop-over-friendly [0 0] [4 0])]
+        (should= {:dest [3 0] :hops 3} result)))
+
+    (it "hops over three consecutive friendly units"
+      ;; Fighter at [0 0], armies at [1 0], [2 0], [3 0], empty at [4 0], target at [5 0]
+      (reset! atoms/game-map (build-test-map ["faaa##"]))
+      (let [result (fighter/hop-over-friendly [0 0] [5 0])]
+        (should= {:dest [4 0] :hops 4} result)))
+
+    (it "returns nil when all consecutive friendly units lead off-map"
+      ;; Fighter at [0 0], armies fill the rest of the map
+      (reset! atoms/game-map (build-test-map ["faaa"]))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))
+
+    (it "returns nil when chain of friendly units ends at occupied cell"
+      ;; Fighter at [0 0], two friendly armies, then enemy army
+      (reset! atoms/game-map (build-test-map ["faaA"]))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))))
