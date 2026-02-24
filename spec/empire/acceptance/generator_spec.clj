@@ -252,3 +252,96 @@
       (should-contain "get-test-city" result)
       (should-contain "\"X\"" result))))
 
+;; --- generate-ns-form tests ---
+
+(describe "generate-ns-form"
+
+  (it "generates correct ns name from source filename"
+    (let [result (gen/generate-ns-form "army.txt" #{})]
+      (should-contain "(ns acceptance.army-spec" result)))
+
+  (it "always includes speclj require"
+    (let [result (gen/generate-ns-form "foo.txt" #{})]
+      (should-contain "[speclj.core :refer :all]" result)))
+
+  (it "always includes base test-utils refers"
+    (let [result (gen/generate-ns-form "foo.txt" #{})]
+      (should-contain "build-test-map" result)
+      (should-contain "set-test-unit" result)
+      (should-contain "get-test-unit" result)
+      (should-contain "reset-all-atoms!" result)))
+
+  (it "always includes atoms and input requires"
+    (let [result (gen/generate-ns-form "foo.txt" #{})]
+      (should-contain "[empire.atoms :as atoms]" result)
+      (should-contain "[empire.ui.input :as input]" result)))
+
+  (it "includes config require and message-matches? refer when :config needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:config})]
+      (should-contain "[empire.config :as config]" result)
+      (should-contain "message-matches?" result)))
+
+  (it "includes game-loop require when :game-loop needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:game-loop})]
+      (should-contain "[empire.game-loop :as game-loop]" result)))
+
+  (it "includes item-processing require when :item-processing needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:item-processing})]
+      (should-contain "[empire.game-loop.item-processing :as item-processing]" result)))
+
+  (it "includes quil require when :quil needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:quil})]
+      (should-contain "[quil.core :as q]" result)))
+
+  (it "includes get-test-cell refer when :get-test-cell needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:get-test-cell})]
+      (should-contain "get-test-cell" result)))
+
+  (it "includes get-test-city refer when :get-test-city needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:get-test-city})]
+      (should-contain "get-test-city" result)))
+
+  (it "includes visibility-mask refer when :visibility-mask needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:visibility-mask})]
+      (should-contain "visibility-mask" result)))
+
+  (it "includes territory refs when :territory-mask needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:territory-mask})]
+      (should-contain "territory-mask" result)
+      (should-contain "build-territory-expected" result)))
+
+  (it "includes make-initial-test-map refer when needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:make-initial-test-map})]
+      (should-contain "make-initial-test-map" result)))
+
+  (it "includes computer-production require when needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:computer-production})]
+      (should-contain "[empire.computer.production :as computer-production]" result)))
+
+  (it "includes computer-transport require when needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:computer-transport})]
+      (should-contain "[empire.computer.transport :as computer-transport]" result)))
+
+  (it "includes computer-fighter require when needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:computer-fighter})]
+      (should-contain "[empire.computer.fighter :as computer-fighter]" result)))
+
+  (it "includes visibility require when needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{:visibility})]
+      (should-contain "[empire.movement.visibility :as visibility]" result)))
+
+  (it "omits optional requires when not needed"
+    (let [result (gen/generate-ns-form "foo.txt" #{})]
+      (should-not-contain "config" result)
+      (should-not-contain "game-loop" result)
+      (should-not-contain "quil" result)
+      (should-not-contain "visibility" result)))
+
+  (it "combines multiple needs correctly"
+    (let [result (gen/generate-ns-form "foo.txt" #{:config :game-loop :get-test-cell :visibility})]
+      (should-contain "[empire.config :as config]" result)
+      (should-contain "[empire.game-loop :as game-loop]" result)
+      (should-contain "[empire.movement.visibility :as visibility]" result)
+      (should-contain "message-matches?" result)
+      (should-contain "get-test-cell" result))))
+
