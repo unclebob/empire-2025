@@ -81,10 +81,10 @@
         ;; Should have loaded at least 1 army (the one adjacent at start)
         (should (pos? (:army-count transport)))))
 
-    (it "loading transport with armies unloads onto foreign empty land"
+    (it "loading transport with armies unloads all onto foreign empty land"
       ;; Transport at [1,1] in loading mode with 4 armies.
       ;; Adjacent land at [0,0]-[0,2] is foreign (no country-id matching transport).
-      ;; Should opportunistically unload an army.
+      ;; Should opportunistically unload 3 armies (one per empty land cell).
       (reset! atoms/game-map (build-test-map ["###"
                                                "~t~"
                                                "~~~"]))
@@ -94,12 +94,18 @@
               :transport-mission :loading :army-count 4
               :country-id 99})
       (transport/process-transport [1 1])
-      ;; An army should appear on adjacent foreign land
-      (let [armies-on-land (for [r (range 3)
-                                 :let [cell (get-in @atoms/game-map [0 r])]
+      ;; All 3 adjacent land cells should have armies
+      (let [armies-on-land (for [c (range 3)
+                                 :let [cell (get-in @atoms/game-map [c 0])]
                                  :when (= :army (:type (:contents cell)))]
-                             [0 r])]
-        (should (pos? (count armies-on-land))))))
+                             [c 0])]
+        (should= 3 (count armies-on-land)))
+      ;; Transport should have 1 army remaining
+      (let [t (first (for [c (range 3) r (range 3)
+                           :let [unit (get-in @atoms/game-map [c r :contents])]
+                           :when (= :transport (:type unit))]
+                       unit))]
+        (should= 1 (:army-count t)))))
 
   (describe "unloading behavior"
     (it "unloads armies onto adjacent land"
@@ -371,16 +377,16 @@
                 :transport-mission :sailing :army-count 6
                 :sail-path [[3 2]]})
         (transport/process-transport [2 2])
-        ;; Transport should move to [3 2]
+        ;; Transport should move to [3 2] and unload to 3 adjacent land cells
         (let [transport (:contents (get-in @atoms/game-map [3 2]))]
           (should= :transport (:type transport))
-          (should= 5 (:army-count transport)))
-        ;; An army should appear on adjacent land (col 4)
+          (should= 3 (:army-count transport)))
+        ;; 3 armies on adjacent land at [4,1],[4,2],[4,3]
         (let [armies-on-land (count (for [r (range 5)
                                           :let [cell (get-in @atoms/game-map [4 r])]
                                           :when (= :army (:type (:contents cell)))]
                                      true))]
-          (should (pos? armies-on-land)))))
+          (should= 3 armies-on-land))))
 
     (it "transport does NOT unload on same continent"
       ;; Integration test: full transport near origin continent, only city on origin continent
@@ -1262,4 +1268,32 @@
               :sail-path []})
       (transport/process-transport [4 0])
       (let [t (:contents (get-in @atoms/game-map [4 0]))]
-        (should= :unloading (:transport-mission t))))))
+        (should= :unloading (:transport-mission t)))))
+
+  (describe "load armies after move-toward-position"
+    (it "loads army adjacent to destination when moving toward pickup continent"
+      ;; a##a#    army at [0,0], land row 0, army at [3,0]
+      ;; ~t~~~    transport at [1,1] heading toward pickup-continent-pos [4,0]
+      ;; ~~~~~    sea
+      ;; Transport moves from [1,1] toward [4,0], arrives at [2,1].
+      ;; Army at [3,0] is adjacent to [2,1] — should be loaded.
+      (let [game-map (build-test-map ["a##a#"
+                                      "~t~~~"
+                                      "~~~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [1 1 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 0
+                :pickup-continent-pos [4 0]})
+        (transport/process-transport [1 1])
+        ;; Army at [0,0] should be loaded (adjacent to start pos)
+        (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+        ;; Army at [3,0] should also be loaded (adjacent to destination)
+        (should-be-nil (:contents (get-in @atoms/game-map [3 0])))
+        ;; Transport should have 2 armies loaded
+        (let [t (first (for [c (range 5) r (range 3)
+                             :let [unit (get-in @atoms/game-map [c r :contents])]
+                             :when (= :transport (:type unit))]
+                         unit))]
+          (should= 2 (:army-count t)))))))

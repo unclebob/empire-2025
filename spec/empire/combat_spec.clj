@@ -571,49 +571,9 @@
         (core [0 0] [1 0])
         (should= 3 (:country-id (get-in @atoms/game-map [1 0]))))))
 
-  (it "computer army with unload-event-id mints new country-id for conquered city"
-    (with-redefs [rand (constantly 0.1)]
-      (reset! atoms/game-map (build-test-map ["aO"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (reset! atoms/next-country-id 5)
-      (swap! atoms/game-map assoc-in [0 0 :contents :unload-event-id] 7)
-      (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
-        (core [0 0] [1 0])
-        (should= 5 (:country-id (get-in @atoms/game-map [1 0])))
-        (should= 6 @atoms/next-country-id))))
-
-  (it "stamps new country-id on all armies with same unload-event-id"
-    (with-redefs [rand (constantly 0.1)]
-      (reset! atoms/game-map (build-test-map ["a#aO"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (reset! atoms/next-country-id 10)
-      ;; Army at [0,0] conquers; armies at [0,0] and [2,0] share unload-event-id 7
-      (swap! atoms/game-map assoc-in [0 0 :contents :unload-event-id] 7)
-      (swap! atoms/game-map assoc-in [2 0 :contents :unload-event-id] 7)
-      (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
-        (core [0 0] [3 0])
-        ;; City gets new country-id 10
-        (should= 10 (:country-id (get-in @atoms/game-map [3 0])))
-        ;; Surviving army at [2,0] gets country-id 10 and loses unload-event-id
-        (let [army2 (:contents (get-in @atoms/game-map [2 0]))]
-          (should= 10 (:country-id army2))
-          (should-be-nil (:unload-event-id army2)))
-        ;; next-country-id incremented
-        (should= 11 @atoms/next-country-id))))
-
-  (it "does not stamp armies with different unload-event-id"
-    (with-redefs [rand (constantly 0.1)]
-      (reset! atoms/game-map (build-test-map ["a#aO"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (reset! atoms/next-country-id 10)
-      (swap! atoms/game-map assoc-in [0 0 :contents :unload-event-id] 7)
-      (swap! atoms/game-map assoc-in [2 0 :contents :unload-event-id] 8)
-      (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
-        (core [0 0] [3 0])
-        ;; Army at [2,0] has different unload-event-id, should not be affected
-        (let [army2 (:contents (get-in @atoms/game-map [2 0]))]
-          (should= 8 (:unload-event-id army2))
-          (should-be-nil (:country-id army2)))))))
+  ;; unload-event-id minting tests removed — country-id is now minted at sail time
+  ;; via mint-unload-country-id, so armies always have country-id at unload.
+  )
 
 (describe "cargo drowning after combat"
   (before (reset-all-atoms!))

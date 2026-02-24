@@ -123,7 +123,6 @@
 ;; Per-country unit caps
 (def armies-before-transport 6)        ;; army count before country starts building transports
 (def max-patrol-boats-per-country 4)   ;; patrol boats per country
-(def max-fighters-per-country 2)       ;; fighters per country
 
 ;; Global production gates for expensive units
 (def carrier-city-threshold 10)        ;; computer needs >N cities before building carriers

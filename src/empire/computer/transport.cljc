@@ -11,6 +11,8 @@
             [empire.movement.visibility :as visibility]
             [empire.movement.map-utils :as map-utils]))
 
+(declare load-adjacent-armies)
+
 (defn- get-passable-sea-neighbors
   "Returns passable sea neighbors for a transport."
   [pos]
@@ -147,6 +149,7 @@
       (core/move-unit-to pos closest)
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility closest :computer)
+      (load-adjacent-armies closest)
       closest)))
 
 (defn- find-next-pickup-continent-pos
@@ -272,33 +275,37 @@
 
 (defn- try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,
-   unload one army onto the first target. Returns true if unloaded."
+   unload all possible armies onto targets. Returns true if any unloaded."
   [pos]
   (let [transport (get-in @atoms/game-map (conj pos :contents))
         army-count (:army-count transport 0)
         exclude-ids (pickup-exclude-ids transport)
         pickup-continent (pickup-continent-if-needed transport)
         targets (when (pos? army-count)
-                  (adjacent-empty-land pos exclude-ids pickup-continent))]
-    (when (seq targets)
-      (let [land-pos (first targets)
-            unload-eid (:unload-event-id transport)
+                  (adjacent-empty-land pos exclude-ids pickup-continent))
+        to-unload (min army-count (count targets))]
+    (when (pos? to-unload)
+      (let [unload-eid (:unload-event-id transport)
             unload-cid (:unload-country-id transport)
             army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
                    unload-eid (assoc :unload-event-id unload-eid)
                    unload-cid (assoc :country-id unload-cid))]
-        (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-        (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
-        (core/stamp-territory land-pos army)
-        (visibility/update-cell-visibility land-pos :computer)
-        ;; Record unloaded country-id
-        (when-let [country-id (:country-id (get-in @atoms/game-map land-pos))]
-          (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
-                 assoc country-id @atoms/round-number))
-        ;; Decrement army count
-        (swap! atoms/game-map update-in (conj pos :contents :army-count) dec)
+        (doseq [land-pos (take to-unload targets)]
+          (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
+          (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
+          (core/stamp-territory land-pos army)
+          (visibility/update-cell-visibility land-pos :computer))
+        ;; Record unloaded country-id from land cells
+        (let [unloaded-cid (->> (take to-unload targets)
+                                (keep #(:country-id (get-in @atoms/game-map %)))
+                                first)]
+          (when unloaded-cid
+            (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
+                   assoc unloaded-cid @atoms/round-number)))
+        ;; Update army count
+        (swap! atoms/game-map update-in (conj pos :contents :army-count) - to-unload)
         ;; If fully unloaded, transition to loading
-        (when (<= (dec army-count) 0)
+        (when (<= (- army-count to-unload) 0)
           (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
           (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
           (let [current-continent (when-let [lp (find-adjacent-land-pos pos)]
@@ -490,10 +497,11 @@
                      (into visited coastal-neighbors)))))))))
 
 (defn- compute-sail-path
-  "Compute BFS path from transport position to nearest unexplored coast.
-   Returns path vector (excluding start) or nil."
+  "Compute BFS path from transport position to nearest unexplored coast
+   or unowned land. Returns path vector (excluding start) or nil."
   [pos]
-  (pathfinding/bfs-to-unexplored-coast pos @atoms/computer-map))
+  (or (pathfinding/bfs-to-unexplored-coast pos @atoms/computer-map)
+      (pathfinding/bfs-to-unowned-coast pos @atoms/computer-map @atoms/game-map)))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."

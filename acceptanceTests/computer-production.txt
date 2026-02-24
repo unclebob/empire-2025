@@ -15,7 +15,7 @@
 ;   4. Destroyer (coastal, country has an unadopted transport — one
 ;      without an escort destroyer, and no sibling city is already
 ;      producing destroyers)
-;   5. Fighter (country has < 2 fighters; does NOT require coastal)
+;   5. Fighter (total fighters < total computer cities; does NOT require coastal)
 ;
 ; Global priorities (country cities whose per-country needs are all
 ;   satisfied):
@@ -179,15 +179,13 @@ THEN production at X is army.
 ; Country 1 with satisfied per-country priorities.
 ;===============================================================
 GIVEN game map
-  ~X~tffpppp
+  ~X~tppppffffffffffff
 GIVEN computer map
-  ~~~~~~~~~~
+  ~~~~~~~~~~~~~~~~~~~~
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort-destroyer-id 1.
 GIVEN t has 20 armies.
-GIVEN f1 belongs to country 1.
-GIVEN f2 belongs to country 1.
 GIVEN p1 patrols for country 1.
 GIVEN p2 patrols for country 1.
 GIVEN p3 patrols for country 1.
@@ -250,15 +248,13 @@ THEN production at X is submarine.
 ; Country 1 with satisfied per-country priorities.
 ;===============================================================
 GIVEN game map
-  #X#t~ffpppp
+  #X#t~ppppffffffffffffffff
 GIVEN computer map
-  ###########
+  #########################
 GIVEN X belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort-destroyer-id 1.
 GIVEN t has 20 armies.
-GIVEN f1 belongs to country 1.
-GIVEN f2 belongs to country 1.
 GIVEN p1 patrols for country 1.
 GIVEN p2 patrols for country 1.
 GIVEN p3 patrols for country 1.

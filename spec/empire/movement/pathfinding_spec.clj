@@ -535,6 +535,61 @@
       (let [path (pathfinding/bfs-to-unexplored-coast [0 0] computer-map)]
         (should= [[1 0]] path)))))
 
+(describe "bfs-to-unowned-coast"
+  (before (reset-all-atoms!))
+
+  (it "finds path to coast adjacent to free city"
+    ;; All explored, free city at [3,0]
+    ;; game-map: sea sea sea free-city
+    ;; computer-map: sea sea sea city (all explored)
+    (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :free}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]
+                         [{:type :city :city-status :free}]]]
+      (let [path (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)]
+        (should-not-be-nil path)
+        ;; Path should end at [2,0] — sea cell adjacent to free city [3,0]
+        (should= [2 0] (last path)))))
+
+  (it "finds path to coast adjacent to player city"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :player}]]
+          computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :city :city-status :player}]]]
+      (let [path (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)]
+        (should= [[1 0]] path))))
+
+  (it "does not target computer-owned cities"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :computer}]]
+          computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :city :city-status :computer}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "finds path to coast adjacent to unowned land"
+    ;; Land at [2,0] with no country-id (unowned)
+    (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :land}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [{:type :land}]]]
+      (let [path (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)]
+        (should= [[1 0]] path))))
+
+  (it "does not target computer-owned land"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :land :country-id 1}]]
+          computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :land}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "returns nil when start is not sea"
+    (let [game-map [[{:type :land}] [{:type :sea}] [{:type :city :city-status :free}]]
+          computer-map [[{:type :land}] [{:type :sea}] [{:type :city :city-status :free}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "returns nil when no unowned land reachable"
+    (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)))))
+
 (describe "sovereignty-aware pathfinding"
   (before (reset-all-atoms!))
 

@@ -742,3 +742,12 @@
       (with-redefs [rand (constantly 0.1)]
         (let [result (stamping/apply-random-explore-fields cw :army cell)]
           (should= :coast-walk (:mode result)))))))
+
+(describe "stamp-territory on cities"
+  (before (reset-all-atoms!))
+
+  (it "stamps city cell with army's country-id"
+    (reset! atoms/game-map [[{:type :city :city-status :computer}]])
+    (let [army {:type :army :owner :computer :country-id 5}]
+      (core/stamp-territory [0 0] army)
+      (should= 5 (:country-id (get-in @atoms/game-map [0 0]))))))

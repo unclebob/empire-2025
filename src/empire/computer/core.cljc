@@ -60,7 +60,7 @@
   (when (and (= :army (:type unit))
              (= :computer (:owner unit))
              (:country-id unit)
-             (= :land (:type (get-in @atoms/game-map pos))))
+             (#{:land :city} (:type (get-in @atoms/game-map pos))))
     (swap! atoms/game-map assoc-in (conj pos :country-id) (:country-id unit))))
 
 (defn- foreign-territory?
@@ -92,33 +92,6 @@
         (visibility/update-cell-visibility to-pos (:owner unit) unit)
         to-pos))))
 
-(defn- assign-country-on-conquest
-  "Assigns country-id to conquered city based on the conquering army's identity.
-   Army with country-id: city gets that country-id.
-   Army with unload-event-id: mint new country-id, assign to city and all armies sharing that unload-event-id."
-  [city-pos army]
-  (cond
-    (:country-id army)
-    (swap! atoms/game-map assoc-in (conj city-pos :country-id) (:country-id army))
-
-    (:unload-event-id army)
-    (let [new-country-id @atoms/next-country-id
-          eid (:unload-event-id army)]
-      (swap! atoms/next-country-id inc)
-      (swap! atoms/game-map assoc-in (conj city-pos :country-id) new-country-id)
-      ;; Stamp all armies with the same unload-event-id
-      (let [game-map @atoms/game-map]
-        (doseq [i (range (count game-map))
-                j (range (count (first game-map)))
-                :let [cell (get-in game-map [i j])
-                      unit (:contents cell)]
-                :when (and unit
-                           (= :army (:type unit))
-                           (= :computer (:owner unit))
-                           (= eid (:unload-event-id unit)))]
-          (swap! atoms/game-map update-in [(int i) (int j) :contents]
-                 #(-> % (assoc :country-id new-country-id) (dissoc :unload-event-id))))))))
-
 (defn attempt-conquest-computer
   "Computer army attempts to conquer a city. Returns new position or nil if army died."
   [army-pos city-pos]
@@ -132,7 +105,7 @@
         (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
         (swap! atoms/game-map assoc-in city-pos (assoc city-cell :city-status :computer))
         (combat/conquer-city-contents city-pos :computer)
-        (assign-country-on-conquest city-pos army)
+        (stamp-territory city-pos army)
         (let [city-country-id (:country-id (get-in @atoms/game-map city-pos))
               country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)]
           (when-not (and city-country-id
