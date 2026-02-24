@@ -785,6 +785,19 @@
       (reset! atoms/game-map (build-test-map ["faaa"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))
 
+    (it "returns nil when two friendly units lead off-map"
+      ;; 3x1 map: fighter at [0,0], armies at [1,0] and [2,0], target at [5,0]
+      ;; Scan goes past [2,0] to [3,0] which is off-map
+      (reset! atoms/game-map (build-test-map ["faa"]))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [5 0])))
+
+    (it "returns nil when diagonal hop goes off map edge"
+      ;; 2x2 map: fighter at [0 0], friendly army at [1 1], target at [2 2]
+      ;; Diagonal direction from [0 0] -> [1 1] is [1 1]. Next hop [2 2] is off-map.
+      (reset! atoms/game-map (build-test-map ["f#"
+                                               "#a"]))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [2 2])))
+
     (it "returns attack result when chain of friendly units ends at enemy"
       ;; Fighter at [0 0], two friendly armies, then player army at [3 0]
       (reset! atoms/game-map (build-test-map ["faaA"]))
