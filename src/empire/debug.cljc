@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-24
 (ns empire.debug
   "Debug utilities for dumping game state to file.
    Provides circular action logging and region-based state dumps."

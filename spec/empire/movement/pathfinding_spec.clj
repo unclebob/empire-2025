@@ -472,6 +472,124 @@
       (should-not-be-nil coastline)
       (should-not-be-nil general))))
 
+(describe "bfs-to-unexplored-coast"
+  (before (reset-all-atoms!))
+
+  (it "finds path to sea cell adjacent to unexplored territory"
+    ;; Explored sea at cols 0-2, unexplored at col 3
+    (let [computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}] [nil]]]
+      (let [path (pathfinding/bfs-to-unexplored-coast [0 0] computer-map)]
+        (should-not-be-nil path)
+        (should (vector? path))
+        ;; Path excludes start, ends at cell adjacent to unexplored [3,0]
+        (should= [2 0] (last path)))))
+
+  (it "returns nil when no unexplored territory reachable"
+    (let [computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
+      (should-be-nil (pathfinding/bfs-to-unexplored-coast [0 0] computer-map))))
+
+  (it "returns nil when start is not passable sea"
+    (let [computer-map [[{:type :land}] [{:type :sea}] [nil]]]
+      (should-be-nil (pathfinding/bfs-to-unexplored-coast [0 0] computer-map))))
+
+  (it "does not traverse unexplored cells"
+    ;; Gap of unexplored between two explored sea regions
+    (let [computer-map [[{:type :sea}] [nil] [{:type :sea}] [nil]]]
+      ;; From [0,0], cannot cross nil at [1,0] to reach [2,0]
+      ;; But [0,0] IS adjacent to unexplored [1,0], so it should still find it
+      ;; Wait - start is skipped, so if only start is adjacent, returns nil? No.
+      ;; Actually, [0,0] is the start. The BFS skips start for the goal check.
+      ;; No other explored sea cells reachable, so no path found.
+      (should-be-nil (pathfinding/bfs-to-unexplored-coast [0 0] computer-map))))
+
+  (it "returns path excluding start position"
+    (let [computer-map [[{:type :sea}] [{:type :sea}] [nil]]]
+      (let [path (pathfinding/bfs-to-unexplored-coast [0 0] computer-map)]
+        (should= [[1 0]] path))))
+
+  (it "finds shortest path through multi-step sea"
+    ;; 5 columns of sea, unexplored at col 5
+    (let [computer-map (vec (for [c (range 6)]
+                              [(if (< c 5) {:type :sea} nil)]))]
+      (let [path (pathfinding/bfs-to-unexplored-coast [0 0] computer-map)]
+        (should-not-be-nil path)
+        ;; Path should be [1,0] [2,0] [3,0] [4,0] — shortest to fog
+        (should= [[1 0] [2 0] [3 0] [4 0]] path))))
+
+  (it "navigates around land on computer-map"
+    ;; Row 0: sea, land, sea, unexplored
+    ;; Row 1: sea, sea,  sea, unexplored
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                         [{:type :land} {:type :sea}]
+                         [{:type :sea} {:type :sea}]
+                         [nil nil]]]
+      (let [path (pathfinding/bfs-to-unexplored-coast [0 0] computer-map)]
+        (should-not-be-nil path)
+        ;; Should go around land at [1,0] via row 1
+        (should-not-contain [1 0] path)
+        ;; Should end at col 2 — adjacent to unexplored col 3
+        (should= 2 (first (last path))))))
+
+  (it "handles {:type :unexplored} cells as unexplored"
+    (let [computer-map [[{:type :sea}] [{:type :sea}] [{:type :unexplored}]]]
+      (let [path (pathfinding/bfs-to-unexplored-coast [0 0] computer-map)]
+        (should= [[1 0]] path)))))
+
+(describe "bfs-to-unowned-coast"
+  (before (reset-all-atoms!))
+
+  (it "finds path to coast adjacent to free city"
+    ;; All explored, free city at [3,0]
+    ;; game-map: sea sea sea free-city
+    ;; computer-map: sea sea sea city (all explored)
+    (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :free}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]
+                         [{:type :city :city-status :free}]]]
+      (let [path (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)]
+        (should-not-be-nil path)
+        ;; Path should end at [2,0] — sea cell adjacent to free city [3,0]
+        (should= [2 0] (last path)))))
+
+  (it "finds path to coast adjacent to player city"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :player}]]
+          computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :city :city-status :player}]]]
+      (let [path (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)]
+        (should= [[1 0]] path))))
+
+  (it "does not target computer-owned cities"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :city :city-status :computer}]]
+          computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :city :city-status :computer}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "finds path to coast adjacent to unowned land"
+    ;; Land at [2,0] with no country-id (unowned)
+    (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :land}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [{:type :land}]]]
+      (let [path (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)]
+        (should= [[1 0]] path))))
+
+  (it "does not target computer-owned land"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                     [{:type :land :country-id 1}]]
+          computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :land}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "returns nil when start is not sea"
+    (let [game-map [[{:type :land}] [{:type :sea}] [{:type :city :city-status :free}]]
+          computer-map [[{:type :land}] [{:type :sea}] [{:type :city :city-status :free}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "returns nil when no unowned land reachable"
+    (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
+      (should-be-nil (pathfinding/bfs-to-unowned-coast [0 0] computer-map game-map)))))
+
 (describe "sovereignty-aware pathfinding"
   (before (reset-all-atoms!))
 

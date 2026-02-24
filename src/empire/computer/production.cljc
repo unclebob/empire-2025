@@ -166,17 +166,16 @@
                            (= :unloading (:transport-mission t))))
                      transports)))))
 
-(defn- count-country-fighters
-  "Counts live fighters belonging to the given country-id."
-  [country-id]
+(defn- count-all-computer-fighters
+  "Counts all live computer fighters globally."
+  []
   (count (for [i (range (count @atoms/game-map))
                j (range (count (first @atoms/game-map)))
                :let [cell (get-in @atoms/game-map [i j])
                      unit (:contents cell)]
                :when (and unit
                           (= :computer (:owner unit))
-                          (= :fighter (:type unit))
-                          (= country-id (:country-id unit)))]
+                          (= :fighter (:type unit)))]
            true)))
 
 (defn- count-country-patrol-boats
@@ -271,6 +270,26 @@
   (and (= city-pos (get @atoms/last-transport-city country-id))
        (country-has-other-coastal-city? city-pos country-id)))
 
+(defn- count-country-land-armies
+  "Counts armies on land/city cells belonging to the given country-id.
+   Excludes armies aboard transports."
+  [country-id]
+  (count (for [i (range (count @atoms/game-map))
+               j (range (count (first @atoms/game-map)))
+               :let [unit (get-in @atoms/game-map [i j :contents])]
+               :when (and unit
+                          (= :army (:type unit))
+                          (= :computer (:owner unit))
+                          (= country-id (:country-id unit)))]
+           true)))
+
+(defn- country-army-limit-reached?
+  "Returns true if the country has at least as many land armies as coastal land cells."
+  [country-id]
+  (let [coastal-cells (count-country-coastal-cells country-id)]
+    (and (pos? coastal-cells)
+         (>= (count-country-land-armies country-id) coastal-cells))))
+
 (defn- decide-country-production
   "Per-country production priorities. Returns unit type or nil."
   [city-pos country-id coastal? unit-counts]
@@ -284,8 +303,9 @@
     (do (swap! atoms/last-transport-city assoc country-id city-pos)
         :transport)
 
-    ;; 2. Army: unoccupied coastal cells exist
-    (has-unoccupied-coastal-cells? country-id)
+    ;; 2. Army: unoccupied coastal cells exist and army limit not reached
+    (and (has-unoccupied-coastal-cells? country-id)
+         (not (country-army-limit-reached? country-id)))
     :army
 
     ;; 3. Patrol boat: < 4 per country, coastal
@@ -300,9 +320,8 @@
          (not (country-city-producing-destroyers? city-pos country-id)))
     :destroyer
 
-    ;; 5. Fighter: < max per country, one city at a time
-    (and (< (count-country-fighters country-id) config/max-fighters-per-country)
-         (not (country-city-producing? city-pos country-id :fighter)))
+    ;; 5. Fighter: total fighters < total computer cities
+    (< (count-all-computer-fighters) (count-computer-cities))
     :fighter))
 
 (defn- count-carrier-producers
@@ -344,13 +363,6 @@
 
     ;; 9. No production needed — city stays idle
     :else nil))
-
-(defn- country-army-limit-reached?
-  "Returns true if the country has at least as many armies as coastal land cells."
-  [country-id]
-  (let [coastal-cells (count-country-coastal-cells country-id)]
-    (and (pos? coastal-cells)
-         (>= (count-country-armies country-id) coastal-cells))))
 
 (defn decide-production
   "Decide what a computer city should produce. Returns unit type keyword.

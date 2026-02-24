@@ -309,6 +309,85 @@
         (swap! bfs-unexplored-cache assoc cache-key result)
         result))))
 
+(defn bfs-to-unexplored-coast
+  "BFS from start over explored sea cells on computer-map to find the nearest
+   cell adjacent to unexplored territory. Returns the path (vector of positions
+   excluding start) or nil if unreachable. Single pass — no separate A* needed."
+  [start computer-map]
+  (let [passable-sea? (fn [pos]
+                        (let [cell (get-in computer-map pos)]
+                          (and cell (= :sea (:type cell)))))]
+    (when (passable-sea? start)
+      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+             visited #{start}
+             came-from {}]
+        (when (seq queue)
+          (let [current (peek queue)
+                rest-queue (pop queue)]
+            (if (and (not= current start)
+                     (adjacent-to-unexplored? current computer-map))
+              (vec (rest (reconstruct-path came-from start current)))
+              (let [[x y] current
+                    neighbors (for [[dx dy] neighbor-offsets
+                                    :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
+                                    :when (and (not (visited n))
+                                               (passable-sea? n))]
+                                n)
+                    new-visited (into visited neighbors)
+                    new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+                (recur (into rest-queue neighbors)
+                       new-visited
+                       new-came-from)))))))))
+
+(defn- adjacent-to-unowned?
+  "Returns true if any neighbor of pos on game-map is non-computer land/city."
+  [pos game-map]
+  (let [[x y] pos
+        height (count game-map)
+        width (count (first game-map))]
+    (some (fn [[dx dy]]
+            (let [nx (+ x dx)
+                  ny (+ y dy)]
+              (and (>= nx 0) (< nx height)
+                   (>= ny 0) (< ny width)
+                   (let [cell (get-in game-map [nx ny])]
+                     (and cell
+                          (or (and (= :city (:type cell))
+                                   (#{:free :player} (:city-status cell)))
+                              (and (= :land (:type cell))
+                                   (nil? (:country-id cell)))))))))
+          neighbor-offsets)))
+
+(defn bfs-to-unowned-coast
+  "BFS from start over explored sea cells on computer-map to find the nearest
+   cell adjacent to non-computer land/city on game-map. Returns the path
+   (vector of positions excluding start) or nil if unreachable."
+  [start computer-map game-map]
+  (let [passable-sea? (fn [pos]
+                        (let [cell (get-in computer-map pos)]
+                          (and cell (= :sea (:type cell)))))]
+    (when (passable-sea? start)
+      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+             visited #{start}
+             came-from {}]
+        (when (seq queue)
+          (let [current (peek queue)
+                rest-queue (pop queue)]
+            (if (and (not= current start)
+                     (adjacent-to-unowned? current game-map))
+              (vec (rest (reconstruct-path came-from start current)))
+              (let [[x y] current
+                    neighbors (for [[dx dy] neighbor-offsets
+                                    :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
+                                    :when (and (not (visited n))
+                                               (passable-sea? n))]
+                                n)
+                    new-visited (into visited neighbors)
+                    new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+                (recur (into rest-queue neighbors)
+                       new-visited
+                       new-came-from)))))))))
+
 (defn- adjacent-to-target-continent-land?
   "Returns true if any neighbor of pos is land/city on target-continent."
   [pos target-continent game-map]

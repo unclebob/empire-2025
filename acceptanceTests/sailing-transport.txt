@@ -58,7 +58,7 @@ WHEN computer transport t is processed.
 THEN t has 5 armies.
 
 ;===============================================================
-; Sailing transport arrives, fog reveals sea — picks new destination.
+; Sailing transport with armies and exhausted path transitions to unloading.
 ;===============================================================
 GIVEN game map
   ~~~~~t~~~~~~~
@@ -70,7 +70,7 @@ GIVEN t has sail-path [].
 
 WHEN computer transport t is processed.
 
-THEN t has transport-mission sailing.
+THEN t has transport-mission unloading.
 
 ;===============================================================
 ; Sailing transport arrives at computer-owned land — picks new destination.

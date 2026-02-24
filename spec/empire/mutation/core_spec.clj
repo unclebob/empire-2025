@@ -18,18 +18,58 @@
       (should (some #(= (:original %) '>) sites))
       (should (some #(= (:original %) 1) sites)))))
 
+(describe "mutate-source-text"
+  (it "preserves comments and indentation"
+    (let [src "(ns foo)\n;; a comment\n(defn bar [] (+ 1 2))\n"
+          forms (core/read-source-forms src)
+          sites (core/discover-all-mutations forms)
+          plus-site (first (filter #(= (:original %) '+) sites))
+          result (core/mutate-source-text src plus-site)]
+      (should-contain ";; a comment" result)
+      (should-contain "(- 1 2)" result)))
+
+  (it "replaces only the targeted token"
+    (let [src "(defn f [] (+ 1 (+ 2 3)))\n"
+          forms (core/read-source-forms src)
+          sites (core/discover-all-mutations forms)
+          first-plus (first (filter #(= (:original %) '+) sites))
+          result (core/mutate-source-text src first-plus)]
+      (should-contain "(- 1 (+ 2 3))" result)))
+
+  (it "= does not match inside not="
+    (let [src "(defn f [] (not= x y))\n"
+          forms (core/read-source-forms src)
+          sites (core/discover-all-mutations forms)
+          eq-sites (filter #(and (= (:original %) '=) (= (:mutant %) 'not=)) sites)]
+      (should= 0 (count eq-sites))))
+
+  (it "0 does not match inside 10"
+    (let [src "(defn f [] (+ 10 x))\n"
+          forms (core/read-source-forms src)
+          sites (core/discover-all-mutations forms)
+          zero-sites (filter #(and (= (:original %) 0) (= (:mutant %) 1)) sites)]
+      (should= 0 (count zero-sites))))
+
+  (it "preserves trailing newline"
+    (let [src "(defn f [] (+ 1 2))\n"
+          forms (core/read-source-forms src)
+          sites (core/discover-all-mutations forms)
+          plus-site (first (filter #(= (:original %) '+) sites))
+          result (core/mutate-source-text src plus-site)]
+      (should (.endsWith result "\n")))))
+
 (describe "mutate-and-test"
   (it "writes mutated file, runs spec, restores original"
     (let [temp-file (java.io.File/createTempFile "mutant" ".cljc")
           temp-path (.getPath temp-file)
           original-content "(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
       (spit temp-path original-content)
-      (with-redefs [runner/run-spec (fn [_] :killed)]
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :killed))]
         (let [forms (core/read-source-forms original-content)
               sites (core/discover-all-mutations forms)
               plus-site (first (filter #(= (:original %) '+) sites))
               result (core/mutate-and-test temp-path original-content
-                                           forms plus-site "fake_spec.clj")]
+                                           forms plus-site "fake_spec.clj" 30000)]
           (should= :killed (:result result))
           ;; Original file should be restored
           (should= original-content (slurp temp-path))))
@@ -131,7 +171,7 @@
           temp-path (.getPath temp-file)
           original "(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
       (spit temp-path original)
-      (with-redefs [runner/run-spec (fn [_] :killed)
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :killed))
                     coverage/load-coverage (fn [_] nil)]
         (core/run-mutation-testing temp-path "fake_spec.clj")
         (let [stamped (slurp temp-path)]
@@ -143,7 +183,7 @@
           temp-path (.getPath temp-file)
           original ";; mutation-tested: 2026-01-15\n(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
       (spit temp-path original)
-      (with-redefs [runner/run-spec (fn [_] :killed)
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :killed))
                     coverage/load-coverage (fn [_] nil)]
         (let [captured (with-out-str
                          (core/run-mutation-testing temp-path "fake_spec.clj"))]

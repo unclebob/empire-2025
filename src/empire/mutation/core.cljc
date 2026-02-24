@@ -24,6 +24,23 @@
       (str/replace content mutation-comment-re comment-line)
       (str comment-line "\n" content))))
 
+(defn- backup-path [source-path]
+  (str source-path ".mutation-backup"))
+
+(defn- save-backup! [source-path content]
+  (spit (backup-path source-path) content))
+
+(defn- restore-from-backup! [source-path]
+  (let [bp (backup-path source-path)]
+    (when (.exists (File. bp))
+      (spit source-path (slurp bp))
+      (.delete (File. bp))
+      true)))
+
+(defn- cleanup-backup! [source-path]
+  (let [f (File. (backup-path source-path))]
+    (when (.exists f) (.delete f))))
+
 (defn read-source-forms
   "Parse a source string into a vector of top-level forms.
    Handles .cljc reader conditionals."
@@ -58,24 +75,74 @@
       [(vec (get grouped true [])) (vec (get grouped false []))])))
 
 (defn- serialize-forms
-  "Serialize a vector of forms to a string."
+  "Serialize a vector of forms to a string. DEPRECATED: use mutate-source-text."
   [forms]
   (str/join "\n\n" (map pr-str forms)))
 
+(defn- token-pattern
+  "Build a regex pattern that matches only the specific token, not substrings.
+   ;; TOKEN BOUNDARY SAFETY: Each token regex must match ONLY the intended
+   ;; token, never a substring of a larger token. Test cases to verify:
+   ;;   \"=\" must NOT match inside \"not=\", \">=\", \"<=\"
+   ;;   \"0\" must NOT match inside \"10\", \"0.5\", \"100\"
+   ;;   \"1\" must NOT match inside \"10\", \"100\", \"1.5\"
+   ;;   \"<\" must NOT match inside \"<=\"
+   ;;   \">\" must NOT match inside \">=\"
+   ;;   \"+\" as arithmetic must NOT match inside \"+foo\" (namespace-qualified)"
+  [token]
+  (let [s (str token)]
+    (cond
+      (= s "=")     (re-pattern "(?<![><=!])=(?!=)")
+      (= s "not=")  (re-pattern "not=")
+      (= s ">")     (re-pattern ">(?!=)")
+      (= s ">=")    (re-pattern ">=")
+      (= s "<")     (re-pattern "<(?!=)")
+      (= s "<=")    (re-pattern "<=")
+      (re-matches #"\d+" s)
+      (re-pattern (str "(?<!\\d|\\.)" (java.util.regex.Pattern/quote s) "(?!\\d|\\.)"))
+      (re-matches #"[a-zA-Z].*" s)
+      (re-pattern (str "(?<![a-zA-Z0-9_-])" (java.util.regex.Pattern/quote s) "(?![a-zA-Z0-9_-])"))
+      :else
+      (re-pattern (str "(?<=[\\s(])" (java.util.regex.Pattern/quote s) "(?=[\\s)])")))))
+
+(defn mutate-source-text
+  "Replace a single token in the original source text, preserving formatting.
+   Uses :line and :column from the mutation site to target the right occurrence."
+  [original-content site]
+  (let [lines (str/split original-content #"\n" -1)
+        line-idx (dec (:line site))
+        line (nth lines line-idx)
+        pat (token-pattern (:original site))
+        col (:column site)
+        replaced (if col
+                   (let [search-start (max 0 (- col 2))
+                         prefix (subs line 0 search-start)
+                         suffix (subs line search-start)
+                         new-suffix (str/replace-first suffix pat (str (:mutant site)))]
+                     (str prefix new-suffix))
+                   (str/replace-first line pat (str (:mutant site))))
+        new-lines (assoc lines line-idx replaced)
+        result (str/join "\n" new-lines)]
+    result))
+
 (defn mutate-and-test
   "Apply one mutation, write file, run spec, restore original.
-   Returns {:site site :result :killed/:survived}."
-  [source-path original-content forms site spec-path]
-  (let [mutated-forms (update forms (:form-index site)
-                              #(mutations/apply-mutation % (:index site)))]
-    (try
-      (spit source-path (serialize-forms mutated-forms))
-      {:site site :result (runner/run-spec spec-path)}
-      (finally
-        (spit source-path original-content)))))
+   Returns {:site site :result :killed/:survived :timeout? bool}."
+  [source-path original-content _forms site spec-path timeout-ms]
+  (try
+    (spit source-path (mutate-source-text original-content site))
+    (let [result (runner/run-spec spec-path timeout-ms)]
+      {:site site
+       :result (if (= :timeout result) :killed result)
+       :timeout? (= :timeout result)})
+    (finally
+      (spit source-path original-content))))
 
 (defn- result-label [r]
-  (if (= :killed (:result r)) "KILLED" "SURVIVED"))
+  (cond
+    (:timeout? r) "TIMEOUT"
+    (= :killed (:result r)) "KILLED"
+    :else "SURVIVED"))
 
 (defn- format-line [i total r]
   (format "[%3d/%d] %-8s  L%-4d %s%n"
@@ -174,6 +241,8 @@
    Optional lines arg: set of line numbers to restrict testing to."
   ([source-path spec-path] (run-mutation-testing source-path spec-path nil))
   ([source-path spec-path lines]
+   (when (restore-from-backup! source-path)
+     (println "Restored source from backup (previous run was interrupted)."))
    (let [original-content (slurp source-path)
          prev-date (extract-mutation-date original-content)
          forms (read-source-forms original-content)
@@ -191,22 +260,34 @@
        (println (format "Filtering to lines: %s → %d mutations to test."
                         (str/join "," (sort lines)) (count sites))))
      (println)
-     (when-not lines (print-uncovered uncovered))
-     (let [results (doall
-                     (map-indexed
-                       (fn [i site]
-                         (let [result (mutate-and-test source-path original-content
-                                                       forms site spec-path)]
-                           (print-progress i (count sites) result site)
-                           result))
-                       sites))
-           killed (count (filter #(= :killed (:result %)) results))
-           total (count results)
-           pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
-           survivors (filter #(= :survived (:result %)) results)]
-       (print-summary killed total pct survivors (if lines 0 (count uncovered)))
-       (when-not lines
-         (spit source-path (stamp-mutation-date original-content (today-str))))))))
+     (print "Baseline: ") (flush)
+     (let [{baseline-result :result elapsed-ms :elapsed-ms} (runner/run-spec-timed spec-path)
+           timeout-ms (* 10 elapsed-ms)]
+       (if (= :survived baseline-result)
+         (do
+           (println (format "PASS (%.1fs, timeout %.1fs)"
+                            (/ elapsed-ms 1000.0) (/ timeout-ms 1000.0)))
+           (when-not lines (print-uncovered uncovered))
+           (save-backup! source-path original-content)
+           (try
+             (let [results (doall
+                             (map-indexed
+                               (fn [i site]
+                                 (let [result (mutate-and-test source-path original-content
+                                                               forms site spec-path timeout-ms)]
+                                   (print-progress i (count sites) result site)
+                                   result))
+                               sites))
+                   killed (count (filter #(= :killed (:result %)) results))
+                   total (count results)
+                   pct (if (zero? total) 0.0 (* 100.0 (/ killed total)))
+                   survivors (filter #(= :survived (:result %)) results)]
+               (print-summary killed total pct survivors (if lines 0 (count uncovered)))
+               (when-not lines
+                 (spit source-path (stamp-mutation-date original-content (today-str)))))
+             (finally
+               (cleanup-backup! source-path))))
+         (println "FAIL — spec does not pass without mutations. Aborting."))))))
 
 (defn -main [& args]
   (let [validated (validate-args (vec args))]

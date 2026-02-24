@@ -359,7 +359,7 @@
       (let [ship (get-in @atoms/game-map [1 0 :contents])]
         (should= :transport (:type ship))
         (should= :computer (:owner ship))
-        (should= :idle (:transport-mission ship))
+        (should= :loading (:transport-mission ship))
         (should (integer? (:transport-id ship))))))
 
   (it "stamps patrol fields on computer patrol-boat from country city"

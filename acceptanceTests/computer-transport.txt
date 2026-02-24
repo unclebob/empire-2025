@@ -45,7 +45,7 @@ WHEN a new round starts.
 THEN t is at [0 0].
 
 ;===============================================================
-; Loading transport explores when no army on the map.
+; Loading transport stays put in open sea with no land.
 ;===============================================================
 GIVEN game map
   t~~~
@@ -55,7 +55,7 @@ GIVEN t has transport-mission loading.
 
 WHEN a new round starts.
 
-THEN t is at [1 0].
+THEN t is at [0 0].
 
 ;===============================================================
 ; Full transport switches to sailing.

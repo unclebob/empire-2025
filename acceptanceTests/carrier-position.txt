@@ -15,15 +15,13 @@
 ; Verifies both production choice and position calculation.
 ;===============================================================
 GIVEN game map
-  X~~~~~~~~~~~~~~~~~=~~~~~~~~~~~~~~~~~Xtffpppp
-  ##############################################
+  X~~~~~~~~~~~~~~~~~=~~~~~~~~~~~~~~~~~Xtppppffffffffffff
+  ######################################################
 GIVEN X1 belongs to country 1.
 GIVEN X2 belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort destroyer.
 GIVEN t has 20 armies.
-GIVEN f1 belongs to country 1.
-GIVEN f2 belongs to country 1.
 GIVEN p1 patrols for country 1.
 GIVEN p2 patrols for country 1.
 GIVEN p3 patrols for country 1.
@@ -73,15 +71,13 @@ THEN c has refueling position near %.
 ; City produces army since per-country needs are satisfied.
 ;===============================================================
 GIVEN game map
-  X#################Xtffpppp
-  ##########################
+  X#################Xtppppffffffffffff
+  ####################################
 GIVEN X1 belongs to country 1.
 GIVEN X2 belongs to country 1.
 GIVEN t belongs to country 1.
 GIVEN t has escort destroyer.
 GIVEN t has 20 armies.
-GIVEN f1 belongs to country 1.
-GIVEN f2 belongs to country 1.
 GIVEN p1 patrols for country 1.
 GIVEN p2 patrols for country 1.
 GIVEN p3 patrols for country 1.
