@@ -312,7 +312,56 @@
                     visibility/update-cell-visibility (fn [_ _])]
         (setup/move-satellites)
         ;; After all steps, turns-remaining was 1, dec to 0, satellite removed
-        (should-be-nil (get-in @atoms/game-map [0 10 :contents]))))))
+        (should-be-nil (get-in @atoms/game-map [0 10 :contents])))))
+
+  (it "does not move satellite with turns-remaining=0"
+    (let [game-map (build-test-map ["V##"])]
+      (reset! atoms/game-map game-map)
+      (set-test-unit atoms/game-map "V" :turns-remaining 0)
+      (let [move-count (atom 0)]
+        (with-redefs [satellite/move-satellite
+                      (fn [coords] (swap! move-count inc) coords)
+                      visibility/update-cell-visibility (fn [_ _])]
+          (setup/move-satellites)
+          (should= 0 @move-count)))))
+
+  (it "satellite with turns-remaining=1 still moves before expiring"
+    (let [game-map (build-test-map ["V###########"])]
+      (reset! atoms/game-map game-map)
+      (set-test-unit atoms/game-map "V" :turns-remaining 1 :target [0 11])
+      (let [move-count (atom 0)]
+        (with-redefs [satellite/move-satellite
+                      (fn [coords]
+                        (swap! move-count inc)
+                        (let [[r c] coords
+                              cell (get-in @atoms/game-map coords)
+                              sat (:contents cell)
+                              new-coords [r (inc c)]]
+                          (swap! atoms/game-map assoc-in [r c :contents] nil)
+                          (swap! atoms/game-map assoc-in (conj new-coords :contents) sat)
+                          new-coords))
+                      visibility/update-cell-visibility (fn [_ _])]
+          (setup/move-satellites)
+          (should= 10 @move-count)))))
+
+  (it "satellite with turns-remaining=2 survives with 1 turn left"
+    (let [game-map (build-test-map ["V###########"])]
+      (reset! atoms/game-map game-map)
+      (set-test-unit atoms/game-map "V" :turns-remaining 2 :target [0 11])
+      (with-redefs [satellite/move-satellite
+                    (fn [coords]
+                      (let [[r c] coords
+                            cell (get-in @atoms/game-map coords)
+                            sat (:contents cell)
+                            new-coords [r (inc c)]]
+                        (swap! atoms/game-map assoc-in [r c :contents] nil)
+                        (swap! atoms/game-map assoc-in (conj new-coords :contents) sat)
+                        new-coords))
+                    visibility/update-cell-visibility (fn [_ _])]
+        (setup/move-satellites)
+        (let [sat (get-in @atoms/game-map [0 10 :contents])]
+          (should-not-be-nil sat)
+          (should= 1 (:turns-remaining sat)))))))
 
 ;; --- repair-damaged-ships ---
 
