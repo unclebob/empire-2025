@@ -191,6 +191,37 @@
       ;; No coastal cities left, computer gets nothing
       (should= nil computer-pos)))
 
+  (it "respects min-surrounding-land at exact boundary"
+    ;; City at [1,1] has exactly 3 surrounding land cells
+    ;; With min-surrounding-land=3, it should be selected (>=)
+    ;; With min-surrounding-land=4, it should be rejected
+    (let [test-map [[{:type :sea}  {:type :sea}  {:type :sea}]
+                    [{:type :sea}  {:type :city :city-status :free} {:type :land}]
+                    [{:type :sea}  {:type :land}  {:type :land}]]
+          result-pass (occupy-random-free-city test-map :player nil 3)
+          result-fail (occupy-random-free-city test-map :player nil 4)]
+      (should= :player (:city-status (get-in result-pass [1 1])))
+      (should= :free (:city-status (get-in result-fail [1 1])))))
+
+  (it "filters by distance from non-origin reference point"
+    (let [test-map [[{:type :sea}  {:type :sea}  {:type :land} {:type :land} {:type :land}]
+                    [{:type :city :city-status :free} {:type :land} {:type :land} {:type :land} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land} {:type :land} {:type :city :city-status :free}]
+                    [{:type :land} {:type :land} {:type :land} {:type :land} {:type :sea}]]
+          ;; [1,0] is coastal (near [0,0] and [0,1] sea). Distance from [2,2] = |1-2|+|0-2| = 3
+          ;; [3,4] is coastal (near [4,4] sea). Distance from [2,2] = |3-2|+|4-2| = 3
+          ;; Both are distance 3 from [2,2]. With min-dist 3 (>=), they qualify.
+          result-at-boundary (occupy-random-free-city test-map :player [2 2 3])
+          ;; With min-dist 4, neither qualifies → map unchanged
+          result-beyond (occupy-random-free-city test-map :player [2 2 4])]
+      ;; At exact boundary: at least one city occupied
+      (should (or (= :player (:city-status (get-in result-at-boundary [1 0])))
+                  (= :player (:city-status (get-in result-at-boundary [3 4])))))
+      ;; Beyond boundary: neither occupied
+      (should= :free (:city-status (get-in result-beyond [1 0])))
+      (should= :free (:city-status (get-in result-beyond [3 4])))))
+
   (it "uses 3-arity version with min-distance-from"
     (let [test-map [[{:type :sea} {:type :sea} {:type :land} {:type :land} {:type :land}]
                     [{:type :city :city-status :free} {:type :land} {:type :land} {:type :land} {:type :land}]
@@ -226,3 +257,65 @@
                               [i j]))]
       ;; Should have placed 1 city (the first one), then hit 1000 attempts
       (should (< city-count 5)))))
+
+(describe "make-map"
+  (it "applies smoothing the specified number of times"
+    (let [call-count (atom 0)]
+      (with-redefs [smooth-map (fn [m] (swap! call-count inc) m)]
+        (make-map 3 3 4)
+        (should= 4 @call-count)))))
+
+(describe "find-city-position"
+  (it "finds the correct owner's city"
+    (let [test-map [[{:type :land} {:type :city :city-status :player}]
+                    [{:type :city :city-status :computer} {:type :city :city-status :free}]]]
+      (should= [0 1] (find-city-position test-map :player))
+      (should= [1 0] (find-city-position test-map :computer)))))
+
+(describe "finalize-map"
+  (it "values at exactly sea-level are sea, not land"
+    (let [height-map [[100 200] [300 400]]
+          result (finalize-map height-map 200)]
+      (should= :sea (:type (get-in result [0 0])))    ; 100 < 200
+      (should= :sea (:type (get-in result [0 1])))    ; 200 = 200 (not >)
+      (should= :land (:type (get-in result [1 0])))   ; 300 > 200
+      (should= :land (:type (get-in result [1 1]))))) ; 400 > 200
+  )
+
+(describe "find-sea-level"
+  (it "returns correct threshold for given land fraction"
+    ;; sorted: [100 200 300 400 500 600], total=6
+    ;; land-fraction 0.5 → target-land=3, idx=max(0,min(5,3))=3 → 400
+    (should= 400 (find-sea-level [[100 400] [200 500] [300 600]] 0.5)))
+
+  (it "handles full land fraction"
+    ;; land-fraction 1.0 → target-land=6, idx=max(0,min(5,0))=0 → 100
+    (should= 100 (find-sea-level [[100 400] [200 500] [300 600]] 1.0)))
+
+  (it "handles zero land fraction"
+    ;; land-fraction 0.0 → target-land=0, idx=max(0,min(5,6))=5 → 600
+    (should= 600 (find-sea-level [[100 400] [200 500] [300 600]] 0.0))))
+
+(describe "count-surrounding-land"
+  (it "counts all neighbors in 5x5 area at center"
+    (let [test-map (vec (for [_ (range 5)]
+                          (vec (for [_ (range 5)] {:type :land}))))]
+      (should= 24 (count-surrounding-land [2 2] test-map))))
+
+  (it "clamps to map bounds at corner"
+    (let [test-map (vec (for [_ (range 5)]
+                          (vec (for [_ (range 5)] {:type :land}))))]
+      ;; [0,0]: valid di in {0,1,2}, valid dj in {0,1,2} → 9 - 1 center = 8
+      (should= 8 (count-surrounding-land [0 0] test-map))))
+
+  (it "counts cities as land"
+    (let [test-map [[{:type :land} {:type :city :city-status :free} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land}]
+                    [{:type :land} {:type :land} {:type :land}]]]
+      (should= 8 (count-surrounding-land [1 1] test-map))))
+
+  (it "excludes sea cells"
+    (let [test-map [[{:type :sea} {:type :sea} {:type :sea}]
+                    [{:type :sea} {:type :land} {:type :sea}]
+                    [{:type :sea} {:type :sea} {:type :sea}]]]
+      (should= 0 (count-surrounding-land [1 1] test-map)))))
