@@ -85,4 +85,23 @@
       (should (<= 1 (count (:errors result))))
       (should-contain "unclosed" (first (:errors result))))))
 
+(describe "check-file"
+  (it "returns OK for a well-formed spec file"
+    (should= "OK" (pc/check-file "spec/empire/combat_spec.clj")))
+
+  (it "returns errors for bad structure"
+    (let [tmp (java.io.File/createTempFile "bad-spec" ".clj")
+          path (.getAbsolutePath tmp)]
+      (.deleteOnExit tmp)
+      (spit path "(describe \"x\"\n  (it \"a\"\n    (it \"b\")))")
+      (let [result (pc/check-file path)]
+        (should-not= "OK" result)
+        (should-contain "ERROR" result)))))
+
+(describe "check-directory"
+  (it "scans all .clj files in a directory"
+    (let [results (pc/check-directory "spec/empire/paren_check")]
+      (should (pos? (count results)))
+      (should (every? #(= "OK" (:result %)) results)))))
+
 (run-specs)

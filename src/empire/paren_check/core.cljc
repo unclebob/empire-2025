@@ -1,4 +1,6 @@
-(ns empire.paren-check.core)
+(ns empire.paren-check.core
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]))
 
 (def ^:private speclj-keywords
   #{"describe" "context" "it" "before" "before-all"
@@ -135,3 +137,46 @@
                               (:form-stack result))
         result (update result :errors into unclosed-errors)]
     (select-keys result [:errors :depth :forms])))
+
+(defn check-file [path]
+  (let [text (slurp path)
+        result (scan text)
+        errors (:errors result)]
+    (if (empty? errors)
+      "OK"
+      (str/join "\n" errors))))
+
+(defn- find-clj-files [dir]
+  (let [f (io/file dir)]
+    (when (.isDirectory f)
+      (->> (file-seq f)
+           (filter #(and (.isFile %) (str/ends-with? (.getName %) ".clj")))
+           (sort-by #(.getAbsolutePath %))))))
+
+(defn check-directory [path]
+  (mapv (fn [f]
+          {:file (.getAbsolutePath f)
+           :result (check-file (.getAbsolutePath f))})
+        (find-clj-files path)))
+
+(defn -main [& args]
+  (let [paths (remove #(str/starts-with? % "--") args)
+        has-errors? (atom false)]
+    (doseq [path paths]
+      (let [f (io/file path)]
+        (cond
+          (.isFile f)
+          (let [result (check-file path)]
+            (println (str path ": " result))
+            (when (not= "OK" result)
+              (reset! has-errors? true)))
+
+          (.isDirectory f)
+          (doseq [{:keys [file result]} (check-directory path)]
+            (println (str file ": " result))
+            (when (not= "OK" result)
+              (reset! has-errors? true)))
+
+          :else
+          (println (str path ": not found")))))
+    (System/exit (if @has-errors? 1 0))))
