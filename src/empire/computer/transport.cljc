@@ -601,8 +601,9 @@
               (transition-to-loading pos)
               ;; Has armies: coast-crawl if unloadable land nearby, else re-sail
               (if (has-nearby-unloadable-land? pos transport 5)
-                (or (unloading-crawl-move pos)
-                    (start-sailing pos transport))
+                (if-let [pos1 (unloading-crawl-move pos)]
+                  (or (unloading-crawl-move pos1) pos1)
+                  (start-sailing pos transport))
                 (start-sailing pos transport)))
 
             ;; Sailing — follow sail-path
@@ -673,12 +674,16 @@
                          (or (>= army-count' 6)
                              (not (has-nearby-loadable-armies? pos transport' 3))))
                   (start-sailing pos transport')
-                  ;; Navigate toward pickup continent or coastal crawl
-                  (when-let [new-pos (if-let [pcp (:pickup-continent-pos transport')]
-                                       (or (move-toward-position pos pcp)
-                                           (coastal-crawl-move pos))
-                                       (coastal-crawl-move pos))]
-                    new-pos))))
+                  ;; Navigate toward pickup continent or coastal crawl (speed 2)
+                  (let [move-one (fn [p]
+                                  (let [t (get-in @atoms/game-map (conj p :contents))
+                                        pcp (:pickup-continent-pos t)]
+                                    (if pcp
+                                      (or (move-toward-position p pcp)
+                                          (coastal-crawl-move p))
+                                      (coastal-crawl-move p))))]
+                    (when-let [pos1 (move-one pos)]
+                      (or (move-one pos1) pos1))))))
 
             :else nil)))))
   nil)

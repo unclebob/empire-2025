@@ -36,13 +36,13 @@ THEN t has transport-mission loading.
 ; Loading transport coastal-crawls along shoreline.
 ;===============================================================
 GIVEN game map
-  ~t
-  ##
+  ~~~t
+  ####
 GIVEN t has transport-mission loading.
 
 WHEN a new round starts.
 
-THEN t is at [0 0].
+THEN t is at [1 0].
 
 ;===============================================================
 ; Loading transport stays put in open sea with no land.

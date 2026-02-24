@@ -30,6 +30,22 @@
                             [c r]))]
         (should-not-be-nil t-pos)))
 
+    (it "loading coastal crawl moves 2 cells per round (speed 2)"
+      ;; ########   land at row 0
+      ;; t~~~~~~~   transport at [0,1]
+      ;; Linear coast — only one direction to crawl (rightward)
+      (reset! atoms/game-map (build-test-map ["########"
+                                               "t~~~~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 1 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :loading :army-count 0})
+      (transport/process-transport [0 1])
+      ;; Transport should have moved 2 cells, not 1
+      (should-be-nil (:contents (get-in @atoms/game-map [0 1])))
+      (should-be-nil (:contents (get-in @atoms/game-map [1 1])))
+      (should= :transport (get-in @atoms/game-map [2 1 :contents :type])))
+
     (it "loads army from adjacent land while crawling"
       ;; a##    army at [0 0]
       ;; t~~    transport at [0 1]
@@ -120,6 +136,27 @@
       (should= :army (:type (:contents (get-in @atoms/game-map [0 0]))))
       ;; Transport should have fewer armies
       (should= 1 (:army-count (:contents (get-in @atoms/game-map [0 1])))))
+
+    (it "unloading crawl moves 2 cells per round (speed 2)"
+      ;; ########   land at row 0 (cols 0-1 excluded, cols 2+ unloadable)
+      ;; t~~~~~~~   transport at [0,1] in unloading mode
+      ;; Adjacent land excluded → opportunistic unload fails.
+      ;; BFS finds unloadable land at col 2 → unloading-crawl-move fires.
+      (reset! atoms/game-map (build-test-map ["########"
+                                               "t~~~~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (doseq [c (range 2)]
+        (swap! atoms/game-map assoc-in [c 0 :country-id] 1))
+      (swap! atoms/game-map assoc-in [0 1 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :unloading :army-count 2
+              :country-id 1
+              :pickup-continent-pos [0 0]})
+      (transport/process-transport [0 1])
+      ;; Transport should have crawled 2 cells, not 1
+      (should-be-nil (:contents (get-in @atoms/game-map [0 1])))
+      (should-be-nil (:contents (get-in @atoms/game-map [1 1])))
+      (should= :transport (get-in @atoms/game-map [2 1 :contents :type])))
 
     (it "changes to loading mode after full unload"
       (reset! atoms/game-map [[{:type :land}
