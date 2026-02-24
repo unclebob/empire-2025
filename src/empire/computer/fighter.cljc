@@ -88,22 +88,6 @@
                       (recur (+ sr dr) (+ sc dc) (inc hops))
                       {:dest next-pos :hops (inc hops) :attack true})))))))))))
 
-(defn- move-toward-with-sidestep
-  "Like core/move-toward but excludes occupied cells and prefers diagonals on ties.
-   When distance is equal, diagonals are preferred. Among same-distance same-type moves,
-   the last one in input order wins (matching min-key behavior)."
-  [pos target passable-neighbors]
-  (let [unoccupied (filter (complement occupied?) passable-neighbors)]
-    (when (seq unoccupied)
-      (let [scored (map (fn [n]
-                          [n (core/distance n target) (if (diagonal-move? pos n) 0 1)])
-                        unoccupied)
-            best-dist (apply min (map second scored))
-            at-best-dist (filter #(= best-dist (second %)) scored)
-            best-diag (apply min (map #(nth % 2) at-best-dist))
-            candidates (filter #(= best-diag (nth % 2)) at-best-dist)]
-        (first (last candidates))))))
-
 (defn- find-adjacent-enemy
   "Finds an adjacent enemy unit to attack (not cities - fighters can't conquer)."
   [pos]
