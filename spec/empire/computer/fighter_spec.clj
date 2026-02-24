@@ -785,7 +785,23 @@
       (reset! atoms/game-map (build-test-map ["faaa"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))
 
-    (it "returns nil when chain of friendly units ends at occupied cell"
-      ;; Fighter at [0 0], two friendly armies, then enemy army
+    (it "returns attack result when chain of friendly units ends at enemy"
+      ;; Fighter at [0 0], two friendly armies, then player army at [3 0]
       (reset! atoms/game-map (build-test-map ["faaA"]))
+      (should= {:dest [3 0] :hops 3 :attack true}
+               (fighter/hop-over-friendly [0 0] [3 0]))))
+
+  (describe "hop stops at enemy"
+    (it "returns attack when single friendly then enemy"
+      ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0], target at [4 0]
+      (reset! atoms/game-map (build-test-map ["faA##"]))
+      (should= {:dest [2 0] :hops 2 :attack true}
+               (fighter/hop-over-friendly [0 0] [4 0])))
+
+    (it "returns attack when first neighbor is enemy (no friendly hop)"
+      ;; Fighter at [0 0], player army at [1 0] directly adjacent
+      ;; The best neighbor toward target IS the enemy — not friendly, so this case
+      ;; was previously nil. After the change, it should still be nil because the
+      ;; initial occupied check only enters hop-over when the first cell IS friendly.
+      (reset! atoms/game-map (build-test-map ["fA##"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))))
