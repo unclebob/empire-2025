@@ -122,6 +122,9 @@
    {:need :computer-transport
     :pred (fn [{:keys [whens]}]
             (some #(= :process-computer-transport (:type %)) whens))}
+   {:need :computer-fighter
+    :pred (fn [{:keys [whens]}]
+            (some #(= :process-computer-fighter (:type %)) whens))}
    {:need :computer-rounds
     :needs-also #{:game-loop}
     :pred (fn [{:keys [whens]}]
@@ -189,6 +192,8 @@
       (swap! requires conj "[empire.computer.production :as computer-production]"))
     (when (contains? needs :computer-transport)
       (swap! requires conj "[empire.computer.transport :as computer-transport]"))
+    (when (contains? needs :computer-fighter)
+      (swap! requires conj "[empire.computer.fighter :as computer-fighter]"))
     (when (contains? needs :visibility)
       (swap! requires conj "[empire.movement.visibility :as visibility]"))
 
@@ -489,6 +494,12 @@
   (let [pos-expr (target-pos-expr unit)]
     (str "    (computer-transport/process-transport " pos-expr ")")))
 
+(defn- generate-process-computer-fighter-when [{:keys [unit]}]
+  (let [pos-expr (target-pos-expr unit)]
+    (str "    (let [pos " pos-expr "\n"
+         "          unit (get-in @atoms/game-map (conj pos :contents))]\n"
+         "      (computer-fighter/process-fighter pos unit))")))
+
 (defn- generate-computer-rounds-when [{:keys [count]}]
   (str "    (dotimes [_ " count "]\n"
        "      ;; Process all computer transports\n"
@@ -538,6 +549,7 @@
      :advance-until-waiting (generate-advance-until-waiting-when when-ir)
      :evaluate-production (generate-evaluate-production-when when-ir)
      :process-computer-transport (generate-process-computer-transport-when when-ir)
+     :process-computer-fighter (generate-process-computer-fighter-when when-ir)
      :computer-rounds (generate-computer-rounds-when when-ir)
      :waiting-for-input (generate-waiting-for-input-given when-ir givens)
      :unrecognized (str "    (pending \"Unrecognized: " (:text when-ir) "\")")

@@ -108,3 +108,56 @@ GIVEN F is waiting for input.
 WHEN the player presses D.
 
 THEN at next round F will be at =.
+
+;===============================================================
+; Computer fighter hops over one friendly army.
+; The fighter at [6 0] moves toward a distant target, hopping
+; over the computer army at [7 0] and landing at [8 0], then
+; continuing for a total of 8 steps to reach [14 0].
+;===============================================================
+GIVEN game map
+  X#####fa################=
+GIVEN computer map
+  X#####fa################=
+f has fuel 30.
+f has flight-target-site [24 0].
+
+WHEN computer fighter f is processed.
+
+THEN f is at [14 0].
+THEN f has fuel 22.
+
+;===============================================================
+; Computer fighter hops over multiple friendly armies.
+; Three computer armies block the path between [7 0] and [9 0].
+; The fighter hops all three in a single move, consuming 4 steps,
+; then continues forward for 4 more single steps.
+;===============================================================
+GIVEN game map
+  X#####faaa##############=
+GIVEN computer map
+  X#####faaa##############=
+f has fuel 30.
+f has flight-target-site [24 0].
+
+WHEN computer fighter f is processed.
+
+THEN f is at [14 0].
+THEN f has fuel 22.
+
+;===============================================================
+; Computer fighter hop costs fuel per cell hopped.
+; With fuel 30, the fighter takes 8 steps (including a 4-cell
+; hop over 3 armies costing 4 fuel). Each cell traversed costs
+; 1 fuel regardless of hop, so 8 total fuel spent.
+;===============================================================
+GIVEN game map
+  X#####faaa##############=
+GIVEN computer map
+  X#####faaa##############=
+f has fuel 28.
+f has flight-target-site [24 0].
+
+WHEN computer fighter f is processed.
+
+THEN f has fuel 20.

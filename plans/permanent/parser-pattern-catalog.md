@@ -101,6 +101,7 @@ Handlers return vectors of IR nodes. Key dispatch uses `determine-key-type`: upp
 | `production for <C> is evaluated` | `[{:type :evaluate-production :city C}]` |
 | `computer chooses production at <C>` | `[{:type :evaluate-production :city C}]` |
 | `computer transport <U> is processed` | `[{:type :process-computer-transport :unit U}]` |
+| `computer fighter <U> is processed` | `[{:type :process-computer-fighter :unit U}]` |
 | `<N> computer rounds pass` | `[{:type :computer-rounds :count N}]` |
 | `<U> is waiting for input` (standalone) | `[{:type :waiting-for-input :unit U :set-mode true}]` |
 

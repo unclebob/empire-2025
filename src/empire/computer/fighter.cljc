@@ -31,21 +31,62 @@
   [[r1 c1] [r2 c2]]
   (and (not= r1 r2) (not= c1 c2)))
 
-(defn- move-toward-with-sidestep
-  "Like core/move-toward but excludes occupied cells and prefers diagonals on ties.
-   When distance is equal, diagonals are preferred. Among same-distance same-type moves,
-   the last one in input order wins (matching min-key behavior)."
+(defn- friendly-occupied?
+  "Returns true if the cell at pos has a computer-owned unit."
+  [pos]
+  (let [contents (get-in @atoms/game-map (conj pos :contents))]
+    (and (some? contents) (= :computer (:owner contents)))))
+
+(defn- best-neighbor-toward
+  "Picks the best neighbor toward target using distance + diagonal preference.
+   Considers all passable neighbors, not just unoccupied ones."
   [pos target passable-neighbors]
-  (let [unoccupied (filter (complement occupied?) passable-neighbors)]
-    (when (seq unoccupied)
-      (let [scored (map (fn [n]
-                          [n (core/distance n target) (if (diagonal-move? pos n) 0 1)])
-                        unoccupied)
-            best-dist (apply min (map second scored))
-            at-best-dist (filter #(= best-dist (second %)) scored)
-            best-diag (apply min (map #(nth % 2) at-best-dist))
-            candidates (filter #(= best-diag (nth % 2)) at-best-dist)]
-        (first (last candidates))))))
+  (when (seq passable-neighbors)
+    (let [scored (map (fn [n]
+                        [n (core/distance n target) (if (diagonal-move? pos n) 0 1)])
+                      passable-neighbors)
+          best-dist (apply min (map second scored))
+          at-best-dist (filter #(= best-dist (second %)) scored)
+          best-diag (apply min (map #(nth % 2) at-best-dist))
+          candidates (filter #(= best-diag (nth % 2)) at-best-dist)]
+      (first (last candidates)))))
+
+(defn- direction-from
+  "Returns the unit direction vector [dr dc] from pos to neighbor."
+  [[r1 c1] [r2 c2]]
+  [(Integer/signum (- r2 r1)) (Integer/signum (- c2 c1))])
+
+(defn- in-bounds?
+  "Returns true if pos is within game-map bounds."
+  [[r c]]
+  (let [game-map @atoms/game-map
+        height (count game-map)
+        width (count (first game-map))]
+    (and (>= r 0) (< r height)
+         (>= c 0) (< c width))))
+
+(defn hop-over-friendly
+  "When the best neighbor toward target is occupied by a computer unit, scan
+   forward along the direction of travel, skipping all consecutive
+   friendly-occupied cells. Land on the first empty passable cell, or
+   attack an enemy at the end of the chain.
+   Returns {:dest pos :hops n} or {:dest pos :hops n :attack true} or nil."
+  [pos target]
+  (let [passable (get-passable-neighbors pos)
+        [br bc :as best] (best-neighbor-toward pos target passable)]
+    (when best
+      (if-not (occupied? best)
+        {:dest best :hops 1}
+        (when (friendly-occupied? best)
+          (let [[dr dc] (direction-from pos best)]
+            (loop [sr br sc bc hops 1]
+              (let [next-pos [(+ sr dr) (+ sc dc)]]
+                (when (in-bounds? next-pos)
+                  (if-not (occupied? next-pos)
+                    {:dest next-pos :hops (inc hops)}
+                    (if (friendly-occupied? next-pos)
+                      (recur (+ sr dr) (+ sc dc) (inc hops))
+                      {:dest next-pos :hops (inc hops) :attack true})))))))))))
 
 (defn- find-adjacent-enemy
   "Finds an adjacent enemy unit to attack (not cities - fighters can't conquer)."
@@ -112,18 +153,6 @@
       (apply min-key (partial distance-to pos) player-units)
       (pathfinding/find-nearest-unexplored pos :fighter))))
 
-(defn- do-patrol
-  "Execute one patrol step toward a target or unexplored area.
-   Stays put if no target found (all territory explored, no enemies)."
-  [pos]
-  (when-let [target (find-patrol-target pos)]
-    (let [passable (get-passable-neighbors pos)
-          closest (move-toward-with-sidestep pos target passable)]
-      (when (and closest (core/move-unit-to pos closest))
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility closest :computer)
-        closest))))
-
 (def ^:private fighter-speed 8)
 
 (defn- land-at-city
@@ -148,6 +177,41 @@
           false)
       (do (swap! atoms/game-map assoc-in (conj pos :contents :fuel) new-fuel)
           true))))
+
+(defn consume-hop-fuel
+  "Burns fuel for intermediate cells in a multi-cell hop.
+   For a hop of n cells, the first cell was already handled by the move,
+   so we burn fuel for (n-1) intermediate cells.
+   Returns true if fighter survived, false if it died."
+  [pos hops]
+  (loop [remaining (dec hops)]
+    (if (<= remaining 0)
+      true
+      (if (consume-fighter-fuel pos)
+        (recur (dec remaining))
+        false))))
+
+(defn- execute-hop
+  "Execute a hop result: move to dest or attack. Consume hop fuel.
+   Returns {:pos p :hops n} or nil (fighter died)."
+  [from-pos {:keys [dest hops attack]}]
+  (let [new-pos (if attack
+                  (attack-enemy from-pos dest)
+                  (when (core/move-unit-to from-pos dest)
+                    (visibility/update-cell-visibility from-pos :computer)
+                    (visibility/update-cell-visibility dest :computer)
+                    dest))]
+    (when new-pos
+      (when (consume-hop-fuel new-pos hops)
+        {:pos new-pos :hops hops}))))
+
+(defn- do-patrol
+  "Execute one patrol step toward a target or unexplored area.
+   Returns {:pos p :hops n} or nil."
+  [pos]
+  (when-let [target (find-patrol-target pos)]
+    (when-let [hop (hop-over-friendly pos target)]
+      (execute-hop pos hop))))
 
 ;; --- Exploration helpers ---
 
@@ -207,43 +271,58 @@
 
 (defn- explore-move-step
   "Shared movement logic for sorties and drones.
-   Pick unoccupied passable neighbor with most unexplored neighbors;
-   break ties by proximity to endpoint. Move, update visibility, consume fuel."
+   Score all passable neighbors by unexplored-neighbor count, break ties by
+   proximity to endpoint. If the best is friendly-occupied, hop over it.
+   Returns {:pos p :hops n} or nil."
   [pos endpoint]
-  (let [passable (get-passable-neighbors pos)
-        unoccupied (filter (complement occupied?) passable)]
-    (when (seq unoccupied)
+  (let [passable (get-passable-neighbors pos)]
+    (when (seq passable)
       (let [scored (map (fn [n]
                           [n (count-unexplored-neighbors n) (distance-to n endpoint)])
-                        unoccupied)
+                        passable)
             best-unexplored (apply max (map second scored))
             at-best (filter #(= best-unexplored (second %)) scored)
             best-pos (first (first (sort-by #(nth % 2) at-best)))]
-        (when (and best-pos (core/move-unit-to pos best-pos))
-          (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility best-pos :computer)
-          (when (consume-fighter-fuel best-pos)
-            best-pos))))))
+        (when best-pos
+          (if (friendly-occupied? best-pos)
+            (let [[dr dc] (direction-from pos best-pos)]
+              (loop [sr (first best-pos) sc (second best-pos) hops 1]
+                (let [next-pos [(+ sr dr) (+ sc dc)]]
+                  (when (in-bounds? next-pos)
+                    (if-not (occupied? next-pos)
+                      (when (core/move-unit-to pos next-pos)
+                        (visibility/update-cell-visibility pos :computer)
+                        (visibility/update-cell-visibility next-pos :computer)
+                        (when (consume-hop-fuel next-pos (inc hops))
+                          (when (consume-fighter-fuel next-pos)
+                            {:pos next-pos :hops (inc hops)})))
+                      (when (friendly-occupied? next-pos)
+                        (recur (+ sr dr) (+ sc dc) (inc hops))))))))
+            (when (core/move-unit-to pos best-pos)
+              (visibility/update-cell-visibility pos :computer)
+              (visibility/update-cell-visibility best-pos :computer)
+              (when (consume-fighter-fuel best-pos)
+                {:pos best-pos :hops 1}))))))))
 
 (defn- explore-step
   "One outbound sortie step. Calls explore-move-step, decrements steps-remaining.
-   At zero, switches to :regular mode targeting origin."
+   At zero, switches to :regular mode targeting origin.
+   Returns {:pos p :hops n} or nil."
   [pos unit]
-  (let [endpoint (:flight-target-site unit)
-        result (explore-move-step pos endpoint)]
-    (when result
+  (let [endpoint (:flight-target-site unit)]
+    (when-let [{:keys [pos hops]} (explore-move-step pos endpoint)]
       (let [remaining (dec (:explore-steps-remaining unit))]
         (swap! atoms/game-map assoc-in
-               (conj result :contents :explore-steps-remaining) remaining)
-        (if (<= remaining 0)
-          (swap! atoms/game-map update-in (conj result :contents)
+               (conj pos :contents :explore-steps-remaining) remaining)
+        (when (<= remaining 0)
+          (swap! atoms/game-map update-in (conj pos :contents)
                  assoc :flight-mode :regular
-                 :flight-target-site (:explore-origin unit))
-          nil))
-      result)))
+                 :flight-target-site (:explore-origin unit))))
+      {:pos pos :hops hops})))
 
 (defn- drone-step
-  "One drone step. Delegates to explore-move-step."
+  "One drone step. Delegates to explore-move-step.
+   Returns {:pos p :hops n} or nil."
   [pos unit]
   (explore-move-step pos (:flight-target-site unit)))
 
@@ -351,10 +430,11 @@
              #(-> %
                   (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)
                   (assoc :flight-target-site new-target :flight-origin-site target))))
-    pos))
+    {:pos pos :hops 1}))
 
 (defn- navigate-toward-target
-  "Move one step toward target, preferring unexplored cells when fuel allows."
+  "Move one step toward target, preferring unexplored cells when fuel allows.
+   Returns {:pos p :hops n} or nil."
   [pos target fuel]
   (let [passable (get-passable-neighbors pos)
         direct-dist (distance-to pos target)
@@ -365,13 +445,18 @@
                                                (nil? (get-in @atoms/computer-map n))
                                                (<= (distance-to n target) (inc direct-dist))))
                                         passable)))
-        next-pos (or (when unexplored-toward
-                       (apply min-key (partial distance-to target) unexplored-toward))
-                     (move-toward-with-sidestep pos target passable))]
-    (when (and next-pos (core/move-unit-to pos next-pos))
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility next-pos :computer)
-      (if (consume-fighter-fuel next-pos) next-pos nil))))
+        unexplored-pos (when unexplored-toward
+                         (apply min-key (partial distance-to target) unexplored-toward))]
+    (if unexplored-pos
+      (when (core/move-unit-to pos unexplored-pos)
+        (visibility/update-cell-visibility pos :computer)
+        (visibility/update-cell-visibility unexplored-pos :computer)
+        (when (consume-fighter-fuel unexplored-pos)
+          {:pos unexplored-pos :hops 1}))
+      (when-let [hop (hop-over-friendly pos target)]
+        (when-let [{:keys [pos hops]} (execute-hop pos hop)]
+          (when (consume-fighter-fuel pos)
+            {:pos pos :hops hops}))))))
 
 (defn- refuel-at-site
   "Refuel fighter in place, recording origin site for leg tracking."
@@ -382,17 +467,16 @@
   pos)
 
 (defn- move-and-consume-toward
-  "Move one step toward target and consume fuel. Returns new pos or nil."
+  "Move one step toward target and consume fuel. Returns {:pos p :hops n} or nil."
   [pos target]
-  (let [passable (get-passable-neighbors pos)
-        closest (move-toward-with-sidestep pos target passable)]
-    (when (and closest (core/move-unit-to pos closest))
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility closest :computer)
-      (if (consume-fighter-fuel closest) closest nil))))
+  (when-let [hop (hop-over-friendly pos target)]
+    (when-let [{:keys [pos hops]} (execute-hop pos hop)]
+      (when (consume-fighter-fuel pos)
+        {:pos pos :hops hops}))))
 
 (defn- handle-low-fuel
-  "Handle low-fuel: return to nearest refueling site or patrol desperately."
+  "Handle low-fuel: return to nearest refueling site or patrol desperately.
+   Returns :landed, {:pos p :hops n}, or nil."
   [pos]
   (let [site (find-nearest-refueling-site pos)]
     (cond
@@ -404,7 +488,7 @@
 
       ;; Adjacent to non-city refueling site (carrier) → refuel in place
       (and site (<= (distance-to pos site) 1))
-      (refuel-at-site pos site)
+      {:pos (refuel-at-site pos site) :hops 1}
 
       ;; Move toward nearest site
       site
@@ -412,14 +496,16 @@
 
       ;; No site → patrol desperately
       :else
-      (when-let [new-pos (do-patrol pos)]
-        (if (consume-fighter-fuel new-pos) new-pos nil)))))
+      (when-let [{:keys [pos hops]} (do-patrol pos)]
+        (when (consume-fighter-fuel pos)
+          {:pos pos :hops hops})))))
 
 (defn- handle-patrol
   "Execute one patrol step, consuming fuel."
   [pos]
-  (when-let [new-pos (do-patrol pos)]
-    (if (consume-fighter-fuel new-pos) new-pos nil)))
+  (when-let [{:keys [pos hops]} (do-patrol pos)]
+    (when (consume-fighter-fuel pos)
+      {:pos pos :hops hops})))
 
 (defn- exploring?
   "True if unit is on an outbound exploration sortie with steps remaining."
@@ -461,12 +547,13 @@
 
 (defn- move-fighter-once
   "Execute one step of fighter priority logic. CC=2.
-   Returns new position if moved and alive, :landed if landed, nil if died or stuck."
+   Returns {:pos p :hops n}, :landed, or nil (died/stuck)."
   [pos unit]
   (let [enemy-pos (find-adjacent-enemy pos)]
     (if enemy-pos
       (when-let [new-pos (attack-enemy pos enemy-pos)]
-        (if (consume-fighter-fuel new-pos) new-pos nil))
+        (when (consume-fighter-fuel new-pos)
+          {:pos new-pos :hops 1}))
       (move-fighter-toward-objective pos unit))))
 
 (defn- fighter-at?
@@ -481,15 +568,16 @@
     pos))
 
 (defn- step-fighter
-  "Execute one step. Returns [new-pos :continue], [nil :stop], or recur-ready values."
+  "Execute one step. Returns {:pos p :steps-used n} or nil (landed/died)."
   [current-pos]
   (when (fighter-at? current-pos)
     (let [unit (get-in @atoms/game-map (conj current-pos :contents))
           result (move-fighter-once current-pos unit)]
       (cond
         (= result :landed) nil
-        result result
-        :else (burn-stuck-fuel current-pos)))))
+        (map? result) {:pos (:pos result) :steps-used (:hops result)}
+        :else (when-let [p (burn-stuck-fuel current-pos)]
+                {:pos p :steps-used 1})))))
 
 (defn process-fighter
   "Processes a computer fighter using VMS Empire style logic.
@@ -502,6 +590,6 @@
     (loop [current-pos pos
            steps-remaining fighter-speed]
       (when (pos? steps-remaining)
-        (when-let [next-pos (step-fighter current-pos)]
-          (recur next-pos (dec steps-remaining))))))
+        (when-let [{:keys [pos steps-used]} (step-fighter current-pos)]
+          (recur pos (- steps-remaining steps-used))))))
   nil)
