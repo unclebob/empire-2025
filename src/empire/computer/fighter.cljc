@@ -537,16 +537,30 @@
   (when (and (fighter-at? pos) (consume-fighter-fuel pos))
     pos))
 
+(defn consume-hop-fuel
+  "Burns fuel for intermediate cells in a multi-cell hop.
+   For a hop of n cells, the first cell was already handled by the move,
+   so we burn fuel for (n-1) intermediate cells.
+   Returns true if fighter survived, false if it died."
+  [pos hops]
+  (loop [remaining (dec hops)]
+    (if (<= remaining 0)
+      true
+      (if (consume-fighter-fuel pos)
+        (recur (dec remaining))
+        false))))
+
 (defn- step-fighter
-  "Execute one step. Returns [new-pos :continue], [nil :stop], or recur-ready values."
+  "Execute one step. Returns {:pos p :steps-used n} or nil (landed/died)."
   [current-pos]
   (when (fighter-at? current-pos)
     (let [unit (get-in @atoms/game-map (conj current-pos :contents))
           result (move-fighter-once current-pos unit)]
       (cond
         (= result :landed) nil
-        result result
-        :else (burn-stuck-fuel current-pos)))))
+        result {:pos result :steps-used 1}
+        :else (when-let [p (burn-stuck-fuel current-pos)]
+                {:pos p :steps-used 1})))))
 
 (defn process-fighter
   "Processes a computer fighter using VMS Empire style logic.
@@ -559,6 +573,6 @@
     (loop [current-pos pos
            steps-remaining fighter-speed]
       (when (pos? steps-remaining)
-        (when-let [next-pos (step-fighter current-pos)]
-          (recur next-pos (dec steps-remaining))))))
+        (when-let [{:keys [pos steps-used]} (step-fighter current-pos)]
+          (recur pos (- steps-remaining steps-used))))))
   nil)

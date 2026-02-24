@@ -818,3 +818,97 @@
       ;; initial occupied check only enters hop-over when the first cell IS friendly.
       (reset! atoms/game-map (build-test-map ["fA##"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))))
+
+(describe "step-fighter return format"
+  (before (reset-all-atoms!))
+
+  (it "returns map with :pos and :steps-used 1 for normal movement"
+    ;; Fighter at [0 0] with target, neighbor [1 0] is empty land
+    (reset! atoms/game-map (build-test-map ["X#f####X"]))
+    (set-test-unit atoms/game-map "f" :fuel 20
+                   :flight-target-site [7 0]
+                   :flight-origin-site [0 0]
+                   :flight-mode :regular)
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [result (#'fighter/step-fighter [2 0])]
+      (should (map? result))
+      (should= 1 (:steps-used result))
+      (should-not-be-nil (:pos result))))
+
+  (it "returns nil when fighter lands at city"
+    ;; Fighter adjacent to city with low fuel should land and return nil
+    (reset! atoms/game-map (build-test-map ["Xf"]))
+    (set-test-unit atoms/game-map "f" :fuel 2)
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (#'fighter/step-fighter [1 0])))
+
+  (it "returns map with :pos for stuck fighter burning fuel"
+    ;; Fighter surrounded by friendly units, can't move but burns fuel
+    (reset! atoms/game-map (build-test-map ["aaa"
+                                             "afa"
+                                             "aaa"]))
+    (set-test-unit atoms/game-map "f" :fuel 10)
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [result (#'fighter/step-fighter [1 1])]
+      (should (map? result))
+      (should= [1 1] (:pos result))
+      (should= 1 (:steps-used result)))))
+
+(describe "process-fighter with variable steps-used"
+  (before (reset-all-atoms!))
+
+  (it "deducts steps-used from steps-remaining each iteration"
+    ;; With steps-used always 1, a stuck fighter with fuel 10 should burn 8 fuel
+    ;; (fighter-speed = 8). After the round, fuel should be 10 - 8 = 2.
+    (reset! atoms/game-map (build-test-map ["aaa"
+                                             "afa"
+                                             "aaa"]))
+    (set-test-unit atoms/game-map "f" :fuel 10)
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [unit (get-in @atoms/game-map [1 1 :contents])]
+      (fighter/process-fighter [1 1] unit)
+      (let [result (get-test-unit atoms/game-map "f")]
+        (should-not-be-nil result)
+        (should= 2 (:fuel (:unit result))))))
+
+  (it "process-fighter still returns nil"
+    ;; process-fighter always returns nil (side-effect based)
+    (reset! atoms/game-map (build-test-map ["X#f####X"]))
+    (set-test-unit atoms/game-map "f" :fuel 20
+                   :flight-target-site [7 0]
+                   :flight-origin-site [0 0]
+                   :flight-mode :regular)
+    (reset! atoms/computer-map @atoms/game-map)
+    (let [unit (get-in @atoms/game-map [2 0 :contents])]
+      (should-be-nil (fighter/process-fighter [2 0] unit)))))
+
+(describe "consume-hop-fuel"
+  (before (reset-all-atoms!))
+
+  (it "burns fuel for each intermediate cell in a hop"
+    ;; Fighter at [3 0] with fuel 20, simulate hopping from [0 0] through [1 0] [2 0] to [3 0]
+    ;; intermediate cells are [1 0] and [2 0] (2 cells), so 2 fuel burned
+    (reset! atoms/game-map (build-test-map ["#f##"]))
+    (set-test-unit atoms/game-map "f" :fuel 20)
+    (let [result (fighter/consume-hop-fuel [1 0] 3)]
+      (should= true result)
+      ;; 3 hops means 2 intermediate fuel burns (hops-1 since final cell was already burned by move)
+      ;; Actually: consume-hop-fuel burns fuel for hops-1 intermediate cells
+      (should= 18 (:fuel (get-in @atoms/game-map [1 0 :contents])))))
+
+  (it "returns false and removes fighter when fuel runs out during hop"
+    ;; Fighter with fuel 2, trying to hop 3 cells (2 intermediate burns)
+    ;; First burn: fuel 2->1. Second burn: fuel 1->0, fighter dies.
+    (reset! atoms/game-map (build-test-map ["#f##"]))
+    (set-test-unit atoms/game-map "f" :fuel 2)
+    (let [result (fighter/consume-hop-fuel [1 0] 3)]
+      (should= false result)
+      (should-be-nil (get-in @atoms/game-map [1 0 :contents]))))
+
+  (it "does nothing for hops of 1 (no intermediate cells)"
+    ;; A single hop has no intermediate cells to burn fuel for
+    (reset! atoms/game-map (build-test-map ["#f##"]))
+    (set-test-unit atoms/game-map "f" :fuel 5)
+    (let [result (fighter/consume-hop-fuel [1 0] 1)]
+      (should= true result)
+      (should= 5 (:fuel (get-in @atoms/game-map [1 0 :contents]))))))
