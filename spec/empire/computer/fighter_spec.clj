@@ -791,6 +791,15 @@
       (reset! atoms/game-map (build-test-map ["faa"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [5 0])))
 
+    (it "hops diagonally over one friendly unit"
+      ;; 4x4 map: fighter at [0 0], friendly army at [1 1], empty at [2 2], target at [3 3]
+      (reset! atoms/game-map (build-test-map ["f###"
+                                               "#a##"
+                                               "##*#"
+                                               "###*"]))
+      (let [result (fighter/hop-over-friendly [0 0] [3 3])]
+        (should= {:dest [2 2] :hops 2} result)))
+
     (it "returns nil when diagonal hop goes off map edge"
       ;; 2x2 map: fighter at [0 0], friendly army at [1 1], target at [2 2]
       ;; Diagonal direction from [0 0] -> [1 1] is [1 1]. Next hop [2 2] is off-map.
@@ -912,3 +921,122 @@
     (let [result (fighter/consume-hop-fuel [1 0] 1)]
       (should= true result)
       (should= 5 (:fuel (get-in @atoms/game-map [1 0 :contents]))))))
+
+(describe "hop-over integration through process-fighter"
+  (before (reset-all-atoms!))
+
+  (describe "patrol hop-over"
+    (it "fighter hops over friendly army toward patrol target"
+      ;; Fighter at [0 0], friendly army at [1 0], player army at [5 0] (patrol target).
+      ;; Fighter should hop over the friendly army rather than getting stuck.
+      (reset! atoms/game-map (build-test-map ["fa###A"]))
+      (set-test-unit atoms/game-map "f" :fuel 20)
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [combat/resolve-combat
+                    (fn [atk _def] {:winner :attacker :survivor atk})]
+        (let [unit (get-in @atoms/game-map [0 0 :contents])]
+          (fighter/process-fighter [0 0] unit)
+          ;; Fighter should have moved past [1 0] (where the army is)
+          ;; The army should still be at [1 0]
+          (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
+          (should= :computer (get-in @atoms/game-map [1 0 :contents :owner]))
+          ;; Fighter should be somewhere past the army
+          (let [result (get-test-unit atoms/game-map "f")]
+            ;; Fighter may have attacked the player army or be somewhere
+            ;; beyond the friendly army
+            (when result
+              (should (> (first (:pos result)) 1))))))))
+
+  (describe "navigate hop-over"
+    (it "fighter navigating toward target hops over friendly unit in path"
+      ;; Fighter at [0 0] with flight-target at [5 0], friendly army at [1 0].
+      ;; Fighter should hop over the army and continue toward target.
+      (reset! atoms/game-map (build-test-map ["Xfa###X"]))
+      (set-test-unit atoms/game-map "f" :fuel 20
+                     :flight-target-site [6 0]
+                     :flight-origin-site [0 0]
+                     :flight-mode :regular)
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [unit (get-in @atoms/game-map [1 0 :contents])]
+        (fighter/process-fighter [1 0] unit)
+        ;; Army should still be at [2 0]
+        (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
+        ;; Fighter should be past the army, closer to target
+        (let [result (get-test-unit atoms/game-map "f")]
+          (should-not-be-nil result)
+          (should (> (first (:pos result)) 2))))))
+
+  (describe "return-to-refuel hop-over"
+    (it "fighter returning to city hops over friendly unit"
+      ;; Fighter at [4 0] with low fuel, city at [0 0], friendly army at [3 0].
+      ;; Fighter should hop over the army toward the city.
+      (reset! atoms/game-map (build-test-map ["X##af"]))
+      (set-test-unit atoms/game-map "f" :fuel 5)
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [unit (get-in @atoms/game-map [4 0 :contents])]
+        (fighter/process-fighter [4 0] unit)
+        ;; Army should still be at [3 0]
+        (should= :army (get-in @atoms/game-map [3 0 :contents :type]))
+        ;; Fighter should have landed at city
+        (should= 1 (:fighter-count (get-in @atoms/game-map [0 0]))))))
+
+  (describe "hop consumes extra fuel"
+    (it "hopping over friendly units burns fuel for intermediate cells"
+      ;; Fighter at [1 0], friendly armies at [2 0] and [3 0], target at [10 0].
+      ;; A hop of 3 cells uses 3 fuel (2 intermediate + 1 normal) and 3 steps-used.
+      ;; With 8 steps total: 1 hop (3 steps, 3 fuel) + 5 normal steps (5 fuel) = 8 fuel.
+      ;; Fighter passes over the armies and ends up at [4 0]+5 = ~[9 0].
+      (reset! atoms/game-map (build-test-map ["Xfaa######X"]))
+      (set-test-unit atoms/game-map "f" :fuel 20
+                     :flight-target-site [10 0]
+                     :flight-origin-site [0 0]
+                     :flight-mode :regular)
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [unit (get-in @atoms/game-map [1 0 :contents])]
+        (fighter/process-fighter [1 0] unit)
+        ;; Friendly armies should still be in place (not displaced)
+        (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
+        (should= :army (get-in @atoms/game-map [3 0 :contents :type]))
+        ;; Fighter should have hopped past the armies and be far toward target
+        (let [result (get-test-unit atoms/game-map "f")]
+          (should-not-be-nil result)
+          ;; Fighter should be well past the army blockade at [3 0]
+          (should (> (first (:pos result)) 3))
+          ;; Total fuel burned = 8 (fighter-speed), so remaining = 12
+          (should= 12 (:fuel (:unit result)))))))
+
+  (describe "hop attack through process-fighter"
+    (it "fighter hops over friendly and attacks enemy at end of chain"
+      ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0].
+      ;; Fighter should hop over friendly and attack the player army.
+      (reset! atoms/game-map (build-test-map ["faA###"]))
+      (set-test-unit atoms/game-map "f" :fuel 20)
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [combat/resolve-combat
+                    (fn [atk _def] {:winner :attacker :survivor atk})]
+        (let [unit (get-in @atoms/game-map [0 0 :contents])]
+          (fighter/process-fighter [0 0] unit)
+          ;; Friendly army should still be at [1 0]
+          (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
+          (should= :computer (get-in @atoms/game-map [1 0 :contents :owner]))
+          ;; Fighter should be at [2 0] (won combat, took position)
+          (let [result (get-test-unit atoms/game-map "f")]
+            (should-not-be-nil result)
+            ;; Fighter should be at or past [2 0]
+            (should (>= (first (:pos result)) 2)))))))
+
+  (describe "step-fighter returns hops for steps-used"
+    (it "step-fighter returns hops > 1 when hopping over friendly"
+      ;; Fighter at [0 0], friendly army at [1 0], target at [5 0].
+      ;; step-fighter should return {:pos [2 0] :steps-used 2}
+      (reset! atoms/game-map (build-test-map ["Xfa###X"]))
+      (set-test-unit atoms/game-map "f" :fuel 20
+                     :flight-target-site [6 0]
+                     :flight-origin-site [0 0]
+                     :flight-mode :regular)
+      (reset! atoms/computer-map @atoms/game-map)
+      (let [result (#'fighter/step-fighter [1 0])]
+        (should (map? result))
+        (should= 2 (:steps-used result))
+        ;; Fighter should be at [3 0] (hopped over army at [2 0])
+        (should= [3 0] (:pos result))))))
