@@ -36,11 +36,11 @@
     (it "has visibility radius of 1" (should= 1 (ships/config :battleship :visibility-radius))))
 
   (context "shared behavior"
-    (describe "initial-state"
+    (context "initial-state"
       (it "returns empty map"
         (should= {} (ships/initial-state))))
 
-    (describe "can-move-to?"
+    (context "can-move-to?"
       (it "returns true for sea"
         (should (ships/can-move-to? {:type :sea})))
       (it "returns false for land"
@@ -50,7 +50,7 @@
       (it "returns false for nil"
         (should-not (ships/can-move-to? nil))))
 
-    (describe "needs-attention?"
+    (context "needs-attention?"
       (it "returns true when awake"
         (should (ships/needs-attention? {:mode :awake})))
       (it "returns false when sentry"

@@ -1,0 +1,204 @@
+;; mutation-tested: 2026-02-24
+(ns empire.paren-check.core
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]))
+
+(def ^:private speclj-keywords
+  #{"describe" "context" "it" "before" "before-all"
+    "after" "with-stubs" "with" "around"})
+
+(defn- process-char [state c next-c]
+  (let [{:keys [mode depth line escape skip]} state]
+    (cond
+      skip
+      (assoc state :skip false)
+
+      escape
+      (assoc state :escape false)
+
+      (= mode :comment)
+      (if (= c \newline)
+        (assoc state :mode :normal :line (inc line))
+        state)
+
+      (= mode :string)
+      (cond
+        (= c \\) (assoc state :escape true)
+        (= c \") (assoc state :mode :normal)
+        (= c \newline) (update state :line inc)
+        :else state)
+
+      (= mode :regex)
+      (cond
+        (= c \\) (assoc state :escape true)
+        (= c \") (assoc state :mode :normal)
+        (= c \newline) (update state :line inc)
+        :else state)
+
+      ;; :normal mode
+      (= c \;) (assoc state :mode :comment)
+      (= c \\) (assoc state :escape true)
+      (= c \") (assoc state :mode :string)
+      (and (= c \#) (= next-c \")) (assoc state :mode :regex :skip true)
+      (= c \newline) (update state :line inc)
+      (= c \() (update state :depth inc)
+      (= c \)) (update state :depth dec)
+      :else state)))
+
+(def ^:private token-delimiters #{\space \newline \tab \( \) \"})
+
+(defn- extract-token [chars i]
+  (let [n (count chars)
+        start (inc i)]
+    (when (< start n)
+      (let [end (reduce (fn [_ j]
+                          (if (token-delimiters (nth chars j))
+                            (reduced j)
+                            (inc j)))
+                        start
+                        (range start n))]
+        (when (> end start)
+          (apply str (subvec chars start end)))))))
+
+(defn- validate-nesting [form line form-stack]
+  (when-let [parent (peek form-stack)]
+    (let [parent-form (:form parent)]
+      (cond
+        (= parent-form "it")
+        (str "ERROR line " line ": (" form ") inside (it) at line " (:line parent))
+
+        (and (= parent-form "describe") (= form "describe"))
+        (str "ERROR line " line ": (describe) inside (describe) at line " (:line parent))
+
+        (and (= parent-form "context") (= form "describe"))
+        (str "ERROR line " line ": (describe) inside (context) at line " (:line parent))))))
+
+(defn- pop-form [form-stack]
+  (let [completed (peek form-stack)
+        stack (pop form-stack)
+        entry (dissoc completed :depth)]
+    (if (empty? stack)
+      {:stack [] :form entry}
+      (let [parent (peek stack)
+            children (conj (or (:children parent) []) entry)
+            parent (assoc parent :children children)]
+        {:stack (conj (pop stack) parent) :form nil}))))
+
+(defn scan [text]
+  (let [chars (vec text)
+        n (count chars)
+        init {:mode :normal :depth 0 :line 1 :escape false
+              :skip false :errors [] :form-stack [] :forms []}
+        result (reduce
+                 (fn [state i]
+                   (let [c (nth chars i)
+                         next-c (when (< (inc i) n)
+                                  (nth chars (inc i)))
+                         old-depth (:depth state)
+                         old-mode (:mode state)
+                         state (process-char state c next-c)
+                         new-depth (:depth state)]
+                     (cond
+                       ;; open paren in normal mode: check for speclj keyword
+                       (and (= old-mode :normal) (= c \()
+                            (> new-depth old-depth))
+                       (let [token (extract-token chars i)]
+                         (if (and token (speclj-keywords token))
+                           (let [error (validate-nesting token (:line state) (:form-stack state))]
+                             (cond-> state
+                               error (update :errors conj error)
+                               true (update :form-stack conj
+                                            {:form token :line (:line state)
+                                             :depth old-depth})))
+                           state))
+
+                       ;; close paren: check if form completed
+                       (and (= old-mode :normal) (= c \))
+                            (< new-depth old-depth)
+                            (seq (:form-stack state))
+                            (= new-depth (:depth (peek (:form-stack state)))))
+                       (let [{:keys [stack form]} (pop-form (:form-stack state))]
+                         (if form
+                           (-> state
+                               (assoc :form-stack stack)
+                               (update :forms conj form))
+                           (assoc state :form-stack stack)))
+
+                       :else state)))
+                 init
+                 (range n))
+        eof-line (:line result)
+        unclosed-errors (mapv (fn [entry]
+                                (str "ERROR line " eof-line
+                                     ": unclosed (" (:form entry)
+                                     ") from line " (:line entry)))
+                              (:form-stack result))
+        result (update result :errors into unclosed-errors)]
+    (select-keys result [:errors :depth :forms])))
+
+(defn- format-node [node indent]
+  (let [prefix (apply str (repeat indent \space))
+        header (str prefix "(" (:form node) " :line " (:line node) ")")
+        children (:children node)]
+    (if (empty? children)
+      header
+      (let [child-strs (map #(format-node % (+ indent 2)) children)
+            open (str prefix "(" (:form node) " :line " (:line node))
+            close ")"]
+        (str open "\n" (str/join "\n" child-strs) close)))))
+
+(defn format-tree [forms]
+  (str/join "\n" (map #(format-node % 0) forms)))
+
+(defn check-file
+  ([path] (check-file path {}))
+  ([path opts]
+   (let [text (slurp path)
+         result (scan text)
+         errors (:errors result)
+         base (if (empty? errors)
+                "OK"
+                (str/join "\n" errors))]
+     (if (:tree opts)
+       (let [tree (format-tree (:forms result))]
+         (if (empty? tree) base (str base "\n" tree)))
+       base))))
+
+(defn- find-clj-files [dir]
+  (let [f (io/file dir)]
+    (when (.isDirectory f)
+      (->> (file-seq f)
+           (filter #(and (.isFile %) (str/ends-with? (.getName %) ".clj")))
+           (sort-by #(.getAbsolutePath %))))))
+
+(defn check-directory
+  ([path] (check-directory path {}))
+  ([path opts]
+   (mapv (fn [f]
+           {:file (.getAbsolutePath f)
+            :result (check-file (.getAbsolutePath f) opts)})
+         (find-clj-files path))))
+
+(defn -main [& args]
+  (let [flags (set (filter #(str/starts-with? % "--") args))
+        paths (remove #(str/starts-with? % "--") args)
+        opts (cond-> {} (flags "--tree") (assoc :tree true))
+        has-errors? (atom false)]
+    (doseq [path paths]
+      (let [f (io/file path)]
+        (cond
+          (.isFile f)
+          (let [result (check-file path opts)]
+            (println (str path ": " result))
+            (when-not (str/starts-with? result "OK")
+              (reset! has-errors? true)))
+
+          (.isDirectory f)
+          (doseq [{:keys [file result]} (check-directory path opts)]
+            (println (str file ": " result))
+            (when-not (str/starts-with? result "OK")
+              (reset! has-errors? true)))
+
+          :else
+          (println (str path ": not found")))))
+    (System/exit (if @has-errors? 1 0))))

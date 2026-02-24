@@ -24,5 +24,7 @@
 					 :mutate {:main-opts ["-m" "empire.mutation.core"]
 					          :extra-deps {org.clojure/tools.reader {:mvn/version "1.4.2"}}
 					          :extra-paths ["spec"]}
+					 :spec-structure-check {:main-opts ["-m" "empire.paren-check.core"]
+					                        :extra-paths ["spec"]}
 				 }
 			 }

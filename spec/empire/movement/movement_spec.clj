@@ -276,7 +276,7 @@
       )
 
 
-    (describe "wake-before-move edge cases"
+    (context "wake-before-move edge cases"
       (it "wakes unit when something is in the way"
         (let [unit {:type :army :mode :moving :owner :player :target [4 5] :steps-remaining 1}
               next-cell {:type :land :contents {:type :army :owner :player}}
@@ -293,7 +293,7 @@
           (should= :ships-cant-drive-on-land (:reason result))
           (should should-wake?))))
 
-    (describe "wake-after-move default case"
+    (context "wake-after-move default case"
       (it "returns default values for naval units like destroyer"
         (reset! atoms/game-map (build-test-map ["D~"]))
         (set-test-unit atoms/game-map "D" :mode :moving :target [1 0] :hits 3 :steps-remaining 1)
@@ -304,7 +304,7 @@
           (should= :destroyer (:type destroyer))
           (should= :awake (:mode destroyer)))))
 
-    (describe "explore movement helpers"
+    (context "explore movement helpers"
       (it "get-unexplored-explore-moves returns moves adjacent to unexplored"
         (reset! atoms/game-map (build-test-map ["-----"
                                                  "-----"
