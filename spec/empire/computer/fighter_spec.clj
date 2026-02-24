@@ -743,7 +743,7 @@
 (describe "hop-over-friendly"
   (before (reset-all-atoms!))
 
-  (describe "no-hop case"
+  (context "no-hop case"
     (it "returns best neighbor when it is unoccupied"
       ;; Fighter at [0 0], target at [2 0], neighbor [1 0] is empty land
       (reset! atoms/game-map (build-test-map ["f##"]))
@@ -755,7 +755,7 @@
       (reset! atoms/game-map (build-test-map ["f"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [0 0]))))
 
-  (describe "basic single-unit hop"
+  (context "basic single-unit hop"
     (it "hops over one friendly unit to land on empty cell beyond"
       ;; Fighter at [0 0], friendly army at [1 0], empty land at [2 0], target at [3 0]
       (reset! atoms/game-map (build-test-map ["fa##"]))
@@ -767,7 +767,7 @@
       (reset! atoms/game-map (build-test-map ["fa"]))
       (should-be-nil (fighter/hop-over-friendly [0 0] [1 0]))))
 
-  (describe "multi-unit hop"
+  (context "multi-unit hop"
     (it "hops over two consecutive friendly units"
       ;; Fighter at [0 0], armies at [1 0] and [2 0], empty at [3 0], target at [4 0]
       (reset! atoms/game-map (build-test-map ["faa##"]))
@@ -813,7 +813,7 @@
       (should= {:dest [3 0] :hops 3 :attack true}
                (fighter/hop-over-friendly [0 0] [3 0]))))
 
-  (describe "hop stops at enemy"
+  (context "hop stops at enemy"
     (it "returns attack when single friendly then enemy"
       ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0], target at [4 0]
       (reset! atoms/game-map (build-test-map ["faA##"]))
@@ -925,7 +925,7 @@
 (describe "hop-over integration through process-fighter"
   (before (reset-all-atoms!))
 
-  (describe "patrol hop-over"
+  (context "patrol hop-over"
     (it "fighter hops over friendly army toward patrol target"
       ;; Fighter at [0 0], friendly army at [1 0], player army at [5 0] (patrol target).
       ;; Fighter should hop over the friendly army rather than getting stuck.
@@ -947,7 +947,7 @@
             (when result
               (should (> (first (:pos result)) 1))))))))
 
-  (describe "navigate hop-over"
+  (context "navigate hop-over"
     (it "fighter navigating toward target hops over friendly unit in path"
       ;; Fighter at [0 0] with flight-target at [5 0], friendly army at [1 0].
       ;; Fighter should hop over the army and continue toward target.
@@ -966,7 +966,7 @@
           (should-not-be-nil result)
           (should (> (first (:pos result)) 2))))))
 
-  (describe "return-to-refuel hop-over"
+  (context "return-to-refuel hop-over"
     (it "fighter returning to city hops over friendly unit"
       ;; Fighter at [4 0] with low fuel, city at [0 0], friendly army at [3 0].
       ;; Fighter should hop over the army toward the city.
@@ -980,7 +980,7 @@
         ;; Fighter should have landed at city
         (should= 1 (:fighter-count (get-in @atoms/game-map [0 0]))))))
 
-  (describe "hop consumes extra fuel"
+  (context "hop consumes extra fuel"
     (it "hopping over friendly units burns fuel for intermediate cells"
       ;; Fighter at [1 0], friendly armies at [2 0] and [3 0], target at [10 0].
       ;; A hop of 3 cells uses 3 fuel (2 intermediate + 1 normal) and 3 steps-used.
@@ -1005,7 +1005,7 @@
           ;; Total fuel burned = 8 (fighter-speed), so remaining = 12
           (should= 12 (:fuel (:unit result)))))))
 
-  (describe "hop attack through process-fighter"
+  (context "hop attack through process-fighter"
     (it "fighter hops over friendly and attacks enemy at end of chain"
       ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0].
       ;; Fighter should hop over friendly and attack the player army.
@@ -1025,7 +1025,7 @@
             ;; Fighter should be at or past [2 0]
             (should (>= (first (:pos result)) 2)))))))
 
-  (describe "step-fighter returns hops for steps-used"
+  (context "step-fighter returns hops for steps-used"
     (it "step-fighter returns hops > 1 when hopping over friendly"
       ;; Fighter at [0 0], friendly army at [1 0], target at [5 0].
       ;; step-fighter should return {:pos [2 0] :steps-used 2}
