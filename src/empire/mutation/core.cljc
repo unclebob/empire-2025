@@ -245,7 +245,12 @@
      (println "Restored source from backup (previous run was interrupted)."))
    (let [original-content (slurp source-path)
          prev-date (extract-mutation-date original-content)
-         forms (read-source-forms original-content)
+         ;; Pre-stamp so line numbers match post-run file state.
+         ;; For --lines runs the file is already stamped; skip re-stamping.
+         analysis-content (if lines
+                            original-content
+                            (stamp-mutation-date original-content (today-str)))
+         forms (read-source-forms analysis-content)
          all-sites (discover-all-mutations forms)
          covered-lines (coverage/load-coverage source-path)
          [covered-sites uncovered] (partition-by-coverage all-sites covered-lines)
@@ -268,12 +273,12 @@
            (println (format "PASS (%.1fs, timeout %.1fs)"
                             (/ elapsed-ms 1000.0) (/ timeout-ms 1000.0)))
            (when-not lines (print-uncovered uncovered))
-           (save-backup! source-path original-content)
+           (save-backup! source-path analysis-content)
            (try
              (let [results (doall
                              (map-indexed
                                (fn [i site]
-                                 (let [result (mutate-and-test source-path original-content
+                                 (let [result (mutate-and-test source-path analysis-content
                                                                forms site spec-path timeout-ms)]
                                    (print-progress i (count sites) result site)
                                    result))
@@ -284,7 +289,7 @@
                    survivors (filter #(= :survived (:result %)) results)]
                (print-summary killed total pct survivors (if lines 0 (count uncovered)))
                (when-not lines
-                 (spit source-path (stamp-mutation-date original-content (today-str)))))
+                 (spit source-path analysis-content)))
              (finally
                (cleanup-backup! source-path))))
          (println "FAIL — spec does not pass without mutations. Aborting."))))))
