@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-24
 (ns empire.init
   (:require [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
