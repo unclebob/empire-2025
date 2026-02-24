@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-24
 (ns empire.player.commands
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."

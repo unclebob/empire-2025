@@ -38,6 +38,20 @@ Classification: Equivalent when return value is unused. Kill by asserting the si
 Pattern: `(>= nx 0)` vs `(> nx 0)` — if no test exercises the boundary (nx = 0), both pass.
 Classification: Kill by testing at exact boundary values.
 
+### Unused return value (`true -> false` on untested modules)
+Pattern: Private helper returns `true` to signal "handled", but no production caller checks the return value.
+Example: `commands.cljc` private helpers return `true` through `handle-key`, but no module requires `commands`.
+Classification: Equivalent. The return value has no observable effect in production.
+
+### Redundant atom reset before unconditional reset
+Pattern: `(reset! atom val)` followed by unconditional call to function that resets the same atom.
+Example: `(reset! atoms/waiting-for-input false)` in a cond branch, followed by `(game-loop/item-processed)` which also resets it to `false`.
+Classification: Equivalent. The first reset is immediately overwritten.
+
+### Symmetric iteration range sign flip (`+ -> -` over `[-1 0 1]`)
+Pattern: `(for [dx [-1 0 1]] (+ x dx))` — changing `+` to `-` still covers the same set of neighbors `{x-1, x, x+1}` because `-(-1) = 1` and `-(1) = -1`.
+Classification: Equivalent when the iteration range is symmetric around 0 and `first` selects any valid result.
+
 ## Workflow
 
 1. Run `clj -M:mutate src/empire/<module>.cljc`
