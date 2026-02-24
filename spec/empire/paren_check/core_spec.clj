@@ -149,4 +149,13 @@
       (should (pos? (count results)))
       (should (every? #(= "OK" (:result %)) results)))))
 
+(describe "integration — real spec files"
+  (it "paren_check's own spec has no errors"
+    (should= "OK" (pc/check-file "spec/empire/paren_check/core_spec.clj")))
+
+  (it "batch scan returns results for all files"
+    (let [results (pc/check-directory "spec/empire/paren_check")]
+      (should (pos? (count results)))
+      (should (every? #(= "OK" (:result %)) results)))))
+
 (run-specs)
