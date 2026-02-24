@@ -85,6 +85,32 @@
       (should (<= 1 (count (:errors result))))
       (should-contain "unclosed" (first (:errors result))))))
 
+(describe "format-tree"
+  (it "formats a single describe with children"
+    (let [forms [{:form "describe" :line 1
+                  :children [{:form "before" :line 2}
+                             {:form "it" :line 3}
+                             {:form "it" :line 5}]}]
+          result (pc/format-tree forms)]
+      (should= (str "(describe :line 1\n"
+                    "  (before :line 2)\n"
+                    "  (it :line 3)\n"
+                    "  (it :line 5))")
+               result)))
+
+  (it "formats nested context"
+    (let [forms [{:form "describe" :line 1
+                  :children [{:form "context" :line 2
+                              :children [{:form "it" :line 3}]}]}]
+          result (pc/format-tree forms)]
+      (should= (str "(describe :line 1\n"
+                    "  (context :line 2\n"
+                    "    (it :line 3)))")
+               result)))
+
+  (it "formats leaf node"
+    (should= "(describe :line 1)" (pc/format-tree [{:form "describe" :line 1}]))))
+
 (describe "check-file"
   (it "returns OK for a well-formed spec file"
     (should= "OK" (pc/check-file "spec/empire/combat_spec.clj")))
@@ -96,7 +122,26 @@
       (spit path "(describe \"x\"\n  (it \"a\"\n    (it \"b\")))")
       (let [result (pc/check-file path)]
         (should-not= "OK" result)
-        (should-contain "ERROR" result)))))
+        (should-contain "ERROR" result))))
+
+  (it "appends tree when :tree option is true"
+    (let [tmp (java.io.File/createTempFile "tree-spec" ".clj")
+          path (.getAbsolutePath tmp)]
+      (.deleteOnExit tmp)
+      (spit path "(describe \"x\"\n  (it \"a\")\n  (it \"b\"))")
+      (let [result (pc/check-file path {:tree true})]
+        (should-contain "OK" result)
+        (should-contain "(describe :line 1" result)
+        (should-contain "(it :line 2)" result))))
+
+  (it "appends tree after errors when :tree option is true"
+    (let [tmp (java.io.File/createTempFile "tree-err" ".clj")
+          path (.getAbsolutePath tmp)]
+      (.deleteOnExit tmp)
+      (spit path "(describe \"x\"\n  (it \"a\"\n    (it \"b\")))")
+      (let [result (pc/check-file path {:tree true})]
+        (should-contain "ERROR" result)
+        (should-contain "(describe :line 1" result)))))
 
 (describe "check-directory"
   (it "scans all .clj files in a directory"

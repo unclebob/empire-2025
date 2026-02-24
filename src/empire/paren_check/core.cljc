@@ -138,13 +138,33 @@
         result (update result :errors into unclosed-errors)]
     (select-keys result [:errors :depth :forms])))
 
-(defn check-file [path]
-  (let [text (slurp path)
-        result (scan text)
-        errors (:errors result)]
-    (if (empty? errors)
-      "OK"
-      (str/join "\n" errors))))
+(defn- format-node [node indent]
+  (let [prefix (apply str (repeat indent \space))
+        header (str prefix "(" (:form node) " :line " (:line node) ")")
+        children (:children node)]
+    (if (empty? children)
+      header
+      (let [child-strs (map #(format-node % (+ indent 2)) children)
+            open (str prefix "(" (:form node) " :line " (:line node))
+            close ")"]
+        (str open "\n" (str/join "\n" child-strs) close)))))
+
+(defn format-tree [forms]
+  (str/join "\n" (map #(format-node % 0) forms)))
+
+(defn check-file
+  ([path] (check-file path {}))
+  ([path opts]
+   (let [text (slurp path)
+         result (scan text)
+         errors (:errors result)
+         base (if (empty? errors)
+                "OK"
+                (str/join "\n" errors))]
+     (if (:tree opts)
+       (let [tree (format-tree (:forms result))]
+         (if (empty? tree) base (str base "\n" tree)))
+       base))))
 
 (defn- find-clj-files [dir]
   (let [f (io/file dir)]
@@ -153,28 +173,32 @@
            (filter #(and (.isFile %) (str/ends-with? (.getName %) ".clj")))
            (sort-by #(.getAbsolutePath %))))))
 
-(defn check-directory [path]
-  (mapv (fn [f]
-          {:file (.getAbsolutePath f)
-           :result (check-file (.getAbsolutePath f))})
-        (find-clj-files path)))
+(defn check-directory
+  ([path] (check-directory path {}))
+  ([path opts]
+   (mapv (fn [f]
+           {:file (.getAbsolutePath f)
+            :result (check-file (.getAbsolutePath f) opts)})
+         (find-clj-files path))))
 
 (defn -main [& args]
-  (let [paths (remove #(str/starts-with? % "--") args)
+  (let [flags (set (filter #(str/starts-with? % "--") args))
+        paths (remove #(str/starts-with? % "--") args)
+        opts (cond-> {} (flags "--tree") (assoc :tree true))
         has-errors? (atom false)]
     (doseq [path paths]
       (let [f (io/file path)]
         (cond
           (.isFile f)
-          (let [result (check-file path)]
+          (let [result (check-file path opts)]
             (println (str path ": " result))
-            (when (not= "OK" result)
+            (when-not (str/starts-with? result "OK")
               (reset! has-errors? true)))
 
           (.isDirectory f)
-          (doseq [{:keys [file result]} (check-directory path)]
+          (doseq [{:keys [file result]} (check-directory path opts)]
             (println (str file ": " result))
-            (when (not= "OK" result)
+            (when-not (str/starts-with? result "OK")
               (reset! has-errors? true)))
 
           :else
