@@ -90,6 +90,9 @@
 (defn- when-handle-process-computer-transport [[_ unit] _ctx]
   [{:type :process-computer-transport :unit unit}])
 
+(defn- when-handle-process-computer-fighter [[_ unit] _ctx]
+  [{:type :process-computer-fighter :unit unit}])
+
 (defn- when-handle-computer-rounds [[_ n] _ctx]
   [{:type :computer-rounds :count (h/parse-count n)}])
 
@@ -131,6 +134,8 @@
     :handler when-handle-evaluate-production}
    {:regex #"computer\s+transport\s+(\w+)\s+is\s+processed"
     :handler when-handle-process-computer-transport}
+   {:regex #"computer\s+fighter\s+(\w+)\s+is\s+processed"
+    :handler when-handle-process-computer-fighter}
    {:regex #"(\w+)\s+computer\s+rounds?\s+pass"
     :handler when-handle-computer-rounds}
    {:regex #"(\w+)\s+is\s+waiting\s+for\s+input"
