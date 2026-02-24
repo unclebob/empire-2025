@@ -859,64 +859,66 @@
     (visibility/update-cell-visibility city-pos :computer)
     city-pos))
 
+(defn- try-dock [pos unit]
+  (when-let [city (find-adjacent-dock-city pos unit)]
+    (dock-computer-ship pos city)))
+
+(defn- try-retreat [pos unit]
+  (when-let [rp (retreat-if-damaged pos unit)]
+    (core/move-unit-to pos rp)
+    (visibility/update-cell-visibility pos :computer)
+    (visibility/update-cell-visibility rp :computer)))
+
+(defn- try-attack-adjacent [pos]
+  (when-let [ep (find-adjacent-enemy-ship pos)]
+    (attack-enemy pos ep)))
+
+(defn- try-escort [pos ship-type unit]
+  (when (:escort-mode unit)
+    (cond
+      (= :destroyer ship-type)
+      (or (process-escort-destroyer pos) (explore-sea pos ship-type))
+
+      (#{:battleship :submarine} ship-type)
+      (or (process-carrier-group-escort pos ship-type)
+          (explore-sea pos ship-type)))))
+
+(defn- try-escort-transport [pos ship-type]
+  (when (= :destroyer ship-type)
+    (when-let [transport-pos (find-nearest-transport pos)]
+      (if (> (core/distance pos transport-pos) 2)
+        (move-toward pos transport-pos)
+        (explore-sea pos ship-type)))))
+
+(defn- try-hunt-player-ship [pos]
+  (when-let [sighting (find-player-ship-sighting pos)]
+    (move-toward pos sighting)))
+
+(defn- dispatch-ship-action [pos ship-type unit]
+  (cond
+    (and (= :patrol-boat ship-type) (:patrol-country-id unit))
+    (process-patrol-boat pos)
+
+    (and (= :carrier ship-type) (:carrier-mode unit))
+    (process-carrier pos)
+
+    :else
+    (or (try-dock pos unit)
+        (try-retreat pos unit)
+        (try-attack-adjacent pos)
+        (try-escort pos ship-type unit)
+        (try-escort-transport pos ship-type)
+        (try-hunt-player-ship pos)
+        (explore-sea pos ship-type))))
+
 (defn process-ship
   "Processes a computer ship using VMS Empire style logic.
    Priority: Retreat if damaged > Attack adjacent > Escort transports > Hunt enemies > Explore
    Returns nil after processing - ships only move once per round."
   [pos ship-type]
-  (let [cell (get-in @atoms/game-map pos)
-        unit (:contents cell)]
+  (let [unit (:contents (get-in @atoms/game-map pos))]
     (when (and unit
                (= :computer (:owner unit))
                (= ship-type (:type unit)))
-
-      ;; Patrol boat special behavior (when it has patrol fields)
-      (if (and (= :patrol-boat ship-type)
-               (:patrol-country-id unit))
-        (process-patrol-boat pos)
-
-      ;; Carrier positioning behavior
-      (if (and (= :carrier ship-type)
-               (:carrier-mode unit))
-        (process-carrier pos)
-
-      ;; Priority 0: Dock at adjacent friendly city if damaged
-      (if-let [dock-city (find-adjacent-dock-city pos unit)]
-        (dock-computer-ship pos dock-city)
-
-      ;; Priority 0.5: Retreat if damaged and under threat
-      (if-let [retreat-pos (retreat-if-damaged pos unit)]
-        (do
-          (core/move-unit-to pos retreat-pos)
-          (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility retreat-pos :computer))
-
-        ;; Priority 1: Attack adjacent enemy ship
-        (if-let [enemy-pos (find-adjacent-enemy-ship pos)]
-          (attack-enemy pos enemy-pos)
-
-          ;; Priority 2: Destroyers with escort mode
-          (if (and (= :destroyer ship-type) (:escort-mode unit))
-            (or (process-escort-destroyer pos)
-                (explore-sea pos ship-type))
-
-          ;; Priority 2b: Battleship/Submarine carrier group escort
-          (if (and (#{:battleship :submarine} ship-type) (:escort-mode unit))
-            (or (process-carrier-group-escort pos ship-type)
-                (explore-sea pos ship-type))
-
-            ;; Priority 3: Destroyers without escort - escort transports (legacy)
-            (if (and (= :destroyer ship-type)
-                     (find-nearest-transport pos))
-              (let [transport-pos (find-nearest-transport pos)]
-                (if (> (core/distance pos transport-pos) 2)
-                  (move-toward pos transport-pos)
-                  (explore-sea pos ship-type)))
-
-              ;; Priority 4: Hunt player ships
-              (if-let [enemy-sighting (find-player-ship-sighting pos)]
-                (move-toward pos enemy-sighting)
-
-                ;; Priority 5: Explore sea
-                (explore-sea pos ship-type))))))))))))
+      (dispatch-ship-action pos ship-type unit)))
   nil)

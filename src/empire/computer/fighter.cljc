@@ -269,6 +269,48 @@
         best-dirs (map first (filter #(= best-score (second %)) scored))]
     (rand-nth (vec best-dirs))))
 
+(defn- select-best-explore-target
+  "Score passable neighbors by unexplored count, break ties by proximity."
+  [passable endpoint]
+  (let [scored (map (fn [n]
+                      [n (count-unexplored-neighbors n) (distance-to n endpoint)])
+                    passable)
+        best-unexplored (apply max (map second scored))
+        at-best (filter #(= best-unexplored (second %)) scored)]
+    (first (first (sort-by #(nth % 2) at-best)))))
+
+(defn- land-after-hop
+  "Executes hop landing at dest from pos. Returns {:pos dest :hops hops} or nil."
+  [pos dest hops]
+  (when (core/move-unit-to pos dest)
+    (visibility/update-cell-visibility pos :computer)
+    (visibility/update-cell-visibility dest :computer)
+    (when (consume-hop-fuel dest hops)
+      (when (consume-fighter-fuel dest)
+        {:pos dest :hops hops}))))
+
+(defn- explore-hop-over
+  "Hops over friendly units in the direction from pos toward best-pos.
+   Returns {:pos p :hops n} or nil."
+  [pos best-pos]
+  (let [[dr dc] (direction-from pos best-pos)]
+    (loop [sr (first best-pos) sc (second best-pos) hops 1]
+      (let [next-pos [(+ sr dr) (+ sc dc)]]
+        (when (in-bounds? next-pos)
+          (if-not (occupied? next-pos)
+            (land-after-hop pos next-pos (inc hops))
+            (when (friendly-occupied? next-pos)
+              (recur (+ sr dr) (+ sc dc) (inc hops)))))))))
+
+(defn- simple-explore-move
+  "Direct move to best-pos. Returns {:pos best-pos :hops 1} or nil."
+  [pos best-pos]
+  (when (core/move-unit-to pos best-pos)
+    (visibility/update-cell-visibility pos :computer)
+    (visibility/update-cell-visibility best-pos :computer)
+    (when (consume-fighter-fuel best-pos)
+      {:pos best-pos :hops 1})))
+
 (defn- explore-move-step
   "Shared movement logic for sorties and drones.
    Score all passable neighbors by unexplored-neighbor count, break ties by
@@ -276,33 +318,10 @@
    Returns {:pos p :hops n} or nil."
   [pos endpoint]
   (let [passable (get-passable-neighbors pos)]
-    (when (seq passable)
-      (let [scored (map (fn [n]
-                          [n (count-unexplored-neighbors n) (distance-to n endpoint)])
-                        passable)
-            best-unexplored (apply max (map second scored))
-            at-best (filter #(= best-unexplored (second %)) scored)
-            best-pos (first (first (sort-by #(nth % 2) at-best)))]
-        (when best-pos
-          (if (friendly-occupied? best-pos)
-            (let [[dr dc] (direction-from pos best-pos)]
-              (loop [sr (first best-pos) sc (second best-pos) hops 1]
-                (let [next-pos [(+ sr dr) (+ sc dc)]]
-                  (when (in-bounds? next-pos)
-                    (if-not (occupied? next-pos)
-                      (when (core/move-unit-to pos next-pos)
-                        (visibility/update-cell-visibility pos :computer)
-                        (visibility/update-cell-visibility next-pos :computer)
-                        (when (consume-hop-fuel next-pos (inc hops))
-                          (when (consume-fighter-fuel next-pos)
-                            {:pos next-pos :hops (inc hops)})))
-                      (when (friendly-occupied? next-pos)
-                        (recur (+ sr dr) (+ sc dc) (inc hops))))))))
-            (when (core/move-unit-to pos best-pos)
-              (visibility/update-cell-visibility pos :computer)
-              (visibility/update-cell-visibility best-pos :computer)
-              (when (consume-fighter-fuel best-pos)
-                {:pos best-pos :hops 1}))))))))
+    (when-let [best-pos (and (seq passable) (select-best-explore-target passable endpoint))]
+      (if (friendly-occupied? best-pos)
+        (explore-hop-over pos best-pos)
+        (simple-explore-move pos best-pos)))))
 
 (defn- explore-step
   "One outbound sortie step. Calls explore-move-step, decrements steps-remaining.

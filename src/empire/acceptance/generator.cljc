@@ -153,54 +153,45 @@
 
 ;; --- NS form generation ---
 
+(def ^:private optional-refers
+  [[:get-test-cell   ["get-test-cell"]]
+   [:get-test-city   ["get-test-city"]]
+   [:config          ["message-matches?"]]
+   [:make-initial-test-map ["make-initial-test-map"]]
+   [:visibility-mask ["visibility-mask"]]
+   [:territory-mask  ["territory-mask" "build-territory-expected"]]])
+
+(def ^:private optional-requires
+  [[:config              "[empire.config :as config]"]
+   [:game-loop           "[empire.game-loop :as game-loop]"]
+   [:item-processing     "[empire.game-loop.item-processing :as item-processing]"]
+   [:quil                "[quil.core :as q]"]
+   [:computer-production "[empire.computer.production :as computer-production]"]
+   [:computer-transport  "[empire.computer.transport :as computer-transport]"]
+   [:computer-fighter    "[empire.computer.fighter :as computer-fighter]"]
+   [:visibility          "[empire.movement.visibility :as visibility]"]])
+
+(defn- collect-refers [needs]
+  (into ["build-test-map" "set-test-unit" "get-test-unit" "reset-all-atoms!"]
+        (mapcat (fn [[need refs]] (when (contains? needs need) refs))
+                optional-refers)))
+
+(defn- collect-requires [needs]
+  (into ["[empire.atoms :as atoms]" "[empire.ui.input :as input]"]
+        (keep (fn [[need req]] (when (contains? needs need) req))
+              optional-requires)))
+
 (defn generate-ns-form
   "Generate the ns declaration string."
   [source-name needs]
   (let [base-name (str/replace source-name #"\.txt$" "")
         ns-name (str "acceptance." base-name "-spec")
-        ;; Build test-utils refers
-        refers (atom ["build-test-map" "set-test-unit" "get-test-unit"])
-        requires (atom [])]
-    (when (contains? needs :get-test-cell)
-      (swap! refers conj "get-test-cell"))
-    (when (contains? needs :get-test-city)
-      (swap! refers conj "get-test-city"))
-    (swap! refers conj "reset-all-atoms!")
-    (when (contains? needs :config)
-      (swap! refers conj "message-matches?"))
-    (when (contains? needs :make-initial-test-map)
-      (swap! refers conj "make-initial-test-map"))
-    (when (contains? needs :visibility-mask)
-      (swap! refers conj "visibility-mask"))
-    (when (contains? needs :territory-mask)
-      (swap! refers conj "territory-mask")
-      (swap! refers conj "build-territory-expected"))
-
-    ;; Always need atoms
-    (swap! requires conj "[empire.atoms :as atoms]")
-    (when (contains? needs :config)
-      (swap! requires conj "[empire.config :as config]"))
-    (when (contains? needs :game-loop)
-      (swap! requires conj "[empire.game-loop :as game-loop]"))
-    (when (contains? needs :item-processing)
-      (swap! requires conj "[empire.game-loop.item-processing :as item-processing]"))
-    ;; Always need input (key-down/handle-key)
-    (swap! requires conj "[empire.ui.input :as input]")
-    (when (contains? needs :quil)
-      (swap! requires conj "[quil.core :as q]"))
-    (when (contains? needs :computer-production)
-      (swap! requires conj "[empire.computer.production :as computer-production]"))
-    (when (contains? needs :computer-transport)
-      (swap! requires conj "[empire.computer.transport :as computer-transport]"))
-    (when (contains? needs :computer-fighter)
-      (swap! requires conj "[empire.computer.fighter :as computer-fighter]"))
-    (when (contains? needs :visibility)
-      (swap! requires conj "[empire.movement.visibility :as visibility]"))
-
+        refers (collect-refers needs)
+        requires (collect-requires needs)]
     (str "(ns " ns-name "\n"
          "  (:require [speclj.core :refer :all]\n"
-         "            [empire.test-utils :refer [" (str/join " " @refers) "]]\n"
-         (str/join "\n" (map #(str "            " %) @requires))
+         "            [empire.test-utils :refer [" (str/join " " refers) "]]\n"
+         (str/join "\n" (map #(str "            " %) requires))
          "))")))
 
 ;; --- Helper functions ---

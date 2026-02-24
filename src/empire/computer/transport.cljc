@@ -527,126 +527,152 @@
     (swap! atoms/game-map assoc-in
            (conj pos :contents :sail-path) path)))
 
+(defn- should-try-opportunistic-unload?
+  [army-count mission]
+  (and (pos? army-count)
+       (or (#{:sailing :unloading} mission)
+           (and (= :loading mission) (< army-count 6)))))
+
+(defn- process-unloading-mission
+  [pos army-count]
+  (if (zero? army-count)
+    (transition-to-loading pos)
+    (let [transport (get-in @atoms/game-map (conj pos :contents))]
+      (if (has-nearby-unloadable-land? pos transport 5)
+        (if-let [pos1 (unloading-crawl-move pos)]
+          (or (unloading-crawl-move pos1) pos1)
+          (start-sailing pos transport))
+        (start-sailing pos transport)))))
+
+(defn- sail-retreat
+  [pos sail-path]
+  (let [retreat (first (get-passable-sea-neighbors pos))]
+    (when (core/move-unit-to pos retreat)
+      (visibility/update-cell-visibility pos :computer)
+      (visibility/update-cell-visibility retreat :computer)
+      (swap! atoms/game-map assoc-in
+             (conj retreat :contents :sail-path)
+             (vec (cons pos sail-path)))
+      retreat)))
+
+(defn- sail-take-second-step
+  [from-pos next-pos remaining]
+  (let [step2 (or (first remaining) (continue-pos from-pos next-pos))
+        remaining2 (if (seq remaining) (vec (rest remaining)) [])
+        moved2 (when step2 (core/move-unit-to next-pos step2))]
+    (if moved2
+      (do (visibility/update-cell-visibility next-pos :computer)
+          (visibility/update-cell-visibility step2 :computer)
+          (swap! atoms/game-map assoc-in
+                 (conj step2 :contents :sail-path) remaining2)
+          (try-opportunistic-unload step2)
+          step2)
+      (do (swap! atoms/game-map assoc-in
+                 (conj next-pos :contents :sail-path) remaining)
+          (try-opportunistic-unload next-pos)
+          next-pos))))
+
+(defn- sail-follow-path
+  [pos sail-path]
+  (let [next-pos (first sail-path)
+        remaining (vec (rest sail-path))]
+    (if (core/move-unit-to pos next-pos)
+      (do (visibility/update-cell-visibility pos :computer)
+          (visibility/update-cell-visibility next-pos :computer)
+          (sail-take-second-step pos next-pos remaining))
+      (sail-retreat pos sail-path))))
+
+(defn- process-sailing-mission
+  [pos]
+  (let [transport (get-in @atoms/game-map (conj pos :contents))
+        sail-path (:sail-path transport)
+        army-count (:army-count transport 0)]
+    (cond
+      (and (empty? sail-path) (zero? army-count))
+      (set-transport-mission pos :loading)
+
+      (and (empty? sail-path) (pos? army-count))
+      (do (set-transport-mission pos :unloading)
+          (try-opportunistic-unload pos))
+
+      (seq sail-path)
+      (sail-follow-path pos sail-path))))
+
+(defn- loading-crawl-move
+  [pos]
+  (let [move-one (fn [p]
+                   (let [t (get-in @atoms/game-map (conj p :contents))
+                         pcp (:pickup-continent-pos t)]
+                     (if pcp
+                       (or (move-toward-position p pcp)
+                           (coastal-crawl-move p))
+                       (coastal-crawl-move p))))]
+    (when-let [pos1 (move-one pos)]
+      (or (move-one pos1) pos1))))
+
+(defn- should-start-sailing?
+  [pos transport army-count]
+  (and (>= army-count 4)
+       (or (>= army-count 6)
+           (not (has-nearby-loadable-armies? pos transport 3)))))
+
+(defn- clear-pickup-continent-if-arrived
+  [pos]
+  (let [transport (get-in @atoms/game-map (conj pos :contents))
+        pcp (:pickup-continent-pos transport)]
+    (when (and pcp
+               (adjacent-to-land? pos)
+               (adjacent-to-pickup-continent? pos pcp))
+      (swap! atoms/game-map update-in (conj pos :contents)
+             dissoc :pickup-continent-pos))))
+
+(defn- process-loading-mission
+  [pos]
+  (load-adjacent-armies pos)
+  (clear-pickup-continent-if-arrived pos)
+  (let [transport' (get-in @atoms/game-map (conj pos :contents))
+        army-count' (:army-count transport' 0)]
+    (if (should-start-sailing? pos transport' army-count')
+      (start-sailing pos transport')
+      (loading-crawl-move pos))))
+
+(defn- fix-idle-mission
+  [pos mission]
+  (when (or (nil? mission) (= :idle mission))
+    (set-transport-mission pos :loading)))
+
+(defn- dispatch-transport-mission
+  [pos transport]
+  (let [army-count (:army-count transport 0)
+        mission (:transport-mission transport)]
+    (fix-idle-mission pos mission)
+    (let [current-mission (or mission :loading)]
+      (debug/log-computer-event! :transport-process pos
+                                 {:mission current-mission :armies army-count
+                                  :pcp (:pickup-continent-pos transport)})
+      (cond
+        (and (should-try-opportunistic-unload? army-count current-mission)
+             (try-opportunistic-unload pos))
+        true
+
+        (= current-mission :unloading)
+        (process-unloading-mission pos army-count)
+
+        (= current-mission :sailing)
+        (process-sailing-mission pos)
+
+        (= current-mission :loading)
+        (process-loading-mission pos)
+
+        :else nil))))
+
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
-   Loading: coastal crawl, auto-load, sail when loaded with no adjacent armies
-   Sailing: follow BFS path, opportunistic unload, unload at destination
-   Unloading: coast-crawl while dropping armies on empty land
    Returns nil after processing — transports only move once per round."
   [pos]
-  (let [cell (get-in @atoms/game-map pos)
-        transport (:contents cell)]
+  (let [transport (:contents (get-in @atoms/game-map pos))]
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
-      (let [army-count (:army-count transport 0)
-            mission (:transport-mission transport)]
-
-        ;; Fix idle/nil → loading
-        (when (or (nil? mission) (= :idle mission))
-          (set-transport-mission pos :loading))
-
-        (let [current-mission (or mission :loading)]
-          (debug/log-computer-event! :transport-process pos
-                                     {:mission current-mission :armies army-count
-                                      :pcp (:pickup-continent-pos transport)})
-          (cond
-            ;; Opportunistic unload — sailing/unloading, or loading with partial load
-            (and (pos? army-count)
-                 (or (#{:sailing :unloading} current-mission)
-                     (and (= :loading current-mission) (< army-count 6)))
-                 (try-opportunistic-unload pos))
-            true
-
-            ;; Unloading — coast-crawl to find empty land
-            (= current-mission :unloading)
-            (if (zero? army-count)
-              (transition-to-loading pos)
-              ;; Has armies: coast-crawl if unloadable land nearby, else re-sail
-              (if (has-nearby-unloadable-land? pos transport 5)
-                (if-let [pos1 (unloading-crawl-move pos)]
-                  (or (unloading-crawl-move pos1) pos1)
-                  (start-sailing pos transport))
-                (start-sailing pos transport)))
-
-            ;; Sailing — follow sail-path
-            (= current-mission :sailing)
-            (let [sail-path (:sail-path transport)]
-              (cond
-                ;; Empty path, no armies → loading
-                (and (empty? sail-path) (zero? army-count))
-                (set-transport-mission pos :loading)
-
-                ;; Empty path, has armies → unloading
-                (and (empty? sail-path) (pos? army-count))
-                (do (set-transport-mission pos :unloading)
-                    (try-opportunistic-unload pos))
-
-                ;; Follow path (speed 2: take up to 2 steps)
-                (seq sail-path)
-                (let [next-pos (first sail-path)
-                      remaining (vec (rest sail-path))]
-                  (if (core/move-unit-to pos next-pos)
-                    (do (visibility/update-cell-visibility pos :computer)
-                        (visibility/update-cell-visibility next-pos :computer)
-                        ;; Second step: from remaining path, or continue direction
-                        (let [step2 (or (first remaining)
-                                        (continue-pos pos next-pos))
-                              remaining2 (if (seq remaining)
-                                           (vec (rest remaining))
-                                           [])
-                              moved2 (when step2
-                                       (core/move-unit-to next-pos step2))]
-                          (if moved2
-                            (do (visibility/update-cell-visibility next-pos :computer)
-                                (visibility/update-cell-visibility step2 :computer)
-                                (swap! atoms/game-map assoc-in
-                                       (conj step2 :contents :sail-path) remaining2)
-                                (try-opportunistic-unload step2)
-                                step2)
-                            (do (swap! atoms/game-map assoc-in
-                                       (conj next-pos :contents :sail-path) remaining)
-                                (try-opportunistic-unload next-pos)
-                                next-pos))))
-                    ;; Blocked — retreat one cell back
-                    (let [retreat (first (get-passable-sea-neighbors pos))]
-                      (when (core/move-unit-to pos retreat)
-                        (visibility/update-cell-visibility pos :computer)
-                        (visibility/update-cell-visibility retreat :computer)
-                        (swap! atoms/game-map assoc-in
-                               (conj retreat :contents :sail-path)
-                               (vec (cons pos sail-path)))
-                        retreat))))))
-
-            ;; Loading — load armies, check sail trigger, coastal crawl
-            (= current-mission :loading)
-            (do
-              ;; Load any adjacent armies first
-              (load-adjacent-armies pos)
-              ;; Clear pickup-continent-pos once adjacent to that continent
-              (when-let [pcp (:pickup-continent-pos transport)]
-                (when (and (adjacent-to-land? pos)
-                           (adjacent-to-pickup-continent? pos pcp))
-                  (swap! atoms/game-map update-in (conj pos :contents)
-                         dissoc :pickup-continent-pos)))
-              ;; Re-read transport after loading
-              (let [transport' (get-in @atoms/game-map (conj pos :contents))
-                    army-count' (:army-count transport' 0)]
-                ;; Sail trigger: full capacity, or 4+ with no nearby loadable armies
-                (if (and (>= army-count' 4)
-                         (or (>= army-count' 6)
-                             (not (has-nearby-loadable-armies? pos transport' 3))))
-                  (start-sailing pos transport')
-                  ;; Navigate toward pickup continent or coastal crawl (speed 2)
-                  (let [move-one (fn [p]
-                                  (let [t (get-in @atoms/game-map (conj p :contents))
-                                        pcp (:pickup-continent-pos t)]
-                                    (if pcp
-                                      (or (move-toward-position p pcp)
-                                          (coastal-crawl-move p))
-                                      (coastal-crawl-move p))))]
-                    (when-let [pos1 (move-one pos)]
-                      (or (move-one pos1) pos1))))))
-
-            :else nil)))))
+      (dispatch-transport-mission pos transport)))
   nil)

@@ -304,36 +304,42 @@
                  next-node-id
                  (into path cells-to-add)))))))
 
+(defn- find-network-node
+  [network pos]
+  (or (find-nearest-node network pos config/sea-lane-local-radius)
+      (find-nearest-node network pos config/sea-lane-extended-radius)))
+
+(defn- find-route-segments
+  [network start goal]
+  (when-let [entry-id (find-network-node network start)]
+    (when-let [exit-id (find-network-node network goal)]
+      (when-let [seg-path (dijkstra network entry-id exit-id)]
+        [entry-id exit-id seg-path]))))
+
+(defn- compute-leg
+  [from to unit-type game-map bounded-a-star-fn]
+  (if (= from to) [from] (bounded-a-star-fn from to unit-type game-map)))
+
+(defn- trim-overlap
+  [left right]
+  (if (and (seq left) (seq right) (= (last left) (first right)))
+    (subvec (vec right) 1)
+    right))
+
+(defn- join-legs
+  [first-leg middle last-leg]
+  (let [combined (into (vec first-leg) (trim-overlap first-leg middle))]
+    (into combined (trim-overlap combined last-leg))))
+
 (defn route-through-network
   "Attempts to route from start to goal using the sea lane network.
    Returns a path vector or nil if network routing fails."
   [network start goal unit-type game-map bounded-a-star-fn]
   (when (>= (count (:nodes network)) config/sea-lane-min-network-nodes)
-    (when-let [entry-id (or (find-nearest-node network start config/sea-lane-local-radius)
-                            (find-nearest-node network start config/sea-lane-extended-radius))]
-      (when-let [exit-id (or (find-nearest-node network goal config/sea-lane-local-radius)
-                             (find-nearest-node network goal config/sea-lane-extended-radius))]
-        (when-let [seg-path (dijkstra network entry-id exit-id)]
-          (let [entry-pos (:pos (get-in network [:nodes entry-id]))
-                exit-pos (:pos (get-in network [:nodes exit-id]))
-                ;; Bounded A* from start to entry
-                first-leg (if (= start entry-pos)
-                            [start]
-                            (bounded-a-star-fn start entry-pos unit-type game-map))
-                ;; Bounded A* from exit to goal
-                last-leg (if (= exit-pos goal)
-                           [goal]
-                           (bounded-a-star-fn exit-pos goal unit-type game-map))]
-            (when (and first-leg last-leg)
-              (let [middle (assemble-path network seg-path entry-id)
-                    ;; Remove overlapping endpoints
-                    middle-trimmed (if (and (seq first-leg) (seq middle)
-                                           (= (last first-leg) (first middle)))
-                                    (subvec middle 1)
-                                    middle)
-                    combined (into (vec first-leg) middle-trimmed)
-                    last-trimmed (if (and (seq combined) (seq last-leg)
-                                         (= (last combined) (first last-leg)))
-                                  (subvec (vec last-leg) 1)
-                                  last-leg)]
-                (into combined last-trimmed)))))))))
+    (when-let [[entry-id exit-id seg-path] (find-route-segments network start goal)]
+      (let [entry-pos (:pos (get-in network [:nodes entry-id]))
+            exit-pos (:pos (get-in network [:nodes exit-id]))
+            first-leg (compute-leg start entry-pos unit-type game-map bounded-a-star-fn)
+            last-leg (compute-leg exit-pos goal unit-type game-map bounded-a-star-fn)]
+        (when (and first-leg last-leg)
+          (join-legs first-leg (assemble-path network seg-path entry-id) last-leg))))))
