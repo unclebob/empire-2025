@@ -21,8 +21,10 @@
 					               :extra-paths ["spec"]}
 					 :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
 					                  :extra-paths ["generated-acceptance-specs"]}
-					 :mutate {:main-opts ["-m" "empire.mutation.core"]
-					          :extra-deps {org.clojure/tools.reader {:mvn/version "1.4.2"}}
+					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
+					                        {:git/url "https://github.com/unclebob/clj-mutate"
+					                         :git/sha "e52fd833c79899867382a471edbda54b9dff24d4"}}
+					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
 					                                     {:git/url "https://github.com/unclebob/speclj-structure-check"
