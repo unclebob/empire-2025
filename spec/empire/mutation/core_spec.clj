@@ -190,6 +190,28 @@
           (should-contain "Previous mutation test: 2026-01-15" captured)))
       (.delete temp-file))))
 
+(describe "line numbers stable across stamp"
+  (it "reported survivor lines from full run work with --lines"
+    (let [temp-file (java.io.File/createTempFile "mutant" ".cljc")
+          temp-path (.getPath temp-file)
+          original "(ns test-ns)\n(defn foo [] (+ 1 2))\n"]
+      (spit temp-path original)
+      (with-redefs [runner/run-spec (fn ([_] :survived) ([_ _] :survived))
+                    coverage/load-coverage (fn [_] nil)]
+        ;; Full run on unstamped file — stamps it, reports survivors
+        (let [report (with-out-str
+                       (core/run-mutation-testing temp-path "fake_spec.clj"))
+              ;; Extract the line number for + -> - from report
+              plus-match (re-find #"L(\d+)\s+\+ -> -" report)
+              reported-line (when plus-match (parse-long (second plus-match)))]
+          (should-not-be-nil reported-line)
+          ;; Now use --lines with that reported line — should find the mutation
+          (let [lines-report (with-out-str
+                               (core/run-mutation-testing temp-path "fake_spec.clj"
+                                                         #{reported-line}))]
+            (should-contain "+ -> -" lines-report))))
+      (.delete temp-file))))
+
 (describe "integration: discover mutations in a real source file"
   (it "finds mutation sites in combat.cljc"
     (let [content (slurp "src/empire/combat.cljc")
