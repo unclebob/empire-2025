@@ -57,6 +57,22 @@
         (when (> end start)
           (apply str (subvec chars start end)))))))
 
+(defn- validate-nesting [form line form-stack]
+  (when-let [parent (peek form-stack)]
+    (let [parent-form (:form parent)]
+      (cond
+        (= parent-form "it")
+        (str "ERROR line " line ": (" form ") inside (it) at line " (:line parent))
+
+        (and (= parent-form "describe") (= form "describe"))
+        (str "ERROR line " line ": (describe) inside (describe) at line " (:line parent))
+
+        (and (= parent-form "context") (= form "context"))
+        (str "ERROR line " line ": (context) inside (context) at line " (:line parent))
+
+        (and (= parent-form "context") (= form "describe"))
+        (str "ERROR line " line ": (describe) inside (context) at line " (:line parent))))))
+
 (defn- pop-form [form-stack]
   (let [completed (peek form-stack)
         stack (pop form-stack)
@@ -88,9 +104,12 @@
                             (> new-depth old-depth))
                        (let [token (extract-token chars i)]
                          (if (and token (speclj-keywords token))
-                           (update state :form-stack conj
-                                   {:form token :line (:line state)
-                                    :depth old-depth})
+                           (let [error (validate-nesting token (:line state) (:form-stack state))]
+                             (cond-> state
+                               error (update :errors conj error)
+                               true (update :form-stack conj
+                                            {:form token :line (:line state)
+                                             :depth old-depth})))
                            state))
 
                        ;; close paren: check if form completed
@@ -107,5 +126,12 @@
 
                        :else state)))
                  init
-                 (range n))]
+                 (range n))
+        eof-line (:line result)
+        unclosed-errors (mapv (fn [entry]
+                                (str "ERROR line " eof-line
+                                     ": unclosed (" (:form entry)
+                                     ") from line " (:line entry)))
+                              (:form-stack result))
+        result (update result :errors into unclosed-errors)]
     (select-keys result [:errors :depth :forms])))

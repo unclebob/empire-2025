@@ -45,4 +45,44 @@
     (let [result (pc/scan "(describe \"x\"\n  (before (reset!))\n  (with-stubs)\n  (it \"y\"))")]
       (should= 3 (count (:children (first (:forms result))))))))
 
+(describe "error detection"
+  (it "detects (it) inside (it)"
+    (let [result (pc/scan "(describe \"x\"\n  (it \"outer\"\n    (it \"inner\")))")]
+      (should= 1 (count (:errors result)))
+      (should-contain "line 3" (first (:errors result)))
+      (should-contain "(it) inside (it)" (first (:errors result)))))
+
+  (it "detects (describe) inside (describe)"
+    (let [result (pc/scan "(describe \"x\"\n  (describe \"y\"))")]
+      (should= 1 (count (:errors result)))))
+
+  (it "detects (context) inside (context)"
+    (let [result (pc/scan "(describe \"x\"\n  (context \"a\"\n    (context \"b\")))")]
+      (should= 1 (count (:errors result)))))
+
+  (it "detects (describe) inside (it)"
+    (let [result (pc/scan "(describe \"x\"\n  (it \"y\"\n    (describe \"z\")))")]
+      (should= 1 (count (:errors result)))))
+
+  (it "detects (before) inside (it)"
+    (let [result (pc/scan "(describe \"x\"\n  (it \"y\"\n    (before (reset!))))")]
+      (should= 1 (count (:errors result)))))
+
+  (it "detects (context) inside (it)"
+    (let [result (pc/scan "(describe \"x\"\n  (it \"y\"\n    (context \"z\")))")]
+      (should= 1 (count (:errors result)))))
+
+  (it "no error for correct nesting"
+    (let [result (pc/scan "(describe \"x\"\n  (before (reset!))\n  (it \"a\")\n  (it \"b\"))")]
+      (should= 0 (count (:errors result)))))
+
+  (it "no error for context with its"
+    (let [result (pc/scan "(describe \"x\"\n  (context \"ctx\"\n    (it \"a\")\n    (it \"b\")))")]
+      (should= 0 (count (:errors result)))))
+
+  (it "reports unclosed form at EOF"
+    (let [result (pc/scan "(describe \"x\"\n  (it \"y\"")]
+      (should (<= 1 (count (:errors result))))
+      (should-contain "unclosed" (first (:errors result))))))
+
 (run-specs)
