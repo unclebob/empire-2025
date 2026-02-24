@@ -30,7 +30,30 @@
     (should= 0 (:depth (pc/scan "(def x #{1 2 3})"))))
 
   (it "handles multi-line strings with parens"
-    (should= 0 (:depth (pc/scan "(def x \"line1(\nline2)\")")))))
+    (should= 0 (:depth (pc/scan "(def x \"line1(\nline2)\")"))))
+
+  (it "tracks line number correctly after comment"
+    (let [result (pc/scan "; comment\n(describe \"x\")")]
+      (should= 2 (-> result :forms first :line))))
+
+  (it "handles escaped quote inside regex"
+    (should= 0 (:depth (pc/scan "(def x #\"a\\\"b\")"))))
+
+  (it "tracks line number correctly across multi-line regex"
+    (let [result (pc/scan "(def x #\"a\nb\")\n(describe \"y\")")]
+      (should= 3 (-> result :forms first :line))))
+
+  (it "character literal backslash does not escape next char"
+    (should= 0 (:depth (pc/scan "(def x \\\\)"))))
+
+  (it "backslash before quote in normal mode escapes the quote"
+    (should= 0 (:depth (pc/scan "(def x \\\")"))))
+
+  (it "hash followed by non-quote does not enter regex mode"
+    (should= 0 (:depth (pc/scan "(def x #(inc %))"))))
+
+  (it "non-hash before quote does not enter regex mode"
+    (should= 0 (:depth (pc/scan "(def x \"a\")")))))
 
 (describe "speclj form tracking"
   (it "detects describe form"

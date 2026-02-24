@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-24
 (ns empire.paren-check.core
   (:require [clojure.java.io :as io]
             [clojure.string :as str]))
