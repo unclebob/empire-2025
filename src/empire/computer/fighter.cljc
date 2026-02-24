@@ -31,6 +31,58 @@
   [[r1 c1] [r2 c2]]
   (and (not= r1 r2) (not= c1 c2)))
 
+(defn- friendly-occupied?
+  "Returns true if the cell at pos has a computer-owned unit."
+  [pos]
+  (let [contents (get-in @atoms/game-map (conj pos :contents))]
+    (and (some? contents) (= :computer (:owner contents)))))
+
+(defn- best-neighbor-toward
+  "Picks the best neighbor toward target using distance + diagonal preference.
+   Considers all passable neighbors, not just unoccupied ones."
+  [pos target passable-neighbors]
+  (when (seq passable-neighbors)
+    (let [scored (map (fn [n]
+                        [n (core/distance n target) (if (diagonal-move? pos n) 0 1)])
+                      passable-neighbors)
+          best-dist (apply min (map second scored))
+          at-best-dist (filter #(= best-dist (second %)) scored)
+          best-diag (apply min (map #(nth % 2) at-best-dist))
+          candidates (filter #(= best-diag (nth % 2)) at-best-dist)]
+      (first (last candidates)))))
+
+(defn- direction-from
+  "Returns the unit direction vector [dr dc] from pos to neighbor."
+  [[r1 c1] [r2 c2]]
+  [(Integer/signum (- r2 r1)) (Integer/signum (- c2 c1))])
+
+(defn- in-bounds?
+  "Returns true if pos is within game-map bounds."
+  [[r c]]
+  (let [game-map @atoms/game-map
+        height (count game-map)
+        width (count (first game-map))]
+    (and (>= r 0) (< r height)
+         (>= c 0) (< c width))))
+
+(defn hop-over-friendly
+  "When the best neighbor toward target is occupied by a computer unit, scan
+   forward along the direction of travel, skipping friendly-occupied cells.
+   Land on the first empty passable cell. Returns {:dest pos :hops n} or nil."
+  [pos target]
+  (let [passable (get-passable-neighbors pos)
+        best (best-neighbor-toward pos target passable)]
+    (when best
+      (if-not (occupied? best)
+        {:dest best :hops 1}
+        (when (friendly-occupied? best)
+          (let [dir (direction-from pos best)
+                [dr dc] dir
+                scan-pos [(+ (first best) dr) (+ (second best) dc)]]
+            (when (and (in-bounds? scan-pos)
+                       (not (occupied? scan-pos)))
+              {:dest scan-pos :hops 2})))))))
+
 (defn- move-toward-with-sidestep
   "Like core/move-toward but excludes occupied cells and prefers diagonals on ties.
    When distance is equal, diagonals are preferred. Among same-distance same-type moves,

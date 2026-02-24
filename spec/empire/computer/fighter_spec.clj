@@ -739,3 +739,30 @@
         (fighter/process-fighter [2 1] unit)
         ;; Arrival should record leg
         (should= 10 (:last-flown (get @atoms/fighter-leg-records #{[0 0] [2 2]})))))))
+
+(describe "hop-over-friendly"
+  (before (reset-all-atoms!))
+
+  (describe "no-hop case"
+    (it "returns best neighbor when it is unoccupied"
+      ;; Fighter at [0 0], target at [2 0], neighbor [1 0] is empty land
+      (reset! atoms/game-map (build-test-map ["f##"]))
+      (let [result (fighter/hop-over-friendly [0 0] [2 0])]
+        (should= {:dest [1 0] :hops 1} result)))
+
+    (it "returns nil when no passable neighbors exist"
+      ;; 1x1 map: fighter alone, no neighbors
+      (reset! atoms/game-map (build-test-map ["f"]))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [0 0]))))
+
+  (describe "basic single-unit hop"
+    (it "hops over one friendly unit to land on empty cell beyond"
+      ;; Fighter at [0 0], friendly army at [1 0], empty land at [2 0], target at [3 0]
+      (reset! atoms/game-map (build-test-map ["fa##"]))
+      (let [result (fighter/hop-over-friendly [0 0] [3 0])]
+        (should= {:dest [2 0] :hops 2} result)))
+
+    (it "returns nil when friendly unit blocks and cell beyond is off-map"
+      ;; Fighter at [0 0], friendly army at [1 0], nothing beyond
+      (reset! atoms/game-map (build-test-map ["fa"]))
+      (should-be-nil (fighter/hop-over-friendly [0 0] [1 0])))))
