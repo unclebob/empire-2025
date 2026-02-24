@@ -374,6 +374,24 @@
       (find-and-board-transport pos country-id)
       (explore-randomly pos country-id)))
 
+(defn- process-move-inland
+  "Moves army one step away from coast. Switches to :random-explore once not adjacent to sea.
+   If blocked, stays in :move-inland and skips the turn."
+  [pos country-id]
+  (if-not (adjacent-to-sea? pos)
+    (do (swap! atoms/game-map update-in (conj pos :contents)
+               assoc :mode :random-explore
+                     :random-explore-direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
+        nil)
+    (let [candidates (filter (fn [n]
+                               (let [cell (get-in @atoms/game-map n)]
+                                 (and (sovereign-passable? country-id cell)
+                                      (nil? (:contents cell))
+                                      (not (adjacent-to-sea? n)))))
+                             (core/get-neighbors pos))
+          target (when (seq candidates) (rand-nth (vec candidates)))]
+      (when target (try-move pos target)))))
+
 (defn- process-random-explore
   "Moves army in stored random-explore direction. Goes sentry on coast or when blocked."
   [pos country-id]
@@ -435,6 +453,7 @@
           enemy-pos (attack-enemy pos enemy-pos)
           (:attack-target unit) (process-attack-target pos country-id)
           (= :coast-walk mode) (process-coast-walk pos country-id)
+          (= :move-inland mode) (process-move-inland pos country-id)
           (= :random-explore mode) (process-random-explore pos country-id)
           (= :sentry mode) (when (= :city (:type cell))
                              (fill-coastal-cell pos country-id))
