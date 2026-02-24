@@ -10,7 +10,7 @@
             [empire.player.production :as production]))
 
 (describe "Shipyard helpers"
-  (describe "add-ship-to-shipyard"
+  (context "add-ship-to-shipyard"
     (it "adds a ship to empty shipyard"
       (let [city {:type :city :city-status :player}
             result (uc/add-ship-to-shipyard city :destroyer 2)]
@@ -24,7 +24,7 @@
                   {:type :destroyer :hits 2}]
                  (:shipyard result)))))
 
-  (describe "remove-ship-from-shipyard"
+  (context "remove-ship-from-shipyard"
     (it "removes ship at index 0"
       (let [city {:type :city :shipyard [{:type :destroyer :hits 2}
                                           {:type :battleship :hits 7}]}
@@ -42,7 +42,7 @@
             result (uc/remove-ship-from-shipyard city 0)]
         (should= [] (:shipyard result)))))
 
-  (describe "get-shipyard-ships"
+  (context "get-shipyard-ships"
     (it "returns empty vector when no shipyard"
       (let [city {:type :city :city-status :player}]
         (should= [] (uc/get-shipyard-ships city))))
@@ -51,7 +51,7 @@
       (let [city {:type :city :shipyard [{:type :destroyer :hits 2}]}]
         (should= [{:type :destroyer :hits 2}] (uc/get-shipyard-ships city)))))
 
-  (describe "repair-ship"
+  (context "repair-ship"
     (it "increments hits by 1"
       (let [ship {:type :destroyer :hits 2}
             result (uc/repair-ship ship)]
@@ -67,7 +67,7 @@
             result (uc/repair-ship ship)]
         (should= 9 (:hits result)))))
 
-  (describe "ship-fully-repaired?"
+  (context "ship-fully-repaired?"
     (it "returns true when hits equal max"
       (let [ship {:type :destroyer :hits 3}]
         (should (uc/ship-fully-repaired? ship))))
@@ -86,7 +86,7 @@
   (before
     (tu/reset-all-atoms!))
 
-  (describe "ship-can-dock?"
+  (context "ship-can-dock?"
     (it "returns true for damaged player ship at player city"
       (let [ship {:type :destroyer :owner :player :hits 2}  ; max is 3
             city {:type :city :city-status :player}]

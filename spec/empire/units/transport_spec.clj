@@ -3,7 +3,7 @@
             [empire.units.transport :as transport]))
 
 (describe "transport unit module"
-  (describe "configuration"
+  (context "configuration"
     (it "has speed of 2"
       (should= 2 transport/speed))
 
@@ -22,11 +22,11 @@
     (it "has visibility radius of 1"
       (should= 1 transport/visibility-radius)))
 
-  (describe "initial-state"
+  (context "initial-state"
     (it "starts with no armies and been-to-sea true"
       (should= {:army-count 0 :awake-armies 0 :been-to-sea true} (transport/initial-state))))
 
-  (describe "can-move-to?"
+  (context "can-move-to?"
     (it "returns true for sea"
       (should (transport/can-move-to? {:type :sea})))
 
@@ -39,7 +39,7 @@
     (it "returns false for nil"
       (should-not (transport/can-move-to? nil))))
 
-  (describe "needs-attention?"
+  (context "needs-attention?"
     (it "returns true when awake"
       (should (transport/needs-attention? {:type :transport :mode :awake})))
 
@@ -52,7 +52,7 @@
     (it "returns false when moving"
       (should-not (transport/needs-attention? {:type :transport :mode :moving :awake-armies 0}))))
 
-  (describe "full?"
+  (context "full?"
     (it "returns true at capacity"
       (should (transport/full? {:army-count 6})))
 
@@ -65,42 +65,42 @@
     (it "returns false for empty transport"
       (should-not (transport/full? {:army-count 0}))))
 
-  (describe "has-armies?"
+  (context "has-armies?"
     (it "returns true when has armies"
       (should (transport/has-armies? {:army-count 3})))
 
     (it "returns false when empty"
       (should-not (transport/has-armies? {:army-count 0}))))
 
-  (describe "has-awake-armies?"
+  (context "has-awake-armies?"
     (it "returns true when has awake armies"
       (should (transport/has-awake-armies? {:awake-armies 2})))
 
     (it "returns false when no awake armies"
       (should-not (transport/has-awake-armies? {:awake-armies 0}))))
 
-  (describe "add-army"
+  (context "add-army"
     (it "increments army count"
       (should= 4 (:army-count (transport/add-army {:army-count 3}))))
 
     (it "handles nil army count"
       (should= 1 (:army-count (transport/add-army {})))))
 
-  (describe "remove-army"
+  (context "remove-army"
     (it "decrements army count"
       (should= 2 (:army-count (transport/remove-army {:army-count 3})))))
 
-  (describe "wake-armies"
+  (context "wake-armies"
     (it "sets awake-armies to army-count"
       (let [result (transport/wake-armies {:army-count 4 :awake-armies 0})]
         (should= 4 (:awake-armies result)))))
 
-  (describe "sleep-armies"
+  (context "sleep-armies"
     (it "sets awake-armies to 0"
       (let [result (transport/sleep-armies {:army-count 4 :awake-armies 3})]
         (should= 0 (:awake-armies result)))))
 
-  (describe "remove-awake-army"
+  (context "remove-awake-army"
     (it "decrements both army-count and awake-armies"
       (let [result (transport/remove-awake-army {:army-count 3 :awake-armies 2})]
         (should= 2 (:army-count result))

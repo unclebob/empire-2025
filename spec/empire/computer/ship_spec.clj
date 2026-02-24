@@ -13,7 +13,7 @@
 (describe "process-ship"
   (before (reset-all-atoms!))
 
-  (describe "dock behavior"
+  (context "dock behavior"
     (it "damaged computer ship docks at adjacent friendly city"
       (reset! atoms/game-map (build-test-map ["BdX"]))
       (reset! atoms/computer-map @atoms/game-map)
@@ -28,7 +28,7 @@
         (should= :destroyer (:type (first shipyard)))
         (should= 2 (:hits (first shipyard))))))
 
-  (describe "attack behavior"
+  (context "attack behavior"
     (it "attacks adjacent player ship"
       (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                                 {:type :sea :contents {:type :patrol-boat :owner :player :hits 1}}]])
@@ -41,7 +41,7 @@
                       (nil? (:contents cell1))
                       (= :computer (:owner (:contents cell1)))))))))
 
-  (describe "escort behavior"
+  (context "escort behavior"
     (it "destroyer moves toward transport"
       (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                                 {:type :sea}
@@ -53,7 +53,7 @@
       ;; Destroyer should have moved toward transport
       (should= :destroyer (get-in @atoms/game-map [0 1 :contents :type]))))
 
-  (describe "exploration behavior"
+  (context "exploration behavior"
     (it "explores toward unexplored sea"
       (reset! atoms/computer-map [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
                                     {:type :sea}
@@ -101,7 +101,7 @@
           (should (or (> (first new-pos) 2)
                       (> (second new-pos) 2)))))))
 
-  (describe "hunting behavior"
+  (context "hunting behavior"
     (it "moves toward visible player ship"
       (reset! atoms/game-map [[{:type :sea :contents {:type :battleship :owner :computer :hits 8}}
                                 {:type :sea}
@@ -112,7 +112,7 @@
       ;; Battleship should have moved toward player ship
       (should= :battleship (get-in @atoms/game-map [0 1 :contents :type]))))
 
-  (describe "ignores non-computer ships"
+  (context "ignores non-computer ships"
     (it "returns nil for player ship"
       (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :player :hits 3}}]])
       (should-be-nil (ship/process-ship [0 0] :destroyer)))
@@ -121,7 +121,7 @@
       (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}]])
       (should-be-nil (ship/process-ship [0 0] :patrol-boat))))
 
-  (describe "patrol boat behavior"
+  (context "patrol boat behavior"
     (it "patrol boat moves along coastline"
       ;; 3x3 map: land in center, sea around it. Patrol boat at [1 0] (sea, adjacent to land).
       ;; It should move to another sea cell that is also adjacent to land.
@@ -338,7 +338,7 @@
                               [c r]))]
         (should-not-be-nil new-pos))))
 
-  (describe "destroyer escort behavior"
+  (context "destroyer escort behavior"
     (it "seeking destroyer adopts unadopted transport"
       (reset! atoms/game-map [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
                                                        :destroyer-id 1 :escort-mode :seeking}}
@@ -400,7 +400,7 @@
         (should= :seeking (:escort-mode destroyer))
         (should-be-nil (:escort-transport-id destroyer)))))
 
-  (describe "pursue-and-kill behavior"
+  (context "pursue-and-kill behavior"
     (it "escorting destroyer pursues when transport spots enemy"
       ;; Destroyer at [0 0] escorting transport at [0 2].
       ;; Player sub at [0 3] — adjacent to transport, not to destroyer.
@@ -516,7 +516,7 @@
         (should (or (nil? (:contents cell0))
                     (= :computer (:owner (:contents cell1))))))))
 
-  (describe "carrier positioning behavior"
+  (context "carrier positioning behavior"
     (before (reset-all-atoms!))
 
     (it "carrier in positioning mode moves toward target"
@@ -662,7 +662,7 @@
           (should= :repositioning (:carrier-mode unit))
           (should-be-nil (:carrier-pair unit))))))
 
-  (describe "find-carrier-position"
+  (context "find-carrier-position"
     (before (reset-all-atoms!))
 
     (it "returns nil when only one computer city (no pairs)"
@@ -704,7 +704,7 @@
       (ship/update-distant-city-pairs!)
       (should-be-nil (ship/find-carrier-position))))
 
-  (describe "carrier group escort behavior"
+  (context "carrier group escort behavior"
     (it "seeking battleship adopts carrier with open slot"
       ;; Battleship at [0,0] seeking, carrier at [0,3] holding with no BB
       (reset! atoms/game-map [[{:type :sea :contents {:type :battleship :owner :computer :hits 8

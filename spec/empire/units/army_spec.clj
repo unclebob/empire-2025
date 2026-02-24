@@ -3,7 +3,7 @@
             [empire.units.army :as army]))
 
 (describe "army unit module"
-  (describe "configuration"
+  (context "configuration"
     (it "has speed of 1"
       (should= 1 army/speed))
 
@@ -19,11 +19,11 @@
     (it "has visibility radius of 1"
       (should= 1 army/visibility-radius)))
 
-  (describe "initial-state"
+  (context "initial-state"
     (it "returns empty map"
       (should= {} (army/initial-state))))
 
-  (describe "can-move-to?"
+  (context "can-move-to?"
     (it "returns true for land"
       (should (army/can-move-to? {:type :land})))
 
@@ -39,7 +39,7 @@
     (it "returns false for player city"
       (should-not (army/can-move-to? {:type :city :city-status :player}))))
 
-  (describe "needs-attention?"
+  (context "needs-attention?"
     (it "returns true when awake"
       (should (army/needs-attention? {:type :army :mode :awake})))
 

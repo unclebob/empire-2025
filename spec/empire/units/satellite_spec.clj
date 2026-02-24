@@ -6,7 +6,7 @@
 
 (describe "satellite unit module"
   (before (reset-all-atoms!))
-  (describe "configuration"
+  (context "configuration"
     (it "has speed of 10"
       (should= 10 satellite/speed))
 
@@ -25,17 +25,17 @@
     (it "has visibility radius of 2"
       (should= 2 satellite/visibility-radius)))
 
-  (describe "initial-state"
+  (context "initial-state"
     (it "includes turns-remaining"
       (should= {:turns-remaining 50} (satellite/initial-state))))
 
-  (describe "can-move-to?"
+  (context "can-move-to?"
     (it "returns true for any cell"
       (should (satellite/can-move-to? {:type :land}))
       (should (satellite/can-move-to? {:type :sea}))
       (should (satellite/can-move-to? {:type :city}))))
 
-  (describe "needs-attention?"
+  (context "needs-attention?"
     (it "returns true when satellite has no target"
       (let [unit {:type :satellite :mode :awake}]
         (should (satellite/needs-attention? unit))))
@@ -44,7 +44,7 @@
       (let [unit {:type :satellite :mode :awake :target [5 5]}]
         (should-not (satellite/needs-attention? unit)))))
 
-  (describe "extend-target-to-boundary"
+  (context "extend-target-to-boundary"
     (it "extends southeast target to corner"
       (should= [9 9] (satellite/extend-target-to-boundary [2 2] [5 5] 10 10)))
 
@@ -54,7 +54,7 @@
     (it "extends south target to bottom edge"
       (should= [9 5] (satellite/extend-target-to-boundary [2 5] [5 5] 10 10))))
 
-  (describe "calculate-bounce-target"
+  (context "calculate-bounce-target"
     (it "bounces from right edge to left edge"
       (let [target (satellite/calculate-bounce-target [5 9] 10 10)]
         (should= 0 (second target))))
@@ -68,7 +68,7 @@
             [tx ty] target]
         (should (or (= tx 0) (= ty 0))))))
 
-  (describe "move-one-step"
+  (context "move-one-step"
     (before
       (reset! atoms/game-map (build-test-map ["##########"
                                                "##########"

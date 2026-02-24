@@ -5,7 +5,7 @@
 
 (describe "acceptance test parser"
 
-  (describe "split-into-tests"
+  (context "split-into-tests"
     (it "splits a simple single test"
       (let [lines ["; Comment"
                    ""
@@ -51,7 +51,7 @@
         (should= "Test two." (:description (second tests)))
         (should= 14 (:line (second tests))))))
 
-  (describe "parse-file integration"
+  (context "parse-file integration"
     (it "parses army.txt correctly"
       (let [result (parser/parse-file "acceptanceTests/army.txt")]
         (should= "army.txt" (:source result))
@@ -85,7 +85,7 @@
                            {:file f :line (:line t) :text (:text ir)})]
         (should= [] (vec unrecognized)))))
 
-  (describe "config key validation"
+  (context "config key validation"
     (it "warns about missing config key during parse"
       (let [output (with-out-str
                      (parser/validate-config-keys

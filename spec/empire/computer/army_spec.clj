@@ -12,7 +12,7 @@
 (describe "process-army"
   (before (reset-all-atoms!))
 
-  (describe "attack behavior"
+  (context "attack behavior"
     (it "attacks adjacent player army"
       (reset! atoms/game-map (build-test-map ["aA#"]))
       (reset! atoms/computer-map (build-test-map ["aA#"]))
@@ -39,7 +39,7 @@
       ;; Actually we just verify the army tried to attack
       (should-not= :free (:city-status (get-in @atoms/game-map [1 0])))))
 
-  (describe "sentry behavior"
+  (context "sentry behavior"
     (it "sentry army doesn't move even with free city nearby"
       (reset! atoms/game-map (build-test-map ["a#+"]))
       (reset! atoms/computer-map (build-test-map ["a#+"]))
@@ -68,7 +68,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
       (should= :army (get-in @atoms/game-map [1 0 :contents :type]))))
 
-  (describe "random-explore behavior"
+  (context "random-explore behavior"
     (it "goes sentry on coast (adjacent to sea)"
       ;; Army at [1 0] on land, sea at [0 0]
       (reset! atoms/game-map (build-test-map ["~a##"]))
@@ -106,7 +106,7 @@
       (should= :awake (get-in @atoms/game-map [2 0 :contents :mode]))
       (should-be-nil (get-in @atoms/game-map [2 0 :contents :random-explore-direction]))))
 
-  (describe "attack-target behavior"
+  (context "attack-target behavior"
     (it "moves toward valid target"
       ;; Army at [0 0], free city at [3 0]
       (reset! atoms/game-map (build-test-map ["a##+"]))
@@ -141,7 +141,7 @@
       ;; Target should be cleared (not visible on computer-map)
       (should-be-nil (get-in @atoms/game-map [0 0 :contents :attack-target]))))
 
-  (describe "city attack coordination"
+  (context "city attack coordination"
     (it "assigns up to 6 closest armies to visible free city"
       ;; 8 sentry armies and a free city visible on computer-map (10 cols x 1 row)
       (let [army-cell {:type :land :country-id 1
@@ -175,7 +175,7 @@
         ;; Sentry army should have attack-target
         (should= [2 0] (get-in @atoms/game-map [1 0 :contents :attack-target])))))
 
-  (describe "exploration behavior"
+  (context "exploration behavior"
     (it "explores when nothing else to do"
       (reset! atoms/game-map (build-test-map ["a##"]))
       (reset! atoms/computer-map (build-test-map ["a##"]))
@@ -192,7 +192,7 @@
       (let [result (army/process-army [1 1])]
         (should-be-nil result))))
 
-  (describe "coast-walk behavior"
+  (context "coast-walk behavior"
     (it "moves along coastline (land adjacent to sea)"
       ;; Map: land strip with sea below
       ;; a###
@@ -288,7 +288,7 @@
       (should (or (nil? (:contents (get-in @atoms/game-map [0 0])))
                   (= :computer (:owner (:contents (get-in @atoms/game-map [1 0]))))))))
 
-  (describe "territory stamping"
+  (context "territory stamping"
     (it "computer army with country-id stamps land cell it moves to"
       ;; Army at [0 0] with country-id 3, random-explore direction [0 1]
       (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
@@ -328,7 +328,7 @@
       (core/move-unit-to [0 0] [0 1])
       (should= 5 (:country-id (get-in @atoms/game-map [0 1])))))
 
-  (describe "ignores non-computer units"
+  (context "ignores non-computer units"
     (it "returns nil for player army"
       (reset! atoms/game-map (build-test-map ["A#"]))
       (should-be-nil (army/process-army [0 0])))
@@ -337,7 +337,7 @@
       (reset! atoms/game-map (build-test-map ["##"]))
       (should-be-nil (army/process-army [0 0]))))
 
-  (describe "country sovereignty"
+  (context "country sovereignty"
     (it "army is blocked by foreign territory"
       ;; Army with country-id 1 at [0 0], target land has country-id 2
       (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
@@ -417,7 +417,7 @@
       ;; Combat should have occurred - computer army no longer at [0 0]
       (should-be-nil (get-in @atoms/game-map [0 0 :contents]))))
 
-  (describe "coastal fill behavior"
+  (context "coastal fill behavior"
     (it "goes sentry on coastal cell when no cities to target"
       ;; Army at [1 0] on coastal cell (adjacent to sea at row 1)
       ;; Fully explored, no player/free cities
@@ -456,7 +456,7 @@
 
 )
 
-  (describe "interior exploration"
+  (context "interior exploration"
     (it "interior explorer continues walking in its direction"
       ;; Army at [1 1] with interior-explore-direction already set
       (reset! atoms/game-map (build-test-map ["####"
