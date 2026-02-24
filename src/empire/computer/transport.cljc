@@ -209,9 +209,9 @@
         (when (pos? to-unload)
           ;; Unload armies onto land cells
           (let [unload-eid (:unload-event-id transport)
-                unload-cid (:unload-country-id transport)]
+                unload-cid (or (:unload-country-id transport) (:country-id transport))]
             (doseq [land-pos (take to-unload land-neighbors)]
-              (let [army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
+              (let [army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
                            unload-eid (assoc :unload-event-id unload-eid)
                            unload-cid (assoc :country-id unload-cid))]
                 (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
@@ -286,8 +286,8 @@
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [unload-eid (:unload-event-id transport)
-            unload-cid (:unload-country-id transport)
-            army (cond-> {:type :army :owner :computer :mode :awake :hits 1}
+            unload-cid (or (:unload-country-id transport) (:country-id transport))
+            army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
                    unload-eid (assoc :unload-event-id unload-eid)
                    unload-cid (assoc :country-id unload-cid))]
         (doseq [land-pos (take to-unload targets)]
@@ -496,6 +496,23 @@
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
 
+(defn- passable-sea?
+  "Returns true if pos is a passable sea cell for a transport."
+  [pos]
+  (let [cell (get-in @atoms/game-map pos)]
+    (and cell
+         (= :sea (:type cell))
+         (or (nil? (:contents cell))
+             (= :computer (:owner (:contents cell)))))))
+
+(defn- continue-pos
+  "Returns pos + direction vector, or nil if out of bounds or not passable sea."
+  [from to]
+  (let [dr (- (first to) (first from))
+        dc (- (second to) (second from))
+        candidate [(+ (first to) dr) (+ (second to) dc)]]
+    (when (passable-sea? candidate) candidate)))
+
 (defn- compute-sail-path
   "Compute BFS path from transport position to nearest unexplored coast
    or unowned land. Returns path vector (excluding start) or nil."
@@ -601,17 +618,32 @@
                 (do (set-transport-mission pos :unloading)
                     (try-opportunistic-unload pos))
 
-                ;; Follow path
+                ;; Follow path (speed 2: take up to 2 steps)
                 (seq sail-path)
                 (let [next-pos (first sail-path)
                       remaining (vec (rest sail-path))]
                   (if (core/move-unit-to pos next-pos)
                     (do (visibility/update-cell-visibility pos :computer)
                         (visibility/update-cell-visibility next-pos :computer)
-                        (swap! atoms/game-map assoc-in
-                               (conj next-pos :contents :sail-path) remaining)
-                        (try-opportunistic-unload next-pos)
-                        next-pos)
+                        ;; Second step: from remaining path, or continue direction
+                        (let [step2 (or (first remaining)
+                                        (continue-pos pos next-pos))
+                              remaining2 (if (seq remaining)
+                                           (vec (rest remaining))
+                                           [])
+                              moved2 (when step2
+                                       (core/move-unit-to next-pos step2))]
+                          (if moved2
+                            (do (visibility/update-cell-visibility next-pos :computer)
+                                (visibility/update-cell-visibility step2 :computer)
+                                (swap! atoms/game-map assoc-in
+                                       (conj step2 :contents :sail-path) remaining2)
+                                (try-opportunistic-unload step2)
+                                step2)
+                            (do (swap! atoms/game-map assoc-in
+                                       (conj next-pos :contents :sail-path) remaining)
+                                (try-opportunistic-unload next-pos)
+                                next-pos))))
                     ;; Blocked — retreat one cell back
                     (let [retreat (first (get-passable-sea-neighbors pos))]
                       (when (core/move-unit-to pos retreat)

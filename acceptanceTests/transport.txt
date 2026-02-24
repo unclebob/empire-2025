@@ -134,7 +134,7 @@ THEN t has transport-mission loading.
 THEN t has 0 armies.
 
 ;===============================================================
-; Sailing transport moves along its sail-path.
+; Sailing transport moves two steps (speed 2) continuing direction.
 ;===============================================================
 GIVEN game map
   ~~t~~
@@ -144,4 +144,4 @@ GIVEN t has sail-path [[1 0]].
 
 WHEN computer transport t is processed.
 
-THEN t is at [1 0].
+THEN t is at [0 0].

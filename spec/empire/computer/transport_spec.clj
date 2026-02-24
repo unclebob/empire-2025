@@ -1191,7 +1191,7 @@
                        unit))]
         (should= :loading (:transport-mission t))))
 
-    (it "follows sail-path one step per turn"
+    (it "follows sail-path two steps per turn (speed 2)"
       (reset! atoms/game-map (build-test-map ["t~~~~~~"]))
       (reset! atoms/computer-map @atoms/game-map)
       (swap! atoms/game-map assoc-in [0 0 :contents]
@@ -1199,9 +1199,37 @@
               :transport-mission :sailing :army-count 6
               :sail-path [[1 0] [2 0] [3 0]]})
       (transport/process-transport [0 0])
+      (let [t (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :transport (:type t))
+        (should= [[3 0]] (:sail-path t))))
+
+    (it "continues in same direction when sail-path exhausted after 1 step"
+      ;; t at [0 0], sail-path [[1 0]] — only 1 step.
+      ;; After step 1 to [1 0], path is empty. Continue in same direction to [2 0].
+      (reset! atoms/game-map (build-test-map ["t~~~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :sailing :army-count 6
+              :sail-path [[1 0]]})
+      (transport/process-transport [0 0])
+      (let [t (:contents (get-in @atoms/game-map [2 0]))]
+        (should= :transport (:type t))
+        (should= [] (:sail-path t))))
+
+    (it "stops after 1 step when continuation hits land"
+      ;; t at [0 0], path [[1 0]], land at [2 0]
+      ;; After step 1, continuation direction blocked by land — stays at [1 0]
+      (reset! atoms/game-map (build-test-map ["t~#~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :sailing :army-count 6
+              :sail-path [[1 0]]})
+      (transport/process-transport [0 0])
       (let [t (:contents (get-in @atoms/game-map [1 0]))]
         (should= :transport (:type t))
-        (should= [[2 0] [3 0]] (:sail-path t))))
+        (should= [] (:sail-path t))))
 
     (it "retreats one cell back when blocked by enemy"
       ;; t at [2 0], enemy D at [3 0], sail-path [[3 0] [4 0]]

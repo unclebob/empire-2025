@@ -28,7 +28,7 @@ WHEN computer transport t is processed.
 THEN t has transport-mission sailing.
 
 ;===============================================================
-; Sailing transport moves one step along its stored path.
+; Sailing transport moves two steps along its stored path (speed 2).
 ;===============================================================
 GIVEN game map
   t~~~~~~~~
@@ -40,7 +40,7 @@ GIVEN t has sail-path [[1 0] [2 0] [3 0]].
 
 WHEN computer transport t is processed.
 
-THEN t is at [1 0].
+THEN t is at [2 0].
 
 ;===============================================================
 ; Sailing transport arrives at unowned land and unloads.
