@@ -24,7 +24,9 @@
 					 :mutate {:main-opts ["-m" "empire.mutation.core"]
 					          :extra-deps {org.clojure/tools.reader {:mvn/version "1.4.2"}}
 					          :extra-paths ["spec"]}
-					 :spec-structure-check {:main-opts ["-m" "empire.paren-check.core"]
-					                        :extra-paths ["spec"]}
+					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
+					                                     {:git/url "https://github.com/unclebob/speclj-structure-check"
+					                                      :git/sha "493b8d2ae89a3c4e4ce472a59a50ac7ceb165af9"}}
+					                        :main-opts ["-m" "speclj-structure-check.core"]}
 				 }
 			 }
