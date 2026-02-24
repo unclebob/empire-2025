@@ -85,7 +85,27 @@
     (let [cont (land-objectives/flood-fill-continent [0 0])
           counts (land-objectives/scan-continent cont)]
       (should= 1 (:computer-units counts))
-      (should= 1 (:player-units counts)))))
+      (should= 1 (:player-units counts))))
+
+  (it "counts land size separately from unexplored"
+    ;; Asymmetric: 6 land, 2 unexplored — kills L97 and L101
+    (reset! atoms/computer-map [[{:type :land} {:type :land} {:type :land} nil]
+                                [{:type :land} {:type :land} {:type :land} nil]])
+    (reset! atoms/game-map [[{:type :land} {:type :land} {:type :land} {:type :land}]
+                            [{:type :land} {:type :land} {:type :land} {:type :land}]])
+    (let [cont (land-objectives/flood-fill-continent [0 0])
+          counts (land-objectives/scan-continent cont)]
+      (should= 6 (:size counts))
+      (should= 2 (:unexplored counts))))
+
+  (it "distinguishes computer from player units with unequal counts"
+    ;; 2 player armies, 1 computer army — kills L117 and L120
+    (reset! atoms/computer-map (build-test-map ["AAa#"]))
+    (reset! atoms/game-map (build-test-map ["AAa#"]))
+    (let [cont (land-objectives/flood-fill-continent [0 0])
+          counts (land-objectives/scan-continent cont)]
+      (should= 1 (:computer-units counts))
+      (should= 2 (:player-units counts)))))
 
 (describe "has-land-objective?"
   (it "returns true when unexplored territory exists"
@@ -99,6 +119,18 @@
 
   (it "returns false when nothing to explore or attack"
     (should-not (land-objectives/has-land-objective? {:unexplored 0 :free-cities 0 :player-cities 0}))))
+
+(describe "find-all-objectives-on-continent"
+  (before (reset-all-atoms!))
+
+  (it "includes free and player cities as objectives"
+    ;; Kills L141
+    (reset! atoms/computer-map (build-test-map ["#+O"]))
+    (let [cont (land-objectives/flood-fill-continent [0 0])
+          objectives (set (land-objectives/find-all-objectives-on-continent cont))]
+      (should= 2 (count objectives))
+      (should-contain [1 0] objectives)
+      (should-contain [2 0] objectives))))
 
 (describe "find-unexplored-on-continent"
   (before (reset-all-atoms!))
