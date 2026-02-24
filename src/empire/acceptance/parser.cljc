@@ -9,79 +9,68 @@
 
 ;; --- Test splitting ---
 
+(defn- classify-directive [trimmed]
+  (cond
+    (str/starts-with? trimmed "GIVEN") :given
+    (str/starts-with? trimmed "WHEN") :when
+    (or (str/starts-with? trimmed "THEN")
+        (re-matches #"^and\s+.*" trimmed)) :then
+    :else nil))
+
+(defn- classify-line [trimmed in-header?]
+  (cond
+    (h/separator-line? trimmed) :separator
+    (and in-header? (str/starts-with? trimmed ";")) :header-comment
+    (h/blank-or-comment? trimmed) :blank
+    :else (or (classify-directive trimmed) :content)))
+
+(def ^:private section-keys
+  {:given :given-lines :when :when-lines :then :then-lines})
+
+(defn- handle-separator [{:keys [in-header current-test] :as state}]
+  (if in-header
+    (assoc state :in-header false)
+    (cond-> (assoc state :in-header true :header-desc nil :current-test nil :section nil)
+      current-test (update :tests conj current-test))))
+
+(defn- ensure-test-started [state line-num]
+  (if (:current-test state)
+    state
+    (assoc state :current-test {:line line-num
+                                :description (or (:header-desc state) "")
+                                :given-lines [] :when-lines [] :then-lines []})))
+
+(defn- add-to-section [state section trimmed]
+  (cond-> (assoc state :section section)
+    (:current-test state)
+    (update-in [:current-test (section-keys section)] conj trimmed)))
+
+(defn- add-content-line [state trimmed]
+  (cond-> state
+    (and (:current-test state) (:section state))
+    (update-in [:current-test (section-keys (:section state))] conj trimmed)))
+
+(defn- process-test-line [state [line-num line]]
+  (let [trimmed (str/trim line)]
+    (case (classify-line trimmed (:in-header state))
+      :separator (handle-separator state)
+      :header-comment (assoc state :header-desc (str/trim (subs trimmed 1)))
+      :given (-> state (ensure-test-started line-num) (add-to-section :given trimmed))
+      :when (add-to-section state :when trimmed)
+      :then (add-to-section state :then trimmed)
+      :blank state
+      :content (add-content-line state trimmed))))
+
 (defn split-into-tests
   "Split lines (with 1-based line numbers) into test groups.
    Returns [{:line N :description \"...\" :given-lines [...] :when-lines [...] :then-lines [...]}]"
   [lines]
   (let [indexed (map-indexed (fn [i l] [(inc i) l]) lines)
-        tests (atom [])
-        current-test (atom nil)
-        current-section (atom nil)
-        in-header (atom false)
-        header-desc (atom nil)]
-    (doseq [[line-num line] indexed]
-      (let [trimmed (str/trim line)]
-        (cond
-          ;; Separator line
-          (h/separator-line? trimmed)
-          (if @in-header
-            ;; End of header
-            (do (reset! in-header false))
-            ;; Start of header — save any current test
-            (do
-              (when @current-test
-                (swap! tests conj @current-test))
-              (reset! in-header true)
-              (reset! header-desc nil)
-              (reset! current-test nil)
-              (reset! current-section nil)))
-
-          ;; Comment line inside header → description
-          (and @in-header (str/starts-with? trimmed ";"))
-          (reset! header-desc (str/trim (subs trimmed 1)))
-
-          ;; GIVEN line
-          (str/starts-with? trimmed "GIVEN")
-          (do
-            (when (nil? @current-test)
-              (reset! current-test {:line line-num
-                                    :description (or @header-desc "")
-                                    :given-lines []
-                                    :when-lines []
-                                    :then-lines []}))
-            (reset! current-section :given)
-            (swap! current-test update :given-lines conj trimmed))
-
-          ;; WHEN line
-          (str/starts-with? trimmed "WHEN")
-          (do
-            (reset! current-section :when)
-            (when @current-test
-              (swap! current-test update :when-lines conj trimmed)))
-
-          ;; THEN line or and-continuation
-          (or (str/starts-with? trimmed "THEN")
-              (re-matches #"^and\s+.*" trimmed))
-          (do
-            (reset! current-section :then)
-            (when @current-test
-              (swap! current-test update :then-lines conj trimmed)))
-
-          ;; Blank or comment — ignore
-          (h/blank-or-comment? trimmed)
-          nil
-
-          ;; Content line — add to current section
-          :else
-          (when @current-test
-            (case @current-section
-              :given (swap! current-test update :given-lines conj trimmed)
-              :when (swap! current-test update :when-lines conj trimmed)
-              :then (swap! current-test update :then-lines conj trimmed)
-              nil)))))
-    (when @current-test
-      (swap! tests conj @current-test))
-    @tests))
+        final (reduce process-test-line
+                      {:tests [] :current-test nil :section nil :in-header false :header-desc nil}
+                      indexed)]
+    (cond-> (:tests final)
+      (:current-test final) (conj (:current-test final)))))
 
 ;; --- Context building ---
 

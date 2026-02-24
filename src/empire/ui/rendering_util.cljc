@@ -8,36 +8,45 @@
   [paused pause-requested]
   (or paused pause-requested))
 
+(defn- unit-fuel-str [unit]
+  (when (= (:type unit) :fighter)
+    (str " fuel:" (:fuel unit))))
+
+(defn- unit-cargo-str [unit]
+  (case (:type unit)
+    :transport (str " cargo:" (:army-count unit 0))
+    :carrier (str " cargo:" (:fighter-count unit 0))
+    nil))
+
+(defn- transport-mission-str [unit]
+  (when (= (:type unit) :transport)
+    (let [mission (:transport-mission unit)
+          timeout (:loading-timeout unit)]
+      (str (when mission (str " " (name mission)))
+           (when timeout (str " timeout:" timeout))))))
+
+(defn- army-mission-str [unit]
+  (when-let [m (and (= (:type unit) :army) (:mission unit))]
+    (str " mission:" (name m))))
+
+(defn- unit-orders-str [unit]
+  (cond
+    (:marching-orders unit) " march"
+    (:flight-path unit) " flight"
+    :else nil))
+
 (defn format-unit-status
   "Formats status string for a unit."
   [unit]
-  (let [type-name (name (:type unit))
-        owner (name (:owner unit))
-        max-hits (config/item-hits (:type unit))
-        hits (or (:hits unit) max-hits)
-        fuel (when (= (:type unit) :fighter) (:fuel unit))
-        cargo (case (:type unit)
-                :transport (:army-count unit 0)
-                :carrier (:fighter-count unit 0)
-                nil)
-        transport-mission (when (= (:type unit) :transport)
-                            (:transport-mission unit))
-        army-mission (when (= (:type unit) :army)
-                       (:mission unit))
-        loading-timeout (when (= (:type unit) :transport)
-                          (:loading-timeout unit))
-        orders (cond
-                 (:marching-orders unit) "march"
-                 (:flight-path unit) "flight"
-                 :else nil)]
-    (str owner " " type-name
+  (let [max-hits (config/item-hits (:type unit))
+        hits (or (:hits unit) max-hits)]
+    (str (name (:owner unit)) " " (name (:type unit))
          " [" hits "/" max-hits "]"
-         (when fuel (str " fuel:" fuel))
-         (when cargo (str " cargo:" cargo))
-         (when transport-mission (str " " (name transport-mission)))
-         (when loading-timeout (str " timeout:" loading-timeout))
-         (when army-mission (str " mission:" (name army-mission)))
-         (when orders (str " " orders))
+         (unit-fuel-str unit)
+         (unit-cargo-str unit)
+         (transport-mission-str unit)
+         (army-mission-str unit)
+         (unit-orders-str unit)
          " " (name (:mode unit)))))
 
 (defn- format-ship-for-dock
