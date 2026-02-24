@@ -317,6 +317,50 @@
         (commands/handle-key :l)
         (should @disembark-called))))
 
+  (it "disembarks army to explore when land is in same row only"
+    (let [disembark-called (atom false)]
+      ;; Transport at [0 1], land only at [1 1] (same row after transpose)
+      (reset! atoms/game-map (build-test-map ["~~" "T#" "~~"]))
+      (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
+      (setup-unit-attention [0 1])
+      (with-redefs [container-ops/disembark-army-to-explore
+                    (fn [_ _] (reset! disembark-called true) [1 1])]
+        (commands/handle-key :l)
+        (should @disembark-called))))
+
+  (it "disembarks army to explore when land is in row below only"
+    (let [disembark-called (atom false)]
+      ;; Transport at [0 0], land only at [0 1] (row below)
+      (reset! atoms/game-map (build-test-map ["T" "#"]))
+      (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
+      (setup-unit-attention [0 0])
+      (with-redefs [container-ops/disembark-army-to-explore
+                    (fn [_ _] (reset! disembark-called true) [0 1])]
+        (commands/handle-key :l)
+        (should @disembark-called))))
+
+  (it "disembarks army to explore when land is to the left only"
+    (let [disembark-called (atom false)]
+      ;; Transport at [1 0], land only at [0 0] (column to the left)
+      (reset! atoms/game-map (build-test-map ["#T"]))
+      (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
+      (setup-unit-attention [1 0])
+      (with-redefs [container-ops/disembark-army-to-explore
+                    (fn [_ _] (reset! disembark-called true) [0 0])]
+        (commands/handle-key :l)
+        (should @disembark-called))))
+
+  (it "disembarks army to explore when land is in row above only"
+    (let [disembark-called (atom false)]
+      ;; Transport at [0 1], land only at [0 0] (row above)
+      (reset! atoms/game-map (build-test-map ["#" "T"]))
+      (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
+      (setup-unit-attention [0 1])
+      (with-redefs [container-ops/disembark-army-to-explore
+                    (fn [_ _] (reset! disembark-called true) [0 0])]
+        (commands/handle-key :l)
+        (should @disembark-called))))
+
   (it "sets coastline-follow for transport near coast"
     (let [coastline-called (atom false)]
       ;; Transport at [1 0] (sea), land at [0 0]
@@ -513,7 +557,41 @@
       (with-redefs [combat/hostile-city? (fn [_] true)
                     combat/attempt-fighter-overfly (fn [_ _] (reset! overfly-called true) true)]
         (commands/handle-unit-click [1 0] [[0 0]])
-        (should @overfly-called)))))
+        (should @overfly-called))))
+
+  (it "attempts conquest when army clicks adjacent hostile city at non-origin coords"
+    (let [conquest-called (atom false)]
+      (reset! atoms/game-map (build-test-map ["###" "###" "#AX"]))
+      (set-test-unit atoms/game-map "A" :mode :awake)
+      (reset! atoms/cells-needing-attention [[1 2]])
+      (reset! atoms/player-items (list [1 2]))
+      (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
+        (commands/handle-unit-click [2 2] [[1 2]])
+        (should @conquest-called))))
+
+  (it "attempts conquest on diagonally adjacent hostile city click"
+    (let [conquest-called (atom false)]
+      (reset! atoms/game-map (build-test-map ["###" "#A#" "##X"]))
+      (set-test-unit atoms/game-map "A" :mode :awake)
+      (reset! atoms/cells-needing-attention [[1 1]])
+      (reset! atoms/player-items (list [1 1]))
+      (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
+        (commands/handle-unit-click [2 2] [[1 1]])
+        (should @conquest-called))))
+
+  (it "resets waiting-for-input on airport fighter launch click"
+    (let [launch-called (atom false)]
+      (reset! atoms/game-map (build-test-map ["O##" "###" "###"]))
+      (swap! atoms/game-map assoc-in [0 0 :awake-fighters] 1)
+      (swap! atoms/game-map assoc-in [0 0 :fighter-count] 1)
+      (reset! atoms/cells-needing-attention [[0 0]])
+      (reset! atoms/player-items (list [0 0]))
+      (reset! atoms/waiting-for-input true)
+      (with-redefs [container-ops/launch-fighter-from-airport
+                    (fn [_ _] (reset! launch-called true) [0 0])]
+        (commands/handle-unit-click [2 2] [[0 0]])
+        (should @launch-called)
+        (should= false @atoms/waiting-for-input)))))
 
 ;; ========== handle-key: no attention items ==========
 
@@ -593,7 +671,17 @@
       (commands/handle-key :space)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
         (should= fuel-cost (:fuel unit))
-        (should-contain "Fuel:" (:reason unit))))))
+        (should-contain "Fuel:" (:reason unit)))))
+
+  (it "does not crash fighter when fuel is exactly one after skip"
+    (let [fuel-cost (dispatcher/speed :fighter)]
+      (reset! atoms/game-map (build-test-map ["F"]))
+      (set-test-unit atoms/game-map "F" :mode :awake :fuel (inc fuel-cost))
+      (setup-unit-attention [0 0])
+      (commands/handle-key :space)
+      (let [unit (get-in @atoms/game-map [0 0 :contents])]
+        (should= 1 (:fuel unit))
+        (should-not= 0 (:hits unit))))))
 
 ;; ========== handle-key: standard movement sets target ==========
 
@@ -622,6 +710,16 @@
     (commands/handle-key :X)
     (let [unit (get-in @atoms/game-map [2 0 :contents])]
       (should= :moving (:mode unit))
-      (should= [2 2] (:target unit)))))
+      (should= [2 2] (:target unit))))
+
+  (it "sets extended target to column edge for shift direction along columns"
+    (reset! atoms/game-map (build-test-map ["D~~"]))
+    (set-test-unit atoms/game-map "D" :mode :awake)
+    (setup-unit-attention [0 0])
+    ;; :D = far east [1, 0] -> extends along columns to [2 0]
+    (commands/handle-key :D)
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should= :moving (:mode unit))
+      (should= [2 0] (:target unit)))))
 
 (run-specs)

@@ -95,8 +95,13 @@
     (debug/log-player-movement! :army [0 0] [0 1] :explore :move nil)
     (should= 5 (:round (first @atoms/player-movement-log))))
 
-  (it "caps log at 500 entries"
-    (dotimes [i 510]
+  (it "keeps exactly 500 entries without truncating"
+    (dotimes [_ 500]
+      (debug/log-player-movement! :army [0 0] [0 1] :moving :move nil))
+    (should= 500 (count @atoms/player-movement-log)))
+
+  (it "truncates to 500 when exceeding limit"
+    (dotimes [_ 501]
       (debug/log-player-movement! :army [0 0] [0 1] :moving :move nil))
     (should= 500 (count @atoms/player-movement-log)))
 

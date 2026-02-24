@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-23
 (ns empire.computer.army
   "Computer army module - VMS Empire style army movement.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"

@@ -17,6 +17,7 @@ If the working directory is named <x> then local rules will be stored in <x>.md.
 Acceptance tests are `.txt` files in `acceptanceTests/` in Given/When/Then format.
 The detailed directive catalog and translation reference is in `plans/permanent/acceptance-test-framework.md`.
 Only read that file when modifying or debugging the parser (`src/empire/acceptance/parser.cljc`) or generator (`src/empire/acceptance/generator.cljc`) — not when writing acceptance tests or running the pipeline.
+The parser pattern catalog is in `plans/permanent/parser-pattern-catalog.md`. Read it BEFORE loading any `src/empire/acceptance/parser/*.cljc` source file. Update it whenever patterns are added or changed.
 
 ### Pipeline
 
