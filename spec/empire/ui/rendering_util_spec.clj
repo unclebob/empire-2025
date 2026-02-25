@@ -192,6 +192,41 @@
     (let [cell {:type :land :contents {:mode :awake :fuel 31}}]
       (should-not (ru/determine-display-unit 5 5 cell nil false)))))
 
+(describe "production-indicator-data"
+  (it "returns nil for non-city cell"
+    (should-not (ru/production-indicator-data 0 0 {:type :land} {})))
+
+  (it "returns nil for city with no production"
+    (should-not (ru/production-indicator-data 0 0 {:type :city :city-status :player} {})))
+
+  (it "returns nil for city with non-map production"
+    (should-not (ru/production-indicator-data 0 0 {:type :city :city-status :player} {[0 0] :none})))
+
+  (it "returns nil for city with production missing :item"
+    (should-not (ru/production-indicator-data 0 0 {:type :city :city-status :player}
+                  {[0 0] {:remaining-rounds 5}})))
+
+  (it "returns data for city with valid production"
+    (let [cell {:type :city :city-status :player}
+          production {[3 2] {:item :army :remaining-rounds 3}}
+          result (ru/production-indicator-data 2 3 cell production)]
+      (should-not-be-nil result)
+      (should= "A" (:prod-char result))
+      (should= 3 (:remaining result))))
+
+  (it "computes progress correctly"
+    (let [cell {:type :city :city-status :player}
+          production {[0 0] {:item :army :remaining-rounds 3}}
+          result (ru/production-indicator-data 0 0 cell production)]
+      ;; army cost is 5, remaining 3, progress = (5-3)/5 = 0.4
+      (should= 0.4 (:progress result))))
+
+  (it "computes dark color as half of base color"
+    (let [cell {:type :city :city-status :player}
+          production {[0 0] {:item :army :remaining-rounds 3}}
+          result (ru/production-indicator-data 0 0 cell production)]
+      (should (every? #(<= % 128) (:dark-color result))))))
+
 (describe "group-cells-by-color"
   (it "groups cells by their base color"
     (let [the-map [[{:type :land} {:type :sea}]

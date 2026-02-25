@@ -9,25 +9,16 @@
 
 (defn draw-production-indicators
   "Draws production indicator for a city cell. Assumes font is already set."
-  [i j cell cell-w cell-h]
-  (when (= :city (:type cell))
-    (when-let [prod (@atoms/production [j i])]
-      (when (and (map? prod) (:item prod))
-        ;; Draw production progress thermometer
-        (let [total (config/item-cost (:item prod))
-              remaining (:remaining-rounds prod)
-              progress (/ (- total remaining) (double total))
-              base-color (config/color-of cell)
-              dark-color (mapv #(* % 0.5) base-color)]
-          (when (and (> progress 0) (> remaining 0))
-            (let [[r g b] dark-color]
-              (q/fill r g b 128))
-            (let [bar-height (* cell-h progress)]
-              (q/rect (* j cell-w) (+ (* i cell-h) (- cell-h bar-height)) cell-w bar-height))))
-        ;; Draw production character
-        (let [[r g b] config/production-color]
-          (q/fill r g b))
-        (q/text (config/item-chars (:item prod)) (+ (* j cell-w) config/cell-char-x-offset) (+ (* i cell-h) config/cell-char-y-offset))))))
+  [row col cell cell-w cell-h]
+  (when-let [{:keys [prod-char progress remaining dark-color]}
+             (ru/production-indicator-data row col cell @atoms/production)]
+    (when (and (> progress 0) (> remaining 0))
+      (let [[r g b] dark-color]
+        (q/fill r g b 128))
+      (q/rect (* col cell-w) (+ (* row cell-h) (- cell-h (* cell-h progress))) cell-w (* cell-h progress)))
+    (let [[r g b] config/production-color]
+      (q/fill r g b))
+    (q/text prod-char (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset))))
 
 
 (defn- draw-unit
