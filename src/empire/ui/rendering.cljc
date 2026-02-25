@@ -101,25 +101,18 @@
   []
   (let [x (q/mouse-x)
         y (q/mouse-y)]
-    ;; Update load menu hover
     (when @atoms/load-menu-open
       (let [files @atoms/load-menu-files
             geom (save-load/menu-geometry (q/width) (q/height) (count files))
             idx (save-load/hovered-file-index x y geom (count files))]
         (reset! atoms/load-menu-hovered idx)))
-    ;; Update map hover (existing code)
-    (if (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-            coords [cx cy]
-            the-map (case @atoms/map-to-display
-                      :player-map @atoms/player-map
-                      :computer-map @atoms/computer-map
-                      :actual-map @atoms/game-map)
-            cell (get-in the-map coords)
-            production (get @atoms/production coords)
-            status (ru/format-hover-status coords cell production)]
-        (reset! atoms/hover-message (or status "")))
-      (reset! atoms/hover-message ""))))
+    (reset! atoms/hover-message
+            (if (map-utils/on-map? x y)
+              (let [coords (vec (map-utils/determine-cell-coordinates x y))
+                    the-map (ru/resolve-display-map @atoms/map-to-display
+                              @atoms/player-map @atoms/computer-map @atoms/game-map)]
+                (ru/compute-hover-message the-map @atoms/production coords))
+              ""))))
 
 (defn- draw-text-right-justified
   "Draws text right-justified against the given right edge at vertical position y."

@@ -101,6 +101,22 @@
                       :else nil)]
     (str "[" (first coords) "," (second coords) "] " status)))
 
+(defn resolve-display-map
+  "Returns the appropriate map based on map-to-display keyword."
+  [map-to-display player-map computer-map game-map]
+  (case map-to-display
+    :player-map player-map
+    :computer-map computer-map
+    :actual-map game-map))
+
+(defn compute-hover-message
+  "Looks up cell and production at coords in the-map, returns formatted hover string.
+   Returns empty string when cell has no displayable status."
+  [the-map production-map coords]
+  (let [cell (get-in the-map coords)
+        production (get production-map coords)]
+    (or (format-hover-status coords cell production) "")))
+
 (def ^:private unit-type-order
   [:army :fighter :transport :destroyer :submarine :patrol-boat :carrier :battleship :satellite])
 
