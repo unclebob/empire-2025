@@ -25,6 +25,10 @@
       (str (when mission (str " " (name mission)))
            (when timeout (str " timeout:" timeout))))))
 
+(defn- patrol-mode-str [unit]
+  (when-let [pm (:patrol-mode unit)]
+    (str " " (name pm))))
+
 (defn- army-mission-str [unit]
   (when-let [m (and (= (:type unit) :army) (:mission unit))]
     (str " mission:" (name m))))
@@ -46,6 +50,7 @@
          (unit-cargo-str unit)
          (transport-mission-str unit)
          (army-mission-str unit)
+         (patrol-mode-str unit)
          (unit-orders-str unit)
          " " (name (:mode unit)))))
 
