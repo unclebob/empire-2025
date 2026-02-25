@@ -128,6 +128,31 @@
     (let [path (pathfinding/a-star [0 0] [2 2] :army @atoms/game-map)]
       (should-be-nil path)))
 
+  (it "finds optimal diagonal path on open grid"
+    (let [size 15
+          row (vec (repeat size {:type :land}))
+          grid (vec (repeat size row))]
+      (reset! atoms/game-map grid)
+      (let [path (pathfinding/a-star [0 0] [(dec size) (dec size)]
+                                      :army @atoms/game-map)]
+        (should-not-be-nil path)
+        (should= [0 0] (first path))
+        (should= [(dec size) (dec size)] (last path))
+        ;; Optimal Chebyshev distance on open grid is max(dx,dy)
+        (should= size (count path)))))
+
+  (it "respects neighbor-filter when provided"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "###"
+                                             "###"]))
+    ;; Filter excludes [1 0] — path must detour through row 1
+    (let [filter-fn (fn [pos] (not= pos [1 0]))
+          path (pathfinding/a-star [0 0] [2 0] :army @atoms/game-map nil filter-fn)]
+      (should-not-be-nil path)
+      (should= [0 0] (first path))
+      (should= [2 0] (last path))
+      (should-not-contain [1 0] path)))
+
   (it "finds path on larger map"
     (reset! atoms/game-map (build-test-map ["#####"
                                              "#~~~#"
@@ -470,4 +495,19 @@
     (let [coastline (pathfinding/find-nearest-unexplored-coastline [0 0] :transport)
           general (pathfinding/find-nearest-unexplored [0 0] :transport)]
       (should-not-be-nil coastline)
-      (should-not-be-nil general))))
+      (should-not-be-nil general)))
+
+  (it "returns cached result on second call with same unit-type"
+    (pathfinding/clear-path-cache)
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                            "~~~"
+                                            "~~~"
+                                            "~~~"
+                                            "###"]))
+    (reset! atoms/computer-map [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
+                                [{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
+                                [{:type :sea} {:type :sea} {:type :sea} nil nil]])
+    (let [result1 (pathfinding/find-nearest-unexplored-coastline [0 0] :transport)
+          result2 (pathfinding/find-nearest-unexplored-coastline [2 2] :transport)]
+      (should-not-be-nil result1)
+      (should= result1 result2))))

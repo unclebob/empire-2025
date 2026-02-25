@@ -314,7 +314,39 @@
         ;; Should find a path (either via network or A*)
         (should-not-be-nil step)
         ;; The step should move toward increasing column
-        (should (>= (second step) 1))))))
+        (should (>= (second step) 1)))))
+
+  (it "compute-network-step caches and returns next step when network routes"
+    ;; Need >= 4 nodes for network routing to activate
+    (let [row (vec (repeat 50 {:type :sea}))]
+      (reset! atoms/game-map [row row row])
+      (reset! atoms/sea-lane-network
+              {:nodes {1 {:id 1 :pos [1 2] :segment-ids #{1}}
+                       2 {:id 2 :pos [1 15] :segment-ids #{1 2}}
+                       3 {:id 3 :pos [1 30] :segment-ids #{2 3}}
+                       4 {:id 4 :pos [1 45] :segment-ids #{3}}}
+               :segments {1 {:id 1 :node-a-id 1 :node-b-id 2
+                              :direction [0 1]
+                              :cells (vec (for [c (range 2 16)] [1 c]))
+                              :length 13}
+                          2 {:id 2 :node-a-id 2 :node-b-id 3
+                              :direction [0 1]
+                              :cells (vec (for [c (range 15 31)] [1 c]))
+                              :length 15}
+                          3 {:id 3 :node-a-id 3 :node-b-id 4
+                              :direction [0 1]
+                              :cells (vec (for [c (range 30 46)] [1 c]))
+                              :length 15}}
+               :pos->node {[1 2] 1 [1 15] 2 [1 30] 3 [1 45] 4}
+               :pos->seg (merge (into {} (for [c (range 3 15)] [[1 c] 1]))
+                                (into {} (for [c (range 16 30)] [[1 c] 2]))
+                                (into {} (for [c (range 31 45)] [[1 c] 3])))
+               :next-node-id 5 :next-segment-id 4})
+      (pathfinding/clear-path-cache)
+      ;; Start [1 0] to goal [1 47] — chebyshev 47 > 15
+      (let [step (pathfinding/next-step [1 0] [1 47] :transport)]
+        (should-not-be-nil step)
+        (should (> (first step) 0))))))
 
 (describe "chebyshev"
   (it "returns 0 for same position"

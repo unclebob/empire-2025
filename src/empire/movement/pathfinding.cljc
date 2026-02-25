@@ -66,115 +66,81 @@
       (let [prev (came-from pos)]
         (recur prev (cons prev path))))))
 
+(defn- try-improve-neighbor
+  "If new-g improves n's best known g, records the improvement in acc."
+  [new-g current {:keys [better new-best-g new-came-from new-counter] :as acc} n]
+  (if (< new-g (get new-best-g n Long/MAX_VALUE))
+    {:better (conj better [n new-counter])
+     :new-best-g (assoc new-best-g n new-g)
+     :new-came-from (assoc new-came-from n current)
+     :new-counter (inc new-counter)}
+    acc))
+
+(defn- expand-node
+  "Processes current node: skips if already closed, otherwise collects valid
+   neighbors, improves g-values, builds new open-set entries.
+   Returns [open-set closed-set best-g came-from counter]."
+  [current g open-set closed-set best-g came-from counter
+   unit-type game-map passability-fn neighbor-filter goal]
+  (if (closed-set current)
+    [(disj open-set (first open-set)) closed-set best-g came-from counter]
+    (let [new-closed (conj closed-set current)
+          valid-neighbors (cond->> (remove closed-set
+                                          (get-passable-neighbors current unit-type game-map passability-fn))
+                            neighbor-filter (filter neighbor-filter))
+          new-g (inc g)
+          {:keys [better new-best-g new-came-from new-counter]}
+          (reduce (partial try-improve-neighbor new-g current)
+                  {:better [] :new-best-g best-g :new-came-from came-from :new-counter counter}
+                  valid-neighbors)
+          new-entries (for [[n cnt] better
+                            :let [new-f (+ new-g (heuristic n goal))]]
+                        [new-f new-g cnt n])]
+      [(into (disj open-set (first open-set)) new-entries)
+       new-closed new-best-g new-came-from new-counter])))
+
+(defn- a-star-loop
+  "Core A* search loop. Returns path vector or nil."
+  [start goal unit-type game-map passability-fn neighbor-filter]
+  (loop [open-set (sorted-set [(heuristic start goal) 0 0 start])
+         closed-set #{}
+         best-g {start 0}
+         came-from {}
+         counter 1]
+    (when-let [[_f g _cnt current] (first open-set)]
+      (if (= current goal)
+        (reconstruct-path came-from start goal)
+        (let [[os cs bg cf ct]
+              (expand-node current g open-set closed-set best-g came-from counter
+                           unit-type game-map passability-fn neighbor-filter goal)]
+          (recur os cs bg cf ct))))))
+
 (defn a-star
   "Finds shortest path from start to goal for unit-type.
    Returns vector of positions from start to goal (inclusive), or nil if no path.
-   Uses A* with came-from map for path reconstruction and a counter for
-   tiebreaking in the sorted-set priority queue.
    When passability-fn is provided, uses it instead of default passable? check."
   ([start goal unit-type game-map]
-   (a-star start goal unit-type game-map nil))
+   (a-star-loop start goal unit-type game-map nil nil))
   ([start goal unit-type game-map passability-fn]
+   (a-star-loop start goal unit-type game-map passability-fn nil))
+  ([start goal unit-type game-map passability-fn neighbor-filter]
    (if (= start goal)
      [start]
-     (loop [open-set (sorted-set [(heuristic start goal) 0 0 start])
-            closed-set #{}
-            best-g {start 0}
-            came-from {}
-            counter 1]
-       (when-let [[_f g _cnt current] (first open-set)]
-         (cond
-           ;; Reached goal
-           (= current goal)
-           (reconstruct-path came-from start goal)
-
-           ;; Already processed this node with better cost
-           (closed-set current)
-           (recur (disj open-set (first open-set)) closed-set best-g came-from counter)
-
-           :else
-           (let [new-closed (conj closed-set current)
-                 neighbors (get-passable-neighbors current unit-type game-map passability-fn)
-                 valid-neighbors (remove closed-set neighbors)
-                 new-g (inc g)
-                 {:keys [better new-best-g new-came-from new-counter]}
-                 (reduce (fn [{:keys [better new-best-g new-came-from new-counter]} n]
-                           (let [existing-g (get new-best-g n Long/MAX_VALUE)]
-                             (if (< new-g existing-g)
-                               {:better (conj better [n new-counter])
-                                :new-best-g (assoc new-best-g n new-g)
-                                :new-came-from (assoc new-came-from n current)
-                                :new-counter (inc new-counter)}
-                               {:better better
-                                :new-best-g new-best-g
-                                :new-came-from new-came-from
-                                :new-counter new-counter})))
-                         {:better [] :new-best-g best-g :new-came-from came-from :new-counter counter}
-                         valid-neighbors)
-                 new-entries (for [[n cnt] better
-                                   :let [new-f (+ new-g (heuristic n goal))]]
-                               [new-f new-g cnt n])]
-             (recur (into (disj open-set (first open-set)) new-entries)
-                    new-closed
-                    new-best-g
-                    new-came-from
-                    new-counter))))))))
+     (a-star-loop start goal unit-type game-map passability-fn neighbor-filter))))
 
 (defn bounded-a-star
   "Radius-limited variant of a-star. Only explores cells within radius of the
    midpoint between start and goal. Returns path vector or nil."
   [start goal unit-type game-map]
-  (if (= start goal)
-    [start]
-    (let [[sr sc] start
-          [gr gc] goal
-          mid-r (quot (+ sr gr) 2)
-          mid-c (quot (+ sc gc) 2)
-          radius (+ (max (Math/abs (- sr gr)) (Math/abs (- sc gc))) 5)
-          in-bounds? (fn [[r c]]
-                       (and (<= (Math/abs (- r mid-r)) radius)
-                            (<= (Math/abs (- c mid-c)) radius)))]
-      (loop [open-set (sorted-set [(heuristic start goal) 0 0 start])
-             closed-set #{}
-             best-g {start 0}
-             came-from {}
-             counter 1]
-        (when-let [[_f g _cnt current] (first open-set)]
-          (cond
-            (= current goal)
-            (reconstruct-path came-from start goal)
-
-            (closed-set current)
-            (recur (disj open-set (first open-set)) closed-set best-g came-from counter)
-
-            :else
-            (let [new-closed (conj closed-set current)
-                  neighbors (filter in-bounds?
-                                    (get-passable-neighbors current unit-type game-map))
-                  valid-neighbors (remove closed-set neighbors)
-                  new-g (inc g)
-                  {:keys [better new-best-g new-came-from new-counter]}
-                  (reduce (fn [{:keys [better new-best-g new-came-from new-counter]} n]
-                            (let [existing-g (get new-best-g n Long/MAX_VALUE)]
-                              (if (< new-g existing-g)
-                                {:better (conj better [n new-counter])
-                                 :new-best-g (assoc new-best-g n new-g)
-                                 :new-came-from (assoc new-came-from n current)
-                                 :new-counter (inc new-counter)}
-                                {:better better
-                                 :new-best-g new-best-g
-                                 :new-came-from new-came-from
-                                 :new-counter new-counter})))
-                          {:better [] :new-best-g best-g :new-came-from came-from :new-counter counter}
-                          valid-neighbors)
-                  new-entries (for [[n cnt] better
-                                    :let [new-f (+ new-g (heuristic n goal))]]
-                                [new-f new-g cnt n])]
-              (recur (into (disj open-set (first open-set)) new-entries)
-                     new-closed
-                     new-best-g
-                     new-came-from
-                     new-counter))))))))
+  (let [[sr sc] start
+        [gr gc] goal
+        mid-r (quot (+ sr gr) 2)
+        mid-c (quot (+ sc gc) 2)
+        radius (+ (max (Math/abs (- sr gr)) (Math/abs (- sc gc))) 5)
+        in-bounds? (fn [[r c]]
+                     (and (<= (Math/abs (- r mid-r)) radius)
+                          (<= (Math/abs (- c mid-c)) radius)))]
+    (a-star start goal unit-type game-map nil in-bounds?)))
 
 (defn sea-reaches-edge?
   "BFS flood-fill from pos over sea cells. Returns true if any
