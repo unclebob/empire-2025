@@ -396,31 +396,39 @@
          "        (reset! atoms/computer-map (make-initial-test-map (count (first gm)) (count gm) nil)))\n"
          "      (swap! atoms/computer-map assoc-in pos (get-in gm pos)))")))
 
+(def ^:private given-generators
+  {:map                     generate-map-given
+   :unit-props              generate-unit-props-given
+   :container-state         generate-container-state-given
+   :production              generate-production-given
+   :unit-target             generate-unit-target-given
+   :round                   generate-round-given
+   :destination             generate-destination-given
+   :cell-props              generate-cell-props-given
+   :city-prop               generate-city-prop-given
+   :player-items            generate-player-items-given
+   :waiting-for-input-state generate-waiting-for-input-state-given
+   :no-production           generate-no-production-given
+   :shipyard-state          generate-shipyard-state-given
+   :city-unit               generate-city-unit-given
+   :territory-around        generate-territory-around-given
+   :visible-to-computer     generate-visible-to-computer-given})
+
 (defn generate-given
   "Generate code string for a single GIVEN IR node."
   ([given] (generate-given given []))
   ([given givens]
-   (case (:type given)
-     :map (generate-map-given given)
-     :unit-props (generate-unit-props-given given)
-     :waiting-for-input (generate-waiting-for-input-given given givens)
-     :container-state (generate-container-state-given given)
-     :production (generate-production-given given)
-     :unit-target (generate-unit-target-given given)
-     :round (generate-round-given given)
-     :destination (generate-destination-given given)
-     :cell-props (generate-cell-props-given given)
-     :city-prop (generate-city-prop-given given)
-     :player-items (generate-player-items-given given)
-     :waiting-for-input-state (generate-waiting-for-input-state-given given)
-     :no-production (generate-no-production-given given)
-     :shipyard-state (generate-shipyard-state-given given)
-     :city-unit (generate-city-unit-given given)
-     :territory-around (generate-territory-around-given given)
-     :visible-to-computer (generate-visible-to-computer-given given)
-     :stub ""
-     :unrecognized (str "    (pending \"Unrecognized: " (:text given) "\")")
-     (str "    ;; Unknown given type: " (:type given)))))
+   (let [type (:type given)
+         gen (get given-generators type)]
+     (cond
+       gen (gen given)
+       (= type :waiting-for-input)
+       (generate-waiting-for-input-given given givens)
+       (= type :stub) ""
+       (= type :unrecognized)
+       (str "    (pending \"Unrecognized: " (:text given) "\")")
+       :else
+       (str "    ;; Unknown given type: " type)))))
 
 ;; --- WHEN generation ---
 
