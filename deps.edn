@@ -33,6 +33,7 @@
 					 :crap {:extra-deps {io.github.unclebob/crap4clj
 					                      {:git/url "https://github.com/unclebob/crap4clj"
 					                       :git/sha "d14e3af09f768a7284c103426e56d0295a30cd1d"}}
+					        :extra-paths ["spec"]
 					        :main-opts ["-m" "crap4clj.core"]}
 				 }
 			 }
