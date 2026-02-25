@@ -175,31 +175,55 @@
     (should-be-nil @atoms/load-menu-hovered)))
 
 (describe "menu-geometry"
-  (it "calculates centered menu position"
-    (let [geom (save-load/menu-geometry 800 600 3)]
-      (should (< (:left geom) 400))
-      (should (> (:right geom) 400))
-      (should (< (:top geom) 300))
-      (should (> (:bottom geom) 300))))
+  (it "calculates exact values for 3 files"
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should= 225 (:left geom))
+      (should= 233 (:top geom))
+      (should= 575 (:right geom))
+      (should= 368 (:bottom geom))
+      (should= 350 (:width geom))
+      (should= 135 (:height geom))
+      (should= 278 (:content-top geom))
+      (should= 25 (:item-height geom))))
 
-  (it "includes item-height for row calculations"
-    (let [geom (save-load/menu-geometry 800 600 3)]
-      (should (> (:item-height geom) 0))))
-
-  (it "includes content-top after title"
-    (let [geom (save-load/menu-geometry 800 600 3)]
-      (should (> (:content-top geom) (:top geom))))))
+  (it "uses minimum height of 1 item for 0 files"
+    (let [geom (save-load/menu-geometry 800 601 0)]
+      (should= 85 (:height geom))
+      (should= 258 (:top geom)))))
 
 (describe "hovered-file-index"
   (it "returns nil when mouse is outside menu"
-    (let [geom (save-load/menu-geometry 800 600 3)]
+    (let [geom (save-load/menu-geometry 800 601 3)]
       (should-be-nil (save-load/hovered-file-index 0 0 geom 3))))
 
   (it "returns 0 for first item"
-    (let [geom (save-load/menu-geometry 800 600 3)
-          y (+ (:content-top geom) 5)]
-      (should= 0 (save-load/hovered-file-index 400 y geom 3))))
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should= 0 (save-load/hovered-file-index 400 280 geom 3))))
 
   (it "returns nil when no files"
-    (let [geom (save-load/menu-geometry 800 600 0)]
-      (should-be-nil (save-load/hovered-file-index 400 300 geom 0)))))
+    (let [geom (save-load/menu-geometry 800 601 0)]
+      (should-be-nil (save-load/hovered-file-index 400 300 geom 0))))
+
+  (it "returns 0 at exact left boundary"
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should= 0 (save-load/hovered-file-index 225 280 geom 3))))
+
+  (it "returns 0 at exact right boundary"
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should= 0 (save-load/hovered-file-index 575 280 geom 3))))
+
+  (it "returns 0 at exact content-top boundary"
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should= 0 (save-load/hovered-file-index 400 278 geom 3))))
+
+  (it "returns nil at exact bottom boundary"
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should-be-nil (save-load/hovered-file-index 400 353 geom 3))))
+
+  (it "returns last item just above bottom boundary"
+    (let [geom (save-load/menu-geometry 800 601 3)]
+      (should= 2 (save-load/hovered-file-index 400 352 geom 3))))
+
+  (it "returns 0 for single file"
+    (let [geom (save-load/menu-geometry 800 601 1)]
+      (should= 0 (save-load/hovered-file-index 400 305 geom 1)))))
