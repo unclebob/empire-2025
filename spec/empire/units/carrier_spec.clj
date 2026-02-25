@@ -53,7 +53,10 @@
       (should-not (carrier/needs-attention? {:type :carrier :mode :sentry :awake-fighters 0})))
 
     (it "returns false when moving"
-      (should-not (carrier/needs-attention? {:type :carrier :mode :moving :awake-fighters 0}))))
+      (should-not (carrier/needs-attention? {:type :carrier :mode :moving :awake-fighters 0})))
+
+    (it "returns false when sentry with no awake-fighters key"
+      (should-not (carrier/needs-attention? {:type :carrier :mode :sentry}))))
 
   (context "full?"
     (it "returns true at capacity"
@@ -66,21 +69,30 @@
       (should-not (carrier/full? {:fighter-count 5})))
 
     (it "returns false for empty carrier"
-      (should-not (carrier/full? {:fighter-count 0}))))
+      (should-not (carrier/full? {:fighter-count 0})))
+
+    (it "returns false when fighter-count key missing"
+      (should-not (carrier/full? {}))))
 
   (context "has-fighters?"
     (it "returns true when has fighters"
       (should (carrier/has-fighters? {:fighter-count 4})))
 
     (it "returns false when empty"
-      (should-not (carrier/has-fighters? {:fighter-count 0}))))
+      (should-not (carrier/has-fighters? {:fighter-count 0})))
+
+    (it "returns false when fighter-count key missing"
+      (should-not (carrier/has-fighters? {}))))
 
   (context "has-awake-fighters?"
     (it "returns true when has awake fighters"
       (should (carrier/has-awake-fighters? {:awake-fighters 3})))
 
     (it "returns false when no awake fighters"
-      (should-not (carrier/has-awake-fighters? {:awake-fighters 0}))))
+      (should-not (carrier/has-awake-fighters? {:awake-fighters 0})))
+
+    (it "returns false when awake-fighters key missing"
+      (should-not (carrier/has-awake-fighters? {}))))
 
   (context "add-fighter"
     (it "increments fighter count"
@@ -91,12 +103,18 @@
 
   (context "remove-fighter"
     (it "decrements fighter count"
-      (should= 3 (:fighter-count (carrier/remove-fighter {:fighter-count 4})))))
+      (should= 3 (:fighter-count (carrier/remove-fighter {:fighter-count 4}))))
+
+    (it "decrements from default 0 when key missing"
+      (should= -1 (:fighter-count (carrier/remove-fighter {})))))
 
   (context "wake-fighters"
     (it "sets awake-fighters to fighter-count"
       (let [result (carrier/wake-fighters {:fighter-count 6 :awake-fighters 0})]
-        (should= 6 (:awake-fighters result)))))
+        (should= 6 (:awake-fighters result))))
+
+    (it "defaults to 0 when fighter-count key missing"
+      (should= 0 (:awake-fighters (carrier/wake-fighters {})))))
 
   (context "sleep-fighters"
     (it "sets awake-fighters to 0"
@@ -107,4 +125,9 @@
     (it "decrements both fighter-count and awake-fighters"
       (let [result (carrier/remove-awake-fighter {:fighter-count 5 :awake-fighters 3})]
         (should= 4 (:fighter-count result))
-        (should= 2 (:awake-fighters result))))))
+        (should= 2 (:awake-fighters result))))
+
+    (it "decrements from default 0 when keys missing"
+      (let [result (carrier/remove-awake-fighter {})]
+        (should= -1 (:fighter-count result))
+        (should= -1 (:awake-fighters result))))))

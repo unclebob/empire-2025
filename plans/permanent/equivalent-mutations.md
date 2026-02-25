@@ -56,6 +56,11 @@ Classification: Equivalent. The outer `(when (pos? remaining))` guard prevents t
 Pattern: `(for [dx [-1 0 1]] (+ x dx))` — changing `+` to `-` still covers the same set of neighbors `{x-1, x, x+1}` because `-(-1) = 1` and `-(1) = -1`.
 Classification: Equivalent when the iteration range is symmetric around 0 and `first` selects any valid result.
 
+### Default value far below threshold (`0 -> 1` in `>=` with large constant)
+Pattern: `(>= (:key map 0) LARGE-CONSTANT)` — mutating the default from 0 to 1 is equivalent when both values are far below the threshold.
+Example: `(>= (:fighter-count unit 0) capacity)` where capacity is 8. Both `(>= 0 8)` and `(>= 1 8)` return false.
+Classification: Equivalent. The default only applies when the key is missing, and both default values produce the same comparison result.
+
 ## Workflow
 
 1. Run `clj -M:mutate src/empire/<module>.cljc`
