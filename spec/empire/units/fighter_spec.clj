@@ -13,6 +13,9 @@
     (it "has 1 hit point"
       (should= 1 fighter/hits))
 
+    (it "has strength of 1"
+      (should= 1 fighter/strength))
+
     (it "displays as F"
       (should= "F" fighter/display-char))
 
