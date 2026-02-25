@@ -9,40 +9,45 @@
   (merge {:type unit-type :owner owner :hits (dispatcher/hits unit-type)}
          (dispatcher/initial-state unit-type)))
 
+(def ^:private char->unit-type
+  {\A :army      \a :army
+   \T :transport \t :transport
+   \D :destroyer \d :destroyer
+   \P :patrol-boat \p :patrol-boat
+   \C :carrier   \c :carrier
+   \B :battleship \b :battleship
+   \S :submarine \s :submarine
+   \F :fighter   \f :fighter
+   \J :fighter   \j :fighter
+   \V :satellite \v :satellite})
+
+(def ^:private nil-chars #{\space \. \-})
+
+(def ^:private special-chars
+  {\~ {:type :sea}
+   \# {:type :land}
+   \= {:type :sea :label "="}
+   \% {:type :land :label "%"}
+   \+ {:type :city :city-status :free}
+   \O {:type :city :city-status :player}
+   \X {:type :city :city-status :computer}
+   \* {:type :land :waypoint true}})
+
+(def ^:private char->terrain
+  {\A :land \a :land \F :land \f :land \V :land \v :land
+   \T :sea  \t :sea  \D :sea  \d :sea  \P :sea  \p :sea
+   \C :sea  \c :sea  \B :sea  \b :sea  \S :sea  \s :sea
+   \J :sea  \j :sea})
+
 (defn char->cell [c]
-  (case c
-    \~ {:type :sea}
-    \# {:type :land}
-    \= {:type :sea :label "="}
-    \% {:type :land :label "%"}
-    (\space \. \-) nil
-    \+ {:type :city :city-status :free}
-    \O {:type :city :city-status :player}
-    \X {:type :city :city-status :computer}
-    \* {:type :land :waypoint true}
-    ;; Player units (uppercase)
-    \A {:type :land :contents (make-unit :army :player)}
-    \T {:type :sea :contents (make-unit :transport :player)}
-    \D {:type :sea :contents (make-unit :destroyer :player)}
-    \P {:type :sea :contents (make-unit :patrol-boat :player)}
-    \C {:type :sea :contents (make-unit :carrier :player)}
-    \B {:type :sea :contents (make-unit :battleship :player)}
-    \S {:type :sea :contents (make-unit :submarine :player)}
-    \F {:type :land :contents (make-unit :fighter :player)}
-    \J {:type :sea :contents (make-unit :fighter :player)}
-    \V {:type :land :contents (make-unit :satellite :player)}
-    ;; Enemy units (lowercase)
-    \a {:type :land :contents (make-unit :army :computer)}
-    \t {:type :sea :contents (make-unit :transport :computer)}
-    \d {:type :sea :contents (make-unit :destroyer :computer)}
-    \p {:type :sea :contents (make-unit :patrol-boat :computer)}
-    \c {:type :sea :contents (make-unit :carrier :computer)}
-    \b {:type :sea :contents (make-unit :battleship :computer)}
-    \s {:type :sea :contents (make-unit :submarine :computer)}
-    \f {:type :land :contents (make-unit :fighter :computer)}
-    \j {:type :sea :contents (make-unit :fighter :computer)}
-    \v {:type :land :contents (make-unit :satellite :computer)}
-    (throw (ex-info (str "Unknown map char: " c) {:char c}))))
+  (cond
+    (contains? nil-chars c) nil
+    (contains? special-chars c) (get special-chars c)
+    (contains? char->unit-type c)
+    (let [owner (if (Character/isUpperCase c) :player :computer)]
+      {:type (get char->terrain c)
+       :contents (make-unit (get char->unit-type c) owner)})
+    :else (throw (ex-info (str "Unknown map char: " c) {:char c}))))
 
 (defn build-test-map [strings]
   (let [rows (mapv (fn [row-str] (mapv char->cell row-str)) strings)]
@@ -82,18 +87,6 @@
     (reduce (fn [m [[r c] ch]]
               (assoc-in m [c r] (char->cell ch)))
             base overlays)))
-
-(def ^:private char->unit-type
-  {\A :army      \a :army
-   \T :transport \t :transport
-   \D :destroyer \d :destroyer
-   \P :patrol-boat \p :patrol-boat
-   \C :carrier   \c :carrier
-   \B :battleship \b :battleship
-   \S :submarine \s :submarine
-   \F :fighter   \f :fighter
-   \J :fighter   \j :fighter
-   \V :satellite \v :satellite})
 
 (defn- find-unit-pos [game-map unit-spec]
   (let [c (first unit-spec)
