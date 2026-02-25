@@ -7,7 +7,6 @@
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.computer.core :as core]
-            [empire.computer.navigation :as nav]
             [empire.computer.threat :as threat]
             [empire.containers.helpers :as uc]
             [empire.movement.pathfinding :as pathfinding]
@@ -163,130 +162,66 @@
         (visibility/update-cell-visibility farthest :computer)
         farthest))))
 
-(defn- coastline-move
-  "Move patrol boat to an adjacent sea cell that is also adjacent to land.
-   Avoids recent positions from patrol-history to prevent backtracking."
+(defn patrol-crawl-step
+  "Crawl along coastline. Records position in seen-coast.
+   Prefers unseen coastal cells. Switches to :exploring when
+   all coastal neighbors are seen or at map edge with none unseen.
+   Returns new position or nil."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
-        history (set (:patrol-history unit []))
-        passable (get-passable-sea-neighbors pos)
-        empty-passable (filter (fn [n]
-                                 (nil? (:contents (get-in @atoms/game-map n))))
-                               passable)
-        coastal-cells (filter adjacent-to-land? empty-passable)
-        preferred (remove history coastal-cells)
-        targets (if (seq preferred) preferred coastal-cells)]
+  (swap! atoms/seen-coast conj pos)
+  (let [passable (get-passable-sea-neighbors pos)
+        empty-passable (filter #(nil? (:contents (get-in @atoms/game-map %))) passable)
+        coastal (filter adjacent-to-land? empty-passable)
+        unseen (remove @atoms/seen-coast coastal)
+        targets (if (seq unseen) unseen coastal)
+        switch? (empty? unseen)]
     (when (seq targets)
       (let [target (rand-nth targets)]
         (core/move-unit-to pos target)
         (visibility/update-cell-visibility pos :computer)
         (visibility/update-cell-visibility target :computer)
-        ;; Update patrol history on the moved unit
-        (let [new-history (vec (take-last 3 (conj (:patrol-history unit []) pos)))]
-          (swap! atoms/game-map assoc-in (conj target :contents :patrol-history) new-history))
+        (when switch?
+          (swap! atoms/game-map assoc-in
+                 (conj target :contents :patrol-mode) :exploring))
         target))))
 
-(defn- in-bounds?
-  "Returns true if position is within map bounds."
+(defn- arrived-at-unseen-coast?
+  "Returns true if pos is a sea cell adjacent to land/city and not in seen-coast."
   [pos]
-  (let [[c r] pos
-        game-map @atoms/game-map]
-    (and (>= c 0) (>= r 0)
-         (< c (count game-map))
-         (< r (count (first game-map))))))
+  (and (not (contains? @atoms/seen-coast pos))
+       (adjacent-to-land? pos)))
 
-(defn- detect-reflection-surface
-  "Returns :horizontal or :vertical reflection surface for map border."
+(defn patrol-explore-step
+  "Explore toward unseen coast via BFS. Moves one step toward target.
+   Switches to :crawling upon arriving at unseen coast.
+   Returns new position or nil."
   [pos]
-  (let [[c r] pos
-        game-map @atoms/game-map
-        max-c (dec (count game-map))
-        max-r (dec (count (first game-map)))]
-    (cond
-      (or (<= r 0) (>= r max-r)) :horizontal
-      (or (<= c 0) (>= c max-c)) :vertical
-      :else nil)))
-
-(defn- unexplored-coast?
-  "Returns true if pos is a sea cell adjacent to land NOT on computer-map."
-  [pos]
-  (let [game-map @atoms/game-map
-        cell (get-in game-map pos)]
-    (and cell
-         (= :sea (:type cell))
-         (some (fn [neighbor]
-                 (let [gm-cell (get-in game-map neighbor)
-                       cm-cell (get-in @atoms/computer-map neighbor)]
-                   (and gm-cell
-                        (#{:land :city} (:type gm-cell))
-                        (nil? cm-cell))))
-               (core/get-neighbors pos)))))
-
-(defn- patrol-sail-one-step
-  "Moves patrol boat one step along its heading.
-   Stops at unexplored coast, switching to coastline exploration.
-   Returns new position or nil if reflected."
-  [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
-        heading (:patrol-heading unit)
-        next-pos (nav/apply-heading pos heading)]
-    (cond
-      (not (in-bounds? next-pos))
-      (let [surface (or (detect-reflection-surface pos) :horizontal)
-            new-heading (nav/reflect-heading heading surface)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :patrol-heading) new-heading)
-        nil)
-
-      (unexplored-coast? next-pos)
-      (do
+  (when-let [path (pathfinding/bfs-to-unseen-coast
+                    pos @atoms/computer-map @atoms/game-map)]
+    (let [target (last path)
+          passable (get-passable-sea-neighbors pos)
+          next-pos (core/move-toward pos target passable)]
+      (when next-pos
         (core/move-unit-to pos next-pos)
         (visibility/update-cell-visibility pos :computer)
         (visibility/update-cell-visibility next-pos :computer)
-        (swap! atoms/game-map assoc-in
-               (conj next-pos :contents :patrol-mode) :coastline-exploring)
-        next-pos)
-
-      (and (= :sea (:type (get-in @atoms/game-map next-pos)))
-           (nil? (:contents (get-in @atoms/game-map next-pos))))
-      (do
-        (core/move-unit-to pos next-pos)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility next-pos :computer)
-        next-pos)
-
-      (nav/is-explored-coast? next-pos)
-      (let [surface (or (detect-reflection-surface pos) :horizontal)
-            new-heading (nav/reflect-heading heading surface)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :patrol-heading) new-heading)
-        nil)
-
-      :else
-      (let [new-heading (nav/reflect-heading heading :horizontal)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :patrol-heading) new-heading)
-        nil))))
-
-(defn- process-sailing-patrol-boat
-  "Processes a 2nd+ patrol boat using heading-based sailing."
-  [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))]
-    (when-not (:patrol-heading unit)
-      (swap! atoms/game-map assoc-in
-             (conj pos :contents :patrol-heading) (rand-int 360)))
-    (patrol-sail-one-step pos)))
+        (when (arrived-at-unseen-coast? next-pos)
+          (swap! atoms/game-map assoc-in
+                 (conj next-pos :contents :patrol-mode) :crawling))
+        next-pos))))
 
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
-        patrol-num (:patrol-number unit 1)]
-    (if (and (> patrol-num 1)
-             (not= :coastline-exploring (:patrol-mode unit)))
-      (process-sailing-patrol-boat pos)
-      (if-let [transport-pos (find-adjacent-player-transport pos)]
-        (attack-enemy pos transport-pos)
-        (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
-          (flee-from pos enemy-pos)
-          (coastline-move pos))))))
+  (if-let [transport-pos (find-adjacent-player-transport pos)]
+    (attack-enemy pos transport-pos)
+    (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
+      (flee-from pos enemy-pos)
+      (let [unit (get-in @atoms/game-map (conj pos :contents))]
+        (case (:patrol-mode unit)
+          :crawling (patrol-crawl-step pos)
+          :exploring (patrol-explore-step pos)
+          nil)))))
 
 (defn- process-patrol-boat
   "Processes a computer patrol boat. Moves up to speed 4 steps per round.
@@ -896,7 +831,7 @@
 
 (defn- dispatch-ship-action [pos ship-type unit]
   (cond
-    (and (= :patrol-boat ship-type) (:patrol-country-id unit))
+    (= :patrol-boat ship-type)
     (process-patrol-boat pos)
 
     (and (= :carrier ship-type) (:carrier-mode unit))

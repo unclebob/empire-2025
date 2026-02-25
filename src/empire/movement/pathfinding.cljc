@@ -456,6 +456,65 @@
                    (update-first-match unowned? best-unowned current)
                    (update-first-match unexplored? best-unexplored current))))))))
 
+(def ^:private min-explore-depth
+  "Minimum BFS levels before accepting a target in patrol explore mode."
+  4)
+
+(defn- adjacent-to-land-or-city?
+  "Returns true if any neighbor of pos on game-map is land or city."
+  [pos game-map]
+  (let [[x y] pos]
+    (some (fn [[dx dy]]
+            (let [nx (+ x dx) ny (+ y dy)
+                  cell (get-in game-map [nx ny])]
+              (and cell (#{:land :city} (:type cell)))))
+          neighbor-offsets)))
+
+(defn- unseen-coast?
+  "Returns true if pos is adjacent to land/city and not in seen-coast."
+  [pos game-map seen-coast]
+  (and (not (contains? seen-coast pos))
+       (adjacent-to-land-or-city? pos game-map)))
+
+(defn bfs-to-unseen-coast
+  "BFS from start over passable sea cells to find the nearest unseen coastal
+   cell (adjacent to land/city, not in seen-coast) or cell adjacent to
+   unexplored territory. Skips targets within min-explore-depth levels.
+   Prefers unseen coast over unexplored. Returns path excluding start, or nil."
+  [start computer-map game-map]
+  (let [seen-coast @atoms/seen-coast
+        passable-sea? (fn [pos]
+                        (let [cell (get-in computer-map pos)]
+                          (and cell (= :sea (:type cell)))))]
+    (when (passable-sea? start)
+      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
+             visited #{start}
+             came-from {}
+             best-coast nil
+             best-unexplored nil]
+        (if (empty? queue)
+          (build-coast-path best-coast best-unexplored came-from start)
+          (let [[current depth] (peek queue)
+                deep-enough? (>= depth min-explore-depth)
+                is-coast? (and deep-enough?
+                               (not= current start)
+                               (unseen-coast? current game-map seen-coast))
+                is-unexplored? (and deep-enough?
+                                    (not= current start)
+                                    (nil? best-unexplored)
+                                    (adjacent-to-unexplored? current computer-map))
+                new-coast (if (and is-coast? (nil? best-coast)) current best-coast)
+                new-unexplored (if is-unexplored? current best-unexplored)]
+            (if new-coast
+              (build-coast-path new-coast new-unexplored came-from start)
+              (let [neighbors (bfs-sea-neighbors current visited passable-sea?)
+                    new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+                (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
+                       (into visited neighbors)
+                       new-came-from
+                       new-coast
+                       new-unexplored)))))))))
+
 (defn- adjacent-to-target-continent-land?
   "Returns true if any neighbor of pos is land/city on target-continent."
   [pos target-continent game-map]

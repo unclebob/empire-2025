@@ -53,7 +53,7 @@
    {:regex #"(?:with|has)\s+([\w][\w-]*)\s+\[(\d+)\s+(\d+)\]"
     :extract-fn (fn [[_ k x y]]
                   {:props {(keyword k) [(Integer/parseInt x) (Integer/parseInt y)]}})}
-   ;; Catch-all: "has <hyphenated-property> <value>" for unit properties like country-id, patrol-country-id, been-to-sea
+   ;; Catch-all: "has <hyphenated-property> <value>" for unit properties like country-id, been-to-sea
    {:regex #"(?:with|has)\s+([\w]+-[\w-]+)\s+([^\[\s]+)"
     :extract-fn (fn [[_ k v]]
                   (when-not (#{"army-count" "fighter-count" "awake-fighters"} k)
@@ -248,7 +248,8 @@
    {:regex #"(\w+)\s+patrols\s+(?:for\s+)?country\s+(\d+)"
     :handler (fn [[_ ref n] _ctx]
                {:directive :unit-props
-                :ir {:type :unit-props :unit ref :props {:patrol-country-id (Integer/parseInt n)}}})}])
+                :ir {:type :unit-props :unit ref :props {:country-id (Integer/parseInt n)
+                                                         :patrol-mode :crawling}}})}])
 
 (defn- parse-given-line [line context]
   (let [clean (str/trim line)

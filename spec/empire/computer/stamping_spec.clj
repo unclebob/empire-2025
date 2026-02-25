@@ -70,43 +70,36 @@
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :country-id stamped)))
 
-    (it "does not assign country-id to non-army/transport/fighter types"
+    (it "assigns city country-id to computer patrol boats"
+      (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
+            cell {:type :city :city-status :computer :country-id 2}
+            stamped (stamping/stamp-computer-fields unit cell)]
+        (should= 2 (:country-id stamped))))
+
+    (it "does not assign country-id to non-army/transport/fighter/patrol-boat types"
       (let [unit {:type :destroyer :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer :country-id 3}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :country-id stamped))))
 
   (context "patrol fields"
-    (it "stamps patrol fields on computer patrol-boats from country cities"
+    (it "stamps patrol-mode :crawling on computer patrol-boats from country cities"
       (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer :country-id 2}
             stamped (stamping/stamp-computer-fields unit cell)]
-        (should= 2 (:patrol-country-id stamped))
-        (should= :clockwise (:patrol-direction stamped))
-        (should= :homing (:patrol-mode stamped))))
-
-    (it "stamps patrol-number incrementing per country"
-      (reset! atoms/patrol-boats-produced {})
-      (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
-            cell {:type :city :city-status :computer :country-id 2}
-            first-boat (stamping/stamp-computer-fields unit cell)
-            second-boat (stamping/stamp-computer-fields unit cell)
-            third-boat (stamping/stamp-computer-fields unit cell)]
-        (should= 1 (:patrol-number first-boat))
-        (should= 2 (:patrol-number second-boat))
-        (should= 3 (:patrol-number third-boat))))
+        (should= :crawling (:patrol-mode stamped))))
 
     (it "does not stamp patrol fields on patrol-boats from non-country cities"
       (let [unit {:type :patrol-boat :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
-        (should-not-contain :patrol-country-id stamped)))
+        (should-not-contain :patrol-mode stamped)))
 
     (it "does not stamp patrol fields on non-patrol-boat units"
       (let [unit {:type :destroyer :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer :country-id 2}
             stamped (stamping/stamp-computer-fields unit cell)]
-        (should-not-contain :patrol-country-id stamped))))
+        (should-not-contain :patrol-mode stamped))))
 
   (context "carrier fields"
     (it "stamps carrier fields on computer carriers"

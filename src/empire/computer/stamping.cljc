@@ -20,27 +20,19 @@
     unit))
 
 (defn- apply-country-id
-  "Assigns city's country-id to computer armies, transports, and fighters."
+  "Assigns city's country-id to computer armies, transports, fighters, and patrol boats."
   [unit cell]
-  (if (and (#{:army :transport :fighter} (:type unit)) (:country-id cell))
+  (if (and (#{:army :transport :fighter :patrol-boat} (:type unit)) (:country-id cell))
     (assoc unit :country-id (:country-id cell))
     unit))
 
 (defn- apply-patrol-fields
-  "Stamps patrol boat fields on computer patrol boats spawned from a country city.
-   Tracks patrol-number per country (1st coastline, 2nd+ heading-based)."
+  "Stamps patrol-mode on computer patrol boats spawned from a country city."
   [unit cell]
   (if (and (= :patrol-boat (:type unit))
            (= :computer (:city-status cell))
            (:country-id cell))
-    (let [country-id (:country-id cell)
-          produced (get @atoms/patrol-boats-produced country-id 0)
-          patrol-num (inc produced)]
-      (swap! atoms/patrol-boats-produced update country-id (fnil inc 0))
-      (assoc unit :patrol-country-id country-id
-                  :patrol-direction :clockwise
-                  :patrol-mode :homing
-                  :patrol-number patrol-num))
+    (assoc unit :patrol-mode :crawling)
     unit))
 
 (defn- apply-carrier-fields

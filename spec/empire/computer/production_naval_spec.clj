@@ -57,7 +57,7 @@
   ;; 4 patrol boats (new cap)
   (doseq [j [7 9 11 13]]
     (swap! atoms/game-map assoc-in [0 j :contents]
-           {:type :patrol-boat :owner :computer :patrol-country-id 1 :hits 1}))
+           {:type :patrol-boat :owner :computer :country-id 1 :hits 1}))
   ;; Fill any coastal land cells with armies to satisfy coastal-fill guard
   (let [game-map @atoms/game-map
         col0 (first game-map)]
@@ -90,7 +90,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (doseq [col [6 7 8 9]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should= :destroyer (production/decide-production [1 0])))
 
     (it "does not produce destroyer when global cap reached"
@@ -105,7 +105,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (doseq [col [6 7 8 9]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should-not= :destroyer (production/decide-production [1 0]))))
 
   (context "carrier production gate"
@@ -256,7 +256,7 @@
       (swap! atoms/game-map assoc-in [23 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [23 0 :contents :escort-destroyer-id] 1)
       (doseq [col [26 27 28 29]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [31 0 :contents :country-id] 1)
       ;; Add 2 extra computer cities (total 3 cities, 2 fighters)
@@ -276,7 +276,7 @@
       (swap! atoms/game-map assoc-in [23 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [23 0 :contents :escort-destroyer-id] 1)
       (doseq [col [26 27 28 29]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
       (should= :army (production/decide-production [1 0]))))
 
@@ -311,7 +311,7 @@
                               (#{7 9 11 13} i)
                               {:type :land :country-id 1
                                :contents {:type :patrol-boat :owner :computer
-                                          :patrol-country-id 1 :hits 1}}
+                                          :country-id 1 :hits 1}}
                               :else
                               {:type :land :country-id 1
                                :contents {:type :army :owner :player :hits 1}})))]
@@ -348,7 +348,7 @@
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (doseq [col [5 6 7 8]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       ;; No transports exist → should not produce destroyer
       (should-not= :destroyer (production/decide-production [1 0]))))
 

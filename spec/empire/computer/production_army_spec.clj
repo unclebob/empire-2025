@@ -146,7 +146,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (swap! atoms/game-map assoc-in [11 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [12 0 :contents :country-id] 1)
       ;; 2 armies, 2 coastal cells → limit reached → should NOT produce army
@@ -170,7 +170,7 @@
       (swap! atoms/game-map assoc-in [5 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [5 0 :contents :escort-destroyer-id] 1)
       (doseq [col [8 9 10 11]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (swap! atoms/game-map assoc-in [12 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [13 0 :contents :country-id] 1)
       ;; 2 armies < 3 coastal cells → unoccupied coastal cell exists → produces army
@@ -339,7 +339,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should-not= :patrol-boat (production/decide-production [1 0]))))
 
   (context "patrol boat production"
@@ -371,7 +371,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should-not= :patrol-boat (production/decide-production [1 0]))))
 
   (context "transport full boundary (L164)"

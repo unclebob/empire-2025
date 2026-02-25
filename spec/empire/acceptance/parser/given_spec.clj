@@ -286,7 +286,7 @@
     (it "parses 'p patrols for country 1' for patrol boat"
       (let [lines ["p patrols for country 1."]
             result (given/parse-given lines {})]
-        (should= [{:type :unit-props :unit "p" :props {:patrol-country-id 1}}]
+        (should= [{:type :unit-props :unit "p" :props {:country-id 1 :patrol-mode :crawling}}]
                  (:givens result))))
 
     (it "parses 't has 6 armies' as natural language army-count"
