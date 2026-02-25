@@ -20,7 +20,10 @@
       (should= 8 carrier/capacity))
 
     (it "has visibility radius of 1"
-      (should= 1 carrier/visibility-radius)))
+      (should= 1 carrier/visibility-radius))
+
+    (it "has strength of 1"
+      (should= 1 carrier/strength)))
 
   (context "initial-state"
     (it "starts with no fighters"
