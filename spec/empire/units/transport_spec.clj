@@ -20,7 +20,10 @@
       (should= 6 transport/capacity))
 
     (it "has visibility radius of 1"
-      (should= 1 transport/visibility-radius)))
+      (should= 1 transport/visibility-radius))
+
+    (it "has strength of 1"
+      (should= 1 transport/strength)))
 
   (context "initial-state"
     (it "starts with no armies and been-to-sea true"
