@@ -30,5 +30,9 @@
 					                                     {:git/url "https://github.com/unclebob/speclj-structure-check"
 					                                      :git/sha "493b8d2ae89a3c4e4ce472a59a50ac7ceb165af9"}}
 					                        :main-opts ["-m" "speclj-structure-check.core"]}
+					 :crap {:extra-deps {io.github.unclebob/crap4clj
+					                      {:git/url "https://github.com/unclebob/crap4clj"
+					                       :git/sha "d14e3af09f768a7284c103426e56d0295a30cd1d"}}
+					        :main-opts ["-m" "crap4clj.core"]}
 				 }
 			 }
