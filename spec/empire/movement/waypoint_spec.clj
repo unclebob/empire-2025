@@ -20,7 +20,7 @@
       (let [initial-map (assoc-in (build-test-map ["#"])
                                   [0 0 :contents] nil)]
         (reset! atoms/game-map initial-map)
-        (waypoint/create-waypoint [0 0])
+        (should= true (waypoint/create-waypoint [0 0]))
         (should-not-be-nil (:waypoint (get-in @atoms/game-map [0 0])))))
 
     (it "does not create a waypoint on a sea cell"
@@ -47,7 +47,7 @@
                             (assoc-in [0 0 :contents] nil)
                             (assoc-in [0 0 :waypoint] {:marching-orders [5 5]}))]
         (reset! atoms/game-map initial-map)
-        (waypoint/create-waypoint [0 0])
+        (should= true (waypoint/create-waypoint [0 0]))
         (should-be-nil (:waypoint (get-in @atoms/game-map [0 0]))))))
 
   (context "waypoint marching orders"
@@ -57,7 +57,7 @@
                             (assoc-in [0 0 :waypoint] {}))]
         (reset! atoms/game-map initial-map)
         (reset! atoms/destination [6 6])
-        (waypoint/set-waypoint-orders [0 0])
+        (should= true (waypoint/set-waypoint-orders [0 0]))
         (should= [6 6] (:marching-orders (:waypoint (get-in @atoms/game-map [0 0]))))))
 
     (it "does not set orders on a non-waypoint cell"
@@ -74,8 +74,38 @@
                             (assoc-in [1 1 :contents] nil)
                             (assoc-in [1 1 :waypoint] {}))]
         (reset! atoms/game-map initial-map)
-        (waypoint/set-waypoint-orders-by-direction [1 1] [1 0])  ; south
-        (should= [4 1] (:marching-orders (:waypoint (get-in @atoms/game-map [1 1])))))))
+        (should= true (waypoint/set-waypoint-orders-by-direction [1 1] [1 0]))  ; south
+        (should= [4 1] (:marching-orders (:waypoint (get-in @atoms/game-map [1 1]))))))
+
+    (it "sets marching orders by direction north to map edge"
+      (let [initial-map (-> (build-test-map ["-----"
+                                              "-#---"
+                                              "-----"])
+                            (assoc-in [1 1 :contents] nil)
+                            (assoc-in [1 1 :waypoint] {}))]
+        (reset! atoms/game-map initial-map)
+        (waypoint/set-waypoint-orders-by-direction [1 1] [-1 0])
+        (should= [0 1] (:marching-orders (:waypoint (get-in @atoms/game-map [1 1]))))))
+
+    (it "sets marching orders by direction east to map edge"
+      (let [initial-map (-> (build-test-map ["-----"
+                                              "-#---"
+                                              "-----"])
+                            (assoc-in [1 1 :contents] nil)
+                            (assoc-in [1 1 :waypoint] {}))]
+        (reset! atoms/game-map initial-map)
+        (waypoint/set-waypoint-orders-by-direction [1 1] [0 1])
+        (should= [1 2] (:marching-orders (:waypoint (get-in @atoms/game-map [1 1]))))))
+
+    (it "sets marching orders by direction west to map edge"
+      (let [initial-map (-> (build-test-map ["-----"
+                                              "-#---"
+                                              "-----"])
+                            (assoc-in [1 1 :contents] nil)
+                            (assoc-in [1 1 :waypoint] {}))]
+        (reset! atoms/game-map initial-map)
+        (waypoint/set-waypoint-orders-by-direction [1 1] [0 -1])
+        (should= [1 0] (:marching-orders (:waypoint (get-in @atoms/game-map [1 1])))))))
 
   (context "waypoint display"
     (it "has waypoint-color defined in config as green"
