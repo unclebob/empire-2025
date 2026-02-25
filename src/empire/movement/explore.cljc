@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-25
 (ns empire.movement.explore
   (:require [empire.atoms :as atoms]
             [empire.config :as config]

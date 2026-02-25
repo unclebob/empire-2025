@@ -3,6 +3,7 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.explore :refer :all]
+            [empire.movement.map-utils :as map-utils]
             [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms!]]))
 
 (describe "valid-explore-cell?"
@@ -102,6 +103,15 @@
             move (pick-explore-move [1 1] game-map visited)]
         ;; Should still return a move even though all are visited
         (should (some #{move} [[0 2] [1 2] [2 2]])))))
+
+  (it "prefers coastal moves when on coast and no unexplored moves"
+    (let [game-map (atom (build-test-map ["##~"
+                                          "#A~"
+                                          "##~"]))]
+      (reset! atoms/player-map @game-map)
+      (with-redefs [rand-nth first]
+        (let [move (pick-explore-move [1 1] game-map #{})]
+          (should (map-utils/adjacent-to-sea? move game-map))))))
 
   (it "returns nil when no valid moves"
     (let [game-map (atom (build-test-map ["~~~"
