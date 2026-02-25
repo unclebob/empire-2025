@@ -188,7 +188,7 @@
                :when (and unit
                           (= :computer (:owner unit))
                           (= :patrol-boat (:type unit))
-                          (= country-id (:patrol-country-id unit)))]
+                          (= country-id (:country-id unit)))]
            true)))
 
 (defn country-city-producing?

@@ -78,7 +78,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should= :fighter (production/decide-production [1 0])))
 
     (it "inland country city skips coastal priorities and produces army"
@@ -174,7 +174,7 @@
       (swap! atoms/game-map assoc-in [3 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
       (doseq [col [8 9 10 11]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should= :army (production/decide-production [1 0])))
 
     (it "does not produce army when another city in country is already producing armies"
@@ -234,7 +234,7 @@
       (swap! atoms/game-map assoc-in [5 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [5 0 :contents :army-count] 200)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :patrol-country-id] 1))
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/production {[1 0] {:item :destroyer :remaining-rounds 10}})
       (should= :fighter (production/decide-production [3 0]))))
 

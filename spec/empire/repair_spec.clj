@@ -371,9 +371,7 @@
       (let [ship (get-in @atoms/game-map [1 0 :contents])]
         (should= :patrol-boat (:type ship))
         (should= :computer (:owner ship))
-        (should= 5 (:patrol-country-id ship))
-        (should= :clockwise (:patrol-direction ship))
-        (should= :homing (:patrol-mode ship)))))
+        (should= :crawling (:patrol-mode ship)))))
 
   (it "does not stamp computer fields on player ships"
     (let [game-map (tu/build-test-map ["~O~"])]

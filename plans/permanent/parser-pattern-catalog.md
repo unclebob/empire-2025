@@ -49,7 +49,7 @@ Matched after keyword stripping. Context tracks `:units-with-mode` set.
 | `<C> has city-status <status>` | `{:type :city-prop :city C :prop :city-status :value :kw}` |
 | `territory around <C> belongs to country <N>` | `{:type :territory-around :city C :country-id N}` |
 | `<ref> belongs to country <N>` | city: `{:type :city-prop :city ref :prop :country-id :value N}`, unit: `{:type :unit-props :unit ref :props {:country-id N}}` |
-| `<ref> patrols [for] country <N>` | `{:type :unit-props :unit ref :props {:patrol-country-id N}}` |
+| `<ref> patrols [for] country <N>` | `{:type :unit-props :unit ref :props {:country-id N :patrol-mode :crawling}}` |
 
 ### Fallback: unit-prop extractors (parse-unit-props-line)
 If no directive matches, lines like `<U> is <mode>` or `<U> has fuel <N>` are parsed via extractors:

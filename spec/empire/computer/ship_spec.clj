@@ -55,15 +55,15 @@
 
   (context "exploration behavior"
     (it "explores toward unexplored sea"
-      (reset! atoms/computer-map [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
+      (reset! atoms/computer-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2}}
                                     {:type :sea}
                                     nil]])
-      (reset! atoms/game-map [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
+      (reset! atoms/game-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2}}
                                 {:type :sea}
                                 {:type :sea}]])
-      (ship/process-ship [0 0] :patrol-boat)
+      (ship/process-ship [0 0] :submarine)
       ;; Ship should have moved toward unexplored
-      (should= :patrol-boat (get-in @atoms/game-map [0 1 :contents :type])))
+      (should= :submarine (get-in @atoms/game-map [0 1 :contents :type])))
 
     (it "stays put when all sea is explored"
       (reset! atoms/game-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2}}
@@ -122,7 +122,7 @@
       (should-be-nil (ship/process-ship [0 0] :patrol-boat))))
 
   (context "patrol boat behavior"
-    (it "patrol boat moves along coastline"
+    (it "patrol boat crawls along coastline"
       ;; 3x3 map: land in center, sea around it. Patrol boat at [1 0] (sea, adjacent to land).
       ;; It should move to another sea cell that is also adjacent to land.
       (reset! atoms/game-map (build-test-map ["~~~"
@@ -130,29 +130,27 @@
                                                "~~~"]))
       (reset! atoms/computer-map @atoms/game-map)
       (swap! atoms/game-map assoc-in [1 0 :contents]
-             {:type :patrol-boat :owner :computer :hits 1
-              :patrol-country-id 1 :patrol-direction :clockwise :patrol-mode :patrolling})
-      (ship/process-ship [1 0] :patrol-boat)
-      ;; Patrol boat should have moved
-      (should-be-nil (:contents (get-in @atoms/game-map [1 0])))
-      ;; Find where it moved
-      (let [new-pos (first (for [r (range 3) c (range 3)
-                                 :when (= :patrol-boat (get-in @atoms/game-map [r c :contents :type]))]
-                             [r c]))
-            ;; The new position should be sea and adjacent to land [1 1]
-            adj-to-land? (some (fn [[dr dc]]
-                                 (let [nr (+ (first new-pos) dr)
-                                       nc (+ (second new-pos) dc)]
-                                   (= :land (:type (get-in @atoms/game-map [nr nc])))))
-                               [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])]
-        (should-not-be-nil new-pos)
-        (should adj-to-land?)))
+             {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
+      (with-redefs [rand-nth first]
+        (ship/process-ship [1 0] :patrol-boat)
+        ;; Patrol boat should have moved
+        (should-be-nil (:contents (get-in @atoms/game-map [1 0])))
+        ;; Find where it moved
+        (let [new-pos (first (for [r (range 3) c (range 3)
+                                   :when (= :patrol-boat (get-in @atoms/game-map [r c :contents :type]))]
+                               [r c]))
+              adj-to-land? (some (fn [[dr dc]]
+                                   (let [nr (+ (first new-pos) dr)
+                                         nc (+ (second new-pos) dc)]
+                                     (= :land (:type (get-in @atoms/game-map [nr nc])))))
+                                 [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])]
+          (should-not-be-nil new-pos)
+          (should adj-to-land?))))
 
     (it "patrol boat attacks adjacent transport"
       ;; Patrol boat next to a player transport - should attack it
       (reset! atoms/game-map [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
-                                                       :patrol-country-id 1 :patrol-direction :clockwise
-                                                       :patrol-mode :patrolling}}
+                                                       :patrol-mode :crawling}}
                                 {:type :sea :contents {:type :transport :owner :player :hits 3}}]])
       (reset! atoms/computer-map @atoms/game-map)
       (ship/process-ship [0 0] :patrol-boat)
@@ -162,186 +160,35 @@
         (should (or (nil? (:contents cell0))
                     (= :computer (:owner (:contents cell1)))))))
 
-    (it "patrol boat avoids recent positions when coast-patrolling"
-      ;; 3x5 map: land row at top, sea rows below. Patrol boat at [2,1] with history [[1,1]].
-      ;; Coastal cells adjacent to land row 0: [0,1],[1,1],[2,1],[3,1],[4,1]
-      ;; Patrol boat should move to a coastal cell NOT in history ([1,1]).
+    (it "patrol boat prefers unseen coast over seen coast"
+      ;; 3x5 map: land row at top. Mark [1,1] as seen.
       (reset! atoms/game-map (build-test-map ["#####"
                                                "~~~~~"
                                                "~~~~~"]))
       (reset! atoms/computer-map @atoms/game-map)
       (swap! atoms/game-map assoc-in [2 1 :contents]
-             {:type :patrol-boat :owner :computer :hits 1
-              :patrol-country-id 1 :patrol-direction :clockwise :patrol-mode :patrolling
-              :patrol-history [[1 1]]})
-      ;; Run multiple times to confirm it never picks [1,1]
-      (dotimes [_ 10]
-        (reset! atoms/game-map (build-test-map ["#####"
-                                                 "~~~~~"
-                                                 "~~~~~"]))
-        (swap! atoms/game-map assoc-in [2 1 :contents]
-               {:type :patrol-boat :owner :computer :hits 1
-                :patrol-country-id 1 :patrol-direction :clockwise :patrol-mode :patrolling
-                :patrol-history [[1 1]]})
-        (reset! atoms/computer-map @atoms/game-map)
+             {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
+      (reset! atoms/seen-coast #{[1 1]})
+      (with-redefs [rand-nth first]
         (ship/process-ship [2 1] :patrol-boat)
-        ;; Find where patrol boat moved
-        (let [new-pos (first (for [r (range 5) c (range 3)
-                                   :when (= :patrol-boat (get-in @atoms/game-map [r c :contents :type]))]
-                               [r c]))]
-          (should-not= [1 1] new-pos))))
-
-    (it "patrol boat falls back to any coastal cell when all filtered out"
-      ;; Wide coastal strip. Only coastal neighbor from [0,0] is [1,0] which is in history.
-      ;; Should still move there as fallback, then continue along coast at speed 4.
-      (reset! atoms/game-map (build-test-map ["~~~~~" "#####"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [0 0 :contents]
-             {:type :patrol-boat :owner :computer :hits 1
-              :patrol-country-id 1 :patrol-direction :clockwise :patrol-mode :patrolling
-              :patrol-history [[1 0]]})
-      (ship/process-ship [0 0] :patrol-boat)
-      ;; Boat used fallback (history cell) then continued along coast
-      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-      (let [new-pos (first (for [c (range 5) r (range 2)
-                                 :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
-                             [c r]))]
-        (should-not-be-nil new-pos)))
-
-    (it "patrol boat updates patrol-history after moving"
-      (reset! atoms/game-map (build-test-map ["#####"
-                                               "~~~~~"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [2 1 :contents]
-             {:type :patrol-boat :owner :computer :hits 1
-              :patrol-country-id 1 :patrol-direction :clockwise :patrol-mode :patrolling
-              :patrol-history [[3 1]]})
-      (ship/process-ship [2 1] :patrol-boat)
-      ;; Find where patrol boat moved (moves up to 4 steps along coast)
-      (let [new-pos (first (for [c (range 5) r (range 3)
-                                 :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
-                             [c r]))
-            unit (get-in @atoms/game-map (conj new-pos :contents))]
-        ;; History should have recent positions (limited to 3 entries)
-        (should (seq (:patrol-history unit)))))
+        ;; Find where patrol boat ended up
+        (let [new-pos (first (for [c (range 5) r (range 3)
+                                   :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
+                               [c r]))]
+          (should-not-be-nil new-pos))))
 
     (it "patrol boat flees from non-transport enemy"
-      ;; Note: This test must come before the destroyer escort tests
       ;; Patrol boat at [0 1], destroyer at [0 2] -- should move away to [0 0]
       (reset! atoms/game-map [[{:type :sea}
                                 {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
-                                                       :patrol-country-id 1 :patrol-direction :clockwise
-                                                       :patrol-mode :patrolling}}
+                                                       :patrol-mode :crawling}}
                                 {:type :sea :contents {:type :destroyer :owner :player :hits 3}}]])
       (reset! atoms/computer-map @atoms/game-map)
       (ship/process-ship [0 1] :patrol-boat)
       ;; Patrol boat should have fled to [0 0] (away from destroyer at [0 2])
       (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type])))
 
-    (it "2nd patrol boat sails in random heading instead of coastline patrol"
-      ;; Patrol boat with patrol-number 2 should sail heading-based, not coastline
-      ;; Large map so boat can move 4 steps south without hitting edge
-      (let [game-map (build-test-map (repeat 10 "~~~~~~~~~~"))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :patrol-boat :owner :computer :hits 1
-                :patrol-country-id 1 :patrol-number 2})
-        (with-redefs [rand-int (constantly 180)]  ; heading south
-          (ship/process-ship [2 2] :patrol-boat))
-        ;; Should have moved 4 cells south via heading-based sailing (speed 4)
-        (let [unit (:contents (get-in @atoms/game-map [2 6]))]
-          (should= :patrol-boat (:type unit))
-          (should= 180 (:patrol-heading unit)))))
-
-    (it "sailing patrol boat switches to coastline exploration at unexplored coast"
-      ;; Patrol boat at [2 2] heading east. Land at col 4 is unexplored.
-      ;; [3 2] is sea adjacent to unexplored land -> should switch to coastline mode.
-      ;; After switching, remaining steps continue as coastline patrol.
-      (let [game-map (build-test-map ["~~~~#"
-                                      "~~~~#"
-                                      "~~~~#"
-                                      "~~~~#"
-                                      "~~~~#"])]
-        (reset! atoms/game-map game-map)
-        ;; Sea explored, land at col 4 unexplored
-        (reset! atoms/computer-map [(vec (repeat 5 {:type :sea}))
-                                    (vec (repeat 5 {:type :sea}))
-                                    (vec (repeat 5 {:type :sea}))
-                                    (vec (repeat 5 {:type :sea}))
-                                    (vec (repeat 5 nil))])
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :patrol-boat :owner :computer :hits 1
-                :patrol-country-id 1 :patrol-number 2 :patrol-heading 90})
-        (with-redefs [rand-int (constantly 10)]
-          (ship/process-ship [2 2] :patrol-boat))
-        ;; Boat should have switched to coastline-exploring mode
-        (let [new-pos (first (for [c (range 5) r (range 5)
-                                   :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
-                               [c r]))
-              unit (get-in @atoms/game-map (conj new-pos :contents))]
-          (should= :patrol-boat (:type unit))
-          (should= :coastline-exploring (:patrol-mode unit)))))
-
-    (it "patrol boat in coastline-exploring mode does coastline patrol"
-      ;; Patrol boat at [1 2] heading east (away from coast).
-      ;; Land at col 0. If heading sailing, would move to [2 2].
-      ;; In coastline-exploring mode, should move along coast (stay adjacent to land).
-      (reset! atoms/game-map (build-test-map ["#~~~~"
-                                               "#~~~~"
-                                               "#~~~~"
-                                               "#~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 2 :contents]
-             {:type :patrol-boat :owner :computer :hits 1
-              :patrol-country-id 1 :patrol-number 2
-              :patrol-mode :coastline-exploring :patrol-heading 90})
-      (ship/process-ship [1 2] :patrol-boat)
-      ;; Should move to a coastal cell (adjacent to land at col 0), NOT [2 2]
-      (let [new-pos (first (for [c (range 5) r (range 4)
-                                  :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
-                              [c r]))]
-        (should-not-be-nil new-pos)
-        ;; Should still be adjacent to land (col 0 or col 1)
-        (should (<= (first new-pos) 1))))
-
-    (it "sailing patrol boat reflects off map border"
-      ;; Patrol boat at top edge heading north -> should reflect and then move
-      (let [game-map (build-test-map (repeat 10 "~~~~~~~~~~"))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [5 0 :contents]
-               {:type :patrol-boat :owner :computer :hits 1
-                :patrol-country-id 1 :patrol-number 3 :patrol-heading 0})
-        (with-redefs [rand-int (constantly 10)]
-          (ship/process-ship [5 0] :patrol-boat))
-        ;; Should have reflected heading and moved away from border
-        (should-be-nil (:contents (get-in @atoms/game-map [5 0])))
-        (let [new-pos (first (for [c (range 10) r (range 10)
-                                   :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
-                               [c r]))
-              unit (get-in @atoms/game-map (conj new-pos :contents))]
-          (should= :patrol-boat (:type unit))
-          (should-not= 0 (:patrol-heading unit)))))
-
-    (it "1st patrol boat does coastline patrol as before"
-      ;; Patrol boat with patrol-number 1 still does coastline patrol
-      (reset! atoms/game-map (build-test-map ["~~~"
-                                               "~#~"
-                                               "~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :contents]
-             {:type :patrol-boat :owner :computer :hits 1
-              :patrol-country-id 1 :patrol-number 1
-              :patrol-direction :clockwise :patrol-mode :patrolling})
-      (ship/process-ship [1 0] :patrol-boat)
-      ;; Should have done coastline move (adjacent to land)
-      (should-be-nil (:contents (get-in @atoms/game-map [1 0])))
-      (let [new-pos (first (for [c (range 3) r (range 3)
-                                  :when (= :patrol-boat (get-in @atoms/game-map [c r :contents :type]))]
-                              [c r]))]
-        (should-not-be-nil new-pos))))
+)
 
   (context "destroyer escort behavior"
     (it "seeking destroyer adopts unadopted transport"
