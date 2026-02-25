@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-25
 (ns empire.movement.visibility
   (:require [empire.atoms :as atoms]
             [empire.units.dispatcher :as dispatcher]))
