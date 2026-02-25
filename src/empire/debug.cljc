@@ -100,7 +100,8 @@
                          [:unload-event-id "eid"]
                          [:attack-target "atk-target"]
                          [:pickup-continent-pos "pcp"]
-                         [:stuck-since-round "stuck-since"]]
+                         [:stuck-since-round "stuck-since"]
+                         [:patrol-mode "patrol-mode"]]
         optional-strs (for [[k label] optional-fields
                             :let [v (get contents k)]
                             :when v]

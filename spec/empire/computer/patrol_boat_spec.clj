@@ -182,7 +182,69 @@
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
       ;; All sea, no coast anywhere
-      (should-be-nil (ship/patrol-explore-step [1 1])))))
+      (should-be-nil (ship/patrol-explore-step [1 1]))))
+
+  (it "stores BFS path on unit and follows it step by step"
+    (let [game-map (tu/build-test-map ["~~~~~~~#"
+                                       "~p~~~~~#"
+                                       "~~~~~~~#"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-map game-map)
+      (tu/set-test-unit atoms/game-map "p" :patrol-mode :exploring)
+      (let [result (ship/patrol-explore-step [1 1])
+            unit (get-in @atoms/game-map (conj result :contents))]
+        (should-not-be-nil result)
+        ;; Should store remaining path (not just target)
+        (should-not-be-nil (:explore-path unit))
+        (should (vector? (:explore-path unit))))))
+
+  (it "follows stored path without re-running BFS"
+    (let [game-map (tu/build-test-map ["~~~~~~~#"
+                                       "~p~~~~~#"
+                                       "~~~~~~~#"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-map game-map)
+      (tu/set-test-unit atoms/game-map "p" :patrol-mode :exploring)
+      ;; Pre-store a path on the unit
+      (swap! atoms/game-map assoc-in [1 1 :contents :explore-path]
+             [[2 1] [3 1] [4 1]])
+      (let [bfs-call-count (atom 0)]
+        (with-redefs [pathfinding/bfs-to-unseen-coast
+                      (fn [& _] (swap! bfs-call-count inc) nil)]
+          (let [result (ship/patrol-explore-step [1 1])]
+            (should= [2 1] result)
+            (should= 0 @bfs-call-count)
+            ;; Remaining path should be [[3 1] [4 1]]
+            (let [unit (get-in @atoms/game-map [2 1 :contents])]
+              (should= [[3 1] [4 1]] (:explore-path unit))))))))
+
+  (it "clears explore-path when arriving at unseen coast"
+    ;; Place patrol boat one step from coast via stored path
+    (let [game-map (tu/build-test-map ["####"
+                                       "~p~#"
+                                       "####"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-map game-map)
+      ;; Path leads to [2,1] which is adjacent to land at [3,1]
+      (swap! atoms/game-map assoc-in [1 1 :contents :explore-path] [[2 1]])
+      (let [result (ship/patrol-explore-step [1 1])
+            unit (get-in @atoms/game-map (conj result :contents))]
+        (should= [2 1] result)
+        (should-be-nil (:explore-path unit))
+        (should= :crawling (:patrol-mode unit)))))
+
+  (it "clears explore-path when step is blocked by occupant"
+    (let [game-map (tu/build-test-map ["~~~"
+                                       "~pd"
+                                       "~~~"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-map game-map)
+      ;; Path leads to [2,1] which is occupied by a computer destroyer
+      (swap! atoms/game-map assoc-in [1 1 :contents :explore-path] [[2 1]])
+      (let [result (ship/patrol-explore-step [1 1])]
+        (should-be-nil result)
+        (let [unit (get-in @atoms/game-map [1 1 :contents])]
+          (should-be-nil (:explore-path unit)))))))
 
 (describe "process-patrol-boat (unified)"
   (before (tu/reset-all-atoms!))
@@ -249,15 +311,15 @@
         (let [{:keys [pos]} (tu/get-test-unit atoms/game-map "p")]
           (should-not= [1 1] pos)))))
 
-  (it "patrol boat without patrol-mode stays put"
+  (it "patrol boat without patrol-mode defaults to crawling"
     (let [game-map (tu/build-test-map ["####"
                                        "#p~~"
                                        "####"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
-      ;; No :patrol-mode set — case dispatch returns nil
+      ;; No :patrol-mode set — defaults to :crawling
       (ship/process-ship [1 1] :patrol-boat)
-      (should= :patrol-boat (get-in @atoms/game-map [1 1 :contents :type]))))
+      (should-be-nil (get-in @atoms/game-map [1 1 :contents]))))
 
   (it "seen-coast is shared between multiple patrol boats"
     ;; Two patrol boats crawling the same coastline

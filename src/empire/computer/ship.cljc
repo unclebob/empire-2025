@@ -191,24 +191,51 @@
   (and (not (contains? @atoms/seen-coast pos))
        (adjacent-to-land? pos)))
 
-(defn patrol-explore-step
-  "Explore toward unseen coast via BFS. Moves one step toward target.
-   Switches to :crawling upon arriving at unseen coast.
-   Returns new position or nil."
+(defn- run-bfs-and-store-path
+  "Run BFS to find unseen coast, store full path on unit. Returns path or nil."
   [pos]
   (when-let [path (pathfinding/bfs-to-unseen-coast
                     pos @atoms/computer-map @atoms/game-map)]
-    (let [target (last path)
-          passable (get-passable-sea-neighbors pos)
-          next-pos (core/move-toward pos target passable)]
-      (when next-pos
-        (core/move-unit-to pos next-pos)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility next-pos :computer)
-        (when (arrived-at-unseen-coast? next-pos)
-          (swap! atoms/game-map assoc-in
-                 (conj next-pos :contents :patrol-mode) :crawling))
-        next-pos))))
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :explore-path) (vec path))
+    path))
+
+(defn- switch-to-crawling [next-pos]
+  "Switch patrol boat to crawling mode and clear explore state."
+  (swap! atoms/game-map update-in (conj next-pos :contents)
+         #(-> % (assoc :patrol-mode :crawling)
+              (dissoc :explore-path))))
+
+(defn- follow-explore-path
+  "Take one step along stored BFS path. Returns new pos or nil."
+  [pos path]
+  (let [next-pos (first path)
+        rest-path (vec (rest path))]
+    (if (core/move-unit-to pos next-pos)
+      (do (visibility/update-cell-visibility pos :computer)
+          (visibility/update-cell-visibility next-pos :computer)
+          (if (arrived-at-unseen-coast? next-pos)
+            (switch-to-crawling next-pos)
+            (swap! atoms/game-map assoc-in
+                   (conj next-pos :contents :explore-path) rest-path))
+          next-pos)
+      (do (swap! atoms/game-map update-in
+                 (conj pos :contents) dissoc :explore-path)
+          nil))))
+
+(defn patrol-explore-step
+  "Explore toward unseen coast. Stores BFS path and follows it step by step.
+   Switches to crawling on arrival at unseen coast.
+   Returns new position or nil."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        path (:explore-path unit)]
+    (if (seq path)
+      (follow-explore-path pos path)
+      (when (run-bfs-and-store-path pos)
+        (let [new-path (:explore-path
+                         (get-in @atoms/game-map (conj pos :contents)))]
+          (follow-explore-path pos new-path))))))
 
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
@@ -218,10 +245,9 @@
     (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
       (flee-from pos enemy-pos)
       (let [unit (get-in @atoms/game-map (conj pos :contents))]
-        (case (:patrol-mode unit)
+        (case (or (:patrol-mode unit) :crawling)
           :crawling (patrol-crawl-step pos)
-          :exploring (patrol-explore-step pos)
-          nil)))))
+          :exploring (patrol-explore-step pos))))))
 
 (defn- process-patrol-boat
   "Processes a computer patrol boat. Moves up to speed 4 steps per round.
