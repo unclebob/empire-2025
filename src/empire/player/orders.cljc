@@ -36,6 +36,12 @@
   (reset! atoms/destination [cx cy])
   true)
 
+(defn- apply-marching-orders [path dest]
+  (swap! atoms/game-map assoc-in path dest)
+  (reset! atoms/destination nil)
+  (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+  true)
+
 (defn set-marching-orders-at
   "Sets marching orders on a player city, transport, or waypoint at the given coordinates."
   [[cx cy]]
@@ -43,23 +49,14 @@
     (let [cell (get-in @atoms/game-map [cx cy])
           contents (:contents cell)]
       (cond
-        (and (= (:type cell) :city)
-             (= (:city-status cell) :player))
-        (do (swap! atoms/game-map assoc-in [cx cy :marching-orders] dest)
-            (reset! atoms/destination nil)
-            (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
-            true)
+        (and (= (:type cell) :city) (= (:city-status cell) :player))
+        (apply-marching-orders [cx cy :marching-orders] dest)
 
-        (and (= (:type contents) :transport)
-             (= (:owner contents) :player))
-        (do (swap! atoms/game-map assoc-in [cx cy :contents :marching-orders] dest)
-            (reset! atoms/destination nil)
-            (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
-            true)
+        (and (= (:type contents) :transport) (= (:owner contents) :player))
+        (apply-marching-orders [cx cy :contents :marching-orders] dest)
 
         (:waypoint cell)
-        (do (waypoint/set-waypoint-orders [cx cy])
-            true)
+        (do (waypoint/set-waypoint-orders [cx cy]) true)
 
         :else nil))))
 
