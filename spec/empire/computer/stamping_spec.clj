@@ -33,6 +33,7 @@
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= :loading (:transport-mission stamped))
         (should= 5 (:transport-id stamped))
+        (should= 0 (:army-count stamped))
         (should= 6 @atoms/next-transport-id)))
 
     (it "does not assign transport fields to player transports"
@@ -239,3 +240,43 @@
           stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
       (should= :awake (:mode stamped))
       (should-not-contain :coast-direction stamped))))
+
+(describe "apply-random-explore-fields"
+  (before (reset-all-atoms!))
+
+  (it "stamps random-explore on computer army when rand < 1/3"
+    (with-redefs [rand (constantly 0.0)
+                  rand-nth (fn [v] (first v))]
+      (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
+            cell {:type :city :city-status :computer :country-id 1}
+            stamped (stamping/apply-random-explore-fields unit :army cell)]
+        (should= :random-explore (:mode stamped))
+        (should-contain :random-explore-direction stamped))))
+
+  (it "does not stamp when rand >= 1/3"
+    (with-redefs [rand (constantly 0.5)]
+      (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
+            cell {:type :city :city-status :computer :country-id 1}
+            stamped (stamping/apply-random-explore-fields unit :army cell)]
+        (should= :awake (:mode stamped)))))
+
+  (it "does not stamp on non-army item"
+    (with-redefs [rand (constantly 0.0)]
+      (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
+            cell {:type :city :city-status :computer :country-id 1}
+            stamped (stamping/apply-random-explore-fields unit :transport cell)]
+        (should-not-contain :random-explore-direction stamped))))
+
+  (it "does not stamp on player army"
+    (with-redefs [rand (constantly 0.0)]
+      (let [unit {:type :army :owner :player :hits 1 :mode :awake}
+            cell {:type :city :city-status :player :country-id 1}
+            stamped (stamping/apply-random-explore-fields unit :army cell)]
+        (should-not-contain :random-explore-direction stamped))))
+
+  (it "does not stamp on coast-walk army"
+    (with-redefs [rand (constantly 0.0)]
+      (let [unit {:type :army :owner :computer :hits 1 :mode :coast-walk}
+            cell {:type :city :city-status :computer :country-id 1}
+            stamped (stamping/apply-random-explore-fields unit :army cell)]
+        (should= :coast-walk (:mode stamped))))))
