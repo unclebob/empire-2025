@@ -418,3 +418,48 @@
   (it "works with single-cell grid"
     (should= [[true]] (visibility-mask (build-test-map ["#"])))
     (should= [[false]] (visibility-mask (build-test-map ["."])))))
+
+(describe "territory-mask"
+  (it "returns nil for nil cells"
+    (let [grid (build-test-map ["."])]
+      (should= [[nil]] (territory-mask grid))))
+
+  (it "returns :sea for sea cells"
+    (let [grid (build-test-map ["~"])]
+      (should= [[:sea]] (territory-mask grid))))
+
+  (it "returns country-id when present"
+    (let [grid (build-test-map ["#"])]
+      (swap! (atom grid) identity)
+      (let [grid-with-id (assoc-in grid [0 0 :country-id] 3)]
+        (should= [[3]] (territory-mask grid-with-id)))))
+
+  (it "returns nil for land without country-id"
+    (let [grid (build-test-map ["#"])]
+      (should= [[nil]] (territory-mask grid))))
+
+  (it "handles mixed cells"
+    (let [grid (-> (build-test-map ["~#" "#~"])
+                   (assoc-in [0 1 :country-id] 1))]
+      (should= [[:sea 1] [nil :sea]] (territory-mask grid)))))
+
+(describe "build-territory-expected"
+  (it "converts ~ to :sea"
+    (should= [[:sea]] (build-territory-expected ["~"])))
+
+  (it "converts . to nil"
+    (should= [[nil]] (build-territory-expected ["."])))
+
+  (it "converts digit to number"
+    (should= [[0]] (build-territory-expected ["0"]))
+    (should= [[5]] (build-territory-expected ["5"]))
+    (should= [[9]] (build-territory-expected ["9"])))
+
+  (it "converts non-matching char to nil"
+    (should= [[nil]] (build-territory-expected ["#"])))
+
+  (it "handles multi-cell row"
+    (should= [[:sea] [nil] [1]] (build-territory-expected ["~.1"])))
+
+  (it "handles multi-row transposition"
+    (should= [[:sea 1] [nil 2]] (build-territory-expected ["~." "12"]))))
