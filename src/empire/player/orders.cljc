@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-25
 (ns empire.player.orders
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
