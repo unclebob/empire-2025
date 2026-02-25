@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-25
 (ns empire.units.ships
   "Data-driven configuration for simple naval units.
    All four ship types share identical behavior (sea-only movement, awake attention)
