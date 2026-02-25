@@ -5,6 +5,7 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
+            [empire.player.orders :as orders]
             [empire.save-load :as save-load]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!]]))
 
@@ -17,28 +18,28 @@
 
   (it "sets marching orders to :lookaround on player city"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (input/set-city-lookaround city-coords)
+      (orders/set-city-lookaround city-coords)
       (should= :lookaround (get-in @atoms/game-map (conj city-coords :marching-orders)))))
 
   (it "returns true when setting lookaround on player city"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (should (input/set-city-lookaround city-coords))))
+      (should (orders/set-city-lookaround city-coords))))
 
   (it "does not set marching orders on computer city"
     (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
-      (input/set-city-lookaround city-coords)
+      (orders/set-city-lookaround city-coords)
       (should-be-nil (get-in @atoms/game-map (conj city-coords :marching-orders)))))
 
   (it "returns nil when cell is not a player city"
     (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
-      (should-be-nil (input/set-city-lookaround city-coords))))
+      (should-be-nil (orders/set-city-lookaround city-coords))))
 
   (it "does not set marching orders on non-city cell"
-    (input/set-city-lookaround [0 0])
+    (orders/set-city-lookaround [0 0])
     (should-be-nil (get-in @atoms/game-map [0 0 :marching-orders])))
 
   (it "returns nil for non-city cell"
-    (should-be-nil (input/set-city-lookaround [0 0]))))
+    (should-be-nil (orders/set-city-lookaround [0 0]))))
 
 (describe "handle-key :space"
   (before (reset-all-atoms!))
@@ -187,7 +188,7 @@
     (reset! atoms/backtick-pressed false))
 
   (it "toggles pause when P is pressed"
-    (input/key-down :P)
+    (input/dispatch-key :P nil)
     (should @atoms/pause-requested)))
 
 (describe "key-down :space when paused"
@@ -204,15 +205,15 @@
     (reset! atoms/round-number 5))
 
   (it "starts new round when both item lists are empty"
-    (input/key-down :space)
+    (input/dispatch-key :space nil)
     (should= 6 @atoms/round-number))
 
   (it "sets pause-requested to pause after round"
-    (input/key-down :space)
+    (input/dispatch-key :space nil)
     (should= true @atoms/pause-requested))
 
   (it "unpauses to allow game loop to process"
-    (input/key-down :space)
+    (input/dispatch-key :space nil)
     (should= false @atoms/paused)))
 
 (describe "save/load key handling"
@@ -223,12 +224,12 @@
   (it "! key calls save-game! and shows confirmation"
     (let [saved (atom false)]
       (with-redefs [save-load/save-game! (fn [] (reset! saved true) "test-file.edn")]
-        (input/key-down (keyword "!"))
+        (input/dispatch-key (keyword "!") nil)
         (should @saved)
         (should (string/includes? @atoms/turn-message "test-file.edn")))))
 
   (it "^ key opens load menu"
-    (input/key-down (keyword "^"))
+    (input/dispatch-key (keyword "^") nil)
     (should= true @atoms/load-menu-open)))
 
 (describe "Escape key with load menu"
@@ -239,12 +240,12 @@
   (it "closes load menu when open"
     (reset! atoms/load-menu-open true)
     (reset! atoms/load-menu-files ["file.edn"])
-    (input/key-down :escape)
+    (input/dispatch-key :escape nil)
     (should= false @atoms/load-menu-open)
     (should= [] @atoms/load-menu-files))
 
   (it "does nothing when load menu is closed"
-    (input/key-down :escape)
+    (input/dispatch-key :escape nil)
     (should= false @atoms/load-menu-open)))
 
 (describe "key blocking while load menu open"
@@ -255,13 +256,13 @@
   (it "ignores non-escape keys when menu is open"
     (reset! atoms/load-menu-open true)
     (reset! atoms/pause-requested false)
-    (input/key-down :P)
+    (input/dispatch-key :P nil)
     (should= false @atoms/pause-requested))
 
   (it "processes normal keys when menu is closed"
     (reset! atoms/load-menu-open false)
     (reset! atoms/paused false)
-    (input/key-down :P)
+    (input/dispatch-key :P nil)
     (should= true @atoms/pause-requested)))
 
 (describe "load menu click handling"
@@ -330,3 +331,121 @@
       (let [ship (:contents (get-in @atoms/game-map ship-coords))]
         (should= :moving (:mode ship))
         (should= city-coords (:target ship))))))
+
+(describe "dispatch-key backtick mode"
+  (before
+    (reset-all-atoms!)
+    (reset! atoms/game-map (build-test-map ["#~O"
+                                             "~~~"
+                                             "~~~"]))
+    (reset! atoms/backtick-pressed true))
+
+  (it "places player army on land"
+    (input/dispatch-key :A [0 0])
+    (should= :army (:type (:contents (get-in @atoms/game-map [0 0]))))
+    (should= :player (:owner (:contents (get-in @atoms/game-map [0 0])))))
+
+  (it "places computer army on land"
+    (input/dispatch-key :a [0 0])
+    (should= :army (:type (:contents (get-in @atoms/game-map [0 0]))))
+    (should= :computer (:owner (:contents (get-in @atoms/game-map [0 0])))))
+
+  (it "places player fighter on land"
+    (input/dispatch-key :F [0 0])
+    (should= :fighter (:type (:contents (get-in @atoms/game-map [0 0])))))
+
+  (it "places computer destroyer on sea"
+    (input/dispatch-key :d [0 1])
+    (should= :destroyer (:type (:contents (get-in @atoms/game-map [0 1]))))
+    (should= :computer (:owner (:contents (get-in @atoms/game-map [0 1])))))
+
+  (it "claims city for player with :o"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :o city-coords)
+      (should= :player (get-in @atoms/game-map (conj city-coords :city-status)))))
+
+  (it "clears backtick-pressed"
+    (input/dispatch-key :A [0 0])
+    (should= false @atoms/backtick-pressed))
+
+  (it "does nothing with nil cell-coords"
+    (input/dispatch-key :A nil)
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+  (it "clears backtick-pressed even with nil cell-coords"
+    (input/dispatch-key :A nil)
+    (should= false @atoms/backtick-pressed)))
+
+(describe "dispatch-key normal mode mouse commands"
+  (before
+    (reset-all-atoms!)
+    (reset! atoms/game-map (build-test-map ["O~~"
+                                             "~~~"
+                                             "~~~"])))
+
+  (it ". key sets destination"
+    (input/dispatch-key (keyword ".") [1 2])
+    (should= [1 2] @atoms/destination))
+
+  (it ". key does nothing with nil coords"
+    (input/dispatch-key (keyword ".") nil)
+    (should-be-nil @atoms/destination))
+
+  (it ":m key sets marching orders on player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/destination [2 2])
+      (input/dispatch-key :m city-coords)
+      (should= [2 2] (get-in @atoms/game-map (conj city-coords :marching-orders)))))
+
+  (it ":m key does nothing with nil coords"
+    (reset! atoms/destination [2 2])
+    (input/dispatch-key :m nil)
+    (should= [2 2] @atoms/destination))
+
+  (it ":f key sets flight path on player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/destination [2 2])
+      (input/dispatch-key :f city-coords)
+      (should= [2 2] (get-in @atoms/game-map (conj city-coords :flight-path)))))
+
+  (it ":f key does nothing with nil coords"
+    (reset! atoms/destination [2 2])
+    (input/dispatch-key :f nil)
+    (should= [2 2] @atoms/destination))
+
+  (it ":f key does nothing without destination"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :f city-coords)
+      (should-be-nil (get-in @atoms/game-map (conj city-coords :flight-path)))))
+
+  (it ":u key wakes player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (swap! atoms/production assoc city-coords :army)
+      (input/dispatch-key :u city-coords)
+      (should-be-nil (get @atoms/production city-coords))))
+
+  (it ":u key does nothing with nil coords"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (swap! atoms/production assoc city-coords :army)
+      (input/dispatch-key :u nil)
+      (should= :army (get @atoms/production city-coords))))
+
+  (it ":l key sets lookaround on player city"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :l city-coords)
+      (should= :lookaround (get-in @atoms/game-map (conj city-coords :marching-orders)))))
+
+  (it ":l key does nothing with nil coords"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :l nil)
+      (should-be-nil (get-in @atoms/game-map (conj city-coords :marching-orders)))))
+
+  (it "direction key sets city marching orders to edge"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :d city-coords)
+      (should= [2 0] (get-in @atoms/game-map (conj city-coords :marching-orders)))))
+
+  (it "direction key does nothing with nil coords"
+    (input/dispatch-key :d nil)
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (should-be-nil (get-in @atoms/game-map (conj city-coords :marching-orders))))))

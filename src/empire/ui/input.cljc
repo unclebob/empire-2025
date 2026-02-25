@@ -10,11 +10,11 @@
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement :as movement]
+            [empire.player.orders :as orders]
             [empire.player.production :as production]
             [empire.containers.helpers :as uc]
             [empire.save-load :as save-load]
             [empire.units.dispatcher :as dispatcher]
-            [empire.movement.waypoint :as waypoint]
             [quil.core :as q]))
 
 (defn handle-unit-click
@@ -318,152 +318,6 @@
           (handle-unit-movement-key k coords cell))
         (handle-city-production-key k coords cell)))))
 
-(defn add-unit-at-mouse
-  ([unit-type] (add-unit-at-mouse unit-type :player))
-  ([unit-type owner]
-   (let [x (q/mouse-x)
-         y (q/mouse-y)]
-     (when (map-utils/on-map? x y)
-       (movement/add-unit-at (map-utils/determine-cell-coordinates x y) unit-type owner)))))
-
-(defn wake-at-mouse []
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (when (map-utils/on-map? x y)
-      (movement/wake-at (map-utils/determine-cell-coordinates x y)))))
-
-(defn own-city-at-mouse []
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (when (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-            cell (get-in @atoms/game-map [cx cy])]
-        (when (= (:type cell) :city)
-          (swap! atoms/game-map assoc-in [cx cy :city-status] :player)
-          true)))))
-
-(defn set-city-lookaround
-  "Sets marching orders to :lookaround on a player city at the given coordinates."
-  [[cx cy]]
-  (let [cell (get-in @atoms/game-map [cx cy])]
-    (when (and (= (:type cell) :city)
-               (= (:city-status cell) :player))
-      (swap! atoms/game-map assoc-in [cx cy :marching-orders] :lookaround)
-      (atoms/set-turn-message "Marching orders set to lookaround" 2000)
-      true)))
-
-(defn set-lookaround-at-mouse []
-  "Sets lookaround marching orders on a player city under the mouse cursor."
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (when (map-utils/on-map? x y)
-      (set-city-lookaround (map-utils/determine-cell-coordinates x y)))))
-
-(defn set-destination-at-mouse []
-  "Sets the destination to the cell under the mouse cursor."
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (when (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)]
-        (reset! atoms/destination [cx cy])
-        true))))
-
-(defn set-marching-orders-at-mouse []
-  "Sets marching orders on a player city, transport, or waypoint under the mouse to the current destination."
-  (when-let [dest @atoms/destination]
-    (let [x (q/mouse-x)
-          y (q/mouse-y)]
-      (when (map-utils/on-map? x y)
-        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-              cell (get-in @atoms/game-map [cx cy])
-              contents (:contents cell)]
-          (cond
-            (and (= (:type cell) :city)
-                 (= (:city-status cell) :player))
-            (do (swap! atoms/game-map assoc-in [cx cy :marching-orders] dest)
-                (reset! atoms/destination nil)
-                (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
-                true)
-
-            (and (= (:type contents) :transport)
-                 (= (:owner contents) :player))
-            (do (swap! atoms/game-map assoc-in [cx cy :contents :marching-orders] dest)
-                (reset! atoms/destination nil)
-                (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
-                true)
-
-            (:waypoint cell)
-            (do (waypoint/set-waypoint-orders [cx cy])
-                true)
-
-            :else nil))))))
-
-(defn set-flight-path-at-mouse []
-  "Sets flight path on a player city or carrier under the mouse to the current destination."
-  (when-let [dest @atoms/destination]
-    (let [x (q/mouse-x)
-          y (q/mouse-y)]
-      (when (map-utils/on-map? x y)
-        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-              cell (get-in @atoms/game-map [cx cy])
-              contents (:contents cell)]
-          (cond
-            (and (= (:type cell) :city)
-                 (= (:city-status cell) :player))
-            (do (swap! atoms/game-map assoc-in [cx cy :flight-path] dest)
-                (reset! atoms/destination nil)
-                (atoms/set-turn-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
-                true)
-
-            (and (= (:type contents) :carrier)
-                 (= (:owner contents) :player))
-            (do (swap! atoms/game-map assoc-in [cx cy :contents :flight-path] dest)
-                (reset! atoms/destination nil)
-                (atoms/set-turn-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
-                true)
-
-            :else nil))))))
-
-(defn set-waypoint-at-mouse []
-  "Creates or removes a waypoint at the cell under the mouse cursor."
-  (let [x (q/mouse-x)
-        y (q/mouse-y)]
-    (when (map-utils/on-map? x y)
-      (let [[cx cy] (map-utils/determine-cell-coordinates x y)]
-        (when (waypoint/create-waypoint [cx cy])
-          (let [cell (get-in @atoms/game-map [cx cy])]
-            (if (:waypoint cell)
-              (atoms/set-turn-message (str "Waypoint placed at " cx "," cy) 2000)
-              (atoms/set-turn-message (str "Waypoint removed from " cx "," cy) 2000)))
-          true)))))
-
-(defn set-city-marching-orders-by-direction [k]
-  "Sets marching orders on a player city or waypoint under the mouse to the map edge in the given direction."
-  (when-let [direction (config/key->direction k)]
-    (let [x (q/mouse-x)
-          y (q/mouse-y)]
-      (when (map-utils/on-map? x y)
-        (let [[cx cy] (map-utils/determine-cell-coordinates x y)
-              cell (get-in @atoms/game-map [cx cy])]
-          (cond
-            (and (= (:type cell) :city)
-                 (= (:city-status cell) :player))
-            (let [[dx dy] direction
-                  cols (count @atoms/game-map)
-                  rows (count (first @atoms/game-map))
-                  target (loop [tx cx ty cy]
-                           (let [nx (+ tx dx)
-                                 ny (+ ty dy)]
-                             (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
-                               (recur nx ny)
-                               [tx ty])))]
-              (swap! atoms/game-map assoc-in [cx cy :marching-orders] target)
-              (atoms/set-turn-message (str "Marching orders set to " (first target) "," (second target)) 2000)
-              true)
-
-            (:waypoint cell)
-            (waypoint/set-waypoint-orders-by-direction [cx cy] direction)))))))
-
 ;; Debug drag functions
 
 (defn modifier-held?
@@ -504,44 +358,42 @@
     (reset! atoms/debug-drag-start nil)
     (reset! atoms/debug-drag-current nil)))
 
-(defn key-down [k]
+(defn- mouse->cell []
+  (let [x (q/mouse-x) y (q/mouse-y)]
+    (when (map-utils/on-map? x y)
+      (map-utils/determine-cell-coordinates x y))))
+
+(defn dispatch-key [k cell-coords]
   (debug/log-action! [:key-pressed k])
   (cond
-    ;; Load menu is open - only Escape works
     @atoms/load-menu-open
-    (when (= k :escape)
-      (save-load/close-load-menu!))
+    (when (= k :escape) (save-load/close-load-menu!))
 
-    ;; Backtick prefix mode
     @atoms/backtick-pressed
-    (do
-      (reset! atoms/backtick-pressed false)
-      (case k
-        ;; Uppercase = player units
-        :A (add-unit-at-mouse :army :player)
-        :F (add-unit-at-mouse :fighter :player)
-        :Z (add-unit-at-mouse :satellite :player)
-        :T (add-unit-at-mouse :transport :player)
-        :P (add-unit-at-mouse :patrol-boat :player)
-        :D (add-unit-at-mouse :destroyer :player)
-        :S (add-unit-at-mouse :submarine :player)
-        :C (add-unit-at-mouse :carrier :player)
-        :B (add-unit-at-mouse :battleship :player)
-        ;; Lowercase = enemy/computer units
-        :a (add-unit-at-mouse :army :computer)
-        :f (add-unit-at-mouse :fighter :computer)
-        :z (add-unit-at-mouse :satellite :computer)
-        :t (add-unit-at-mouse :transport :computer)
-        :p (add-unit-at-mouse :patrol-boat :computer)
-        :d (add-unit-at-mouse :destroyer :computer)
-        :s (add-unit-at-mouse :submarine :computer)
-        :c (add-unit-at-mouse :carrier :computer)
-        :b (add-unit-at-mouse :battleship :computer)
-        ;; Other commands
-        :o (own-city-at-mouse)
-        nil))
+    (do (reset! atoms/backtick-pressed false)
+        (when cell-coords
+          (case k
+            :A (orders/add-unit-at cell-coords :army :player)
+            :F (orders/add-unit-at cell-coords :fighter :player)
+            :Z (orders/add-unit-at cell-coords :satellite :player)
+            :T (orders/add-unit-at cell-coords :transport :player)
+            :P (orders/add-unit-at cell-coords :patrol-boat :player)
+            :D (orders/add-unit-at cell-coords :destroyer :player)
+            :S (orders/add-unit-at cell-coords :submarine :player)
+            :C (orders/add-unit-at cell-coords :carrier :player)
+            :B (orders/add-unit-at cell-coords :battleship :player)
+            :a (orders/add-unit-at cell-coords :army :computer)
+            :f (orders/add-unit-at cell-coords :fighter :computer)
+            :z (orders/add-unit-at cell-coords :satellite :computer)
+            :t (orders/add-unit-at cell-coords :transport :computer)
+            :p (orders/add-unit-at cell-coords :patrol-boat :computer)
+            :d (orders/add-unit-at cell-coords :destroyer :computer)
+            :s (orders/add-unit-at cell-coords :submarine :computer)
+            :c (orders/add-unit-at cell-coords :carrier :computer)
+            :b (orders/add-unit-at cell-coords :battleship :computer)
+            :o (orders/own-city-at cell-coords)
+            nil)))
 
-    ;; Normal key handling
     :else
     (cond
       (= k (keyword "`")) (reset! atoms/backtick-pressed true)
@@ -550,15 +402,18 @@
       (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
                                             :computer-map :actual-map
                                             :actual-map :player-map})
-      (= k (keyword ".")) (set-destination-at-mouse)
-      (and (= k :m) (set-marching-orders-at-mouse)) nil
-      (and (= k :f) @atoms/destination (set-flight-path-at-mouse)) nil
-      (and (= k :u) (wake-at-mouse)) nil
-      (and (= k :l) (set-lookaround-at-mouse)) nil
-      (and (= k (keyword "*")) (set-waypoint-at-mouse)) nil
+      (and (= k (keyword ".")) cell-coords) (orders/set-destination-at cell-coords)
+      (and (= k :m) cell-coords (orders/set-marching-orders-at cell-coords)) nil
+      (and (= k :f) @atoms/destination cell-coords (orders/set-flight-path-at cell-coords)) nil
+      (and (= k :u) cell-coords (orders/wake-at cell-coords)) nil
+      (and (= k :l) cell-coords (orders/set-city-lookaround cell-coords)) nil
+      (and (= k (keyword "*")) cell-coords (orders/set-waypoint-at cell-coords)) nil
       (= k (keyword "!")) (let [filename (save-load/save-game!)]
                             (atoms/set-turn-message (str "Saved to " filename) 3000))
       (= k (keyword "^")) (save-load/open-load-menu!)
-      (set-city-marching-orders-by-direction k) nil
+      (and cell-coords (orders/set-city-marching-orders-by-direction-at cell-coords k)) nil
       (handle-key k) nil
       :else nil)))
+
+(defn key-down [k]
+  (dispatch-key k (mouse->cell)))

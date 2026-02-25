@@ -3,7 +3,14 @@
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
+            [empire.movement.movement :as movement]
             [empire.movement.waypoint :as waypoint]))
+
+(defn add-unit-at [coords unit-type owner]
+  (movement/add-unit-at coords unit-type owner))
+
+(defn wake-at [coords]
+  (movement/wake-at coords))
 
 (defn own-city-at
   "Claims a city at the given coordinates for the player."
