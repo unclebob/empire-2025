@@ -141,6 +141,30 @@
       ;; Target should be cleared (not visible on computer-map)
       (should-be-nil (get-in @atoms/game-map [0 0 :contents :attack-target]))))
 
+  (context "city exit"
+    (it "army in computer city moves to empty land neighbor"
+      ;; X = computer city with army; # = empty land (no coastal cells)
+      (reset! atoms/game-map (build-test-map ["X#"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :army :owner :computer :hits 1
+              :mode :awake :country-id 1})
+      (army/process-army [0 0])
+      ;; Army should have left the city
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
+      (should= :army (get-in @atoms/game-map [1 0 :contents :type])))
+
+    (it "army in computer city stays if all neighbors are sea"
+      ;; X = computer city with army; ~ = sea
+      (reset! atoms/game-map (build-test-map ["X~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :army :owner :computer :hits 1
+              :mode :awake :country-id 1})
+      (army/process-army [0 0])
+      ;; Army should still be in the city (no land neighbor)
+      (should= :army (get-in @atoms/game-map [0 0 :contents :type]))))
+
   (context "city attack coordination"
     (it "assigns up to 6 closest armies to visible free city"
       ;; 8 sentry armies and a free city visible on computer-map (10 cols x 1 row)

@@ -433,15 +433,29 @@
       (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :attack-target)
           nil))))
 
+(defn- exit-city
+  "If army is in a city, move to an empty passable neighbor.
+   Returns new position, or original pos if unable to exit."
+  [pos country-id]
+  (let [cell (get-in @atoms/game-map pos)]
+    (if (= :city (:type cell))
+      (if-let [exit (first (get-empty-passable-neighbors pos country-id))]
+        (or (try-move pos exit) pos)
+        pos)
+      pos)))
+
 (defn process-army
   "Processes a computer army's turn.
-   Priority: Attack > Attack-target > Sentry > Coast-walk > Random-explore > Coastal fill
+   Priority: Exit city > Attack > Attack-target > Coast-walk > Random-explore > Coastal fill
    Returns nil after processing - armies only move once per round."
   [pos]
   (let [cell (get-in @atoms/game-map pos)
         unit (:contents cell)]
     (when (and unit (= :computer (:owner unit)) (= :army (:type unit)))
-      (let [enemy-pos (find-adjacent-enemy pos)
+      (let [pos (exit-city pos (:country-id unit))
+            cell (get-in @atoms/game-map pos)
+            unit (:contents cell)
+            enemy-pos (find-adjacent-enemy pos)
             country-id (:country-id unit)
             mode (:mode unit)
             eid (:unload-event-id unit)]
