@@ -324,3 +324,38 @@
 
   (it "returns false when both are false"
     (should-not (ru/should-show-paused? false false))))
+
+(describe "compute-hover-message"
+  (it "returns formatted status for cell with unit"
+    (let [the-map [[{:type :land :contents {:type :army :hits 1 :mode :awake :owner :player}}]]
+          production {}]
+      (should= "[0,0] player army [1/1] awake"
+               (ru/compute-hover-message the-map production [0 0]))))
+
+  (it "returns empty string for empty land cell"
+    (let [the-map [[{:type :land}]]
+          production {}]
+      (should= "" (ru/compute-hover-message the-map production [0 0]))))
+
+  (it "returns city status with production"
+    (let [the-map [[{:type :city :city-status :player :fighter-count 0}]]
+          production {[0 0] {:item :army :remaining-rounds 3}}]
+      (should= "[0,0] city:player producing:army"
+               (ru/compute-hover-message the-map production [0 0]))))
+
+  (it "looks up correct cell in multi-cell map"
+    (let [the-map [[{:type :land} {:type :sea}]
+                   [{:type :city :city-status :free :fighter-count 0} {:type :land}]]
+          production {}]
+      (should= "[1,0] city:free"
+               (ru/compute-hover-message the-map production [1 0])))))
+
+(describe "resolve-display-map"
+  (it "returns player-map for :player-map"
+    (should= :p (ru/resolve-display-map :player-map :p :c :g)))
+
+  (it "returns computer-map for :computer-map"
+    (should= :c (ru/resolve-display-map :computer-map :p :c :g)))
+
+  (it "returns game-map for :actual-map"
+    (should= :g (ru/resolve-display-map :actual-map :p :c :g))))
