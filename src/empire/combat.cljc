@@ -138,46 +138,52 @@
         (<= (:hits new-a) 0) {:winner :defender :survivor new-d :log new-log}
         :else (recur new-a new-d new-log)))))
 
+(defn- find-units-where
+  "Returns coords of all units on game-map where (pred unit) is true."
+  [pred]
+  (let [game-map @atoms/game-map]
+    (for [i (range (count game-map))
+          j (range (count (first game-map)))
+          :let [unit (get-in game-map [i j :contents])]
+          :when (and unit (pred unit))]
+      [i j])))
+
+(defn- clear-dead-escort-from-carrier
+  "Remove dead battleship/submarine reference from its paired carrier."
+  [dead-unit]
+  (let [carrier-id (:escort-carrier-id dead-unit)
+        escort-id (:escort-id dead-unit)
+        coords (find-units-where #(and (= :carrier (:type %))
+                                       (= carrier-id (:carrier-id %))))]
+    (doseq [pos coords]
+      (case (:type dead-unit)
+        :battleship
+        (swap! atoms/game-map assoc-in (conj pos :contents :group-battleship-id) nil)
+        :submarine
+        (swap! atoms/game-map update-in (conj pos :contents :group-submarine-ids)
+               (fn [ids] (vec (remove #{escort-id} ids))))))))
+
+(defn- release-carrier-escorts
+  "When a carrier dies, release all its escorts to seeking mode."
+  [dead-unit]
+  (let [carrier-id (:carrier-id dead-unit)
+        coords (find-units-where #(= carrier-id (:escort-carrier-id %)))]
+    (doseq [pos coords]
+      (swap! atoms/game-map update-in (conj pos :contents)
+             #(-> % (assoc :escort-mode :seeking)
+                  (dissoc :escort-carrier-id :orbit-angle))))))
+
 (defn- clear-carrier-group-on-death
   "When a carrier group member dies, update the group pairing."
   [dead-unit]
   (cond
-    ;; Dead battleship or submarine: remove from carrier's group
     (and (#{:battleship :submarine} (:type dead-unit))
          (:escort-carrier-id dead-unit))
-    (let [carrier-id (:escort-carrier-id dead-unit)
-          escort-id (:escort-id dead-unit)
-          game-map @atoms/game-map]
-      (doseq [i (range (count game-map))
-              j (range (count (first game-map)))
-              :let [cell (get-in game-map [i j])
-                    unit (:contents cell)]
-              :when (and unit
-                         (= :carrier (:type unit))
-                         (= carrier-id (:carrier-id unit)))]
-        (case (:type dead-unit)
-          :battleship
-          (swap! atoms/game-map update-in [i j :contents]
-                 assoc :group-battleship-id nil)
-          :submarine
-          (swap! atoms/game-map update-in [i j :contents]
-                 update :group-submarine-ids
-                 (fn [ids] (vec (remove #{escort-id} ids)))))))
+    (clear-dead-escort-from-carrier dead-unit)
 
-    ;; Dead carrier: release all escorts to seeking
     (and (= :carrier (:type dead-unit))
          (:carrier-id dead-unit))
-    (let [carrier-id (:carrier-id dead-unit)
-          game-map @atoms/game-map]
-      (doseq [i (range (count game-map))
-              j (range (count (first game-map)))
-              :let [cell (get-in game-map [i j])
-                    unit (:contents cell)]
-              :when (and unit
-                         (= carrier-id (:escort-carrier-id unit)))]
-        (swap! atoms/game-map update-in [i j :contents]
-               #(-> % (assoc :escort-mode :seeking)
-                    (dissoc :escort-carrier-id :orbit-angle)))))))
+    (release-carrier-escorts dead-unit)))
 
 (defn clear-escort-on-death
   "When a unit with escort pairing is destroyed, clear the partner's reference."
@@ -187,29 +193,19 @@
     (and (= :destroyer (:type dead-unit))
          (:escort-transport-id dead-unit))
     (let [tid (:escort-transport-id dead-unit)
-          game-map @atoms/game-map]
-      (doseq [i (range (count game-map))
-              j (range (count (first game-map)))
-              :let [cell (get-in game-map [i j])
-                    unit (:contents cell)]
-              :when (and unit
-                         (= :transport (:type unit))
-                         (= tid (:transport-id unit)))]
-        (swap! atoms/game-map update-in [i j :contents] dissoc :escort-destroyer-id)))
+          coords (find-units-where #(and (= :transport (:type %))
+                                         (= tid (:transport-id %))))]
+      (doseq [pos coords]
+        (swap! atoms/game-map update-in (conj pos :contents) dissoc :escort-destroyer-id)))
 
     ;; Dead transport: set destroyer to seeking
     (and (= :transport (:type dead-unit))
          (:escort-destroyer-id dead-unit))
     (let [did (:escort-destroyer-id dead-unit)
-          game-map @atoms/game-map]
-      (doseq [i (range (count game-map))
-              j (range (count (first game-map)))
-              :let [cell (get-in game-map [i j])
-                    unit (:contents cell)]
-              :when (and unit
-                         (= :destroyer (:type unit))
-                         (= did (:destroyer-id unit)))]
-        (swap! atoms/game-map update-in [i j :contents]
+          coords (find-units-where #(and (= :destroyer (:type %))
+                                         (= did (:destroyer-id %))))]
+      (doseq [pos coords]
+        (swap! atoms/game-map update-in (conj pos :contents)
                #(-> % (assoc :escort-mode :seeking)
                     (dissoc :escort-transport-id))))))
   ;; Also handle carrier group pairings
