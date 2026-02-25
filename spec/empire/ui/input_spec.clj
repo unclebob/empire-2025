@@ -340,24 +340,37 @@
                                              "~~~"]))
     (reset! atoms/backtick-pressed true))
 
-  (it "places player army on land"
-    (input/dispatch-key :A [0 0])
-    (should= :army (:type (:contents (get-in @atoms/game-map [0 0]))))
-    (should= :player (:owner (:contents (get-in @atoms/game-map [0 0])))))
+  (it "places all player unit types"
+    (doseq [[k unit-type coords] [[:A :army [0 0]]
+                                   [:F :fighter [0 0]]
+                                   [:Z :satellite [0 0]]
+                                   [:T :transport [0 1]]
+                                   [:P :patrol-boat [0 1]]
+                                   [:D :destroyer [0 1]]
+                                   [:S :submarine [0 1]]
+                                   [:C :carrier [0 1]]
+                                   [:B :battleship [0 1]]]]
+      (reset! atoms/backtick-pressed true)
+      (input/dispatch-key k coords)
+      (should= unit-type (:type (:contents (get-in @atoms/game-map coords))))
+      (should= :player (:owner (:contents (get-in @atoms/game-map coords))))
+      (swap! atoms/game-map assoc-in (conj coords :contents) nil)))
 
-  (it "places computer army on land"
-    (input/dispatch-key :a [0 0])
-    (should= :army (:type (:contents (get-in @atoms/game-map [0 0]))))
-    (should= :computer (:owner (:contents (get-in @atoms/game-map [0 0])))))
-
-  (it "places player fighter on land"
-    (input/dispatch-key :F [0 0])
-    (should= :fighter (:type (:contents (get-in @atoms/game-map [0 0])))))
-
-  (it "places computer destroyer on sea"
-    (input/dispatch-key :d [0 1])
-    (should= :destroyer (:type (:contents (get-in @atoms/game-map [0 1]))))
-    (should= :computer (:owner (:contents (get-in @atoms/game-map [0 1])))))
+  (it "places all computer unit types"
+    (doseq [[k unit-type coords] [[:a :army [0 0]]
+                                   [:f :fighter [0 0]]
+                                   [:z :satellite [0 0]]
+                                   [:t :transport [0 1]]
+                                   [:p :patrol-boat [0 1]]
+                                   [:d :destroyer [0 1]]
+                                   [:s :submarine [0 1]]
+                                   [:c :carrier [0 1]]
+                                   [:b :battleship [0 1]]]]
+      (reset! atoms/backtick-pressed true)
+      (input/dispatch-key k coords)
+      (should= unit-type (:type (:contents (get-in @atoms/game-map coords))))
+      (should= :computer (:owner (:contents (get-in @atoms/game-map coords))))
+      (swap! atoms/game-map assoc-in (conj coords :contents) nil)))
 
   (it "claims city for player with :o"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
@@ -448,4 +461,78 @@
   (it "direction key does nothing with nil coords"
     (input/dispatch-key :d nil)
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (should-be-nil (get-in @atoms/game-map (conj city-coords :marching-orders))))))
+      (should-be-nil (get-in @atoms/game-map (conj city-coords :marching-orders)))))
+
+  (it "backtick key sets backtick-pressed"
+    (input/dispatch-key (keyword "`") nil)
+    (should= true @atoms/backtick-pressed))
+
+  (it "+ key cycles map display"
+    (let [before @atoms/map-to-display]
+      (input/dispatch-key :+ nil)
+      (should-not= before @atoms/map-to-display)))
+
+  (it "* key sets waypoint at coords"
+    (let [called (atom nil)]
+      (with-redefs [orders/set-waypoint-at (fn [c] (reset! called c) true)]
+        (input/dispatch-key (keyword "*") [1 1])
+        (should= [1 1] @called))))
+
+  (it "* key does nothing with nil coords"
+    (let [called (atom false)]
+      (with-redefs [orders/set-waypoint-at (fn [_] (reset! called true))]
+        (input/dispatch-key (keyword "*") nil)
+        (should= false @called))))
+
+  (it "space key does nothing when not paused"
+    (reset! atoms/paused false)
+    (let [round @atoms/round-number]
+      (input/dispatch-key :space nil)
+      (should= round @atoms/round-number)))
+
+  (it "unrecognized key is ignored"
+    (input/dispatch-key :Q nil)
+    (should= false @atoms/backtick-pressed)))
+
+(describe "dispatch-key coverage gaps"
+  (around [it]
+    (reset-all-atoms!)
+    (reset! atoms/game-map (build-test-map ["O~~"
+                                             "~~~"
+                                             "~~~"]))
+    (it))
+
+  (it "unknown backtick key places no unit and clears backtick"
+    (reset! atoms/backtick-pressed true)
+    (input/dispatch-key :X [0 0])
+    (should= false @atoms/backtick-pressed)
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+  (it "backtick :o with nil coords clears backtick without claiming city"
+    (reset! atoms/backtick-pressed true)
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :o nil)
+      (should= false @atoms/backtick-pressed)
+      (should= :player (get-in @atoms/game-map (conj city-coords :city-status)))))
+
+  (it ":f without destination does not set flight path"
+    (reset! atoms/destination nil)
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (input/dispatch-key :f city-coords)
+      (should-be-nil (get-in @atoms/game-map (conj city-coords :flight-path)))))
+
+  (it ":P with coords still toggles pause"
+    (reset! atoms/paused false)
+    (input/dispatch-key :P [1 1])
+    (should @atoms/pause-requested))
+
+  (it "! with coords still saves"
+    (let [saved (atom false)]
+      (with-redefs [save-load/save-game! (fn [] (reset! saved true) "test.edn")]
+        (input/dispatch-key (keyword "!") [1 1])
+        (should @saved))))
+
+  (it ":m on non-city cell falls through to handle-key"
+    (reset! atoms/destination [2 2])
+    (input/dispatch-key :m [0 1])
+    (should= [2 2] @atoms/destination)))

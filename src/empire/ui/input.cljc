@@ -363,57 +363,72 @@
     (when (map-utils/on-map? x y)
       (map-utils/determine-cell-coordinates x y))))
 
+(def ^:private backtick-unit-map
+  {:A [:army :player] :F [:fighter :player] :Z [:satellite :player]
+   :T [:transport :player] :P [:patrol-boat :player] :D [:destroyer :player]
+   :S [:submarine :player] :C [:carrier :player] :B [:battleship :player]
+   :a [:army :computer] :f [:fighter :computer] :z [:satellite :computer]
+   :t [:transport :computer] :p [:patrol-boat :computer] :d [:destroyer :computer]
+   :s [:submarine :computer] :c [:carrier :computer] :b [:battleship :computer]})
+
+(def ^:private standing-order-handlers
+  {(keyword ".") #'orders/set-destination-at
+   (keyword "*") #'orders/set-waypoint-at
+   :l #'orders/set-city-lookaround
+   :u #'orders/wake-at
+   :m #'orders/set-marching-orders-at
+   :f #'orders/set-flight-path-at})
+
+(defn- dispatch-load-menu-key [k]
+  (when (= k :escape) (save-load/close-load-menu!)))
+
+(defn- dispatch-backtick-key [k cell-coords]
+  (reset! atoms/backtick-pressed false)
+  (when cell-coords
+    (if-let [[unit-type owner] (backtick-unit-map k)]
+      (orders/add-unit-at cell-coords unit-type owner)
+      (when (= k :o) (orders/own-city-at cell-coords)))))
+
+(def ^:private backtick-key (keyword "`"))
+(def ^:private bang-key (keyword "!"))
+(def ^:private caret-key (keyword "^"))
+
+(defn- dispatch-game-control-key [k]
+  (cond
+    (= k backtick-key) (do (reset! atoms/backtick-pressed true) true)
+    (= k :P) (do (game-loop/toggle-pause) true)
+    (= k :+) (do (swap! atoms/map-to-display {:player-map :computer-map
+                                               :computer-map :actual-map
+                                               :actual-map :player-map}) true)
+    (and (= k :space) @atoms/paused) (do (game-loop/step-one-round) true)))
+
+(defn- dispatch-save-load-key [k]
+  (cond
+    (= k bang-key) (do (atoms/set-turn-message
+                         (str "Saved to " (save-load/save-game!)) 3000) true)
+    (= k caret-key) (do (save-load/open-load-menu!) true)))
+
+(defn- dispatch-standing-order-key [k cell-coords]
+  (when-let [handler (standing-order-handlers k)]
+    (when cell-coords (handler cell-coords))))
+
+(defn- dispatch-coord-key [k cell-coords]
+  (when cell-coords
+    (or (dispatch-standing-order-key k cell-coords)
+        (orders/set-city-marching-orders-by-direction-at cell-coords k))))
+
+(defn- dispatch-normal-key [k cell-coords]
+  (or (dispatch-game-control-key k)
+      (dispatch-save-load-key k)
+      (dispatch-coord-key k cell-coords)
+      (handle-key k)))
+
 (defn dispatch-key [k cell-coords]
   (debug/log-action! [:key-pressed k])
   (cond
-    @atoms/load-menu-open
-    (when (= k :escape) (save-load/close-load-menu!))
-
-    @atoms/backtick-pressed
-    (do (reset! atoms/backtick-pressed false)
-        (when cell-coords
-          (case k
-            :A (orders/add-unit-at cell-coords :army :player)
-            :F (orders/add-unit-at cell-coords :fighter :player)
-            :Z (orders/add-unit-at cell-coords :satellite :player)
-            :T (orders/add-unit-at cell-coords :transport :player)
-            :P (orders/add-unit-at cell-coords :patrol-boat :player)
-            :D (orders/add-unit-at cell-coords :destroyer :player)
-            :S (orders/add-unit-at cell-coords :submarine :player)
-            :C (orders/add-unit-at cell-coords :carrier :player)
-            :B (orders/add-unit-at cell-coords :battleship :player)
-            :a (orders/add-unit-at cell-coords :army :computer)
-            :f (orders/add-unit-at cell-coords :fighter :computer)
-            :z (orders/add-unit-at cell-coords :satellite :computer)
-            :t (orders/add-unit-at cell-coords :transport :computer)
-            :p (orders/add-unit-at cell-coords :patrol-boat :computer)
-            :d (orders/add-unit-at cell-coords :destroyer :computer)
-            :s (orders/add-unit-at cell-coords :submarine :computer)
-            :c (orders/add-unit-at cell-coords :carrier :computer)
-            :b (orders/add-unit-at cell-coords :battleship :computer)
-            :o (orders/own-city-at cell-coords)
-            nil)))
-
-    :else
-    (cond
-      (= k (keyword "`")) (reset! atoms/backtick-pressed true)
-      (= k :P) (game-loop/toggle-pause)
-      (and (= k :space) @atoms/paused) (game-loop/step-one-round)
-      (= k :+) (swap! atoms/map-to-display {:player-map :computer-map
-                                            :computer-map :actual-map
-                                            :actual-map :player-map})
-      (and (= k (keyword ".")) cell-coords) (orders/set-destination-at cell-coords)
-      (and (= k :m) cell-coords (orders/set-marching-orders-at cell-coords)) nil
-      (and (= k :f) @atoms/destination cell-coords (orders/set-flight-path-at cell-coords)) nil
-      (and (= k :u) cell-coords (orders/wake-at cell-coords)) nil
-      (and (= k :l) cell-coords (orders/set-city-lookaround cell-coords)) nil
-      (and (= k (keyword "*")) cell-coords (orders/set-waypoint-at cell-coords)) nil
-      (= k (keyword "!")) (let [filename (save-load/save-game!)]
-                            (atoms/set-turn-message (str "Saved to " filename) 3000))
-      (= k (keyword "^")) (save-load/open-load-menu!)
-      (and cell-coords (orders/set-city-marching-orders-by-direction-at cell-coords k)) nil
-      (handle-key k) nil
-      :else nil)))
+    @atoms/load-menu-open   (dispatch-load-menu-key k)
+    @atoms/backtick-pressed (dispatch-backtick-key k cell-coords)
+    :else                   (dispatch-normal-key k cell-coords)))
 
 (defn key-down [k]
   (dispatch-key k (mouse->cell)))
