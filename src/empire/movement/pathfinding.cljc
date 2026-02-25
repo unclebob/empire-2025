@@ -589,35 +589,31 @@
           game-map @atoms/game-map]
       (sea-lanes/route-through-network network start goal unit-type game-map bounded-a-star))))
 
+(defn- compute-network-step
+  "Tries sea-lane network route for distant naval goals. Returns next step or nil."
+  [start goal unit-type cache-key-extra]
+  (when (> (chebyshev start goal) config/sea-lane-local-radius)
+    (when-let [net-path (try-network-route start goal unit-type)]
+      (cache-sub-paths! net-path goal unit-type cache-key-extra)
+      (second net-path))))
+
+(defn- compute-a-star-step
+  "Computes A* path and returns next step. Records naval paths to sea-lane network."
+  [start goal unit-type passability-fn cache-key-extra]
+  (when-let [path (a-star start goal unit-type @atoms/game-map passability-fn)]
+    (when (and (naval-types unit-type) (not passability-fn))
+      (sea-lanes/record-path! path))
+    (cache-sub-paths! path goal unit-type cache-key-extra)
+    (second path)))
+
 (defn next-step
-  "Returns the next step toward goal, or nil if unreachable or already at goal.
-   This is the main function computer.cljc will call.
-   Uses caching to avoid recomputing paths. Caches sub-paths so that
-   subsequent steps along the same path are O(1) lookups.
-   When passability-fn and cache-key-extra are provided, uses custom passability
-   and includes cache-key-extra in the cache key."
+  "Returns the next step toward goal, or nil if unreachable or already at goal."
   ([start goal unit-type]
    (next-step start goal unit-type nil nil))
   ([start goal unit-type passability-fn cache-key-extra]
-   (if (= start goal)
-     nil
-     (let [cache-key [start goal unit-type cache-key-extra]
-           cached (get @path-cache cache-key)]
-       (if cached
-         (second cached)
-         ;; Try network route for naval units without custom passability
-         ;; Skip network for short distances to avoid oscillation
-         (or (when-not passability-fn
-               (when (> (chebyshev start goal) config/sea-lane-local-radius)
-                 (when-let [net-path (try-network-route start goal unit-type)]
-                   (cache-sub-paths! net-path goal unit-type cache-key-extra)
-                   (second net-path))))
-             ;; Fall back to full A*
-             (let [game-map @atoms/game-map
-                   path (a-star start goal unit-type game-map passability-fn)]
-               (when path
-                 ;; Record path into sea lane network for naval types
-                 (when (and (naval-types unit-type) (not passability-fn))
-                   (sea-lanes/record-path! path))
-                 (cache-sub-paths! path goal unit-type cache-key-extra)
-                 (second path)))))))))
+   (when (not= start goal)
+     (if-let [cached (get @path-cache [start goal unit-type cache-key-extra])]
+       (second cached)
+       (or (when-not passability-fn
+             (compute-network-step start goal unit-type cache-key-extra))
+           (compute-a-star-step start goal unit-type passability-fn cache-key-extra))))))
