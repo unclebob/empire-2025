@@ -213,6 +213,7 @@
   (reset! atoms/next-escort-id 1)
   (reset! atoms/claimed-objectives #{})
   (reset! atoms/claimed-transport-targets #{})
+  (reset! atoms/claimed-patrol-targets #{})
   (reset! atoms/last-transport-city {})
   (reset! atoms/fighter-leg-records {})
   (reset! atoms/coast-walkers-produced {})

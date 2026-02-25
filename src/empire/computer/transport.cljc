@@ -481,7 +481,7 @@
    Looks 4 levels past first hit; prefers unowned coast over unexplored."
   [pos]
   (pathfinding/bfs-to-coast-target
-    pos @atoms/computer-map @atoms/game-map))
+    pos @atoms/computer-map))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."

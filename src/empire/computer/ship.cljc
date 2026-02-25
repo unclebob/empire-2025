@@ -186,16 +186,21 @@
         target))))
 
 (defn- arrived-at-unseen-coast?
-  "Returns true if pos is a sea cell adjacent to land/city and not in seen-coast."
+  "Returns true if pos is adjacent to land/city on computer-map and not in seen-coast."
   [pos]
   (and (not (contains? @atoms/seen-coast pos))
-       (adjacent-to-land? pos)))
+       (some (fn [neighbor]
+               (let [cell (get-in @atoms/computer-map neighbor)]
+                 (and cell (#{:land :city} (:type cell)))))
+             (core/get-neighbors pos))))
 
 (defn- run-bfs-and-store-path
-  "Run BFS to find unseen coast, store full path on unit. Returns path or nil."
+  "Run BFS to find unseen coast, store full path on unit. Returns path or nil.
+   Excludes targets already claimed by other patrol boats this round."
   [pos]
   (when-let [path (pathfinding/bfs-to-unseen-coast
-                    pos @atoms/computer-map @atoms/game-map)]
+                    pos @atoms/computer-map @atoms/claimed-patrol-targets)]
+    (swap! atoms/claimed-patrol-targets conj (last path))
     (swap! atoms/game-map assoc-in
            (conj pos :contents :explore-path) (vec path))
     path))

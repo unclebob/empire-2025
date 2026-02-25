@@ -340,7 +340,7 @@
                        new-came-from)))))))))
 
 (defn- adjacent-to-unowned?
-  "Returns true if any neighbor of pos on game-map is non-computer land/city."
+  "Returns true if any neighbor of pos on the given map is non-computer land/city."
   [pos game-map]
   (let [[x y] pos
         height (count game-map)
@@ -406,10 +406,10 @@
   (if (and flag? (nil? current-best)) new-value current-best))
 
 (defn- classify-coastal
-  [current start game-map computer-map]
+  [current start computer-map]
   (if (= current start)
     [false false]
-    [(adjacent-to-unowned? current game-map)
+    [(adjacent-to-unowned? current computer-map)
      (adjacent-to-unexplored? current computer-map)]))
 
 (defn- bfs-sea-neighbors
@@ -428,10 +428,10 @@
 
 (defn bfs-to-coast-target
   "Combined BFS over explored sea cells seeking cells adjacent to
-   unowned land/city (game-map) or unexplored territory (computer-map).
+   unowned land/city or unexplored territory, both on computer-map.
    Continues coast-lookahead levels past the first hit so that a
    slightly farther unowned coast beats a nearer unexplored cell."
-  [start computer-map game-map]
+  [start computer-map]
   (let [passable-sea? (fn [pos]
                         (let [cell (get-in computer-map pos)]
                           (and cell (= :sea (:type cell)))))]
@@ -445,7 +445,7 @@
         (if (bfs-past-lookahead? queue first-hit-depth)
           (build-coast-path best-unowned best-unexplored came-from start)
           (let [[current depth] (peek queue)
-                [unowned? unexplored?] (classify-coastal current start game-map computer-map)
+                [unowned? unexplored?] (classify-coastal current start computer-map)
                 hit? (or unowned? unexplored?)
                 neighbors (bfs-sea-neighbors current visited passable-sea?)
                 new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
@@ -461,7 +461,7 @@
   4)
 
 (defn- adjacent-to-land-or-city?
-  "Returns true if any neighbor of pos on game-map is land or city."
+  "Returns true if any neighbor of pos on the given map is land or city."
   [pos game-map]
   (let [[x y] pos]
     (some (fn [[dx dy]]
@@ -478,10 +478,11 @@
 
 (defn bfs-to-unseen-coast
   "BFS from start over passable sea cells to find the nearest unseen coastal
-   cell (adjacent to land/city, not in seen-coast) or cell adjacent to
-   unexplored territory. Skips targets within min-explore-depth levels.
-   Prefers unseen coast over unexplored. Returns path excluding start, or nil."
-  [start computer-map game-map]
+   cell (adjacent to land/city on computer-map, not in seen-coast) or cell
+   adjacent to unexplored territory. Skips targets within min-explore-depth
+   levels and targets in excluded set. Prefers unseen coast over unexplored.
+   Returns path excluding start, or nil."
+  [start computer-map excluded]
   (let [seen-coast @atoms/seen-coast
         passable-sea? (fn [pos]
                         (let [cell (get-in computer-map pos)]
@@ -496,11 +497,12 @@
           (build-coast-path best-coast best-unexplored came-from start)
           (let [[current depth] (peek queue)
                 deep-enough? (>= depth min-explore-depth)
-                is-coast? (and deep-enough?
-                               (not= current start)
-                               (unseen-coast? current game-map seen-coast))
-                is-unexplored? (and deep-enough?
-                                    (not= current start)
+                available? (and deep-enough?
+                                (not= current start)
+                                (not (contains? excluded current)))
+                is-coast? (and available?
+                               (unseen-coast? current computer-map seen-coast))
+                is-unexplored? (and available?
                                     (nil? best-unexplored)
                                     (adjacent-to-unexplored? current computer-map))
                 new-coast (if (and is-coast? (nil? best-coast)) current best-coast)

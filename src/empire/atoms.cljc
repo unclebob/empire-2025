@@ -179,6 +179,10 @@
   "Per-round set of target cities already claimed by computer transports."
   (atom #{}))
 
+(def claimed-patrol-targets
+  "Per-round set of BFS targets already claimed by computer patrol boats."
+  (atom #{}))
+
 (def last-transport-city
   "Map of country-id to city-pos of last transport producer, for rotation."
   (atom {}))

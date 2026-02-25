@@ -82,6 +82,7 @@
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
   (reset! atoms/claimed-objectives #{})
   (reset! atoms/claimed-transport-targets #{})
+  (reset! atoms/claimed-patrol-targets #{})
   (let [player-items (vec (build-player-items))
         computer-items (vec (build-computer-items))]
     (reset! atoms/player-items player-items)

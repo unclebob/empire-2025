@@ -24,7 +24,7 @@
                                        "~~~~~~~#"
                                        "~~~~~~~#"])]
       (reset! atoms/game-map game-map)
-      (let [path (pathfinding/bfs-to-unseen-coast [0 0] game-map game-map)]
+      (let [path (pathfinding/bfs-to-unseen-coast [0 0] game-map #{})]
         (should-not-be-nil path)
         (should (pos? (count path)))
         (let [target (last path)]
@@ -35,7 +35,7 @@
                                        "~~~"
                                        "~~~"])]
       (reset! atoms/game-map game-map)
-      (should-be-nil (pathfinding/bfs-to-unseen-coast [0 0] game-map game-map))))
+      (should-be-nil (pathfinding/bfs-to-unseen-coast [0 0] game-map #{}))))
 
   (it "excludes cells already in seen-coast"
     (let [game-map (tu/build-test-map ["~~#"
@@ -43,30 +43,40 @@
                                        "~~#"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/seen-coast #{[1 0] [1 1] [1 2]})
-      (should-be-nil (pathfinding/bfs-to-unseen-coast [0 0] game-map game-map))))
+      (should-be-nil (pathfinding/bfs-to-unseen-coast [0 0] game-map #{}))))
 
   (it "skips targets within min-distance of 4 levels"
     (let [game-map (tu/build-test-map ["~#~~~~~~~~~~~#"
                                        "~#~~~~~~~~~~~#"
                                        "~#~~~~~~~~~~~#"])]
       (reset! atoms/game-map game-map)
-      (let [path (pathfinding/bfs-to-unseen-coast [2 0] game-map game-map)
+      (let [path (pathfinding/bfs-to-unseen-coast [2 0] game-map #{})
             target (last path)]
         (should-not-be-nil path)
         (should (>= (first target) 10)))))
 
   (it "prefers unseen coast over unexplored territory"
-    (let [game-map (tu/build-test-map ["~~~~~~~~~~#"
-                                       "~~~~~~~~~~#"
-                                       "~~~~~~~~~~#"])
-          computer-map (tu/build-test-map ["~~~~~~~~~~#"
+    (let [computer-map (tu/build-test-map ["~~~~~~~~~~#"
                                            "~~~~~.~~~~#"
                                            "~~~~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
-      (let [path (pathfinding/bfs-to-unseen-coast [0 0] computer-map game-map)
+      (let [path (pathfinding/bfs-to-unseen-coast [0 0] computer-map #{})
             target (last path)]
         (should-not-be-nil path)
-        (should (>= (first target) 8))))))
+        (should (>= (first target) 8)))))
+
+  (it "skips targets in excluded set"
+    (let [game-map (tu/build-test-map ["~~~~~~~#"
+                                       "~~~~~~~#"
+                                       "~~~~~~~#"])]
+      (reset! atoms/game-map game-map)
+      ;; Find the natural target first
+      (let [path1 (pathfinding/bfs-to-unseen-coast [0 0] game-map #{})
+            target1 (last path1)]
+        (should-not-be-nil path1)
+        ;; Exclude that target — should find a different one
+        (let [path2 (pathfinding/bfs-to-unseen-coast [0 0] game-map #{target1})]
+          (should-not-be-nil path2)
+          (should-not= target1 (last path2)))))))
 
 (describe "patrol-crawl-step"
   (before (tu/reset-all-atoms!))
