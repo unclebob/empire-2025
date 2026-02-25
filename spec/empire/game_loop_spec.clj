@@ -375,3 +375,171 @@
       ;; Unit should have moved - player-items should be updated
       (should (or (empty? @atoms/player-items)
                   (not= [[1 5]] (vec @atoms/player-items)))))))
+
+(describe "build-computer-items"
+  (before (reset-all-atoms!))
+
+  (it "returns computer city coordinates"
+    (reset! atoms/game-map (build-test-map ["#O"
+                                             "aX"]))
+    (let [items (game-loop/build-computer-items)]
+      (should-contain [1 1] items)))
+
+  (it "returns computer unit coordinates"
+    (reset! atoms/game-map (build-test-map ["#O"
+                                             "aX"]))
+    (let [items (game-loop/build-computer-items)]
+      (should-contain [0 1] items)))
+
+  (it "does not return player cities"
+    (reset! atoms/game-map (build-test-map ["#O"
+                                             "aX"]))
+    (let [items (game-loop/build-computer-items)]
+      (should-not-contain [1 0] items)))
+
+  (it "does not return empty land"
+    (reset! atoms/game-map (build-test-map ["#O"
+                                             "aX"]))
+    (let [items (game-loop/build-computer-items)]
+      (should-not-contain [0 0] items))))
+
+(describe "start-new-round"
+  (before (reset-all-atoms!))
+
+  (it "sets waiting-for-input to false"
+    (let [m (build-test-map ["OX"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/waiting-for-input true)
+      (game-loop/start-new-round)
+      (should= false @atoms/waiting-for-input)))
+
+  (it "detects game over when no player items"
+    (let [m (build-test-map ["X"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/game-over-check-enabled true)
+      (game-loop/start-new-round)
+      (should= true @atoms/paused)
+      (should-contain "GAME OVER" @atoms/error-message)))
+
+  (it "does not set game over when player items exist"
+    (let [m (build-test-map ["OX"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/game-over-check-enabled true)
+      (game-loop/start-new-round)
+      (should= false @atoms/paused)))
+
+  (it "detects victory when no computer items"
+    (let [m (build-test-map ["O"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/game-over-check-enabled true)
+      (game-loop/start-new-round)
+      (should= true @atoms/paused)
+      (should-contain "YOU WIN" @atoms/error-message)))
+
+  (it "does not set victory when computer items exist"
+    (let [m (build-test-map ["OX"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/game-over-check-enabled true)
+      (game-loop/start-new-round)
+      (should= false @atoms/paused))))
+
+(describe "advance-game pause logic"
+  (before (reset-all-atoms!))
+
+  (it "pauses when both lists empty and pause-requested"
+    (reset! atoms/player-items [])
+    (reset! atoms/computer-items [])
+    (reset! atoms/pause-requested true)
+    (game-loop/advance-game)
+    (should= true @atoms/paused)
+    (should= false @atoms/pause-requested))
+
+  (it "starts new round when both lists empty and no pause requested"
+    (let [m (build-test-map ["OX"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/player-items [])
+      (reset! atoms/computer-items [])
+      (reset! atoms/pause-requested false)
+      (game-loop/advance-game)
+      (should= 1 @atoms/round-number))))
+
+(describe "advance-game-batch"
+  (before (reset-all-atoms!))
+
+  (it "calls advance-game at least once"
+    (let [call-count (atom 0)]
+      (with-redefs [game-loop/advance-game #(swap! call-count inc)]
+        (game-loop/advance-game-batch)
+        (should (<= 1 @call-count)))))
+
+  (it "calls advance-game exactly advances-per-frame times"
+    (let [call-count (atom 0)]
+      (reset! atoms/player-items [[0 0]])
+      (with-redefs [game-loop/advance-game #(swap! call-count inc)]
+        (game-loop/advance-game-batch)
+        (should= config/advances-per-frame @call-count))))
+
+  (it "calls advance-game multiple times when items remain"
+    (let [call-count (atom 0)]
+      (reset! atoms/player-items [[0 0] [1 0]])
+      (with-redefs [game-loop/advance-game
+                     (fn []
+                       (swap! call-count inc)
+                       (when (= @call-count 3)
+                         (reset! atoms/player-items [])))]
+        (game-loop/advance-game-batch)
+        (should (> @call-count 1))))))
+
+(describe "toggle-pause"
+  (before (reset-all-atoms!))
+
+  (it "resumes when paused"
+    (reset! atoms/paused true)
+    (reset! atoms/pause-requested true)
+    (game-loop/toggle-pause)
+    (should= false @atoms/paused)
+    (should= false @atoms/pause-requested))
+
+  (it "requests pause when running"
+    (reset! atoms/paused false)
+    (game-loop/toggle-pause)
+    (should= true @atoms/pause-requested)))
+
+(describe "step-one-round"
+  (before (reset-all-atoms!))
+
+  (it "does nothing when not paused"
+    (reset! atoms/paused false)
+    (game-loop/step-one-round)
+    (should= false @atoms/paused)
+    (should= false @atoms/pause-requested))
+
+  (it "unpauses and requests pause when paused"
+    (reset! atoms/paused true)
+    (reset! atoms/player-items [[0 0]])
+    (game-loop/step-one-round)
+    (should= false @atoms/paused)
+    (should= true @atoms/pause-requested))
+
+  (it "starts new round when paused and no items"
+    (let [m (build-test-map ["OX"])]
+      (reset! atoms/game-map m)
+      (reset! atoms/player-map m)
+      (reset! atoms/computer-map m)
+      (reset! atoms/paused true)
+      (reset! atoms/player-items [])
+      (reset! atoms/computer-items [])
+      (game-loop/step-one-round)
+      (should= 1 @atoms/round-number))))

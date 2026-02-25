@@ -48,6 +48,10 @@ Pattern: `(reset! atom val)` followed by unconditional call to function that res
 Example: `(reset! atoms/waiting-for-input false)` in a cond branch, followed by `(game-loop/item-processed)` which also resets it to `false`.
 Classification: Equivalent. The first reset is immediately overwritten.
 
+### Loop recur guard with outer pos? check (`> -> >=`, `1 -> 0`)
+Pattern: `(loop [remaining N] (when (pos? remaining) ... (when (> remaining 1) (recur (dec remaining)))))` — changing `(> remaining 1)` to `(>= remaining 1)` or `(> remaining 0)` adds one extra recur with remaining=0, but `(pos? 0)` is false so the loop body never executes. Total iterations unchanged.
+Classification: Equivalent. The outer `(when (pos? remaining))` guard prevents the extra iteration from having any effect.
+
 ### Symmetric iteration range sign flip (`+ -> -` over `[-1 0 1]`)
 Pattern: `(for [dx [-1 0 1]] (+ x dx))` — changing `+` to `-` still covers the same set of neighbors `{x-1, x, x+1}` because `-(-1) = 1` and `-(1) = -1`.
 Classification: Equivalent when the iteration range is symmetric around 0 and `first` selects any valid result.
