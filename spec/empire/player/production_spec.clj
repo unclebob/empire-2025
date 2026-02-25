@@ -159,6 +159,16 @@
         (should= :fighter (:type unit))
         (should= 7 (:country-id unit)))))
 
+  (it "stamps country-id on adjacent land when computer army spawns"
+    (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
+      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (swap! atoms/game-map assoc-in (conj city-coords :country-id) 3)
+      (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
+      (with-redefs [rand (constantly 0.9)]
+        (production/update-production))
+      (let [land-cell (get-in @atoms/game-map [1 1])]
+        (should= 3 (:country-id land-cell)))))
+
   (it "does not assign country-id to fighter when city lacks country-id"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)

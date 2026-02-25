@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-25
 (ns empire.player.production
   (:require [empire.atoms :as atoms]
             [empire.computer.stamping :as computer-stamping]
