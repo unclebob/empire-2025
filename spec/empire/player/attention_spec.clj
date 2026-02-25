@@ -256,7 +256,8 @@
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (reset! atoms/attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "army" @atoms/attention-message)))
+      (should-contain "army" @atoms/attention-message)
+      (should-contain "Something's in the way" @atoms/attention-message)))
 
   (it "sets message for army adjacent to enemy city"
     (reset! atoms/game-map (build-test-map ["AX"]))
@@ -264,7 +265,8 @@
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (reset! atoms/attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "army" @atoms/attention-message)))
+      (should-contain "army" @atoms/attention-message)
+      (should-contain "Army found a city!" @atoms/attention-message)))
 
   (it "sets message for player city without production"
     (reset! atoms/game-map (build-test-map ["O"]))
@@ -340,4 +342,12 @@
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (reset! atoms/attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-not-contain "fuel:" @atoms/attention-message))))
+      (should-not-contain "fuel:" @atoms/attention-message)))
+
+  (it "does not include reason suffix when no reason"
+    (reset! atoms/game-map (build-test-map ["D"]))
+    (set-test-unit atoms/game-map "D" :mode :awake :hits 3)
+    (let [unit-coords (:pos (get-test-unit atoms/game-map "D"))]
+      (reset! atoms/attention-message "")
+      (attention/set-attention-message unit-coords)
+      (should-not-contain " - " @atoms/attention-message))))
