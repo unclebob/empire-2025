@@ -522,29 +522,37 @@
 (defn- generate-advance-until-waiting-when [{:keys [unit]}]
   (str "    (should= :ok (advance-until-unit-waiting \"" unit "\"))"))
 
+(def ^:private when-generators
+  {:key-press                  generate-key-press-when
+   :battle                     generate-battle-when
+   :backtick                   generate-backtick-when
+   :mouse-at-key               generate-mouse-at-key-when
+   :visibility-update          generate-visibility-update-when
+   :cell-visibility-update     generate-cell-visibility-update-when
+   :start-new-round            generate-start-new-round-when
+   :advance-game               generate-advance-game-when
+   :advance-game-batch         generate-advance-game-when
+   :process-player-items       generate-process-player-items-when
+   :advance-until-waiting      generate-advance-until-waiting-when
+   :evaluate-production        generate-evaluate-production-when
+   :process-computer-transport generate-process-computer-transport-when
+   :process-computer-fighter   generate-process-computer-fighter-when
+   :computer-rounds            generate-computer-rounds-when})
+
 (defn generate-when
   "Generate code string for a single WHEN IR node."
   ([when-ir] (generate-when when-ir []))
   ([when-ir givens]
-   (case (:type when-ir)
-     :key-press (generate-key-press-when when-ir)
-     :battle (generate-battle-when when-ir)
-     :backtick (generate-backtick-when when-ir)
-     :mouse-at-key (generate-mouse-at-key-when when-ir)
-     :visibility-update (generate-visibility-update-when when-ir)
-     :cell-visibility-update (generate-cell-visibility-update-when when-ir)
-     :start-new-round (generate-start-new-round-when when-ir)
-     :advance-game (generate-advance-game-when when-ir)
-     :advance-game-batch (generate-advance-game-when when-ir)
-     :process-player-items (generate-process-player-items-when when-ir)
-     :advance-until-waiting (generate-advance-until-waiting-when when-ir)
-     :evaluate-production (generate-evaluate-production-when when-ir)
-     :process-computer-transport (generate-process-computer-transport-when when-ir)
-     :process-computer-fighter (generate-process-computer-fighter-when when-ir)
-     :computer-rounds (generate-computer-rounds-when when-ir)
-     :waiting-for-input (generate-waiting-for-input-given when-ir givens)
-     :unrecognized (str "    (pending \"Unrecognized: " (:text when-ir) "\")")
-     (str "    ;; Unknown when type: " (:type when-ir)))))
+   (let [type (:type when-ir)
+         gen (get when-generators type)]
+     (cond
+       gen (gen when-ir)
+       (= type :waiting-for-input)
+       (generate-waiting-for-input-given when-ir givens)
+       (= type :unrecognized)
+       (str "    (pending \"Unrecognized: " (:text when-ir) "\")")
+       :else
+       (str "    ;; Unknown when type: " type)))))
 
 ;; --- THEN generation ---
 
