@@ -74,20 +74,22 @@
 
 ;; --- Context building ---
 
+(defn- unit-chars-from-map [rows]
+  (into #{}
+        (comp (mapcat seq) (map str)
+              (filter #(or (contains? h/player-unit-chars %)
+                           (contains? h/computer-unit-chars %))))
+        rows))
+
+(defn- unit-type-from-given [g]
+  (case (:type g)
+    :map (unit-chars-from-map (:rows g))
+    :unit-props #{(:unit g)}
+    :waiting-for-input #{(:unit g)}
+    #{}))
+
 (defn- extract-unit-types-from-givens [givens]
-  (let [types (atom #{})]
-    (doseq [g givens]
-      (case (:type g)
-        :map (doseq [row (:rows g)]
-               (doseq [ch (seq row)]
-                 (let [s (str ch)]
-                   (when (or (contains? h/player-unit-chars s)
-                             (contains? h/computer-unit-chars s))
-                     (swap! types conj s)))))
-        :unit-props (swap! types conj (:unit g))
-        :waiting-for-input (swap! types conj (:unit g))
-        nil))
-    @types))
+  (into #{} (mapcat unit-type-from-given) givens))
 
 (defn- has-waiting-for-input? [givens]
   (some #(= :waiting-for-input (:type %)) givens))
