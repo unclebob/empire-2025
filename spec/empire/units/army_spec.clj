@@ -13,6 +13,9 @@
     (it "has 1 hit point"
       (should= 1 army/hits))
 
+    (it "has strength of 1"
+      (should= 1 army/strength))
+
     (it "displays as A"
       (should= "A" army/display-char))
 
