@@ -61,18 +61,12 @@
 
 (defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
   (let [valid-land? (and (= (:type target-cell) :land) (not (:contents target-cell)))]
-    (cond
-      (and (not extended?) valid-land?)
-      (do (container-ops/disembark-army-from-transport coords adjacent-target)
-          (game-loop/item-processed)
-          true)
-
-      (and extended? valid-land?)
-      (do (container-ops/disembark-army-with-target coords adjacent-target target)
-          (game-loop/item-processed)
-          true)
-
-      :else true))) ;; Ignore invalid disembark targets
+    (when valid-land?
+      (if extended?
+        (container-ops/disembark-army-with-target coords adjacent-target target)
+        (container-ops/disembark-army-from-transport coords adjacent-target))
+      (game-loop/item-processed))
+    true))
 
 (defn- undamaged-ship-entering-friendly-city? [active-unit adjacent-target]
   (let [target-cell (get-in @atoms/game-map adjacent-target)
