@@ -101,7 +101,12 @@
     (it "bottom-right corner bounce with rand=0 targets row 0"
       (with-redefs [rand-int (constantly 0)]
         (let [target (satellite/calculate-bounce-target [9 9] 10 10)]
-          (should= 0 (first target))))))
+          (should= 0 (first target)))))
+
+    (it "bottom-right corner bounce with rand=1 targets col 0"
+      (with-redefs [rand-int (constantly 1)]
+        (let [target (satellite/calculate-bounce-target [9 9] 10 10)]
+          (should= 0 (second target))))))
 
   (context "move-one-step"
     (before
