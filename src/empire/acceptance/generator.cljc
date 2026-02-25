@@ -806,49 +806,56 @@
          "      (should= :position (:refueling unit-data))\n"
          "      (should (<= distance 1)))")))
 
+(def ^:private then-dispatch
+  {:unit-prop generate-unit-prop-then
+   :unit-absent generate-unit-absent-then
+   :unit-present generate-unit-present-then
+   :unit-at generate-unit-at-then
+   :unit-at-next-round generate-unit-at-next-round-then
+   :unit-after-moves generate-unit-after-moves-then
+   :unit-after-steps generate-unit-after-steps-then
+   :unit-eventually-at generate-unit-eventually-at-then
+   :unit-waiting-for-input generate-unit-waiting-for-input-then
+   :message-contains generate-message-contains-then
+   :message-for-unit generate-message-for-unit-then
+   :message-is generate-message-is-then
+   :no-message generate-no-message-then
+   :cell-prop generate-cell-prop-then
+   :cell-type generate-cell-type-then
+   :waiting-for-input generate-waiting-for-input-then
+   :container-prop generate-container-prop-then
+   :round generate-round-then
+   :destination generate-destination-then
+   :production generate-production-then
+   :production-with-rounds generate-production-with-rounds-then
+   :no-production generate-no-production-then
+   :production-not generate-production-not-then
+   :game-paused generate-game-paused-then
+   :player-map-cell-not-nil generate-player-map-cell-not-nil-then
+   :player-map-cell-nil generate-player-map-cell-nil-then
+   :player-map-visibility generate-player-map-visibility-then
+   :territory-map generate-territory-map-then
+   :no-unit-at generate-no-unit-at-then
+   :unit-prop-absent generate-unit-prop-absent-then
+   :computer-army-count generate-computer-army-count-then
+   :refueling-position-near generate-refueling-position-near-then
+   :shipyard-has-ship generate-shipyard-has-ship-then
+   :shipyard-empty generate-shipyard-empty-then
+   :map-is generate-map-is-then})
+
+(def ^:private then-dispatch-with-givens
+  {:unit-occupies-cell generate-unit-occupies-cell-then
+   :unit-unmoved generate-unit-unmoved-then})
+
 (defn generate-then
   "Generate code string for a single THEN IR node."
   [then-ir givens]
-  (case (:type then-ir)
-    :unit-prop (generate-unit-prop-then then-ir)
-    :unit-absent (generate-unit-absent-then then-ir)
-    :unit-present (generate-unit-present-then then-ir)
-    :unit-at (generate-unit-at-then then-ir)
-    :unit-at-next-round (generate-unit-at-next-round-then then-ir)
-    :unit-after-moves (generate-unit-after-moves-then then-ir)
-    :unit-after-steps (generate-unit-after-steps-then then-ir)
-    :unit-eventually-at (generate-unit-eventually-at-then then-ir)
-    :unit-occupies-cell (generate-unit-occupies-cell-then then-ir givens)
-    :unit-unmoved (generate-unit-unmoved-then then-ir givens)
-    :unit-waiting-for-input (generate-unit-waiting-for-input-then then-ir)
-    :message-contains (generate-message-contains-then then-ir)
-    :message-for-unit (generate-message-for-unit-then then-ir)
-    :message-is (generate-message-is-then then-ir)
-    :no-message (generate-no-message-then then-ir)
-    :cell-prop (generate-cell-prop-then then-ir)
-    :cell-type (generate-cell-type-then then-ir)
-    :waiting-for-input (generate-waiting-for-input-then then-ir)
-    :container-prop (generate-container-prop-then then-ir)
-    :round (generate-round-then then-ir)
-    :destination (generate-destination-then then-ir)
-    :production (generate-production-then then-ir)
-    :production-with-rounds (generate-production-with-rounds-then then-ir)
-    :no-production (generate-no-production-then then-ir)
-    :production-not (generate-production-not-then then-ir)
-    :game-paused (generate-game-paused-then then-ir)
-    :player-map-cell-not-nil (generate-player-map-cell-not-nil-then then-ir)
-    :player-map-cell-nil (generate-player-map-cell-nil-then then-ir)
-    :player-map-visibility (generate-player-map-visibility-then then-ir)
-    :territory-map (generate-territory-map-then then-ir)
-    :no-unit-at (generate-no-unit-at-then then-ir)
-    :unit-prop-absent (generate-unit-prop-absent-then then-ir)
-    :computer-army-count (generate-computer-army-count-then then-ir)
-    :refueling-position-near (generate-refueling-position-near-then then-ir)
-    :shipyard-has-ship (generate-shipyard-has-ship-then then-ir)
-    :shipyard-empty (generate-shipyard-empty-then then-ir)
-    :map-is (generate-map-is-then then-ir)
-    :unrecognized (str "    (pending \"Unrecognized: " (:text then-ir) "\")")
-    (str "    ;; Unknown then type: " (:type then-ir))))
+  (let [t (:type then-ir)]
+    (cond
+      (then-dispatch-with-givens t) ((then-dispatch-with-givens t) then-ir givens)
+      (then-dispatch t) ((then-dispatch t) then-ir)
+      (= :unrecognized t) (str "    (pending \"Unrecognized: " (:text then-ir) "\")")
+      :else (str "    ;; Unknown then type: " t))))
 
 ;; --- Test generation ---
 
