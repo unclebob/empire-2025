@@ -205,14 +205,9 @@
   "Processes computer items until done or safety limit reached."
   []
   (loop [processed 0]
-    (cond
-      (empty? @atoms/computer-items) nil
-      (>= processed 100) nil
-      :else
-      (let [result (process-one-computer-item)]
-        (case result
-          :continue (recur (inc processed))
-          :done (recur (inc processed)))))))
+    (when (and (seq @atoms/computer-items) (< processed 100))
+      (process-one-computer-item)
+      (recur (inc processed)))))
 
 ;; Processes player items in a batch until one of three conditions:
 ;; 1. player-items list becomes empty
