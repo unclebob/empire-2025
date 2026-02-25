@@ -64,6 +64,28 @@
     (let [total (uc/get-count unit :fighter-count)]
       (swap! atoms/game-map assoc-in [i j :contents :awake-fighters] total))))
 
+(defn- bingo-fuel? [pos new-fuel]
+  (let [threshold (quot config/fighter-fuel config/bingo-fuel-divisor)]
+    (and (<= new-fuel threshold)
+         (wake/friendly-city-in-range? pos new-fuel atoms/game-map))))
+
+(defn- fuel-action [new-fuel pos]
+  (cond
+    (<= new-fuel 0) :crashed
+    (<= new-fuel 1) :out-of-fuel
+    (bingo-fuel? pos new-fuel) :bingo
+    :else :burn))
+
+(defn- apply-fuel-action [pos action new-fuel]
+  (case action
+    :crashed (do (atoms/set-error-message (:fighter-crashed config/messages) config/error-message-duration)
+                 (swap! atoms/game-map assoc-in (conj pos :contents :hits) 0))
+    :out-of-fuel (swap! atoms/game-map update-in (conj pos :contents)
+                        #(assoc % :fuel new-fuel :mode :awake :reason :fighter-out-of-fuel))
+    :bingo (swap! atoms/game-map update-in (conj pos :contents)
+                  #(assoc % :fuel new-fuel :mode :awake :reason :fighter-bingo))
+    :burn (swap! atoms/game-map assoc-in (conj pos :contents :fuel) new-fuel)))
+
 (defn consume-sentry-fighter-fuel
   "Consumes fuel for sentry fighters each round, applying fuel warnings."
   []
@@ -74,28 +96,8 @@
           :when (and unit
                      (= :fighter (:type unit))
                      (= :sentry (:mode unit)))]
-    (let [current-fuel (:fuel unit config/fighter-fuel)
-          new-fuel (dec current-fuel)
-          pos [i j]
-          bingo-threshold (quot config/fighter-fuel config/bingo-fuel-divisor)
-          low-fuel? (<= new-fuel 1)
-          bingo-fuel? (and (<= new-fuel bingo-threshold)
-                           (wake/friendly-city-in-range? pos new-fuel atoms/game-map))]
-      (cond
-        (<= new-fuel 0)
-        (do (atoms/set-error-message (:fighter-crashed config/messages) config/error-message-duration)
-            (swap! atoms/game-map assoc-in [i j :contents :hits] 0))
-
-        low-fuel?
-        (swap! atoms/game-map update-in [i j :contents]
-               #(assoc % :fuel new-fuel :mode :awake :reason :fighter-out-of-fuel))
-
-        bingo-fuel?
-        (swap! atoms/game-map update-in [i j :contents]
-               #(assoc % :fuel new-fuel :mode :awake :reason :fighter-bingo))
-
-        :else
-        (swap! atoms/game-map assoc-in [i j :contents :fuel] new-fuel)))))
+    (let [new-fuel (dec (:fuel unit config/fighter-fuel))]
+      (apply-fuel-action [i j] (fuel-action new-fuel [i j]) new-fuel))))
 
 (defn wake-sentries-seeing-enemy
   "Wakes player sentry units that can see an enemy unit."

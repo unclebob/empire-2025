@@ -208,7 +208,20 @@
       (set-test-unit atoms/game-map "D" :mode :sentry)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
         (setup/consume-sentry-fighter-fuel))
-      (should= :sentry (get-in @atoms/game-map [0 0 :contents :mode])))))
+      (should= :sentry (get-in @atoms/game-map [0 0 :contents :mode]))))
+
+  (it "processes only sentry fighters on a mixed map"
+    (let [game-map (build-test-map ["F~D"
+                                    "~A~"
+                                    "O~F"])]
+      (reset! atoms/game-map game-map)
+      (set-test-unit atoms/game-map "F" :mode :sentry :fuel 20)
+      (swap! atoms/game-map update-in [2 2 :contents] assoc :mode :sentry :fuel 10)
+      (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
+        (setup/consume-sentry-fighter-fuel))
+      (should= 19 (get-in @atoms/game-map [0 0 :contents :fuel]))
+      (should= 9 (get-in @atoms/game-map [2 2 :contents :fuel]))
+      (should= :army (get-in @atoms/game-map [1 1 :contents :type])))))
 
 ;; --- wake-sentries-seeing-enemy ---
 
