@@ -147,6 +147,23 @@
       :else
       (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
 
+(defn production-indicator-data
+  "Returns production indicator rendering data for a cell, or nil if none needed."
+  [row col cell production]
+  (when-let [prod (and (= :city (:type cell))
+                       (get production [col row]))]
+    (when (and (map? prod) (:item prod))
+      (let [item (:item prod)
+            total (config/item-cost item)
+            remaining (:remaining-rounds prod)
+            progress (/ (- total remaining) (double total))
+            base-color (config/color-of cell)
+            dark-color (mapv #(* % 0.5) base-color)]
+        {:prod-char (config/item-chars item)
+         :progress progress
+         :remaining remaining
+         :dark-color dark-color}))))
+
 (defn group-cells-by-color
   "Groups map cells by their display color for batched rendering.
    Returns a map of [r g b] color to seq of {:col :row :cell} maps.
