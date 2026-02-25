@@ -96,26 +96,24 @@
     (swap! atoms/player-items #(cons fighter-pos (rest %)))
     true))
 
-(defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
+(defn army-aboard-action [extended? target-cell hostile-city?]
   (let [valid-land? (and (= (:type target-cell) :land) (not (:contents target-cell)))]
     (cond
-      (and (not extended?) valid-land?)
-      (do (container-ops/disembark-army-from-transport coords adjacent-target)
-          (game-loop/item-processed)
-          true)
+      valid-land? (if extended? :disembark-with-target :disembark)
+      (and (not extended?) hostile-city?) :conquest
+      :else :ignore)))
 
-      (and extended? valid-land?)
-      (do (container-ops/disembark-army-with-target coords adjacent-target target)
-          (game-loop/item-processed)
-          true)
-
-      (and (not extended?) (combat/hostile-city? adjacent-target))
-      (do (container-ops/remove-army-from-transport coords)
-          (combat/attempt-city-conquest adjacent-target)
-          (game-loop/item-processed)
-          true)
-
-      :else true))) ;; Ignore invalid disembark targets
+(defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
+  (case (army-aboard-action extended? target-cell (combat/hostile-city? adjacent-target))
+    :disembark (do (container-ops/disembark-army-from-transport coords adjacent-target)
+                   (game-loop/item-processed))
+    :disembark-with-target (do (container-ops/disembark-army-with-target coords adjacent-target target)
+                               (game-loop/item-processed))
+    :conquest (do (container-ops/remove-army-from-transport coords)
+                  (combat/attempt-city-conquest adjacent-target)
+                  (game-loop/item-processed))
+    nil)
+  true)
 
 (defn- undamaged-ship-entering-friendly-city? [active-unit adjacent-target]
   (let [target-cell (get-in @atoms/game-map adjacent-target)

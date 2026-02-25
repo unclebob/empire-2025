@@ -536,3 +536,32 @@
     (reset! atoms/destination [2 2])
     (input/dispatch-key :m [0 1])
     (should= [2 2] @atoms/destination)))
+
+(describe "army-aboard-action"
+  (it "disembarks to empty land when not extended"
+    (should= :disembark
+             (input/army-aboard-action false {:type :land} false)))
+
+  (it "disembarks with target to empty land when extended"
+    (should= :disembark-with-target
+             (input/army-aboard-action true {:type :land} false)))
+
+  (it "conquers hostile city when not extended"
+    (should= :conquest
+             (input/army-aboard-action false {:type :city :city-status :computer} true)))
+
+  (it "ignores hostile city when extended"
+    (should= :ignore
+             (input/army-aboard-action true {:type :city :city-status :computer} true)))
+
+  (it "ignores occupied land"
+    (should= :ignore
+             (input/army-aboard-action false {:type :land :contents {:type :army}} false)))
+
+  (it "ignores sea target"
+    (should= :ignore
+             (input/army-aboard-action false {:type :sea} false)))
+
+  (it "prefers land disembark over hostile city"
+    (should= :disembark
+             (input/army-aboard-action false {:type :land} true))))
