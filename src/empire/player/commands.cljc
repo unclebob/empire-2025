@@ -222,43 +222,39 @@
 
       :else nil)))
 
+(defn- adjacent-coords? [c1 c2]
+  (let [[ax ay] c1 [cx cy] c2]
+    (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))))
+
+(defn- click-army-aboard [attn-coords clicked-coords target-cell]
+  (when (and (adjacent-coords? attn-coords clicked-coords)
+             (= (:type target-cell) :land)
+             (not (:contents target-cell)))
+    (container-ops/disembark-army-from-transport attn-coords clicked-coords)
+    (game-loop/item-processed)))
+
+(defn- click-standard-unit [attn-coords clicked-coords unit-type]
+  (if (and (adjacent-coords? attn-coords clicked-coords)
+           (combat/hostile-city? clicked-coords))
+    (case unit-type
+      :army (combat/attempt-conquest attn-coords clicked-coords)
+      :fighter (combat/attempt-fighter-overfly attn-coords clicked-coords)
+      (movement/set-unit-movement attn-coords clicked-coords))
+    (movement/set-unit-movement attn-coords clicked-coords)))
+
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
   [clicked-coords attention-coords]
   (let [attn-coords (first attention-coords)
         attn-cell (get-in @atoms/game-map attn-coords)
         active-unit (movement/get-active-unit attn-cell)
-        unit-type (:type active-unit)
-        is-airport-fighter? (movement/is-fighter-from-airport? active-unit)
-        is-army-aboard? (movement/is-army-aboard-transport? active-unit)
         target-cell (get-in @atoms/game-map clicked-coords)
-        [ax ay] attn-coords
-        [cx cy] clicked-coords
-        adjacent? (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))]
-    (cond
-      is-airport-fighter?
-      (let [fighter-pos (container-ops/launch-fighter-from-airport attn-coords clicked-coords)]
-        (reset! atoms/waiting-for-input false)
-        (reset! atoms/attention-message "")
-        (reset! atoms/cells-needing-attention [])
-        (swap! atoms/player-items #(cons fighter-pos (rest %))))
-
-      (and is-army-aboard? adjacent? (= (:type target-cell) :land) (not (:contents target-cell)))
-      (do
-        (container-ops/disembark-army-from-transport attn-coords clicked-coords)
-        (game-loop/item-processed))
-
-      is-army-aboard?
-      nil ;; Awake army aboard - ignore invalid disembark targets
-
-      (and (= :army unit-type) adjacent? (combat/hostile-city? clicked-coords))
-      (combat/attempt-conquest attn-coords clicked-coords)
-
-      (and (= :fighter unit-type) adjacent? (combat/hostile-city? clicked-coords))
-      (combat/attempt-fighter-overfly attn-coords clicked-coords)
-
-      :else
-      (movement/set-unit-movement attn-coords clicked-coords))
+        context (movement/movement-context attn-cell active-unit)]
+    (case context
+      :airport-fighter (launch-fighter-and-update
+                         container-ops/launch-fighter-from-airport attn-coords clicked-coords)
+      :army-aboard (click-army-aboard attn-coords clicked-coords target-cell)
+      (click-standard-unit attn-coords clicked-coords (:type active-unit)))
     (game-loop/item-processed)))
 
 (defn handle-cell-click
