@@ -6,3 +6,4 @@
 - **Fighters spread to conquered cities**: Fighters should distribute themselves to conquered cities and explore outward from there.
 - **Early satellites**: Produce satellites early in the game for rapid map exploration.
 - **Massive attack**: Coordinate large-scale multi-unit attacks on player cities and positions.
+- **Armies should not sit in cities**: Computer armies should move out of cities rather than staying garrisoned in them.

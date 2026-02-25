@@ -108,8 +108,7 @@
   [pos target]
   (let [passable (get-passable-sea-neighbors pos)
         closest (core/move-toward pos target passable)]
-    (when closest
-      (core/move-unit-to pos closest)
+    (when (and closest (core/move-unit-to pos closest))
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility closest :computer)
       (load-adjacent-armies closest)

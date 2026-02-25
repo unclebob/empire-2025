@@ -926,7 +926,29 @@
                           (when (= :transport (get-in @atoms/game-map [c r :contents :type]))
                             [c r]))
                         (for [c (range 7) r (range 2)] [c r]))]
-        (should (> (first t-pos) 0)))))
+        (should (> (first t-pos) 0))))
+
+    (it "falls back to coastal crawl when preferred cell is occupied by another transport"
+      ;; ##~~~~   col0,col1 = land; col2-5 = sea
+      ;; #t~~~~   transport at [1,1]; pcp [5,1] (far east)
+      ;; ##~~~~   col0,col1 = land; col2-5 = sea
+      ;; Blocker transport placed at [2,1].
+      ;; move-toward picks [2,1] (closest to pcp), but move fails.
+      ;; Should fall back to coastal crawl → [2,0] or [2,2].
+      (reset! atoms/game-map (build-test-map ["##~~~~"
+                                               "#t~~~~"
+                                               "##~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :loading :army-count 0
+              :pickup-continent-pos [5 1]})
+      (swap! atoms/game-map assoc-in [2 1 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :loading :army-count 0})
+      (transport/process-transport [1 1])
+      ;; Transport should have moved away from [1,1]
+      (should-be-nil (:contents (get-in @atoms/game-map [1 1])))))
 
   (context "passable-sea with computer unit"
     (it "transport moves past sea cell containing computer unit"
