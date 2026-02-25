@@ -54,10 +54,12 @@
 
 (defn- sovereign-passable?
   "Returns true if a computer army with country-id can enter the cell.
-   Foreign land (different non-nil country-id) is blocked. Cities are always passable."
+   Foreign land (different non-nil country-id) is blocked.
+   Computer cities are blocked; free and player cities are passable."
   [country-id cell]
   (and cell
        (#{:land :city} (:type cell))
+       (not= :computer (:city-status cell))
        (or (nil? country-id)
            (= :city (:type cell))
            (nil? (:country-id cell))
@@ -337,14 +339,16 @@
 (defn- try-interior-move
   "Attempts to move in a direction, clearing direction if blocked or at coast."
   [pos target]
-  (if (and (in-bounds? target)
-           (#{:land :city} (:type (get-in @atoms/game-map target)))
-           (try-move pos target))
+  (let [target-cell (get-in @atoms/game-map target)]
+    (if (and (in-bounds? target)
+             (#{:land :city} (:type target-cell))
+             (not= :computer (:city-status target-cell))
+             (try-move pos target))
     (do (when (adjacent-to-sea? target)
           (swap! atoms/game-map update-in (conj target :contents) dissoc :interior-explore-direction))
         target)
     (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :interior-explore-direction)
-        nil)))
+        nil))))
 
 (defn- start-interior-exploration
   "Picks a random direction and takes first step of interior exploration."

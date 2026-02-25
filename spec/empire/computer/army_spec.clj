@@ -93,6 +93,17 @@
       (should-be-nil (:contents (get-in @atoms/game-map [1 1])))
       (should= :army (get-in @atoms/game-map [2 1 :contents :type])))
 
+    (it "does not enter computer city via interior-explore"
+      ;; Army at [0 0] with interior-explore-direction [1 0], computer city at [1 0]
+      (reset! atoms/game-map (build-test-map ["#X"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :army :owner :computer :hits 1
+              :interior-explore-direction [1 0] :country-id 1})
+      (army/process-army [0 0])
+      ;; Army should not have entered the computer city
+      (should-be-nil (get-in @atoms/game-map [1 0 :contents])))
+
     (it "clears mode to awake when blocked inland"
       ;; Army at [2 0] heading right [1 0] — would go off 3-col map
       (reset! atoms/game-map (build-test-map ["###"]))
@@ -153,6 +164,15 @@
       ;; Army should have left the city
       (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
       (should= :army (get-in @atoms/game-map [1 0 :contents :type])))
+
+    (it "army does not move into computer city"
+      ;; Army at [0 0] on land, computer city at [1 0], no other land
+      (reset! atoms/game-map (build-test-map ["aX"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (army/process-army [0 0])
+      ;; Army should stay — computer city is not passable
+      (should= :army (get-in @atoms/game-map [0 0 :contents :type]))
+      (should-be-nil (get-in @atoms/game-map [1 0 :contents])))
 
     (it "army in computer city stays if all neighbors are sea"
       ;; X = computer city with army; ~ = sea
