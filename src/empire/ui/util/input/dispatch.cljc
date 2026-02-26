@@ -10,6 +10,8 @@
             [empire.save-load :as save-load]
             [empire.ui.util.input.actions :as actions]))
 
+(defn handle-key [k] (actions/handle-key k))
+
 (def handle-unit-click commands/handle-unit-click)
 
 (defn handle-cell-click

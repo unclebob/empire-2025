@@ -7,7 +7,7 @@
     (str "    (with-redefs [q/mouse-x (constantly 0)\n"
          "                  q/mouse-y (constantly 0)]\n"
          "      (reset! atoms/last-key nil)\n"
-         "      (input/key-down :" (name key) "))")
+         "      (quil-input/key-down :" (name key) "))")
     (str "    (input/handle-key :" (name key) ")")))
 
 (defn- generate-battle-when [{:keys [key outcome combat-type]}]
@@ -24,8 +24,8 @@
     (str "    (reset! atoms/map-screen-dimensions [22 16])\n"
          "    (with-redefs [q/mouse-x (constantly " x ")\n"
          "                  q/mouse-y (constantly " y ")]\n"
-         "      (input/key-down (keyword \"`\"))\n"
-         "      (input/key-down :" (name key) "))")))
+         "      (quil-input/key-down (keyword \"`\"))\n"
+         "      (quil-input/key-down :" (name key) "))")))
 
 (defn- mouse-at-key-expr [key]
   (case key
@@ -44,7 +44,7 @@
          "      (reset! atoms/map-screen-dimensions [map-w map-h])\n"
          "      (with-redefs [q/mouse-x (constantly px)\n"
          "                    q/mouse-y (constantly py)]\n"
-         "        (input/key-down " key-expr ")))")))
+         "        (quil-input/key-down " key-expr ")))")))
 
 (defn- generate-visibility-update-when [_]
   "    (game-loop/update-player-map)")
