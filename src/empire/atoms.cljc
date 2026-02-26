@@ -207,6 +207,18 @@
    FIFO queue consumed by transport invasion assignment at round start."
   (atom []))
 
+(def transport-fully-loaded?
+  "Set true when any computer transport first reaches full army load. Never reset."
+  (atom false))
+
+(def early-patrol-boat-produced?
+  "Set true when the early patrol boat enters production. Never reset."
+  (atom false))
+
+(def early-satellite-produced?
+  "Set true when the early satellite enters production. Never reset."
+  (atom false))
+
 (def computer-event-log
   "Circular buffer of computer unit events for debugging. Capped at 2000 entries.
    Each entry is {:round N :event :keyword :pos [x y] :details {...}}."
