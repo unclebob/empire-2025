@@ -3,7 +3,7 @@
   "Debug utilities for dumping game state to file.
    Provides circular action logging and region-based state dumps."
   (:require [empire.atoms :as atoms]
-            [empire.ui.coordinates :as coords]
+            [empire.ui.util.core :as coords]
             [clojure.string :as str])
   #?(:clj (:import [java.time LocalDateTime]
                    [java.time.format DateTimeFormatter])))

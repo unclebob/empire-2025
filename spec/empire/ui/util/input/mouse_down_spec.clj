@@ -1,6 +1,6 @@
-(ns empire.ui.mouse-down-spec
+(ns empire.ui.util.input.mouse-down-spec
   (:require [speclj.core :refer :all]
-            [empire.ui.input :as input]
+            [empire.ui.util.input.dispatch :as dispatch]
             [empire.atoms :as atoms]
             [empire.save-load :as save-load]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
@@ -19,7 +19,7 @@
       (reset! atoms/load-menu-hovered 0)
       (let [loaded (atom nil)]
         (with-redefs [save-load/load-game! (fn [f] (reset! loaded f))]
-          (input/mouse-down 50 50 :left))
+          (dispatch/mouse-down 50 50 :left))
         (should= "save1.edn" @loaded)))
 
     (it "ignores right click when load menu is open"
@@ -28,22 +28,22 @@
       (reset! atoms/load-menu-hovered 0)
       (let [loaded (atom false)]
         (with-redefs [save-load/load-game! (fn [_] (reset! loaded true))]
-          (input/mouse-down 50 50 :right))
+          (dispatch/mouse-down 50 50 :right))
         (should= false @loaded))))
 
   (context "normal map click"
     (it "sets last-clicked-cell on left click within map"
-      (input/mouse-down 150 150 :left)
+      (dispatch/mouse-down 150 150 :left)
       (should= [1 1] @atoms/last-clicked-cell))
 
     (it "does not set last-clicked-cell on right click"
       (reset! atoms/last-clicked-cell nil)
-      (input/mouse-down 150 150 :right)
+      (dispatch/mouse-down 150 150 :right)
       (should-be-nil @atoms/last-clicked-cell))
 
     (it "does not set last-clicked-cell when click is off map"
       (reset! atoms/last-clicked-cell nil)
-      (input/mouse-down 500 500 :left)
+      (dispatch/mouse-down 500 500 :left)
       (should-be-nil @atoms/last-clicked-cell))))
 
 (run-specs)

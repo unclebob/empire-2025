@@ -12,7 +12,7 @@
             [empire.player.production :as production]
             [empire.game-loop.round-setup :as round-setup]
             [empire.game-loop.item-processing :as item-processing]
-            [empire.ui.rendering-util :as ru]))
+            [empire.ui.util.rendering.format :as ru]))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."

@@ -1,0 +1,116 @@
+(ns empire.ui.util.rendering.display
+  (:require [empire.config :as config]
+            [empire.containers.helpers :as uc]
+            [empire.ui.util.rendering.format :as fmt]))
+
+(defn resolve-display-map
+  "Returns the appropriate map based on map-to-display keyword."
+  [map-to-display player-map computer-map game-map]
+  (case map-to-display
+    :player-map player-map
+    :computer-map computer-map
+    :actual-map game-map))
+
+(defn compute-hover-message
+  "Looks up cell and production at coords in the-map, returns formatted hover string.
+   Returns empty string when cell has no displayable status."
+  [the-map production-map coords]
+  (let [cell (get-in the-map coords)
+        production (get production-map coords)]
+    (or (fmt/format-hover-status coords cell production) "")))
+
+(defn compute-hover-result
+  "Computes hover message from map display state and mouse position."
+  [map-to-display player-map computer-map game-map production coords]
+  (let [the-map (resolve-display-map map-to-display player-map computer-map game-map)]
+    (compute-hover-message the-map production coords)))
+
+(defn determine-display-unit
+  "Determines which unit to display, handling attention blinking.
+   attention-coords is the list of cells needing attention (or nil).
+   blink? is the current blink state for contained unit display."
+  [col row cell attention-coords blink?]
+  (let [contents (:contents cell)
+        has-awake-airport? (uc/has-awake? cell :awake-fighters)
+        has-any-airport? (pos? (uc/get-count cell :fighter-count))
+        has-awake-carrier? (uc/has-awake-carrier-fighter? contents)
+        has-awake-army? (uc/has-awake-army-aboard? contents)
+        has-contained-unit? (or has-awake-airport? has-awake-carrier? has-awake-army?)
+        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
+        show-contained? (and is-attention-cell? has-contained-unit? blink?)]
+    (cond
+      show-contained?
+      (uc/blinking-contained-unit has-awake-airport? has-awake-carrier? has-awake-army?)
+
+      (and is-attention-cell? has-awake-airport?)
+      nil ;; Hide airport fighter on alternate blink frame
+
+      :else
+      (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
+
+(defn production-indicator-data
+  "Returns production indicator rendering data for a cell, or nil if none needed."
+  [row col cell production]
+  (when-let [prod (and (= :city (:type cell))
+                       (get production [col row]))]
+    (when (and (map? prod) (:item prod))
+      (let [item (:item prod)
+            total (config/item-cost item)
+            remaining (:remaining-rounds prod)
+            progress (/ (- total remaining) (double total))
+            base-color (config/color-of cell)
+            dark-color (mapv #(* % 0.5) base-color)]
+        {:prod-char (config/item-chars item)
+         :progress progress
+         :remaining remaining
+         :dark-color dark-color}))))
+
+(defn group-cells-by-color
+  "Groups map cells by their display color for batched rendering.
+   Returns a map of [r g b] color to seq of {:col :row :cell} maps.
+   blink-attention? and blink-completed? control flash states for attention cells and completed cities."
+  [the-map attention-coords production blink-attention? blink-completed?]
+  (let [cols (count the-map)
+        rows (count (first the-map))
+        attention-cell (first attention-coords)]
+    (reduce
+     (fn [acc [col row]]
+       (let [cell (get-in the-map [col row])]
+         (if (= :unexplored (:type cell))
+           acc
+           (let [color (config/color-of cell)
+                 current [col row]
+                 should-flash-black (= current attention-cell)
+                 completed? (and (= (:type cell) :city)
+                                 (not= :free (:city-status cell))
+                                 (let [prod (production [col row])]
+                                   (and (map? prod) (= (:remaining-rounds prod) 0))))
+                 blink-white? (and completed? blink-completed?)
+                 blink-black? (and should-flash-black blink-attention?)
+                 final-color (cond blink-black? [0 0 0]
+                                   blink-white? [255 255 255]
+                                   :else color)]
+             (update acc final-color conj {:col col :row row :cell cell})))))
+     {}
+     (for [col (range cols) row (range rows)] [col row]))))
+
+(defn should-show-error?
+  "Returns true if the error message should be shown."
+  [error-until]
+  (< (System/currentTimeMillis) error-until))
+
+(defn resolve-turn-text
+  "Returns the turn text to display, falling back to destination."
+  [turn-message destination]
+  (cond
+    (seq turn-message) turn-message
+    destination (format (:destination config/messages) (first destination) (second destination))
+    :else nil))
+
+(defn resolve-round-status-text
+  "Returns the round status text with optional PAUSED prefix."
+  [round-number paused pause-requested]
+  (let [round-str (str "Round: " round-number)]
+    (if (fmt/should-show-paused? paused pause-requested)
+      {:text (str "PAUSED  " round-str) :paused? true :round-str round-str}
+      {:text round-str :paused? false})))

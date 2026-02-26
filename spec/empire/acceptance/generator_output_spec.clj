@@ -287,7 +287,7 @@
       (should-contain "speclj.core :refer :all" result)
       (should-contain "empire.atoms :as atoms" result)
       (should-contain "empire.config :as config" result)
-      (should-contain "empire.ui.input :as input" result)
+      (should-contain "empire.ui.util.input.dispatch :as input" result)
       (should-contain "quil.core :as q" result)))
 
   (it "generates army spec with correct describe"

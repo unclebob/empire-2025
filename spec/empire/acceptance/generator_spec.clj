@@ -274,7 +274,7 @@
   (it "always includes atoms and input requires"
     (let [result (gen/generate-ns-form "foo.txt" #{})]
       (should-contain "[empire.atoms :as atoms]" result)
-      (should-contain "[empire.ui.input :as input]" result)))
+      (should-contain "[empire.ui.util.input.dispatch :as input]" result)))
 
   (it "includes config require and message-matches? refer when :config needed"
     (let [result (gen/generate-ns-form "foo.txt" #{:config})]

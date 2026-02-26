@@ -1,0 +1,152 @@
+(ns empire.ui.util.input.dispatch
+  (:require [empire.atoms :as atoms]
+            [empire.config :as config]
+            [empire.debug :as debug]
+            [empire.game-loop :as game-loop]
+            [empire.movement.map-utils :as map-utils]
+            [empire.player.attention :as attention]
+            [empire.player.commands :as commands]
+            [empire.player.orders :as orders]
+            [empire.save-load :as save-load]
+            [empire.ui.util.input.actions :as actions]))
+
+(def handle-unit-click commands/handle-unit-click)
+
+(defn handle-cell-click
+  "Handles clicking on a map cell, prioritizing attention-needing items."
+  [cell-x cell-y]
+  (let [attention-coords @atoms/cells-needing-attention
+        clicked-coords [cell-x cell-y]]
+    (when (attention/is-unit-needing-attention? attention-coords)
+      (handle-unit-click clicked-coords attention-coords))))
+
+(defn handle-load-menu-click
+  "Handles a mouse click when the load menu is open.
+   Loads the hovered file if one is selected."
+  []
+  (when-let [idx @atoms/load-menu-hovered]
+    (let [files @atoms/load-menu-files]
+      (when (< idx (count files))
+        (save-load/load-game! (nth files idx))))))
+
+(defn mouse-down
+  "Handles mouse click events."
+  [x y button]
+  (cond
+    ;; Load menu is open - handle menu click
+    @atoms/load-menu-open
+    (when (= button :left)
+      (handle-load-menu-click))
+
+    ;; Normal map click
+    (and (= button :left) (map-utils/on-map? x y))
+    (let [[cell-x cell-y] (map-utils/determine-cell-coordinates x y)]
+      (reset! atoms/last-clicked-cell [cell-x cell-y])
+      (handle-cell-click cell-x cell-y))))
+
+;; Debug drag functions
+
+(defn modifier-held?
+  "Returns true if a modifier key (ctrl, meta, alt) is held."
+  [modifiers]
+  (or (:ctrl modifiers) (:meta modifiers) (:alt modifiers)))
+
+(defn debug-drag-start!
+  "Starts a debug drag operation at the given screen coordinates."
+  [x y]
+  (reset! atoms/debug-drag-start [x y])
+  (reset! atoms/debug-drag-current [x y]))
+
+(defn debug-drag-update!
+  "Updates the current drag position. Only updates if a drag is active."
+  [x y]
+  (when @atoms/debug-drag-start
+    (reset! atoms/debug-drag-current [x y])))
+
+(defn- has-area?
+  "Returns true if the cell range covers more than one cell."
+  [[[start-row start-col] [end-row end-col]]]
+  (or (not= start-row end-row)
+      (not= start-col end-col)))
+
+(defn debug-drag-end!
+  "Ends a debug drag operation and triggers the dump if ctrl is held and selection has area.
+   Converts screen coordinates to cell range and writes the dump file."
+  [x y modifiers]
+  (when @atoms/debug-drag-start
+    (when (modifier-held? modifiers)
+      (let [start @atoms/debug-drag-start
+            end [x y]
+            cell-range (debug/screen-coords-to-cell-range start end)]
+        (when (has-area? cell-range)
+          (let [filename (debug/write-dump! (first cell-range) (second cell-range))]
+            (reset! atoms/debug-message (str "Debug: " filename))))))
+    (reset! atoms/debug-drag-start nil)
+    (reset! atoms/debug-drag-current nil)))
+
+(def ^:private backtick-unit-map
+  {:A [:army :player] :F [:fighter :player] :Z [:satellite :player]
+   :T [:transport :player] :P [:patrol-boat :player] :D [:destroyer :player]
+   :S [:submarine :player] :C [:carrier :player] :B [:battleship :player]
+   :a [:army :computer] :f [:fighter :computer] :z [:satellite :computer]
+   :t [:transport :computer] :p [:patrol-boat :computer] :d [:destroyer :computer]
+   :s [:submarine :computer] :c [:carrier :computer] :b [:battleship :computer]})
+
+(def ^:private standing-order-handlers
+  {(keyword ".") #'orders/set-destination-at
+   (keyword "*") #'orders/set-waypoint-at
+   :l #'orders/set-city-lookaround
+   :u #'orders/wake-at
+   :m #'orders/set-marching-orders-at
+   :f #'orders/set-flight-path-at})
+
+(defn- dispatch-load-menu-key [k]
+  (when (= k :escape) (save-load/close-load-menu!)))
+
+(defn- dispatch-backtick-key [k cell-coords]
+  (reset! atoms/backtick-pressed false)
+  (when cell-coords
+    (if-let [[unit-type owner] (backtick-unit-map k)]
+      (orders/add-unit-at cell-coords unit-type owner)
+      (when (= k :o) (orders/own-city-at cell-coords)))))
+
+(def ^:private backtick-key (keyword "`"))
+(def ^:private bang-key (keyword "!"))
+(def ^:private caret-key (keyword "^"))
+
+(defn- dispatch-game-control-key [k]
+  (cond
+    (= k backtick-key) (do (reset! atoms/backtick-pressed true) true)
+    (= k :P) (do (game-loop/toggle-pause) true)
+    (= k :+) (do (swap! atoms/map-to-display {:player-map :computer-map
+                                               :computer-map :actual-map
+                                               :actual-map :player-map}) true)
+    (and (= k :space) @atoms/paused) (do (game-loop/step-one-round) true)))
+
+(defn- dispatch-save-load-key [k]
+  (cond
+    (= k bang-key) (do (atoms/set-turn-message
+                         (str "Saved to " (save-load/save-game!)) 3000) true)
+    (= k caret-key) (do (save-load/open-load-menu!) true)))
+
+(defn- dispatch-standing-order-key [k cell-coords]
+  (when-let [handler (standing-order-handlers k)]
+    (when cell-coords (handler cell-coords))))
+
+(defn- dispatch-coord-key [k cell-coords]
+  (when cell-coords
+    (or (dispatch-standing-order-key k cell-coords)
+        (orders/set-city-marching-orders-by-direction-at cell-coords k))))
+
+(defn- dispatch-normal-key [k cell-coords]
+  (or (dispatch-game-control-key k)
+      (dispatch-save-load-key k)
+      (dispatch-coord-key k cell-coords)
+      (actions/handle-key k)))
+
+(defn dispatch-key [k cell-coords]
+  (debug/log-action! [:key-pressed k])
+  (cond
+    @atoms/load-menu-open   (dispatch-load-menu-key k)
+    @atoms/backtick-pressed (dispatch-backtick-key k cell-coords)
+    :else                   (dispatch-normal-key k cell-coords)))

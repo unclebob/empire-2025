@@ -152,7 +152,7 @@
                 optional-refers)))
 
 (defn- collect-requires [needs]
-  (into ["[empire.atoms :as atoms]" "[empire.ui.input :as input]"]
+  (into ["[empire.atoms :as atoms]" "[empire.ui.util.input.dispatch :as input]"]
         (keep (fn [[need req]] (when (contains? needs need) req))
               optional-requires)))
 

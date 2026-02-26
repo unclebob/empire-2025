@@ -1,10 +1,14 @@
-(ns empire.ui.core
+(ns empire.ui.quil.core
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.init :as init]
-            [empire.ui.input :as input]
-            [empire.ui.rendering :as rendering]
+            [empire.ui.quil.input :as quil-input]
+            [empire.ui.quil.rendering.map :as render-map]
+            [empire.ui.quil.rendering.messages :as render-messages]
+            [empire.ui.quil.rendering.overlay :as render-overlay]
+            [empire.ui.util.core :as util-core]
+            [empire.ui.util.input.dispatch :as dispatch]
             [quil.core :as q]
             [quil.middleware :as m]))
 
@@ -14,33 +18,11 @@
   (reset! atoms/text-font (q/create-font config/text-font-name config/text-font-size))
   (reset! atoms/production-char-font (q/create-font config/cell-char-font-name config/cell-char-font-size)))
 
-(defn compute-screen-dimensions
-  "Computes pixel rendering dimensions from known map-size and fixed cell-size.
-   Returns a map with :map-screen-dimensions and :text-area-dimensions."
-  [cols rows cell-w cell-h]
-  (let [map-display-w (* cols cell-w)
-        map-display-h (* rows cell-h)
-        text-h (* config/text-area-rows cell-h)
-        text-x 0
-        text-y (+ map-display-h config/text-area-gap)
-        text-w map-display-w]
-    {:map-screen-dimensions [map-display-w map-display-h]
-     :text-area-dimensions [text-x text-y text-w text-h]}))
-
-(defn calculate-screen-dimensions
-  "Sets pixel rendering dimensions from known map-size and fixed cell-size."
-  []
-  (let [[cols rows] @atoms/map-size
-        [cell-w cell-h] config/cell-size
-        dims (compute-screen-dimensions cols rows cell-w cell-h)]
-    (reset! atoms/map-screen-dimensions (:map-screen-dimensions dims))
-    (reset! atoms/text-area-dimensions (:text-area-dimensions dims))))
-
 (defn setup
   "Initial setup for the game state."
   []
   (create-fonts)
-  (calculate-screen-dimensions)
+  (util-core/calculate-screen-dimensions)
   (when-let [seed @atoms/random-seed]
     (let [rng (java.util.Random. seed)]
       (alter-var-root #'clojure.core/rand
@@ -60,7 +42,7 @@
   (game-loop/update-player-map)
   (game-loop/update-computer-map)
   (game-loop/advance-game-batch)
-  (rendering/update-hover-status)
+  (render-overlay/update-hover-status)
   state)
 
 (defn draw-state
@@ -71,21 +53,18 @@
                   :player-map @atoms/player-map
                   :computer-map @atoms/computer-map
                   :actual-map @atoms/game-map)]
-    (rendering/draw-map the-map)
-    (rendering/draw-debug-selection-rectangle)
-    (rendering/draw-message-area)
-    (rendering/draw-load-menu)))
+    (render-map/draw-map the-map)
+    (render-map/draw-debug-selection-rectangle)
+    (render-messages/draw-message-area)
+    (render-overlay/draw-load-menu)))
 
 (defn key-pressed [state _]
   (let [k (q/key-as-keyword)]
     (when (not= k :shift)
       (when (nil? @atoms/last-key)
-        (input/key-down k))
+        (quil-input/key-down k))
       (reset! atoms/last-key k)))
   state)
-
-(defn key-released [_ _]
-  (reset! atoms/last-key nil))
 
 (defn- get-modifiers
   "Returns a map of modifier key states."
@@ -101,17 +80,17 @@
         button (q/mouse-button)
         mods (get-modifiers)]
     ;; On macOS, Ctrl+Click becomes right-click, so accept any button with modifier
-    (if (input/modifier-held? mods)
-      (input/debug-drag-start! x y)
-      (input/mouse-down x y button)))
+    (if (dispatch/modifier-held? mods)
+      (dispatch/debug-drag-start! x y)
+      (dispatch/mouse-down x y button)))
   state)
 
 (defn mouse-dragged [state _]
-  (input/debug-drag-update! (q/mouse-x) (q/mouse-y))
+  (dispatch/debug-drag-update! (q/mouse-x) (q/mouse-y))
   state)
 
 (defn mouse-released [state _]
-  (input/debug-drag-end! (q/mouse-x) (q/mouse-y) (get-modifiers))
+  (dispatch/debug-drag-end! (q/mouse-x) (q/mouse-y) (get-modifiers))
   state)
 
 (defn on-close [_]
@@ -161,7 +140,7 @@
                  :update update-state
                  :draw draw-state
                  :key-pressed key-pressed
-                 :key-released key-released
+                 :key-released util-core/key-released
                  :mouse-pressed mouse-pressed
                  :mouse-dragged mouse-dragged
                  :mouse-released mouse-released

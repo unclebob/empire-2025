@@ -5,7 +5,7 @@
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
-            [empire.ui.input :as input]
+            [empire.ui.util.input.actions :as input]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement :as movement]
