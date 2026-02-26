@@ -545,8 +545,7 @@
 (defn- should-try-opportunistic-unload?
   [army-count mission]
   (and (pos? army-count)
-       (or (#{:sailing :unloading} mission)
-           (and (= :loading mission) (< army-count 6)))))
+       (#{:sailing :unloading} mission)))
 
 (defn- process-unloading-mission
   [pos army-count]

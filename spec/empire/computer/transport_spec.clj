@@ -97,10 +97,10 @@
         ;; Should have loaded at least 1 army (the one adjacent at start)
         (should (pos? (:army-count transport)))))
 
-    (it "loading transport with armies unloads all onto foreign empty land"
+    (it "loading transport with armies does NOT opportunistically unload"
       ;; Transport at [1,1] in loading mode with 4 armies.
-      ;; Adjacent land at [0,0]-[0,2] is foreign (no country-id matching transport).
-      ;; Should opportunistically unload 3 armies (one per empty land cell).
+      ;; Adjacent land at [0,0]-[0,2] is foreign — but loading transports
+      ;; should keep their armies, not dump them.
       (reset! atoms/game-map (build-test-map ["###"
                                                "~t~"
                                                "~~~"]))
@@ -110,18 +110,18 @@
               :transport-mission :loading :army-count 4
               :country-id 99})
       (transport/process-transport [1 1])
-      ;; All 3 adjacent land cells should have armies
+      ;; No armies should be unloaded onto land
       (let [armies-on-land (for [c (range 3)
                                  :let [cell (get-in @atoms/game-map [c 0])]
                                  :when (= :army (:type (:contents cell)))]
                              [c 0])]
-        (should= 3 (count armies-on-land)))
-      ;; Transport should have 1 army remaining
+        (should= 0 (count armies-on-land)))
+      ;; Transport should still have 4 armies (starts sailing since >= 4 and no nearby loadable)
       (let [t (first (for [c (range 3) r (range 3)
                            :let [unit (get-in @atoms/game-map [c r :contents])]
                            :when (= :transport (:type unit))]
                        unit))]
-        (should= 1 (:army-count t)))))
+        (should= 4 (:army-count t)))))
 
   (context "unloading behavior"
     (it "unloads armies onto adjacent land"
