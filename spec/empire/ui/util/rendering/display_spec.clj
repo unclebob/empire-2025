@@ -157,6 +157,76 @@
       (should= "[1,0] city:free"
                (display/compute-hover-message the-map production [1 0])))))
 
+(describe "resolve-turn-text"
+  (it "returns turn-message when present"
+    (should= "Hello" (display/resolve-turn-text "Hello" nil)))
+
+  (it "returns formatted destination when no turn-message"
+    (should= "Dest: 5,10" (display/resolve-turn-text nil [5 10])))
+
+  (it "prefers turn-message over destination"
+    (should= "Msg" (display/resolve-turn-text "Msg" [5 10])))
+
+  (it "returns nil when neither turn-message nor destination"
+    (should-be-nil (display/resolve-turn-text nil nil)))
+
+  (it "returns nil for empty string turn-message and no destination"
+    (should-be-nil (display/resolve-turn-text "" nil)))
+
+  (it "returns formatted destination for empty string turn-message"
+    (should= "Dest: 3,7" (display/resolve-turn-text "" [3 7]))))
+
+(describe "resolve-round-status-text"
+  (it "returns round string when not paused"
+    (let [result (display/resolve-round-status-text 5 false false)]
+      (should= "Round: 5" (:text result))
+      (should-not (:paused? result))))
+
+  (it "returns paused prefix when paused"
+    (let [result (display/resolve-round-status-text 3 true false)]
+      (should= "PAUSED  Round: 3" (:text result))
+      (should (:paused? result))
+      (should= "Round: 3" (:round-str result))))
+
+  (it "returns paused prefix when pause-requested"
+    (let [result (display/resolve-round-status-text 1 false true)]
+      (should= "PAUSED  Round: 1" (:text result))
+      (should (:paused? result))))
+
+  (it "returns paused prefix when both paused and requested"
+    (let [result (display/resolve-round-status-text 10 true true)]
+      (should= "PAUSED  Round: 10" (:text result))
+      (should (:paused? result)))))
+
+(describe "should-show-error?"
+  (it "returns true when error-until is in the future"
+    (should (display/should-show-error? (+ (System/currentTimeMillis) 10000))))
+
+  (it "returns false when error-until is in the past"
+    (should-not (display/should-show-error? (- (System/currentTimeMillis) 10000)))))
+
+(describe "compute-hover-result"
+  (it "returns hover message using player-map"
+    (let [player-map [[{:type :land :contents {:type :army :hits 1 :mode :awake :owner :player}}]]
+          computer-map [[{:type :sea}]]
+          game-map [[{:type :land}]]]
+      (should= "[0,0] player army [1/1] awake"
+               (display/compute-hover-result :player-map player-map computer-map game-map {} [0 0]))))
+
+  (it "returns hover message using computer-map"
+    (let [player-map [[{:type :land}]]
+          computer-map [[{:type :city :city-status :computer :fighter-count 0}]]
+          game-map [[{:type :land}]]]
+      (should= "[0,0] city:computer"
+               (display/compute-hover-result :computer-map player-map computer-map game-map {} [0 0]))))
+
+  (it "returns empty string for empty cell"
+    (let [player-map [[{:type :land}]]
+          computer-map [[{:type :sea}]]
+          game-map [[{:type :land}]]]
+      (should= ""
+               (display/compute-hover-result :player-map player-map computer-map game-map {} [0 0])))))
+
 (describe "resolve-display-map"
   (it "returns player-map for :player-map"
     (should= :p (display/resolve-display-map :player-map :p :c :g)))

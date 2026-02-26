@@ -48,7 +48,15 @@
   (it "formats transport with loading-timeout"
     (let [unit {:type :transport :hits 1 :mode :sentry :army-count 2 :owner :computer
                 :transport-mission :loading :loading-timeout 3}]
-      (should= "computer transport [1/1] cargo:2 loading timeout:3 sentry" (fmt/format-unit-status unit)))))
+      (should= "computer transport [1/1] cargo:2 loading timeout:3 sentry" (fmt/format-unit-status unit))))
+
+  (it "formats patrol-boat with patrol mode"
+    (let [unit {:type :patrol-boat :hits 1 :mode :awake :owner :player :patrol-mode :coastal}]
+      (should= "player patrol-boat [1/1] coastal awake" (fmt/format-unit-status unit))))
+
+  (it "formats destroyer with no patrol mode"
+    (let [unit {:type :destroyer :hits 3 :mode :sentry :owner :player}]
+      (should= "player destroyer [3/3] sentry" (fmt/format-unit-status unit)))))
 
 (describe "format-city-status"
   (it "formats player city with production"
@@ -127,6 +135,19 @@
     (let [cell {:type :city :city-status :player :fighter-count 0}]
       (should= "city:player producing:none" (fmt/format-city-status cell :none)))))
 
+(describe "format-waypoint-status"
+  (it "formats waypoint with marching orders"
+    (should= "waypoint -> 5,10"
+             (fmt/format-waypoint-status {:marching-orders [5 10]})))
+
+  (it "formats waypoint with no orders"
+    (should= "waypoint (no orders)"
+             (fmt/format-waypoint-status {})))
+
+  (it "formats waypoint with nil orders"
+    (should= "waypoint (no orders)"
+             (fmt/format-waypoint-status {:marching-orders nil}))))
+
 (describe "format-hover-status"
   (it "returns unit status with coordinates"
     (let [cell {:contents {:type :army :hits 1 :mode :awake :owner :player}}]
@@ -138,7 +159,15 @@
 
   (it "returns nil for empty non-city cell"
     (let [cell {:type :land}]
-      (should-not (fmt/format-hover-status [0 0] cell nil)))))
+      (should-not (fmt/format-hover-status [0 0] cell nil))))
+
+  (it "returns waypoint status with coordinates"
+    (let [cell {:type :land :waypoint {:marching-orders [2 3]}}]
+      (should= "[1,4] waypoint -> 2,3" (fmt/format-hover-status [1 4] cell nil))))
+
+  (it "returns waypoint status for waypoint with no orders"
+    (let [cell {:type :land :waypoint {}}]
+      (should= "[0,0] waypoint (no orders)" (fmt/format-hover-status [0 0] cell nil)))))
 
 (describe "format-production-status"
   (it "returns all zeros and 0% for empty map"
@@ -180,6 +209,34 @@
                      {:type :land :contents {:type :satellite :owner :player}}]]
           player-map [[nil nil nil nil nil nil nil nil nil]]]
       (should= "A:1 F:1 T:1 D:1 S:1 P:1 C:1 B:1 Z:1 | 0%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "does not count unexplored player-map cells as explored"
+    (let [game-map [[{:type :land} {:type :sea}]]
+          player-map [[{:type :unexplored} {:type :sea}]]]
+      (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 50%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "computes 100% exploration"
+    (let [game-map [[{:type :land} {:type :sea}]]
+          player-map [[{:type :land} {:type :sea}]]]
+      (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 100%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "handles multi-column map"
+    (let [game-map [[{:type :land :contents {:type :army :owner :player}}
+                     {:type :sea}]
+                    [{:type :land}
+                     {:type :sea :contents {:type :destroyer :owner :player}}]]
+          player-map [[{:type :land} {:type :sea}]
+                      [{:type :land} nil]]]
+      (should= "A:1 F:0 T:0 D:1 S:0 P:0 C:0 B:0 Z:0 | 75%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "returns 0% for zero-cell map"
+    (let [game-map []
+          player-map []]
+      (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 0%"
                (fmt/format-production-status game-map player-map)))))
 
 (describe "should-show-paused?"
