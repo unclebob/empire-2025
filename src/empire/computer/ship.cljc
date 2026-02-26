@@ -393,48 +393,46 @@
                  assoc :pursuit-target chosen
                        :pursuit-steps-remaining (dec steps)))))))
 
+(defn- revert-destroyer-to-seeking
+  "Reverts a destroyer escort to seeking mode, clearing transport reference."
+  [pos]
+  (swap! atoms/game-map update-in (conj pos :contents)
+         #(-> % (assoc :escort-mode :seeking)
+              (dissoc :escort-transport-id)))
+  nil)
+
+(defn- process-destroyer-seeking [pos]
+  (when-let [transport-pos (find-unadopted-transport pos)]
+    (adopt-transport pos transport-pos)
+    (move-toward pos transport-pos)))
+
+(defn- process-destroyer-intercepting [pos unit]
+  (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
+    (if (<= (core/distance pos transport-pos) 1)
+      (swap! atoms/game-map update-in (conj pos :contents)
+             assoc :escort-mode :escorting)
+      (move-toward pos transport-pos))
+    (revert-destroyer-to-seeking pos)))
+
+(defn- process-destroyer-escorting [pos unit]
+  (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
+    (when (> (core/distance pos transport-pos) 1)
+      (move-toward pos transport-pos))
+    (revert-destroyer-to-seeking pos)))
+
 (defn- process-escort-destroyer
   "Processes a destroyer in escort mode."
   [pos]
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         mode (:escort-mode unit)]
-    ;; Escorting destroyers check for enemies near group before normal behavior
     (if-let [enemy-pos (when (= :escorting mode)
                          (find-enemy-near-destroyer-group pos))]
       (begin-pursuit pos enemy-pos)
       (case mode
-        :seeking
-        (when-let [transport-pos (find-unadopted-transport pos)]
-          (adopt-transport pos transport-pos)
-          (move-toward pos transport-pos))
-
-        :intercepting
-        (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
-          (if (<= (core/distance pos transport-pos) 1)
-            ;; Adjacent - switch to escorting
-            (swap! atoms/game-map update-in (conj pos :contents)
-                   assoc :escort-mode :escorting)
-            (move-toward pos transport-pos))
-          ;; Transport gone - back to seeking
-          (do (swap! atoms/game-map update-in (conj pos :contents)
-                     #(-> % (assoc :escort-mode :seeking)
-                          (dissoc :escort-transport-id)))
-              nil))
-
-        :escorting
-        (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
-          ;; Stay adjacent - if already adjacent, stay put. If not, move closer.
-          (when (> (core/distance pos transport-pos) 1)
-            (move-toward pos transport-pos))
-          ;; Transport gone - back to seeking
-          (do (swap! atoms/game-map update-in (conj pos :contents)
-                     #(-> % (assoc :escort-mode :seeking)
-                          (dissoc :escort-transport-id)))
-              nil))
-
+        :seeking (process-destroyer-seeking pos)
+        :intercepting (process-destroyer-intercepting pos unit)
+        :escorting (process-destroyer-escorting pos unit)
         :pursuing (process-pursuit pos)
-
-        ;; Default (including nil) - fall through to normal ship behavior
         nil))))
 
 ;; --- Carrier positioning helpers ---
