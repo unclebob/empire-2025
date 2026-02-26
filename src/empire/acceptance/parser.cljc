@@ -160,7 +160,8 @@
         lines (str/split-lines content)
         source (last (str/split path #"/"))
         raw-tests (split-into-tests lines)
-        tests (mapv parse-test raw-tests)]
+        expanded (expand-where-tables raw-tests)
+        tests (mapv parse-test expanded)]
     {:source source
      :tests tests}))
 
