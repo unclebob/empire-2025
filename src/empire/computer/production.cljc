@@ -86,13 +86,13 @@
     (map-indexed vector @atoms/game-map)))
 
 (defn count-country-coastal-cells
-  "Counts land cells with matching country-id that are adjacent to sea."
+  "Counts land and city cells with matching country-id that are adjacent to sea."
   [country-id]
   (let [game-map @atoms/game-map]
     (count (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [cell (get-in game-map [i j])]
-                 :when (and (= :land (:type cell))
+                 :when (and (#{:land :city} (:type cell))
                             (= country-id (:country-id cell))
                             (some (fn [n]
                                     (= :sea (:type (get-in game-map n))))

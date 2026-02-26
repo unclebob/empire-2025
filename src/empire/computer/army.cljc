@@ -317,7 +317,13 @@
     :else
     (or (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
           (move-toward-objective pos target country-id))
-        ;; No coastal cell — queue near coast
+        ;; No unoccupied coastal cell — settle here if coastal (even near city)
+        (when (and country-id (adjacent-to-sea? pos)
+                   (not= :city (:type (get-in @atoms/game-map pos))))
+          (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
+          (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+          pos)
+        ;; Not coastal — queue near coast
         (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
           (or (move-toward-objective pos target country-id)
               ;; Already at best spot — go sentry (queue position)

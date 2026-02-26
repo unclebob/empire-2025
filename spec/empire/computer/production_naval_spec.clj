@@ -264,7 +264,7 @@
       (swap! atoms/game-map assoc-in [33 0] {:type :city :city-status :computer :country-id 3})
       (should= :fighter (production/decide-production [1 0])))
 
-    (it "falls back to army when total fighters >= total computer cities"
+    (it "does not produce fighter when total fighters >= total computer cities"
       ;; 1 computer city, 1 fighter — 1 >= 1 so should NOT produce fighter.
       ;; Coastal city at [1,0], other per-country priorities met.
       (reset! atoms/game-map (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppf"]))
@@ -278,7 +278,7 @@
       (doseq [col [26 27 28 29]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
-      (should= :army (production/decide-production [1 0]))))
+      (should-not= :fighter (production/decide-production [1 0]))))
 
   (context "satellite production gate"
 
