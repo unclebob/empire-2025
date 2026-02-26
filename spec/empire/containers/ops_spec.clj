@@ -60,6 +60,18 @@
       (let [transport (:contents (get-in @atoms/game-map transport-coords))]
         (should= 1 (:army-count transport)))))
 
+  (it "loads army at row-zero boundary (L27)"
+    ;; Transport at [0,1], army at [0,0] — nx=0 kills >= -> > and 0 -> 1
+    (reset! atoms/game-map (build-test-map ["A"
+                                            "T"
+                                            "#"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
+    (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 1 (:army-count transport)))))
+
   (it "wakes transport after loading armies if at beach"
     (reset! atoms/game-map (build-test-map ["-#---"
                                             "-AT--"
