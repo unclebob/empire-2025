@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-22
+;; mutation-tested: 2026-02-26
 (ns empire.movement.coastline
   (:require [empire.atoms :as atoms]
             [empire.config :as config]

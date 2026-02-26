@@ -3,7 +3,8 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.coastline :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]
+            [empire.movement.map-utils :as map-utils]))
 
 (describe "coastline-follow-eligible?"
   (before (reset-all-atoms!))
@@ -278,5 +279,414 @@
       (let [visited #{[0 0] [1 0] [2 0] [0 1] [2 1] [0 2] [1 2] [2 2]}]
         (let [move (pick-coastline-move [1 1] game-map visited nil)]
           ;; Should pick any valid cell
-          (should (some #{move} [[0 0] [1 0] [2 0] [0 1] [2 1] [0 2] [1 2] [2 2]])))))))
+          (should (some #{move} [[0 0] [1 0] [2 0] [0 1] [2 1] [0 2] [1 2] [2 2]]))))))
+
+  (it "excludes prev-pos from backstep even when all visited"
+    (let [game-map (atom (build-test-map ["#~#"
+                                          "#~#"
+                                          "#~#"]))]
+      (reset! atoms/player-map @game-map)
+      ;; Only two valid cells: [1 0] and [1 2]; prev-pos=[1 0]
+      (let [visited #{[1 0] [1 2]}]
+        (dotimes [_ 10]
+          (should= [1 2] (pick-coastline-move [1 1] game-map visited [1 0])))))))
+
+(describe "set-coastline-follow-mode"
+  (before (reset-all-atoms!))
+  (it "sets unit to coastline-follow mode with initial state"
+    (reset! atoms/game-map (build-test-map ["T"]))
+    (set-coastline-follow-mode [0 0])
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should= :coastline-follow (:mode unit))
+      (should= config/coastline-steps (:coastline-steps unit))
+      (should= [0 0] (:start-pos unit))
+      (should= #{[0 0]} (:visited unit))
+      (should-be-nil (:prev-pos unit))))
+
+  (it "removes reason and target"
+    (reset! atoms/game-map (build-test-map ["T"]))
+    (set-test-unit atoms/game-map "T" :reason :some-reason :target [5 5])
+    (set-coastline-follow-mode [0 0])
+    (let [unit (get-in @atoms/game-map [0 0 :contents])]
+      (should-be-nil (:reason unit))
+      (should-be-nil (:target unit)))))
+
+(describe "move-coastline-unit"
+  (before (reset-all-atoms!))
+  (it "moves transport along coastline"
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "~~~~~"
+                                             "~~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 2]
+                   :visited #{[1 2]}
+                   :prev-pos nil)
+    (reset! atoms/player-map (build-test-map ["~~~~~"
+                                               "~~~~~"
+                                               "~~~~~"
+                                               "~~~~~"
+                                               "~~~~~"]))
+    (move-coastline-unit [1 2])
+    (should-be-nil (:contents (get-in @atoms/game-map [1 2]))))
+
+  (it "wakes up when blocked"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#T#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 1]
+                   :visited #{[1 1]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 1])
+    (let [unit (get-in @atoms/game-map [1 1 :contents])]
+      (should= :awake (:mode unit))
+      (should= :blocked (:reason unit))))
+
+  (it "wakes up when returning to start position after traveling"
+    (reset! atoms/game-map (build-test-map ["#~~~"
+                                             "#T#~"
+                                             "#~~~"
+                                             "####"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 0]
+                   :visited #{[1 0] [2 0] [3 0] [3 1] [3 2] [2 2] [1 2]}
+                   :prev-pos [1 2])
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 1])
+    (let [unit (get-in @atoms/game-map [1 1 :contents])]
+      (should= :awake (:mode unit))
+      (should= :returned-to-start (:reason unit))))
+
+  (it "does NOT wake when visited count is exactly 5 near start"
+    ;; L128: > -> >= mutant. With exactly 5 visited, should NOT wake.
+    (reset! atoms/game-map (build-test-map ["#~~~~~"
+                                             "#~~~~~"
+                                             "#T~~~~"
+                                             "#~~~~~"
+                                             "#~~~~~"
+                                             "#~~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 0]
+                   ;; Exactly 5 visited cells, currently adjacent to start
+                   :visited #{[1 0] [1 1] [1 2] [1 3] [1 4]}
+                   :prev-pos [1 3])
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 2])
+    ;; Should NOT wake - 5 is not > 5
+    (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :coastline-follow)]
+      (should= :coastline-follow (:mode unit))))
+
+  (it "wakes up when hitting map edge (started away from edge)"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "#T~"
+                                             "#~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 1]
+                   :visited #{[1 1]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 1])
+    (let [cell-1-0 (get-in @atoms/game-map [1 0])
+          cell-2-0 (get-in @atoms/game-map [2 0])
+          woken-unit (or (:contents cell-1-0) (:contents cell-2-0))]
+      (when woken-unit
+        (should= :awake (:mode woken-unit))
+        (should= :hit-edge (:reason woken-unit)))))
+
+  (it "does NOT wake for edge when started at edge"
+    (reset! atoms/game-map (build-test-map ["T~~~~"
+                                             "~~~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [0 0]
+                   :visited #{[0 0]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [0 0])
+    (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :coastline-follow)]
+      (should= :coastline-follow (:mode unit))))
+
+  (it "wakes up when steps exhausted"
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 1
+                   :start-pos [1 2]
+                   :visited #{[1 2]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 2])
+    (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :awake)]
+      (should= :awake (:mode unit))
+      (should= :steps-exhausted (:reason unit))
+      (should-not-contain :coastline-steps unit)
+      (should-not-contain :visited unit)
+      (should-not-contain :start-pos unit)
+      (should-not-contain :prev-pos unit)))
+
+  (it "does NOT wake when steps remaining is 1 (not yet zero after dec)"
+    ;; L142: 0 -> 1 mutant. Transport speed=2, so needs coastline-steps=3.
+    ;; After 2 moves: 3->2->1. Should NOT wake (1 > 0).
+    ;; Mutant (<= remaining 1) would wake on second move.
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 3
+                   :start-pos [1 3]
+                   :visited #{[1 3]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 3])
+    (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :coastline-follow)]
+      (should= :coastline-follow (:mode unit))))
+
+  (it "continues moving when not waking"
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "#~~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 3]
+                   :visited #{[1 3]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 3])
+    (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :coastline-follow)]
+      (should= :coastline-follow (:mode unit))
+      (should (> (count (:visited unit)) 1))))
+
+  (it "wakes up transport with armies when finding a bay"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "##T##"
+                                             "##~##"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :army-count 2
+                   :coastline-steps 50
+                   :start-pos [2 2]
+                   :visited #{[2 2]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [2 2])
+    (let [unit (get-in @atoms/game-map [2 3 :contents])]
+      (should-not-be-nil unit)
+      (should= :awake (:mode unit))
+      (should= :found-a-bay (:reason unit))))
+
+  (it "does NOT wake transport without armies in bay"
+    ;; L122: 0 -> 1 mutant. Transport with no :army-count key in bay should NOT wake.
+    ;; Mutant changes default from 0 to 1, making (pos? 1) true for missing key.
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "##T##"
+                                             "##~##"
+                                             "#####"]))
+    ;; Don't set :army-count at all — test the default value path
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [2 2]
+                   :visited #{[2 2]}
+                   :prev-pos nil)
+    ;; Remove :army-count if set-test-unit added it
+    (let [cell (get-in @atoms/game-map [2 2])
+          unit (dissoc (:contents cell) :army-count)]
+      (swap! atoms/game-map assoc-in [2 2] (assoc cell :contents unit)))
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [2 2])
+    (let [unit (get-in @atoms/game-map [2 3 :contents])]
+      (should-not-be-nil unit)
+      (should-not= :found-a-bay (:reason unit))))
+
+  (it "does NOT wake patrol-boat in bay"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "##P##"
+                                             "##~##"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "P"
+                   :mode :coastline-follow
+                   :army-count 2
+                   :coastline-steps 50
+                   :start-pos [2 2]
+                   :visited #{[2 2]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [2 2])
+    (let [unit (get-in @atoms/game-map [2 3 :contents])]
+      (should-not-be-nil unit)
+      (should-not= :found-a-bay (:reason unit))))
+
+  (it "wakes when returning to start via x-axis adjacency"
+    (reset! atoms/game-map (build-test-map ["#~~~~~~"
+                                             "#~~~~~~"
+                                             "#~~~~~~"
+                                             "#~T~~~~"
+                                             "#~~~~~~"
+                                             "#~~~~~~"
+                                             "#~~~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [3 3]
+                   :visited #{[3 3] [3 2] [3 1] [2 1] [2 2] [2 3]}
+                   :prev-pos [2 2])
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [2 3])
+    (let [unit (get-in @atoms/game-map [2 3 :contents])]
+      (should-not-be-nil unit)
+      (should= :awake (:mode unit))
+      (should= :returned-to-start (:reason unit))))
+
+  (it "wakes when returning to start via y-axis adjacency"
+    ;; Kills L106 + -> - on y component
+    (reset! atoms/game-map (build-test-map ["#~~~~~~"
+                                             "#~~~~~~"
+                                             "#~~~~~~"
+                                             "#~T~~~~"
+                                             "#~~~~~~"
+                                             "#~~~~~~"
+                                             "#~~~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [2 4]
+                   :visited #{[2 4] [3 4] [3 3] [3 2] [2 2] [2 3]}
+                   :prev-pos [2 2])
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [2 3])
+    (let [unit (get-in @atoms/game-map [2 3 :contents])]
+      (should-not-be-nil unit)
+      (should= :awake (:mode unit))
+      (should= :returned-to-start (:reason unit)))))
+
+(describe "debug logging"
+  (before (reset-all-atoms!))
+
+  (it "does not log player-movement for computer-owned units"
+    ;; Kills L203 (= -> not=) and L171 (when -> when-not)
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#t~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
+    (set-test-unit atoms/game-map "t"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 2]
+                   :visited #{[1 2]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 2])
+    (should= [] @atoms/player-movement-log))
+
+  (it "logs :blocked for player collision"
+    ;; Kills L165 (when -> when-not)
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~#"
+                                             "#P#"
+                                             "#D#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "P"
+                   :mode :coastline-follow
+                   :coastline-steps 10
+                   :start-pos [1 2]
+                   :visited #{[1 2]}
+                   :prev-pos [1 1])
+    (reset! atoms/player-map @atoms/game-map)
+    (with-redefs [pick-coastline-move (constantly [1 3])]
+      (move-coastline-unit [1 2]))
+    (should= 1 (count @atoms/player-movement-log))
+    (should= :blocked (:event (first @atoms/player-movement-log))))
+
+  (it "logs :wake with reason for player steps-exhausted"
+    ;; Kills L172 (if -> if-not)
+    (reset! atoms/game-map (build-test-map ["#~~~~"
+                                             "#~~~~"
+                                             "#T~~~"
+                                             "#~~~~"
+                                             "#~~~~"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 1
+                   :start-pos [1 2]
+                   :visited #{[1 2]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 2])
+    (let [wake-entries (filter #(= :wake (:event %)) @atoms/player-movement-log)]
+      (should= 1 (count wake-entries))
+      (should= :steps-exhausted (:reason (first wake-entries)))))
+
+  (it "logs :blocked for player with no valid moves"
+    ;; Kills L191 (when -> when-not)
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#T#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "T"
+                   :mode :coastline-follow
+                   :coastline-steps 50
+                   :start-pos [1 1]
+                   :visited #{[1 1]}
+                   :prev-pos nil)
+    (reset! atoms/player-map @atoms/game-map)
+    (move-coastline-unit [1 1])
+    (should= 1 (count @atoms/player-movement-log))
+    (should= :blocked (:event (first @atoms/player-movement-log)))))
+
+(describe "collision prevention"
+  (before (reset-all-atoms!))
+  (it "prevents overwriting another unit when destination becomes occupied"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#~#"
+                                             "#P#"
+                                             "#D#"
+                                             "###"]))
+    (let [patrol-coords [1 2]
+          destroyer-pos [1 3]]
+      (set-test-unit atoms/game-map "P" :mode :coastline-follow
+                     :coastline-steps 10 :start-pos patrol-coords :visited #{patrol-coords} :prev-pos [1 1])
+      (reset! atoms/player-map @atoms/game-map)
+      (with-redefs [pick-coastline-move (constantly destroyer-pos)]
+        (move-coastline-unit patrol-coords))
+      (should-not-be-nil (:contents (get-in @atoms/game-map [1 3])))
+      (let [patrol-unit (get-in @atoms/game-map [1 2 :contents])]
+        (should-not-be-nil patrol-unit)
+        (should= :patrol-boat (:type patrol-unit))
+        (should= :awake (:mode patrol-unit))
+        (should= :blocked (:reason patrol-unit))))))
 
