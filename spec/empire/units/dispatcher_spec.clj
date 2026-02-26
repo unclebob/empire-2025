@@ -149,9 +149,8 @@
       (should (dispatcher/can-move-to? :battleship {:type :sea}))
       (should-not (dispatcher/can-move-to? :battleship {:type :land})))
 
-    (it "returns false for unknown type"
-      (should-not (dispatcher/can-move-to? :unknown {:type :land}))
-      (should-not (dispatcher/can-move-to? :unknown {:type :sea}))))
+    (it "throws for unknown type"
+      (should-throw (dispatcher/can-move-to? :unknown {:type :land}))))
 
   (context "needs-attention?"
     (it "delegates to army module"
@@ -186,8 +185,8 @@
       (should (dispatcher/needs-attention? {:type :battleship :mode :awake}))
       (should-not (dispatcher/needs-attention? {:type :battleship :mode :sentry})))
 
-    (it "returns false for unknown type"
-      (should-not (dispatcher/needs-attention? {:type :unknown :mode :awake}))))
+    (it "throws for unknown type"
+      (should-throw (dispatcher/needs-attention? {:type :unknown :mode :awake}))))
 
   (context "effective-speed"
     (it "returns base speed at full health for all unit types"

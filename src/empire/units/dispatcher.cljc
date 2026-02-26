@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-22
+;; mutation-tested: 2026-02-26
 (ns empire.units.dispatcher
   "Dispatches to the appropriate unit module based on unit type.
    Provides a unified interface for accessing unit configuration and behavior."
@@ -101,8 +101,7 @@
       :fighter (fighter/can-move-to? cell)
       :satellite (satellite/can-move-to? cell)
       :transport (transport/can-move-to? cell)
-      :carrier (carrier/can-move-to? cell)
-      false)))
+      :carrier (carrier/can-move-to? cell))))
 
 (defn needs-attention? [unit]
   (let [unit-type (:type unit)]
@@ -113,8 +112,7 @@
         :fighter (fighter/needs-attention? unit)
         :satellite (satellite/needs-attention? unit)
         :transport (transport/needs-attention? unit)
-        :carrier (carrier/needs-attention? unit)
-        false))))
+        :carrier (carrier/needs-attention? unit)))))
 
 (defn effective-speed
   "Calculates movement speed scaled by remaining hits (VMS ceiling division).
