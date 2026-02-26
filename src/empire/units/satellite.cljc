@@ -46,29 +46,29 @@
         dy (Integer/signum (- ty uy))]
     (extend-to-boundary unit-coords [dx dy] map-height map-width)))
 
+(defn- bounce-vertical [at-top? map-height map-width]
+  [(if at-top? (dec map-height) 0) (rand-int map-width)])
+
+(defn- bounce-horizontal [at-left? map-height map-width]
+  [(rand-int map-height) (if at-left? (dec map-width) 0)])
+
+(def ^:private bounce-dispatch
+  {:vertical bounce-vertical
+   :horizontal bounce-horizontal})
+
 (defn calculate-bounce-target
   "Calculates new target on opposite boundary when satellite reaches edge.
    At corners, randomly chooses one of the two opposite boundaries."
   [[x y] map-height map-width]
-  (let [at-top? (= x 0)
-        at-bottom? (= x (dec map-height))
-        at-left? (= y 0)
-        at-right? (= y (dec map-width))
-        at-corner? (and (or at-top? at-bottom?) (or at-left? at-right?))]
-    (cond
-      at-corner?
-      (if (zero? (rand-int 2))
-        [(if at-top? (dec map-height) 0) (rand-int map-width)]
-        [(rand-int map-height) (if at-left? (dec map-width) 0)])
-
-      (or at-top? at-bottom?)
-      [(if at-top? (dec map-height) 0) (rand-int map-width)]
-
-      (or at-left? at-right?)
-      [(rand-int map-height) (if at-left? (dec map-width) 0)]
-
-      :else
-      [x y])))
+  (let [edges (cond-> []
+                (= x 0)                (conj [:vertical true])
+                (= x (dec map-height)) (conj [:vertical false])
+                (= y 0)                (conj [:horizontal true])
+                (= y (dec map-width))  (conj [:horizontal false]))]
+    (if (empty? edges)
+      [x y]
+      (let [[edge-type near-origin?] (rand-nth edges)]
+        ((bounce-dispatch edge-type) near-origin? map-height map-width)))))
 
 (defn move-one-step
   "Moves a satellite one step toward its target.
