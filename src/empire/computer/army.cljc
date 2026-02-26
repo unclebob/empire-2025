@@ -483,7 +483,7 @@
    [(= :sentry mode)                       #(process-sentry-in-city pos country-id cell)]
    [(:interior-explore-direction unit)      #(process-interior-explore pos country-id)]
    [(nil? country-id)                      #(process-unowned-army pos)]
-   [true                                   #(fill-coastal-cell pos country-id)]])
+   [true                                   #(find-and-execute-land-action pos country-id)]])
 
 (defn process-army
   "Processes a computer army's turn.
