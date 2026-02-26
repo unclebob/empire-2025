@@ -417,6 +417,28 @@
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
 
+(defn- unloadable-land-cell?
+  "Returns true if cell is empty land/city not excluded by country-id or pickup continent."
+  [cell neighbor-pos exclude-ids pickup-continent]
+  (and cell
+       (#{:land :city} (:type cell))
+       (nil? (:contents cell))
+       (or (empty? exclude-ids)
+           (not (contains? exclude-ids (:country-id cell))))
+       (or (nil? pickup-continent)
+           (not (contains? pickup-continent neighbor-pos)))))
+
+(defn- passable-coastal-sea?
+  "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
+  [pos visited game-map]
+  (and (not (visited pos))
+       (let [cell (get-in game-map pos)]
+         (and cell
+              (= :sea (:type cell))
+              (or (nil? (:contents cell))
+                  (= :computer (:owner (:contents cell))))
+              (adjacent-to-land? pos)))))
+
 (defn- has-nearby-unloadable-land?
   "BFS along coastal sea cells up to max-depth hops from pos.
    Returns true if any visited position has adjacent empty land
@@ -425,35 +447,22 @@
   (let [game-map @atoms/game-map
         exclude-ids (pickup-exclude-ids transport)
         pickup-continent (pickup-continent-if-needed transport)
-        unloadable-adjacent? (fn [p]
-                               (some (fn [n]
-                                       (let [cell (get-in game-map n)]
-                                         (and cell
-                                              (#{:land :city} (:type cell))
-                                              (nil? (:contents cell))
-                                              (or (empty? exclude-ids)
-                                                  (not (contains? exclude-ids (:country-id cell))))
-                                              (or (nil? pickup-continent)
-                                                  (not (contains? pickup-continent n))))))
-                                     (core/get-neighbors p)))]
+        has-unloadable-neighbor? (fn [p]
+                                   (some (fn [n]
+                                           (unloadable-land-cell?
+                                             (get-in game-map n) n exclude-ids pickup-continent))
+                                         (core/get-neighbors p)))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
            visited #{pos}]
       (if (empty? queue)
         false
         (let [[current depth] (peek queue)]
           (cond
-            (unloadable-adjacent? current) true
+            (has-unloadable-neighbor? current) true
             (>= depth max-depth) (recur (pop queue) visited)
             :else
             (let [coastal-neighbors
-                  (filter (fn [n]
-                            (and (not (visited n))
-                                 (let [cell (get-in game-map n)]
-                                   (and cell
-                                        (= :sea (:type cell))
-                                        (or (nil? (:contents cell))
-                                            (= :computer (:owner (:contents cell))))
-                                        (adjacent-to-land? n)))))
+                  (filter #(passable-coastal-sea? % visited game-map)
                           (core/get-neighbors current))]
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
