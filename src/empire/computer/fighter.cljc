@@ -451,6 +451,16 @@
                   (assoc :flight-target-site new-target :flight-origin-site target))))
     {:pos pos :hops 1}))
 
+(defn- select-best-navigation-target
+  "Score passable unoccupied neighbors by unexplored count, break ties by proximity."
+  [passable target]
+  (let [candidates (filter #(not (occupied? %)) passable)
+        scored (map (fn [n] [n (count-unexplored-neighbors n)]) candidates)
+        best-score (when (seq scored) (apply max (map second scored)))]
+    (when (and best-score (pos? best-score))
+      (let [at-best (filter #(= best-score (second %)) scored)]
+        (first (first (sort-by (fn [[n _]] (distance-to n target)) at-best)))))))
+
 (defn- navigate-toward-target
   "Move one step toward target, preferring unexplored cells when fuel allows.
    Returns {:pos p :hops n} or nil."
@@ -458,20 +468,14 @@
   (let [passable (get-passable-neighbors pos)
         direct-dist (distance-to pos target)
         fuel-margin? (> fuel (+ direct-dist 2))
-        unexplored-toward (when fuel-margin?
-                            (seq (filter (fn [n]
-                                          (and (not (occupied? n))
-                                               (nil? (get-in @atoms/computer-map n))
-                                               (<= (distance-to n target) (inc direct-dist))))
-                                        passable)))
-        unexplored-pos (when unexplored-toward
-                         (apply min-key (partial distance-to target) unexplored-toward))]
-    (if unexplored-pos
-      (when (core/move-unit-to pos unexplored-pos)
+        explore-pos (when fuel-margin?
+                      (select-best-navigation-target passable target))]
+    (if explore-pos
+      (when (core/move-unit-to pos explore-pos)
         (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility unexplored-pos :computer)
-        (when (consume-fighter-fuel unexplored-pos)
-          {:pos unexplored-pos :hops 1}))
+        (visibility/update-cell-visibility explore-pos :computer)
+        (when (consume-fighter-fuel explore-pos)
+          {:pos explore-pos :hops 1}))
       (when-let [hop (hop-over-friendly pos target)]
         (when-let [{:keys [pos hops]} (execute-hop pos hop)]
           (when (consume-fighter-fuel pos)

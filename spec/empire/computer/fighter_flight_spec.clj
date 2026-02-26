@@ -258,7 +258,99 @@
         ;; the unexplored neighbor at [0 0] to be a candidate)
         (let [result (get-test-unit atoms/game-map "f")]
           (should-not-be-nil result)
-          (should-not= [1 1] (:pos result))))))
+          (should-not= [1 1] (:pos result)))))
+
+    (it "prefers neighbor with highest unexplored-neighbor count"
+      ;; 10-col x 5-row map. Fighter at [2,2], target city at [9,4].
+      ;; Row 0 is unexplored; rows 1-4 explored on computer-map.
+      ;; No neighbor of [2,2] is itself unexplored, so old code goes direct.
+      ;; Row-1 neighbors ([1,1],[2,1],[3,1]) border row 0 (unexplored) so
+      ;; count-unexplored-neighbors is high.  Row-3 neighbors have 0 unexplored.
+      ;; New code should prefer row-1 neighbors.
+      ;; Fuel=30, direct-dist=9 => margin=19, plenty for detour.
+      ;; After 8 speed steps, old code ends near [9,4] or has arrived and
+      ;; re-launched (final pos varies). New code detours toward row 1 first.
+      ;; We check final row < 2 (detoured toward unexplored).
+      (reset! atoms/game-map (build-test-map ["##########"
+                                               "##########"
+                                               "##f#######"
+                                               "##########"
+                                               "#########X"]))
+      (set-test-unit atoms/game-map "f" :fuel 30
+                     :flight-target-site [9 4]
+                     :flight-origin-site [0 0]
+                     :flight-mode :regular)
+      ;; Row 0 unexplored (nil), rows 1-4 explored
+      (reset! atoms/computer-map (build-test-map ["----------"
+                                                   "##########"
+                                                   "##f#######"
+                                                   "##########"
+                                                   "#########X"]))
+      (let [unit (get-in @atoms/game-map [2 2 :contents])]
+        (fighter/process-fighter [2 2] unit)
+        ;; Fighter should move toward row 0/1 (near unexplored), not row 3+ (direct)
+        (let [result (get-test-unit atoms/game-map "f")]
+          (should-not-be-nil result)
+          ;; Old code: goes direct toward [9,4] via row 3+. New code: detours to row 1.
+          ;; After a full round (8 steps), old code arrives at target and re-launches.
+          ;; But with new code, the first step goes toward row 1 (high unexplored score).
+          ;; We just need to verify the detour happened. If the fighter ever visited
+          ;; row 0 or 1, visibility updates would reveal row-0 cells. Check that.
+          (should (some (fn [col] (some? (get-in @atoms/computer-map [col 0])))
+                        (range 10))))))
+
+    (it "takes direct path when fuel is tight despite unexplored neighbors"
+      ;; Fighter at [2,2] heading to city at [4,4]. Fuel = direct-dist + 2 = 6.
+      ;; Should NOT detour even though row 0 is unexplored.
+      ;; Second city at [0,4] prevents post-arrival patrol toward unexplored area.
+      (reset! atoms/game-map (build-test-map ["#####"
+                                               "#####"
+                                               "##f##"
+                                               "#####"
+                                               "X###X"]))
+      (set-test-unit atoms/game-map "f" :fuel 6
+                     :flight-target-site [4 4]
+                     :flight-origin-site [0 4]
+                     :flight-mode :regular)
+      (reset! atoms/computer-map (build-test-map ["-----"
+                                                   "#####"
+                                                   "##f##"
+                                                   "#####"
+                                                   "X###X"]))
+      (let [unit (get-in @atoms/game-map [2 2 :contents])]
+        (fighter/process-fighter [2 2] unit)
+        ;; With tight fuel, row-0 should remain unexplored (no detour happened)
+        (should-not (some (fn [col] (some? (get-in @atoms/computer-map [col 0])))
+                          (range 5)))))
+
+    (it "falls back to direct navigation when all neighbors fully explored"
+      ;; Entire map explored — no unexplored neighbors anywhere.
+      ;; Fighter should navigate directly toward target.
+      (reset! atoms/game-map (build-test-map ["#####"
+                                               "#####"
+                                               "##f##"
+                                               "#####"
+                                               "####X"]))
+      (set-test-unit atoms/game-map "f" :fuel 30
+                     :flight-target-site [4 4]
+                     :flight-origin-site [0 0]
+                     :flight-mode :regular)
+      ;; Everything explored
+      (reset! atoms/computer-map (build-test-map ["#####"
+                                                   "#####"
+                                                   "##f##"
+                                                   "#####"
+                                                   "####X"]))
+      (let [unit (get-in @atoms/game-map [2 2 :contents])]
+        (fighter/process-fighter [2 2] unit)
+        ;; Fighter should move toward target [4,4] — check it moved
+        (let [result (get-test-unit atoms/game-map "f")]
+          ;; Fighter may have arrived at city and landed, or may still be on map
+          ;; Either way, it should not be stuck at [2,2]
+          (if result
+            (should-not= [2 2] (:pos result))
+            ;; Landed at city
+            (should (pos? (:fighter-count (get-in @atoms/game-map [4 4])))))))))
 
   (context "deterministic combat outcomes"
     (it "attacker wins and moves to enemy position"
