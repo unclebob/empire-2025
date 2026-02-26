@@ -253,6 +253,68 @@
       (reset! atoms/computer-map (build-test-map ["X#"]))
       (reset! atoms/production {[0 0] {:item :fighter :remaining-rounds 10}})
       (production/process-computer-city [0 0])
-      (should= :fighter (:item (get @atoms/production [0 0]))))))
+      (should= :fighter (:item (get @atoms/production [0 0])))))
+
+  (context "early production"
+
+    (it "produces patrol boat from coastal city when trigger fired"
+      (let [game-map (build-test-map ["X~~"
+                                      "###"
+                                      "~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/transport-fully-loaded? true)
+        (reset! atoms/early-patrol-boat-produced? false)
+        (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (should= :patrol-boat (production/decide-production [0 0]))
+        (should @atoms/early-patrol-boat-produced?)))
+
+    (it "produces satellite from inland city after patrol boat flag set"
+      (let [game-map (build-test-map ["X~~~"
+                                      "####"
+                                      "#X##"
+                                      "####"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/transport-fully-loaded? true)
+        (reset! atoms/early-patrol-boat-produced? true)
+        (reset! atoms/early-satellite-produced? false)
+        (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (should= :satellite (production/decide-production [1 2]))))
+
+    (it "does not produce satellite before patrol boat flag set"
+      (let [game-map (build-test-map ["X~~~"
+                                      "####"
+                                      "#X##"
+                                      "####"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/transport-fully-loaded? true)
+        (reset! atoms/early-patrol-boat-produced? false)
+        (reset! atoms/early-satellite-produced? false)
+        (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (should-not= :satellite (production/decide-production [1 2]))))
+
+    (it "prefers inland city for satellite over coastal"
+      (let [game-map (build-test-map ["X~~~"
+                                      "####"
+                                      "#X##"
+                                      "####"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/transport-fully-loaded? true)
+        (reset! atoms/early-patrol-boat-produced? true)
+        (reset! atoms/early-satellite-produced? false)
+        (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        ;; [0 0] is coastal — should skip satellite, fall through
+        (should-not= :satellite (production/decide-production [0 0]))))
+
+    (it "coastal city produces satellite when no inland city exists"
+      (let [game-map (build-test-map ["X~~"
+                                      "~~~"
+                                      "~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/transport-fully-loaded? true)
+        (reset! atoms/early-patrol-boat-produced? true)
+        (reset! atoms/early-satellite-produced? false)
+        (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (should= :satellite (production/decide-production [0 0]))))))
 
 (run-specs)

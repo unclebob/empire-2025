@@ -364,15 +364,50 @@
     ;; 9. No production needed — city stays idle
     :else nil))
 
+(defn- has-inland-computer-city?
+  "Returns true if any computer city is inland (not coastal)."
+  []
+  (some (fn [i]
+          (some (fn [j]
+                  (let [cell (get-in @atoms/game-map [i j])]
+                    (and (= :city (:type cell))
+                         (= :computer (:city-status cell))
+                         (not (city-is-coastal? [i j])))))
+                (range (count (first @atoms/game-map)))))
+        (range (count @atoms/game-map))))
+
+(defn- decide-early-production
+  "One-shot early production after first transport fully loaded.
+   Patrol boat first (coastal city), then satellite (inland preferred).
+   Returns unit type or nil."
+  [city-pos coastal?]
+  (when @atoms/transport-fully-loaded?
+    (cond
+      (and coastal? (not @atoms/early-patrol-boat-produced?))
+      (do (reset! atoms/early-patrol-boat-produced? true)
+          :patrol-boat)
+
+      (and @atoms/early-patrol-boat-produced?
+           (not @atoms/early-satellite-produced?))
+      (cond
+        (not coastal?)
+        (do (reset! atoms/early-satellite-produced? true)
+            :satellite)
+
+        (not (has-inland-computer-city?))
+        (do (reset! atoms/early-satellite-produced? true)
+            :satellite)))))
+
 (defn decide-production
   "Decide what a computer city should produce. Returns unit type keyword.
-   Per-country priorities first, then global."
+   Early one-shots first, then per-country, then global."
   [city-pos]
   (let [city-cell (get-in @atoms/game-map city-pos)
         country-id (:country-id city-cell)
         coastal? (city-is-coastal? city-pos)
         unit-counts (count-computer-units)]
-    (or (when country-id
+    (or (decide-early-production city-pos coastal?)
+        (when country-id
           (decide-country-production city-pos country-id coastal? unit-counts))
         (when country-id
           (decide-global-production coastal? unit-counts))
