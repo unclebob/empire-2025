@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-26
 (ns empire.game-loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.atoms :as atoms]
