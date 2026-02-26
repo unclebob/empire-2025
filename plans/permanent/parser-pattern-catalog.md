@@ -8,7 +8,7 @@ Read this BEFORE loading parser source files.
 - `src/empire/acceptance/parser/given.cljc` -- GIVEN parsing
 - `src/empire/acceptance/parser/when.cljc` -- WHEN parsing
 - `src/empire/acceptance/parser/then.cljc` -- THEN parsing
-- `src/empire/acceptance/parser.cljc` -- facade (split-into-tests, parse-test, parse-file, -main)
+- `src/empire/acceptance/parser.cljc` -- facade (split-into-tests, expand-where-tables, parse-test, parse-file, -main)
 
 ## GIVEN Patterns
 
@@ -177,3 +177,29 @@ Tried only after bare patterns fail, using timing-stripped text.
 |-------|-----|
 | `THEN player map` + map rows | `{:type :player-map-visibility :rows [...]}` |
 | `THEN territory map` + territory rows | `{:type :territory-map :rows [...]}` |
+
+## WHERE Table Expansion
+
+The `WHERE` keyword marks a parameterized test. `split-into-tests` captures lines after `WHERE` into `:where-lines`. Then `expand-where-tables` expands each parameterized test group into multiple concrete test groups by substituting `<var>` placeholders.
+
+### Flow
+1. `split-into-tests` recognizes `WHERE` as a section keyword; subsequent content lines accumulate in `:where-lines`
+2. `expand-where-tables` processes test groups: those with non-empty `:where-lines` are expanded; others pass through unchanged
+
+### WHERE format
+```
+WHERE
+  var1 | var2
+  val1a | val2a
+  val1b | val2b
+```
+
+Single-column (no `|` delimiter) also supported:
+```
+WHERE
+  var
+  val1
+  val2
+```
+
+First line is the header (variable names). Remaining lines are data rows. Variables in GIVEN/WHEN/THEN lines written as `<var>` are replaced with values. Each row produces a separate test group with description suffixed `(var1=val1a, var2=val2a)`.

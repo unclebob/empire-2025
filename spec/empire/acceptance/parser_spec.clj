@@ -49,7 +49,55 @@
         (should= "Test one." (:description (first tests)))
         (should= 4 (:line (first tests)))
         (should= "Test two." (:description (second tests)))
-        (should= 14 (:line (second tests))))))
+        (should= 14 (:line (second tests)))))
+
+    (it "captures WHERE lines as a section"
+      (let [lines [";==============================================================="
+                   "; Parameterized test."
+                   ";==============================================================="
+                   "GIVEN game map"
+                   "  <unit>~"
+                   "GIVEN <unit> is waiting for input."
+                   ""
+                   "WHEN the player presses s."
+                   ""
+                   "THEN <unit> has mode sentry."
+                   ""
+                   "WHERE"
+                   "  unit"
+                   "  D"
+                   "  S"]
+            tests (parser/split-into-tests lines)]
+        (should= 1 (count tests))
+        (should= ["unit" "D" "S"] (:where-lines (first tests)))))
+
+    (it "expands single-column WHERE into multiple test groups"
+      (let [lines [";==============================================================="
+                   "; Ship sentry mode."
+                   ";==============================================================="
+                   "GIVEN game map"
+                   "  <unit>~"
+                   "GIVEN <unit> is waiting for input."
+                   ""
+                   "WHEN the player presses s."
+                   ""
+                   "THEN <unit> has mode sentry."
+                   ""
+                   "WHERE"
+                   "  unit"
+                   "  D"
+                   "  S"]
+            tests (parser/split-into-tests lines)
+            expanded (parser/expand-where-tables tests)]
+        (should= 2 (count expanded))
+        (should= "Ship sentry mode. (unit=D)" (:description (first expanded)))
+        (should= "Ship sentry mode. (unit=S)" (:description (second expanded)))
+        (should= ["GIVEN game map" "D~" "GIVEN D is waiting for input."]
+                 (:given-lines (first expanded)))
+        (should= ["WHEN the player presses s."]
+                 (:when-lines (first expanded)))
+        (should= ["THEN D has mode sentry."]
+                 (:then-lines (first expanded))))))
 
   (context "parse-file integration"
     (it "parses army.txt correctly"

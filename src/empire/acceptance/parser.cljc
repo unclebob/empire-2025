@@ -15,6 +15,7 @@
     (str/starts-with? trimmed "WHEN") :when
     (or (str/starts-with? trimmed "THEN")
         (re-matches #"^and\s+.*" trimmed)) :then
+    (str/starts-with? trimmed "WHERE") :where
     :else nil))
 
 (defn- classify-line [trimmed in-header?]
@@ -25,7 +26,7 @@
     :else (or (classify-directive trimmed) :content)))
 
 (def ^:private section-keys
-  {:given :given-lines :when :when-lines :then :then-lines})
+  {:given :given-lines :when :when-lines :then :then-lines :where :where-lines})
 
 (defn- handle-separator [{:keys [in-header current-test] :as state}]
   (if in-header
@@ -38,7 +39,7 @@
     state
     (assoc state :current-test {:line line-num
                                 :description (or (:header-desc state) "")
-                                :given-lines [] :when-lines [] :then-lines []})))
+                                :given-lines [] :when-lines [] :then-lines [] :where-lines []})))
 
 (defn- add-to-section [state section trimmed]
   (cond-> (assoc state :section section)
@@ -58,6 +59,7 @@
       :given (-> state (ensure-test-started line-num) (add-to-section :given trimmed))
       :when (add-to-section state :when trimmed)
       :then (add-to-section state :then trimmed)
+      :where (assoc state :section :where)
       :blank state
       :content (add-content-line state trimmed))))
 
@@ -71,6 +73,44 @@
                       indexed)]
     (cond-> (:tests final)
       (:current-test final) (conj (:current-test final)))))
+
+;; --- WHERE table expansion ---
+
+(defn- parse-where-header [line]
+  (mapv str/trim (str/split line #"\|")))
+
+(defn- parse-where-row [line]
+  (mapv str/trim (str/split line #"\|")))
+
+(defn- substitute-vars [line bindings]
+  (reduce (fn [s [var-name value]]
+            (str/replace s (str "<" var-name ">") value))
+          line bindings))
+
+(defn- expand-one-where
+  [{:keys [description line given-lines when-lines then-lines where-lines]}]
+  (let [header (parse-where-header (first where-lines))
+        rows (->> (rest where-lines)
+                  (map parse-where-row)
+                  (remove #(every? str/blank? %)))]
+    (mapv (fn [row]
+            (let [bindings (zipmap header row)
+                  sub (fn [lines] (mapv #(substitute-vars % bindings) lines))
+                  label (str/join ", " (map #(str %1 "=" %2) header row))]
+              {:line line
+               :description (str description " (" label ")")
+               :given-lines (sub given-lines)
+               :when-lines (sub when-lines)
+               :then-lines (sub then-lines)
+               :where-lines []}))
+          rows)))
+
+(defn expand-where-tables [test-groups]
+  (vec (mapcat (fn [group]
+                 (if (seq (:where-lines group))
+                   (expand-one-where group)
+                   [group]))
+               test-groups)))
 
 ;; --- Context building ---
 
