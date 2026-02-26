@@ -288,7 +288,8 @@
       (should-contain "empire.atoms :as atoms" result)
       (should-contain "empire.config :as config" result)
       (should-contain "empire.ui.util.input.dispatch :as input" result)
-      (should-contain "quil.core :as q" result)))
+      (should-contain "quil.core :as q" result)
+      (should-contain "empire.ui.quil.input :as quil-input" result)))
 
   (it "generates army spec with correct describe"
     (let [edn-data {:source "army.txt"
@@ -337,7 +338,8 @@
                              :thens [{:type :unit-present :unit "A" :coords [0 0]}]}]}
           result (gen/generate-spec edn-data)]
       (should-contain "(ns acceptance.backtick-commands-spec" result)
-      (should-contain "quil.core :as q" result)))
+      (should-contain "quil.core :as q" result)
+      (should-contain "empire.ui.quil.input :as quil-input" result)))
 
   (it "generates backtick-commands spec with all 13 tests"
     (let [edn-data {:source "backtick-commands.txt"

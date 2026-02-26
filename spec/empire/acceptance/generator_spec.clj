@@ -176,7 +176,7 @@
   (it "generates key-down when"
     (let [result (gen/generate-when {:type :key-press :key :s :input-fn :key-down})]
       (should-contain "q/mouse-x" result)
-      (should-contain "input/key-down :s" result)))
+      (should-contain "quil-input/key-down :s" result)))
 
   (it "generates handle-key when"
     (let [result (gen/generate-when {:type :key-press :key :d :input-fn :handle-key})]
@@ -203,7 +203,7 @@
     (let [result (gen/generate-when {:type :backtick :key :A :mouse-cell [0 0]})]
       (should-contain "map-screen-dimensions" result)
       (should-contain "keyword \"`\"" result)
-      (should-contain "input/key-down :A" result)))
+      (should-contain "quil-input/key-down :A" result)))
 
   (it "generates start-new-round when"
     (let [result (gen/generate-when {:type :start-new-round})]
@@ -230,17 +230,17 @@
     (let [result (gen/generate-when {:type :mouse-at-key :coords [0 1] :key :period})]
       (should-contain "q/mouse-x" result)
       (should-contain "q/mouse-y" result)
-      (should-contain "input/key-down" result)
+      (should-contain "quil-input/key-down" result)
       (should-contain (str "(keyword \".\")") result)))
 
   (it "generates mouse-at-key when with u key"
     (let [result (gen/generate-when {:type :mouse-at-key :coords [0 0] :key :u})]
       (should-contain "q/mouse-x" result)
-      (should-contain "input/key-down :u" result)))
+      (should-contain "quil-input/key-down :u" result)))
 
   (it "generates mouse-at-key when with l key"
     (let [result (gen/generate-when {:type :mouse-at-key :coords [0 0] :key :l})]
-      (should-contain "input/key-down :l" result)))
+      (should-contain "quil-input/key-down :l" result)))
 
   (it "generates visibility-update when"
     (let [result (gen/generate-when {:type :visibility-update})]

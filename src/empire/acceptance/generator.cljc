@@ -141,6 +141,7 @@
    [:game-loop           "[empire.game-loop :as game-loop]"]
    [:item-processing     "[empire.game-loop.item-processing :as item-processing]"]
    [:quil                "[quil.core :as q]"]
+   [:quil                "[empire.ui.quil.input :as quil-input]"]
    [:computer-production "[empire.computer.production :as computer-production]"]
    [:computer-transport  "[empire.computer.transport :as computer-transport]"]
    [:computer-fighter    "[empire.computer.fighter :as computer-fighter]"]
@@ -208,7 +209,7 @@
                   "        (with-redefs [q/mouse-x (constantly 0)\n"
                   "                      q/mouse-y (constantly 0)]\n"
                   "          (reset! atoms/last-key nil)\n"
-                  "          (input/key-down k))\n"
+                  "          (quil-input/key-down k))\n"
                   "        (game-loop/advance-game)\n"
                   "        (recur (dec n)))\n"
                   "\n"
