@@ -112,19 +112,20 @@
   "Formats production status string: unit counts and exploration %.
    Format: A:n F:n T:n D:n S:n P:n C:n B:n Z:n | nn%"
   [game-map player-map]
-  (let [counts (atom (zipmap unit-type-order (repeat 0)))
-        total-cells (atom 0)
-        explored-cells (atom 0)]
-    (doseq [col (range (count game-map))
-            row (range (count (first game-map)))]
-      (swap! total-cells inc)
-      (let [player-cell (get-in player-map [col row])]
-        (when (and player-cell (not= :unexplored (:type player-cell)))
-          (swap! explored-cells inc)))
-      (let [cell (get-in game-map [col row])
-            unit (:contents cell)]
-        (when (and unit (= :player (:owner unit)))
-          (swap! counts update (:type unit) inc))))
-    (let [pct (if (zero? @total-cells) 0 (int (* 100 (/ @explored-cells @total-cells))))
-          unit-strs (map #(str (unit-type-labels %) ":" (get @counts %)) unit-type-order)]
-      (str (clojure.string/join " " unit-strs) " | " pct "%"))))
+  (let [cols (count game-map)
+        rows (count (first game-map))
+        init {:counts (zipmap unit-type-order (repeat 0)) :total 0 :explored 0}
+        {:keys [counts total explored]}
+        (reduce (fn [{:keys [counts total explored]} [col row]]
+                  (let [pc (get-in player-map [col row])
+                        exp (if (and pc (not= :unexplored (:type pc)))
+                              (inc explored) explored)
+                        unit (:contents (get-in game-map [col row]))
+                        cts (if (and unit (= :player (:owner unit)))
+                              (update counts (:type unit) inc) counts)]
+                    {:counts cts :total (inc total) :explored exp}))
+                init
+                (for [col (range cols) row (range rows)] [col row]))
+        pct (if (zero? total) 0 (int (* 100 (/ explored total))))
+        unit-strs (map #(str (unit-type-labels %) ":" (get counts %)) unit-type-order)]
+    (str (clojure.string/join " " unit-strs) " | " pct "%")))

@@ -6,10 +6,7 @@
 (defn resolve-display-map
   "Returns the appropriate map based on map-to-display keyword."
   [map-to-display player-map computer-map game-map]
-  (case map-to-display
-    :player-map player-map
-    :computer-map computer-map
-    :actual-map game-map))
+  ({:player-map player-map :computer-map computer-map :actual-map game-map} map-to-display))
 
 (defn compute-hover-message
   "Looks up cell and production at coords in the-map, returns formatted hover string.
