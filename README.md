@@ -262,7 +262,6 @@ The debug log contains:
 - Round number and timestamp
 - Global game state (cells needing attention, player items, etc.)
 - Recent game actions (last 50)
-- Sea lane network information
 - Units in coastline-follow mode
 - Player unit movement history (last 20 rounds)
 - Full cell data for the selected region from all three maps (game-map, player-map, computer-map)

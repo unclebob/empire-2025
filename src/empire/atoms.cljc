@@ -151,11 +151,6 @@
   "An atom containing the next unique ID to assign to carrier group escorts (battleships/submarines)."
   (atom 1))
 
-(def sea-lane-network
-  "Persistent navigation graph built from A* paths for computer ship routing."
-  (atom {:nodes {} :segments {} :pos->node {} :pos->seg {}
-         :next-node-id 1 :next-segment-id 1}))
-
 ;; Debug atoms
 
 (def debug-drag-start

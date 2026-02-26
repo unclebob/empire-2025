@@ -1,9 +1,7 @@
 (ns empire.movement.pathfinding-bfs-spec
   (:require [speclj.core :refer :all]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.sea-lanes :as sea-lanes]
             [empire.atoms :as atoms]
-            [empire.config :as config]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 
 (describe "bfs-to-unexplored-coast"
@@ -232,135 +230,6 @@
           path (pathfinding/a-star [0 0] [0 2] :army @atoms/game-map passability-fn)]
       (should-be-nil path))))
 
-(describe "sea lane network integration"
-  (before (reset-all-atoms!))
-
-  (it "next-step records naval paths into sea lane network"
-    (reset! atoms/game-map (build-test-map ["~~~~~~"]))
-    (pathfinding/next-step [0 0] [5 0] :destroyer)
-    (let [net @atoms/sea-lane-network]
-      ;; Path [0 0]->[5 0] should be recorded as a segment
-      (should (pos? (count (:segments net))))))
-
-  (it "next-step does not record army paths into sea lane network"
-    (reset! atoms/game-map (build-test-map ["######"]))
-    (pathfinding/next-step [0 0] [5 0] :army)
-    (let [net @atoms/sea-lane-network]
-      (should= 0 (count (:segments net)))))
-
-  (it "bounded-a-star finds path on small map"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
-                                            "~~~~~"]))
-    (let [path (pathfinding/bounded-a-star [0 0] [4 0] :destroyer @atoms/game-map)]
-      (should-not-be-nil path)
-      (should= [0 0] (first path))
-      (should= [4 0] (last path))))
-
-  (it "bounded-a-star returns nil when goal is outside radius"
-    ;; Very far apart positions on a narrow corridor
-    (let [row (vec (repeat 100 {:type :sea}))]
-      (reset! atoms/game-map [row])
-      ;; Start at 0, goal at 99 — radius will be ~54, so it should still work
-      ;; Actually bounded-a-star uses distance+5 as radius, so this should work
-      (let [path (pathfinding/bounded-a-star [0 0] [0 99] :destroyer @atoms/game-map)]
-        (should-not-be-nil path))))
-
-  (it "next-step skips network for short-distance goals"
-    ;; Build a sea lane network with a node far from the goal.
-    ;; For a short-distance goal (< local-radius), next-step should use
-    ;; direct A* and step toward the goal, not toward the distant network node.
-    (let [row (vec (repeat 40 {:type :sea}))]
-      (reset! atoms/game-map [row row row])
-      ;; Build a network with nodes at [0 30] and [0 35] — far from our start/goal
-      (reset! atoms/sea-lane-network
-              {:nodes {1 {:id 1 :pos [0 30] :segment-ids #{1}}
-                       2 {:id 2 :pos [0 35] :segment-ids #{1}}}
-               :segments {1 {:id 1 :node-a-id 1 :node-b-id 2
-                              :direction [0 1]
-                              :cells [[0 30] [0 31] [0 32] [0 33] [0 34] [0 35]]
-                              :length 5}}
-               :pos->node {[0 30] 1 [0 35] 2}
-               :pos->seg {[0 31] 1 [0 32] 1 [0 33] 1 [0 34] 1}
-               :next-node-id 3 :next-segment-id 2})
-      (pathfinding/clear-path-cache)
-      ;; Goal is 5 cells away — well within sea-lane-local-radius (15)
-      (let [step (pathfinding/next-step [1 0] [1 5] :transport)]
-        ;; Direct A* should move toward [1 5], i.e. column increases
-        (should-not-be-nil step)
-        (should (> (second step) 0))
-        ;; Should NOT step toward column 30 (the network node)
-        (should (< (second step) 10)))))
-
-  (it "next-step uses network for long-distance goals"
-    ;; Build a sea lane network between two distant points.
-    ;; For a long-distance goal (> local-radius), next-step should consult the network.
-    (let [row (vec (repeat 60 {:type :sea}))]
-      (reset! atoms/game-map [row row row])
-      ;; Network with nodes at [1 2] and [1 50]
-      (let [cells (vec (for [c (range 2 51)] [1 c]))]
-        (reset! atoms/sea-lane-network
-                {:nodes {1 {:id 1 :pos [1 2] :segment-ids #{1}}
-                         2 {:id 2 :pos [1 50] :segment-ids #{1}}}
-                 :segments {1 {:id 1 :node-a-id 1 :node-b-id 2
-                                :direction [0 1]
-                                :cells cells
-                                :length 48}}
-                 :pos->node {[1 2] 1 [1 50] 2}
-                 :pos->seg (into {} (for [c (range 3 50)] [[1 c] 1]))
-                 :next-node-id 3 :next-segment-id 2}))
-      (pathfinding/clear-path-cache)
-      ;; Goal is 50 cells away — well beyond sea-lane-local-radius (15)
-      (let [step (pathfinding/next-step [1 0] [1 50] :transport)]
-        ;; Should find a path (either via network or A*)
-        (should-not-be-nil step)
-        ;; The step should move toward increasing column
-        (should (>= (second step) 1)))))
-
-  (it "compute-network-step caches and returns next step when network routes"
-    ;; Need >= 4 nodes for network routing to activate
-    (let [row (vec (repeat 50 {:type :sea}))]
-      (reset! atoms/game-map [row row row])
-      (reset! atoms/sea-lane-network
-              {:nodes {1 {:id 1 :pos [1 2] :segment-ids #{1}}
-                       2 {:id 2 :pos [1 15] :segment-ids #{1 2}}
-                       3 {:id 3 :pos [1 30] :segment-ids #{2 3}}
-                       4 {:id 4 :pos [1 45] :segment-ids #{3}}}
-               :segments {1 {:id 1 :node-a-id 1 :node-b-id 2
-                              :direction [0 1]
-                              :cells (vec (for [c (range 2 16)] [1 c]))
-                              :length 13}
-                          2 {:id 2 :node-a-id 2 :node-b-id 3
-                              :direction [0 1]
-                              :cells (vec (for [c (range 15 31)] [1 c]))
-                              :length 15}
-                          3 {:id 3 :node-a-id 3 :node-b-id 4
-                              :direction [0 1]
-                              :cells (vec (for [c (range 30 46)] [1 c]))
-                              :length 15}}
-               :pos->node {[1 2] 1 [1 15] 2 [1 30] 3 [1 45] 4}
-               :pos->seg (merge (into {} (for [c (range 3 15)] [[1 c] 1]))
-                                (into {} (for [c (range 16 30)] [[1 c] 2]))
-                                (into {} (for [c (range 31 45)] [[1 c] 3])))
-               :next-node-id 5 :next-segment-id 4})
-      (pathfinding/clear-path-cache)
-      ;; Start [1 0] to goal [1 47] — chebyshev 47 > 15
-      (let [step (pathfinding/next-step [1 0] [1 47] :transport)]
-        (should-not-be-nil step)
-        (should (> (first step) 0))))))
-
-(describe "chebyshev"
-  (it "returns 0 for same position"
-    (should= 0 (#'empire.movement.pathfinding/chebyshev [3 3] [3 3])))
-
-  (it "returns 1 for adjacent position"
-    (should= 1 (#'empire.movement.pathfinding/chebyshev [3 3] [4 4])))
-
-  (it "returns max of row/col difference"
-    (should= 5 (#'empire.movement.pathfinding/chebyshev [0 0] [3 5])))
-
-  (it "handles negative direction"
-    (should= 4 (#'empire.movement.pathfinding/chebyshev [5 5] [1 3]))))
-
 (describe "reconstruct-path"
   (it "reconstructs path from came-from map"
     (let [came-from {[1 0] [0 0]
@@ -464,11 +333,6 @@
     (reset-all-atoms!)
     (pathfinding/clear-path-cache))
 
-  (context "bounded-a-star"
-    (it "returns [start] when start equals goal"
-      (reset! atoms/game-map (build-test-map ["~~~"]))
-      (should= [[0 0]] (pathfinding/bounded-a-star [0 0] [0 0] :destroyer @atoms/game-map))))
-
   (context "adjacent-to-target-continent-land? with city"
     (it "recognizes :city as target-continent land"
       (let [game-map [[{:type :sea} {:type :city :city-status :free}]
@@ -516,13 +380,6 @@
       ;; Only (zero? c) fires (r=2 ≠ 0, r=2 ≠ dec(5)=4, c=0 ≠ dec(3)=2)
       (reset! atoms/game-map (build-test-map ["##~##" "##~##" "##~##"]))
       (should (pathfinding/sea-reaches-edge? [2 0]))))
-
-  (context "next-step sea lane recording with passability-fn"
-    (it "does not record naval paths when passability-fn is provided"
-      (reset! atoms/game-map (build-test-map ["~~~~~~"]))
-      (let [pass-fn (fn [cell] (and cell (= :sea (:type cell))))]
-        (pathfinding/next-step [0 0] [5 0] :destroyer pass-fn :custom)
-        (should= 0 (count (:segments @atoms/sea-lane-network))))))
 
   (context "cache-sub-paths! two-element path"
     (it "caches the final two-element sub-path"

@@ -4,9 +4,7 @@
    Provides efficient pathfinding that respects terrain constraints."
   (:require [empire.atoms :as atoms]
             [empire.computer.core :as core]
-            [empire.config :as config]
-            [empire.units.dispatcher :as dispatcher]
-            [empire.movement.sea-lanes :as sea-lanes]))
+            [empire.units.dispatcher :as dispatcher]))
 
 (def path-cache
   "Cache for computed paths: {[start goal unit-type] path-vector}"
@@ -127,20 +125,6 @@
    (if (= start goal)
      [start]
      (a-star-loop start goal unit-type game-map passability-fn neighbor-filter))))
-
-(defn bounded-a-star
-  "Radius-limited variant of a-star. Only explores cells within radius of the
-   midpoint between start and goal. Returns path vector or nil."
-  [start goal unit-type game-map]
-  (let [[sr sc] start
-        [gr gc] goal
-        mid-r (quot (+ sr gr) 2)
-        mid-c (quot (+ sc gc) 2)
-        radius (+ (max (Math/abs (- sr gr)) (Math/abs (- sc gc))) 5)
-        in-bounds? (fn [[r c]]
-                     (and (<= (Math/abs (- r mid-r)) radius)
-                          (<= (Math/abs (- c mid-c)) radius)))]
-    (a-star start goal unit-type game-map nil in-bounds?)))
 
 (defn sea-reaches-edge?
   "BFS flood-fill from pos over sea cells. Returns true if any
@@ -540,37 +524,10 @@
       (swap! path-cache assoc [(first remaining) goal unit-type cache-key-extra] remaining)
       (recur (subvec remaining 1)))))
 
-(defn- chebyshev
-  "Chebyshev (chessboard) distance between two positions."
-  [[sr sc] [gr gc]]
-  (max (Math/abs (- sr gr)) (Math/abs (- sc gc))))
-
-(def ^:private naval-types
-  #{:transport :destroyer :submarine :carrier :battleship :patrol-boat})
-
-(defn- try-network-route
-  "Attempts to route through the sea lane network for naval units.
-   Returns a path or nil."
-  [start goal unit-type]
-  (when (naval-types unit-type)
-    (let [network @atoms/sea-lane-network
-          game-map @atoms/game-map]
-      (sea-lanes/route-through-network network start goal unit-type game-map bounded-a-star))))
-
-(defn- compute-network-step
-  "Tries sea-lane network route for distant naval goals. Returns next step or nil."
-  [start goal unit-type cache-key-extra]
-  (when (> (chebyshev start goal) config/sea-lane-local-radius)
-    (when-let [net-path (try-network-route start goal unit-type)]
-      (cache-sub-paths! net-path goal unit-type cache-key-extra)
-      (second net-path))))
-
 (defn- compute-a-star-step
-  "Computes A* path and returns next step. Records naval paths to sea-lane network."
+  "Computes A* path and returns next step."
   [start goal unit-type passability-fn cache-key-extra]
   (when-let [path (a-star start goal unit-type @atoms/game-map passability-fn)]
-    (when (and (naval-types unit-type) (not passability-fn))
-      (sea-lanes/record-path! path))
     (cache-sub-paths! path goal unit-type cache-key-extra)
     (second path)))
 
@@ -582,6 +539,4 @@
    (when (not= start goal)
      (if-let [cached (get @path-cache [start goal unit-type cache-key-extra])]
        (second cached)
-       (or (when-not passability-fn
-             (compute-network-step start goal unit-type cache-key-extra))
-           (compute-a-star-step start goal unit-type passability-fn cache-key-extra))))))
+       (compute-a-star-step start goal unit-type passability-fn cache-key-extra)))))

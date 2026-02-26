@@ -22,7 +22,6 @@
    :next-destroyer-id atoms/next-destroyer-id
    :next-carrier-id atoms/next-carrier-id
    :next-escort-id atoms/next-escort-id
-   :sea-lane-network atoms/sea-lane-network
    :claimed-objectives atoms/claimed-objectives
    :claimed-transport-targets atoms/claimed-transport-targets
    :fighter-leg-records atoms/fighter-leg-records

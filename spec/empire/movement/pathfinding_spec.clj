@@ -1,9 +1,7 @@
 (ns empire.movement.pathfinding-spec
   (:require [speclj.core :refer :all]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.sea-lanes :as sea-lanes]
             [empire.atoms :as atoms]
-            [empire.config :as config]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 
 (describe "heuristic"

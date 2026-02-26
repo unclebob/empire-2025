@@ -219,34 +219,6 @@
                             (str/join "\n" (map format-movement-entry (get by-round r)))))))
          "\n\n")))
 
-(defn- format-sea-lane-section
-  "Format the sea lane network for the debug dump."
-  []
-  (let [network @atoms/sea-lane-network
-        nodes (:nodes network)
-        segments (:segments network)
-        node-count (count nodes)
-        seg-count (count segments)
-        header (str "=== Sea Lane Network ===\n"
-                    "nodes: " node-count " segments: " seg-count "\n")
-        node-lines (when (pos? node-count)
-                     (str/join "\n"
-                               (for [[id node] (sort-by first nodes)
-                                     :let [[r c] (:pos node)]]
-                                 (str "  node " id ": [" r "," c "]"))))
-        seg-lines (when (pos? seg-count)
-                    (str/join "\n"
-                              (for [[id seg] (sort-by first segments)
-                                    :let [node-a (get nodes (:node-a-id seg))
-                                          node-b (get nodes (:node-b-id seg))
-                                          [ar ac] (:pos node-a)
-                                          [br bc] (:pos node-b)]]
-                                (str "  seg " id ": [" ar "," ac "]->[" br "," bc "] length:" (:length seg)))))]
-    (str header
-         (when node-lines (str node-lines "\n"))
-         (when seg-lines (str seg-lines "\n"))
-         "\n")))
-
 (defn- format-map-section
   "Format a map section (game-map, player-map, or computer-map) for display."
   [label cell-map]
@@ -287,7 +259,6 @@
                                "  (none)\n"
                                (str (str/join "\n" (map format-action-entry actions)) "\n"))
                              "\n")
-        sea-lane-section (format-sea-lane-section)
         coastline-section (format-coastline-section)
         computer-event-section (format-computer-event-section)
         movement-section (format-movement-history-section)
@@ -297,7 +268,7 @@
                           (format-map-section "player-map" (:player-map region-data))
                           "\n"
                           (format-map-section "computer-map" (:computer-map region-data)))]
-    (str header global-state actions-section sea-lane-section coastline-section computer-event-section movement-section maps-section)))
+    (str header global-state actions-section coastline-section computer-event-section movement-section maps-section)))
 
 (defn generate-dump-filename
   "Generate a timestamped filename for the dump file.

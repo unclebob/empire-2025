@@ -219,8 +219,6 @@
   (reset! atoms/coast-walkers-produced {})
   (reset! atoms/patrol-boats-produced {})
   (reset! atoms/seen-coast #{})
-  (reset! atoms/sea-lane-network {:nodes {} :segments {} :pos->node {} :pos->seg {}
-                                   :next-node-id 1 :next-segment-id 1})
   (reset! atoms/distant-city-pairs nil)
   (reset! atoms/computer-event-log [])
   (reset! atoms/action-log [])
