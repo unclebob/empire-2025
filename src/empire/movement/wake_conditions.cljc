@@ -65,33 +65,37 @@
        (= (:type next-cell) :city)
        (= (:city-status next-cell) :player)))
 
-(defn- build-blocking-checks [unit next-cell]
-  (let [unit-type (:type unit)
-        cell-type (:type next-cell)
-        cell-status (:city-status next-cell)
-        occupied? (boolean (:contents next-cell))
-        army? (= unit-type :army)
-        fighter? (= unit-type :fighter)
-        naval? (dispatcher/naval-units unit-type)
-        city? (= cell-type :city)
-        hostile? (and city? (config/hostile-city? cell-status))]
-    [[(and occupied?
-           (not (fighter-landing-on-carrier? unit next-cell))
-           (not (fighter-landing-at-city? unit next-cell)))
-      :somethings-in-the-way]
-     [(and army? (= cell-type :sea))              :cant-move-into-water]
-     [(and army? city? (= cell-status :player))    :cant-move-into-city]
-     [(and army? hostile?)                         :army-found-city]
-     [(and fighter? hostile?)                      :fighter-over-defended-city]
-     [(and naval? (= cell-type :land))             :ships-cant-drive-on-land]
-     ;; Ships cannot enter cities (damaged ships docking handled in move-unit)
-     [(and naval? city?)                           :ships-cant-enter-city]]))
+(defn- occupied-blocking-reason [unit next-cell]
+  (when (and (:contents next-cell)
+             (not (fighter-landing-on-carrier? unit next-cell))
+             (not (fighter-landing-at-city? unit next-cell)))
+    :somethings-in-the-way))
+
+(defn- army-blocking-reason [cell-type cell-status city? hostile?]
+  (cond
+    (= cell-type :sea)                  :cant-move-into-water
+    (and city? (= cell-status :player)) :cant-move-into-city
+    hostile?                            :army-found-city))
+
+(defn- naval-blocking-reason [cell-type city?]
+  (cond
+    (= cell-type :land) :ships-cant-drive-on-land
+    ;; Ships cannot enter cities (damaged ships docking handled in move-unit)
+    city?               :ships-cant-enter-city))
 
 (defn- blocking-wake-reason
   "Returns the wake reason if the unit is blocked, nil otherwise."
   [unit next-cell]
-  (let [checks (build-blocking-checks unit next-cell)]
-    (some (fn [[pred reason]] (when pred reason)) checks)))
+  (let [cell-type (:type next-cell)
+        cell-status (:city-status next-cell)
+        city? (= cell-type :city)
+        hostile? (and city? (config/hostile-city? cell-status))]
+    (or (occupied-blocking-reason unit next-cell)
+        (case (:type unit)
+          :army (army-blocking-reason cell-type cell-status city? hostile?)
+          :fighter (when hostile? :fighter-over-defended-city)
+          (when (dispatcher/naval-units (:type unit))
+            (naval-blocking-reason cell-type city?))))))
 
 (defn- wake-unit-with-reason [unit reason]
   (assoc (dissoc (assoc unit :mode :awake) :target) :reason reason))
