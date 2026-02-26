@@ -284,11 +284,11 @@
            true)))
 
 (defn- country-army-limit-reached?
-  "Returns true if the country has at least as many land armies as coastal land cells."
+  "Returns true if the country has at least 2/3 as many land armies as coastal land cells."
   [country-id]
   (let [coastal-cells (count-country-coastal-cells country-id)]
     (and (pos? coastal-cells)
-         (>= (count-country-land-armies country-id) coastal-cells))))
+         (>= (count-country-land-armies country-id) (* 2/3 coastal-cells)))))
 
 (defn- decide-country-production
   "Per-country production priorities. Returns unit type or nil."

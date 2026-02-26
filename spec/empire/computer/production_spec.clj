@@ -238,6 +238,32 @@
       (reset! atoms/production {[1 0] {:item :destroyer :remaining-rounds 10}})
       (should= :fighter (production/decide-production [3 0]))))
 
+  (context "army limit 2/3 of coastal cells"
+
+    (it "army limit reached at 2/3 of coastal cells"
+      ;; 6 coastal land cells (cols 2-7, row 0) adjacent to sea at row 1
+      ;; Place 4 armies -> 2/3 * 6 = 4, so limit reached
+      (reset! atoms/game-map (build-test-map ["~X######~"
+                                               "~~~~~~~~~"]))
+      (doseq [col (range 2 8)]
+        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (doseq [col (range 2 6)]
+        (swap! atoms/game-map assoc-in [col 0 :contents]
+               {:type :army :owner :computer :hits 1 :country-id 1}))
+      (should (#'empire.computer.production/country-army-limit-reached? 1)))
+
+    (it "army limit not reached below 2/3 of coastal cells"
+      ;; 6 coastal land cells (cols 2-7, row 0) adjacent to sea at row 1
+      ;; Place 3 armies -> 3 < 4, so limit NOT reached
+      (reset! atoms/game-map (build-test-map ["~X######~"
+                                               "~~~~~~~~~"]))
+      (doseq [col (range 2 8)]
+        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (doseq [col (range 2 5)]
+        (swap! atoms/game-map assoc-in [col 0 :contents]
+               {:type :army :owner :computer :hits 1 :country-id 1}))
+      (should-not (#'empire.computer.production/country-army-limit-reached? 1))))
+
   (context "process-computer-city"
 
     (it "sets production when none exists and city has a country-id"

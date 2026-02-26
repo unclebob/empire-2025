@@ -153,27 +153,28 @@
       (should-not= :army (production/decide-production [1 0])))
 
     (it "produces army when country armies below total coastal cells"
-      ;; Country 1: 3 coastal land cells, only 2 armies
-      ;; Map row 0: ~ X a a # t d ~ p p p p f f
-      ;; Map row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      ;; Coastal land cells: [2,0], [3,0], [4,0] (all adjacent to sea at row 1)
-      ;; Only 2 armies at [2,0] and [3,0], cell [4,0] is unoccupied coastal → produces army
-      (reset! atoms/game-map (build-test-map ["~Xaa#td~ppppff"
-                                               "~~~~~~~~~~~~~~"]))
+      ;; Country 1: 4 coastal land cells, only 2 armies
+      ;; Map row 0: ~ X a a # # t d ~ p p p p f f
+      ;; Map row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      ;; Coastal land cells: [2,0], [3,0], [4,0], [5,0] (all adjacent to sea at row 1)
+      ;; Only 2 armies at [2,0] and [3,0], cells [4,0],[5,0] unoccupied coastal → produces army
+      ;; 2/3 limit: 2/3 * 4 = 2.67, 2 armies < 2.67 → limit not reached
+      (reset! atoms/game-map (build-test-map ["~Xaa##td~ppppff"
+                                               "~~~~~~~~~~~~~~~"]))
       (reset! atoms/computer-map @atoms/game-map)
       (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (doseq [col [2 3 4]]
+      (doseq [col [2 3 4 5]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
       (swap! atoms/game-map assoc-in [2 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [3 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [5 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [5 0 :contents :transport-id] 1)
-      (swap! atoms/game-map assoc-in [5 0 :contents :escort-destroyer-id] 1)
-      (doseq [col [8 9 10 11]]
+      (swap! atoms/game-map assoc-in [6 0 :contents :country-id] 1)
+      (swap! atoms/game-map assoc-in [6 0 :contents :transport-id] 1)
+      (swap! atoms/game-map assoc-in [6 0 :contents :escort-destroyer-id] 1)
+      (doseq [col [9 10 11 12]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [12 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [13 0 :contents :country-id] 1)
-      ;; 2 armies < 3 coastal cells → unoccupied coastal cell exists → produces army
+      (swap! atoms/game-map assoc-in [14 0 :contents :country-id] 1)
+      ;; 2 armies < 2/3 of 4 coastal cells → unoccupied coastal cell exists → produces army
       (should= :army (production/decide-production [1 0])))
 
     (it "produces army when armies are only aboard transport (not on land)"

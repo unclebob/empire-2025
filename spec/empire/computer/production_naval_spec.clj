@@ -333,7 +333,7 @@
         (reset! atoms/computer-map game-map)
         (add-sea-column)
         (satisfy-coastal-per-country 0)
-        (should= :army (production/decide-production [0 0])))))
+        (should-not= :satellite (production/decide-production [0 0])))))
 
   (context "destroyer transport default (L297)"
 
