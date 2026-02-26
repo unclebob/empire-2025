@@ -3,7 +3,7 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
-            [empire.ui.util.rendering.format :as fmt]
+            [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
 
 (defn- draw-text-right-justified
@@ -25,20 +25,13 @@
   "Draws the turn message (row 2) left-justified in the Game Info region.
    Falls back to destination display when no turn message is active."
   [left-x text-y]
-  (let [msg @atoms/turn-message
-        dest @atoms/destination]
-    (cond
-      (seq msg)
-      (q/text msg (+ left-x config/msg-left-padding) (+ text-y config/msg-line-2-y))
-
-      dest
-      (let [dest-str (format (:destination config/messages) (first dest) (second dest))]
-        (q/text dest-str (+ left-x config/msg-left-padding) (+ text-y config/msg-line-2-y))))))
+  (when-let [text (display/resolve-turn-text @atoms/turn-message @atoms/destination)]
+    (q/text text (+ left-x config/msg-left-padding) (+ text-y config/msg-line-2-y))))
 
 (defn- draw-error
   "Draws the error message (row 3) in red, flashing, left-justified in the Game Info region."
   [left-x text-y]
-  (when (< (System/currentTimeMillis) @atoms/error-until)
+  (when (display/should-show-error? @atoms/error-until)
     (when (and (seq @atoms/error-message)
                (map-utils/blink? 500))
       (q/fill 255 0 0)
@@ -73,17 +66,17 @@
 (defn- draw-round-status
   "Draws round status (row 1) right-justified. Prepends red PAUSED when paused."
   [right-edge text-y]
-  (let [round-str (str "Round: " @atoms/round-number)]
-    (if (fmt/should-show-paused? @atoms/paused @atoms/pause-requested)
-      (let [full-str (str "PAUSED  " round-str)
-            full-width (q/text-width full-str)
+  (let [{:keys [text paused? round-str]}
+        (display/resolve-round-status-text @atoms/round-number @atoms/paused @atoms/pause-requested)]
+    (if paused?
+      (let [full-width (q/text-width text)
             x (- right-edge full-width)
             paused-width (q/text-width "PAUSED  ")]
         (q/fill 255 0 0)
         (q/text "PAUSED  " x (+ text-y config/msg-line-1-y))
         (q/fill 255)
         (q/text round-str (+ x paused-width) (+ text-y config/msg-line-1-y)))
-      (draw-text-right-justified round-str right-edge (+ text-y config/msg-line-1-y)))))
+      (draw-text-right-justified text right-edge (+ text-y config/msg-line-1-y)))))
 
 (defn- draw-hover-info
   "Draws hover info (row 2) right-justified in the Game Status region."

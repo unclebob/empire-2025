@@ -34,9 +34,28 @@
     (reset! atoms/map-screen-dimensions (:map-screen-dimensions dims))
     (reset! atoms/text-area-dimensions (:text-area-dimensions dims))))
 
-(defn- screen-dimensions []
-  (let [screen (.getScreenSize (java.awt.Toolkit/getDefaultToolkit))]
-    [(.width screen) (.height screen)]))
+(defn parse-args
+  "Parses command-line args into a map of {:cols :rows :seed :window-w :window-h}.
+   Throws ex-info if map exceeds screen bounds."
+  [args screen-w screen-h]
+  (let [seed (some #(when (.startsWith ^String % "--seed=")
+                      (Long/parseLong (subs % 7))) args)
+        non-seed (remove #(.startsWith ^String % "--seed=") args)
+        [cols rows] (if (>= (count non-seed) 2)
+                      [(Integer/parseInt (first non-seed))
+                       (Integer/parseInt (second non-seed))]
+                      config/default-map-size)
+        [cell-w cell-h] config/cell-size
+        text-area-h (* config/text-area-rows cell-h)
+        window-w (* cols cell-w)
+        window-h (+ (* rows cell-h) text-area-h config/text-area-gap)
+        max-cols (quot screen-w cell-w)
+        max-rows (quot (- screen-h text-area-h config/text-area-gap) cell-h)]
+    (when (or (> window-w screen-w) (> window-h screen-h))
+      (throw (ex-info "Map exceeds monitor bounds"
+                      {:cols cols :rows rows :screen-w screen-w :screen-h screen-h
+                       :max-cols max-cols :max-rows max-rows})))
+    {:cols cols :rows rows :seed seed :window-w window-w :window-h window-h}))
 
 (defn key-released [_ _]
   (reset! atoms/last-key nil))

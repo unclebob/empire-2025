@@ -65,3 +65,46 @@
 
   (it "handles single-pixel cells"
     (should= [3 4] (util-core/screen->cell 3 4 10 10 10 10))))
+
+(describe "parse-args"
+  (it "returns default map size when no args"
+    (let [result (util-core/parse-args [] 2000 2000)]
+      (should= 100 (:cols result))
+      (should= 60 (:rows result))))
+
+  (it "parses cols and rows from positional args"
+    (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
+      (should= 80 (:cols result))
+      (should= 40 (:rows result))))
+
+  (it "extracts --seed=N"
+    (let [result (util-core/parse-args ["--seed=42"] 2000 2000)]
+      (should= 42 (:seed result))))
+
+  (it "returns nil seed when no seed arg"
+    (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
+      (should-be-nil (:seed result))))
+
+  (it "computes window dimensions from cols and rows"
+    (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
+      (should= (* 80 11) (:window-w result))
+      (should= (+ (* 40 16) (* 3 16) 7) (:window-h result))))
+
+  (it "throws ex-info when map exceeds screen"
+    (should-throw clojure.lang.ExceptionInfo
+      (util-core/parse-args ["200" "100"] 1000 1000)))
+
+  (it "ex-data contains max-cols and max-rows"
+    (try
+      (util-core/parse-args ["200" "100"] 1000 1000)
+      (should-fail "expected exception")
+      (catch clojure.lang.ExceptionInfo e
+        (let [data (ex-data e)]
+          (should= (quot 1000 11) (:max-cols data))
+          (should= (quot (- 1000 (* 3 16) 7) 16) (:max-rows data))))))
+
+  (it "ignores seed arg when computing dimensions"
+    (let [result (util-core/parse-args ["--seed=99" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= 99 (:seed result)))))

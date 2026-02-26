@@ -9,6 +9,7 @@
             [empire.ui.quil.rendering.overlay :as render-overlay]
             [empire.ui.util.core :as util-core]
             [empire.ui.util.input.dispatch :as dispatch]
+            [empire.ui.util.rendering.display :as display]
             [quil.core :as q]
             [quil.middleware :as m]))
 
@@ -49,10 +50,8 @@
   "Draw the current game state."
   [_state]
   (q/background 0)
-  (let [the-map (case @atoms/map-to-display
-                  :player-map @atoms/player-map
-                  :computer-map @atoms/computer-map
-                  :actual-map @atoms/game-map)]
+  (let [the-map (display/resolve-display-map @atoms/map-to-display
+                  @atoms/player-map @atoms/computer-map @atoms/game-map)]
     (render-map/draw-map the-map)
     (render-map/draw-debug-selection-rectangle)
     (render-messages/draw-message-area)
@@ -105,33 +104,21 @@
 
 (declare empire)
 (defn -main [& args]
-  (let [seed-arg (some #(when (.startsWith ^String % "--seed=")
-                          (Long/parseLong (subs % 7)))
-                       args)
-        non-seed-args (remove #(.startsWith ^String % "--seed=") args)
-        [cols rows] (if (>= (count non-seed-args) 2)
-                      [(Integer/parseInt (first non-seed-args))
-                       (Integer/parseInt (second non-seed-args))]
-                      config/default-map-size)
-        [cell-w cell-h] config/cell-size
-        text-area-h (* config/text-area-rows cell-h)
-        window-w (* cols cell-w)
-        window-h (+ (* rows cell-h) text-area-h config/text-area-gap)
-        [screen-w screen-h] (screen-dimensions)
-        max-cols (quot screen-w cell-w)
-        max-rows (quot (- screen-h text-area-h config/text-area-gap) cell-h)]
-    (when seed-arg
-      (reset! atoms/random-seed seed-arg))
-    (when (or (> window-w screen-w) (> window-h screen-h))
-      (println (format "Map size [%d %d] exceeds monitor bounds (%dx%d pixels)."
-                       cols rows screen-w screen-h))
-      (println (format "Maximum map size for this monitor: [%d %d]"
-                       max-cols max-rows))
-      (System/exit 1))
+  (let [[screen-w screen-h] (screen-dimensions)
+        {:keys [cols rows seed window-w window-h]}
+        (try (util-core/parse-args args screen-w screen-h)
+             (catch clojure.lang.ExceptionInfo e
+               (let [{:keys [cols rows screen-w screen-h max-cols max-rows]} (ex-data e)]
+                 (println (format "Map size [%d %d] exceeds monitor bounds (%dx%d pixels)."
+                                  cols rows screen-w screen-h))
+                 (println (format "Maximum map size for this monitor: [%d %d]"
+                                  max-cols max-rows))
+                 (System/exit 1))))]
+    (when seed (reset! atoms/random-seed seed))
     (reset! atoms/map-size [cols rows])
     (reset! atoms/map-size-constants (config/compute-size-constants cols rows))
-    (if seed-arg
-      (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows seed-arg))
+    (if seed
+      (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows seed))
       (println (format "empire has begun. Map size: [%d %d]" cols rows)))
     (q/defsketch empire
                  :title "Empire: Global Conquest"
