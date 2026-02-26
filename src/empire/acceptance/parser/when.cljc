@@ -128,9 +128,7 @@
                [{:type :cell-visibility-update :unit unit}])}
    {:regex #"visibility\s+updates"
     :handler when-handle-visibility-update}
-   {:regex #"production\s+for\s+(\w+)\s+is\s+evaluated"
-    :handler when-handle-evaluate-production}
-   {:regex #"computer\s+chooses\s+production\s+at\s+(\w+)"
+   {:regex #"(?:production\s+for|computer\s+chooses\s+production\s+at)\s+(\w+)(?:\s+is\s+evaluated)?$"
     :handler when-handle-evaluate-production}
    {:regex #"computer\s+transport\s+(\w+)\s+is\s+processed"
     :handler when-handle-process-computer-transport}

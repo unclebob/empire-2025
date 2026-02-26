@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-24
+;; mutation-tested: 2026-02-26
 (ns empire.computer.land-objectives
   "Land objective detection using flood-fill on fog-of-war map.
    Implements VMS Empire style continent recognition that respects unexplored territory."

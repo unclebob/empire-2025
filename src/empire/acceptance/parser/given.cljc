@@ -106,7 +106,6 @@
 ;; --- GIVEN parsing: handler functions ---
 
 (defn- given-handle-game-map [_] {:directive :map-start :target :game-map})
-(defn- given-handle-game-map-explicit [_] {:directive :map-start :target :game-map})
 (defn- given-handle-player-map [_] {:directive :map-start :target :player-map})
 (defn- given-handle-computer-map [_] {:directive :map-start :target :computer-map})
 
@@ -172,7 +171,7 @@
   [{:regex #"(?i)^(?:GIVEN\s+)?(?:game\s+)?map\s*$"
     :handler given-handle-game-map}
    {:regex #"(?i)^(?:GIVEN\s+)?game\s+map"
-    :handler given-handle-game-map-explicit}
+    :handler given-handle-game-map}
    {:regex #"(?i)^(?:GIVEN\s+)?player\s+map"
     :handler given-handle-player-map}
    {:regex #"(?i)^(?:GIVEN\s+)?computer\s+map"
@@ -196,13 +195,9 @@
     :handler given-handle-destination}
    {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(.*)"
     :handler given-handle-cell-props}
-   {:regex #"player-items\s+are\s+(.*)"
+   {:regex #"(?:player-items|player\s+units?)\s+are\s+(.*)"
     :handler given-handle-player-items-multi}
-   {:regex #"player-items\s+(\w+)"
-    :handler given-handle-player-items-single}
-   {:regex #"player\s+units?\s+are\s+(.*)"
-    :handler given-handle-player-items-multi}
-   {:regex #"player\s+units?\s+(\w+)"
+   {:regex #"(?:player-items|player\s+units?)\s+(\w+)"
     :handler given-handle-player-items-single}
    {:regex #"^waiting-for-input$"
     :handler given-handle-waiting-for-input-bare}
