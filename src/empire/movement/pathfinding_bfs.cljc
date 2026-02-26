@@ -401,3 +401,37 @@
       (let [result (find-nearest-unload-uncached start target-continent)]
         (swap! bfs-unload-cache assoc target-continent result)
         result))))
+
+(defn- adjacent-to-target?
+  "Returns true if any neighbor of pos equals target-city."
+  [pos target-city]
+  (let [[x y] pos]
+    (some (fn [[dx dy]]
+            (= target-city [(+ x dx) (+ y dy)]))
+          map-utils/neighbor-offsets)))
+
+(defn bfs-to-land-ho-target
+  "BFS over sea cells on computer-map from start toward target-city.
+   Returns a path (excluding start) of sea cells ending at a sea cell
+   adjacent to target-city. Returns nil if no sea path exists.
+   Returns [] if start is already adjacent to target-city."
+  [start target-city computer-map]
+  (let [passable-sea? (fn [pos]
+                        (let [cell (get-in computer-map pos)]
+                          (and cell (= :sea (:type cell)))))]
+    (if (adjacent-to-target? start target-city)
+      []
+      (when (passable-sea? start)
+        (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+               visited #{start}
+               came-from {}]
+          (when (seq queue)
+            (let [current (peek queue)]
+              (if (and (not= current start)
+                       (adjacent-to-target? current target-city))
+                (vec (rest (map-utils/reconstruct-path came-from start current)))
+                (let [neighbors (bfs-sea-neighbors current visited passable-sea?)
+                      new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+                  (recur (reduce conj (pop queue) neighbors)
+                         (into visited neighbors)
+                         new-came-from))))))))))
