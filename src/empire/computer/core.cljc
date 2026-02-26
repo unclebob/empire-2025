@@ -130,34 +130,47 @@
         dc (Math/abs (- c2 c1))]
     (and (<= dr 1) (<= dc 1) (not (and (zero? dr) (zero? dc))))))
 
+(defn random-away-direction
+  "Computes a direction vector pointing away from origin toward target.
+   When aligned on an axis (delta=0), randomly picks -1 or 1."
+  [origin target]
+  (let [[oc or'] origin
+        [tc tr] target
+        dc (Integer/signum (- tc oc))
+        dr (Integer/signum (- tr or'))]
+    [(if (zero? dc) (if (< (rand) 0.5) -1 1) dc)
+     (if (zero? dr) (if (< (rand) 0.5) -1 1) dr)]))
+
+(defn find-wakeable-sentries
+  "Returns seq of [row col] coords of computer sentry armies within
+   Chebyshev distance of pos. Pure — takes game-map value, not atom."
+  [game-map pos radius]
+  (let [[pc pr] pos]
+    (for [c (range (max 0 (- pc radius)) (min (count game-map) (+ pc radius 1)))
+          r (range (max 0 (- pr radius)) (min (count (first game-map)) (+ pr radius 1)))
+          :when (not= [c r] pos)
+          :let [cell (get-in game-map [c r])
+                unit (:contents cell)]
+          :when (and unit
+                     (= :army (:type unit))
+                     (= :computer (:owner unit))
+                     (= :sentry (:mode unit))
+                     (<= (chebyshev-distance pos [c r]) radius))]
+      [c r])))
+
 (defn wake-nearby-sentries
   "Wakes sentry armies within radius Chebyshev distance of pos.
    Each woken army gets interior-explore-direction pointing away from pos.
    Returns count of armies woken."
   [pos radius]
-  (let [[pc pr] pos
-        game-map @atoms/game-map
-        woken (atom 0)]
-    (doseq [c (range (max 0 (- pc radius)) (min (count game-map) (+ pc radius 1)))
-            r (range (max 0 (- pr radius)) (min (count (first game-map)) (+ pr radius 1)))
-            :when (not= [c r] pos)
-            :let [cell (get-in game-map [c r])
-                  unit (:contents cell)]
-            :when (and unit
-                       (= :army (:type unit))
-                       (= :computer (:owner unit))
-                       (= :sentry (:mode unit))
-                       (<= (chebyshev-distance pos [c r]) radius))]
-      (let [dc (Integer/signum (- c pc))
-            dr (Integer/signum (- r pr))
-            direction [(if (zero? dc) (if (< (rand) 0.5) -1 1) dc)
-                       (if (zero? dr) (if (< (rand) 0.5) -1 1) dr)]]
-        (swap! atoms/game-map update-in (conj [c r] :contents)
-               #(-> % (assoc :mode :awake
-                              :interior-explore-direction direction)
-                    (dissoc :move-history)))
-        (swap! woken inc)))
-    @woken))
+  (let [candidates (find-wakeable-sentries @atoms/game-map pos radius)]
+    (doseq [coord candidates
+            :let [direction (random-away-direction pos coord)]]
+      (swap! atoms/game-map update-in (conj coord :contents)
+             #(-> % (assoc :mode :awake
+                            :interior-explore-direction direction)
+                  (dissoc :move-history))))
+    (count candidates)))
 
 (defn board-transport
   "Loads army onto transport. Removes army from pos, increments transport army count.
