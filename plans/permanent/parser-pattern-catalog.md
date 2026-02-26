@@ -17,8 +17,7 @@ Consumed first. Next non-blank lines matching `map-row?` chars become `:rows`.
 
 | Input | IR |
 |-------|-----|
-| `[GIVEN] [game] map` | `{:type :map :target :game-map :rows [...]}` |
-| `[GIVEN] game map` | same (explicit variant) |
+| `[GIVEN] [game] map` / `[GIVEN] game map` | `{:type :map :target :game-map :rows [...]}` |
 | `[GIVEN] player map` | `{:type :map :target :player-map :rows [...]}` |
 | `[GIVEN] computer map` | `{:type :map :target :computer-map :rows [...]}` |
 
@@ -35,10 +34,8 @@ Matched after keyword stripping. Context tracks `:units-with-mode` set.
 | `round <N>` | `{:type :round :value N}` |
 | `destination [X Y]` | `{:type :destination :coords [X Y]}` |
 | `cell [X Y] has <k> <v> [and <k2> <v2>]` | `{:type :cell-props :coords [X Y] :props {k v ...}}` |
-| `player-items are <a>, <b>, ...` | `{:type :player-items :items [a b ...]}` |
-| `player-items <item>` | `{:type :player-items :items [item]}` |
-| `player units are <a>, <b>` | same as player-items multi |
-| `player units <item>` | same as player-items single |
+| `player-items are <a>, <b>, ...` / `player units are <a>, <b>` | `{:type :player-items :items [a b ...]}` |
+| `player-items <item>` / `player units <item>` | `{:type :player-items :items [item]}` |
 | `waiting-for-input` (bare) | `{:type :waiting-for-input-state}` |
 | `<U>'s target is <T>` | `{:type :unit-target :unit U :target T}` |
 | `<C> has a <player\|computer> <unit-type>` | `{:type :city-unit :city C :unit-type :kw :owner :kw}` |
@@ -98,8 +95,7 @@ Handlers return vectors of IR nodes. Key dispatch uses `determine-key-type`: upp
 | `player items are processed` | `[{:type :process-player-items}]` |
 | `cell visibility updates for <U>` | `[{:type :cell-visibility-update :unit U}]` |
 | `visibility updates` | `[{:type :visibility-update}]` |
-| `production for <C> is evaluated` | `[{:type :evaluate-production :city C}]` |
-| `computer chooses production at <C>` | `[{:type :evaluate-production :city C}]` |
+| `production for <C> is evaluated` / `computer chooses production at <C>` | `[{:type :evaluate-production :city C}]` |
 | `computer transport <U> is processed` | `[{:type :process-computer-transport :unit U}]` |
 | `computer fighter <U> is processed` | `[{:type :process-computer-fighter :unit U}]` |
 | `<N> computer rounds pass` | `[{:type :computer-rounds :count N}]` |
@@ -115,8 +111,7 @@ Timing prefix `at [the] next round/step/move` adds `:at-next-round true` or `:at
 | `after <N> moves <U> will be at <T>` | `{:type :unit-after-moves :unit U :moves N :target T}` |
 | `after <N> steps there is a <U> at [X Y]` | `{:type :unit-after-steps :unit U :steps N :coords [X Y]}` |
 | `after <N> steps there is a <U> at <T>` | `{:type :unit-after-steps :unit U :steps N :target T}` |
-| `<U> is waiting for input` | `{:type :unit-waiting-for-input :unit U}` |
-| `<U> wakes up and asks for input` | same |
+| `<U> is waiting for input` / `<U> wakes up and asks for input` | `{:type :unit-waiting-for-input :unit U}` |
 | `<U> is at [X Y] in mode <m>` | `[{:type :unit-at :unit U :coords [X Y]} {:type :unit-prop :unit U :property :mode :expected :m}]` |
 | `<U> is at [X Y]` | `{:type :unit-at :unit U :coords [X Y]}` |
 | `<U> is at <T>` | `{:type :unit-at :unit U :target T}` |
@@ -173,10 +168,9 @@ Tried only after bare patterns fail, using timing-stripped text.
 | `<U> has <N> turns remaining` | `{:type :unit-prop :unit U :property :turns-remaining :expected N}` |
 | `<U> has mission <val>` | `{:type :unit-prop :unit U :property :transport-mission :expected :val}` |
 | `<U> has refueling position near <T>` | `{:type :refueling-position-near :unit U :target T}` |
-| `<U> has no <prop>` | `{:type :unit-prop-absent :unit U :property :prop}` |
+| `<U> has no <prop>` / `<U> does not have <prop>` | `{:type :unit-prop-absent :unit U :property :prop}` |
 | `<U> has <prop> <val>` | `{:type :unit-prop :unit U :property :prop :expected val}` |
 | `<U> has mode/is <mode>` | `{:type :unit-prop :unit U :property :mode :expected :mode}` |
-| `<U> does not have <prop>` | `{:type :unit-prop-absent :unit U :property :prop}` |
 
 ### Map block patterns (extract-then-map-blocks)
 | Input | IR |

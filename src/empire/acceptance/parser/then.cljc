@@ -197,9 +197,7 @@
     :handler then-handle-after-steps-coords}
    {:regex #"^after\s+(\w+)\s+steps?\s+there\s+is\s+an?\s+(\w+)\s+at\s+(\S+)"
     :handler then-handle-after-steps-target}
-   {:regex #"^(\w+)\s+is\s+waiting\s+for\s+input$"
-    :handler then-handle-unit-waiting-for-input}
-   {:regex #"^(\w+)\s+wakes\s+up\s+and\s+asks\s+for\s+input"
+   {:regex #"^(\w+)\s+(?:is\s+waiting\s+for\s+input|wakes\s+up\s+and\s+asks\s+for\s+input)"
     :handler then-handle-unit-waiting-for-input}
    {:regex #"^(\w+)\s+is\s+at\s+\[(\d+)\s+(\d+)\]\s+in\s+mode\s+([\w-]+)"
     :handler then-handle-unit-at-position-with-mode}
@@ -229,17 +227,11 @@
     :handler then-handle-bare-message-key}
    {:regex #"out-of-fuel\s+message\s+is\s+displayed"
     :handler then-handle-out-of-fuel}
-   {:regex #"player-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+not\s+nil"
+   {:regex #"(?:player-map\s+cell|(?:the\s+)?player\s+can\s+see)\s+\[(\d+)\s+(\d+)\](?:\s+is\s+not\s+nil)?$"
     :handler then-handle-player-map-not-nil}
-   {:regex #"player-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+nil"
+   {:regex #"(?:player-map\s+cell|(?:the\s+)?player\s+cannot\s+see)\s+\[(\d+)\s+(\d+)\](?:\s+is\s+nil)?$"
     :handler then-handle-player-map-nil}
-   {:regex #"(?:the\s+)?player\s+can\s+see\s+\[(\d+)\s+(\d+)\]"
-    :handler then-handle-player-map-not-nil}
-   {:regex #"(?:the\s+)?player\s+cannot\s+see\s+\[(\d+)\s+(\d+)\]"
-    :handler then-handle-player-map-nil}
-   {:regex #"computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+not\s+nil"
-    :handler then-handle-computer-map-not-nil}
-   {:regex #"(?:the\s+)?computer\s+can\s+see\s+\[(\d+)\s+(\d+)\]"
+   {:regex #"(?:computer-map\s+cell|(?:the\s+)?computer\s+can\s+see)\s+\[(\d+)\s+(\d+)\](?:\s+is\s+not\s+nil)?$"
     :handler then-handle-computer-map-not-nil}
    {:regex #"^(\w+)\s+has\s+(?:a|an)\s+(\w+)\s+with\s+(\d+)\s+hits?\s+in\s+its\s+shipyard"
     :handler then-handle-shipyard-has-ship}
@@ -259,13 +251,9 @@
                 :property :city-status :expected (keyword status)})}
    {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+is\s+(?:a\s+)?(\w+)"
     :handler then-handle-cell-type}
-   {:regex #"^waiting-for-input$"
+   {:regex #"(?:^waiting-for-input$|(?:the\s+)?game\s+is\s+waiting\s+for\s+input)"
     :handler then-handle-waiting-for-input}
-   {:regex #"^not\s+waiting-for-input$"
-    :handler then-handle-not-waiting-for-input}
-   {:regex #"(?:the\s+)?game\s+is\s+waiting\s+for\s+input"
-    :handler then-handle-waiting-for-input}
-   {:regex #"(?:the\s+)?game\s+is\s+not\s+waiting\s+for\s+input"
+   {:regex #"(?:^not\s+waiting-for-input$|(?:the\s+)?game\s+is\s+not\s+waiting\s+for\s+input)"
     :handler then-handle-not-waiting-for-input}
    {:regex #"game\s+is\s+paused"
     :handler then-handle-game-paused}
@@ -322,14 +310,12 @@
     :handler then-handle-unit-has-mission}
    {:regex #"^(\w+)\s+has\s+refueling\s+position\s+near\s+(\S+)$"
     :handler then-handle-refueling-position-near}
-   {:regex #"^(\w+)\s+has\s+no\s+([\w-]+)$"
+   {:regex #"^(\w+)\s+(?:has\s+no|does\s+not\s+have)\s+([\w-]+)$"
     :handler then-handle-unit-prop-absent}
    {:regex #"^(\w+)\s+has\s+(\w[\w-]*)\s+(.+)$"
     :handler then-handle-unit-has-prop}
    {:regex #"^(\w+)\s+(?:has\s+mode|is)\s+([\w-]+)$"
-    :handler then-handle-unit-is-mode}
-   {:regex #"^(\w+)\s+does\s+not\s+have\s+(\S+)"
-    :handler then-handle-unit-prop-absent}])
+    :handler then-handle-unit-is-mode}])
 
 ;; --- THEN parsing ---
 
