@@ -95,6 +95,14 @@
              (= :land (:type game-cell)))
     (swap! atoms/game-map assoc-in [row col :country-id] stamp-id)))
 
+(defn- newly-discovered-free-city?
+  "Returns true if game-cell is a free city and the same position
+   on visible-map was unexplored."
+  [visible-map row col game-cell]
+  (and (= :city (:type game-cell))
+       (= :free (:city-status game-cell))
+       (was-unexplored? visible-map row col)))
+
 (defn update-cell-visibility
   "Updates visibility around a specific cell for the given owner.
    Satellites reveal two rectangular rings (distances 1 and 2).
@@ -115,6 +123,11 @@
            (let [ni (+ x di)
                  nj (+ y dj)]
              (when (in-bounds? ni nj height width)
-               (reveal-cell! visible-map-atom ni nj
-                             (get-in @atoms/game-map [ni nj])
-                             stamp-id visible-map)))))))))
+               (let [game-cell (get-in @atoms/game-map [ni nj])]
+                 (reveal-cell! visible-map-atom ni nj
+                               game-cell stamp-id visible-map)
+                 (when (and (= owner :computer)
+                            (not= :army (:type (:contents cell)))
+                            (newly-discovered-free-city?
+                              visible-map ni nj game-cell))
+                   (swap! atoms/land-ho-targets conj [ni nj])))))))))))
