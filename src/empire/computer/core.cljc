@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-26
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
   (:require [empire.atoms :as atoms]
