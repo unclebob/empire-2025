@@ -25,33 +25,37 @@
         map-width (count (first @atoms/game-map))]
     (extend-to-boundary unit-coords [dx dy] map-height map-width)))
 
+(defn- opposite-row [x map-height]
+  (if (zero? x) (dec map-height) 0))
+
+(defn- opposite-col [y map-width]
+  (if (zero? y) (dec map-width) 0))
+
+(defn- target-on-opposite-row [x map-height map-width]
+  [(opposite-row x map-height) (rand-int map-width)])
+
+(defn- target-on-opposite-col [y map-height map-width]
+  [(rand-int map-height) (opposite-col y map-width)])
+
+(defn- boundary-type [[x y] map-height map-width]
+  (let [h (if (or (zero? x) (= x (dec map-height))) 1 0)
+        v (if (or (zero? y) (= y (dec map-width))) 1 0)]
+    (get {[1 1] :corner [1 0] :row [0 1] :col} [h v])))
+
+(defn- pick-corner-target [x y map-height map-width]
+  (if (zero? (rand-int 2))
+    (target-on-opposite-row x map-height map-width)
+    (target-on-opposite-col y map-height map-width)))
+
 (defn- calculate-new-satellite-target
   "Calculates a new target on the opposite boundary when satellite reaches its target.
    At corners, randomly chooses one of the two opposite boundaries."
   [[x y] map-height map-width]
-  (let [at-top? (= x 0)
-        at-bottom? (= x (dec map-height))
-        at-left? (= y 0)
-        at-right? (= y (dec map-width))
-        at-corner? (and (or at-top? at-bottom?) (or at-left? at-right?))]
-    (cond
-      ;; Corner - choose one of the two opposite boundaries randomly
-      at-corner?
-      (if (zero? (rand-int 2))
-        [(if at-top? (dec map-height) 0) (rand-int map-width)]
-        [(rand-int map-height) (if at-left? (dec map-width) 0)])
-
-      ;; At top/bottom edge - target opposite vertical edge
-      (or at-top? at-bottom?)
-      [(if at-top? (dec map-height) 0) (rand-int map-width)]
-
-      ;; At left/right edge - target opposite horizontal edge
-      (or at-left? at-right?)
-      [(rand-int map-height) (if at-left? (dec map-width) 0)]
-
-      ;; Not at boundary (shouldn't happen)
-      :else
-      [x y])))
+  (case (boundary-type [x y] map-height map-width)
+    :corner (pick-corner-target x y map-height map-width)
+    :row (target-on-opposite-row x map-height map-width)
+    :col (target-on-opposite-col y map-height map-width)
+    [x y]))
 
 (defn- blocked-cell?
   "Returns true if a cell contains a city or another unit."

@@ -4,7 +4,7 @@
     [empire.game-loop :as game-loop]
     [empire.movement.movement :refer [set-unit-movement]]
     [empire.movement.visibility :refer [update-cell-visibility]]
-    [empire.movement.satellite :refer [move-satellite calculate-satellite-target]]
+    [empire.movement.satellite :as sat :refer [move-satellite calculate-satellite-target]]
     [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]
     [speclj.core :refer :all]))
 
@@ -603,3 +603,19 @@
     (with-redefs [rand-nth first]
       (let [new-pos (move-satellite [0 2])]
         (should= [0 2] new-pos)))))
+
+(describe "boundary-type classification"
+  (it "returns :corner for top-left"
+    (should= :corner (#'sat/boundary-type [0 0] 5 5)))
+  (it "returns :corner for bottom-right"
+    (should= :corner (#'sat/boundary-type [4 4] 5 5)))
+  (it "returns :row for top edge non-corner"
+    (should= :row (#'sat/boundary-type [0 2] 5 5)))
+  (it "returns :row for bottom edge non-corner"
+    (should= :row (#'sat/boundary-type [4 2] 5 5)))
+  (it "returns :col for left edge non-corner"
+    (should= :col (#'sat/boundary-type [2 0] 5 5)))
+  (it "returns :col for right edge non-corner"
+    (should= :col (#'sat/boundary-type [2 4] 5 5)))
+  (it "returns nil for interior position"
+    (should-be-nil (#'sat/boundary-type [2 2] 5 5))))
