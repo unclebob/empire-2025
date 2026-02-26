@@ -5,6 +5,7 @@
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.computer.army :as army]
+            [empire.computer.land-ho :as land-ho]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -85,6 +86,7 @@
   (reset! atoms/claimed-objectives #{})
   (reset! atoms/claimed-transport-targets #{})
   (reset! atoms/claimed-patrol-targets #{})
+  (land-ho/assign-land-ho-invasion)
   (let [player-items (vec (build-player-items))
         computer-items (vec (build-computer-items))]
     (reset! atoms/player-items player-items)
