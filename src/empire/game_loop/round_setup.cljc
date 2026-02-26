@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-24
+;; mutation-tested: 2026-02-26
 (ns empire.game-loop.round-setup
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
