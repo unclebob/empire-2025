@@ -448,6 +448,26 @@
         pos)
       pos)))
 
+(defn- process-sentry-in-city [pos country-id cell]
+  (when (= :city (:type cell))
+    (fill-coastal-cell pos country-id)))
+
+(defn- process-unowned-army [pos]
+  (or (when-let [obj (find-city-objective pos)]
+        (move-toward-objective pos obj nil))
+      (explore-randomly pos nil)))
+
+(defn- build-army-actions [pos country-id mode unit cell enemy-pos]
+  [[enemy-pos                              #(attack-enemy pos enemy-pos)]
+   [(:attack-target unit)                  #(process-attack-target pos country-id)]
+   [(= :coast-walk mode)                   #(process-coast-walk pos country-id)]
+   [(= :move-inland mode)                  #(process-move-inland pos country-id)]
+   [(= :random-explore mode)               #(process-random-explore pos country-id)]
+   [(= :sentry mode)                       #(process-sentry-in-city pos country-id cell)]
+   [(:interior-explore-direction unit)      #(process-interior-explore pos country-id)]
+   [(nil? country-id)                      #(process-unowned-army pos)]
+   [true                                   #(fill-coastal-cell pos country-id)]])
+
 (defn process-army
   "Processes a computer army's turn.
    Priority: Exit city > Attack > Attack-target > Coast-walk > Random-explore > Coastal fill
@@ -467,19 +487,8 @@
                                    (cond-> {:mode mode}
                                      country-id (assoc :cid country-id)
                                      eid (assoc :eid eid)))
-        (cond
-          enemy-pos (attack-enemy pos enemy-pos)
-          (:attack-target unit) (process-attack-target pos country-id)
-          (= :coast-walk mode) (process-coast-walk pos country-id)
-          (= :move-inland mode) (process-move-inland pos country-id)
-          (= :random-explore mode) (process-random-explore pos country-id)
-          (= :sentry mode) (when (= :city (:type cell))
-                             (fill-coastal-cell pos country-id))
-          (:interior-explore-direction unit) (process-interior-explore pos country-id)
-          (nil? country-id) (or (when-let [obj (find-city-objective pos)]
-                                  (move-toward-objective pos obj nil))
-                                (explore-randomly pos nil))
-          :else (fill-coastal-cell pos country-id))))
+        (let [actions (build-army-actions pos country-id mode unit cell enemy-pos)]
+          (reduce (fn [_ [pred action]] (when pred (reduced (action)))) nil actions))))
     nil))
 
 (defn- find-assignable-armies
