@@ -115,7 +115,39 @@
       ;; Army stays, mode cleared to awake so it redirects to coast next round
       (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
       (should= :awake (get-in @atoms/game-map [2 0 :contents :mode]))
-      (should-be-nil (get-in @atoms/game-map [2 0 :contents :random-explore-direction]))))
+      (should-be-nil (get-in @atoms/game-map [2 0 :contents :random-explore-direction]))
+      (should-be-nil (get-in @atoms/game-map [2 0 :contents :random-explore-rounds]))))
+
+  (context "random explore timeout"
+    (it "initializes random-explore-rounds to 0 when entering random-explore"
+      ;; 3x3 all-land, army at [1 1] in move-inland mode. Not adjacent to sea → transitions to random-explore.
+      (reset! atoms/game-map (build-test-map ["###"
+                                               "###"
+                                               "###"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :army :owner :computer :hits 1
+              :mode :move-inland :country-id 1})
+      (army/process-army [1 1])
+      ;; Should now be in random-explore mode with rounds initialized to 0
+      (should= :random-explore (get-in @atoms/game-map [1 1 :contents :mode]))
+      (should= 0 (get-in @atoms/game-map [1 1 :contents :random-explore-rounds])))
+
+    (it "transitions to awake after 10 rounds of random-explore"
+      ;; 3x3 all-land, army at [1 1] with random-explore-rounds 10 → timeout
+      (reset! atoms/game-map (build-test-map ["###"
+                                               "###"
+                                               "###"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :army :owner :computer :hits 1
+              :mode :random-explore :random-explore-direction [0 1]
+              :random-explore-rounds 10 :country-id 1})
+      (army/process-army [1 1])
+      ;; Should have timed out: mode awake, no random-explore fields
+      (should= :awake (get-in @atoms/game-map [1 1 :contents :mode]))
+      (should-be-nil (get-in @atoms/game-map [1 1 :contents :random-explore-direction]))
+      (should-be-nil (get-in @atoms/game-map [1 1 :contents :random-explore-rounds]))))
 
   (context "attack-target behavior"
     (it "moves toward valid target"
