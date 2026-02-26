@@ -65,35 +65,33 @@
        (= (:type next-cell) :city)
        (= (:city-status next-cell) :player)))
 
+(defn- build-blocking-checks [unit next-cell]
+  (let [unit-type (:type unit)
+        cell-type (:type next-cell)
+        cell-status (:city-status next-cell)
+        occupied? (boolean (:contents next-cell))
+        army? (= unit-type :army)
+        fighter? (= unit-type :fighter)
+        naval? (dispatcher/naval-units unit-type)
+        city? (= cell-type :city)
+        hostile? (and city? (config/hostile-city? cell-status))]
+    [[(and occupied?
+           (not (fighter-landing-on-carrier? unit next-cell))
+           (not (fighter-landing-at-city? unit next-cell)))
+      :somethings-in-the-way]
+     [(and army? (= cell-type :sea))              :cant-move-into-water]
+     [(and army? city? (= cell-status :player))    :cant-move-into-city]
+     [(and army? hostile?)                         :army-found-city]
+     [(and fighter? hostile?)                      :fighter-over-defended-city]
+     [(and naval? (= cell-type :land))             :ships-cant-drive-on-land]
+     ;; Ships cannot enter cities (damaged ships docking handled in move-unit)
+     [(and naval? city?)                           :ships-cant-enter-city]]))
+
 (defn- blocking-wake-reason
   "Returns the wake reason if the unit is blocked, nil otherwise."
   [unit next-cell]
-  (cond
-    (and (:contents next-cell)
-         (not (fighter-landing-on-carrier? unit next-cell))
-         (not (fighter-landing-at-city? unit next-cell)))
-    :somethings-in-the-way
-
-    (and (= (:type unit) :army) (= (:type next-cell) :sea))
-    :cant-move-into-water
-
-    (and (= (:type unit) :army) (= (:type next-cell) :city) (= (:city-status next-cell) :player))
-    :cant-move-into-city
-
-    (and (= (:type unit) :army) (= (:type next-cell) :city) (config/hostile-city? (:city-status next-cell)))
-    :army-found-city
-
-    (and (= (:type unit) :fighter)
-         (= (:type next-cell) :city)
-         (config/hostile-city? (:city-status next-cell)))
-    :fighter-over-defended-city
-
-    (and (dispatcher/naval-units (:type unit)) (= (:type next-cell) :land))
-    :ships-cant-drive-on-land
-
-    ;; Ships cannot enter cities (except damaged ships docking, handled separately in move-unit)
-    (and (dispatcher/naval-units (:type unit)) (= (:type next-cell) :city))
-    :ships-cant-enter-city))
+  (let [checks (build-blocking-checks unit next-cell)]
+    (some (fn [[pred reason]] (when pred reason)) checks)))
 
 (defn- wake-unit-with-reason [unit reason]
   (assoc (dissoc (assoc unit :mode :awake) :target) :reason reason))
