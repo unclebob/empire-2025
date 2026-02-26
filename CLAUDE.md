@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Empire is a Clojure implementation of the classic VMS Empire wargame - a turn-based strategy game of global conquest between a human player and computer opponent. The game uses Quil for rendering a grid-based map where players produce and command military units (armies, fighters, ships) to capture cities and destroy enemy forces. Source files use `.cljc` extension for cross-platform Clojure/ClojureScript compatibility.
 
+## Permissions
+allow git, sed, cp, ls, cat, rm, echo, redirection, while read line, clj, clojure, and all standard unix tools.
+
 ## Local rules
 - If the working directory is named <x> then local rules will be stored in <x>.md. BEFORE making any changes, read `<x>.md` and follow its restrictions.
 - If in a worktree, stay in that worktree and merge to other branches from there.

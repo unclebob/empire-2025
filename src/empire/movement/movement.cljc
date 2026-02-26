@@ -294,25 +294,29 @@
                               (cond-> extended? (assoc :extended true)))]
      (swap! atoms/game-map assoc-in unit-coords (assoc first-cell :contents updated-contents)))))
 
+(defn- awake-army-aboard [contents]
+  (when (and (= (:type contents) :transport)
+             (uc/has-awake? contents :awake-armies))
+    {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}))
+
+(defn- awake-carrier-fighter [contents]
+  (when (and (= (:type contents) :carrier)
+             (uc/has-awake? contents :awake-fighters))
+    {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}))
+
+(defn- awake-airport-fighter [cell]
+  (when (uc/has-awake? cell :awake-fighters)
+    {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}))
+
 (defn get-active-unit
   "Returns the unit currently needing attention: awake army aboard transport, awake fighter on carrier,
-   then awake contents, then awake airport fighter.
-   For armies aboard transport, returns a synthetic army map with :aboard-transport true.
-   For fighters on carrier, returns a synthetic fighter map with :from-carrier true.
-   For fighters in airport, returns a synthetic fighter map with :from-airport true."
+   then awake contents, then awake airport fighter."
   [cell]
-  (let [contents (:contents cell)
-        has-awake-army-aboard? (and (= (:type contents) :transport)
-                                    (uc/has-awake? contents :awake-armies))
-        has-awake-carrier-fighter? (and (= (:type contents) :carrier)
-                                        (uc/has-awake? contents :awake-fighters))
-        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)]
-    (cond
-      has-awake-army-aboard? {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}
-      has-awake-carrier-fighter? {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}
-      (and contents (= (:mode contents) :awake)) contents
-      has-awake-airport-fighter? {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}
-      :else nil)))
+  (let [contents (:contents cell)]
+    (or (awake-army-aboard contents)
+        (awake-carrier-fighter contents)
+        (when (and contents (= (:mode contents) :awake)) contents)
+        (awake-airport-fighter cell))))
 
 (defn is-army-aboard-transport?
   "Returns true if the active unit is an army aboard a transport."
