@@ -39,55 +39,44 @@
              (not (computer-has-items?)))
     (declare-victory!)))
 
+(defn- advance-step
+  "Decrements steps-remaining for unit at pos. Returns pos if steps remain, nil otherwise."
+  [pos]
+  (let [moved-unit (:contents (get-in @atoms/game-map pos))]
+    (when moved-unit
+      (let [new-steps (dec (:steps-remaining moved-unit 1))]
+        (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) new-steps)
+        (when (pos? new-steps) pos)))))
+
+(defn- end-combat-move
+  "Zeroes steps for attacker at pos if they won (same owner). Combat always ends the move."
+  [pos owner]
+  (let [moved-unit (:contents (get-in @atoms/game-map pos))]
+    (when (and moved-unit (= (:owner moved-unit) owner))
+      (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) 0))))
+
+(defn- resolve-move-result
+  "Resolves a move result into the next position. Returns pos if unit should continue, nil if done."
+  [result pos owner]
+  (case result
+    (:sidestep :normal) (advance-step pos)
+    :combat (do (end-combat-move pos owner) nil)
+    :woke pos
+    :docked nil))
+
 (defn move-current-unit
-  "Moves the unit at coords one step. Returns new coords if still moving, nil if done.
-   Sidesteps consume a step but continue moving if steps remain."
+  "Moves the unit at coords one step. Returns new coords if still moving, nil if done."
   ([coords] (move-current-unit coords config/max-sidesteps))
   ([coords max-sidesteps]
    (let [cell (get-in @atoms/game-map coords)
          unit (:contents cell)]
      (when (and (= (:mode unit) :moving)
                 (pos? (:steps-remaining unit 1)))
-       (let [target (:target unit)
-             {:keys [result pos]} (movement/move-unit coords target cell atoms/game-map)]
-         (case result
-           ;; Sidestep - consume a step, continue if steps remain
-           :sidestep
-           (let [moved-cell (get-in @atoms/game-map pos)
-                 moved-unit (:contents moved-cell)]
-             (when moved-unit
-               (let [new-steps (dec (:steps-remaining moved-unit 1))]
-                 (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) new-steps)
-                 (when (> new-steps 0)
-                   (if (pos? max-sidesteps)
-                     (recur pos (dec max-sidesteps))
-                     pos)))))
-
-           ;; Normal move - decrement steps and continue if steps remain
-           :normal
-           (let [moved-cell (get-in @atoms/game-map pos)
-                 moved-unit (:contents moved-cell)]
-             (when moved-unit
-               (let [new-steps (dec (:steps-remaining moved-unit 1))]
-                 (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) new-steps)
-                 ;; Only continue if unit has steps remaining to use
-                 (when (> new-steps 0)
-                   pos))))
-
-           ;; Combat - attacker is at pos if won, nil if lost
-           :combat
-           (let [moved-cell (get-in @atoms/game-map pos)
-                 moved-unit (:contents moved-cell)]
-             (when (and moved-unit (= (:owner moved-unit) (:owner unit)))
-               ;; Attacker won - they're now at pos
-               (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) 0)
-               nil))  ;; Combat ends the move
-
-           ;; Woke up - return pos so unit gets re-queued for attention
-           :woke pos
-
-           ;; Docked for repair - done moving
-           :docked nil))))))
+       (let [{:keys [result pos]} (movement/move-unit coords (:target unit) cell atoms/game-map)
+             next-pos (resolve-move-result result pos (:owner unit))]
+         (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
+           (recur pos (dec max-sidesteps))
+           next-pos))))))
 
 (defn move-explore-unit
   "Moves an exploring unit. Returns new coords if still exploring, nil if done."

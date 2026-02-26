@@ -302,7 +302,20 @@
         (game-loop/move-current-unit [0 0])
         (let [destroyer (:contents (get-in @atoms/game-map [1 0]))]
           (should= :destroyer (:type destroyer))
-          (should= :awake (:mode destroyer)))))
+          (should= :awake (:mode destroyer))))
+
+      (it "damaged ship docks at city via move-current-unit"
+        (reset! atoms/game-map (build-test-map ["~D~"
+                                                 "~O~"
+                                                 "~~~"]))
+        (set-test-unit atoms/game-map "D" :mode :moving :target [1 1] :hits 2 :steps-remaining 1)
+        (reset! atoms/player-map (build-test-map ["---"
+                                                   "---"
+                                                   "---"]))
+        (should-be-nil (game-loop/move-current-unit [1 0]))
+        (let [city (get-in @atoms/game-map [1 1])]
+          (should= [{:type :destroyer :hits 2}] (:shipyard city)))
+        (should-not (:contents (get-in @atoms/game-map [1 0])))))
 
     (context "explore movement helpers"
       (it "get-unexplored-explore-moves returns moves adjacent to unexplored"
