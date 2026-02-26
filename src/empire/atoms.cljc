@@ -202,6 +202,11 @@
    Shared across all patrol boats, accumulates for the entire game."
   (atom #{}))
 
+(def land-ho-targets
+  "Ordered list of [col row] free city positions discovered by computer units.
+   FIFO queue consumed by transport invasion assignment at round start."
+  (atom []))
+
 (def computer-event-log
   "Circular buffer of computer unit events for debugging. Capped at 2000 entries.
    Each entry is {:round N :event :keyword :pos [x y] :details {...}}."

@@ -26,6 +26,7 @@
    :claimed-transport-targets atoms/claimed-transport-targets
    :fighter-leg-records atoms/fighter-leg-records
    :coast-walkers-produced atoms/coast-walkers-produced
+   :land-ho-targets atoms/land-ho-targets
    :distant-city-pairs atoms/distant-city-pairs})
 
 (defn list-save-files

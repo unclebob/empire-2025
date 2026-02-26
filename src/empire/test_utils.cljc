@@ -220,6 +220,7 @@
   (reset! atoms/coast-walkers-produced {})
   (reset! atoms/patrol-boats-produced {})
   (reset! atoms/seen-coast #{})
+  (reset! atoms/land-ho-targets [])
   (reset! atoms/distant-city-pairs nil)
   (reset! atoms/computer-event-log [])
   (reset! atoms/action-log [])
