@@ -3,6 +3,7 @@
             [empire.atoms :as atoms]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- make-unit [unit-type owner]
@@ -227,6 +228,7 @@
   (reset! atoms/load-menu-files [])
   (reset! atoms/load-menu-hovered nil)
   (pathfinding/clear-path-cache)
+  (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!))
 
 (defn message-matches?

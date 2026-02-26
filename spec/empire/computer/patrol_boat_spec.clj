@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.computer.ship :as ship]
-            [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.test-utils :as tu]))
 
 (describe "seen-coast atom"
@@ -24,7 +24,7 @@
                                        "~~~~~~~#"
                                        "~~~~~~~#"])]
       (reset! atoms/game-map game-map)
-      (let [path (pathfinding/bfs-to-unseen-coast [0 0] game-map #{})]
+      (let [path (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{})]
         (should-not-be-nil path)
         (should (pos? (count path)))
         (let [target (last path)]
@@ -35,7 +35,7 @@
                                        "~~~"
                                        "~~~"])]
       (reset! atoms/game-map game-map)
-      (should-be-nil (pathfinding/bfs-to-unseen-coast [0 0] game-map #{}))))
+      (should-be-nil (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{}))))
 
   (it "excludes cells already in seen-coast"
     (let [game-map (tu/build-test-map ["~~#"
@@ -43,14 +43,14 @@
                                        "~~#"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/seen-coast #{[1 0] [1 1] [1 2]})
-      (should-be-nil (pathfinding/bfs-to-unseen-coast [0 0] game-map #{}))))
+      (should-be-nil (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{}))))
 
   (it "skips targets within min-distance of 4 levels"
     (let [game-map (tu/build-test-map ["~#~~~~~~~~~~~#"
                                        "~#~~~~~~~~~~~#"
                                        "~#~~~~~~~~~~~#"])]
       (reset! atoms/game-map game-map)
-      (let [path (pathfinding/bfs-to-unseen-coast [2 0] game-map #{})
+      (let [path (pathfinding-bfs/bfs-to-unseen-coast [2 0] game-map #{})
             target (last path)]
         (should-not-be-nil path)
         (should (>= (first target) 10)))))
@@ -59,7 +59,7 @@
     (let [computer-map (tu/build-test-map ["~~~~~~~~~~#"
                                            "~~~~~.~~~~#"
                                            "~~~~~~~~~~#"])]
-      (let [path (pathfinding/bfs-to-unseen-coast [0 0] computer-map #{})
+      (let [path (pathfinding-bfs/bfs-to-unseen-coast [0 0] computer-map #{})
             target (last path)]
         (should-not-be-nil path)
         (should (>= (first target) 8)))))
@@ -70,11 +70,11 @@
                                        "~~~~~~~#"])]
       (reset! atoms/game-map game-map)
       ;; Find the natural target first
-      (let [path1 (pathfinding/bfs-to-unseen-coast [0 0] game-map #{})
+      (let [path1 (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{})
             target1 (last path1)]
         (should-not-be-nil path1)
         ;; Exclude that target — should find a different one
-        (let [path2 (pathfinding/bfs-to-unseen-coast [0 0] game-map #{target1})]
+        (let [path2 (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{target1})]
           (should-not-be-nil path2)
           (should-not= target1 (last path2)))))))
 
@@ -219,7 +219,7 @@
       (swap! atoms/game-map assoc-in [1 1 :contents :explore-path]
              [[2 1] [3 1] [4 1]])
       (let [bfs-call-count (atom 0)]
-        (with-redefs [pathfinding/bfs-to-unseen-coast
+        (with-redefs [pathfinding-bfs/bfs-to-unseen-coast
                       (fn [& _] (swap! bfs-call-count inc) nil)]
           (let [result (ship/patrol-explore-step [1 1])]
             (should= [2 1] result)

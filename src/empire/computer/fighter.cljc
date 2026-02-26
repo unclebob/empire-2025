@@ -6,7 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
             [empire.combat :as combat]
-            [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]
             [empire.config :as config]))
 
@@ -151,7 +151,7 @@
   (let [player-units (core/find-visible-player-units)]
     (if (seq player-units)
       (apply min-key (partial distance-to pos) player-units)
-      (pathfinding/find-nearest-unexplored pos :fighter))))
+      (pathfinding-bfs/find-nearest-unexplored pos :fighter))))
 
 (def ^:private fighter-speed 8)
 

@@ -333,3 +333,63 @@
                                     "#####"
                                     "#####"]))]
       (should (map-utils/at-map-edge? [0 0] game-map)))))
+
+(describe "passable?"
+  (before (reset-all-atoms!))
+
+  (it "returns false for unexplored cells"
+    (should-not (map-utils/passable? :army {:type :unexplored})))
+
+  (it "returns false for nil cell"
+    (should-not (map-utils/passable? :army nil)))
+
+  (it "returns true for land cell with army"
+    (should (map-utils/passable? :army {:type :land})))
+
+  (it "returns false for sea cell with army"
+    (should-not (map-utils/passable? :army {:type :sea})))
+
+  (it "returns true for sea cell with ship"
+    (should (map-utils/passable? :destroyer {:type :sea})))
+
+  (it "returns false for land cell with ship"
+    (should-not (map-utils/passable? :destroyer {:type :land})))
+
+  (it "returns true for any explored cell with fighter"
+    (should (map-utils/passable? :fighter {:type :land}))
+    (should (map-utils/passable? :fighter {:type :sea}))
+    (should (map-utils/passable? :fighter {:type :city}))))
+
+(describe "get-passable-neighbors"
+  (before (reset-all-atoms!))
+
+  (it "returns land neighbors for army"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#a#"
+                                             "~~~"]))
+    (let [neighbors (map-utils/get-passable-neighbors [1 1] :army @atoms/game-map)]
+      (should= 5 (count neighbors))
+      (should-contain [0 0] neighbors)
+      (should-contain [1 0] neighbors)
+      (should-contain [2 0] neighbors)
+      (should-contain [0 1] neighbors)
+      (should-contain [2 1] neighbors)))
+
+  (it "returns sea neighbors for ship"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~d~"
+                                             "###"]))
+    (let [neighbors (map-utils/get-passable-neighbors [1 1] :destroyer @atoms/game-map)]
+      (should= 5 (count neighbors))
+      (should-contain [0 0] neighbors)
+      (should-contain [1 0] neighbors)
+      (should-contain [2 0] neighbors)
+      (should-contain [0 1] neighbors)
+      (should-contain [2 1] neighbors)))
+
+  (it "returns all neighbors for fighter"
+    (reset! atoms/game-map (build-test-map ["#~#"
+                                             "~f~"
+                                             "#~#"]))
+    (let [neighbors (map-utils/get-passable-neighbors [1 1] :fighter @atoms/game-map)]
+      (should= 8 (count neighbors)))))

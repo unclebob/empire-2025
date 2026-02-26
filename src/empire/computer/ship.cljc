@@ -10,6 +10,7 @@
             [empire.computer.threat :as threat]
             [empire.containers.helpers :as uc]
             [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
 
 (declare find-carrier-by-id)
@@ -96,7 +97,7 @@
 (defn- explore-sea
   "Move toward unexplored sea via BFS. Stays put if all sea is explored."
   [pos ship-type]
-  (when-let [target (pathfinding/find-nearest-unexplored pos ship-type)]
+  (when-let [target (pathfinding-bfs/find-nearest-unexplored pos ship-type)]
     (move-toward pos target)))
 
 (defn- find-player-ship-sighting
@@ -198,7 +199,7 @@
   "Run BFS to find unseen coast, store full path on unit. Returns path or nil.
    Excludes targets already claimed by other patrol boats this round."
   [pos]
-  (when-let [path (pathfinding/bfs-to-unseen-coast
+  (when-let [path (pathfinding-bfs/bfs-to-unseen-coast
                     pos @atoms/computer-map @atoms/claimed-patrol-targets)]
     (swap! atoms/claimed-patrol-targets conj (last path))
     (swap! atoms/game-map assoc-in

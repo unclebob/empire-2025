@@ -8,7 +8,7 @@
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
             [empire.debug :as debug]
-            [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]
             [empire.movement.map-utils :as map-utils]))
 
@@ -479,7 +479,7 @@
   "Compute BFS path from transport position to best coastal target.
    Looks 4 levels past first hit; prefers unowned coast over unexplored."
   [pos]
-  (pathfinding/bfs-to-coast-target
+  (pathfinding-bfs/bfs-to-coast-target
     pos @atoms/computer-map))
 
 (defn- transition-to-loading

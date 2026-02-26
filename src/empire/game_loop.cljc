@@ -7,6 +7,7 @@
             [empire.computer.army :as army]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]
             [empire.player.production :as production]
             [empire.game-loop.round-setup :as round-setup]
@@ -70,6 +71,7 @@
   []
   (swap! atoms/round-number inc)
   (pathfinding/clear-path-cache)
+  (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)
   (round-setup/move-satellites)
   (round-setup/consume-sentry-fighter-fuel)

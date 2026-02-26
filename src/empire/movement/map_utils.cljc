@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.map-utils
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.atoms :as atoms]
+            [empire.units.dispatcher :as dispatcher]))
 
 (def neighbor-offsets
   "Offsets for the 8 adjacent cells (excludes center)."
@@ -143,3 +144,33 @@
     (or (zero? x) (zero? y)
         (= x (dec height))
         (= y (dec width)))))
+
+(defn reconstruct-path
+  "Walks came-from map from goal back to start, returns path vector [start ... goal]."
+  [came-from start goal]
+  (loop [pos goal
+         path (list goal)]
+    (if (= pos start)
+      (vec path)
+      (let [prev (came-from pos)]
+        (recur prev (cons prev path))))))
+
+(defn passable?
+  "Returns true if unit-type can move through the cell."
+  [unit-type cell]
+  (and cell
+       (not= (:type cell) :unexplored)
+       (dispatcher/can-move-to? unit-type cell)))
+
+(defn get-passable-neighbors
+  "Returns neighbors that the unit type can traverse.
+   When passability-fn is provided, uses it instead of the default passable? check."
+  ([pos unit-type game-map]
+   (get-passable-neighbors pos unit-type game-map nil))
+  ([pos unit-type game-map passability-fn]
+   (let [[x y] pos
+         check-fn (or passability-fn (partial passable? unit-type))]
+     (filter (fn [[nx ny]]
+               (let [cell (get-in game-map [nx ny])]
+                 (check-fn cell)))
+             (map (fn [[dx dy]] [(+ x dx) (+ y dy)]) neighbor-offsets)))))
