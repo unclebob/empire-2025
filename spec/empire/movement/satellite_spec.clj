@@ -450,3 +450,156 @@
     (let [new-pos (move-satellite [1 0])]
       ;; Next cell [2 0] is a computer city — should skip to [3 0]
       (should= [3 0] new-pos))))
+
+(describe "satellite target recalculation at edges"
+  (before (reset-all-atoms!))
+
+  (it "recalculates to bottom when at top edge non-corner"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "V####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [0 2] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (with-redefs [rand-int (constantly 2)]
+      (move-satellite [0 2])
+      (should= [4 2] (:target (:contents (get-in @atoms/game-map [0 2]))))))
+
+  (it "recalculates to right when at left edge non-corner"
+    (reset! atoms/game-map (build-test-map ["##V##"
+                                             "#####"
+                                             "#####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [2 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (with-redefs [rand-int (constantly 2)]
+      (move-satellite [2 0])
+      (should= [2 4] (:target (:contents (get-in @atoms/game-map [2 0]))))))
+
+  (it "recalculates to bottom at top-left corner when rand=0"
+    (reset! atoms/game-map (build-test-map ["V####"
+                                             "#####"
+                                             "#####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [0 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (let [vals (atom [0 2])]
+      (with-redefs [rand-int (fn [_] (let [v (first @vals)] (swap! vals rest) v))]
+        (move-satellite [0 0])
+        (should= [4 2] (:target (:contents (get-in @atoms/game-map [0 0])))))))
+
+  (it "recalculates to top at bottom-left corner when rand=0"
+    (reset! atoms/game-map (build-test-map ["####V"
+                                             "#####"
+                                             "#####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [4 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (let [vals (atom [0 2])]
+      (with-redefs [rand-int (fn [_] (let [v (first @vals)] (swap! vals rest) v))]
+        (move-satellite [4 0])
+        (should= [0 2] (:target (:contents (get-in @atoms/game-map [4 0])))))))
+
+  (it "recalculates to right at top-left corner when rand=1"
+    (reset! atoms/game-map (build-test-map ["V####"
+                                             "#####"
+                                             "#####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [0 0] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (let [vals (atom [1 3])]
+      (with-redefs [rand-int (fn [_] (let [v (first @vals)] (swap! vals rest) v))]
+        (move-satellite [0 0])
+        (should= [3 4] (:target (:contents (get-in @atoms/game-map [0 0]))))))))
+
+(describe "satellite skips blocked cells near boundaries"
+  (before (reset-all-atoms!))
+
+  (it "scans past city and lands at row 0"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "#####"
+                                             "#OV##"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [0 3] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (let [new-pos (move-satellite [2 3])]
+      (should= [0 3] new-pos)))
+
+  (it "stays put when scan hits column boundary"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "##V##"
+                                             "##O##"
+                                             "##O##"]))
+    (set-test-unit atoms/game-map "V" :target [2 8] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (let [new-pos (move-satellite [2 2])]
+      (should= [2 2] new-pos)))
+
+  (it "scans forward not backward past blocked cell"
+    (reset! atoms/game-map (build-test-map ["##V##"
+                                             "##O##"
+                                             "#####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "V" :target [2 4] :turns-remaining 50)
+    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (let [new-pos (move-satellite [2 0])]
+      (should= [2 2] new-pos))))
+
+(describe "computer satellite boundary and bounce"
+  (before (reset-all-atoms!))
+
+  (it "moves to row 0 boundary"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "#v###"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "v" :direction [-1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (let [new-pos (move-satellite [1 2])]
+      (should= [0 2] new-pos)))
+
+  (it "bounces at bottom edge"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "#####"
+                                             "####v"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (with-redefs [rand-nth first]
+      (let [new-pos (move-satellite [4 2])]
+        (should-not= [4 2] new-pos)
+        (should-be-nil (:contents (get-in @atoms/game-map [4 2]))))))
+
+  (it "bounces in correct direction"
+    (reset! atoms/game-map (build-test-map ["##v##"
+                                             "#####"
+                                             "#####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "v" :direction [0 -1] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (with-redefs [rand-nth first]
+      (let [new-pos (move-satellite [2 0])]
+        (should= [1 0] new-pos))))
+
+  (it "stays put when bounce destination is blocked"
+    (reset! atoms/game-map (build-test-map ["#####"
+                                             "+####"
+                                             "v####"
+                                             "#####"
+                                             "#####"]))
+    (set-test-unit atoms/game-map "v" :direction [-1 0] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (with-redefs [rand-nth first]
+      (let [new-pos (move-satellite [0 2])]
+        (should= [0 2] new-pos)))))
