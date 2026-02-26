@@ -7,6 +7,7 @@
 - **Patrol boat gaggle**: Patrol boats cluster together instead of spreading out to maximize scouting coverage.
 - **More transports needed**: The computer should produce more transports to accelerate overseas invasion.
 - **Country consolidation**: Countries should consolidate their territories and production priorities.
+- **Speed up BFS**: BFS pathfinding is used heavily by transports and other units. Profile and optimize for large maps.
 
 ## Acceptance Test Gaps
 
