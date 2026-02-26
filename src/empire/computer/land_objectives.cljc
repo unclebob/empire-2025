@@ -23,6 +23,11 @@
     (= :city (:type cell)) :land  ; cities count as land for continent purposes
     :else (:type cell)))
 
+(defn- in-bounds?
+  "Returns true if [r c] is within map dimensions."
+  [[r c] height width]
+  (and (>= r 0) (< r height) (>= c 0) (< c width)))
+
 (defn- flood-fill-continent-uncached
   "Flood-fill from start-pos to find all connected land cells on computer-map.
    Marks unexplored cells adjacent to continent but does NOT expand through them.
@@ -45,8 +50,7 @@
                     cell (get-in comp-map pos)
                     terrain (get-terrain cell)]
                 (cond
-                  ;; Off map
-                  (or (neg? r) (neg? c) (>= r height) (>= c width))
+                  (not (in-bounds? pos height width))
                   (recur rest-frontier (conj visited pos) continent)
 
                   ;; Sea - not part of continent
