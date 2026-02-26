@@ -88,23 +88,39 @@
       (let [target (satellite/calculate-bounce-target [5 0] 10 10)]
         (should= 9 (second target))))
 
+    (it "mid-left edge bounces to right edge"
+      (with-redefs [rand-int (constantly 3)]
+        (should= [3 9] (satellite/calculate-bounce-target [5 0] 10 10))))
+
+    (it "mid-right edge bounces to left edge"
+      (with-redefs [rand-int (constantly 3)]
+        (should= [3 0] (satellite/calculate-bounce-target [5 9] 10 10))))
+
+    (it "mid-top edge bounces to bottom edge"
+      (with-redefs [rand-int (constantly 3)]
+        (should= [9 3] (satellite/calculate-bounce-target [0 5] 10 10))))
+
+    (it "mid-bottom edge bounces to top edge"
+      (with-redefs [rand-int (constantly 3)]
+        (should= [0 3] (satellite/calculate-bounce-target [9 5] 10 10))))
+
     (it "corner bounce with rand=0 bounces vertically"
-      (with-redefs [rand-int (constantly 0)]
+      (with-redefs [rand-nth first rand-int (constantly 0)]
         (let [target (satellite/calculate-bounce-target [0 0] 10 10)]
           (should= 9 (first target)))))
 
     (it "corner bounce with rand=1 bounces horizontally"
-      (with-redefs [rand-int (constantly 1)]
+      (with-redefs [rand-nth second rand-int (constantly 0)]
         (let [target (satellite/calculate-bounce-target [0 0] 10 10)]
           (should= 9 (second target)))))
 
     (it "bottom-right corner bounce with rand=0 targets row 0"
-      (with-redefs [rand-int (constantly 0)]
+      (with-redefs [rand-nth first rand-int (constantly 0)]
         (let [target (satellite/calculate-bounce-target [9 9] 10 10)]
           (should= 0 (first target)))))
 
     (it "bottom-right corner bounce with rand=1 targets col 0"
-      (with-redefs [rand-int (constantly 1)]
+      (with-redefs [rand-nth second rand-int (constantly 0)]
         (let [target (satellite/calculate-bounce-target [9 9] 10 10)]
           (should= 0 (second target))))))
 

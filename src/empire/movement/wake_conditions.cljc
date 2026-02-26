@@ -137,7 +137,7 @@
           (and (friendly-carrier? target-contents unit)
                (<= (* distance 4/3) fuel))))))
 
-(defn- wake-fighter-check [unit _from-pos final-pos current-map]
+(defn- build-fighter-checks [unit final-pos current-map]
   (let [dest-cell (get-in @current-map final-pos)
         entering-city? (= (:type dest-cell) :city)
         friendly-city? (= (:city-status dest-cell) :player)
@@ -147,12 +147,14 @@
         bingo-fuel? (and (<= fuel (quot config/fighter-fuel 4))
                          (friendly-city-in-range? final-pos fuel current-map)
                          (not (target-is-reachable-friendly-city? unit final-pos fuel current-map)))]
-    (cond
-      hostile-city? {:wake? true :reason :fighter-shot-down :shot-down? true}
-      entering-city? {:wake? true :reason :fighter-landed-and-refueled :refuel? true}
-      low-fuel? {:wake? true :reason :fighter-out-of-fuel}
-      bingo-fuel? {:wake? true :reason :fighter-bingo}
-      :else nil)))
+    [[hostile-city?  {:wake? true :reason :fighter-shot-down :shot-down? true}]
+     [entering-city? {:wake? true :reason :fighter-landed-and-refueled :refuel? true}]
+     [low-fuel?      {:wake? true :reason :fighter-out-of-fuel}]
+     [bingo-fuel?    {:wake? true :reason :fighter-bingo}]]))
+
+(defn- wake-fighter-check [unit _from-pos final-pos current-map]
+  (let [checks (build-fighter-checks unit final-pos current-map)]
+    (some (fn [[pred result]] (when pred result)) checks)))
 
 (defn- wake-transport-check [unit from-pos final-pos current-map]
   (let [has-armies? (pos? (:army-count unit 0))
