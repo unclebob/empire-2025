@@ -368,4 +368,36 @@
       ;; Should transition to orbiting even without a valid orbit position
       (let [bs (get-in @atoms/game-map [0 0 :contents])]
         (should= :orbiting (:escort-mode bs)))))
+
+  (context "carrier repositioning"
+    (it "finds new position and moves toward it"
+      (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                       :carrier-mode :repositioning}}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}]
+                               [{:type :city :city-status :computer}
+                                {:type :land}
+                                {:type :land}
+                                {:type :land}
+                                {:type :city :city-status :computer}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [ship/find-carrier-position (fn [] {:position [0 2] :pair [[1 0] [1 4]]})]
+        (ship/process-ship [0 0] :carrier))
+      (let [carrier (first (for [i (range 2) j (range 5)
+                                 :let [u (get-in @atoms/game-map [i j :contents])]
+                                 :when (= :carrier (:type u))]
+                             u))]
+        (should= :positioning (:carrier-mode carrier))
+        (should= [0 2] (:carrier-target carrier))))
+
+    (it "switches to holding when no position available"
+      (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                       :carrier-mode :repositioning}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [ship/find-carrier-position (fn [] nil)]
+        (ship/process-ship [0 0] :carrier))
+      (should= :holding (get-in @atoms/game-map [0 0 :contents :carrier-mode]))))
 ) ;; end process-ship

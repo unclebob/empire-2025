@@ -341,7 +341,33 @@
 
     (it "returns nil for empty cell"
       (reset! atoms/game-map (build-test-map ["##"]))
-      (should-be-nil (computer/process-computer-unit [0 0]))))
+      (should-be-nil (computer/process-computer-unit [0 0])))
+
+    (it "returns nil for satellite (no processing needed)"
+      (reset! atoms/game-map [[{:type :sea :contents {:type :satellite :owner :computer
+                                                       :hits 1 :mode :awake
+                                                       :direction [0 1]}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (should-be-nil (computer/process-computer-unit [0 0])))
+
+    (it "dispatches patrol-boat to ship module"
+      (reset! atoms/game-map (build-test-map ["p~"]))
+      (reset! atoms/computer-map (build-test-map ["p~"]))
+      (should-be-nil (computer/process-computer-unit [0 0]))
+      (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type])))
+
+    (it "dispatches submarine to ship module"
+      (reset! atoms/game-map (build-test-map ["s~"]))
+      (reset! atoms/computer-map (build-test-map ["s~"]))
+      (should-be-nil (computer/process-computer-unit [0 0]))
+      (should= :submarine (get-in @atoms/game-map [0 0 :contents :type])))
+
+    (it "dispatches battleship to ship module"
+      (reset! atoms/game-map (build-test-map ["b~"]))
+      (reset! atoms/computer-map (build-test-map ["b~"]))
+      (should-be-nil (computer/process-computer-unit [0 0]))
+      (should= :battleship (get-in @atoms/game-map [0 0 :contents :type]))))
 
   (context "game loop with VMS AI"
     (it "build-computer-items returns computer city coordinates"
