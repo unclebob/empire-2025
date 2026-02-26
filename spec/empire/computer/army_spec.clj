@@ -370,4 +370,89 @@
       (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1 :country-id 5}}
                                 {:type :land}]])
       (core/move-unit-to [0 0] [0 1])
-      (should= 5 (:country-id (get-in @atoms/game-map [0 1]))))))
+      (should= 5 (:country-id (get-in @atoms/game-map [0 1])))))
+
+  (context "land action fallback"
+    (it "army moves toward city objective when available"
+      ;; 3 columns, 1 row each. Army at [0 0], empty land at [1 0], free city at [2 0].
+      (reset! atoms/game-map [[{:type :land :country-id 1
+                                 :contents {:type :army :owner :computer :hits 1
+                                            :mode :awake :country-id 1}}]
+                               [{:type :land :country-id 1}]
+                               [{:type :city :city-status :free}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [rand (constantly 0.9)]
+        (@#'army/find-and-execute-land-action [0 0] 1))
+      ;; Army should have moved toward the free city
+      (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
+      (should= :army (get-in @atoms/game-map [1 0 :contents :type])))
+
+    (it "army starts interior exploration with 1/3 probability"
+      ;; 5x5 map, all land with country-id 1. Sea along row 4 (bottom).
+      ;; Army at [2 2] center. No cities on continent.
+      ;; rand < 1/3 triggers interior exploration. rand-nth picks direction [1 0].
+      ;; Target [3 2] is interior land, not adjacent to sea -> direction kept.
+      (let [land {:type :land :country-id 1}
+            sea {:type :sea}
+            army-cell (assoc land :contents {:type :army :owner :computer :hits 1
+                                              :mode :awake :country-id 1})]
+        (reset! atoms/game-map [[land land land land sea]
+                                 [land land land land sea]
+                                 [land land army-cell land sea]
+                                 [land land land land sea]
+                                 [land land land land sea]])
+        (reset! atoms/computer-map @atoms/game-map))
+      (with-redefs [rand (constantly 0.1)
+                    rand-nth (constantly [1 0])]
+        (@#'army/find-and-execute-land-action [2 2] 1))
+      (let [unit (get-in @atoms/game-map [3 2 :contents])]
+        (should= :army (:type unit))
+        (should= [1 0] (:interior-explore-direction unit))))
+
+    (it "army fills coastal cell when no city objective and no interior explore"
+      ;; 1 column, 2 rows: land with army at [0 0], sea at [0 1].
+      ;; Army is on coast, not in city, not adj to computer city -> goes sentry.
+      (reset! atoms/game-map [[{:type :land :country-id 1
+                                 :contents {:type :army :owner :computer :hits 1
+                                            :mode :awake :country-id 1}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [rand (constantly 0.9)]
+        (@#'army/find-and-execute-land-action [0 0] 1))
+      (should= :sentry (get-in @atoms/game-map [0 0 :contents :mode])))
+
+    (it "army boards adjacent transport when coastal fill returns nil"
+      ;; Use nil country-id so fill-coastal-cell returns nil (its when-guards need country-id).
+      ;; Army at [1 0] on land. Transport at [0 0] on sea, loading, adjacent.
+      ;; No cities. No sentries.
+      (reset! atoms/game-map [[{:type :sea
+                                 :contents {:type :transport :owner :computer :hits 3
+                                            :transport-mission :loading :army-count 0}}]
+                               [{:type :land
+                                 :contents {:type :army :owner :computer :hits 1
+                                            :mode :awake}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (with-redefs [rand (constantly 0.9)]
+        (@#'army/find-and-execute-land-action [1 0] nil))
+      ;; Army should have boarded the transport
+      (should-be-nil (get-in @atoms/game-map [1 0 :contents]))
+      (should= 1 (get-in @atoms/game-map [0 0 :contents :army-count])))
+
+    (it "army explores randomly as last resort"
+      ;; Use nil country-id so fill-coastal-cell returns nil. No transports.
+      ;; 3x3 all-land game-map. computer-map all nil except army cell.
+      ;; Army at [1 1]. explore-randomly finds unexplored neighbors.
+      (reset! atoms/game-map [[{:type :land} {:type :land} {:type :land}]
+                               [{:type :land}
+                                {:type :land :contents {:type :army :owner :computer
+                                                        :hits 1 :mode :awake}}
+                                {:type :land}]
+                               [{:type :land} {:type :land} {:type :land}]])
+      (reset! atoms/computer-map [[nil nil nil]
+                                   [nil {:type :land :contents {:type :army :owner :computer
+                                                                :hits 1 :mode :awake}} nil]
+                                   [nil nil nil]])
+      (with-redefs [rand (constantly 0.9)
+                    rand-nth (fn [coll] (first coll))]
+        (@#'army/find-and-execute-land-action [1 1] nil))
+      (should-be-nil (get-in @atoms/game-map [1 1 :contents])))))
