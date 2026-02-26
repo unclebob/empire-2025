@@ -141,6 +141,9 @@
       (should-not (uc/transport-at-beach? {:type :transport :owner :player :mode :awake
                                            :army-count 2 :reason :some-other})))
 
+    (it "returns false for transport at beach with missing army-count"
+      (should-not (uc/transport-at-beach? {:type :transport :reason :transport-at-beach})))
+
     (it "returns false for non-transport"
       (should-not (uc/transport-at-beach? {:type :carrier :reason :transport-at-beach :army-count 2}))))
 
