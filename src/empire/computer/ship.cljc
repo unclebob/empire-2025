@@ -732,28 +732,29 @@
     (adopt-carrier-escort pos carrier-pos unit-type)
     (move-toward pos carrier-pos)))
 
+(defn- transition-to-orbiting
+  "Transitions an escort to orbiting mode. Finds a valid orbit angle and moves to position."
+  [pos carrier-pos unit]
+  (let [angle (or (:orbit-angle unit) 0)
+        valid-angle (find-next-orbit-angle carrier-pos angle)]
+    (if valid-angle
+      (let [target (orbit-target-pos carrier-pos valid-angle)]
+        (when (not= pos target)
+          (move-toward pos target))
+        (swap! atoms/game-map update-in
+               (conj (or (when (not= pos target) target) pos) :contents)
+               assoc :escort-mode :orbiting :orbit-angle valid-angle))
+      (swap! atoms/game-map update-in (conj pos :contents)
+             assoc :escort-mode :orbiting))))
+
 (defn- process-escort-intercepting
   "Escort intercepting: move toward carrier, transition to orbiting at radius 2."
   [pos]
   (let [unit (get-in @atoms/game-map (conj pos :contents))]
     (if-let [carrier-pos (find-carrier-by-id (:escort-carrier-id unit))]
       (if (<= (core/chebyshev-distance pos carrier-pos) 2)
-        ;; At orbit radius - start orbiting
-        (let [angle (or (:orbit-angle unit) 0)
-              valid-angle (find-next-orbit-angle carrier-pos angle)]
-          (if valid-angle
-            (let [target (orbit-target-pos carrier-pos valid-angle)]
-              (when (not= pos target)
-                (move-toward pos target))
-              (swap! atoms/game-map update-in
-                     (conj (or (when (not= pos target) target) pos) :contents)
-                     assoc :escort-mode :orbiting :orbit-angle valid-angle))
-            ;; No valid orbit position - stay and orbit
-            (swap! atoms/game-map update-in (conj pos :contents)
-                   assoc :escort-mode :orbiting)))
-        ;; Not at radius yet - move closer
+        (transition-to-orbiting pos carrier-pos unit)
         (move-toward pos carrier-pos))
-      ;; Carrier gone
       (revert-escort-to-seeking pos))))
 
 (defn- process-escort-orbiting

@@ -303,4 +303,69 @@
                                    :when (= :destroyer (:type unit))]
                                unit))]
         (should-not-be-nil destroyer))))
+
+  (context "carrier group escort intercepting"
+    (it "intercepting escort moves toward carrier when far away"
+      ;; Battleship at [0 0] intercepting, carrier at [0 5] (distance > 2)
+      (reset! atoms/game-map [[{:type :sea :contents {:type :battleship :owner :computer :hits 4
+                                                       :escort-id 1 :escort-mode :intercepting
+                                                       :escort-carrier-id 1 :orbit-angle 0}}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                       :carrier-id 1}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 0] :battleship)
+      ;; Should have moved closer to carrier
+      (should= :battleship (get-in @atoms/game-map [0 1 :contents :type])))
+
+    (it "intercepting escort transitions to orbiting when within radius 2"
+      ;; Battleship at [0 0], carrier at [3 3] on a 7x7 sea map
+      ;; Chebyshev distance from [0 0] to [3 3] = 3, so place battleship at [2 2] instead
+      (reset! atoms/game-map (vec (for [r (range 7)]
+                                    (vec (for [c (range 7)]
+                                           (cond
+                                             (and (= r 2) (= c 2))
+                                             {:type :sea :contents {:type :battleship :owner :computer :hits 4
+                                                                     :escort-id 1 :escort-mode :intercepting
+                                                                     :escort-carrier-id 1 :orbit-angle 0}}
+                                             (and (= r 3) (= c 3))
+                                             {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                                     :carrier-id 1}}
+                                             :else {:type :sea}))))))
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [2 2] :battleship)
+      ;; Should have transitioned to orbiting
+      (let [bs (first (for [i (range 7) j (range 7)
+                            :let [unit (get-in @atoms/game-map [i j :contents])]
+                            :when (= :battleship (:type unit))]
+                        unit))]
+        (should= :orbiting (:escort-mode bs))))
+
+    (it "intercepting escort reverts to seeking when carrier is gone"
+      (reset! atoms/game-map [[{:type :sea :contents {:type :battleship :owner :computer :hits 4
+                                                       :escort-id 1 :escort-mode :intercepting
+                                                       :escort-carrier-id 99 :orbit-angle 0}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 0] :battleship)
+      (let [bs (get-in @atoms/game-map [0 0 :contents])]
+        (should= :seeking (:escort-mode bs))
+        (should-be-nil (:escort-carrier-id bs))))
+
+    (it "intercepting escort orbits even when no valid orbit position"
+      ;; Battleship at [0 0], carrier at [0 1] (distance 1, within radius 2)
+      ;; Only 2 cells, so most orbit positions are out of bounds
+      (reset! atoms/game-map [[{:type :sea :contents {:type :battleship :owner :computer :hits 4
+                                                       :escort-id 1 :escort-mode :intercepting
+                                                       :escort-carrier-id 1 :orbit-angle 0}}
+                                {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                       :carrier-id 1}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 0] :battleship)
+      ;; Should transition to orbiting even without a valid orbit position
+      (let [bs (get-in @atoms/game-map [0 0 :contents])]
+        (should= :orbiting (:escort-mode bs)))))
 ) ;; end process-ship
