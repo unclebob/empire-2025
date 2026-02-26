@@ -640,6 +640,39 @@
   (when (or (nil? mission) (= :idle mission))
     (set-transport-mission pos :loading)))
 
+(defn- process-invading-mission
+  "Follow precomputed invasion path. Steps up to 2 cells per round.
+   When path exhausted, transition to unloading with coast-crawl."
+  [pos]
+  (let [transport (get-in @atoms/game-map (conj pos :contents))
+        path (:invasion-path transport)]
+    (if (empty? path)
+      (set-transport-mission pos :unloading)
+      (let [step1 (first path)
+            remaining1 (vec (rest path))]
+        (if (core/move-unit-to pos step1)
+          (do
+            (visibility/update-cell-visibility pos :computer)
+            (visibility/update-cell-visibility step1 :computer)
+            (if (empty? remaining1)
+              (do (swap! atoms/game-map update-in (conj step1 :contents) dissoc :invasion-path)
+                  (set-transport-mission step1 :unloading))
+              (let [step2 (first remaining1)
+                    remaining2 (vec (rest remaining1))]
+                (if (core/move-unit-to step1 step2)
+                  (do
+                    (visibility/update-cell-visibility step1 :computer)
+                    (visibility/update-cell-visibility step2 :computer)
+                    (if (empty? remaining2)
+                      (do (swap! atoms/game-map update-in (conj step2 :contents) dissoc :invasion-path)
+                          (set-transport-mission step2 :unloading))
+                      (swap! atoms/game-map assoc-in
+                             (conj step2 :contents :invasion-path) remaining2)))
+                  (swap! atoms/game-map assoc-in
+                         (conj step1 :contents :invasion-path) remaining1)))))
+          ;; Blocked — keep path for retry next round
+          nil)))))
+
 (defn- dispatch-transport-mission
   [pos transport]
   (let [army-count (:army-count transport 0)
@@ -653,6 +686,9 @@
         (and (should-try-opportunistic-unload? army-count current-mission)
              (try-opportunistic-unload pos))
         true
+
+        (= current-mission :invading)
+        (process-invading-mission pos)
 
         (= current-mission :unloading)
         (process-unloading-mission pos army-count)
