@@ -133,6 +133,7 @@ Timing prefix `at [the] next round/step/move` adds `:at-next-round true` or `:at
 | `out-of-fuel message is displayed` | `{:type :message-contains :area :attention :config-key :fighter-out-of-fuel}` |
 | `player-map cell [X Y] is not nil` / `player can see [X Y]` | `{:type :player-map-cell-not-nil :coords [X Y]}` |
 | `player-map cell [X Y] is nil` / `player cannot see [X Y]` | `{:type :player-map-cell-nil :coords [X Y]}` |
+| `computer-map cell [X Y] is not nil` / `computer can see [X Y]` | `{:type :computer-map-cell-not-nil :coords [X Y]}` |
 | `<C> has a <ship> with <N> hits in its shipyard` | `{:type :shipyard-has-ship :city C :ship-type :kw :hits N}` |
 | `<C> has no ship in its shipyard` | `{:type :shipyard-empty :city C}` |
 | `[the] map is <ref>` | `{:type :map-is :expected ref}` |

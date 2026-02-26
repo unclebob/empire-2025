@@ -191,6 +191,10 @@
   (let [[x y] coords]
     (str "    (should-be-nil (get-in @atoms/player-map [" x " " y "]))")))
 
+(defn- generate-computer-map-cell-not-nil-then [{:keys [coords]}]
+  (let [[x y] coords]
+    (str "    (should-not-be-nil (get-in @atoms/computer-map [" x " " y "]))")))
+
 (defn- generate-territory-map-then [{:keys [rows]}]
   (let [row-strs (str/join " " (map #(str "\"" % "\"") rows))]
     (str "    (should= (build-territory-expected [" row-strs "])"
@@ -282,6 +286,7 @@
    :game-paused generate-game-paused-then
    :player-map-cell-not-nil generate-player-map-cell-not-nil-then
    :player-map-cell-nil generate-player-map-cell-nil-then
+   :computer-map-cell-not-nil generate-computer-map-cell-not-nil-then
    :player-map-visibility generate-player-map-visibility-then
    :territory-map generate-territory-map-then
    :no-unit-at generate-no-unit-at-then

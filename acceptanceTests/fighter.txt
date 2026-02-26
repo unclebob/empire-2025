@@ -161,3 +161,31 @@ f has flight-target-site [24 0].
 WHEN computer fighter f is processed.
 
 THEN f has fuel 20.
+
+;===============================================================
+; Computer fighter prefers unexplored cells during regular leg.
+; Fighter at [2 2] navigating toward city at [9 4] with plenty
+; of fuel. Row 0 is unexplored on computer-map. The fighter
+; should detour toward row 1 (bordering unexplored row 0),
+; revealing row-0 cells via visibility updates.
+;===============================================================
+GIVEN game map
+  ##########
+  ##########
+  ##f#######
+  ##########
+  #########X
+GIVEN computer map
+  ----------
+  ##########
+  ##f#######
+  ##########
+  #########X
+f has fuel 30.
+f has flight-target-site [9 4].
+f has flight-origin-site [0 0].
+f has flight-mode regular.
+
+WHEN computer fighter f is processed.
+
+THEN computer can see [2 0].

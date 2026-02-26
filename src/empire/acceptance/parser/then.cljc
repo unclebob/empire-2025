@@ -71,6 +71,9 @@
 (defn- then-handle-player-map-not-nil [[_ x y]]
   {:type :player-map-cell-not-nil :coords [(Integer/parseInt x) (Integer/parseInt y)]})
 
+(defn- then-handle-computer-map-not-nil [[_ x y]]
+  {:type :computer-map-cell-not-nil :coords [(Integer/parseInt x) (Integer/parseInt y)]})
+
 (defn- then-handle-player-map-nil [[_ x y]]
   {:type :player-map-cell-nil :coords [(Integer/parseInt x) (Integer/parseInt y)]})
 
@@ -234,6 +237,10 @@
     :handler then-handle-player-map-not-nil}
    {:regex #"(?:the\s+)?player\s+cannot\s+see\s+\[(\d+)\s+(\d+)\]"
     :handler then-handle-player-map-nil}
+   {:regex #"computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+not\s+nil"
+    :handler then-handle-computer-map-not-nil}
+   {:regex #"(?:the\s+)?computer\s+can\s+see\s+\[(\d+)\s+(\d+)\]"
+    :handler then-handle-computer-map-not-nil}
    {:regex #"^(\w+)\s+has\s+(?:a|an)\s+(\w+)\s+with\s+(\d+)\s+hits?\s+in\s+its\s+shipyard"
     :handler then-handle-shipyard-has-ship}
    {:regex #"^(\w+)\s+has\s+no\s+ships?\s+in\s+its\s+shipyard"
