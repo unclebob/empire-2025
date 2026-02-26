@@ -194,33 +194,42 @@
   (cond-> unit
     (contains? result :been-to-sea) (assoc :been-to-sea (:been-to-sea result))))
 
+(defn- compute-handler-result [unit from-pos final-pos current-map is-at-target?]
+  (let [handler (wake-check-handlers (:type unit))
+        result (when handler (handler unit from-pos final-pos current-map))
+        at-edge? (and is-at-target? (:extended unit) (not (:reason result))
+                      (map-utils/at-map-edge? final-pos current-map))]
+    (if at-edge? (assoc (or result {}) :reason :hit-edge) result)))
+
+(defn- determine-final-result [result enemy-spotted?]
+  (if (and enemy-spotted? (not (:wake? result)))
+    {:wake? true :reason :enemy-spotted}
+    result))
+
+(defn- apply-wake-action [unit final-result waypoint-orders wake-up?]
+  (when (:shot-down? final-result)
+    (atoms/set-error-message (:fighter-destroyed-by-city config/messages) config/error-message-duration))
+  (cond
+    waypoint-orders
+    (-> unit
+        (apply-state-changes final-result)
+        (assoc :target waypoint-orders))
+
+    wake-up?
+    (dissoc (apply-wake-result unit final-result) :target)
+
+    :else
+    (apply-state-changes unit final-result)))
+
 (defn wake-after-move
   "Checks if a unit should wake after making a move.
    Returns the updated unit with appropriate mode/reason."
   [unit from-pos final-pos current-map]
   (let [is-at-target? (= final-pos (:target unit))
-        handler (wake-check-handlers (:type unit))
-        result (when handler (handler unit from-pos final-pos current-map))
-        at-edge? (and is-at-target? (:extended unit) (not (:reason result))
-                      (map-utils/at-map-edge? final-pos current-map))
-        result (if at-edge? (assoc (or result {}) :reason :hit-edge) result)
+        result (compute-handler-result unit from-pos final-pos current-map is-at-target?)
         waypoint-orders (get-waypoint-orders unit final-pos current-map)
         enemy-spotted? (enemy-unit-visible? unit final-pos current-map)
         wake-up? (and (or is-at-target? (:wake? result) enemy-spotted?)
                       (not waypoint-orders))
-        final-result (if (and enemy-spotted? (not (:wake? result)))
-                       {:wake? true :reason :enemy-spotted}
-                       result)]
-    (when (:shot-down? final-result)
-      (atoms/set-error-message (:fighter-destroyed-by-city config/messages) config/error-message-duration))
-    (cond
-      waypoint-orders
-      (-> unit
-          (apply-state-changes final-result)
-          (assoc :target waypoint-orders))
-
-      wake-up?
-      (dissoc (apply-wake-result unit final-result) :target)
-
-      :else
-      (apply-state-changes unit final-result))))
+        final-result (determine-final-result result enemy-spotted?)]
+    (apply-wake-action unit final-result waypoint-orders wake-up?)))
