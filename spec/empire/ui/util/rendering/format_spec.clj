@@ -209,6 +209,34 @@
                      {:type :land :contents {:type :satellite :owner :player}}]]
           player-map [[nil nil nil nil nil nil nil nil nil]]]
       (should= "A:1 F:1 T:1 D:1 S:1 P:1 C:1 B:1 Z:1 | 0%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "does not count unexplored player-map cells as explored"
+    (let [game-map [[{:type :land} {:type :sea}]]
+          player-map [[{:type :unexplored} {:type :sea}]]]
+      (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 50%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "computes 100% exploration"
+    (let [game-map [[{:type :land} {:type :sea}]]
+          player-map [[{:type :land} {:type :sea}]]]
+      (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 100%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "handles multi-column map"
+    (let [game-map [[{:type :land :contents {:type :army :owner :player}}
+                     {:type :sea}]
+                    [{:type :land}
+                     {:type :sea :contents {:type :destroyer :owner :player}}]]
+          player-map [[{:type :land} {:type :sea}]
+                      [{:type :land} nil]]]
+      (should= "A:1 F:0 T:0 D:1 S:0 P:0 C:0 B:0 Z:0 | 75%"
+               (fmt/format-production-status game-map player-map))))
+
+  (it "returns 0% for zero-cell map"
+    (let [game-map []
+          player-map []]
+      (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 0%"
                (fmt/format-production-status game-map player-map)))))
 
 (describe "should-show-paused?"
