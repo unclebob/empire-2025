@@ -115,43 +115,44 @@
       closest)))
 
 (defn- find-next-pickup-continent-pos
-  "After unloading, find the nearest continent with >3 computer armies,
+  "After unloading, find the nearest continent with enough computer armies,
    excluding the current unload continent. Returns an army position on
-   that continent, or nil if none qualifies."
-  [transport-pos current-continent]
-  (let [game-map @atoms/game-map
-        all-armies (for [i (range (count game-map))
-                         j (range (count (first game-map)))
-                         :let [cell (get-in game-map [i j])
-                               unit (:contents cell)]
-                         :when (and unit
-                                    (= :computer (:owner unit))
-                                    (= :army (:type unit))
-                                    (or (nil? current-continent)
-                                        (not (contains? current-continent [i j]))))]
-                     [i j])]
-    ;; Group armies by continent, avoiding redundant flood-fills
-    (loop [remaining all-armies
-           seen #{}
-           continents []]
-      (if (empty? remaining)
-        ;; Find nearest qualifying continent (>3 armies)
-        (let [qualifying (filter #(> (count (:armies %)) 3) continents)]
-          (when (seq qualifying)
-            (let [best (apply min-key
-                              (fn [{:keys [armies]}]
-                                (apply min (map #(core/distance transport-pos %) armies)))
-                              qualifying)]
-              ;; Return the nearest army position from the best continent
-              (apply min-key #(core/distance transport-pos %) (:armies best)))))
-        (let [army-pos (first remaining)]
-          (if (contains? seen army-pos)
-            (recur (rest remaining) seen continents)
-            (let [cont (land-objectives/flood-fill-continent army-pos)
-                  cont-armies (filter #(contains? cont %) all-armies)]
-              (recur (rest remaining)
-                     (into seen cont)
-                     (conj continents {:continent cont :armies cont-armies})))))))))
+   that continent, or nil if none qualifies.
+   min-armies defaults to 3 (require >3 armies)."
+  ([transport-pos current-continent]
+   (find-next-pickup-continent-pos transport-pos current-continent 3))
+  ([transport-pos current-continent min-armies]
+   (let [game-map @atoms/game-map
+         all-armies (for [i (range (count game-map))
+                          j (range (count (first game-map)))
+                          :let [cell (get-in game-map [i j])
+                                unit (:contents cell)]
+                          :when (and unit
+                                     (= :computer (:owner unit))
+                                     (= :army (:type unit))
+                                     (or (nil? current-continent)
+                                         (not (contains? current-continent [i j]))))]
+                      [i j])]
+     ;; Group armies by continent, avoiding redundant flood-fills
+     (loop [remaining all-armies
+            seen #{}
+            continents []]
+       (if (empty? remaining)
+         (let [qualifying (filter #(> (count (:armies %)) min-armies) continents)]
+           (when (seq qualifying)
+             (let [best (apply min-key
+                               (fn [{:keys [armies]}]
+                                 (apply min (map #(core/distance transport-pos %) armies)))
+                               qualifying)]
+               (apply min-key #(core/distance transport-pos %) (:armies best)))))
+         (let [army-pos (first remaining)]
+           (if (contains? seen army-pos)
+             (recur (rest remaining) seen continents)
+             (let [cont (land-objectives/flood-fill-continent army-pos)
+                   cont-armies (filter #(contains? cont %) all-armies)]
+               (recur (rest remaining)
+                      (into seen cont)
+                      (conj continents {:continent cont :armies cont-armies}))))))))))
 
 (defn unload-armies
   "Unload armies onto adjacent land, excluding pickup continent. Returns true if any unloaded."
@@ -192,6 +193,7 @@
           ;; If fully unloaded, change mission to loading and update pickup continent
           (when (<= (- army-count to-unload) 0)
             (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
+            (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
             (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
             (let [current-continent (when-let [land-pos (find-adjacent-land-pos pos)]
                                      (land-objectives/flood-fill-continent land-pos))
@@ -269,6 +271,7 @@
         ;; If fully unloaded, transition to loading
         (when (<= (- army-count to-unload) 0)
           (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
+          (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
           (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
           (let [current-continent (when-let [lp (find-adjacent-land-pos pos)]
                                     (land-objectives/flood-fill-continent lp))
@@ -338,7 +341,9 @@
 (defn- set-transport-mission
   "Set the transport's mission state."
   [pos mission]
-  (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) mission))
+  (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) mission)
+  (when (= mission :loading)
+    (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)))
 
 (defn- mint-unload-event-id
   "Mint a new unload-event-id each time transport transitions to unloading.
@@ -636,14 +641,37 @@
       (swap! atoms/game-map update-in (conj pos :contents)
              dissoc :pickup-continent-pos))))
 
+(def ^:private max-loading-rounds 10)
+
+(defn- loading-stale?
+  [transport]
+  (let [since (:loading-since transport)]
+    (and since (> (- @atoms/round-number since) max-loading-rounds))))
+
+(defn- handle-stale-loading
+  "When loading has stalled, sail with what we have or find a new pcp."
+  [pos transport army-count]
+  (if (pos? army-count)
+    (start-sailing pos transport)
+    (let [new-pcp (find-next-pickup-continent-pos pos nil 0)]
+      (swap! atoms/game-map assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
+      (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
+      (loading-crawl-move pos))))
+
 (defn- process-loading-mission
   [pos]
   (load-adjacent-armies pos)
   (clear-pickup-continent-if-arrived pos)
   (let [transport' (get-in @atoms/game-map (conj pos :contents))
         army-count' (:army-count transport' 0)]
-    (if (should-start-sailing? pos transport' army-count')
+    (cond
+      (should-start-sailing? pos transport' army-count')
       (start-sailing pos transport')
+
+      (loading-stale? transport')
+      (handle-stale-loading pos transport' army-count')
+
+      :else
       (loading-crawl-move pos))))
 
 (defn- fix-idle-mission

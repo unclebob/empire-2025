@@ -1060,4 +1060,60 @@
                 :country-id 1 :transport-id 1
                 :hits 1 :been-to-sea true :awake-armies 0})
         (transport/process-transport [1 0])
-        (should= true @atoms/transport-fully-loaded?)))))
+        (should= true @atoms/transport-fully-loaded?))))
+
+  (context "stale loading timeout"
+    (it "loading transport with armies sails after 10 stale rounds"
+      ;; ###   land at row 0, country-id 1 (same as transport)
+      ;; ~t~   transport at [1,1] with 3 armies, loading-since round 1
+      ;; ~~~   row 2
+      (reset! atoms/round-number 12)
+      (reset! atoms/game-map (build-test-map ["###"
+                                               "~t~"
+                                               "~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      ;; Mark land as same country so opportunistic unload skips it
+      (doseq [c (range 3)]
+        (swap! atoms/game-map assoc-in [c 0 :country-id] 1))
+      (swap! atoms/game-map assoc-in [1 1 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :loading :army-count 3
+              :country-id 1 :loading-since 1})
+      (transport/process-transport [1 1])
+      (let [t (some (fn [[c r]]
+                      (let [u (get-in @atoms/game-map [c r :contents])]
+                        (when (= :transport (:type u)) u)))
+                    (for [c (range 3) r (range 3)] [c r]))]
+        (should= :sailing (:transport-mission t))))
+
+    (it "loading transport with 0 armies recalculates pcp after 10 stale rounds"
+      ;; a##   army on continent at [0,0]
+      ;; ~~~   sea
+      ;; ~t~   transport at [1,2] with 0 armies, pcp nil, loading-since round 1
+      (reset! atoms/round-number 12)
+      (reset! atoms/game-map (build-test-map ["a##"
+                                               "~~~"
+                                               "~t~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 2 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :loading :army-count 0
+              :loading-since 1})
+      (transport/process-transport [1 2])
+      (let [t (some (fn [[c r]]
+                      (let [u (get-in @atoms/game-map [c r :contents])]
+                        (when (= :transport (:type u)) u)))
+                    (for [c (range 3) r (range 3)] [c r]))]
+        (should-not-be-nil (:pickup-continent-pos t))))
+
+    (it "set-transport-mission records loading-since"
+      (reset! atoms/round-number 5)
+      (reset! atoms/game-map [[{:type :sea :contents {:type :transport :owner :computer
+                                                       :transport-mission :sailing
+                                                       :army-count 0}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      ;; Transition to loading via unloading with 0 armies
+      (transport/process-transport [0 0])
+      (let [t (:contents (get-in @atoms/game-map [0 0]))]
+        (should= :loading (:transport-mission t))
+        (should= 5 (:loading-since t))))))
