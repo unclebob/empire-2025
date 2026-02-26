@@ -71,7 +71,38 @@
       (let [transport (:contents (get-in @atoms/game-map transport-coords))]
         (should= :awake (:mode transport))
         (should= :transport-at-beach (:reason transport))
-        (should= 1 (:army-count transport))))))
+        (should= 1 (:army-count transport)))))
+
+  (it "does nothing when transport is already full"
+    (reset! atoms/game-map (build-test-map ["-#--"
+                                            "-AT-"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 6)
+    (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
+          army-coords (:pos (get-test-unit atoms/game-map "A"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (should-not-be-nil (:contents (get-in @atoms/game-map army-coords)))))
+
+  (it "does not load enemy sentry armies"
+    (reset! atoms/game-map (build-test-map ["-#--"
+                                            "-At-"]))
+    (set-test-unit atoms/game-map "t" :mode :sentry :hits 1)
+    (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "t"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 0 (:army-count transport 0)))))
+
+  (it "does not wake transport in open sea with pre-loaded armies"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                            "~T~"
+                                            "~~~"]))
+    (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 1)
+    (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
+      (load-adjacent-sentry-armies transport-coords)
+      (let [transport (:contents (get-in @atoms/game-map transport-coords))]
+        (should= 1 (:army-count transport))
+        (should= :sentry (:mode transport))))))
 
 (describe "wake-armies-on-transport"
   (before (reset-all-atoms!))

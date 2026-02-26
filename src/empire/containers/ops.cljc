@@ -10,6 +10,27 @@
 
 ;; Transport operations
 
+(defn- loadable-army?
+  "Returns true if adj-unit is a sentry army owned by the same player as transport,
+   and the transport is not full."
+  [adj-unit transport]
+  (and adj-unit
+       (= (:type adj-unit) :army)
+       (= (:mode adj-unit) :sentry)
+       (= (:owner adj-unit) (:owner transport))
+       (not (uc/full? transport :army-count
+                      (dispatcher/effective-capacity :transport (:hits transport))))))
+
+(defn- wake-transport-if-needed
+  "Wakes a sentry transport at beach that has armies loaded."
+  [transport-coords]
+  (let [transport (get-in @atoms/game-map (conj transport-coords :contents))
+        has-armies? (pos? (uc/get-count transport :army-count))
+        at-beach? (map-utils/adjacent-to-land? transport-coords atoms/game-map)]
+    (when (and has-armies? at-beach? (= (:mode transport) :sentry))
+      (swap! atoms/game-map update-in (conj transport-coords :contents)
+             #(assoc % :mode :awake :reason :transport-at-beach)))))
+
 (defn load-adjacent-sentry-armies
   "Loads adjacent sentry armies onto a transport at the given coords.
    Wakes up the transport if it has armies and is at a beach."
@@ -28,20 +49,10 @@
               (let [adj-cell (get-in @atoms/game-map [nx ny])
                     adj-unit (:contents adj-cell)
                     transport (get-in @atoms/game-map (conj transport-coords :contents))]
-                (when (and adj-unit
-                           (= (:type adj-unit) :army)
-                           (= (:mode adj-unit) :sentry)
-                           (= (:owner adj-unit) (:owner transport))
-                           (not (uc/full? transport :army-count (dispatcher/effective-capacity :transport (:hits transport)))))
+                (when (loadable-army? adj-unit transport)
                   (swap! atoms/game-map assoc-in [nx ny] (dissoc adj-cell :contents))
                   (swap! atoms/game-map update-in (conj transport-coords :contents) uc/add-unit :army-count))))))
-        ;; After loading, wake transport if at beach with armies
-        (let [updated-transport (get-in @atoms/game-map (conj transport-coords :contents))
-              has-armies? (pos? (uc/get-count updated-transport :army-count))
-              at-beach? (map-utils/adjacent-to-land? transport-coords atoms/game-map)]
-          (when (and has-armies? at-beach? (= (:mode updated-transport) :sentry))
-            (swap! atoms/game-map update-in (conj transport-coords :contents)
-                   #(assoc % :mode :awake :reason :transport-at-beach))))))))
+        (wake-transport-if-needed transport-coords)))))
 
 (defn wake-armies-on-transport
   "Wakes up all armies aboard the transport at the given coords.
