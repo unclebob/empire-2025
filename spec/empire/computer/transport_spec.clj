@@ -1026,4 +1026,38 @@
                       (let [u (get-in @atoms/game-map [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 2))]
-        (should= 1 (:army-count t))))))
+        (should= 1 (:army-count t)))))
+
+  (context "transport-fully-loaded trigger"
+    (it "sets transport-fully-loaded? when transport starts sailing"
+      ;; ~t~    sea, transport at [1 0], sea
+      ;; ###    land row
+      ;; ~~~    sea row
+      (let [game-map (build-test-map ["~t~"
+                                      "###"
+                                      "~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (swap! atoms/game-map assoc-in [1 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 6
+                :country-id 1 :transport-id 1
+                :hits 1 :been-to-sea true :awake-armies 0})
+        (should= false @atoms/transport-fully-loaded?)
+        (transport/process-transport [1 0])
+        (should= true @atoms/transport-fully-loaded?)))
+
+    (it "does not re-set when already true"
+      (let [game-map (build-test-map ["~t~"
+                                      "###"
+                                      "~~~"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (reset! atoms/transport-fully-loaded? true)
+        (swap! atoms/game-map assoc-in [1 0 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :loading :army-count 6
+                :country-id 1 :transport-id 1
+                :hits 1 :been-to-sea true :awake-armies 0})
+        (transport/process-transport [1 0])
+        (should= true @atoms/transport-fully-loaded?)))))

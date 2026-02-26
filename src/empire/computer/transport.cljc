@@ -520,6 +520,8 @@
   [pos transport]
   (set-transport-mission pos :sailing)
   (mint-unload-event-id pos transport)
+  (when-not @atoms/transport-fully-loaded?
+    (reset! atoms/transport-fully-loaded? true))
   (mint-unload-country-id pos)
   (record-pickup-continent-pos pos transport)
   (when-let [path (compute-sail-path pos)]
