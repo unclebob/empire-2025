@@ -3,7 +3,9 @@
             [empire.acceptance.generator.utils :as utils]))
 
 (defn- generate-unit-prop-then [{:keys [unit property expected]}]
-  (str "    (should= " (pr-str expected) " (:" (name property) " (:unit (get-test-unit atoms/game-map \"" unit "\"))))"))
+  (if (= :nil expected)
+    (str "    (should-be-nil (:" (name property) " (:unit (get-test-unit atoms/game-map \"" unit "\"))))")
+    (str "    (should= " (pr-str expected) " (:" (name property) " (:unit (get-test-unit atoms/game-map \"" unit "\"))))")))
 
 (defn- generate-unit-absent-then [{:keys [unit]}]
   (str "    (should-be-nil (get-test-unit atoms/game-map \"" unit "\"))"))

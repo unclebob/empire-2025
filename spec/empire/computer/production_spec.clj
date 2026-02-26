@@ -134,6 +134,23 @@
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (should-not= :transport (production/decide-production [1 0])))
 
+    (it "two coastal cities can both produce transports simultaneously"
+      ;; Two coastal cities, plenty of coastal armies, no transports
+      ;; Row 0: ~ X a a a a a a X a a a a a
+      ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+      (reset! atoms/game-map (build-test-map ["~XaaaaaaXaaaaa"
+                                               "~~~~~~~~~~~~~~"]))
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (swap! atoms/game-map assoc-in [8 0 :country-id] 1)
+      (doseq [col (concat (range 2 8) (range 9 14))]
+        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
+        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (let [first-decision (production/decide-production [1 0])]
+        (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 20}})
+        (should= :transport first-decision)
+        (should= :transport (production/decide-production [8 0]))))
+
     (it "does not produce transport when existing transport has room"
       ;; Transport with army-count < 6 and :loading mission
       (reset! atoms/game-map (build-test-map ["~Xaaaaaaa~t"
@@ -211,9 +228,9 @@
       (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 10}})
       (should-not (production/country-city-producing? [3 0] 1 :transport)))
 
-    (it "does not produce transport when another city in country is already producing"
+    (it "produces transport even when another city in country is already producing one"
       ;; 2-row map: coastal armies fill all coastal cells → army priority met
-      ;; With another city producing transport, next is patrol-boat
+      ;; Another city already producing transport — second city should also produce transport
       (reset! atoms/game-map (build-test-map ["~X~Xaaaaaa"
                                                "~~~~~~~~~~"]))
       (reset! atoms/computer-map @atoms/game-map)
@@ -223,7 +240,7 @@
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 10}})
-      (should-not= :transport (production/decide-production [3 0])))
+      (should= :transport (production/decide-production [3 0])))
 
     (it "does not produce destroyer when another city in country is already producing"
       ;; Two coastal cities, same country, 200 armies in transport, 4 patrol boats, first producing destroyer

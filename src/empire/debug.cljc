@@ -259,6 +259,17 @@
                                "  (none)\n"
                                (str (str/join "\n" (map format-action-entry actions)) "\n"))
                              "\n")
+        production-section (str "=== Production State ===\n"
+                                "transport-fully-loaded?: " @atoms/transport-fully-loaded? "\n"
+                                "early-patrol-boat-produced?: " @atoms/early-patrol-boat-produced? "\n"
+                                "early-satellite-produced?: " @atoms/early-satellite-produced? "\n"
+                                (let [prod @atoms/production]
+                                  (if (empty? prod)
+                                    "  (no production)\n"
+                                    (str/join "\n"
+                                              (for [[coords p] (sort-by first prod)]
+                                                (str "  " coords " " (pr-str p))))))
+                                "\n\n")
         coastline-section (format-coastline-section)
         computer-event-section (format-computer-event-section)
         movement-section (format-movement-history-section)
@@ -268,7 +279,7 @@
                           (format-map-section "player-map" (:player-map region-data))
                           "\n"
                           (format-map-section "computer-map" (:computer-map region-data)))]
-    (str header global-state actions-section coastline-section computer-event-section movement-section maps-section)))
+    (str header global-state actions-section production-section coastline-section computer-event-section movement-section maps-section)))
 
 (defn generate-dump-filename
   "Generate a timestamped filename for the dump file.

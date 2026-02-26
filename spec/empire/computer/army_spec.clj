@@ -235,6 +235,16 @@
                                 true))]
           (should= 6 assigned))))
 
+    (it "does not assign armies to cities across the sea"
+      ;; Army on land, sea gap, free city on other continent
+      (let [army-cell {:type :land :country-id 1
+                       :contents {:type :army :owner :computer :hits 1
+                                  :mode :sentry :country-id 1}}]
+        (reset! atoms/game-map [[army-cell] [{:type :sea}] [{:type :city :city-status :free}]])
+        (reset! atoms/computer-map @atoms/game-map)
+        (army/assign-city-attacks)
+        (should-be-nil (get-in @atoms/game-map [0 0 :contents :attack-target]))))
+
     (it "does not assign coast-walk armies"
       (let [army-cell {:type :land :country-id 1
                        :contents {:type :army :owner :computer :hits 1

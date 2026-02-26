@@ -136,7 +136,7 @@ GIVEN + is visible to computer.
 
 WHEN a new round starts.
 
-THEN a has attack-target [4 0].
+THEN a has attack-target nil.
 
 ;===============================================================
 ; Coast-walk terminates at map boundary.

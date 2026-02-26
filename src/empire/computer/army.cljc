@@ -542,8 +542,10 @@
         armies (find-assignable-armies)
         assigned (atom #{})]
     (doseq [city cities]
-      (let [available (remove #(contains? @assigned (:pos %)) armies)
-            closest (take 6 (sort-by #(core/distance (:pos %) city) available))]
+      (let [city-continent (land-objectives/flood-fill-continent city)
+            available (remove #(contains? @assigned (:pos %)) armies)
+            reachable (filter #(contains? city-continent (:pos %)) available)
+            closest (take 6 (sort-by #(core/distance (:pos %) city) reachable))]
         (doseq [{:keys [pos]} closest]
           (swap! atoms/game-map assoc-in (conj pos :contents :attack-target) city)
           (swap! assigned conj pos))))))

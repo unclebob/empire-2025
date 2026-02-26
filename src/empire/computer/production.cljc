@@ -209,11 +209,6 @@
   [city-pos country-id]
   (country-city-producing? city-pos country-id :army))
 
-(defn- country-city-producing-transports?
-  "Returns true if any other computer city in this country is already producing transports."
-  [city-pos country-id]
-  (country-city-producing? city-pos country-id :transport))
-
 (defn- country-city-producing-destroyers?
   "Returns true if any other computer city in this country is already producing destroyers."
   [city-pos country-id]
@@ -298,7 +293,6 @@
     (and coastal?
          (>= (count-country-armies country-id) config/armies-before-transport)
          (country-has-waiting-armies? country-id)
-         (not (country-city-producing-transports? city-pos country-id))
          (not (should-rotate-transport? city-pos country-id)))
     (do (swap! atoms/last-transport-city assoc country-id city-pos)
         :transport)
