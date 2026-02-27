@@ -3,6 +3,7 @@
   (:require [empire.atoms :as atoms]
             [empire.computer.core :as core]
             [empire.computer.ship-carrier :as carrier]
+            [empire.computer.ship-carrier-group :as carrier-group]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
             [empire.computer.ship-patrol :as patrol]
@@ -28,7 +29,7 @@
 (def find-position-between-cities carrier/find-position-between-cities)
 (def find-refueling-sites carrier/find-refueling-sites)
 (def find-carrier-position carrier/find-carrier-position)
-(def orbit-ring carrier/orbit-ring)
+(def orbit-ring carrier-group/orbit-ring)
 
 ;; --- Dispatch helpers ---
 
@@ -54,7 +55,7 @@
           (ship-core/explore-sea pos ship-type))
 
       (#{:battleship :submarine} ship-type)
-      (or (carrier/process-carrier-group-escort pos ship-type)
+      (or (carrier-group/process-carrier-group-escort pos ship-type)
           (ship-core/explore-sea pos ship-type)))))
 
 (defn- try-escort-transport [pos ship-type]
