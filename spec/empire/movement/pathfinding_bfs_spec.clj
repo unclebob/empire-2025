@@ -209,6 +209,30 @@
                                              "#~"]))
     (should (pathfinding-bfs/sea-reaches-edge? [1 1]))))
 
+(describe "available-for-target?"
+  (it "returns true when deep enough, not start, not excluded"
+    (should (@#'empire.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 4 #{})))
+  (it "returns false when not deep enough"
+    (should-not (@#'empire.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 3 #{})))
+  (it "returns false when current is start"
+    (should-not (@#'empire.movement.pathfinding-bfs/available-for-target? [0 0] [0 0] 4 #{})))
+  (it "returns false when current is excluded"
+    (should-not (@#'empire.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 4 #{[5 5]}))))
+
+(describe "unexplored-target?"
+  (it "returns true when no best-unexplored and adjacent to unexplored"
+    (let [computer-map [[{:type :sea} nil]
+                         [{:type :sea} {:type :sea}]]]
+      (should (@#'empire.movement.pathfinding-bfs/unexplored-target? [0 0] nil computer-map))))
+  (it "returns false when best-unexplored already found"
+    (let [computer-map [[{:type :sea} nil]
+                         [{:type :sea} {:type :sea}]]]
+      (should-not (@#'empire.movement.pathfinding-bfs/unexplored-target? [0 0] [3 3] computer-map))))
+  (it "returns false when not adjacent to unexplored"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                         [{:type :sea} {:type :sea}]]]
+      (should-not (@#'empire.movement.pathfinding-bfs/unexplored-target? [0 0] nil computer-map)))))
+
 (describe "adjacent-to-unexplored?"
   (it "returns truthy when neighbor is nil"
     (let [computer-map [[{:type :sea} nil]

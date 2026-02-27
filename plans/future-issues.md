@@ -1,10 +1,7 @@
 # Future Issues
 
 - **Final invasion force**: When all free cities are taken, coordinate large-scale multi-unit attacks on player cities and positions.
-- **Carrier movement optimization**: Carriers currently use full A* for every step. Consider caching or other optimization if performance is an issue.
-- **Patrol boat gaggle**: Patrol boats cluster together instead of spreading out to maximize scouting coverage.
 - **Country consolidation**: Countries should consolidate their territories and production priorities.
-- **Speed up BFS**: BFS pathfinding is used heavily by transports and other units. Profile and optimize for large maps.
 
 ## Acceptance Test Gaps
 

@@ -162,31 +162,29 @@
       (when (fm/consume-fighter-fuel pos)
         {:pos pos :hops hops}))))
 
+(defn- adjacent-to-city-site? [site pos]
+  (and site
+       (= :city (:type (get-in @atoms/game-map site)))
+       (<= (fm/distance-to pos site) 1)))
+
+(defn- adjacent-to-site? [site pos]
+  (and site (<= (fm/distance-to pos site) 1)))
+
+(defn- desperate-patrol [pos]
+  (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
+    (when (fm/consume-fighter-fuel pos)
+      {:pos pos :hops hops})))
+
 (defn- handle-low-fuel
   "Handle low-fuel: return to nearest refueling site or patrol desperately.
    Returns :landed, {:pos p :hops n}, or nil."
   [pos]
   (let [site (fm/find-nearest-refueling-site pos)]
     (cond
-      ;; At or adjacent to city → land
-      (and site
-           (= :city (:type (get-in @atoms/game-map site)))
-           (<= (fm/distance-to pos site) 1))
-      (fm/land-at-city pos site)
-
-      ;; Adjacent to non-city refueling site (carrier) → refuel in place
-      (and site (<= (fm/distance-to pos site) 1))
-      {:pos (refuel-at-site pos site) :hops 1}
-
-      ;; Move toward nearest site
-      site
-      (move-and-consume-toward pos site)
-
-      ;; No site → patrol desperately
-      :else
-      (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
-        (when (fm/consume-fighter-fuel pos)
-          {:pos pos :hops hops})))))
+      (adjacent-to-city-site? site pos) (fm/land-at-city pos site)
+      (adjacent-to-site? site pos) {:pos (refuel-at-site pos site) :hops 1}
+      site (move-and-consume-toward pos site)
+      :else (desperate-patrol pos))))
 
 (defn- handle-patrol
   "Execute one patrol step, consuming fuel."

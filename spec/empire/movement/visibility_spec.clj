@@ -27,6 +27,112 @@
     (should= nil (get-in @atoms/player-map [0 0]))
     (should= nil (get-in @atoms/player-map [8 8])))
 
+  (it "computer non-army discovers free city — added to land-ho-targets"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~t+"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
+    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (reset! atoms/land-ho-targets #{})
+    (update-cell-visibility [1 1] :computer)
+    (should-contain [2 1] @atoms/land-ho-targets))
+
+  (it "computer army discovers free city — NOT added to land-ho-targets"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#a+"
+                                             "###"]))
+    (set-test-unit atoms/game-map "a" :mode :moving :target [2 1])
+    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (reset! atoms/land-ho-targets #{})
+    (update-cell-visibility [1 1] :computer)
+    (should= #{} @atoms/land-ho-targets))
+
+  (it "player discovers free city — NOT added to land-ho-targets"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~T+"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "T" :mode :moving :target [2 1])
+    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (reset! atoms/land-ho-targets #{})
+    (update-cell-visibility [1 1] :player)
+    (should= #{} @atoms/land-ho-targets))
+
+  (it "computer non-army discovers non-free city — NOT added to land-ho-targets"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~t~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
+    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (reset! atoms/land-ho-targets #{})
+    (update-cell-visibility [1 1] :computer)
+    (should= #{} @atoms/land-ho-targets))
+
+  (it "stamps country-id when 3-arity called with computer army unit"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#a#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "a" :mode :moving :target [2 1] :country-id 7)
+    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (let [unit {:type :army :owner :computer :country-id 7}]
+      (update-cell-visibility [1 1] :computer unit))
+    (should= 7 (get-in @atoms/game-map [0 0 :country-id])))
+
+  (it "does not stamp when visible-map is nil"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#a#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "a" :mode :moving :target [2 1])
+    (reset! atoms/computer-map nil)
+    (update-cell-visibility [1 1] :computer)
+    (should-not (get-in @atoms/game-map [0 0 :country-id])))
+
+  (it "3-arity with player army does not stamp and does not track"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#A#"
+                                             "##+"]))
+    (set-test-unit atoms/game-map "A" :mode :moving :target [2 2])
+    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (let [unit {:type :army :owner :player}]
+      (update-cell-visibility [1 1] :player unit))
+    (should= {:type :land} (get-in @atoms/player-map [0 0]))
+    (should-not (get-in @atoms/game-map [0 0 :country-id])))
+
+  (it "reveals corner cell with edge clamping"
+    (reset! atoms/game-map (build-test-map ["A~~"
+                                             "~~~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "A" :mode :awake)
+    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (update-cell-visibility [0 0] :player)
+    (should (get-in @atoms/player-map [0 0]))
+    (should (get-in @atoms/player-map [0 1]))
+    (should (get-in @atoms/player-map [1 0]))
+    (should (get-in @atoms/player-map [1 1]))
+    (should-not (get-in @atoms/player-map [2 2])))
+
+  (it "computer transport discovers free city — added to land-ho-targets (3-arity)"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~t+"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
+    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (reset! atoms/land-ho-targets #{})
+    (let [unit {:type :transport :owner :computer}]
+      (update-cell-visibility [1 1] :computer unit))
+    (should-contain [2 1] @atoms/land-ho-targets))
+
+  (it "computer army 3-arity stamps land but does not track free city"
+    (reset! atoms/game-map (build-test-map ["##+"
+                                             "#a#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "a" :mode :moving :target [0 2])
+    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (reset! atoms/land-ho-targets #{})
+    (let [unit {:type :army :owner :computer :country-id 5}]
+      (update-cell-visibility [1 1] :computer unit))
+    (should= 5 (get-in @atoms/game-map [0 0 :country-id]))
+    (should= #{} @atoms/land-ho-targets))
+
   (it "reveals two rectangular rings for satellites"
     (reset! atoms/game-map (build-test-map ["#####"
                                              "#####"
@@ -188,6 +294,25 @@
   (it "returns falsy for computer army without country-id"
     (should-not (#'empire.movement.visibility/should-stamp-country?
                   {:type :army :owner :computer}))))
+
+(describe "should-track-free-city?"
+  (it "returns true for computer non-army"
+    (should (#'empire.movement.visibility/should-track-free-city? :computer :transport)))
+
+  (it "returns false for computer army"
+    (should-not (#'empire.movement.visibility/should-track-free-city? :computer :army)))
+
+  (it "returns false for player non-army"
+    (should-not (#'empire.movement.visibility/should-track-free-city? :player :transport)))
+
+  (it "returns false for player army"
+    (should-not (#'empire.movement.visibility/should-track-free-city? :player :army)))
+
+  (it "returns true for computer fighter"
+    (should (#'empire.movement.visibility/should-track-free-city? :computer :fighter)))
+
+  (it "returns true for computer with nil unit-type"
+    (should (#'empire.movement.visibility/should-track-free-city? :computer nil))))
 
 (describe "was-unexplored?"
   (it "returns true for nil cell in visible map"

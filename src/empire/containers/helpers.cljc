@@ -93,16 +93,21 @@
     has-awake-army? {:type :army :mode :awake}
     :else nil))
 
+(defn- has-unit-contents? [contents]
+  (and contents (:type contents)))
+
+(defn- awake-contents? [contents]
+  (and (has-unit-contents? contents) (= (:mode contents) :awake)))
+
 (defn normal-display-unit
   "Returns the unit to display during normal (non-blink) rendering."
-  [cell contents has-awake-airport? has-any-airport?]
-  (let [has-contents? (and contents (:type contents))]
-    (cond
-      (and has-contents? (= (:mode contents) :awake)) contents
-      has-awake-airport? {:type :fighter :mode :awake}
-      has-contents? contents
-      has-any-airport? {:type :fighter :mode :sentry}
-      :else nil)))
+  [_cell contents has-awake-airport? has-any-airport?]
+  (cond
+    (awake-contents? contents) contents
+    has-awake-airport? {:type :fighter :mode :awake}
+    (has-unit-contents? contents) contents
+    has-any-airport? {:type :fighter :mode :sentry}
+    :else nil))
 
 ;; Shipyard helpers
 
