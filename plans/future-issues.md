@@ -4,12 +4,6 @@
 
 ## Acceptance Test Gaps
 
-### Game Lifecycle
-1. Game-over: player loses when no cities/units remain
-2. Victory: player wins when no computer cities/units remain
-3. Pause/resume: P key toggles, space steps one round when paused
-4. Save/load: ! saves, ^ opens load menu
-
 ### Movement Modes
 5. Explore mode: 50-step limit, priority for unexplored cells, coastline following, wake on stuck
 6. Coastline-follow mode: transport/patrol-boat, 100-step limit, wake on return to start, wake on map edge, wake in bay
