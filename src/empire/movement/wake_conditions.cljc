@@ -83,19 +83,23 @@
     ;; Ships cannot enter cities (damaged ships docking handled in move-unit)
     city?               :ships-cant-enter-city))
 
+(defn- hostile-city? [next-cell]
+  (and (= (:type next-cell) :city)
+       (config/hostile-city? (:city-status next-cell))))
+
+(defn- unit-type-blocking-reason [unit next-cell hostile?]
+  (case (:type unit)
+    :army (army-blocking-reason (:type next-cell) (:city-status next-cell)
+                                (= (:type next-cell) :city) hostile?)
+    :fighter (when hostile? :fighter-over-defended-city)
+    (when (dispatcher/naval-units (:type unit))
+      (naval-blocking-reason (:type next-cell) (= (:type next-cell) :city)))))
+
 (defn- blocking-wake-reason
   "Returns the wake reason if the unit is blocked, nil otherwise."
   [unit next-cell]
-  (let [cell-type (:type next-cell)
-        cell-status (:city-status next-cell)
-        city? (= cell-type :city)
-        hostile? (and city? (config/hostile-city? cell-status))]
-    (or (occupied-blocking-reason unit next-cell)
-        (case (:type unit)
-          :army (army-blocking-reason cell-type cell-status city? hostile?)
-          :fighter (when hostile? :fighter-over-defended-city)
-          (when (dispatcher/naval-units (:type unit))
-            (naval-blocking-reason cell-type city?))))))
+  (or (occupied-blocking-reason unit next-cell)
+      (unit-type-blocking-reason unit next-cell (hostile-city? next-cell))))
 
 (defn- wake-unit-with-reason [unit reason]
   (assoc (dissoc (assoc unit :mode :awake) :target) :reason reason))

@@ -448,6 +448,14 @@
       (move-toward pos transport-pos))
     (revert-destroyer-to-seeking pos)))
 
+(defn- dispatch-escort-destroyer-mode [pos unit mode]
+  (case mode
+    :seeking (process-destroyer-seeking pos)
+    :intercepting (process-destroyer-intercepting pos unit)
+    :escorting (process-destroyer-escorting pos unit)
+    :pursuing (process-pursuit pos)
+    nil))
+
 (defn- process-escort-destroyer
   "Processes a destroyer in escort mode."
   [pos]
@@ -456,12 +464,7 @@
     (if-let [enemy-pos (when (= :escorting mode)
                          (find-enemy-near-destroyer-group pos))]
       (begin-pursuit pos enemy-pos)
-      (case mode
-        :seeking (process-destroyer-seeking pos)
-        :intercepting (process-destroyer-intercepting pos unit)
-        :escorting (process-destroyer-escorting pos unit)
-        :pursuing (process-pursuit pos)
-        nil))))
+      (dispatch-escort-destroyer-mode pos unit mode))))
 
 ;; --- Carrier positioning helpers ---
 
@@ -819,21 +822,23 @@
                       (find-carrier-by-id (:escort-carrier-id unit)))]
     (find-enemy-near-positions (filter some? [pos carrier-pos]))))
 
+(defn- dispatch-carrier-group-escort-mode [pos unit-type mode]
+  (case mode
+    :seeking (process-escort-seeking pos unit-type)
+    :intercepting (process-escort-intercepting pos)
+    :orbiting (process-escort-orbiting pos)
+    :pursuing (process-pursuit pos)
+    nil))
+
 (defn- process-carrier-group-escort
   "Processes a battleship or submarine in carrier group escort mode."
   [pos unit-type]
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         mode (:escort-mode unit)]
-    ;; Orbiting escorts check for enemies near carrier group
     (if-let [enemy-pos (when (= :orbiting mode)
                          (find-enemy-near-carrier-group pos))]
       (begin-pursuit pos enemy-pos)
-      (case mode
-        :seeking (process-escort-seeking pos unit-type)
-        :intercepting (process-escort-intercepting pos)
-        :orbiting (process-escort-orbiting pos)
-        :pursuing (process-pursuit pos)
-        nil))))
+      (dispatch-carrier-group-escort-mode pos unit-type mode))))
 
 (defn- find-adjacent-dock-city
   "Finds an adjacent friendly city where a damaged ship can dock for repair."

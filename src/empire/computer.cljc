@@ -9,18 +9,21 @@
 
 ;; Main dispatch function
 
+(defn- computer-unit? [unit]
+  (and unit (= (:owner unit) :computer)))
+
+(defn- dispatch-unit [pos unit]
+  (case (:type unit)
+    :army (army/process-army pos)
+    :fighter (fighter/process-fighter pos unit)
+    :transport (transport/process-transport pos)
+    (:destroyer :submarine :patrol-boat :carrier :battleship)
+    (ship/process-ship pos (:type unit))
+    nil))
+
 (defn process-computer-unit
-  "Processes a single computer unit's turn. Returns nil when done.
-   Currently all units do nothing - awaiting CommandingGeneral implementation."
+  "Processes a single computer unit's turn."
   [pos]
-  (let [cell (get-in @atoms/game-map pos)
-        unit (:contents cell)]
-    (when (and unit (= (:owner unit) :computer))
-      (case (:type unit)
-        :army (army/process-army pos)
-        :fighter (fighter/process-fighter pos unit)
-        :transport (transport/process-transport pos)
-        (:destroyer :submarine :patrol-boat :carrier :battleship)
-        (ship/process-ship pos (:type unit))
-        ;; Satellite - no processing needed
-        nil))))
+  (let [unit (:contents (get-in @atoms/game-map pos))]
+    (when (computer-unit? unit)
+      (dispatch-unit pos unit))))

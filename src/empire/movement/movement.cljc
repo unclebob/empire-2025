@@ -235,39 +235,34 @@
     (reset! atoms/turn-message (str type-name " docked for repair."))
     {:result :docked :pos city-coords}))
 
+(defn- woke-and-blocked? [woke? woken-unit]
+  (and woke? (= (:reason woken-unit) :somethings-in-the-way)))
+
 (defn- handle-movement-result
   "Handles movement after wake-before-move check. Determines whether to
    sidestep, engage in combat, wake up, or proceed with normal movement."
   [from-coords next-pos target-coords cell unit woken-unit woke? next-cell current-map]
-  (cond
-    ;; Sidestep around cities (armies around friendly, fighters around non-target)
-    (should-sidestep-city? unit next-cell next-pos)
-    (try-sidestep from-coords next-pos target-coords cell (wake-unit-for-city unit) current-map)
+  (let [blocked? (woke-and-blocked? woke? woken-unit)]
+    (cond
+      (should-sidestep-city? unit next-cell next-pos)
+      (try-sidestep from-coords next-pos target-coords cell (wake-unit-for-city unit) current-map)
 
-    ;; Blocked by friendly unit - try to sidestep
-    (and woke?
-         (= (:reason woken-unit) :somethings-in-the-way)
-         (blocked-by-friendly? unit next-cell))
-    (try-sidestep from-coords next-pos target-coords cell woken-unit current-map)
+      (and blocked? (blocked-by-friendly? unit next-cell))
+      (try-sidestep from-coords next-pos target-coords cell woken-unit current-map)
 
-    ;; Combat with enemy unit (if terrain allows)
-    (and woke?
-         (= (:reason woken-unit) :somethings-in-the-way)
-         (can-attack-enemy? unit next-cell))
-    (handle-combat from-coords next-pos cell)
+      (and blocked? (can-attack-enemy? unit next-cell))
+      (handle-combat from-coords next-pos cell)
 
-    ;; Other wake conditions - just wake up
-    woke?
-    (let [updated-cell (assoc cell :contents woken-unit)]
-      (swap! atoms/game-map assoc-in from-coords updated-cell)
-      (visibility/update-cell-visibility from-coords (:owner unit))
-      {:result :woke :pos from-coords})
+      woke?
+      (let [updated-cell (assoc cell :contents woken-unit)]
+        (swap! atoms/game-map assoc-in from-coords updated-cell)
+        (visibility/update-cell-visibility from-coords (:owner unit))
+        {:result :woke :pos from-coords})
 
-    ;; Normal move
-    :else
-    (let [final-unit (wake/wake-after-move unit from-coords next-pos current-map)]
-      (do-move from-coords next-pos cell final-unit)
-      {:result :normal :pos next-pos})))
+      :else
+      (let [final-unit (wake/wake-after-move unit from-coords next-pos current-map)]
+        (do-move from-coords next-pos cell final-unit)
+        {:result :normal :pos next-pos}))))
 
 (defn move-unit
   "Moves a unit one step toward target. Returns a map with:
@@ -386,6 +381,20 @@
        (swap! atoms/game-map assoc-in [cx cy :contents] unit)
        (visibility/update-cell-visibility [cx cy] owner)))))
 
+(defn- player-city? [cell]
+  (and (= (:type cell) :city) (= (:city-status cell) :player)))
+
+(defn- player-transport-with-armies? [contents]
+  (and contents
+       (= (:owner contents) :player)
+       (= (:type contents) :transport)
+       (pos? (:army-count contents 0))))
+
+(defn- sleeping-player-unit? [contents]
+  (and contents
+       (= (:owner contents) :player)
+       (not= (:mode contents) :awake)))
+
 (defn wake-at
   "Wakes a city (removes production so it needs attention) or a sleeping unit.
    For transports with armies, also wakes the armies aboard.
@@ -394,27 +403,18 @@
   (let [cell (get-in @atoms/game-map [cx cy])
         contents (:contents cell)]
     (cond
-      ;; Wake a friendly city - remove production so it needs attention
-      (and (= (:type cell) :city)
-           (= (:city-status cell) :player))
+      (player-city? cell)
       (do (swap! atoms/production dissoc [cx cy])
           true)
 
-      ;; Wake a player transport with armies - wake transport and armies
-      (and contents
-           (= (:owner contents) :player)
-           (= (:type contents) :transport)
-           (pos? (:army-count contents 0)))
+      (player-transport-with-armies? contents)
       (do (swap! atoms/game-map update-in [cx cy :contents]
                  #(-> %
                       (assoc :mode :awake)
                       (uc/wake-all :army-count :awake-armies)))
           true)
 
-      ;; Wake a sleeping/sentry/explore friendly unit (not already awake)
-      (and contents
-           (= (:owner contents) :player)
-           (not= (:mode contents) :awake))
+      (sleeping-player-unit? contents)
       (do (swap! atoms/game-map assoc-in [cx cy :contents]
                  (-> contents
                      (assoc :mode :awake)

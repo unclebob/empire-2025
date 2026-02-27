@@ -77,26 +77,30 @@
          (= :player (:city-status target-cell))
          (= (:hits active-unit) max-hits))))
 
+(defn- immediate-hostile-city? [extended? adjacent-target]
+  (and (not extended?) (combat/hostile-city? adjacent-target)))
+
 (defn- handle-standard-unit-movement [coords adjacent-target target extended? active-unit]
-  (cond
-    (and (= :army (:type active-unit)) (not extended?) (combat/hostile-city? adjacent-target))
-    (do (combat/attempt-conquest coords adjacent-target)
-        (game-loop/item-processed)
-        true)
+  (let [hostile? (immediate-hostile-city? extended? adjacent-target)]
+    (cond
+      (and hostile? (= :army (:type active-unit)))
+      (do (combat/attempt-conquest coords adjacent-target)
+          (game-loop/item-processed)
+          true)
 
-    (and (= :fighter (:type active-unit)) (not extended?) (combat/hostile-city? adjacent-target))
-    (do (combat/attempt-fighter-overfly coords adjacent-target)
-        (game-loop/item-processed)
-        true)
+      (and hostile? (= :fighter (:type active-unit)))
+      (do (combat/attempt-fighter-overfly coords adjacent-target)
+          (game-loop/item-processed)
+          true)
 
-    (and (not extended?) (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
-    (do (atoms/set-error-message "Ship not damaged, entry denied." config/error-message-duration)
-        true)
+      (and (not extended?) (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
+      (do (atoms/set-error-message "Ship not damaged, entry denied." config/error-message-duration)
+          true)
 
-    :else
-    (do (movement/set-unit-movement coords target)
-        (game-loop/item-processed)
-        true)))
+      :else
+      (do (movement/set-unit-movement coords target)
+          (game-loop/item-processed)
+          true))))
 
 (defn- resolve-direction [k]
   (when-let [direction (or (config/key->direction k)
@@ -194,31 +198,30 @@
                  :when (and tcell (= :land (:type tcell)) (not (:contents tcell)))]
              target))))
 
+(defn- free-army? [active-unit is-army-aboard?]
+  (and (= :army (:type active-unit)) (not is-army-aboard?)))
+
 (defn- handle-look-around-key [coords cell active-unit]
   (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
         near-coast? (map-utils/adjacent-to-land? coords atoms/game-map)
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond
-      ;; Army (not aboard) - explore mode
-      (and (= :army (:type active-unit)) (not is-army-aboard?))
+      (free-army? active-unit is-army-aboard?)
       (do (explore/set-explore-mode coords)
           (game-loop/item-processed)
           true)
 
-      ;; Army aboard transport - disembark to explore
       is-army-aboard?
       (do (when-let [valid-target (find-adjacent-land coords)]
             (container-ops/disembark-army-to-explore coords valid-target)
             (game-loop/item-processed))
           true)
 
-      ;; Transport or patrol-boat near coast - coastline follow
       (coastline/coastline-follow-eligible? active-unit near-coast?)
       (do (coastline/set-coastline-follow-mode coords)
           (game-loop/item-processed)
           true)
 
-      ;; Transport or patrol-boat not near coast - show reason
       rejection-reason
       (do (reset! atoms/attention-message (rejection-reason config/messages))
           true)

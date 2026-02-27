@@ -715,6 +715,14 @@
   (and (should-try-opportunistic-unload? army-count mission)
        (try-opportunistic-unload pos)))
 
+(defn- execute-mission [pos mission army-count]
+  (case mission
+    :invading (process-invading-mission pos)
+    :unloading (process-unloading-mission pos army-count)
+    :sailing (process-sailing-mission pos)
+    :loading (process-loading-mission pos)
+    nil))
+
 (defn- dispatch-transport-mission
   [pos transport]
   (let [army-count (:army-count transport 0)
@@ -725,12 +733,7 @@
                                {:mission mission :armies army-count
                                 :pcp (:pickup-continent-pos transport)})
     (when-not (opportunistic-unload? pos army-count mission)
-      (case mission
-        :invading (process-invading-mission pos)
-        :unloading (process-unloading-mission pos army-count)
-        :sailing (process-sailing-mission pos)
-        :loading (process-loading-mission pos)
-        nil))))
+      (execute-mission pos mission army-count))))
 
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
