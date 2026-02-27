@@ -57,7 +57,7 @@
               (let [cell (get-in game-map n)]
                 (and cell
                      (#{:land :city} (:type cell))
-                     (= pcp-country-id (:country-id cell)))))
+                     (atoms/on-same-continent? pcp-country-id (:country-id cell)))))
             (core/get-neighbors pos))
       ;; No country-id at pcp — fall back to distance check
       (<= (core/distance pos pickup-continent-pos) 2))))
@@ -214,7 +214,7 @@
                      (#{:land :city} (:type cell))
                      (nil? (:contents cell))
                      (or (empty? exclude-ids)
-                         (not (contains? exclude-ids (:country-id cell))))
+                         (not (some #(atoms/on-same-continent? % (:country-id cell)) exclude-ids)))
                      (or (nil? pickup-continent)
                          (not (contains? pickup-continent neighbor))))))
             (core/get-neighbors pos))))
@@ -298,8 +298,10 @@
                                 (= :computer (:owner unit))
                                 (not (and (seq unloaded-countries)
                                           (:country-id unit)
-                                          (recently-unloaded-country?
-                                            unloaded-countries (:country-id unit)))))))
+                                          (some (fn [[uc-id]]
+                                                  (and (atoms/on-same-continent? (:country-id unit) uc-id)
+                                                       (recently-unloaded-country? unloaded-countries uc-id)))
+                                                unloaded-countries))))))
                        neighbors)
         to-load (min capacity (count armies))]
     (let [loaded-positions (vec (take to-load armies))]
@@ -384,8 +386,10 @@
          (= :computer (:owner unit))
          (not (and (seq unloaded-countries)
                    (:country-id unit)
-                   (recently-unloaded-country?
-                     unloaded-countries (:country-id unit))))
+                   (some (fn [[uc-id]]
+                           (and (atoms/on-same-continent? (:country-id unit) uc-id)
+                                (recently-unloaded-country? unloaded-countries uc-id)))
+                         unloaded-countries)))
          (not (and unload-eid
                    (= (:unload-event-id unit) unload-eid))))))
 
@@ -429,7 +433,7 @@
        (#{:land :city} (:type cell))
        (nil? (:contents cell))
        (or (empty? exclude-ids)
-           (not (contains? exclude-ids (:country-id cell))))
+           (not (some #(atoms/on-same-continent? % (:country-id cell)) exclude-ids)))
        (or (nil? pickup-continent)
            (not (contains? pickup-continent neighbor-pos)))))
 

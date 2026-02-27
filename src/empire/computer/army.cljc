@@ -73,21 +73,27 @@
 
 (defn- register-coastal-cells
   "Registers coastal land cells near pos for the given country-id.
-   Checks pos + neighbors; adds any land cell adjacent to sea with matching country."
+   Checks pos + neighbors; adds any land cell adjacent to sea with matching country.
+   Also detects continent bumps when adjacent land has a different country-id."
   [pos country-id]
   (when country-id
     (let [game-map @atoms/game-map
-          coastal (filter (fn [p]
-                            (let [cell (get-in game-map p)]
-                              (and cell
-                                   (= :land (:type cell))
-                                   (or (nil? (:country-id cell))
-                                       (= country-id (:country-id cell)))
-                                   (adjacent-to-sea? p))))
-                          (cons pos (core/get-neighbors pos)))]
-      (when (seq coastal)
-        (swap! atoms/coastal-cells-by-country update country-id
-               (fn [s] (into (or s #{}) coastal)))))))
+          all-pos (cons pos (core/get-neighbors pos))]
+      (doseq [p all-pos]
+        (let [cid (:country-id (get-in game-map p))]
+          (when (and cid (not= cid country-id))
+            (atoms/merge-continents! country-id cid))))
+      (let [coastal (filter (fn [p]
+                              (let [cell (get-in game-map p)]
+                                (and cell
+                                     (= :land (:type cell))
+                                     (or (nil? (:country-id cell))
+                                         (atoms/on-same-continent? country-id (:country-id cell)))
+                                     (adjacent-to-sea? p))))
+                            all-pos)]
+        (when (seq coastal)
+          (swap! atoms/coastal-cells-by-country update country-id
+                 (fn [s] (into (or s #{}) coastal))))))))
 
 (defn- sovereign-passable?
   "Returns true if a computer army with country-id can enter the cell.
@@ -100,7 +106,7 @@
        (or (nil? country-id)
            (= :city (:type cell))
            (nil? (:country-id cell))
-           (= country-id (:country-id cell)))))
+           (atoms/on-same-continent? country-id (:country-id cell)))))
 
 (defn- get-passable-neighbors
   "Returns passable land neighbors for an army, respecting sovereignty."
