@@ -23,7 +23,7 @@
 					                  :extra-paths ["generated-acceptance-specs"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"
-					                         :git/sha "e52fd833c79899867382a471edbda54b9dff24d4"}}
+					                         :git/sha "f21eae74e75cc5a06b0b3cc6750c18ad9add0ebd"}}
 					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
