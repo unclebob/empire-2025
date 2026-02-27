@@ -1,6 +1,7 @@
 (ns empire.player.production-spec
   (:require [speclj.core :refer :all]
             [empire.player.production :as production]
+            [empire.computer.production :as computer-production]
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map get-test-city reset-all-atoms!]]))
@@ -190,6 +191,7 @@
                              [{:type :land :country-id 1}
                               {:type :sea}]])
     ;; computer-map is {} so land at [1 0] is unexplored → coastal cells not explored
+    (computer-production/rebuild-country-stats!)
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -204,6 +206,7 @@
                               {:type :sea}]
                              [{:type :land :country-id 1}
                               {:type :sea}]])
+    (computer-production/rebuild-country-stats!)
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]

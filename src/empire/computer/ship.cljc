@@ -53,12 +53,17 @@
       ;; Attacker won - move to enemy position
       (do
         (swap! atoms/game-map assoc-in (conj enemy-pos :contents) (:survivor result))
+        (when (= :carrier (:type attacker))
+          (swap! atoms/computer-carrier-positions disj ship-pos)
+          (swap! atoms/computer-carrier-positions conj enemy-pos))
         (visibility/update-cell-visibility ship-pos :computer)
         (visibility/update-cell-visibility enemy-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         enemy-pos)
       ;; Attacker lost
       (do
+        (when (= :carrier (:type attacker))
+          (swap! atoms/computer-carrier-positions disj ship-pos))
         (visibility/update-cell-visibility ship-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         nil))))
@@ -229,8 +234,30 @@
                  (conj pos :contents) dissoc :explore-path)
           nil))))
 
+(defn- generate-random-sea-walk
+  "Generates a random walk of up to n steps over empty sea cells."
+  [start n]
+  (loop [pos start steps n path []]
+    (if (zero? steps)
+      (when (seq path) path)
+      (let [neighbors (get-passable-sea-neighbors pos)
+            empty-nbrs (filter #(nil? (:contents (get-in @atoms/game-map %))) neighbors)]
+        (if (empty? empty-nbrs)
+          (when (seq path) path)
+          (let [next-pos (rand-nth empty-nbrs)]
+            (recur next-pos (dec steps) (conj path next-pos))))))))
+
+(defn- store-random-walk
+  "Generates a random sea walk and stores it as explore-path on the unit."
+  [pos]
+  (when-let [path (generate-random-sea-walk pos 10)]
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :explore-path) (vec path))
+    path))
+
 (defn patrol-explore-step
   "Explore toward unseen coast. Stores BFS path and follows it step by step.
+   Falls back to random walk when BFS finds nothing within cell limit.
    Switches to crawling on arrival at unseen coast.
    Returns new position or nil."
   [pos]
@@ -238,7 +265,8 @@
         path (:explore-path unit)]
     (if (seq path)
       (follow-explore-path pos path)
-      (when (run-bfs-and-store-path pos)
+      (when (or (run-bfs-and-store-path pos)
+                (store-random-walk pos))
         (let [new-path (:explore-path
                          (get-in @atoms/game-map (conj pos :contents)))]
           (follow-explore-path pos new-path))))))
@@ -513,18 +541,13 @@
       (apply min-key #(core/distance % midpoint) candidates))))
 
 (defn find-refueling-sites
-  "Returns positions of all computer cities and holding carriers."
+  "Returns positions of all computer cities and computer carriers."
   []
-  (let [game-map @atoms/game-map]
-    (for [i (range (count game-map))
-          j (range (count (first game-map)))
-          :let [cell (get-in game-map [i j])]
-          :when (or (and (= :city (:type cell))
-                         (= :computer (:city-status cell)))
-                    (and (= :carrier (get-in cell [:contents :type]))
-                         (= :computer (get-in cell [:contents :owner]))
-                         (= :holding (get-in cell [:contents :carrier-mode]))))]
-      [i j])))
+  (when (and (empty? @atoms/computer-city-positions)
+             (empty? @atoms/computer-carrier-positions)
+             @atoms/game-map)
+    (atoms/rebuild-refueling-caches!))
+  (concat @atoms/computer-city-positions @atoms/computer-carrier-positions))
 
 (defn find-carrier-position
   "Finds a carrier position for an unreserved city pair.
@@ -559,6 +582,8 @@
     :else
     (when-let [next-pos (pathfinding/next-step pos target :carrier)]
       (core/move-unit-to pos next-pos)
+      (swap! atoms/computer-carrier-positions disj pos)
+      (swap! atoms/computer-carrier-positions conj next-pos)
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility next-pos :computer)
       next-pos)))
@@ -571,6 +596,8 @@
                assoc :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
+          (swap! atoms/computer-carrier-positions disj pos)
+          (swap! atoms/computer-carrier-positions conj next-pos)
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))
@@ -585,6 +612,8 @@
                assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
+          (swap! atoms/computer-carrier-positions disj pos)
+          (swap! atoms/computer-carrier-positions conj next-pos)
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))

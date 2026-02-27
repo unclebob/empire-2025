@@ -173,4 +173,5 @@
     ;; Initialize visibility around starting positions
     (visibility/update-combatant-map atoms/player-map :player)
     (visibility/update-combatant-map atoms/computer-map :computer)
+    (atoms/rebuild-refueling-caches!)
     map-with-computer-city))

@@ -52,6 +52,43 @@
 
 ;; Standard army helpers
 
+(defn- seed-coastal-registry
+  "One-time full-map scan to populate coastal cell registry for country-id.
+   Called only when the registry is empty for that country."
+  [country-id]
+  (let [gm @atoms/game-map
+        coastal (for [i (range (count gm))
+                      j (range (count (first gm)))
+                      :let [cell (get-in gm [i j])]
+                      :when (and (= :land (:type cell))
+                                 (or (nil? (:country-id cell))
+                                     (= country-id (:country-id cell)))
+                                 (adjacent-to-sea? [i j]))]
+                  [i j])]
+    (swap! atoms/coastal-cells-by-country assoc country-id (set coastal))))
+
+(defn- ensure-coastal-registry [country-id]
+  (when (empty? (get @atoms/coastal-cells-by-country country-id))
+    (seed-coastal-registry country-id)))
+
+(defn- register-coastal-cells
+  "Registers coastal land cells near pos for the given country-id.
+   Checks pos + neighbors; adds any land cell adjacent to sea with matching country."
+  [pos country-id]
+  (when country-id
+    (let [game-map @atoms/game-map
+          coastal (filter (fn [p]
+                            (let [cell (get-in game-map p)]
+                              (and cell
+                                   (= :land (:type cell))
+                                   (or (nil? (:country-id cell))
+                                       (= country-id (:country-id cell)))
+                                   (adjacent-to-sea? p))))
+                          (cons pos (core/get-neighbors pos)))]
+      (when (seq coastal)
+        (swap! atoms/coastal-cells-by-country update country-id
+               (fn [s] (into (or s #{}) coastal)))))))
+
 (defn- sovereign-passable?
   "Returns true if a computer army with country-id can enter the cell.
    Foreign land (different non-nil country-id) is blocked.
@@ -161,6 +198,8 @@
            update-move-history pos)
     (visibility/update-cell-visibility pos :computer)
     (visibility/update-cell-visibility target :computer)
+    (register-coastal-cells target
+                            (:country-id (get-in @atoms/game-map (conj target :contents))))
     target))
 
 (defn- sovereignty-passability-fn
@@ -256,48 +295,53 @@
         (core/get-neighbors pos)))
 
 (defn- find-nearest-unoccupied-coastal-cell
-  "Finds nearest land cell with matching country-id, adjacent to sea, with no unit.
+  "Finds nearest coastal cell from registry with matching country-id, no unit.
    Excludes cells adjacent to computer cities to avoid blocking production."
   [pos country-id]
   (when country-id
-    (let [game-map @atoms/game-map
-          candidates (for [i (range (count game-map))
-                           j (range (count (first game-map)))
-                           :let [cell (get-in game-map [i j])]
-                           :when (and (= :land (:type cell))
+    (ensure-coastal-registry country-id)
+    (let [coastal (get @atoms/coastal-cells-by-country country-id)
+          game-map @atoms/game-map
+          candidates (filter (fn [p]
+                               (let [cell (get-in game-map p)]
+                                 (and (= :land (:type cell))
                                       (or (nil? (:country-id cell))
                                           (= country-id (:country-id cell)))
-                                      (nil? (:contents cell))
-                                      (adjacent-to-sea? [i j]))]
-                       [i j])
+                                      (nil? (:contents cell)))))
+                             coastal)
           away-from-city (remove adjacent-to-computer-city? candidates)]
       (first (sort-by #(core/distance pos %)
                       (if (seq away-from-city) away-from-city candidates))))))
 
 (defn- find-nearest-cell-close-to-coast
-  "Finds nearest empty land cell to pos that is within 1 step of coast.
-   Used for transport queue — army lines up near coast.
-   Returns nil if no cells are actually near a coast."
+  "Finds nearest empty land cell within 1 step of a registered coastal cell.
+   Used for transport queue — army lines up near coast."
   [pos country-id]
   (when country-id
-    (let [game-map @atoms/game-map
-          candidates (for [i (range (count game-map))
-                           j (range (count (first game-map)))
-                           :let [cell (get-in game-map [i j])]
-                           :when (and (= :land (:type cell))
-                                      (or (nil? (:country-id cell))
-                                          (= country-id (:country-id cell)))
-                                      (nil? (:contents cell)))]
-                       [i j])
-          with-coast-dist (keep (fn [c]
-                                  (let [d (if (adjacent-to-sea? c) 0
-                                            (if (some adjacent-to-sea? (core/get-neighbors c)) 1 -1))]
-                                    (when (>= d 0) [c d])))
-                                candidates)]
-      (when (seq with-coast-dist)
-        (let [best-coast-dist (apply min (map second with-coast-dist))
-              near-coast (map first (filter #(= best-coast-dist (second %)) with-coast-dist))]
-          (first (sort-by #(core/distance pos %) near-coast)))))))
+    (ensure-coastal-registry country-id)
+    (let [coastal (get @atoms/coastal-cells-by-country country-id)]
+      (when (seq coastal)
+        (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
+              game-map @atoms/game-map
+              candidates (filter (fn [p]
+                                   (let [cell (get-in game-map p)]
+                                     (and (= :land (:type cell))
+                                          (or (nil? (:country-id cell))
+                                              (= country-id (:country-id cell)))
+                                          (nil? (:contents cell)))))
+                                 expanded)
+              with-coast-dist (keep (fn [c]
+                                      (let [d (if (contains? coastal c) 0
+                                                (if (some (partial contains? coastal)
+                                                          (core/get-neighbors c))
+                                                  1 -1))]
+                                        (when (>= d 0) [c d])))
+                                    candidates)]
+          (when (seq with-coast-dist)
+            (let [best-coast-dist (apply min (map second with-coast-dist))
+                  near-coast (map first (filter #(= best-coast-dist (second %))
+                                                with-coast-dist))]
+              (first (sort-by #(core/distance pos %) near-coast)))))))))
 
 (defn- should-sentry-on-coast? [pos country-id]
   (and country-id

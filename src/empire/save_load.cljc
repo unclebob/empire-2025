@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.save-load
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.atoms :as atoms]
+            [empire.computer.production :as computer-production]))
 
 (def saveable-atoms
   "Map of atom names to atoms that should be saved/restored."
@@ -77,6 +78,8 @@
      (reset! atoms/load-menu-open false)
      (reset! atoms/load-menu-files [])
      (reset! atoms/load-menu-hovered nil)
+     (atoms/rebuild-refueling-caches!)
+     (computer-production/rebuild-country-stats!)
      (atoms/set-turn-message (str "Loaded " filename) 3000))))
 
 (defn open-load-menu!

@@ -105,6 +105,7 @@
         (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
         (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
         (swap! atoms/game-map assoc-in city-pos (assoc city-cell :city-status :computer))
+        (swap! atoms/computer-city-positions conj city-pos)
         (combat/conquer-city-contents city-pos :computer)
         (stamp-territory city-pos army)
         (let [city-country-id (:country-id (get-in @atoms/game-map city-pos))

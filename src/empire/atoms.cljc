@@ -187,6 +187,44 @@
    Key is a set of two positions (unordered pair), value is {:last-flown round-number}."
   (atom {}))
 
+(def computer-city-positions
+  "Cached set of computer-owned city positions. Updated on conquest/loss."
+  (atom #{}))
+
+(def computer-carrier-positions
+  "Cached set of computer carrier positions. Updated on spawn/move/death."
+  (atom #{}))
+
+(defn rebuild-refueling-caches!
+  "Scans game-map once to populate computer-city-positions and computer-carrier-positions."
+  []
+  (let [gm @game-map
+        cities (transient #{})
+        carriers (transient #{})]
+    (doseq [i (range (count gm))
+            j (range (count (first gm)))
+            :let [cell (get-in gm [i j])]]
+      (when (and (= :city (:type cell)) (= :computer (:city-status cell)))
+        (conj! cities [i j]))
+      (when (and (= :carrier (get-in cell [:contents :type]))
+                 (= :computer (get-in cell [:contents :owner])))
+        (conj! carriers [i j])))
+    (reset! computer-city-positions (persistent! cities))
+    (reset! computer-carrier-positions (persistent! carriers))))
+
+(def country-stats
+  "Per-country stats computed once at round start.
+   {country-id {:army-count N :land-army-count N :coastal-cell-count N
+                :patrol-boat-count N :has-waiting-armies? bool
+                :has-unadopted-transport? bool :has-unoccupied-coastal-cells? bool
+                :coastal-explored? bool :coastal-city-positions #{...}}}"
+  (atom {}))
+
+(def coastal-cells-by-country
+  "Cache of coastal land cells per country. {country-id -> #{[r c] ...}}.
+   Populated as armies move; used by find-nearest-unoccupied-coastal-cell."
+  (atom {}))
+
 (def coast-walkers-produced
   "Map of country-id -> count of coast-walk armies produced for that country.
    First army gets clockwise, second gets counter-clockwise, 3+ get normal explore."

@@ -53,6 +53,7 @@
       (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [1 0 :contents :army-count] nil)
       (swap! atoms/game-map update-in [1 0 :contents] dissoc :army-count)
+      (production/rebuild-country-stats!)
       (should= 0 (production/count-country-armies 1)))))
 
 ;; ===== 2. production decisions =====
@@ -79,6 +80,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= :fighter (production/decide-production [1 0])))
 
     (it "inland country city skips coastal priorities and produces army"
@@ -92,6 +94,7 @@
       (doseq [col [1 2 3]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 1 :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= :army (production/decide-production [2 0]))))
 
   (context "decide-production"
@@ -108,6 +111,7 @@
       (doseq [col (range 2 8)]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0]))))
 
   (context "country-aware production"
@@ -121,6 +125,7 @@
       (doseq [col (range 2 8)]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0])))
 
     (it "coastal city does not produce transport when country has fewer than 6 armies"
@@ -132,6 +137,7 @@
       (doseq [col (range 2 7)]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0])))
 
     (it "two coastal cities can both produce transports simultaneously"
@@ -146,6 +152,7 @@
       (doseq [col (concat (range 2 8) (range 9 14))]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (let [first-decision (production/decide-production [1 0])]
         (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 20}})
         (should= :transport first-decision)
@@ -164,6 +171,7 @@
       (swap! atoms/game-map assoc-in [10 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [10 0 :contents :army-count] 2)
       (swap! atoms/game-map assoc-in [10 0 :contents :transport-mission] :loading)
+      (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0])))
 
     (it "landlocked city does not produce transport even when country needs one"
@@ -174,6 +182,7 @@
                                                    "#X#"
                                                    "###"]))
       (swap! atoms/game-map assoc-in [1 1 :country-id] 1)
+      (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 1])))
 
     (it "produces army when coastal cells not filled"
@@ -192,6 +201,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
       (doseq [col [8 9 10 11]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0])))
 
     (it "does not produce army when another city in country is already producing armies"
@@ -203,6 +213,7 @@
       (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
       (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
       (reset! atoms/production {[1 0] {:item :army :remaining-rounds 3}})
+      (production/rebuild-country-stats!)
       (should-not= :army (production/decide-production [3 0]))))
 
   (context "country-city-producing? coordination"
@@ -240,6 +251,7 @@
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 10}})
+      (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [3 0])))
 
     (it "does not produce destroyer when another city in country is already producing"
@@ -253,6 +265,7 @@
       (doseq [col [7 8 9 10]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/production {[1 0] {:item :destroyer :remaining-rounds 10}})
+      (production/rebuild-country-stats!)
       (should= :fighter (production/decide-production [3 0]))))
 
   (context "army limit 2/3 of coastal cells"
@@ -267,6 +280,7 @@
       (doseq [col (range 2 6)]
         (swap! atoms/game-map assoc-in [col 0 :contents]
                {:type :army :owner :computer :hits 1 :country-id 1}))
+      (production/rebuild-country-stats!)
       (should (#'empire.computer.production/country-army-limit-reached? 1)))
 
     (it "army limit not reached below 2/3 of coastal cells"
@@ -279,6 +293,7 @@
       (doseq [col (range 2 5)]
         (swap! atoms/game-map assoc-in [col 0 :contents]
                {:type :army :owner :computer :hits 1 :country-id 1}))
+      (production/rebuild-country-stats!)
       (should-not (#'empire.computer.production/country-army-limit-reached? 1))))
 
   (context "process-computer-city"
@@ -288,6 +303,7 @@
       (reset! atoms/computer-map (build-test-map ["X+#"]))
       (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
       (reset! atoms/production {})
+      (production/rebuild-country-stats!)
       (production/process-computer-city [0 0])
       (should-not-be-nil (get @atoms/production [0 0])))
 
@@ -308,6 +324,7 @@
         (reset! atoms/transport-fully-loaded? true)
         (reset! atoms/early-patrol-boat-produced? false)
         (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (production/rebuild-country-stats!)
         (should= :patrol-boat (production/decide-production [0 0]))
         (should @atoms/early-patrol-boat-produced?)))
 
@@ -321,6 +338,7 @@
         (reset! atoms/early-patrol-boat-produced? true)
         (reset! atoms/early-satellite-produced? false)
         (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (production/rebuild-country-stats!)
         (should= :satellite (production/decide-production [1 2]))))
 
     (it "does not produce satellite before patrol boat flag set"
@@ -333,6 +351,7 @@
         (reset! atoms/early-patrol-boat-produced? false)
         (reset! atoms/early-satellite-produced? false)
         (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (production/rebuild-country-stats!)
         (should-not= :satellite (production/decide-production [1 2]))))
 
     (it "prefers inland city for satellite over coastal"
@@ -346,6 +365,7 @@
         (reset! atoms/early-satellite-produced? false)
         (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (production/rebuild-country-stats!)
         ;; [0 0] is coastal — should skip satellite, fall through
         (should-not= :satellite (production/decide-production [0 0]))))
 
@@ -358,6 +378,7 @@
         (reset! atoms/early-patrol-boat-produced? true)
         (reset! atoms/early-satellite-produced? false)
         (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (production/rebuild-country-stats!)
         (should= :satellite (production/decide-production [0 0]))))))
 
 (run-specs)

@@ -57,7 +57,8 @@
 
 (defn- generate-evaluate-production-when [{:keys [city]}]
   (let [pos-expr (utils/target-pos-expr city)]
-    (str "    (computer-production/process-computer-city " pos-expr ")")))
+    (str "    (computer-production/rebuild-country-stats!)\n"
+         "    (computer-production/process-computer-city " pos-expr ")")))
 
 (defn- generate-process-computer-transport-when [{:keys [unit]}]
   (let [pos-expr (utils/target-pos-expr unit)]

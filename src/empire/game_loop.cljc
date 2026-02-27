@@ -7,6 +7,7 @@
             [empire.computer.army :as army]
             [empire.computer.land-ho :as land-ho]
             [empire.computer.land-objectives :as land-objectives]
+            [empire.computer.production :as computer-production]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]
@@ -91,6 +92,7 @@
         computer-items (vec (build-computer-items))]
     (reset! atoms/player-items player-items)
     (reset! atoms/computer-items computer-items)
+    (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
     ;; Check for game over: no player cities or units
     (when (and @atoms/game-over-check-enabled (empty? player-items))

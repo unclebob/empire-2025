@@ -6,6 +6,8 @@
             [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 
+(defn- rebuild! [] (production/rebuild-country-stats!))
+
 (defn- add-sea-column
   "Adds a column of sea cells to make column 0 cells coastal."
   []
@@ -69,7 +71,8 @@
       (swap! atoms/game-map assoc-in [0 j :contents]
              {:type :army :owner :computer :country-id 1 :hits 1 :mode :sentry})))
   ;; Saturate fighter limit so per-country production falls through to global
-  (saturate-fighter-limit))
+  (saturate-fighter-limit)
+  (production/rebuild-country-stats!))
 
 ;; ===== 5. naval and air production gates =====
 
@@ -91,6 +94,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (doseq [col [6 7 8 9]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (rebuild!)
       (should= :destroyer (production/decide-production [1 0])))
 
     (it "does not produce destroyer when global cap reached"
@@ -106,6 +110,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (doseq [col [6 7 8 9]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (rebuild!)
       (should-not= :destroyer (production/decide-production [1 0]))))
 
   (context "carrier production gate"
@@ -262,6 +267,7 @@
       ;; Add 2 extra computer cities (total 3 cities, 2 fighters)
       (swap! atoms/game-map assoc-in [32 0] {:type :city :city-status :computer :country-id 2})
       (swap! atoms/game-map assoc-in [33 0] {:type :city :city-status :computer :country-id 3})
+      (rebuild!)
       (should= :fighter (production/decide-production [1 0])))
 
     (it "does not produce fighter when total fighters >= total computer cities"
@@ -278,6 +284,7 @@
       (doseq [col [26 27 28 29]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
+      (rebuild!)
       (should-not= :fighter (production/decide-production [1 0]))))
 
   (context "satellite production gate"
@@ -320,6 +327,7 @@
         (swap! atoms/game-map assoc-in [1 0 :contents]
                {:type :satellite :owner :computer :direction [1 0] :turns-remaining 50})
         (saturate-fighter-limit)
+        (production/rebuild-country-stats!)
         ;; Satellite cap reached (1 alive >= max) → no satellite produced
         (should-not= :satellite (production/decide-production [0 0]))))
 
@@ -350,6 +358,7 @@
       (doseq [col [5 6 7 8]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       ;; No transports exist → should not produce destroyer
+      (rebuild!)
       (should-not= :destroyer (production/decide-production [1 0]))))
 
   (context "count-carrier-producers (L312)"
@@ -395,6 +404,7 @@
             (reset! atoms/game-map [cells2])
             (reset! atoms/computer-map [cells2])
             (satisfy-coastal-per-country 18)
+            (production/rebuild-country-stats!)
             (should-not= :carrier (production/decide-production [0 18]))))))
 
     (it "does not produce carrier when at max live carriers"
@@ -409,6 +419,7 @@
           (reset! atoms/game-map [cells])
           (reset! atoms/computer-map [cells])
           (satisfy-coastal-per-country 22)
+          (production/rebuild-country-stats!)
           ;; 12 cities > 10 threshold, 8 live carriers = max → should not produce
           (should-not= :carrier (production/decide-production [0 22])))))
 
@@ -425,6 +436,7 @@
           (satisfy-coastal-per-country 22)
           (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                     [0 2] {:item :carrier :remaining-rounds 10}})
+          (production/rebuild-country-stats!)
           ;; 12 cities, 0 live carriers, but 2 producing = max → should not produce another
           (should-not= :carrier (production/decide-production [0 22]))))))
 
@@ -443,6 +455,7 @@
         (reset! atoms/computer-map [cells])
         (satisfy-coastal-per-country 22)
         ;; No carriers, 1 battleship → battleships >= carriers, skip BB
+        (production/rebuild-country-stats!)
         ;; No carriers → submarines should not be produced (0 < 2*0 = 0 is false)
         (should-not= :submarine (production/decide-production [0 22]))))))
 
