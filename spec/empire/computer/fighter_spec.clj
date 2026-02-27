@@ -369,3 +369,46 @@
         (let [result (get-test-unit atoms/game-map "f")]
           (should-not-be-nil result)
           (should= 2 (:fuel (:unit result))))))))
+
+(describe "handle-low-fuel helpers"
+  (before (reset-all-atoms!))
+
+  (it "adjacent-to-city-site? returns true for adjacent city site"
+    (reset! atoms/game-map (build-test-map ["Xf"]))
+    (should (@#'fighter/adjacent-to-city-site? [0 0] [1 0])))
+
+  (it "adjacent-to-city-site? returns false for nil site"
+    (reset! atoms/game-map (build-test-map ["#f"]))
+    (should-not (@#'fighter/adjacent-to-city-site? nil [1 0])))
+
+  (it "adjacent-to-city-site? returns false for non-city site"
+    (reset! atoms/game-map (build-test-map ["#f"]))
+    (should-not (@#'fighter/adjacent-to-city-site? [0 0] [1 0])))
+
+  (it "adjacent-to-city-site? returns false for distant city"
+    (reset! atoms/game-map (build-test-map ["X#f"]))
+    (should-not (@#'fighter/adjacent-to-city-site? [0 0] [2 0])))
+
+  (it "adjacent-to-site? returns true for adjacent site"
+    (should (@#'fighter/adjacent-to-site? [0 0] [1 0])))
+
+  (it "adjacent-to-site? returns false for nil site"
+    (should-not (@#'fighter/adjacent-to-site? nil [1 0])))
+
+  (it "adjacent-to-site? returns false for distant site"
+    (should-not (@#'fighter/adjacent-to-site? [0 0] [3 0])))
+
+  (it "desperate-patrol returns nil when do-patrol returns nil"
+    (reset! atoms/game-map (build-test-map ["f"]))
+    (set-test-unit atoms/game-map "f" :fuel 5)
+    (reset! atoms/computer-map @atoms/game-map)
+    (should-be-nil (@#'fighter/desperate-patrol [0 0])))
+
+  (it "desperate-patrol returns result when patrol succeeds"
+    (reset! atoms/game-map (build-test-map ["f##"]))
+    (set-test-unit atoms/game-map "f" :fuel 5)
+    (reset! atoms/computer-map (build-test-map ["f--"]))
+    (let [result (@#'fighter/desperate-patrol [0 0])]
+      (should-not-be-nil result)
+      (should (contains? result :pos))
+      (should (contains? result :hops)))))

@@ -177,6 +177,32 @@
     (it "returns false for non-transport"
       (should-not (uc/has-awake-army-aboard? {:type :carrier :awake-armies 1})))))
 
+(describe "has-unit-contents?"
+  (it "returns truthy for valid unit map"
+    (should (@#'uc/has-unit-contents? {:type :army :mode :awake})))
+
+  (it "returns falsy for nil"
+    (should-not (@#'uc/has-unit-contents? nil)))
+
+  (it "returns falsy for empty map"
+    (should-not (@#'uc/has-unit-contents? {})))
+
+  (it "returns falsy for map without :type"
+    (should-not (@#'uc/has-unit-contents? {:mode :awake}))))
+
+(describe "awake-contents?"
+  (it "returns true for awake unit with type"
+    (should (@#'uc/awake-contents? {:type :army :mode :awake})))
+
+  (it "returns false for nil"
+    (should-not (@#'uc/awake-contents? nil)))
+
+  (it "returns false for non-awake unit"
+    (should-not (@#'uc/awake-contents? {:type :army :mode :sentry})))
+
+  (it "returns false for awake without type"
+    (should-not (@#'uc/awake-contents? {:mode :awake}))))
+
 (describe "display helpers"
   (context "blinking-contained-unit"
     (it "returns fighter for awake airport"

@@ -299,6 +299,17 @@
               near-coast (map first (filter #(= best-coast-dist (second %)) with-coast-dist))]
           (first (sort-by #(core/distance pos %) near-coast)))))))
 
+(defn- should-sentry-on-coast? [pos country-id]
+  (and country-id
+       (adjacent-to-sea? pos)
+       (not= :city (:type (get-in @atoms/game-map pos)))
+       (not (adjacent-to-computer-city? pos))))
+
+(defn- can-settle-here? [pos country-id]
+  (and country-id
+       (adjacent-to-sea? pos)
+       (not= :city (:type (get-in @atoms/game-map pos)))))
+
 (defn- fill-coastal-cell
   "If army is on a coastal cell away from cities, go sentry.
    Otherwise move toward nearest unoccupied coastal cell.
@@ -306,10 +317,7 @@
    If truly stuck, wake nearby sentries."
   [pos country-id]
   (cond
-    ;; On a coastal cell, not a city, and not adjacent to a computer city → go sentry
-    (and country-id (adjacent-to-sea? pos)
-         (not= :city (:type (get-in @atoms/game-map pos)))
-         (not (adjacent-to-computer-city? pos)))
+    (should-sentry-on-coast? pos country-id)
     (do (debug/log-computer-event! :army-sentry pos {:reason :coastal-fill :country-id country-id})
         (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
         pos)
@@ -317,20 +325,15 @@
     :else
     (or (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
           (move-toward-objective pos target country-id))
-        ;; No unoccupied coastal cell — settle here if coastal (even near city)
-        (when (and country-id (adjacent-to-sea? pos)
-                   (not= :city (:type (get-in @atoms/game-map pos))))
+        (when (can-settle-here? pos country-id)
           (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
           (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
           pos)
-        ;; Not coastal — queue near coast
         (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
           (or (move-toward-objective pos target country-id)
-              ;; Already at best spot — go sentry (queue position)
               (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
                   (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
                   pos)))
-        ;; Truly stuck — wake nearby sentries
         (when (pos? (core/wake-nearby-sentries pos 3))
           (debug/log-computer-event! :army-wake-sentries pos {:reason :stuck})
           nil))))

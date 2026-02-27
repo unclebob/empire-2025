@@ -33,23 +33,18 @@
        (nil? (:contents cell))
        (dispatcher/can-move-to? unit-type cell)))
 
+(defn- diagonal? [dx dy]
+  (and (not (zero? dx)) (not (zero? dy))))
+
 (defn- get-sidestep-directions
   "Returns candidate sidestep directions given the blocked direction.
    First returns the two diagonals adjacent to the blocked direction,
    then the two orthogonals perpendicular to it."
   [[dx dy]]
   (cond
-    ;; Blocked moving diagonally - try the two adjacent diagonals, then orthogonals
-    (and (not (zero? dx)) (not (zero? dy)))
-    [[dx 0] [0 dy] [(- dx) dy] [dx (- dy)]]
-
-    ;; Blocked moving horizontally - try diagonals first, then pure vertical
-    (zero? dy)
-    [[dx 1] [dx -1] [0 1] [0 -1]]
-
-    ;; Blocked moving vertically - try diagonals first, then pure horizontal
-    :else
-    [[1 dy] [-1 dy] [1 0] [-1 0]]))
+    (diagonal? dx dy)  [[dx 0] [0 dy] [(- dx) dy] [dx (- dy)]]
+    (zero? dy)         [[dx 1] [dx -1] [0 1] [0 -1]]
+    :else              [[1 dy] [-1 dy] [1 0] [-1 0]]))
 
 (defn- simulate-path
   "Simulates n moves from start-pos toward target, returning the final position.
@@ -294,6 +289,17 @@
                               (cond-> extended? (assoc :extended true)))]
      (swap! atoms/game-map assoc-in unit-coords (assoc first-cell :contents updated-contents)))))
 
+(defn- transport-with-awake-armies? [contents]
+  (and (= (:type contents) :transport)
+       (uc/has-awake? contents :awake-armies)))
+
+(defn- carrier-with-awake-fighters? [contents]
+  (and (= (:type contents) :carrier)
+       (uc/has-awake? contents :awake-fighters)))
+
+(defn- awake-unit? [contents]
+  (and contents (= (:mode contents) :awake)))
+
 (defn get-active-unit
   "Returns the unit currently needing attention: awake army aboard transport, awake fighter on carrier,
    then awake contents, then awake airport fighter.
@@ -301,17 +307,19 @@
    For fighters on carrier, returns a synthetic fighter map with :from-carrier true.
    For fighters in airport, returns a synthetic fighter map with :from-airport true."
   [cell]
-  (let [contents (:contents cell)
-        has-awake-army-aboard? (and (= (:type contents) :transport)
-                                    (uc/has-awake? contents :awake-armies))
-        has-awake-carrier-fighter? (and (= (:type contents) :carrier)
-                                        (uc/has-awake? contents :awake-fighters))
-        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)]
+  (let [contents (:contents cell)]
     (cond
-      has-awake-army-aboard? {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}
-      has-awake-carrier-fighter? {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}
-      (and contents (= (:mode contents) :awake)) contents
-      has-awake-airport-fighter? {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}
+      (transport-with-awake-armies? contents)
+      {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}
+
+      (carrier-with-awake-fighters? contents)
+      {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}
+
+      (awake-unit? contents) contents
+
+      (uc/has-awake? cell :awake-fighters)
+      {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}
+
       :else nil)))
 
 (defn is-army-aboard-transport?

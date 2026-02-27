@@ -158,16 +158,21 @@
   (let [checks (build-fighter-checks unit final-pos current-map)]
     (some (fn [[pred result]] (when pred result)) checks)))
 
+(defn- found-land? [was-in-open-sea? at-beach?]
+  (and was-in-open-sea? at-beach?))
+
+(defn- should-wake-at-beach? [has-armies? at-beach? been-to-sea?]
+  (and has-armies? at-beach? been-to-sea?))
+
 (defn- wake-transport-check [unit from-pos final-pos current-map]
   (let [has-armies? (pos? (:army-count unit 0))
         at-beach? (map-utils/adjacent-to-land? final-pos current-map)
         was-in-open-sea? (map-utils/completely-surrounded-by-sea? from-pos current-map)
         now-in-open-sea? (map-utils/completely-surrounded-by-sea? final-pos current-map)
-        found-land? (and was-in-open-sea? at-beach?)
         been-to-sea? (:been-to-sea unit true)]
     (cond
-      found-land? {:wake? true :reason :transport-found-land :been-to-sea false}
-      (and has-armies? at-beach? been-to-sea?) {:wake? true :reason :transport-at-beach :been-to-sea false}
+      (found-land? was-in-open-sea? at-beach?) {:wake? true :reason :transport-found-land :been-to-sea false}
+      (should-wake-at-beach? has-armies? at-beach? been-to-sea?) {:wake? true :reason :transport-at-beach :been-to-sea false}
       now-in-open-sea? {:been-to-sea true}
       :else nil)))
 

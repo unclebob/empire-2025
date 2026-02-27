@@ -761,6 +761,36 @@
       (should @atoms/paused)
       (should= "****YOU WIN!*****" @atoms/error-message))))
 
+(describe "satellite-with-target?"
+  (it "returns truthy for satellite with target"
+    (should (#'empire.game-loop.item-processing/satellite-with-target?
+              {:type :satellite :target [5 0]})))
+
+  (it "returns falsy for satellite without target"
+    (should-not (#'empire.game-loop.item-processing/satellite-with-target?
+                  {:type :satellite})))
+
+  (it "returns falsy for non-satellite with target"
+    (should-not (#'empire.game-loop.item-processing/satellite-with-target?
+                  {:type :army :target [5 0]})))
+
+  (it "returns falsy for nil unit"
+    (should-not (#'empire.game-loop.item-processing/satellite-with-target? nil))))
+
+(describe "process-player-items-batch else branch"
+  (before (reset-all-atoms!))
+
+  (it "unit with nil mode falls through to else (process-auto-movement)"
+    (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :player
+                                                      :mode nil :hits 1}}]])
+    (reset! atoms/player-items [[0 0]])
+    (with-redefs [attention/item-needs-attention? (fn [_] false)
+                  attention/set-attention-message (fn [_])]
+      (ip/process-player-items-batch)
+      ;; nil mode → not in auto-mode set, not needing attention → else branch
+      ;; process-auto-movement with nil mode → case returns nil → item removed
+      (should (empty? @atoms/player-items)))))
+
 (describe "process-player-items-batch loop (mutation coverage)"
   (before (reset-all-atoms!))
 

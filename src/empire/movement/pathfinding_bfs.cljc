@@ -313,6 +313,19 @@
   (and (not (contains? seen-coast pos))
        (adjacent-to-land-or-city? pos game-map)))
 
+(defn- available-for-target?
+  "Returns true if current cell is deep enough, not start, and not excluded."
+  [current start depth excluded]
+  (and (>= depth min-explore-depth)
+       (not= current start)
+       (not (contains? excluded current))))
+
+(defn- unexplored-target?
+  "Returns true if no best-unexplored yet and current is adjacent to unexplored."
+  [current best-unexplored computer-map]
+  (and (nil? best-unexplored)
+       (adjacent-to-unexplored? current computer-map)))
+
 (defn bfs-to-unseen-coast
   "BFS from start over passable sea cells to find the nearest unseen coastal
    cell (adjacent to land/city on computer-map, not in seen-coast) or cell
@@ -333,15 +346,11 @@
         (if (empty? queue)
           (build-coast-path best-coast best-unexplored came-from start)
           (let [[current depth] (peek queue)
-                deep-enough? (>= depth min-explore-depth)
-                available? (and deep-enough?
-                                (not= current start)
-                                (not (contains? excluded current)))
+                available? (available-for-target? current start depth excluded)
                 is-coast? (and available?
                                (unseen-coast? current computer-map seen-coast))
                 is-unexplored? (and available?
-                                    (nil? best-unexplored)
-                                    (adjacent-to-unexplored? current computer-map))
+                                    (unexplored-target? current best-unexplored computer-map))
                 new-coast (if (and is-coast? (nil? best-coast)) current best-coast)
                 new-unexplored (if is-unexplored? current best-unexplored)]
             (if new-coast
