@@ -98,26 +98,35 @@
         (game-loop/item-processed)
         true)))
 
+(defn- resolve-direction [k]
+  (when-let [direction (or (config/key->direction k)
+                           (config/key->extended-direction k))]
+    {:direction direction
+     :extended? (boolean (config/key->extended-direction k))}))
+
+(defn- player-unit? [unit]
+  (and unit (= :player (:owner unit))))
+
+(defn- dispatch-movement [context coords adjacent-target target extended? target-cell active-unit _cell]
+  (case context
+    :airport-fighter (launch-fighter-and-update container-ops/launch-fighter-from-airport coords target)
+    :carrier-fighter (launch-fighter-and-update container-ops/launch-fighter-from-carrier coords target)
+    :army-aboard (handle-army-aboard-movement coords adjacent-target target extended? target-cell)
+    :standard-unit (handle-standard-unit-movement coords adjacent-target target extended? active-unit)))
+
 (defn- handle-unit-movement-key [k coords cell]
-  (let [direction (or (config/key->direction k)
-                      (config/key->extended-direction k))
-        extended? (boolean (config/key->extended-direction k))]
-    (when direction
-      (let [active-unit (movement/get-active-unit cell)]
-        (when (and active-unit (= (:owner active-unit) :player))
-          (let [[x y] coords
-                [dx dy] direction
-                adjacent-target [(+ x dx) (+ y dy)]
-                target-cell (get-in @atoms/game-map adjacent-target)
-                target (if extended?
-                         (calculate-extended-target coords direction)
-                         adjacent-target)
-                context (movement/movement-context cell active-unit)]
-            (case context
-              :airport-fighter (launch-fighter-and-update container-ops/launch-fighter-from-airport coords target)
-              :carrier-fighter (launch-fighter-and-update container-ops/launch-fighter-from-carrier coords target)
-              :army-aboard (handle-army-aboard-movement coords adjacent-target target extended? target-cell)
-              :standard-unit (handle-standard-unit-movement coords adjacent-target target extended? active-unit))))))))
+  (when-let [{:keys [direction extended?]} (resolve-direction k)]
+    (let [active-unit (movement/get-active-unit cell)]
+      (when (player-unit? active-unit)
+        (let [[x y] coords
+              [dx dy] direction
+              adjacent-target [(+ x dx) (+ y dy)]
+              target-cell (get-in @atoms/game-map adjacent-target)
+              target (if extended?
+                       (calculate-extended-target coords direction)
+                       adjacent-target)]
+          (dispatch-movement (movement/movement-context cell active-unit)
+                             coords adjacent-target target extended? target-cell active-unit cell))))))
 
 (defn- handle-space-key [coords]
   (let [cell (get-in @atoms/game-map coords)

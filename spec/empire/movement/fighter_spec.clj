@@ -415,3 +415,36 @@
         (should= :fighter (:type fighter))
         (should= :moving (:mode fighter))
         (should= target-coords (:target fighter))))))
+
+(describe "fighter landing via do-move"
+  (before (reset-all-atoms!))
+
+  (it "fighter lands at player city — added to airport"
+    (reset! atoms/game-map (build-test-map ["-O"
+                                             "-#"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :hits 1 :fuel 10 :mode :moving :target [1 0]})
+    (reset! atoms/player-map (make-initial-test-map 2 2 nil))
+    (let [from [0 0]
+          cell (get-in @atoms/game-map from)
+          unit (:contents cell)]
+      (do-move from [1 0] cell unit)
+      (let [city (get-in @atoms/game-map [1 0])]
+        (should= 1 (:fighter-count city))
+        (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))))
+
+  (it "fighter lands on friendly carrier — added to carrier"
+    (reset! atoms/game-map (build-test-map ["~~"
+                                             "~~"]))
+    (swap! atoms/game-map assoc-in [0 0 :contents]
+           {:type :fighter :owner :player :hits 1 :fuel 10 :mode :moving :target [1 0]})
+    (swap! atoms/game-map assoc-in [1 0 :contents]
+           {:type :carrier :owner :player :hits 3 :fighter-count 0
+            :awake-fighters 0 :mode :sentry})
+    (reset! atoms/player-map (make-initial-test-map 2 2 nil))
+    (let [from [0 0]
+          cell (get-in @atoms/game-map from)
+          unit (:contents cell)]
+      (do-move from [1 0] cell unit)
+      (should= 1 (get-in @atoms/game-map [1 0 :contents :fighter-count]))
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))))

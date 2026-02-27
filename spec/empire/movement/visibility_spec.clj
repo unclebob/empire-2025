@@ -133,6 +133,29 @@
     (should= 5 (get-in @atoms/game-map [0 0 :country-id]))
     (should= #{} @atoms/land-ho-targets))
 
+  (it "computer satellite discovers free city in outer ring — added to land-ho-targets"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~~~~~"
+                                             "~~v~~"
+                                             "~~~~~"
+                                             "~~~~+"]))
+    (set-test-unit atoms/game-map "v" :target [4 4] :turns-remaining 50)
+    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (reset! atoms/land-ho-targets #{})
+    (update-cell-visibility [2 2] :computer)
+    (should-contain [4 4] @atoms/land-ho-targets))
+
+  (it "3-arity with computer transport and nil visible-map — no-op"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~t~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
+    (reset! atoms/computer-map nil)
+    (reset! atoms/land-ho-targets #{})
+    (let [unit {:type :transport :owner :computer}]
+      (update-cell-visibility [1 1] :computer unit))
+    (should= #{} @atoms/land-ho-targets))
+
   (it "reveals two rectangular rings for satellites"
     (reset! atoms/game-map (build-test-map ["#####"
                                              "#####"

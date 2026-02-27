@@ -47,6 +47,11 @@
   (map-utils/get-matching-neighbors pos @current-map map-utils/neighbor-offsets
                                     valid-coastline-cell?))
 
+(defn- rand-nth-non-empty
+  "Returns (rand-nth coll) for the first non-empty collection, or nil."
+  [& colls]
+  (some #(when (seq %) (rand-nth %)) colls))
+
 (defn pick-coastline-move
   "Picks the next coastline move - prefers cells that expose unexplored territory,
    then orthogonally adjacent to land (shore hugging), then diagonally adjacent.
@@ -54,50 +59,21 @@
   [pos current-map visited prev-pos]
   (let [all-moves (remove #{prev-pos} (get-valid-coastline-moves pos current-map))
         unvisited-moves (vec (remove visited all-moves))
-        ;; Prefer moves orthogonally adjacent to land (true shore hugging)
         orthogonal-coastal (vec (filter #(map-utils/orthogonally-adjacent-to-land? % current-map) all-moves))
         unvisited-orthogonal (vec (filter #(map-utils/orthogonally-adjacent-to-land? % current-map) unvisited-moves))
-        ;; Fallback to any coastal moves (diagonal adjacency)
         coastal-moves (vec (filter #(map-utils/adjacent-to-land? % current-map) all-moves))
         unvisited-coastal (vec (filter #(map-utils/adjacent-to-land? % current-map) unvisited-moves))
-        ;; Prefer moves that expose unexplored territory
         unvisited-orthogonal-unexplored (vec (filter explore/adjacent-to-unexplored? unvisited-orthogonal))
         unvisited-coastal-unexplored (vec (filter explore/adjacent-to-unexplored? unvisited-coastal))]
-    (cond
-      ;; Best: unvisited orthogonal coastal exposing unexplored
-      (seq unvisited-orthogonal-unexplored)
-      (rand-nth unvisited-orthogonal-unexplored)
-
-      ;; Unvisited orthogonal coastal (no unexplored)
-      (seq unvisited-orthogonal)
-      (rand-nth unvisited-orthogonal)
-
-      ;; Unvisited coastal exposing unexplored
-      (seq unvisited-coastal-unexplored)
-      (rand-nth unvisited-coastal-unexplored)
-
-      ;; Unvisited coastal (no unexplored)
-      (seq unvisited-coastal)
-      (rand-nth unvisited-coastal)
-
-      ;; Visited orthogonally coastal moves
-      (seq orthogonal-coastal)
-      (rand-nth orthogonal-coastal)
-
-      ;; Any coastal move (even visited, diagonal)
-      (seq coastal-moves)
-      (rand-nth coastal-moves)
-
-      ;; Any unvisited move
-      (seq unvisited-moves)
-      (rand-nth unvisited-moves)
-
-      ;; All visited - allow revisiting (but not backstep)
-      (seq all-moves)
-      (rand-nth (vec all-moves))
-
-      ;; No valid moves - stuck
-      :else nil)))
+    (rand-nth-non-empty
+      unvisited-orthogonal-unexplored
+      unvisited-orthogonal
+      unvisited-coastal-unexplored
+      unvisited-coastal
+      orthogonal-coastal
+      coastal-moves
+      unvisited-moves
+      (vec all-moves))))
 
 (defn- adjacent-positions
   "Returns all adjacent positions to coords."

@@ -115,12 +115,20 @@
     (fighter-landing-carrier? processed-unit to-cell) :fighter-land-on-carrier
     :else :normal-move))
 
+(defn- land-fighter-at-city [to-cell _unit]
+  (uc/add-unit to-cell :fighter-count))
+
+(defn- land-fighter-on-carrier [to-cell _unit]
+  (update to-cell :contents uc/add-unit :fighter-count))
+
+(def ^:private destination-updaters
+  {:unit-destroyed (fn [to-cell _unit] to-cell)
+   :fighter-land-at-city land-fighter-at-city
+   :fighter-land-on-carrier land-fighter-on-carrier
+   :normal-move (fn [to-cell unit] (assoc to-cell :contents unit))})
+
 (defn- update-destination-cell [move-type to-cell processed-unit]
-  (case move-type
-    :unit-destroyed to-cell  ;; Unit crashed - leave destination unchanged
-    :fighter-land-at-city (uc/add-unit to-cell :fighter-count)
-    :fighter-land-on-carrier (update to-cell :contents uc/add-unit :fighter-count)
-    :normal-move (assoc to-cell :contents processed-unit)))
+  ((destination-updaters move-type) to-cell processed-unit))
 
 (defn do-move [from-coords final-pos cell final-unit]
   (let [from-cell (dissoc cell :contents)
