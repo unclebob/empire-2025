@@ -1,0 +1,81 @@
+; Escort system tests.
+; Carrier group escort modes: seeking, intercepting, orbiting.
+; Escort death cascades.
+
+;===============================================================
+; Battleship in seeking mode finds carrier and starts intercepting.
+;===============================================================
+GIVEN game map
+  b~~~~c
+GIVEN b has escort-mode seeking.
+GIVEN c is visible to computer.
+
+WHEN computer battleship b is processed.
+
+THEN b has escort-mode intercepting.
+
+;===============================================================
+; Battleship intercepting arrives at carrier and starts orbiting.
+;===============================================================
+GIVEN game map
+  ~~~~~
+  ~b~c~
+  ~~~~~
+GIVEN b has escort-mode intercepting.
+GIVEN b has escort-carrier-id 1.
+GIVEN c has carrier-id 1.
+
+WHEN computer battleship b is processed.
+
+THEN b has escort-mode orbiting.
+
+;===============================================================
+; Orbiting escort stays near carrier.
+;===============================================================
+GIVEN game map
+  ~~~~~
+  ~b~c~
+  ~~~~~
+GIVEN b has escort-mode orbiting.
+GIVEN b has escort-carrier-id 1.
+GIVEN c has carrier-id 1.
+
+WHEN computer battleship b is processed.
+
+THEN b is at [1 0].
+
+;===============================================================
+; Transport dies and paired destroyer reverts to seeking.
+;===============================================================
+GIVEN game map
+  d~~~~
+GIVEN d has escort-mode escorting.
+GIVEN d has escort-transport-id 1.
+
+WHEN computer destroyer d is processed.
+
+THEN d has escort-mode seeking.
+
+;===============================================================
+; Carrier dies and escorts revert to seeking.
+;===============================================================
+GIVEN game map
+  b~~~~
+GIVEN b has escort-mode orbiting.
+GIVEN b has escort-carrier-id 1.
+
+WHEN computer battleship b is processed.
+
+THEN b has escort-mode seeking.
+
+;===============================================================
+; Submarine joins carrier group in seeking mode.
+;===============================================================
+GIVEN game map
+  s~~~~c
+GIVEN s has escort-mode seeking.
+GIVEN c is visible to computer.
+
+WHEN computer submarine s is processed.
+
+THEN s has escort-mode intercepting.

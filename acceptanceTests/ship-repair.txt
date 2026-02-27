@@ -1,0 +1,57 @@
+; Player ship repair tests.
+; Damaged player ships dock at friendly cities for repair.
+; Undamaged ships are denied entry.
+
+;===============================================================
+; Damaged destroyer docks at friendly city.
+;===============================================================
+GIVEN game map
+  DO
+GIVEN D has hits 1.
+GIVEN D is waiting for input.
+
+WHEN the player presses d.
+
+THEN at the next step the turn message contains "docked for repair".
+THEN there is no D on the map.
+THEN O has a destroyer with 1 hits in its shipyard.
+
+;===============================================================
+; Undamaged destroyer is denied entry to friendly city.
+;===============================================================
+GIVEN game map
+  DO
+GIVEN D has hits 3.
+GIVEN D is waiting for input.
+
+WHEN the player presses d.
+
+THEN the error message contains "not damaged".
+
+;===============================================================
+; Damaged battleship docks at friendly city.
+;===============================================================
+GIVEN game map
+  BO
+GIVEN B has hits 5.
+GIVEN B is waiting for input.
+
+WHEN the player presses d.
+
+THEN at the next step the turn message contains "docked for repair".
+THEN there is no B on the map.
+THEN O has a battleship with 5 hits in its shipyard.
+
+;===============================================================
+; Damaged ship in moving mode auto-docks at friendly city.
+;===============================================================
+GIVEN game map
+  ~DO
+D's target is O
+
+GIVEN D has hits 1.
+
+WHEN a new round starts.
+
+THEN there is no D on the map.
+THEN O has a destroyer with 1 hits in its shipyard.

@@ -30,6 +30,7 @@
 (defn- mouse-at-key-expr [key]
   (case key
     :period "(keyword \".\")"
+    :star "(keyword \"*\")"
     (str ":" (name key))))
 
 (defn- generate-mouse-at-key-when [{:keys [coords key]}]
@@ -69,6 +70,10 @@
     (str "    (let [pos " pos-expr "\n"
          "          unit (get-in @atoms/game-map (conj pos :contents))]\n"
          "      (computer-fighter/process-fighter pos unit))")))
+
+(defn- generate-process-computer-ship-when [{:keys [unit ship-type]}]
+  (let [pos-expr (utils/target-pos-expr unit)]
+    (str "    (computer-ship/process-ship " pos-expr " :" (name ship-type) ")")))
 
 (defn- generate-computer-rounds-when [{:keys [count]}]
   (str "    (dotimes [_ " count "]\n"
@@ -117,6 +122,7 @@
    :process-computer-transport generate-process-computer-transport-when
    :process-computer-fighter   generate-process-computer-fighter-when
    :computer-rounds            generate-computer-rounds-when
+   :process-computer-ship      generate-process-computer-ship-when
    :save-game                  (fn [_]
                                   (str "    (with-redefs [spit (constantly nil)\n"
                                        "                  q/mouse-x (constantly 0)\n"

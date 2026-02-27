@@ -79,7 +79,8 @@
 
 (defn- then-handle-cell-prop [[_ x y prop val]]
   {:type :cell-prop :coords [(Integer/parseInt x) (Integer/parseInt y)]
-   :property (h/resolve-cell-prop prop) :expected (keyword val)})
+   :property (h/resolve-cell-prop prop)
+   :expected (or (h/parse-number val) (h/parse-coords val) (keyword val))})
 
 (defn- then-handle-cell-type [[_ x y t]]
   {:type :cell-type :coords [(Integer/parseInt x) (Integer/parseInt y)]
@@ -239,7 +240,7 @@
     :handler then-handle-shipyard-empty}
    {:regex #"^(?:the\s+)?map\s+is\s+(\S+)"
     :handler then-handle-map-is}
-   {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(\S+)"
+   {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(.+)"
     :handler then-handle-cell-prop}
    {:regex #"on\s+(?:the\s+)?computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+a\s+(player|computer)\s+city"
     :handler (fn [[_ x y status]]

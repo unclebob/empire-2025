@@ -1,0 +1,82 @@
+; Computer AI behavior tests.
+; Territory sovereignty, army boarding, sentry wake, ship AI.
+
+;===============================================================
+; Computer army blocked by foreign country-id land.
+;===============================================================
+GIVEN game map
+  a##
+GIVEN a belongs to country 1.
+GIVEN cell [1 0] has country-id 2.
+GIVEN a has mode moving.
+a's target is [2 0]
+
+WHEN a new round starts.
+
+THEN a is at [0 0].
+
+;===============================================================
+; Computer army boards adjacent loading transport.
+;===============================================================
+GIVEN game map
+  a~
+  ~t
+GIVEN a has mode sentry.
+GIVEN t has mission loading.
+GIVEN t has army-count 0.
+
+WHEN computer transport t is processed.
+
+THEN t has 1 army.
+
+;===============================================================
+; Sentry army woken near transport sets interior-explore-direction.
+;===============================================================
+GIVEN game map
+  at
+GIVEN a has mode sentry.
+GIVEN t has mission loading.
+GIVEN t has army-count 0.
+
+WHEN computer transport t is processed.
+
+THEN t has 1 army.
+
+;===============================================================
+; Destroyer seeks nearest transport for escort.
+;===============================================================
+GIVEN game map
+  d~~~~t
+GIVEN d has escort-mode seeking.
+GIVEN t has mission loading.
+GIVEN t is visible to computer.
+
+WHEN computer destroyer d is processed.
+
+THEN d has escort-mode intercepting.
+
+;===============================================================
+; Destroyer escorts transport and stays within distance 1.
+;===============================================================
+GIVEN game map
+  d~t~~
+GIVEN d has escort-mode escorting.
+GIVEN d has escort-transport-id 1.
+GIVEN t has transport-id 1.
+
+WHEN computer destroyer d is processed.
+
+THEN d is at [1 0].
+
+;===============================================================
+; Ship hunts visible player ship.
+;===============================================================
+GIVEN game map
+  d~~~~D
+GIVEN D has mode sentry.
+GIVEN d is visible to computer.
+GIVEN D is visible to computer.
+
+WHEN computer destroyer d is processed.
+
+THEN d is at [1 0].

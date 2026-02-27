@@ -51,6 +51,7 @@ Matched after keyword stripping. Context tracks `:units-with-mode` set.
 | `[the] game is paused` | `{:type :game-paused}` |
 | `pause requested` | `{:type :pause-requested}` |
 | `load menu is open` | `{:type :load-menu-open}` |
+| `map display is <value>` | `{:type :map-display-setup :value :keyword}` |
 
 ### Fallback: unit-prop extractors (parse-unit-props-line)
 If no directive matches, lines like `<U> is <mode>` or `<U> has fuel <N>` are parsed via extractors:
@@ -90,7 +91,7 @@ Handlers return vectors of IR nodes. Key dispatch uses `determine-key-type`: upp
 | `<U> is waiting for input and the player presses <k>` | `[{:type :waiting-for-input :unit U :set-mode true} {:type :key-press :key :k :input-fn ...}]` |
 | `player presses <k> and <wins\|loses> the battle` | `[{:type :battle :key :k :outcome :win/:lose :combat-type :army/:ship}]` |
 | `player presses <k> and [game advances until] <U> is waiting for input` | `[{:type :key-press ...} {:type :advance-until-waiting :unit U}]` |
-| `player presses <k>` | `[{:type :key-press :key :k :input-fn ...}]` |
+| `player presses <k>` | `[{:type :key-press :key :k :input-fn ...}]` (k can be non-word chars like `+`) |
 | `player types <k1> <k2> ...` | `[{:type :key-press ...} ...]` (one per key) |
 | `new round starts and <U> is waiting for input` | `[{:type :start-new-round} {:type :advance-until-waiting :unit U}]` |
 | `new round starts` / `next round begins` | `[{:type :start-new-round}]` |
@@ -102,6 +103,7 @@ Handlers return vectors of IR nodes. Key dispatch uses `determine-key-type`: upp
 | `production for <C> is evaluated` / `computer chooses production at <C>` | `[{:type :evaluate-production :city C}]` |
 | `computer transport <U> is processed` | `[{:type :process-computer-transport :unit U}]` |
 | `computer fighter <U> is processed` | `[{:type :process-computer-fighter :unit U}]` |
+| `computer <ship-type> <U> is processed` | `[{:type :process-computer-ship :ship-type :keyword :unit U}]` (ship-type: destroyer, patrol-boat, submarine, battleship, carrier) |
 | `<N> computer rounds pass` | `[{:type :computer-rounds :count N}]` |
 | `player saves the game` | `[{:type :save-game}]` |
 | `player opens the load menu` | `[{:type :open-load-menu}]` |

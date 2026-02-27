@@ -58,7 +58,7 @@
   (let [target-expr (utils/target-pos-expr target)]
     (str "    (let [target-pos " target-expr "]\n"
          "      (loop [n 0]\n"
-         "        (when (< n 20)\n"
+         "        (when (< n 200)\n"
          "          (let [{:keys [pos]} (get-test-unit atoms/game-map \"" unit "\")]\n"
          "            (when (not= target-pos pos)\n"
          "              (game-loop/advance-game)\n"

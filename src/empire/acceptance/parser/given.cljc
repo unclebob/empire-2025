@@ -260,7 +260,11 @@
    {:regex #"load\s+menu\s+is\s+open"
     :handler (fn [_ _ctx]
                {:directive :load-menu-open
-                :ir {:type :load-menu-open}})}])
+                :ir {:type :load-menu-open}})}
+   {:regex #"map\s+display\s+is\s+([\w-]+)"
+    :handler (fn [[_ value] _ctx]
+               {:directive :map-display-setup
+                :ir {:type :map-display-setup :value (keyword value)}})}])
 
 (defn- parse-given-line [line context]
   (let [clean (str/trim line)
@@ -320,7 +324,8 @@
               (:production :no-production :round :destination :cell-props
                :player-items :waiting-for-input-bare :unit-target :city-prop :stub
                :shipyard-state :city-unit :territory-around :visible-to-computer
-               :game-over-check-enabled :game-paused :pause-requested :load-menu-open)
+               :game-over-check-enabled :game-paused :pause-requested :load-menu-open
+               :map-display-setup)
               (do (swap! givens conj (:ir parsed))
                   (swap! i inc))
 

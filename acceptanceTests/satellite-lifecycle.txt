@@ -1,0 +1,55 @@
+; Satellite lifecycle tests.
+; Covers turns-remaining decrement and satellite destruction.
+
+;===============================================================
+; Satellite with 2 turns remaining has 1 after a round.
+;===============================================================
+GIVEN game map
+  V~~~~~~~~~~~=
+GIVEN V has turns-remaining 2.
+GIVEN V's target is =.
+GIVEN player units V.
+
+WHEN a new round starts.
+
+THEN V has 1 turns remaining.
+
+;===============================================================
+; Satellite with 1 turn remaining is destroyed after a round.
+;===============================================================
+GIVEN game map
+  V~~~~~~~~~~~=
+GIVEN V has turns-remaining 1.
+GIVEN V's target is =.
+GIVEN player units V.
+
+WHEN a new round starts.
+
+THEN there is no V on the map.
+
+;===============================================================
+; Satellite moves toward target and decrements turns-remaining.
+;===============================================================
+GIVEN game map
+  V~~~~~~~~~~~~~~~~~~~~~=
+GIVEN V has turns-remaining 10.
+GIVEN V's target is =.
+GIVEN player units V.
+
+WHEN a new round starts.
+
+THEN V is at [10 0].
+THEN V has 9 turns remaining.
+
+;===============================================================
+; Computer satellite with direction moves and decrements.
+;===============================================================
+GIVEN game map
+  v~~~~~~~~~~~#
+GIVEN v has direction [1 0].
+GIVEN v has turns-remaining 5.
+
+WHEN a new round starts.
+
+THEN v is at [10 0].
+THEN v has 4 turns remaining.

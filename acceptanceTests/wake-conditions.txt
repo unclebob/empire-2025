@@ -1,0 +1,83 @@
+; Wake condition tests.
+; Covers transport beach wake, fighter bingo, and sentry enemy-spotted.
+
+;===============================================================
+; Transport wakes at beach with armies and been-to-sea true.
+; T starts adjacent to land (not open sea), moves one step
+; along the coast to another beach cell.
+;===============================================================
+GIVEN game map
+  #T~%
+  ####
+GIVEN T has 1 army.
+GIVEN T has been-to-sea true.
+T's target is %
+
+WHEN a new round starts and T is waiting for input.
+
+THEN the attention message contains :transport-at-beach.
+
+;===============================================================
+; Transport does not wake at beach with no armies.
+;===============================================================
+GIVEN game map
+  #T~~~%
+  ######
+GIVEN T has 0 armies.
+GIVEN T has been-to-sea true.
+T's target is %
+
+WHEN a new round starts.
+
+THEN the game is not waiting for input.
+
+;===============================================================
+; Transport does not wake when not at beach.
+; T starts in open sea and moves through open sea without
+; reaching land-adjacent cells within one round.
+;===============================================================
+GIVEN game map
+  T~~~~~~%
+  ~~~~~~~~
+GIVEN T has 1 army.
+GIVEN T has been-to-sea true.
+T's target is %
+
+WHEN a new round starts.
+
+THEN the game is not waiting for input.
+
+;===============================================================
+; Sentry army wakes when enemy is adjacent.
+;===============================================================
+GIVEN game map
+  Aa
+GIVEN A has mode sentry.
+
+WHEN a new round starts and A is waiting for input.
+
+THEN A is awake.
+THEN the attention message contains :enemy-spotted.
+
+;===============================================================
+; Sentry army does not wake when no enemy visible.
+;===============================================================
+GIVEN game map
+  A##a
+GIVEN A has mode sentry.
+
+WHEN a new round starts.
+
+THEN A has mode sentry.
+
+;===============================================================
+; Sentry destroyer wakes when enemy ship adjacent.
+;===============================================================
+GIVEN game map
+  Ds~
+D is sentry.
+
+WHEN a new round starts and D is waiting for input.
+
+THEN D is awake.
+THEN the attention message contains :enemy-spotted.
