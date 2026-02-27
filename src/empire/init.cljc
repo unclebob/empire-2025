@@ -110,6 +110,17 @@
          (assoc-in the-map [i j] {:type :city :contents nil :city-status owner}))
        the-map))))
 
+(defn- place-cities-on-map [the-map placed-cities]
+  (reduce (fn [m [i j]]
+            (assoc-in m [i j] {:type :city :contents nil :city-status :free}))
+          the-map placed-cities))
+
+(defn too-close-to-any? [pos placed-cities min-distance]
+  (some (fn [[pi pj]]
+          (let [[i j] pos]
+            (< (+ (Math/abs (- i pi)) (Math/abs (- j pj))) min-distance)))
+        placed-cities))
+
 (defn generate-cities
   "Places free cities on land cells with minimum distance constraints."
   [the-map number-of-cities min-city-distance]
@@ -120,27 +131,16 @@
            attempts 0]
       (cond
         (>= (count placed-cities) number-of-cities)
-        ;; Update the map with cities
-        (reduce (fn [m [i j]]
-                  (assoc-in m [i j] {:type :city :contents nil :city-status :free}))
-                the-map
-                placed-cities)
+        (place-cities-on-map the-map placed-cities)
 
-        (>= attempts config/max-placement-attempts)          ; Prevent infinite loop by stopping placement
-        (reduce (fn [m [i j]]
-                  (assoc-in m [i j] {:type :city :contents nil :city-status :free}))
-                the-map
-                placed-cities)
+        (>= attempts config/max-placement-attempts)
+        (place-cities-on-map the-map placed-cities)
 
         :else
-        (let [idx (rand-int num-land)
-              [i j] (land-positions-vec idx)
-              too-close? (some (fn [[pi pj]]
-                                 (< (+ (Math/abs (- i pi)) (Math/abs (- j pj))) min-city-distance))
-                               placed-cities)]
-          (if too-close?
+        (let [pos (land-positions-vec (rand-int num-land))]
+          (if (too-close-to-any? pos placed-cities min-city-distance)
             (recur placed-cities (inc attempts))
-            (recur (conj placed-cities [i j]) 0)))))))
+            (recur (conj placed-cities pos) 0)))))))
 
 (defn find-city-position
   "Finds the position of a city with the given owner."

@@ -12,6 +12,39 @@
             [empire.test-utils :refer [build-test-map reset-all-atoms!
                                        set-test-unit get-test-unit]]))
 
+;; --- dead-unit? ---
+
+(describe "dead-unit?"
+  (it "returns true for unit with hits=0"
+    (should (setup/dead-unit? {:hits 0})))
+
+  (it "returns true for unit with negative hits"
+    (should (setup/dead-unit? {:hits -1})))
+
+  (it "returns false for unit with hits>0"
+    (should-not (setup/dead-unit? {:hits 1})))
+
+  (it "returns false for nil contents"
+    (should-not (setup/dead-unit? nil)))
+
+  (it "defaults to hits=1 when missing"
+    (should-not (setup/dead-unit? {:type :army}))))
+
+;; --- computer-carrier? ---
+
+(describe "computer-carrier?"
+  (it "returns true for computer carrier"
+    (should (setup/computer-carrier? {:type :carrier :owner :computer})))
+
+  (it "returns false for player carrier"
+    (should-not (setup/computer-carrier? {:type :carrier :owner :player})))
+
+  (it "returns false for computer non-carrier"
+    (should-not (setup/computer-carrier? {:type :destroyer :owner :computer})))
+
+  (it "returns false for nil"
+    (should-not (setup/computer-carrier? nil))))
+
 ;; --- remove-dead-units ---
 
 (describe "remove-dead-units"
@@ -55,7 +88,47 @@
       (with-redefs [visibility/update-cell-visibility (fn [_ _])]
         (setup/remove-dead-units))
       (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
-      (should= :destroyer (get-in @atoms/game-map [1 0 :contents :type])))))
+      (should= :destroyer (get-in @atoms/game-map [1 0 :contents :type]))))
+
+  (it "removes dead computer carrier and updates carrier-positions cache"
+    (let [game-map (build-test-map ["c"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-carrier-positions #{[0 0]})
+      (swap! atoms/game-map assoc-in [0 0 :contents :hits] 0)
+      (with-redefs [visibility/update-cell-visibility (fn [_ _])]
+        (setup/remove-dead-units))
+      (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
+      (should= #{} @atoms/computer-carrier-positions)))
+
+  (it "calls update-cell-visibility with correct pos and owner"
+    (let [game-map (build-test-map ["A"])
+          vis-calls (atom [])]
+      (reset! atoms/game-map game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents :hits] 0)
+      (with-redefs [visibility/update-cell-visibility
+                    (fn [pos owner] (swap! vis-calls conj [pos owner]))]
+        (setup/remove-dead-units))
+      (should= [[0 0] :player] (first @vis-calls))))
+
+  (it "does not update carrier-positions for dead player carrier"
+    (let [game-map (build-test-map ["C"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-carrier-positions #{[5 5]})
+      (swap! atoms/game-map assoc-in [0 0 :contents :hits] 0)
+      (with-redefs [visibility/update-cell-visibility (fn [_ _])]
+        (setup/remove-dead-units))
+      (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
+      (should= #{[5 5]} @atoms/computer-carrier-positions)))
+
+  (it "does not update carrier-positions for dead computer non-carrier"
+    (let [game-map (build-test-map ["d"])]
+      (reset! atoms/game-map game-map)
+      (reset! atoms/computer-carrier-positions #{[5 5]})
+      (swap! atoms/game-map assoc-in [0 0 :contents :hits] 0)
+      (with-redefs [visibility/update-cell-visibility (fn [_ _])]
+        (setup/remove-dead-units))
+      (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
+      (should= #{[5 5]} @atoms/computer-carrier-positions))))
 
 ;; --- reset-steps-remaining ---
 

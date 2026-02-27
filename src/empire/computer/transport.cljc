@@ -390,6 +390,17 @@
          (not (and unload-eid
                    (= (:unload-event-id unit) unload-eid))))))
 
+(defn- passable-coastal-sea?
+  "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
+  [pos visited game-map]
+  (and (not (visited pos))
+       (let [cell (get-in game-map pos)]
+         (and cell
+              (= :sea (:type cell))
+              (or (nil? (:contents cell))
+                  (= :computer (:owner (:contents cell))))
+              (adjacent-to-land? pos)))))
+
 (defn- has-nearby-loadable-armies?
   "BFS along coastal sea cells up to max-depth hops from pos.
    Returns true if any adjacent land cell at any visited position
@@ -411,14 +422,7 @@
             (>= depth max-depth) (recur (pop queue) visited)
             :else
             (let [coastal-neighbors
-                  (filter (fn [n]
-                            (and (not (visited n))
-                                 (let [cell (get-in game-map n)]
-                                   (and cell
-                                        (= :sea (:type cell))
-                                        (or (nil? (:contents cell))
-                                            (= :computer (:owner (:contents cell))))
-                                        (adjacent-to-land? n)))))
+                  (filter #(passable-coastal-sea? % visited game-map)
                           (core/get-neighbors current))]
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
@@ -433,17 +437,6 @@
            (not (contains? exclude-ids (:country-id cell))))
        (or (nil? pickup-continent)
            (not (contains? pickup-continent neighbor-pos)))))
-
-(defn- passable-coastal-sea?
-  "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
-  [pos visited game-map]
-  (and (not (visited pos))
-       (let [cell (get-in game-map pos)]
-         (and cell
-              (= :sea (:type cell))
-              (or (nil? (:contents cell))
-                  (= :computer (:owner (:contents cell))))
-              (adjacent-to-land? pos)))))
 
 (defn- has-nearby-unloadable-land?
   "BFS along coastal sea cells up to max-depth hops from pos.
@@ -712,33 +705,26 @@
           ;; Blocked — keep path for retry next round
           nil)))))
 
+(defn- opportunistic-unload? [pos army-count mission]
+  (and (should-try-opportunistic-unload? army-count mission)
+       (try-opportunistic-unload pos)))
+
 (defn- dispatch-transport-mission
   [pos transport]
   (let [army-count (:army-count transport 0)
-        mission (:transport-mission transport)]
-    (fix-idle-mission pos mission)
-    (let [current-mission (or mission :loading)]
-      (debug/log-computer-event! :transport-process pos
-                                 {:mission current-mission :armies army-count
-                                  :pcp (:pickup-continent-pos transport)})
-      (cond
-        (and (should-try-opportunistic-unload? army-count current-mission)
-             (try-opportunistic-unload pos))
-        true
-
-        (= current-mission :invading)
-        (process-invading-mission pos)
-
-        (= current-mission :unloading)
-        (process-unloading-mission pos army-count)
-
-        (= current-mission :sailing)
-        (process-sailing-mission pos)
-
-        (= current-mission :loading)
-        (process-loading-mission pos)
-
-        :else nil))))
+        raw-mission (:transport-mission transport)
+        mission (or raw-mission :loading)]
+    (fix-idle-mission pos raw-mission)
+    (debug/log-computer-event! :transport-process pos
+                               {:mission mission :armies army-count
+                                :pcp (:pickup-continent-pos transport)})
+    (when-not (opportunistic-unload? pos army-count mission)
+      (case mission
+        :invading (process-invading-mission pos)
+        :unloading (process-unloading-mission pos army-count)
+        :sailing (process-sailing-mission pos)
+        :loading (process-loading-mission pos)
+        nil))))
 
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
