@@ -20,6 +20,8 @@
           :let [cell (get-in @atoms/game-map [i j])
                 contents (:contents cell)]
           :when (and contents (<= (:hits contents 1) 0))]
+    (when (and (= :carrier (:type contents)) (= :computer (:owner contents)))
+      (swap! atoms/computer-carrier-positions disj [i j]))
     (swap! atoms/game-map assoc-in [i j] (dissoc cell :contents))
     (visibility/update-cell-visibility [i j] (:owner contents))))
 

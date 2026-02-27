@@ -296,6 +296,7 @@
                    (update-first-match unexplored? best-unexplored current))))))))
 
 (def ^:private min-explore-depth 4)
+(def ^:private max-bfs-cells 1500)
 
 (defn- adjacent-to-land-or-city?
   "Returns true if any neighbor of pos on the given map is land or city."
@@ -318,6 +319,7 @@
    cell (adjacent to land/city on computer-map, not in seen-coast) or cell
    adjacent to unexplored territory. Skips targets within min-explore-depth
    levels and targets in excluded set. Prefers unseen coast over unexplored.
+   Limits search to max-bfs-cells to cap late-game cost.
    Returns path excluding start, or nil."
   [start computer-map excluded]
   (let [seen-coast @atoms/seen-coast
@@ -329,8 +331,9 @@
              visited #{start}
              came-from {}
              best-coast nil
-             best-unexplored nil]
-        (if (empty? queue)
+             best-unexplored nil
+             cells-remaining max-bfs-cells]
+        (if (or (empty? queue) (zero? cells-remaining))
           (build-coast-path best-coast best-unexplored came-from start)
           (let [[current depth] (peek queue)
                 deep-enough? (>= depth min-explore-depth)
@@ -352,7 +355,8 @@
                        (into visited neighbors)
                        new-came-from
                        new-coast
-                       new-unexplored)))))))))
+                       new-unexplored
+                       (dec cells-remaining))))))))))
 
 (defn- adjacent-to-target-continent-land?
   "Returns true if any neighbor of pos is land/city on target-continent."
