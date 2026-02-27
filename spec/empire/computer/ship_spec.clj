@@ -2,6 +2,7 @@
   "Tests for VMS Empire style computer ship movement."
   (:require [speclj.core :refer :all]
             [empire.computer.ship :as ship]
+            [empire.computer.ship-carrier :as ship-carrier]
             [empire.computer.core :as core]
             [empire.config :as config]
             [empire.atoms :as atoms]
@@ -383,7 +384,7 @@
                                 {:type :land}
                                 {:type :city :city-status :computer}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (with-redefs [ship/find-carrier-position (fn [] {:position [0 2] :pair [[1 0] [1 4]]})]
+      (with-redefs [ship-carrier/find-carrier-position (fn [] {:position [0 2] :pair [[1 0] [1 4]]})]
         (ship/process-ship [0 0] :carrier))
       (let [carrier (first (for [i (range 2) j (range 5)
                                  :let [u (get-in @atoms/game-map [i j :contents])]
@@ -397,7 +398,7 @@
                                                        :carrier-mode :repositioning}}
                                 {:type :sea}]])
       (reset! atoms/computer-map @atoms/game-map)
-      (with-redefs [ship/find-carrier-position (fn [] nil)]
+      (with-redefs [ship-carrier/find-carrier-position (fn [] nil)]
         (ship/process-ship [0 0] :carrier))
       (should= :holding (get-in @atoms/game-map [0 0 :contents :carrier-mode]))))
 ) ;; end process-ship
