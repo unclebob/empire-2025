@@ -22,6 +22,93 @@
           (= :sea (:type (get-in @atoms/game-map neighbor))))
         (get-neighbors city-pos)))
 
+(defn- coastal? [game-map pos]
+  (some (fn [n] (= :sea (:type (get-in game-map n))))
+        (map-utils/get-matching-neighbors pos game-map map-utils/neighbor-offsets some?)))
+
+(defn- update-country [acc cid k f]
+  (update-in acc [cid k] (fnil f 0)))
+
+(defn- scan-cell-terrain [acc game-map comp-map i j cell]
+  (let [cid (:country-id cell)]
+    (if-not cid
+      acc
+      (let [cell-type (:type cell)
+            is-coastal (and (#{:land :city} cell-type) (coastal? game-map [i j]))]
+        (cond-> acc
+          is-coastal
+          (update-country cid :coastal-cell-count inc)
+          (and is-coastal (= :land cell-type) (nil? (:contents cell)))
+          (assoc-in [cid :has-unoccupied-coastal-cells?] true)
+          (and is-coastal (not (some? (get-in comp-map [i j]))))
+          (assoc-in [cid :has-unexplored-coastal?] true)
+          (and (= :city cell-type) (= :computer (:city-status cell)) is-coastal)
+          (update-in [cid :coastal-city-positions] (fnil conj #{}) [i j]))))))
+
+(defn- scan-cell-unit [acc game-map i j cell]
+  (let [unit (:contents cell)
+        ucid (:country-id unit)]
+    (if-not (and unit (= :computer (:owner unit)) ucid)
+      acc
+      (let [cell-type (:type cell)
+            unit-type (:type unit)
+            is-coastal (and (#{:land :city} cell-type) (coastal? game-map [i j]))]
+        (cond-> acc
+          (and is-coastal (= :land cell-type) (= :army unit-type))
+          (assoc-in [ucid :has-coastal-army?] true)
+          (= :army unit-type)
+          (update-country ucid :army-count inc)
+          (and (= :army unit-type) (#{:land :city} cell-type))
+          (update-country ucid :land-army-count inc)
+          (= :transport unit-type)
+          (-> (update-country ucid :army-count #(+ % (get unit :army-count 0)))
+              (update-in [ucid :transports] (fnil conj []) unit))
+          (= :patrol-boat unit-type)
+          (update-country ucid :patrol-boat-count inc))))))
+
+(defn- scan-cell [acc game-map comp-map i j]
+  (let [cell (get-in game-map [i j])]
+    (-> acc
+        (scan-cell-terrain game-map comp-map i j cell)
+        (scan-cell-unit game-map i j cell))))
+
+(defn- derive-stats [raw]
+  (reduce-kv
+    (fn [m cid stats]
+      (let [coastal-cells (get stats :coastal-cell-count 0)
+            land-armies (get stats :land-army-count 0)
+            transports (get stats :transports [])
+            all-full-or-unloading (every? (fn [t]
+                                            (or (>= (get t :army-count 0) 6)
+                                                (= :unloading (:transport-mission t))))
+                                          transports)
+            has-unadopted (boolean (some #(nil? (:escort-destroyer-id %)) transports))]
+        (assoc m cid
+               (-> (dissoc stats :transports :has-unexplored-coastal? :has-coastal-army?)
+                   (assoc :has-waiting-armies?
+                          (and (:has-coastal-army? stats)
+                               (or (empty? transports) all-full-or-unloading)))
+                   (assoc :has-unadopted-transport? has-unadopted)
+                   (assoc :coastal-explored? (not (:has-unexplored-coastal? stats)))
+                   (assoc :army-limit-reached?
+                          (and (pos? coastal-cells)
+                               (>= land-armies (* 2/3 coastal-cells))))))))
+    {} raw))
+
+(defn rebuild-country-stats!
+  "Single scan of game-map building per-country stats cache."
+  []
+  (let [game-map @atoms/game-map
+        comp-map @atoms/computer-map
+        rows (count (first game-map))
+        cols (count game-map)
+        raw (reduce (fn [acc i]
+                      (reduce (fn [acc j]
+                                (scan-cell acc game-map comp-map i j))
+                              acc (range rows)))
+                    {} (range cols))]
+    (reset! atoms/country-stats (derive-stats raw))))
+
 (defn count-computer-units
   "Counts computer units by type. Returns map of type to count."
   []
@@ -44,127 +131,26 @@
            [i j])))
 
 
-(defn- count-country-transports
-  "Counts live transports belonging to the given country-id."
-  [country-id]
-  (count (for [i (range (count @atoms/game-map))
-               j (range (count (first @atoms/game-map)))
-               :let [cell (get-in @atoms/game-map [i j])
-                     unit (:contents cell)]
-               :when (and unit
-                          (= :computer (:owner unit))
-                          (= :transport (:type unit))
-                          (= country-id (:country-id unit)))]
-           true)))
-
 (defn count-country-armies
   "Counts live armies belonging to the given country-id,
    including armies aboard transports of the same country."
   [country-id]
-  (reduce
-    (fn [total [_i row]]
-      (reduce
-        (fn [total [_j cell]]
-          (let [unit (:contents cell)]
-            (cond
-              (and unit
-                   (= :computer (:owner unit))
-                   (= :army (:type unit))
-                   (= country-id (:country-id unit)))
-              (inc total)
-
-              (and unit
-                   (= :computer (:owner unit))
-                   (= :transport (:type unit))
-                   (= country-id (:country-id unit)))
-              (+ total (get unit :army-count 0))
-
-              :else total)))
-        total
-        (map-indexed vector row)))
-    0
-    (map-indexed vector @atoms/game-map)))
+  (get-in @atoms/country-stats [country-id :army-count] 0))
 
 (defn count-country-coastal-cells
   "Counts land and city cells with matching country-id that are adjacent to sea."
   [country-id]
-  (let [game-map @atoms/game-map]
-    (count (for [i (range (count game-map))
-                 j (range (count (first game-map)))
-                 :let [cell (get-in game-map [i j])]
-                 :when (and (#{:land :city} (:type cell))
-                            (= country-id (:country-id cell))
-                            (some (fn [n]
-                                    (= :sea (:type (get-in game-map n))))
-                                  (get-neighbors [i j])))]
-             true))))
+  (get-in @atoms/country-stats [country-id :coastal-cell-count] 0))
 
 (defn country-coastal-cells-explored?
   "Returns true if all coastal cells of the country are visible on computer-map."
   [country-id]
-  (let [game-map @atoms/game-map
-        comp-map @atoms/computer-map]
-    (every? (fn [[i j]]
-              (some? (get-in comp-map [i j])))
-            (for [i (range (count game-map))
-                  j (range (count (first game-map)))
-                  :let [cell (get-in game-map [i j])]
-                  :when (and (= :land (:type cell))
-                             (= country-id (:country-id cell))
-                             (some (fn [n] (= :sea (:type (get-in game-map n))))
-                                   (get-neighbors [i j])))]
-              [i j]))))
-
-(defn count-country-coastal-armies
-  "Counts computer armies on coastal cells (land adjacent to sea) with matching country-id."
-  [country-id]
-  (let [game-map @atoms/game-map]
-    (count (for [i (range (count game-map))
-                 j (range (count (first game-map)))
-                 :let [cell (get-in game-map [i j])
-                       unit (:contents cell)]
-                 :when (and unit
-                            (= :computer (:owner unit))
-                            (= :army (:type unit))
-                            (= country-id (:country-id unit))
-                            (= :land (:type cell))
-                            (some (fn [n]
-                                    (= :sea (:type (get-in game-map n))))
-                                  (get-neighbors [i j])))]
-             true))))
+  (get-in @atoms/country-stats [country-id :coastal-explored?] true))
 
 (defn country-has-waiting-armies?
   "Returns true if country has coastal armies and all transports are full or unloading."
   [country-id]
-  (let [game-map @atoms/game-map
-        has-coastal-army (some (fn [[i row]]
-                                 (some (fn [[j cell]]
-                                         (let [unit (:contents cell)]
-                                           (and unit
-                                                (= :computer (:owner unit))
-                                                (= :army (:type unit))
-                                                (= country-id (:country-id unit))
-                                                (= :land (:type cell))
-                                                (some (fn [n]
-                                                        (= :sea (:type (get-in game-map n))))
-                                                      (get-neighbors [i j])))))
-                                       (map-indexed vector row)))
-                               (map-indexed vector game-map))
-        transports (for [i (range (count game-map))
-                         j (range (count (first game-map)))
-                         :let [cell (get-in game-map [i j])
-                               unit (:contents cell)]
-                         :when (and unit
-                                    (= :computer (:owner unit))
-                                    (= :transport (:type unit))
-                                    (= country-id (:country-id unit)))]
-                     unit)]
-    (and has-coastal-army
-         (or (empty? transports)
-             (every? (fn [t]
-                       (or (>= (:army-count t 0) 6)
-                           (= :unloading (:transport-mission t))))
-                     transports)))))
+  (boolean (get-in @atoms/country-stats [country-id :has-waiting-armies?])))
 
 (defn- count-all-computer-fighters
   "Counts all live computer fighters globally."
@@ -181,15 +167,7 @@
 (defn- count-country-patrol-boats
   "Counts live computer patrol boats belonging to the given country-id."
   [country-id]
-  (count (for [i (range (count @atoms/game-map))
-               j (range (count (first @atoms/game-map)))
-               :let [cell (get-in @atoms/game-map [i j])
-                     unit (:contents cell)]
-               :when (and unit
-                          (= :computer (:owner unit))
-                          (= :patrol-boat (:type unit))
-                          (= country-id (:country-id unit)))]
-           true)))
+  (get-in @atoms/country-stats [country-id :patrol-boat-count] 0))
 
 (defn country-city-producing?
   "Returns true if any other computer city in this country is already producing the given unit type."
@@ -217,47 +195,18 @@
 (defn- country-has-unadopted-transport?
   "Returns true if the country has a transport without an escort destroyer."
   [country-id]
-  (some (fn [[i row]]
-          (some (fn [[j cell]]
-                  (let [unit (:contents cell)]
-                    (and unit
-                         (= :transport (:type unit))
-                         (= :computer (:owner unit))
-                         (= country-id (:country-id unit))
-                         (nil? (:escort-destroyer-id unit)))))
-                (map-indexed vector row)))
-        (map-indexed vector @atoms/game-map)))
+  (boolean (get-in @atoms/country-stats [country-id :has-unadopted-transport?])))
 
 (defn has-unoccupied-coastal-cells?
   "Returns true if the country has any coastal land cell with no unit on it."
   [country-id]
-  (let [game-map @atoms/game-map]
-    (boolean
-      (some (fn [i]
-              (some (fn [j]
-                      (let [cell (get-in game-map [i j])]
-                        (and (= :land (:type cell))
-                             (= country-id (:country-id cell))
-                             (nil? (:contents cell))
-                             (some (fn [n] (= :sea (:type (get-in game-map n))))
-                                   (get-neighbors [i j])))))
-                    (range (count (first game-map)))))
-            (range (count game-map))))))
+  (boolean (get-in @atoms/country-stats [country-id :has-unoccupied-coastal-cells?])))
 
 (defn- country-has-other-coastal-city?
   "Returns true if the country has another coastal city besides city-pos."
   [city-pos country-id]
-  (let [game-map @atoms/game-map]
-    (some (fn [i]
-            (some (fn [j]
-                    (let [cell (get-in game-map [i j])]
-                      (and (= :city (:type cell))
-                           (= :computer (:city-status cell))
-                           (= country-id (:country-id cell))
-                           (not= city-pos [i j])
-                           (city-is-coastal? [i j]))))
-                  (range (count (first game-map)))))
-          (range (count game-map)))))
+  (let [positions (get-in @atoms/country-stats [country-id :coastal-city-positions] #{})]
+    (some #(not= city-pos %) positions)))
 
 (defn- should-rotate-transport?
   "Returns true if this city should skip transport production to let another city produce."
@@ -269,21 +218,12 @@
   "Counts armies on land/city cells belonging to the given country-id.
    Excludes armies aboard transports."
   [country-id]
-  (count (for [i (range (count @atoms/game-map))
-               j (range (count (first @atoms/game-map)))
-               :let [unit (get-in @atoms/game-map [i j :contents])]
-               :when (and unit
-                          (= :army (:type unit))
-                          (= :computer (:owner unit))
-                          (= country-id (:country-id unit)))]
-           true)))
+  (get-in @atoms/country-stats [country-id :land-army-count] 0))
 
 (defn- country-army-limit-reached?
   "Returns true if the country has at least 2/3 as many land armies as coastal land cells."
   [country-id]
-  (let [coastal-cells (count-country-coastal-cells country-id)]
-    (and (pos? coastal-cells)
-         (>= (count-country-land-armies country-id) (* 2/3 coastal-cells)))))
+  (boolean (get-in @atoms/country-stats [country-id :army-limit-reached?])))
 
 (defn- decide-country-production
   "Per-country production priorities. Returns unit type or nil."

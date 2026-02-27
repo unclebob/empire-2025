@@ -1,6 +1,7 @@
 (ns empire.computer.stamping-spec
   (:require [speclj.core :refer :all]
             [empire.computer.stamping :as stamping]
+            [empire.computer.production :as computer-production]
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
@@ -184,6 +185,7 @@
       (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
     ;; Computer map: coastal cells unexplored
     (reset! atoms/computer-map [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
+    (computer-production/rebuild-country-stats!)
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
           cell {:type :city :city-status :computer :country-id 1}]
       ;; First → clockwise

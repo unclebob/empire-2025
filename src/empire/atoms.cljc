@@ -212,6 +212,14 @@
     (reset! computer-city-positions (persistent! cities))
     (reset! computer-carrier-positions (persistent! carriers))))
 
+(def country-stats
+  "Per-country stats computed once at round start.
+   {country-id {:army-count N :land-army-count N :coastal-cell-count N
+                :patrol-boat-count N :has-waiting-armies? bool
+                :has-unadopted-transport? bool :has-unoccupied-coastal-cells? bool
+                :coastal-explored? bool :coastal-city-positions #{...}}}"
+  (atom {}))
+
 (def coastal-cells-by-country
   "Cache of coastal land cells per country. {country-id -> #{[r c] ...}}.
    Populated as armies move; used by find-nearest-unoccupied-coastal-cell."

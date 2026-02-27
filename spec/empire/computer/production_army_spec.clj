@@ -19,6 +19,7 @@
       (reset! atoms/game-map (build-test-map ["~###~"]))
       (doseq [col [1 2 3]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= 2 (production/count-country-coastal-cells 1)))
 
     (it "count-country-coastal-cells ignores land with different country-id"
@@ -26,31 +27,8 @@
       (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
       (swap! atoms/game-map assoc-in [2 0 :country-id] 2)
       (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+      (production/rebuild-country-stats!)
       (should= 2 (production/count-country-coastal-cells 1)))
-
-    (it "count-country-coastal-armies counts armies on coastal cells"
-      ;; Map: ~a#a~  armies at [1,0] and [3,0] which are coastal
-      (reset! atoms/game-map (build-test-map ["~a#a~"]))
-      (doseq [col [1 2 3]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
-      (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :contents :country-id] 1)
-      (should= 2 (production/count-country-coastal-armies 1)))
-
-    (it "count-country-coastal-armies ignores armies on interior cells"
-      ;; Map: ~a a~  army at [2,0] (interior, not adjacent to sea)
-      ;; Actually with this map col 2 IS adjacent to sea via col 0 or col 4... let me use a bigger map
-      ;; Map row 0: ~####~
-      ;; Map row 1: ~#aa#~
-      ;; Army at [2,1] and [3,1] are interior
-      (reset! atoms/game-map (build-test-map ["~####~"
-                                               "~#aa#~"]))
-      (doseq [col [1 2 3 4]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 1 :country-id] 1))
-      (swap! atoms/game-map assoc-in [2 1 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 1 :contents :country-id] 1)
-      (should= 0 (production/count-country-coastal-armies 1)))
 
     (it "produces army when coastal cells not yet filled"
       ;; Coastal city with country-id 1, 2 coastal cells, 0 armies on them
@@ -59,6 +37,7 @@
       (reset! atoms/computer-map @atoms/game-map)
       (doseq [col [1 2]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0])))
 
     (it "does not produce army when all coastal cells filled"
@@ -71,6 +50,7 @@
       (doseq [col [1 2]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
       (swap! atoms/game-map assoc-in [2 0 :contents :country-id] 1)
+      (production/rebuild-country-stats!)
       (should-not= :army (production/decide-production [1 0])))
 
     (it "does not produce army when all coastal cells occupied by non-army units"
@@ -80,6 +60,7 @@
       (doseq [col [1 2]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
       (swap! atoms/game-map assoc-in [2 0 :contents :country-id] 1)
+      (production/rebuild-country-stats!)
       (should-not= :army (production/decide-production [1 0]))))
 
   (context "country-coastal-cells-explored?"
@@ -89,6 +70,7 @@
       (reset! atoms/computer-map (build-test-map ["~###~"]))
       (doseq [col [1 2 3]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (production/rebuild-country-stats!)
       (should (production/country-coastal-cells-explored? 1)))
 
     (it "returns false when some coastal cells unexplored"
@@ -97,6 +79,7 @@
       (reset! atoms/computer-map [[{:type :sea}] [nil] [{:type :land}] [{:type :land}] [{:type :sea}]])
       (doseq [col [1 2 3]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (production/rebuild-country-stats!)
       (should-not (production/country-coastal-cells-explored? 1)))
 
     (it "returns true when country has no coastal cells"
@@ -104,6 +87,7 @@
       (reset! atoms/computer-map (build-test-map ["###"]))
       (doseq [col [0 1 2]]
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (production/rebuild-country-stats!)
       (should (production/country-coastal-cells-explored? 1))))
 
   (context "army overproduction fix"
@@ -115,6 +99,7 @@
       (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [3 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [3 0 :contents :army-count] 3)
+      (production/rebuild-country-stats!)
       (should= 5 (production/count-country-armies 1)))
 
     (it "count-country-armies does not count transport cargo from different country"
@@ -124,6 +109,7 @@
       (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [3 0 :contents :country-id] 2)
       (swap! atoms/game-map assoc-in [3 0 :contents :army-count] 3)
+      (production/rebuild-country-stats!)
       (should= 2 (production/count-country-armies 1))))
 
   (context "army production capped at coastal cell count"
@@ -150,6 +136,7 @@
       (swap! atoms/game-map assoc-in [11 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [12 0 :contents :country-id] 1)
       ;; 2 armies, 2 coastal cells → limit reached → should NOT produce army
+      (production/rebuild-country-stats!)
       (should-not= :army (production/decide-production [1 0])))
 
     (it "produces army when country armies below total coastal cells"
@@ -175,6 +162,7 @@
       (swap! atoms/game-map assoc-in [13 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [14 0 :contents :country-id] 1)
       ;; 2 armies < 2/3 of 4 coastal cells → unoccupied coastal cell exists → produces army
+      (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0])))
 
     (it "produces army when armies are only aboard transport (not on land)"
@@ -192,6 +180,7 @@
       (swap! atoms/game-map assoc-in [5 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [5 0 :contents :army-count] 2)
       ;; 0 land armies < 2 coastal cells → army limit not reached → produces army
+      (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0]))))
 
   (context "country-coastal-cells-explored? country filter (L113)"
@@ -205,6 +194,7 @@
       (swap! atoms/game-map assoc-in [2 0 :country-id] 2)
       ;; Country 1's coastal cell [1,0] is explored (non-nil in computer-map)
       ;; Country 2's coastal cell [2,0] is unexplored (nil in computer-map)
+      (production/rebuild-country-stats!)
       (should (production/country-coastal-cells-explored? 1))))
 
   (context "country-coastal-cells-explored? sea check (L114)"
@@ -223,6 +213,7 @@
       ;; Cell [3,0] is coastal (adj to [4,0] sea) and explored
       ;; So all coastal cells are explored → should return true
       ;; If mutation inverts sea check, [2,0] becomes "coastal" (adj to non-sea) → nil → false
+      (production/rebuild-country-stats!)
       (should (production/country-coastal-cells-explored? 1))))
 
   (context "country-has-waiting-armies? coastal check (L148)"
@@ -236,6 +227,7 @@
         (swap! atoms/game-map assoc-in [col row :country-id] 1))
       (swap! atoms/game-map assoc-in [1 0 :contents]
              {:type :army :owner :computer :country-id 1 :hits 1 :mode :sentry})
+      (production/rebuild-country-stats!)
       (should-not (production/country-has-waiting-armies? 1))))
 
   (context "has-unoccupied-coastal-cells? country filter (L247)"
@@ -249,6 +241,7 @@
       (swap! atoms/game-map assoc-in [2 0 :country-id] 2)
       ;; Country 1's only coastal cell [1,0] is occupied (has army)
       ;; Country 2's coastal cell [2,0] is unoccupied (no contents)
+      (production/rebuild-country-stats!)
       (should-not (production/has-unoccupied-coastal-cells? 1))))
 
   (context "has-unoccupied-coastal-cells? sea check (L248)"
@@ -263,6 +256,7 @@
         (swap! atoms/game-map assoc-in [col row :country-id] 1))
       ;; Interior cells [1,0], [2,0] are unoccupied but not coastal
       ;; With mutation, they'd wrongly be found as "coastal unoccupied"
+      (production/rebuild-country-stats!)
       (should-not (production/has-unoccupied-coastal-cells? 1))))
 
   (context "country-has-other-coastal-city? self-exclusion (L263)"
@@ -274,6 +268,7 @@
       (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
       ;; City [1,0] is the only coastal city in country 1
       ;; should-rotate needs other-coastal-city to return true; with only self, should return falsy
+      (production/rebuild-country-stats!)
       (should-not (#'production/country-has-other-coastal-city? [1 0] 1)))))
 
 ;; ===== 4. transport and patrol boat production =====
@@ -295,6 +290,7 @@
       (swap! atoms/game-map assoc-in [11 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [11 0 :contents :army-count] 6)
       (swap! atoms/game-map assoc-in [11 0 :contents :transport-mission] :unloading)
+      (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0])))
 
     (it "does not produce transport when existing transport has room"
@@ -309,6 +305,7 @@
       (swap! atoms/game-map assoc-in [11 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [11 0 :contents :army-count] 3)
       (swap! atoms/game-map assoc-in [11 0 :contents :transport-mission] :loading)
+      (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0]))))
 
   (context "patrol boat 4-cap and post-4 switch"
@@ -325,6 +322,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
+      (production/rebuild-country-stats!)
       (should= :patrol-boat (production/decide-production [1 0])))
 
     (it "does not produce patrol boat when country has 4"
@@ -341,6 +339,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should-not= :patrol-boat (production/decide-production [1 0]))))
 
   (context "patrol boat production"
@@ -357,6 +356,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
+      (production/rebuild-country-stats!)
       (should= :patrol-boat (production/decide-production [1 0])))
 
     (it "does not produce patrol boat when country already has 4"
@@ -373,6 +373,7 @@
       (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
       (should-not= :patrol-boat (production/decide-production [1 0]))))
 
   (context "transport full boundary (L164)"
@@ -389,6 +390,7 @@
       (swap! atoms/game-map assoc-in [10 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [10 0 :contents :transport-id] 1)
       (swap! atoms/game-map assoc-in [10 0 :contents :army-count] 6)
+      (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0])))
 
     (it "considers transport with 0 army-count as not full"
@@ -403,20 +405,13 @@
       (swap! atoms/game-map assoc-in [10 0 :contents :country-id] 1)
       (swap! atoms/game-map assoc-in [10 0 :contents :transport-id] 1)
       ;; Transport with no army-count should be considered not full (default 0)
+      (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0]))))
 
   (context "should-rotate-transport? (L270)"
 
     (it "rotates when same city was last transport producer"
       ;; L270: = -> not= would invert the check
-      (reset! atoms/game-map (build-test-map ["~X~X~"
-                                               "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
-      (reset! atoms/last-transport-city {1 [1 0]})
-      ;; City [1,0] was last producer for country 1, and there's another coastal city [3,0]
-      ;; So [1,0] should rotate (skip transport).
       ;; Place enough armies for transport priority
       (reset! atoms/game-map (build-test-map ["~X~Xaaaaaaa"
                                                "~~~~~~~~~~~"]))
@@ -427,6 +422,7 @@
         (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
         (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/last-transport-city {1 [1 0]})
+      (production/rebuild-country-stats!)
       ;; Should NOT produce transport at [1,0] because rotation says skip
       (should-not= :transport (production/decide-production [1 0])))))
 

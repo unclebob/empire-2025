@@ -219,6 +219,7 @@
   (reset! atoms/fighter-leg-records {})
   (reset! atoms/computer-city-positions #{})
   (reset! atoms/computer-carrier-positions #{})
+  (reset! atoms/country-stats {})
   (reset! atoms/coastal-cells-by-country {})
   (reset! atoms/coast-walkers-produced {})
   (reset! atoms/patrol-boats-produced {})
