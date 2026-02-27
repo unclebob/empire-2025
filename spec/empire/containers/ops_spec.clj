@@ -6,6 +6,16 @@
             [empire.test-utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit]]
             [speclj.core :refer :all]))
 
+(describe "non-full-transport?"
+  (it "true for transport with space"
+    (should (non-full-transport? {:type :transport :hits 1 :army-count 0})))
+  (it "false for full transport"
+    (should-not (non-full-transport? {:type :transport :hits 1 :army-count 6})))
+  (it "false for non-transport"
+    (should-not (non-full-transport? {:type :destroyer :hits 3})))
+  (it "false for nil"
+    (should-not (non-full-transport? nil))))
+
 (describe "load-adjacent-sentry-armies"
   (before (reset-all-atoms!))
 

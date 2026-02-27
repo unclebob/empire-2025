@@ -2,6 +2,22 @@
   (:require [speclj.core :refer :all]
             [empire.config :as config]))
 
+(describe "city-color-key"
+  (it "returns :player-city for :player"
+    (should= :player-city (config/city-color-key :player)))
+  (it "returns :computer-city for :computer"
+    (should= :computer-city (config/city-color-key :computer)))
+  (it "returns :free-city for :free"
+    (should= :free-city (config/city-color-key :free))))
+
+(describe "country-land-color"
+  (it "returns first color for country-id 0"
+    (should= [139 69 19] (config/country-land-color 0)))
+  (it "wraps around for large country-ids"
+    (should= (config/country-land-color 0) (config/country-land-color 8)))
+  (it "returns different colors for different ids"
+    (should-not= (config/country-land-color 0) (config/country-land-color 1))))
+
 (describe "color-of"
   (it "returns green for player city"
     (should= [0 255 0] (config/color-of {:type :city :city-status :player})))

@@ -213,18 +213,23 @@
 (defn unit-speed [unit-type]
   (dispatcher/speed unit-type))
 
+(defn city-color-key [city-status]
+  (case city-status
+    :player :player-city
+    :computer :computer-city
+    :free :free-city))
+
+(defn country-land-color [country-id]
+  (nth land-colors (mod country-id (count land-colors))))
+
 (defn color-of
   "Returns the RGB color for a cell based on its type and status."
   [cell]
   (let [terrain-type (:type cell)]
-    (if (= terrain-type :city)
-      (cell-colors (case (:city-status cell)
-                     :player :player-city
-                     :computer :computer-city
-                     :free :free-city))
-      (if (and (= terrain-type :land) (:country-id cell))
-        (nth land-colors (mod (:country-id cell) (count land-colors)))
-        (cell-colors terrain-type)))))
+    (cond
+      (= terrain-type :city) (cell-colors (city-color-key (:city-status cell)))
+      (and (= terrain-type :land) (:country-id cell)) (country-land-color (:country-id cell))
+      :else (cell-colors terrain-type))))
 
 (defn mode->color
   "Returns the RGB color for a unit mode."

@@ -31,27 +31,29 @@
       (swap! atoms/game-map update-in (conj transport-coords :contents)
              #(assoc % :mode :awake :reason :transport-at-beach)))))
 
+(defn non-full-transport? [unit]
+  (and (= (:type unit) :transport)
+       (not (uc/full? unit :army-count (dispatcher/effective-capacity :transport (:hits unit))))))
+
+(defn- try-load-from-neighbor [transport-coords [nx ny]]
+  (let [adj-cell (get-in @atoms/game-map [nx ny])
+        adj-unit (:contents adj-cell)
+        transport (get-in @atoms/game-map (conj transport-coords :contents))]
+    (when (loadable-army? adj-unit transport)
+      (swap! atoms/game-map assoc-in [nx ny] (dissoc adj-cell :contents))
+      (swap! atoms/game-map update-in (conj transport-coords :contents) uc/add-unit :army-count))))
+
 (defn load-adjacent-sentry-armies
   "Loads adjacent sentry armies onto a transport at the given coords.
    Wakes up the transport if it has armies and is at a beach."
   [transport-coords]
-  (let [cell (get-in @atoms/game-map transport-coords)
-        unit (:contents cell)]
-    (when (and (= (:type unit) :transport)
-               (not (uc/full? unit :army-count (dispatcher/effective-capacity :transport (:hits unit)))))
-      (let [[tx ty] transport-coords
-            height (count @atoms/game-map)
-            width (count (first @atoms/game-map))]
-        (doseq [[dx dy] map-utils/neighbor-offsets]
-          (let [nx (+ tx dx)
-                ny (+ ty dy)]
-            (when (and (>= nx 0) (< nx height) (>= ny 0) (< ny width))
-              (let [adj-cell (get-in @atoms/game-map [nx ny])
-                    adj-unit (:contents adj-cell)
-                    transport (get-in @atoms/game-map (conj transport-coords :contents))]
-                (when (loadable-army? adj-unit transport)
-                  (swap! atoms/game-map assoc-in [nx ny] (dissoc adj-cell :contents))
-                  (swap! atoms/game-map update-in (conj transport-coords :contents) uc/add-unit :army-count))))))
+  (let [unit (:contents (get-in @atoms/game-map transport-coords))]
+    (when (non-full-transport? unit)
+      (let [neighbors (map-utils/get-matching-neighbors
+                        transport-coords @atoms/game-map
+                        map-utils/neighbor-offsets (constantly true))]
+        (doseq [n neighbors]
+          (try-load-from-neighbor transport-coords n))
         (wake-transport-if-needed transport-coords)))))
 
 (defn wake-armies-on-transport
