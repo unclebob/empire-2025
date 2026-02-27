@@ -77,6 +77,7 @@
      (reset! atoms/load-menu-open false)
      (reset! atoms/load-menu-files [])
      (reset! atoms/load-menu-hovered nil)
+     (atoms/rebuild-refueling-caches!)
      (atoms/set-turn-message (str "Loaded " filename) 3000))))
 
 (defn open-load-menu!

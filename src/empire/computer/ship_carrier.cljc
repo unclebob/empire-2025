@@ -83,18 +83,13 @@
       (apply min-key #(core/distance % midpoint) candidates))))
 
 (defn find-refueling-sites
-  "Returns positions of all computer cities and holding carriers."
+  "Returns positions of all computer cities and computer carriers."
   []
-  (let [game-map @atoms/game-map]
-    (for [i (range (count game-map))
-          j (range (count (first game-map)))
-          :let [cell (get-in game-map [i j])]
-          :when (or (and (= :city (:type cell))
-                         (= :computer (:city-status cell)))
-                    (and (= :carrier (get-in cell [:contents :type]))
-                         (= :computer (get-in cell [:contents :owner]))
-                         (= :holding (get-in cell [:contents :carrier-mode]))))]
-      [i j])))
+  (when (and (empty? @atoms/computer-city-positions)
+             (empty? @atoms/computer-carrier-positions)
+             @atoms/game-map)
+    (atoms/rebuild-refueling-caches!))
+  (concat @atoms/computer-city-positions @atoms/computer-carrier-positions))
 
 (defn find-carrier-position
   "Finds a carrier position for an unreserved city pair.
@@ -128,6 +123,8 @@
     :else
     (when-let [next-pos (pathfinding/next-step pos target :carrier)]
       (core/move-unit-to pos next-pos)
+      (swap! atoms/computer-carrier-positions disj pos)
+      (swap! atoms/computer-carrier-positions conj next-pos)
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility next-pos :computer)
       next-pos)))
@@ -140,6 +137,8 @@
                assoc :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
+          (swap! atoms/computer-carrier-positions disj pos)
+          (swap! atoms/computer-carrier-positions conj next-pos)
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))
@@ -154,6 +153,8 @@
                assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
+          (swap! atoms/computer-carrier-positions disj pos)
+          (swap! atoms/computer-carrier-positions conj next-pos)
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))

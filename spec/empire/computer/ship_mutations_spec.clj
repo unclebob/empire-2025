@@ -85,10 +85,10 @@
                                                        :carrier-mode :holding}} {:type :sea}]])
       (should= [[0 0]] (ship/find-refueling-sites)))
 
-    (it "excludes positioning computer carriers"
+    (it "includes positioning computer carriers"
       (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :computer
                                                        :carrier-mode :positioning}} {:type :sea}]])
-      (should (empty? (ship/find-refueling-sites))))
+      (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "excludes player carriers"
       (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player

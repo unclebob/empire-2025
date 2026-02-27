@@ -185,14 +185,17 @@
         (let [unit (get-in @atoms/game-map (conj result :contents))]
           (should= :crawling (:patrol-mode unit))))))
 
-  (it "returns nil when no target found"
+  (it "random walks when BFS finds no target"
     (let [game-map (tu/build-test-map ["~~~"
                                        "~p~"
                                        "~~~"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
-      ;; All sea, no coast anywhere
-      (should-be-nil (ship/patrol-explore-step [1 1]))))
+      ;; All sea, no coast — falls back to random walk
+      (with-redefs [rand-nth first]
+        (let [result (ship/patrol-explore-step [1 1])]
+          (should-not-be-nil result)
+          (should-not= [1 1] result)))))
 
   (it "stores BFS path on unit and follows it step by step"
     (let [game-map (tu/build-test-map ["~~~~~~~#"
@@ -260,9 +263,9 @@
   (before (tu/reset-all-atoms!))
 
   (it "crawls along coast when patrol-mode is :crawling"
-    (let [game-map (tu/build-test-map ["####"
-                                       "#p~~"
-                                       "####"])]
+    (let [game-map (tu/build-test-map ["########"
+                                       "#p~~~~~~"
+                                       "########"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
@@ -286,9 +289,9 @@
         (should (> (first pos) 1)))))
 
   (it "attacks adjacent player transport before crawling"
-    (let [game-map (tu/build-test-map ["###"
-                                       "#pT"
-                                       "###"])]
+    (let [game-map (tu/build-test-map ["########"
+                                       "#pT~~~~~"
+                                       "########"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
@@ -310,9 +313,9 @@
 
   (it "does not require patrol-country-id to be routed"
     ;; A patrol boat with only :patrol-mode should still work
-    (let [game-map (tu/build-test-map ["####"
-                                       "#p~~"
-                                       "####"])]
+    (let [game-map (tu/build-test-map ["########"
+                                       "#p~~~~~~"
+                                       "########"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
@@ -322,9 +325,9 @@
           (should-not= [1 1] pos)))))
 
   (it "patrol boat without patrol-mode defaults to crawling"
-    (let [game-map (tu/build-test-map ["####"
-                                       "#p~~"
-                                       "####"])]
+    (let [game-map (tu/build-test-map ["########"
+                                       "#p~~~~~~"
+                                       "########"])]
       (reset! atoms/game-map game-map)
       (reset! atoms/computer-map game-map)
       ;; No :patrol-mode set — defaults to :crawling

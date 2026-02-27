@@ -119,8 +119,30 @@
                  (conj pos :contents) dissoc :explore-path)
           nil))))
 
+(defn- generate-random-sea-walk
+  "Generates a random walk of up to n steps over empty sea cells."
+  [start n]
+  (loop [pos start steps n path []]
+    (if (zero? steps)
+      (when (seq path) path)
+      (let [neighbors (ship-core/get-passable-sea-neighbors pos)
+            empty-nbrs (filter #(nil? (:contents (get-in @atoms/game-map %))) neighbors)]
+        (if (empty? empty-nbrs)
+          (when (seq path) path)
+          (let [next-pos (rand-nth empty-nbrs)]
+            (recur next-pos (dec steps) (conj path next-pos))))))))
+
+(defn- store-random-walk
+  "Generates a random sea walk and stores it as explore-path on the unit."
+  [pos]
+  (when-let [path (generate-random-sea-walk pos 10)]
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :explore-path) (vec path))
+    path))
+
 (defn patrol-explore-step
   "Explore toward unseen coast. Stores BFS path and follows it step by step.
+   Falls back to random walk when BFS finds nothing within cell limit.
    Switches to crawling on arrival at unseen coast.
    Returns new position or nil."
   [pos]
@@ -128,7 +150,8 @@
         path (:explore-path unit)]
     (if (seq path)
       (follow-explore-path pos path)
-      (when (run-bfs-and-store-path pos)
+      (when (or (run-bfs-and-store-path pos)
+                (store-random-walk pos))
         (let [new-path (:explore-path
                          (get-in @atoms/game-map (conj pos :contents)))]
           (follow-explore-path pos new-path))))))

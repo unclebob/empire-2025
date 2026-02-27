@@ -44,11 +44,16 @@
     (if (= :attacker (:winner result))
       (do
         (swap! atoms/game-map assoc-in (conj enemy-pos :contents) (:survivor result))
+        (when (= :carrier (:type attacker))
+          (swap! atoms/computer-carrier-positions disj ship-pos)
+          (swap! atoms/computer-carrier-positions conj enemy-pos))
         (visibility/update-cell-visibility ship-pos :computer)
         (visibility/update-cell-visibility enemy-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         enemy-pos)
       (do
+        (when (= :carrier (:type attacker))
+          (swap! atoms/computer-carrier-positions disj ship-pos))
         (visibility/update-cell-visibility ship-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         nil))))

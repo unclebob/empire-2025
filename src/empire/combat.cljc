@@ -60,8 +60,11 @@
   (let [city-cell (get-in @atoms/game-map city-coords)]
     (if (< (rand) 0.5)
       (do
+        (when (= :computer (:city-status city-cell))
+          (swap! atoms/computer-city-positions disj city-coords))
         (swap! atoms/game-map assoc-in city-coords (assoc city-cell :city-status :player))
         (conquer-city-contents city-coords :player)
+        (swap! atoms/computer-carrier-positions disj city-coords)
         (visibility/update-cell-visibility city-coords :player)
         (swap! atoms/computer-map assoc-in (conj city-coords :city-status) :player))
       (atoms/set-error-message (:conquest-failed config/messages) config/error-message-duration))

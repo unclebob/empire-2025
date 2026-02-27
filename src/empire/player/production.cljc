@@ -76,6 +76,8 @@
     (swap! atoms/game-map assoc-in (conj coords :contents) unit)
     (when (and (= owner :computer) (= item :army) (:country-id cell))
       (stamp-adjacent-land coords (:country-id cell)))
+    (when (and (= owner :computer) (= item :carrier))
+      (swap! atoms/computer-carrier-positions conj coords))
     owner))
 
 (defn- handle-production-complete

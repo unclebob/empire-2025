@@ -1,11 +1,8 @@
 # Future Issues
 
-- **Final invasion force**: When all free cities are taken, transports should target player cities for invasion.
-- **Massive attack**: Coordinate large-scale multi-unit attacks on player cities and positions.
+- **Final invasion force**: When all free cities are taken, coordinate large-scale multi-unit attacks on player cities and positions.
 - **Carrier movement optimization**: Carriers currently use full A* for every step. Consider caching or other optimization if performance is an issue.
-- **Too many moving armies**: The computer produces too many armies that march around without clear objectives.
 - **Patrol boat gaggle**: Patrol boats cluster together instead of spreading out to maximize scouting coverage.
-- **More transports needed**: The computer should produce more transports to accelerate overseas invasion.
 - **Country consolidation**: Countries should consolidate their territories and production priorities.
 - **Speed up BFS**: BFS pathfinding is used heavily by transports and other units. Profile and optimize for large maps.
 
