@@ -244,7 +244,23 @@
     :handler (fn [[_ ref n] _ctx]
                {:directive :unit-props
                 :ir {:type :unit-props :unit ref :props {:country-id (Integer/parseInt n)
-                                                         :patrol-mode :crawling}}})}])
+                                                         :patrol-mode :crawling}}})}
+   {:regex #"game-over-check\s+enabled"
+    :handler (fn [_ _ctx]
+               {:directive :game-over-check-enabled
+                :ir {:type :game-over-check-enabled}})}
+   {:regex #"(?:the\s+)?game\s+is\s+paused"
+    :handler (fn [_ _ctx]
+               {:directive :game-paused
+                :ir {:type :game-paused}})}
+   {:regex #"pause\s+requested"
+    :handler (fn [_ _ctx]
+               {:directive :pause-requested
+                :ir {:type :pause-requested}})}
+   {:regex #"load\s+menu\s+is\s+open"
+    :handler (fn [_ _ctx]
+               {:directive :load-menu-open
+                :ir {:type :load-menu-open}})}])
 
 (defn- parse-given-line [line context]
   (let [clean (str/trim line)
@@ -303,7 +319,8 @@
 
               (:production :no-production :round :destination :cell-props
                :player-items :waiting-for-input-bare :unit-target :city-prop :stub
-               :shipyard-state :city-unit :territory-around :visible-to-computer)
+               :shipyard-state :city-unit :territory-around :visible-to-computer
+               :game-over-check-enabled :game-paused :pause-requested :load-menu-open)
               (do (swap! givens conj (:ir parsed))
                   (swap! i inc))
 

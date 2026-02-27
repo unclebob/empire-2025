@@ -255,8 +255,16 @@
     :handler then-handle-waiting-for-input}
    {:regex #"(?:^not\s+waiting-for-input$|(?:the\s+)?game\s+is\s+not\s+waiting\s+for\s+input)"
     :handler then-handle-not-waiting-for-input}
+   {:regex #"game\s+is\s+not\s+paused"
+    :handler (fn [_] {:type :game-not-paused})}
    {:regex #"game\s+is\s+paused"
     :handler then-handle-game-paused}
+   {:regex #"map\s+display\s+is\s+(\w[\w-]*)"
+    :handler (fn [[_ v]] {:type :map-display :expected (keyword v)})}
+   {:regex #"load\s+menu\s+is\s+not\s+open"
+    :handler (fn [_] {:type :load-menu-state :expected false})}
+   {:regex #"load\s+menu\s+is\s+open"
+    :handler (fn [_] {:type :load-menu-state :expected true})}
    {:regex #"round\s+is\s+(\d+)"
     :handler then-handle-round}
    {:regex #"destination\s+is\s+\[(\d+)\s+(\d+)\]"

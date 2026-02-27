@@ -283,7 +283,12 @@
    :refueling-position-near (fn [ir _] (generate-refueling-position-near-then ir))
    :shipyard-has-ship (fn [ir _] (generate-shipyard-has-ship-then ir))
    :shipyard-empty (fn [ir _] (generate-shipyard-empty-then ir))
-   :map-is (fn [ir _] (generate-map-is-then ir))})
+   :map-is (fn [ir _] (generate-map-is-then ir))
+   :game-not-paused (fn [_ _] "    (should-not @atoms/paused)")
+   :map-display (fn [ir _] (str "    (should= " (pr-str (:expected ir)) " @atoms/map-to-display)"))
+   :load-menu-state (fn [ir _] (if (:expected ir)
+                                  "    (should @atoms/load-menu-open)"
+                                  "    (should-not @atoms/load-menu-open)"))})
 
 (defn generate-then
   "Generate code string for a single THEN IR node."

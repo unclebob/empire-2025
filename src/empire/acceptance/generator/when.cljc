@@ -116,7 +116,18 @@
    :evaluate-production        generate-evaluate-production-when
    :process-computer-transport generate-process-computer-transport-when
    :process-computer-fighter   generate-process-computer-fighter-when
-   :computer-rounds            generate-computer-rounds-when})
+   :computer-rounds            generate-computer-rounds-when
+   :save-game                  (fn [_]
+                                  (str "    (with-redefs [spit (constantly nil)\n"
+                                       "                  q/mouse-x (constantly 0)\n"
+                                       "                  q/mouse-y (constantly 0)]\n"
+                                       "      (reset! atoms/last-key nil)\n"
+                                       "      (quil-input/key-down :!))"))
+   :open-load-menu             (fn [_]
+                                  (str "    (with-redefs [q/mouse-x (constantly 0)\n"
+                                       "                  q/mouse-y (constantly 0)]\n"
+                                       "      (reset! atoms/last-key nil)\n"
+                                       "      (quil-input/key-down (keyword \"^\")))"))})
 
 (defn generate-when
   "Generate code string for a single WHEN IR node."

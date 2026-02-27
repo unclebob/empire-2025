@@ -47,6 +47,10 @@ Matched after keyword stripping. Context tracks `:units-with-mode` set.
 | `territory around <C> belongs to country <N>` | `{:type :territory-around :city C :country-id N}` |
 | `<ref> belongs to country <N>` | city: `{:type :city-prop :city ref :prop :country-id :value N}`, unit: `{:type :unit-props :unit ref :props {:country-id N}}` |
 | `<ref> patrols [for] country <N>` | `{:type :unit-props :unit ref :props {:country-id N :patrol-mode :crawling}}` |
+| `game-over-check enabled` | `{:type :game-over-check-enabled}` |
+| `[the] game is paused` | `{:type :game-paused}` |
+| `pause requested` | `{:type :pause-requested}` |
+| `load menu is open` | `{:type :load-menu-open}` |
 
 ### Fallback: unit-prop extractors (parse-unit-props-line)
 If no directive matches, lines like `<U> is <mode>` or `<U> has fuel <N>` are parsed via extractors:
@@ -99,6 +103,8 @@ Handlers return vectors of IR nodes. Key dispatch uses `determine-key-type`: upp
 | `computer transport <U> is processed` | `[{:type :process-computer-transport :unit U}]` |
 | `computer fighter <U> is processed` | `[{:type :process-computer-fighter :unit U}]` |
 | `<N> computer rounds pass` | `[{:type :computer-rounds :count N}]` |
+| `player saves the game` | `[{:type :save-game}]` |
+| `player opens the load menu` | `[{:type :open-load-menu}]` |
 | `<U> is waiting for input` (standalone) | `[{:type :waiting-for-input :unit U :set-mode true}]` |
 
 ## THEN Patterns
@@ -138,7 +144,11 @@ Timing prefix `at [the] next round/step/move` adds `:at-next-round true` or `:at
 | `cell [X Y] is [a] <type>` | `{:type :cell-type :coords [X Y] :expected :type}` |
 | `waiting-for-input` / `game is waiting for input` | `{:type :waiting-for-input :expected true}` |
 | `not waiting-for-input` / `game is not waiting for input` | `{:type :waiting-for-input :expected false}` |
+| `game is not paused` | `{:type :game-not-paused}` |
 | `game is paused` | `{:type :game-paused :expected true}` |
+| `map display is <value>` | `{:type :map-display :expected :value}` |
+| `load menu is not open` | `{:type :load-menu-state :expected false}` |
+| `load menu is open` | `{:type :load-menu-state :expected true}` |
 | `round is <N>` | `{:type :round :expected N}` |
 | `destination is [X Y]` | `{:type :destination :expected [X Y]}` |
 | `production at <C> is <item> with <N> rounds remaining` | `{:type :production-with-rounds :city C :expected :item :remaining-rounds N}` |

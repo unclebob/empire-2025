@@ -109,6 +109,10 @@
     :handler when-handle-battle}
    {:regex #"player\s+presses\s+(\w+)\s+and\s+(?:the\s+game\s+advances\s+until\s+)?(\w+)\s+is\s+waiting\s+for\s+input"
     :handler when-handle-key-and-advance}
+   {:regex #"player\s+saves\s+the\s+game"
+    :handler (fn [_ _ctx] [{:type :save-game}])}
+   {:regex #"player\s+opens\s+the\s+load\s+menu"
+    :handler (fn [_ _ctx] [{:type :open-load-menu}])}
    {:regex #"player\s+presses\s+(\w+)"
     :handler when-handle-key-press}
    {:regex #"player\s+types\s+(.*)"
