@@ -425,4 +425,179 @@
       (let [lines ["THEN the map is dX#."]
             result (then-parser/parse-then lines {})]
         (should= [{:type :map-is :expected "dX#"}]
+                 (:thens result))))
+
+    (it "skips blank lines between thens"
+      (let [lines ["THEN A is at [0 0]."
+                   ""
+                   "THEN B is at [1 1]."]
+            result (then-parser/parse-then lines {})]
+        (should= 2 (count (:thens result)))
+        (should= :unit-at (:type (first (:thens result))))
+        (should= :unit-at (:type (second (:thens result))))))
+
+    (it "skips comment lines between thens"
+      (let [lines ["THEN A is at [0 0]."
+                   "; this is a comment"
+                   "THEN B is at [1 1]."]
+            result (then-parser/parse-then lines {})]
+        (should= 2 (count (:thens result)))))
+
+    (it "handles AND line without prior clause (orphan AND)"
+      (let [lines ["and A is at [0 0]."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :unit-at :unit "A" :coords [0 0]}]
+                 (:thens result))))
+
+    (it "handles multi-line continuation (line appended to previous)"
+      (let [lines ["THEN the attention message"
+                   "contains :some-key."]
+            result (then-parser/parse-then lines {})]
+        (should= 1 (count (:thens result)))
+        (should= :message-contains (:type (first (:thens result))))))
+
+    (it "parses compound then that returns a vector (unit at position with mode)"
+      (let [lines ["THEN A is at [0 2] in mode sentry."]
+            result (then-parser/parse-then lines {})]
+        (should= 2 (count (:thens result)))
+        (should= {:type :unit-at :unit "A" :coords [0 2]}
+                 (first (:thens result)))
+        (should= {:type :unit-prop :unit "A" :property :mode :expected :sentry}
+                 (second (:thens result)))))
+
+    (it "produces unrecognized for unparseable clause"
+      (let [lines ["THEN something completely gibberish nonsensical."]
+            result (then-parser/parse-then lines {})]
+        (should= 1 (count (:thens result)))
+        (should= :unrecognized (:type (first (:thens result))))))
+
+    (it "handles multiple AND continuations"
+      (let [lines ["THEN A is at [0 0]."
+                   "and B is at [1 1]."
+                   "and C is at [2 2]."]
+            result (then-parser/parse-then lines {})]
+        (should= 3 (count (:thens result)))))
+
+    (it "parses THEN with game paused"
+      (let [lines ["THEN the game is paused."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :game-paused :expected true}]
+                 (:thens result))))
+
+    (it "parses round number"
+      (let [lines ["THEN the round is 5."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :round :expected 5}]
+                 (:thens result))))
+
+    (it "parses destination"
+      (let [lines ["THEN the destination is [3 4]."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :destination :expected [3 4]}]
+                 (:thens result))))
+
+    (it "parses no production at city"
+      (let [lines ["THEN no production at O."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :no-production :city "O"}]
+                 (:thens result))))
+
+    (it "parses no unit at coords"
+      (let [lines ["THEN no unit at [1 0]."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :no-unit-at :coords [1 0]}]
+                 (:thens result))))
+
+    (it "parses computer-map cell visibility"
+      (let [lines ["THEN the computer can see [2 3]."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :computer-map-cell-not-nil :coords [2 3]}]
+                 (:thens result))))
+
+    (it "parses unit property absent"
+      (let [lines ["THEN T does not have transport-mission."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :unit-prop-absent :unit "T" :property :transport-mission}]
+                 (:thens result))))
+
+    (it "parses message is format"
+      (let [lines ["THEN the attention message is (fmt :some-template arg1 42)."]
+            result (then-parser/parse-then lines {})]
+        (should= 1 (count (:thens result)))
+        (should= :message-is (:type (first (:thens result))))
+        (should= :attention (:area (first (:thens result))))))
+
+    (it "parses bare message literal"
+      (let [lines ["THEN the message contains \"hello world\"."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :message-contains :area :attention :text "hello world"}]
+                 (:thens result))))
+
+    (it "parses bare message config key"
+      (let [lines ["THEN the message contains :some-key."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :message-contains :area :attention :config-key :some-key}]
+                 (:thens result))))
+
+    (it "handles orphan line (not THEN/and/blank) as new clause"
+      (let [lines ["A is at [0 0]."]
+            result (then-parser/parse-then lines {})]
+        (should= 1 (count (:thens result)))
+        (should= :unit-at (:type (first (:thens result))))))
+
+    (it "handles continuation line after THEN"
+      (let [lines ["THEN after two"
+                   "moves F will be at =."]
+            result (then-parser/parse-then lines {})]
+        (should= 1 (count (:thens result)))
+        (should= :unit-after-moves (:type (first (:thens result))))))
+
+    (it "filters nil parsed results from handler"
+      (let [lines ["THEN longword has mission pickup."]
+            result (then-parser/parse-then lines {})]
+        ;; "longword" is not a single char so then-handle-unit-has-mission returns nil
+        ;; but the fallback handler will match, so we just verify no crash
+        (should (seq (:thens result)))))
+
+    (it "handles territory map block"
+      (let [lines ["THEN territory map" "~1~" "~2~"]
+            result (then-parser/parse-then lines {})]
+        (should= 1 (count (:thens result)))
+        (should= :territory-map (:type (first (:thens result))))))
+
+    (it "handles THEN followed by AND on separate lines"
+      (let [lines ["THEN A is at [0 0],"
+                   "and B is at [1 1],"
+                   "and C is at [2 2]."]
+            result (then-parser/parse-then lines {})]
+        (should= 3 (count (:thens result)))
+        (should= [0 0] (:coords (first (:thens result))))
+        (should= [1 1] (:coords (second (:thens result))))
+        (should= [2 2] (:coords (nth (:thens result) 2)))))
+
+    (it "handles blank lines interspersed with THEN and AND"
+      (let [lines ["THEN A is at [0 0]."
+                   ""
+                   "; comment"
+                   ""
+                   "and B is at [1 1]."]
+            result (then-parser/parse-then lines {})]
+        (should= 2 (count (:thens result)))))
+
+    (it "parses 'there are 3 computer armies on the map'"
+      (let [lines ["THEN there are 3 computer armies on the map."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :computer-army-count :expected 3}]
+                 (:thens result))))
+
+    (it "parses 'T has mission pickup'"
+      (let [lines ["THEN T has mission pickup."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :unit-prop :unit "T" :property :transport-mission :expected :pickup}]
+                 (:thens result))))
+
+    (it "parses 'F has refueling position near O'"
+      (let [lines ["THEN F has refueling position near O."]
+            result (then-parser/parse-then lines {})]
+        (should= [{:type :refueling-position-near :unit "F" :target "O"}]
                  (:thens result)))))
