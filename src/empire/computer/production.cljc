@@ -29,42 +29,63 @@
 (defn- update-country [acc cid k f]
   (update-in acc [cid k] (fnil f 0)))
 
+(defn- land-or-city? [cell-type]
+  (contains? #{:land :city} cell-type))
+
+(defn- unoccupied-coastal-land? [cell-type cell]
+  (and (= :land cell-type) (nil? (:contents cell))))
+
+(defn- unexplored-cell? [comp-map i j]
+  (nil? (get-in comp-map [i j])))
+
+(defn- coastal-computer-city? [cell-type cell]
+  (and (= :city cell-type) (= :computer (:city-status cell))))
+
+(defn- computer-unit-with-country? [unit]
+  (and unit (= :computer (:owner unit)) (:country-id unit)))
+
+(defn- accumulate-coastal-terrain [acc cid comp-map i j cell-type cell]
+  (cond-> (update-country acc cid :coastal-cell-count inc)
+    (unoccupied-coastal-land? cell-type cell)
+    (assoc-in [cid :has-unoccupied-coastal-cells?] true)
+    (unexplored-cell? comp-map i j)
+    (assoc-in [cid :has-unexplored-coastal?] true)
+    (coastal-computer-city? cell-type cell)
+    (update-in [cid :coastal-city-positions] (fnil conj #{}) [i j])))
+
 (defn- scan-cell-terrain [acc game-map comp-map i j cell]
-  (let [cid (:country-id cell)]
-    (if-not cid
-      acc
-      (let [cell-type (:type cell)
-            is-coastal (and (#{:land :city} cell-type) (coastal? game-map [i j]))]
-        (cond-> acc
-          is-coastal
-          (update-country cid :coastal-cell-count inc)
-          (and is-coastal (= :land cell-type) (nil? (:contents cell)))
-          (assoc-in [cid :has-unoccupied-coastal-cells?] true)
-          (and is-coastal (not (some? (get-in comp-map [i j]))))
-          (assoc-in [cid :has-unexplored-coastal?] true)
-          (and (= :city cell-type) (= :computer (:city-status cell)) is-coastal)
-          (update-in [cid :coastal-city-positions] (fnil conj #{}) [i j]))))))
+  (let [cid (:country-id cell)
+        cell-type (:type cell)]
+    (if (and cid (land-or-city? cell-type) (coastal? game-map [i j]))
+      (accumulate-coastal-terrain acc cid comp-map i j cell-type cell)
+      acc)))
+
+(defn- accumulate-army [acc ucid cell-type is-coastal]
+  (cond-> (update-country acc ucid :army-count inc)
+    (and is-coastal (= :land cell-type))
+    (assoc-in [ucid :has-coastal-army?] true)
+    (land-or-city? cell-type)
+    (update-country ucid :land-army-count inc)))
+
+(defn- accumulate-transport [acc ucid unit]
+  (-> (update-country acc ucid :army-count #(+ % (get unit :army-count 0)))
+      (update-in [ucid :transports] (fnil conj []) unit)))
+
+(defn- coastal-land-or-city? [game-map cell-type pos]
+  (and (land-or-city? cell-type) (coastal? game-map pos)))
 
 (defn- scan-cell-unit [acc game-map i j cell]
   (let [unit (:contents cell)
         ucid (:country-id unit)]
-    (if-not (and unit (= :computer (:owner unit)) ucid)
+    (if-not (computer-unit-with-country? unit)
       acc
       (let [cell-type (:type cell)
-            unit-type (:type unit)
-            is-coastal (and (#{:land :city} cell-type) (coastal? game-map [i j]))]
-        (cond-> acc
-          (and is-coastal (= :land cell-type) (= :army unit-type))
-          (assoc-in [ucid :has-coastal-army?] true)
-          (= :army unit-type)
-          (update-country ucid :army-count inc)
-          (and (= :army unit-type) (#{:land :city} cell-type))
-          (update-country ucid :land-army-count inc)
-          (= :transport unit-type)
-          (-> (update-country ucid :army-count #(+ % (get unit :army-count 0)))
-              (update-in [ucid :transports] (fnil conj []) unit))
-          (= :patrol-boat unit-type)
-          (update-country ucid :patrol-boat-count inc))))))
+            is-coastal (coastal-land-or-city? game-map cell-type [i j])]
+        (case (:type unit)
+          :army (accumulate-army acc ucid cell-type is-coastal)
+          :transport (accumulate-transport acc ucid unit)
+          :patrol-boat (update-country acc ucid :patrol-boat-count inc)
+          acc)))))
 
 (defn- scan-cell [acc game-map comp-map i j]
   (let [cell (get-in game-map [i j])]
