@@ -28,16 +28,38 @@
   [[r c] height width]
   (and (>= r 0) (< r height) (>= c 0) (< c width)))
 
+(defn- classify-terrain-step
+  "Classifies a position during flood-fill and returns updated
+   [frontier visited continent] triple."
+  [pos comp-map height width rest-frontier visited continent]
+  (if-not (in-bounds? pos height width)
+    [rest-frontier (conj visited pos) continent]
+    (let [terrain (get-terrain (get-in comp-map pos))]
+      (cond
+        (= terrain :sea)
+        [rest-frontier (conj visited pos) continent]
+
+        (= terrain :unexplored)
+        [rest-frontier (conj visited pos) (conj continent pos)]
+
+        :else
+        (let [[r c] pos
+              neighbors (for [[dr dc] map-utils/neighbor-offsets]
+                          [(+ r dr) (+ c dc)])]
+          [(into rest-frontier (remove visited neighbors))
+           (conj visited pos)
+           (conj continent pos)])))))
+
 (defn- flood-fill-continent-uncached
   "Flood-fill from start-pos to find all connected land cells on computer-map.
    Marks unexplored cells adjacent to continent but does NOT expand through them.
    Returns a set of positions that are part of this continent (including adjacent unexplored)."
   [start-pos]
-  (let [comp-map @atoms/computer-map
-        height (count comp-map)
-        width (when (pos? height) (count (first comp-map)))]
-    (when (and (pos? height) (pos? width))
-      (loop [frontier #{start-pos}
+  (let [comp-map @atoms/computer-map]
+    (when (seq comp-map)
+      (let [height (count comp-map)
+            width (count (first comp-map))]
+        (loop [frontier #{start-pos}
              visited #{}
              continent #{}]
         (if (empty? frontier)
@@ -46,32 +68,10 @@
                 rest-frontier (disj frontier pos)]
             (if (visited pos)
               (recur rest-frontier visited continent)
-              (let [[r c] pos
-                    cell (get-in comp-map pos)
-                    terrain (get-terrain cell)]
-                (cond
-                  (not (in-bounds? pos height width))
-                  (recur rest-frontier (conj visited pos) continent)
-
-                  ;; Sea - not part of continent
-                  (= terrain :sea)
-                  (recur rest-frontier (conj visited pos) continent)
-
-                  ;; Unexplored - mark as part of continent but don't expand
-                  (= terrain :unexplored)
-                  (recur rest-frontier
-                         (conj visited pos)
-                         (conj continent pos))
-
-                  ;; Land/City - part of continent, expand to neighbors
-                  :else
-                  (let [neighbors (for [[dr dc] map-utils/neighbor-offsets]
-                                    [(+ r dr) (+ c dc)])
-                        new-frontier (into rest-frontier
-                                           (remove visited neighbors))]
-                    (recur new-frontier
-                           (conj visited pos)
-                           (conj continent pos))))))))))))
+              (let [[nf nv nc] (classify-terrain-step
+                                 pos comp-map height width
+                                 rest-frontier visited continent)]
+                (recur nf nv nc))))))))))
 
 (defn flood-fill-continent
   "Cached flood-fill from start-pos. Returns a set of positions.

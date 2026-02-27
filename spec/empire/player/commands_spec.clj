@@ -476,7 +476,25 @@
                       movement/set-unit-movement (fn [_ _] nil)
                       game-loop/item-processed (fn [])]
           (commands/handle-key :d)
-          (should @overfly-called))))))
+          (should @overfly-called)))))
+
+  (context "carrier-fighter launch via direction key"
+    (it "launches fighter from carrier when carrier has awake fighters"
+      (reset! atoms/game-map (build-test-map ["C~"]))
+      (set-test-unit atoms/game-map "C" :mode :sentry :fighter-count 1 :awake-fighters 1)
+      (setup-unit-attention [0 0])
+      (let [launch-called (atom false)]
+        (with-redefs [container-ops/launch-fighter-from-carrier (fn [_ _] (reset! launch-called true) [1 0])]
+          (commands/handle-key :d)
+          (should @launch-called)))))
+
+  (context "non-player unit at attention cell"
+    (it "returns nil when unit is computer-owned"
+      (reset! atoms/game-map (build-test-map ["A#"]))
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :army :mode :awake :owner :computer :hits 1})
+      (setup-unit-attention [0 0])
+      (should-be-nil (commands/handle-key :d)))))
 
 ;; ========== Mutation tests: cell click ==========
 

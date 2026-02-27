@@ -3,20 +3,15 @@
   (:require [empire.atoms :as atoms]
             [empire.units.dispatcher :as dispatcher]))
 
+(def ^:private threat-values
+  {:battleship 10 :carrier 8 :destroyer 6 :submarine 5
+   :fighter 4 :patrol-boat 3 :army 2 :transport 1})
+
 (defn unit-threat
   "Returns threat value for a unit type.
    Higher values = more dangerous."
   [unit-type]
-  (case unit-type
-    :battleship 10
-    :carrier 8
-    :destroyer 6
-    :submarine 5
-    :fighter 4
-    :patrol-boat 3
-    :army 2
-    :transport 1
-    0))
+  (get threat-values unit-type 0))
 
 (defn threat-level
   "Calculates threat level at position based on nearby enemy units.

@@ -360,33 +360,42 @@
        (adjacent-to-sea? pos)
        (not= :city (:type (get-in @atoms/game-map pos)))))
 
+(defn- try-move-to-coastal-cell [pos country-id]
+  (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
+    (move-toward-objective pos target country-id)))
+
+(defn- try-settle-on-coast [pos country-id]
+  (when (can-settle-here? pos country-id)
+    (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
+    (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+    pos))
+
+(defn- try-queue-near-coast [pos country-id]
+  (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
+    (or (move-toward-objective pos target country-id)
+        (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
+            (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+            pos))))
+
+(defn- try-wake-nearby [pos]
+  (when (pos? (core/wake-nearby-sentries pos 3))
+    (debug/log-computer-event! :army-wake-sentries pos {:reason :stuck})
+    nil))
+
 (defn- fill-coastal-cell
   "If army is on a coastal cell away from cities, go sentry.
    Otherwise move toward nearest unoccupied coastal cell.
    If no coastal cell available, queue near coast and go sentry.
    If truly stuck, wake nearby sentries."
   [pos country-id]
-  (cond
-    (should-sentry-on-coast? pos country-id)
+  (if (should-sentry-on-coast? pos country-id)
     (do (debug/log-computer-event! :army-sentry pos {:reason :coastal-fill :country-id country-id})
         (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
         pos)
-
-    :else
-    (or (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
-          (move-toward-objective pos target country-id))
-        (when (can-settle-here? pos country-id)
-          (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
-          (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
-          pos)
-        (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
-          (or (move-toward-objective pos target country-id)
-              (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
-                  (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
-                  pos)))
-        (when (pos? (core/wake-nearby-sentries pos 3))
-          (debug/log-computer-event! :army-wake-sentries pos {:reason :stuck})
-          nil))))
+    (or (try-move-to-coastal-cell pos country-id)
+        (try-settle-on-coast pos country-id)
+        (try-queue-near-coast pos country-id)
+        (try-wake-nearby pos))))
 
 (defn- in-bounds? [pos]
   (let [[c r] pos
@@ -456,6 +465,33 @@
           target (when (seq candidates) (rand-nth (vec candidates)))]
       (when target (try-move pos target)))))
 
+(defn- at-sea-coast? [pos]
+  (and (adjacent-to-sea? pos)
+       (not= :city (:type (get-in @atoms/game-map pos)))))
+
+(defn- clear-random-explore-state [pos]
+  (swap! atoms/game-map update-in (conj pos :contents)
+         #(-> % (assoc :mode :awake)
+              (dissoc :random-explore-direction :random-explore-rounds))))
+
+(defn- try-random-direction-move [pos country-id unit]
+  (let [[dc dr] (:random-explore-direction unit)
+        [c r] pos
+        target [(+ c dc) (+ r dr)]]
+    (when (and (in-bounds? target)
+               (sovereign-passable? country-id (get-in @atoms/game-map target))
+               (nil? (:contents (get-in @atoms/game-map target)))
+               (try-move pos target))
+      (when (at-sea-coast? target)
+        (swap! atoms/game-map assoc-in (conj target :contents :mode) :sentry))
+      target)))
+
+(defn- handle-blocked-random-explore [pos country-id]
+  (if (= :city (:type (get-in @atoms/game-map pos)))
+    (when-let [neighbors (seq (get-empty-passable-neighbors pos country-id))]
+      (try-move pos (rand-nth (vec neighbors))))
+    (do (clear-random-explore-state pos) nil)))
+
 (defn- process-random-explore
   "Moves army in stored random-explore direction. Goes sentry on coast or when blocked.
    Times out after 10 rounds and transitions to fill-coastal-cell."
@@ -463,36 +499,16 @@
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         rounds (:random-explore-rounds unit 0)]
     (if (>= rounds 10)
-      ;; Timeout: clear random-explore state, fall through to fill-coastal-cell next round
-      (do (swap! atoms/game-map update-in (conj pos :contents)
-                 #(-> % (assoc :mode :awake)
-                        (dissoc :random-explore-direction :random-explore-rounds)))
-          nil)
+      (do (clear-random-explore-state pos) nil)
       (do (swap! atoms/game-map update-in (conj pos :contents)
                  update :random-explore-rounds (fnil inc 0))
-          (if (and (adjacent-to-sea? pos)
-                   (not= :city (:type (get-in @atoms/game-map pos))))
-            (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
-                pos)
-            (let [[dc dr] (:random-explore-direction unit)
-                  [c r] pos
-                  target [(+ c dc) (+ r dr)]]
-              (if (and (in-bounds? target)
-                       (sovereign-passable? country-id (get-in @atoms/game-map target))
-                       (nil? (:contents (get-in @atoms/game-map target)))
-                       (try-move pos target))
-                (when (adjacent-to-sea? target)
-                  (swap! atoms/game-map assoc-in (conj target :contents :mode) :sentry)
-                  target)
-                ;; Blocked or off-map
-                (if (= :city (:type (get-in @atoms/game-map pos)))
-                  ;; At a city: try any empty neighbor to leave
-                  (when-let [neighbors (seq (get-empty-passable-neighbors pos country-id))]
-                    (try-move pos (rand-nth (vec neighbors))))
-                  ;; Not at city: clear mode so army falls to fill-coastal-cell next round
-                  (do (swap! atoms/game-map update-in (conj pos :contents)
-                             #(-> % (assoc :mode :awake) (dissoc :random-explore-direction :random-explore-rounds)))
-                      nil)))))))))
+          (cond
+            (at-sea-coast? pos)
+            (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry) pos)
+
+            :else
+            (or (try-random-direction-move pos country-id unit)
+                (handle-blocked-random-explore pos country-id)))))))
 
 (defn- process-attack-target
   "Moves army toward its attack-target city. Clears target if conquered or gone."

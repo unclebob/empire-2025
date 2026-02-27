@@ -56,7 +56,11 @@
       (should= 2 (count cont-right))
       ;; They are disjoint (different continents from fog-of-war perspective)
       (should-not-contain [0 3] cont-left)
-      (should-not-contain [0 0] cont-right))))
+      (should-not-contain [0 0] cont-right)))
+
+  (it "returns nil for empty map"
+    (reset! atoms/computer-map [])
+    (should-be-nil (land-objectives/flood-fill-continent [0 0]))))
 
 (describe "scan-continent"
   (before (reset-all-atoms!))

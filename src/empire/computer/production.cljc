@@ -225,38 +225,40 @@
   [country-id]
   (boolean (get-in @atoms/country-stats [country-id :army-limit-reached?])))
 
+(defn- should-produce-transport? [city-pos country-id coastal?]
+  (when (and coastal?
+             (>= (count-country-armies country-id) config/armies-before-transport)
+             (country-has-waiting-armies? country-id)
+             (not (should-rotate-transport? city-pos country-id)))
+    (swap! atoms/last-transport-city assoc country-id city-pos)
+    :transport))
+
+(defn- should-produce-army? [country-id]
+  (and (has-unoccupied-coastal-cells? country-id)
+       (not (country-army-limit-reached? country-id))))
+
+(defn- should-produce-patrol-boat? [country-id coastal?]
+  (and coastal?
+       (< (count-country-patrol-boats country-id) config/max-patrol-boats-per-country)))
+
+(defn- should-produce-destroyer? [city-pos country-id coastal? unit-counts]
+  (and coastal?
+       (< (get unit-counts :destroyer 0) (get unit-counts :transport 0))
+       (country-has-unadopted-transport? country-id)
+       (not (country-city-producing-destroyers? city-pos country-id))))
+
+(defn- should-produce-fighter? []
+  (when (< (count-all-computer-fighters) (count-computer-cities))
+    :fighter))
+
 (defn- decide-country-production
   "Per-country production priorities. Returns unit type or nil."
   [city-pos country-id coastal? unit-counts]
-  (cond
-    ;; 1. Transport: coastal, enough armies, waiting armies with all transports full/unloading
-    (and coastal?
-         (>= (count-country-armies country-id) config/armies-before-transport)
-         (country-has-waiting-armies? country-id)
-         (not (should-rotate-transport? city-pos country-id)))
-    (do (swap! atoms/last-transport-city assoc country-id city-pos)
-        :transport)
-
-    ;; 2. Army: unoccupied coastal cells exist and army limit not reached
-    (and (has-unoccupied-coastal-cells? country-id)
-         (not (country-army-limit-reached? country-id)))
-    :army
-
-    ;; 3. Patrol boat: < 4 per country, coastal
-    (and coastal?
-         (< (count-country-patrol-boats country-id) config/max-patrol-boats-per-country))
-    :patrol-boat
-
-    ;; 4. Destroyer: global cap, country has unadopted transport, no other city producing
-    (and coastal?
-         (< (get unit-counts :destroyer 0) (get unit-counts :transport 0))
-         (country-has-unadopted-transport? country-id)
-         (not (country-city-producing-destroyers? city-pos country-id)))
-    :destroyer
-
-    ;; 5. Fighter: total fighters < total computer cities
-    (< (count-all-computer-fighters) (count-computer-cities))
-    :fighter))
+  (or (should-produce-transport? city-pos country-id coastal?)
+      (when (should-produce-army? country-id) :army)
+      (when (should-produce-patrol-boat? country-id coastal?) :patrol-boat)
+      (when (should-produce-destroyer? city-pos country-id coastal? unit-counts) :destroyer)
+      (should-produce-fighter?)))
 
 (defn- count-carrier-producers
   "Counts computer cities currently producing carriers."
@@ -266,37 +268,29 @@
                         (= :carrier (:item prod))))
                  @atoms/production)))
 
+(defn- carrier-producible? [coastal? unit-counts]
+  (and coastal?
+       (> (count-computer-cities) config/carrier-city-threshold)
+       (< (get unit-counts :carrier 0) config/max-live-carriers)
+       (< (count-carrier-producers) config/max-carrier-producers)
+       (ship/find-carrier-position)))
+
+(defn- capital-ship-needed? [coastal? unit-counts]
+  (when coastal?
+    (cond
+      (< (get unit-counts :battleship 0) (get unit-counts :carrier 0)) :battleship
+      (< (get unit-counts :submarine 0) (* 2 (get unit-counts :carrier 0))) :submarine)))
+
+(defn- satellite-needed? [unit-counts]
+  (and (> (count-computer-cities) config/satellite-city-threshold)
+       (< (get unit-counts :satellite 0) config/max-satellites)))
+
 (defn- decide-global-production
-  "Global production priorities. Returns unit type. CC=5."
+  "Global production priorities. Returns unit type."
   [coastal? unit-counts]
-  (cond
-    ;; 5. Carrier: enough cities, under fleet cap, under producer cap, valid position
-    (and coastal?
-         (> (count-computer-cities) config/carrier-city-threshold)
-         (< (get unit-counts :carrier 0) config/max-live-carriers)
-         (< (count-carrier-producers) config/max-carrier-producers)
-         (ship/find-carrier-position))
-    :carrier
-
-    ;; 6. Battleship: BB < carriers
-    (and coastal?
-         (< (get unit-counts :battleship 0)
-            (get unit-counts :carrier 0)))
-    :battleship
-
-    ;; 7. Submarine: Sub < 2*carriers
-    (and coastal?
-         (< (get unit-counts :submarine 0)
-            (* 2 (get unit-counts :carrier 0))))
-    :submarine
-
-    ;; 8. Satellite: enough cities, under cap
-    (and (> (count-computer-cities) config/satellite-city-threshold)
-         (< (get unit-counts :satellite 0) config/max-satellites))
-    :satellite
-
-    ;; 9. No production needed — city stays idle
-    :else nil))
+  (or (when (carrier-producible? coastal? unit-counts) :carrier)
+      (capital-ship-needed? coastal? unit-counts)
+      (when (satellite-needed? unit-counts) :satellite)))
 
 (defn- has-inland-computer-city?
   "Returns true if any computer city is inland (not coastal)."

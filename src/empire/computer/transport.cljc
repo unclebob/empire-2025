@@ -154,52 +154,53 @@
                       (into seen cont)
                       (conj continents {:continent cont :armies cont-armies}))))))))))
 
+(defn- build-unloaded-army
+  "Builds an army map for unloading from transport."
+  [transport]
+  (let [unload-eid (:unload-event-id transport)
+        unload-cid (or (:unload-country-id transport) (:country-id transport))]
+    (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
+      unload-eid (assoc :unload-event-id unload-eid)
+      unload-cid (assoc :country-id unload-cid))))
+
+(defn- unloadable-neighbors
+  "Returns adjacent land/city cells that are empty and not on pickup continent."
+  [pos pickup-continent]
+  (filter (fn [neighbor]
+            (let [cell (get-in @atoms/game-map neighbor)]
+              (and cell
+                   (#{:land :city} (:type cell))
+                   (nil? (:contents cell))
+                   (or (nil? pickup-continent)
+                       (not (contains? pickup-continent neighbor))))))
+          (core/get-neighbors pos)))
+
+(declare transition-to-loading)
+
 (defn unload-armies
   "Unload armies onto adjacent land, excluding pickup continent. Returns true if any unloaded."
   [pos pickup-continent]
   (let [transport (get-in @atoms/game-map (conj pos :contents))
         army-count (:army-count transport 0)]
     (when (pos? army-count)
-      (let [land-neighbors (filter (fn [neighbor]
-                                     (let [cell (get-in @atoms/game-map neighbor)]
-                                       (and cell
-                                            (#{:land :city} (:type cell))
-                                            (nil? (:contents cell))
-                                            (or (nil? pickup-continent)
-                                                (not (contains? pickup-continent neighbor))))))
-                                   (core/get-neighbors pos))
+      (let [land-neighbors (unloadable-neighbors pos pickup-continent)
             to-unload (min army-count (count land-neighbors))]
         (when (pos? to-unload)
-          ;; Unload armies onto land cells
-          (let [unload-eid (:unload-event-id transport)
-                unload-cid (or (:unload-country-id transport) (:country-id transport))]
+          (let [army (build-unloaded-army transport)]
             (doseq [land-pos (take to-unload land-neighbors)]
-              (let [army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
-                           unload-eid (assoc :unload-event-id unload-eid)
-                           unload-cid (assoc :country-id unload-cid))]
-                (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-                (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
-                (core/stamp-territory land-pos army)
-                (visibility/update-cell-visibility land-pos :computer))))
-          ;; Record unloaded country-id
+              (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid (:unload-event-id transport)})
+              (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
+              (core/stamp-territory land-pos army)
+              (visibility/update-cell-visibility land-pos :computer)))
           (let [unloaded-country-id (->> (take to-unload land-neighbors)
-                                          (keep #(:country-id (get-in @atoms/game-map %)))
-                                          first)]
+                                         (keep #(:country-id (get-in @atoms/game-map %)))
+                                         first)]
             (when unloaded-country-id
               (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
                      assoc unloaded-country-id @atoms/round-number)))
-          ;; Update transport army count
           (swap! atoms/game-map update-in (conj pos :contents :army-count) - to-unload)
-          ;; If fully unloaded, change mission to loading and update pickup continent
           (when (<= (- army-count to-unload) 0)
-            (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
-            (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
-            (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
-            (let [current-continent (when-let [land-pos (find-adjacent-land-pos pos)]
-                                     (land-objectives/flood-fill-continent land-pos))
-                  next-pickup (find-next-pickup-continent-pos pos current-continent)]
-              (swap! atoms/game-map assoc-in
-                     (conj pos :contents :pickup-continent-pos) next-pickup)))
+            (transition-to-loading pos))
           true)))))
 
 (defn- adjacent-empty-land

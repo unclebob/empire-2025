@@ -112,31 +112,39 @@
        (= :free (:city-status game-cell))
        (was-unexplored? visible-map row col)))
 
+(defn- visible-map-for
+  "Returns the visible-map atom for the given owner."
+  [owner]
+  (if (= owner :player) atoms/player-map atoms/computer-map))
+
+(defn- reveal-and-track!
+  "Reveals a single cell and tracks newly-discovered free cities."
+  [visible-map-atom ni nj stamp-id track-cities? visible-map]
+  (let [game-cell (get-in @atoms/game-map [ni nj])]
+    (reveal-cell! visible-map-atom ni nj game-cell stamp-id visible-map)
+    (when (and track-cities?
+               (newly-discovered-free-city? visible-map ni nj game-cell))
+      (swap! atoms/land-ho-targets conj [ni nj]))))
+
 (defn update-cell-visibility
   "Updates visibility around a specific cell for the given owner.
    Satellites reveal two rectangular rings (distances 1 and 2).
    When unit is a computer army with country-id, stamps newly-revealed land cells."
   ([pos owner] (update-cell-visibility pos owner nil))
   ([pos owner unit]
-   (let [visible-map-atom (if (= owner :player) atoms/player-map atoms/computer-map)
-         [x y] pos
+   (let [visible-map-atom (visible-map-for owner)
          cell (get-in @atoms/game-map pos)
-         radius (if (= :satellite (:type (:contents cell))) 2 1)
+         radius (cell-visibility-radius cell)
          stamp-id (should-stamp-country? unit)
          track-cities? (should-track-free-city? owner (:type (:contents cell)))]
      (when @visible-map-atom
-       (let [height (count @atoms/game-map)
+       (let [[x y] pos
+             height (count @atoms/game-map)
              width (count (first @atoms/game-map))
              visible-map @visible-map-atom]
          (doseq [di (range (- radius) (inc radius))
-                 dj (range (- radius) (inc radius))]
-           (let [ni (+ x di)
-                 nj (+ y dj)]
-             (when (in-bounds? ni nj height width)
-               (let [game-cell (get-in @atoms/game-map [ni nj])]
-                 (reveal-cell! visible-map-atom ni nj
-                               game-cell stamp-id visible-map)
-                 (when (and track-cities?
-                            (newly-discovered-free-city?
-                              visible-map ni nj game-cell))
-                   (swap! atoms/land-ho-targets conj [ni nj])))))))))))
+                 dj (range (- radius) (inc radius))
+                 :let [ni (+ x di) nj (+ y dj)]
+                 :when (in-bounds? ni nj height width)]
+           (reveal-and-track! visible-map-atom ni nj
+                              stamp-id track-cities? visible-map)))))))

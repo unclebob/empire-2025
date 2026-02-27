@@ -555,3 +555,26 @@
   (it "satellite does not have fuel"
     (add-unit-at [1 1] :satellite)
     (should-be-nil (:fuel (get-in @atoms/game-map [1 1 :contents])))))
+
+(describe "update-destination-cell"
+  (let [update-dest @#'empire.movement.movement/update-destination-cell]
+    (it "returns unchanged cell for :unit-destroyed"
+      (let [to-cell {:type :sea}]
+        (should= to-cell (update-dest :unit-destroyed to-cell nil))))
+
+    (it "adds fighter to city airport for :fighter-land-at-city"
+      (let [to-cell {:type :city :city-status :player :fighter-count 0}
+            result (update-dest :fighter-land-at-city to-cell nil)]
+        (should= 1 (:fighter-count result))))
+
+    (it "adds fighter to carrier for :fighter-land-on-carrier"
+      (let [carrier {:type :carrier :owner :player :hits 3 :fighter-count 1}
+            to-cell {:type :sea :contents carrier}
+            result (update-dest :fighter-land-on-carrier to-cell nil)]
+        (should= 2 (get-in result [:contents :fighter-count]))))
+
+    (it "places unit as contents for :normal-move"
+      (let [unit {:type :army :owner :player :hits 1}
+            to-cell {:type :land}
+            result (update-dest :normal-move to-cell unit)]
+        (should= unit (:contents result))))))

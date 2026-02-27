@@ -295,6 +295,12 @@
                    (update-first-match unowned? best-unowned current)
                    (update-first-match unexplored? best-unexplored current))))))))
 
+(defn- passable-sea?
+  "Returns true if pos is a known sea cell on the given map."
+  [the-map pos]
+  (let [cell (get-in the-map pos)]
+    (and cell (= :sea (:type cell)))))
+
 (def ^:private min-explore-depth 4)
 (def ^:private max-bfs-cells 1500)
 
@@ -327,6 +333,17 @@
   (and (nil? best-unexplored)
        (adjacent-to-unexplored? current computer-map)))
 
+(defn- classify-unseen-step
+  "Classifies current BFS position for unseen-coast search.
+   Returns [new-coast new-unexplored]."
+  [current start depth excluded best-coast best-unexplored computer-map seen-coast]
+  (if-not (available-for-target? current start depth excluded)
+    [best-coast best-unexplored]
+    [(update-first-match
+       (unseen-coast? current computer-map seen-coast) best-coast current)
+     (update-first-match
+       (unexplored-target? current best-unexplored computer-map) best-unexplored current)]))
+
 (defn bfs-to-unseen-coast
   "BFS from start over passable sea cells to find the nearest unseen coastal
    cell (adjacent to land/city on computer-map, not in seen-coast) or cell
@@ -336,10 +353,8 @@
    Returns path excluding start, or nil."
   [start computer-map excluded]
   (let [seen-coast @atoms/seen-coast
-        passable-sea? (fn [pos]
-                        (let [cell (get-in computer-map pos)]
-                          (and cell (= :sea (:type cell)))))]
-    (when (passable-sea? start)
+        sea? (partial passable-sea? computer-map)]
+    (when (passable-sea? computer-map start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
              visited #{start}
              came-from {}
@@ -349,16 +364,12 @@
         (if (or (empty? queue) (zero? cells-remaining))
           (build-coast-path best-coast best-unexplored came-from start)
           (let [[current depth] (peek queue)
-                available? (available-for-target? current start depth excluded)
-                is-coast? (and available?
-                               (unseen-coast? current computer-map seen-coast))
-                is-unexplored? (and available?
-                                    (unexplored-target? current best-unexplored computer-map))
-                new-coast (if (and is-coast? (nil? best-coast)) current best-coast)
-                new-unexplored (if is-unexplored? current best-unexplored)]
+                [new-coast new-unexplored]
+                (classify-unseen-step current start depth excluded
+                                     best-coast best-unexplored computer-map seen-coast)]
             (if new-coast
               (build-coast-path new-coast new-unexplored came-from start)
-              (let [neighbors (bfs-sea-neighbors current visited passable-sea?)
+              (let [neighbors (bfs-sea-neighbors current visited sea?)
                     new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
                 (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
                        (into visited neighbors)

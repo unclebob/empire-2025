@@ -608,6 +608,47 @@
       (should= :unloading (:transport-mission (:contents (get-in @atoms/game-map [0 1]))))
       (should= 1 (:army-count (:contents (get-in @atoms/game-map [0 1]))))))
 
+  (context "unloaded army inherits transport properties"
+    (it "army gets :unload-country-id from transport"
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :unloading
+                                                        :army-count 1
+                                                        :unload-country-id 42}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/unload-armies [0 1] nil)
+      (should= 42 (:country-id (:contents (get-in @atoms/game-map [0 0])))))
+
+    (it "army gets :unload-event-id from transport"
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :unloading
+                                                        :army-count 1
+                                                        :unload-event-id 99}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/unload-armies [0 1] nil)
+      (should= 99 (:unload-event-id (:contents (get-in @atoms/game-map [0 0])))))
+
+    (it "army gets transport's country-id when no unload-country-id"
+      (reset! atoms/game-map [[{:type :land}
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :unloading
+                                                        :army-count 1
+                                                        :country-id 7}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/unload-armies [0 1] nil)
+      (should= 7 (:country-id (:contents (get-in @atoms/game-map [0 0])))))
+
+    (it "skips unloaded-countries recording when land has no country-id"
+      (reset! atoms/game-map [[{:type :land}  ; no :country-id
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                        :transport-mission :unloading
+                                                        :army-count 1}}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/unload-armies [0 1] nil)
+      (let [t (:contents (get-in @atoms/game-map [0 1]))]
+        (should-be-nil (:unloaded-countries t)))))
+
   (context "load capacity"
     (it "transport with 4 armies loads exactly 2 from 5 adjacent armies"
       ;; aaaaa   5 armies at row 0
