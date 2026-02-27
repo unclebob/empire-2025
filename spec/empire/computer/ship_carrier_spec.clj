@@ -162,6 +162,34 @@
         (let [bb (get-in @atoms/game-map [0 0 :contents])]
           (should= :orbiting (:escort-mode bb))
           (should-be-nil (:pursuit-target bb)))))) ;; end carrier group escort
+
+  (context "carrier holding mode (L187-193)"
+    (it "holding carrier with invalid pair switches to repositioning"
+      ;; Carrier holding with pair #{[0 0] [0 4]}, but [0 4] is now player city
+      (reset! atoms/game-map [[{:type :city :city-status :computer}
+                                {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                       :carrier-id 1 :carrier-mode :holding
+                                                       :carrier-pair #{[0 0] [0 4]}}}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :city :city-status :player}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 1] :carrier)
+      (let [unit (get-in @atoms/game-map [0 1 :contents])]
+        (should= :repositioning (:carrier-mode unit))
+        (should-be-nil (:carrier-pair unit))))
+
+    (it "holding carrier with valid pair stays in holding"
+      ;; Both cities still computer-owned
+      (reset! atoms/game-map [[{:type :city :city-status :computer}
+                                {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                       :carrier-id 1 :carrier-mode :holding
+                                                       :carrier-pair #{[0 0] [0 3]}}}
+                                {:type :sea}
+                                {:type :city :city-status :computer}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (ship/process-ship [0 1] :carrier)
+      (should= :holding (get-in @atoms/game-map [0 1 :contents :carrier-mode]))))
 ) ;; end process-ship
 
 (describe "carrier positioning helpers"
