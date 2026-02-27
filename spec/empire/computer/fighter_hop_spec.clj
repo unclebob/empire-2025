@@ -2,6 +2,7 @@
   "Tests for VMS Empire style computer fighter movement."
   (:require [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
+            [empire.computer.fighter-movement :as fm]
             [empire.atoms :as atoms]
             [empire.combat :as combat]
             [empire.config :as config]
@@ -16,49 +17,49 @@
     (it "returns best neighbor when it is unoccupied"
       ;; Fighter at [0 0], target at [2 0], neighbor [1 0] is empty land
       (reset! atoms/game-map (build-test-map ["f##"]))
-      (let [result (fighter/hop-over-friendly [0 0] [2 0])]
+      (let [result (fm/hop-over-friendly [0 0] [2 0])]
         (should= {:dest [1 0] :hops 1} result)))
 
     (it "returns nil when no passable neighbors exist"
       ;; 1x1 map: fighter alone, no neighbors
       (reset! atoms/game-map (build-test-map ["f"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [0 0]))))
+      (should-be-nil (fm/hop-over-friendly [0 0] [0 0]))))
 
   (context "basic single-unit hop"
     (it "hops over one friendly unit to land on empty cell beyond"
       ;; Fighter at [0 0], friendly army at [1 0], empty land at [2 0], target at [3 0]
       (reset! atoms/game-map (build-test-map ["fa##"]))
-      (let [result (fighter/hop-over-friendly [0 0] [3 0])]
+      (let [result (fm/hop-over-friendly [0 0] [3 0])]
         (should= {:dest [2 0] :hops 2} result)))
 
     (it "returns nil when friendly unit blocks and cell beyond is off-map"
       ;; Fighter at [0 0], friendly army at [1 0], nothing beyond
       (reset! atoms/game-map (build-test-map ["fa"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [1 0]))))
+      (should-be-nil (fm/hop-over-friendly [0 0] [1 0]))))
 
   (context "multi-unit hop"
     (it "hops over two consecutive friendly units"
       ;; Fighter at [0 0], armies at [1 0] and [2 0], empty at [3 0], target at [4 0]
       (reset! atoms/game-map (build-test-map ["faa##"]))
-      (let [result (fighter/hop-over-friendly [0 0] [4 0])]
+      (let [result (fm/hop-over-friendly [0 0] [4 0])]
         (should= {:dest [3 0] :hops 3} result)))
 
     (it "hops over three consecutive friendly units"
       ;; Fighter at [0 0], armies at [1 0], [2 0], [3 0], empty at [4 0], target at [5 0]
       (reset! atoms/game-map (build-test-map ["faaa##"]))
-      (let [result (fighter/hop-over-friendly [0 0] [5 0])]
+      (let [result (fm/hop-over-friendly [0 0] [5 0])]
         (should= {:dest [4 0] :hops 4} result)))
 
     (it "returns nil when all consecutive friendly units lead off-map"
       ;; Fighter at [0 0], armies fill the rest of the map
       (reset! atoms/game-map (build-test-map ["faaa"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))
+      (should-be-nil (fm/hop-over-friendly [0 0] [3 0])))
 
     (it "returns nil when two friendly units lead off-map"
       ;; 3x1 map: fighter at [0,0], armies at [1,0] and [2,0], target at [5,0]
       ;; Scan goes past [2,0] to [3,0] which is off-map
       (reset! atoms/game-map (build-test-map ["faa"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [5 0])))
+      (should-be-nil (fm/hop-over-friendly [0 0] [5 0])))
 
     (it "hops diagonally over one friendly unit"
       ;; 4x4 map: fighter at [0 0], friendly army at [1 1], empty at [2 2], target at [3 3]
@@ -66,7 +67,7 @@
                                                "#a##"
                                                "##*#"
                                                "###*"]))
-      (let [result (fighter/hop-over-friendly [0 0] [3 3])]
+      (let [result (fm/hop-over-friendly [0 0] [3 3])]
         (should= {:dest [2 2] :hops 2} result)))
 
     (it "returns nil when diagonal hop goes off map edge"
@@ -74,20 +75,20 @@
       ;; Diagonal direction from [0 0] -> [1 1] is [1 1]. Next hop [2 2] is off-map.
       (reset! atoms/game-map (build-test-map ["f#"
                                                "#a"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [2 2])))
+      (should-be-nil (fm/hop-over-friendly [0 0] [2 2])))
 
     (it "returns attack result when chain of friendly units ends at enemy"
       ;; Fighter at [0 0], two friendly armies, then player army at [3 0]
       (reset! atoms/game-map (build-test-map ["faaA"]))
       (should= {:dest [3 0] :hops 3 :attack true}
-               (fighter/hop-over-friendly [0 0] [3 0]))))
+               (fm/hop-over-friendly [0 0] [3 0]))))
 
   (context "hop stops at enemy"
     (it "returns attack when single friendly then enemy"
       ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0], target at [4 0]
       (reset! atoms/game-map (build-test-map ["faA##"]))
       (should= {:dest [2 0] :hops 2 :attack true}
-               (fighter/hop-over-friendly [0 0] [4 0])))
+               (fm/hop-over-friendly [0 0] [4 0])))
 
     (it "returns attack when first neighbor is enemy (no friendly hop)"
       ;; Fighter at [0 0], player army at [1 0] directly adjacent
@@ -95,7 +96,7 @@
       ;; was previously nil. After the change, it should still be nil because the
       ;; initial occupied check only enters hop-over when the first cell IS friendly.
       (reset! atoms/game-map (build-test-map ["fA##"]))
-      (should-be-nil (fighter/hop-over-friendly [0 0] [3 0])))))
+      (should-be-nil (fm/hop-over-friendly [0 0] [3 0])))))
 
 (describe "step-fighter return format"
   (before (reset-all-atoms!))
@@ -168,7 +169,7 @@
     ;; intermediate cells are [1 0] and [2 0] (2 cells), so 2 fuel burned
     (reset! atoms/game-map (build-test-map ["#f##"]))
     (set-test-unit atoms/game-map "f" :fuel 20)
-    (let [result (fighter/consume-hop-fuel [1 0] 3)]
+    (let [result (fm/consume-hop-fuel [1 0] 3)]
       (should= true result)
       ;; 3 hops means 2 intermediate fuel burns (hops-1 since final cell was already burned by move)
       ;; Actually: consume-hop-fuel burns fuel for hops-1 intermediate cells
@@ -179,7 +180,7 @@
     ;; First burn: fuel 2->1. Second burn: fuel 1->0, fighter dies.
     (reset! atoms/game-map (build-test-map ["#f##"]))
     (set-test-unit atoms/game-map "f" :fuel 2)
-    (let [result (fighter/consume-hop-fuel [1 0] 3)]
+    (let [result (fm/consume-hop-fuel [1 0] 3)]
       (should= false result)
       (should-be-nil (get-in @atoms/game-map [1 0 :contents]))))
 
@@ -187,7 +188,7 @@
     ;; A single hop has no intermediate cells to burn fuel for
     (reset! atoms/game-map (build-test-map ["#f##"]))
     (set-test-unit atoms/game-map "f" :fuel 5)
-    (let [result (fighter/consume-hop-fuel [1 0] 1)]
+    (let [result (fm/consume-hop-fuel [1 0] 1)]
       (should= true result)
       (should= 5 (:fuel (get-in @atoms/game-map [1 0 :contents]))))))
 
