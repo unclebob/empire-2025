@@ -376,6 +376,35 @@
       (let [unit {:type :satellite :mode :moving :owner :player}]
         (should (enemy-unit-visible? unit [0 0] game-map))))))
 
+(describe "found-land?"
+  (it "returns true when both in open sea and at beach"
+    (should (@#'empire.movement.wake-conditions/found-land? true true)))
+
+  (it "returns false when not in open sea"
+    (should-not (@#'empire.movement.wake-conditions/found-land? false true)))
+
+  (it "returns false when not at beach"
+    (should-not (@#'empire.movement.wake-conditions/found-land? true false)))
+
+  (it "returns false when neither in open sea nor at beach"
+    (should-not (@#'empire.movement.wake-conditions/found-land? false false))))
+
+(describe "should-wake-at-beach?"
+  (it "returns true when all conditions met"
+    (should (@#'empire.movement.wake-conditions/should-wake-at-beach? true true true)))
+
+  (it "returns false when no armies"
+    (should-not (@#'empire.movement.wake-conditions/should-wake-at-beach? false true true)))
+
+  (it "returns false when not at beach"
+    (should-not (@#'empire.movement.wake-conditions/should-wake-at-beach? true false true)))
+
+  (it "returns false when not been to sea"
+    (should-not (@#'empire.movement.wake-conditions/should-wake-at-beach? true true false)))
+
+  (it "returns false when no armies and not at beach"
+    (should-not (@#'empire.movement.wake-conditions/should-wake-at-beach? false false true))))
+
 (describe "wake-after-move enemy spotted"
   (before (reset-all-atoms!))
 

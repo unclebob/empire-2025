@@ -140,6 +140,9 @@
       (do (swap! atoms/player-items #(cons new-coords (rest %))) :continue)
       (do (swap! atoms/player-items rest) :done))))
 
+(defn- satellite-with-target? [unit]
+  (and (= (:type unit) :satellite) (:target unit)))
+
 (defn- process-one-item
   "Processes a single player item. Returns :done if item was processed and removed,
    :continue if item needs more processing (e.g., movement), or :waiting if item needs user input."
@@ -147,13 +150,13 @@
   (let [coords (first @atoms/player-items)
         cell (get-in @atoms/game-map coords)
         unit (:contents cell)
-        satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
+        sat-moving? (satellite-with-target? unit)
         unit-in-auto-mode? (#{:moving :explore :coastline-follow} (:mode unit))
-        auto-coords (when-not satellite-with-target?
+        auto-coords (when-not sat-moving?
                       (or (auto-launch-fighter coords cell)
                           (auto-disembark-army coords cell)))]
     (cond
-      satellite-with-target?
+      sat-moving?
       (do (swap! atoms/player-items rest) :done)
 
       auto-coords
@@ -204,14 +207,15 @@
 ;; 2. waiting-for-input is set (unit needs player attention)
 ;; 3. 100 items processed (batch limit to keep UI responsive)
 ;; 4. Player wins (all computer items eliminated)
+(defn- batch-should-stop? [processed]
+  (or @atoms/paused
+      (empty? @atoms/player-items)
+      @atoms/waiting-for-input
+      (>= processed 100)))
+
 (defn process-player-items-batch []
   (loop [processed 0]
-    (cond
-      @atoms/paused nil  ;; Stop if victory was declared
-      (empty? @atoms/player-items) nil
-      @atoms/waiting-for-input nil
-      (>= processed 100) nil
-      :else
+    (when-not (batch-should-stop? processed)
       (let [result (process-one-item)]
         (check-player-victory!)
         (case result

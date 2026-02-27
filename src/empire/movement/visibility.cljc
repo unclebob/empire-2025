@@ -95,6 +95,12 @@
              (= :land (:type game-cell)))
     (swap! atoms/game-map assoc-in [row col :country-id] stamp-id)))
 
+(defn- should-track-free-city?
+  "Returns true if owner is computer and unit is not an army."
+  [owner unit-type]
+  (and (= owner :computer)
+       (not= :army unit-type)))
+
 (defn- newly-discovered-free-city?
   "Returns true if game-cell is a free city and the same position
    on visible-map was unexplored."
@@ -113,7 +119,8 @@
          [x y] pos
          cell (get-in @atoms/game-map pos)
          radius (if (= :satellite (:type (:contents cell))) 2 1)
-         stamp-id (should-stamp-country? unit)]
+         stamp-id (should-stamp-country? unit)
+         track-cities? (should-track-free-city? owner (:type (:contents cell)))]
      (when @visible-map-atom
        (let [height (count @atoms/game-map)
              width (count (first @atoms/game-map))
@@ -126,8 +133,7 @@
                (let [game-cell (get-in @atoms/game-map [ni nj])]
                  (reveal-cell! visible-map-atom ni nj
                                game-cell stamp-id visible-map)
-                 (when (and (= owner :computer)
-                            (not= :army (:type (:contents cell)))
+                 (when (and track-cities?
                             (newly-discovered-free-city?
                               visible-map ni nj game-cell))
                    (swap! atoms/land-ho-targets conj [ni nj])))))))))))

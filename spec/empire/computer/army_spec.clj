@@ -9,6 +9,53 @@
             [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 
+(describe "should-sentry-on-coast?"
+  (before (reset-all-atoms!))
+
+  (it "returns true for coastal land with country-id, not city, not near computer city"
+    (reset! atoms/game-map (build-test-map ["#~"]))
+    (should (@#'army/should-sentry-on-coast? [0 0] 1)))
+
+  (it "returns false when country-id is nil"
+    (reset! atoms/game-map (build-test-map ["#~"]))
+    (should-not (@#'army/should-sentry-on-coast? [0 0] nil)))
+
+  (it "returns false when not adjacent to sea"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "###"
+                                             "###"]))
+    (should-not (@#'army/should-sentry-on-coast? [1 1] 1)))
+
+  (it "returns false when position is a city"
+    (reset! atoms/game-map (build-test-map ["+~"]))
+    (should-not (@#'army/should-sentry-on-coast? [0 0] 1)))
+
+  (it "returns false when adjacent to computer city"
+    (reset! atoms/game-map (build-test-map ["#~"
+                                             "X#"]))
+    (should-not (@#'army/should-sentry-on-coast? [0 0] 1))))
+
+(describe "can-settle-here?"
+  (before (reset-all-atoms!))
+
+  (it "returns true for coastal land with country-id, not city"
+    (reset! atoms/game-map (build-test-map ["#~"]))
+    (should (@#'army/can-settle-here? [0 0] 1)))
+
+  (it "returns false when country-id is nil"
+    (reset! atoms/game-map (build-test-map ["#~"]))
+    (should-not (@#'army/can-settle-here? [0 0] nil)))
+
+  (it "returns false when not adjacent to sea"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "###"
+                                             "###"]))
+    (should-not (@#'army/can-settle-here? [1 1] 1)))
+
+  (it "returns false when position is a city"
+    (reset! atoms/game-map (build-test-map ["+~"]))
+    (should-not (@#'army/can-settle-here? [0 0] 1))))
+
 (describe "process-army"
   (before (reset-all-atoms!))
 
