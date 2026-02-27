@@ -1,0 +1,93 @@
+; Explore mode behavior tests for player armies.
+; Explore mode is set by pressing `l` on an army.
+; The army auto-moves toward unexplored cells, decrementing explore-steps.
+
+;===============================================================
+; Explore wakes after step limit exhausted.
+;===============================================================
+GIVEN game map
+  A####
+GIVEN A has mode explore.
+GIVEN A has explore-steps 1.
+
+WHEN a new round starts and A is waiting for input.
+
+THEN A has mode awake.
+
+;===============================================================
+; Explore prefers cells adjacent to unexplored territory.
+;===============================================================
+GIVEN game map
+  A##
+GIVEN player map
+  A..
+GIVEN A has mode explore.
+GIVEN A has explore-steps 10.
+
+WHEN a new round starts.
+
+THEN A is at [1 0].
+
+;===============================================================
+; Explore wakes when stuck with no valid moves.
+;===============================================================
+GIVEN game map
+  ~A~
+GIVEN A has mode explore.
+GIVEN A has explore-steps 10.
+
+WHEN a new round starts and A is waiting for input.
+
+THEN A has mode awake.
+
+;===============================================================
+; Explore wakes near hostile city with reason.
+;===============================================================
+GIVEN game map
+  A#+
+GIVEN A has mode explore.
+GIVEN A has explore-steps 10.
+
+WHEN a new round starts and A is waiting for input.
+
+THEN the attention message contains :army-found-city.
+
+;===============================================================
+; Explore marks visited cells and avoids revisiting.
+;===============================================================
+GIVEN game map
+  A####=
+GIVEN player map
+  A.....
+GIVEN A has mode explore.
+GIVEN A has explore-steps 10.
+A's target is =
+
+WHEN a new round starts.
+
+THEN A is at [1 0].
+
+;===============================================================
+; Army sidesteps around obstacle toward target.
+;===============================================================
+GIVEN game map
+  AO=
+  ###
+GIVEN A has mode moving.
+A's target is =
+
+WHEN a new round starts.
+
+THEN A is at [1 1].
+
+;===============================================================
+; No valid sidestep when all alternatives are sea.
+;===============================================================
+GIVEN game map
+  A~=
+GIVEN A has mode moving.
+A's target is =
+
+WHEN a new round starts and A is waiting for input.
+
+THEN A has mode awake.

@@ -79,7 +79,8 @@
 
 (defn- then-handle-cell-prop [[_ x y prop val]]
   {:type :cell-prop :coords [(Integer/parseInt x) (Integer/parseInt y)]
-   :property (h/resolve-cell-prop prop) :expected (keyword val)})
+   :property (h/resolve-cell-prop prop)
+   :expected (or (h/parse-number val) (h/parse-coords val) (keyword val))})
 
 (defn- then-handle-cell-type [[_ x y t]]
   {:type :cell-type :coords [(Integer/parseInt x) (Integer/parseInt y)]
@@ -239,7 +240,7 @@
     :handler then-handle-shipyard-empty}
    {:regex #"^(?:the\s+)?map\s+is\s+(\S+)"
     :handler then-handle-map-is}
-   {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(\S+)"
+   {:regex #"cell\s+\[(\d+)\s+(\d+)\]\s+has\s+(\S+)\s+(.+)"
     :handler then-handle-cell-prop}
    {:regex #"on\s+(?:the\s+)?computer-map\s+cell\s+\[(\d+)\s+(\d+)\]\s+is\s+a\s+(player|computer)\s+city"
     :handler (fn [[_ x y status]]
@@ -255,8 +256,16 @@
     :handler then-handle-waiting-for-input}
    {:regex #"(?:^not\s+waiting-for-input$|(?:the\s+)?game\s+is\s+not\s+waiting\s+for\s+input)"
     :handler then-handle-not-waiting-for-input}
+   {:regex #"game\s+is\s+not\s+paused"
+    :handler (fn [_] {:type :game-not-paused})}
    {:regex #"game\s+is\s+paused"
     :handler then-handle-game-paused}
+   {:regex #"map\s+display\s+is\s+(\w[\w-]*)"
+    :handler (fn [[_ v]] {:type :map-display :expected (keyword v)})}
+   {:regex #"load\s+menu\s+is\s+not\s+open"
+    :handler (fn [_] {:type :load-menu-state :expected false})}
+   {:regex #"load\s+menu\s+is\s+open"
+    :handler (fn [_] {:type :load-menu-state :expected true})}
    {:regex #"round\s+is\s+(\d+)"
     :handler then-handle-round}
    {:regex #"destination\s+is\s+\[(\d+)\s+(\d+)\]"

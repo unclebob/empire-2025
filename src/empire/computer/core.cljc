@@ -73,7 +73,7 @@
        (:country-id unit)
        (= :land (:type to-cell))
        (:country-id to-cell)
-       (not= (:country-id unit) (:country-id to-cell))))
+       (not (atoms/on-same-continent? (:country-id unit) (:country-id to-cell)))))
 
 (defn move-unit-to
   "Moves a unit from from-pos to to-pos. Returns to-pos if moved, nil if target

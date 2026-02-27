@@ -164,7 +164,12 @@
    :shipyard-state          generate-shipyard-state-given
    :city-unit               generate-city-unit-given
    :territory-around        generate-territory-around-given
-   :visible-to-computer     generate-visible-to-computer-given})
+   :visible-to-computer     generate-visible-to-computer-given
+   :game-over-check-enabled (fn [_] "    (reset! atoms/game-over-check-enabled true)")
+   :game-paused             (fn [_] "    (reset! atoms/paused true)")
+   :pause-requested         (fn [_] "    (reset! atoms/pause-requested true)")
+   :load-menu-open          (fn [_] "    (reset! atoms/load-menu-open true)")
+   :map-display-setup       (fn [{:keys [value]}] (str "    (reset! atoms/map-to-display :" (name value) ")"))})
 
 (defn generate-given
   "Generate code string for a single GIVEN IR node."

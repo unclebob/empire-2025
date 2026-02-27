@@ -208,6 +208,7 @@
   (reset! atoms/computer-turn false)
   (reset! atoms/next-transport-id 1)
   (reset! atoms/next-country-id 1)
+  (reset! atoms/continent-groups {})
   (reset! atoms/next-unload-event-id 1)
   (reset! atoms/next-destroyer-id 1)
   (reset! atoms/next-carrier-id 1)

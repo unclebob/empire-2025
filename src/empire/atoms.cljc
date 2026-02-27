@@ -135,6 +135,34 @@
   "An atom containing the next unique country ID to assign."
   (atom 1))
 
+(def continent-groups
+  "Union-find for country-ids on the same landmass.
+   {country-id -> canonical-country-id}"
+  (atom {}))
+
+(defn on-same-continent?
+  "Returns true if two country-ids are on the same landmass."
+  [cid1 cid2]
+  (or (= cid1 cid2)
+      (and cid1 cid2
+           (let [groups @continent-groups]
+             (= (get groups cid1 cid1) (get groups cid2 cid2))))))
+
+(defn merge-continents!
+  "Records that two country-ids share a landmass."
+  [cid1 cid2]
+  (when (and cid1 cid2 (not= cid1 cid2))
+    (swap! continent-groups
+           (fn [groups]
+             (let [g1 (get groups cid1 cid1)
+                   g2 (get groups cid2 cid2)]
+               (if (= g1 g2)
+                 groups
+                 (reduce-kv (fn [m k v]
+                              (if (= v g2) (assoc m k g1) m))
+                            (assoc groups cid1 g1 cid2 g1)
+                            groups)))))))
+
 (def next-unload-event-id
   "An atom containing the next unique ID for transport unload cycles."
   (atom 1))

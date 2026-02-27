@@ -1,0 +1,76 @@
+; Container operations: loading, disembarking, and launching.
+
+;===============================================================
+; Transport auto-loads adjacent sentry army after moving.
+;===============================================================
+GIVEN game map
+  ~A
+  T~
+GIVEN T is waiting for input.
+GIVEN A has mode sentry.
+
+WHEN the player presses d and T is waiting for input.
+
+THEN T has 1 army.
+THEN there is no A on the map.
+
+;===============================================================
+; Disembarked army is awake and on land.
+;===============================================================
+GIVEN game map
+  ~~
+  T#
+  ~~
+T is awake with one army.
+GIVEN T is waiting for input.
+
+WHEN the player presses u and T is waiting for input.
+WHEN the player presses d.
+
+THEN there is an A at [1 1].
+THEN A has mode awake.
+
+;===============================================================
+; Shift-direction disembarks army in moving mode with target.
+;===============================================================
+GIVEN game map
+  ~~
+  T###
+  ~~
+T is awake with one army.
+GIVEN T is waiting for input.
+
+WHEN the player presses u and T is waiting for input.
+WHEN the player presses D.
+
+THEN there is an A at [1 1].
+THEN A has mode moving.
+
+;===============================================================
+; Explore key disembarks army in explore mode.
+;===============================================================
+GIVEN game map
+  ~~
+  T#
+  ~~
+T is awake with one army.
+GIVEN T is waiting for input.
+
+WHEN the player presses u and T is waiting for input.
+WHEN the player presses l.
+
+THEN there is an A at [1 1].
+THEN A has mode explore.
+
+;===============================================================
+; Launch fighter from carrier toward target.
+;===============================================================
+GIVEN game map
+  C=~
+GIVEN C is sentry with one awake fighter.
+
+WHEN C is waiting for input and the player presses d.
+
+THEN there is an F at =.
+THEN F has mode moving.
+THEN C has no fighters.

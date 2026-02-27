@@ -107,6 +107,9 @@
    {:need :visibility-mask
     :pred (fn [{:keys [types]}]
             (some #{:player-map-visibility} types))}
+   {:need :computer-ship
+    :pred (fn [{:keys [whens]}]
+            (some #(= :process-computer-ship (:type %)) whens))}
    {:need :visibility
     :pred (fn [{:keys [types]}]
             (some #{:cell-visibility-update} types))}
@@ -145,7 +148,8 @@
    [:computer-production "[empire.computer.production :as computer-production]"]
    [:computer-transport  "[empire.computer.transport :as computer-transport]"]
    [:computer-fighter    "[empire.computer.fighter :as computer-fighter]"]
-   [:visibility          "[empire.movement.visibility :as visibility]"]])
+   [:visibility          "[empire.movement.visibility :as visibility]"]
+   [:computer-ship       "[empire.computer.ship :as computer-ship]"]])
 
 (defn- collect-refers [needs]
   (into ["build-test-map" "set-test-unit" "get-test-unit" "reset-all-atoms!"]

@@ -1,0 +1,60 @@
+; Combat side-effects: city conquest contents handling.
+; Tests for conquer-city-contents behavior on ships, fighters, and cargo.
+
+;===============================================================
+; Ship on conquered city flips to player ownership.
+;===============================================================
+GIVEN game map
+  AX
+GIVEN X has a computer destroyer.
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN cell [1 0] is a player city.
+THEN D has owner player.
+THEN D has mode awake.
+
+;===============================================================
+; Fighter on conquered city flips to player ownership.
+;===============================================================
+GIVEN game map
+  AX
+GIVEN X has a computer fighter.
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN cell [1 0] is a player city.
+THEN F has owner player.
+THEN F has mode awake.
+
+;===============================================================
+; Transport armies killed on city conquest.
+;===============================================================
+GIVEN game map
+  AX
+GIVEN X has a computer transport.
+GIVEN t has army-count 3.
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN cell [1 0] is a player city.
+THEN T has owner player.
+THEN T has 0 armies.
+
+;===============================================================
+; Carrier fighters killed on city conquest.
+;===============================================================
+GIVEN game map
+  AX
+GIVEN X has a computer carrier.
+GIVEN c has fighter-count 4.
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN cell [1 0] is a player city.
+THEN C has owner player.
+THEN C has 0 awake fighters.

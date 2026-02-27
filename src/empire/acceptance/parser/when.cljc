@@ -109,7 +109,11 @@
     :handler when-handle-battle}
    {:regex #"player\s+presses\s+(\w+)\s+and\s+(?:the\s+game\s+advances\s+until\s+)?(\w+)\s+is\s+waiting\s+for\s+input"
     :handler when-handle-key-and-advance}
-   {:regex #"player\s+presses\s+(\w+)"
+   {:regex #"player\s+saves\s+the\s+game"
+    :handler (fn [_ _ctx] [{:type :save-game}])}
+   {:regex #"player\s+opens\s+the\s+load\s+menu"
+    :handler (fn [_ _ctx] [{:type :open-load-menu}])}
+   {:regex #"player\s+presses\s+(\S+)"
     :handler when-handle-key-press}
    {:regex #"player\s+types\s+(.*)"
     :handler when-handle-types-keys}
@@ -134,6 +138,9 @@
     :handler when-handle-process-computer-transport}
    {:regex #"computer\s+fighter\s+(\w+)\s+is\s+processed"
     :handler when-handle-process-computer-fighter}
+   {:regex #"computer\s+(destroyer|patrol-boat|submarine|battleship|carrier)\s+(\w+)\s+is\s+processed"
+    :handler (fn [[_ ship-type unit] _ctx]
+               [{:type :process-computer-ship :ship-type (keyword ship-type) :unit unit}])}
    {:regex #"(\w+)\s+computer\s+rounds?\s+pass"
     :handler when-handle-computer-rounds}
    {:regex #"(\w+)\s+is\s+waiting\s+for\s+input"

@@ -93,6 +93,9 @@
   (when (and stamp-id
              (was-unexplored? visible-map row col)
              (= :land (:type game-cell)))
+    (let [existing-cid (:country-id game-cell)]
+      (when (and existing-cid (not= stamp-id existing-cid))
+        (atoms/merge-continents! stamp-id existing-cid)))
     (swap! atoms/game-map assoc-in [row col :country-id] stamp-id)))
 
 (defn- should-track-free-city?

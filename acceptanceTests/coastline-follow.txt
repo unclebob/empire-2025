@@ -1,0 +1,82 @@
+; Coastline-follow mode behavior tests for player transports and patrol boats.
+; Coastline-follow is set by pressing `l` on a transport or patrol-boat near coast.
+; The unit auto-moves hugging the coastline, decrementing coastline-steps.
+
+;===============================================================
+; Pressing l on transport near coast sets coastline-follow mode.
+;===============================================================
+GIVEN game map
+  T#
+GIVEN T is waiting for input.
+
+WHEN the player presses l.
+
+THEN T has mode coastline-follow.
+
+;===============================================================
+; Coastline-follow wakes after step limit exhausted.
+;===============================================================
+GIVEN game map
+  T~~#
+GIVEN T has mode coastline-follow.
+GIVEN T has coastline-steps 1.
+GIVEN T has start-pos [0 0].
+
+WHEN a new round starts and T is waiting for input.
+
+THEN T has mode awake.
+THEN the attention message contains :steps-exhausted.
+
+;===============================================================
+; Pressing l on transport in open ocean is rejected.
+;===============================================================
+GIVEN game map
+  ~T~
+  ~~~
+GIVEN T is waiting for input.
+
+WHEN the player presses l.
+
+THEN the attention message contains :not-near-coast.
+
+;===============================================================
+; Coastline-follow wakes when blocked with no valid moves.
+;===============================================================
+GIVEN game map
+  #T#
+  ###
+GIVEN T has mode coastline-follow.
+GIVEN T has coastline-steps 10.
+GIVEN T has start-pos [1 0].
+
+WHEN a new round starts and T is waiting for input.
+
+THEN T has mode awake.
+THEN the attention message contains :blocked.
+
+;===============================================================
+; Coastline-follow wakes at map edge when start was not at edge.
+;===============================================================
+GIVEN game map
+  ###
+  ~T#
+  ###
+GIVEN T has mode coastline-follow.
+GIVEN T has coastline-steps 10.
+GIVEN T has start-pos [1 1].
+
+WHEN a new round starts and T is waiting for input.
+
+THEN T has mode awake.
+THEN the attention message contains :hit-edge.
+
+;===============================================================
+; Pressing l on patrol-boat near coast sets coastline-follow mode.
+;===============================================================
+GIVEN game map
+  P#
+GIVEN P is waiting for input.
+
+WHEN the player presses l.
+
+THEN P has mode coastline-follow.

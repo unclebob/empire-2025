@@ -1,0 +1,61 @@
+; Waypoint creation, orders, and army follow-through behavior.
+
+;===============================================================
+; Create waypoint on empty land cell via star key.
+;===============================================================
+GIVEN game map
+  A##
+GIVEN A is waiting for input.
+
+WHEN the mouse is at cell [2 0] and the player presses star.
+
+THEN the turn message contains "Waypoint placed".
+
+;===============================================================
+; Toggle waypoint off by pressing star again.
+;===============================================================
+GIVEN game map
+  A##
+GIVEN A is waiting for input.
+
+WHEN the mouse is at cell [2 0] and the player presses star.
+WHEN the mouse is at cell [2 0] and the player presses star.
+
+THEN the turn message contains "Waypoint removed".
+
+;===============================================================
+; Set marching orders on waypoint via m key.
+;===============================================================
+GIVEN game map
+  A####
+GIVEN A is waiting for input.
+
+WHEN the mouse is at cell [2 0] and the player presses star.
+WHEN the mouse is at cell [4 0] and the player presses period.
+WHEN the mouse is at cell [2 0] and the player presses m.
+
+THEN the turn message contains "Waypoint orders set".
+
+;===============================================================
+; Waypoint does not affect non-army units.
+;===============================================================
+GIVEN game map
+  ##
+GIVEN cell [1 0] has waypoint true.
+
+THEN cell [1 0] has type land.
+
+;===============================================================
+; Army arriving at waypoint without orders wakes normally.
+;===============================================================
+GIVEN game map
+  A##
+GIVEN destination [2 0].
+GIVEN A is waiting for input.
+
+WHEN the mouse is at cell [2 0] and the player presses star.
+WHEN the player presses D.
+WHEN a new round starts and A is waiting for input.
+
+THEN A is at [2 0].
+THEN A has mode awake.

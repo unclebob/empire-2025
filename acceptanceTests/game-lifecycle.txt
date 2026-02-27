@@ -1,0 +1,173 @@
+; Game lifecycle tests: game-over, victory, pause/resume, save/load.
+
+;===============================================================
+; Game over when player has no cities or units.
+;===============================================================
+GIVEN game map
+  .X
+GIVEN game-over-check enabled.
+
+WHEN a new round starts.
+
+THEN the game is paused.
+and the error message contains "GAME OVER".
+and map display is actual-map.
+
+;===============================================================
+; No game over when player has a unit but no city.
+;===============================================================
+GIVEN game map
+  AX
+GIVEN game-over-check enabled.
+
+WHEN a new round starts.
+
+THEN the game is not paused.
+and there is no error message.
+
+;===============================================================
+; No game over when check is disabled.
+;===============================================================
+GIVEN game map
+  .X
+
+WHEN a new round starts.
+
+THEN the game is not paused.
+
+;===============================================================
+; Victory when no computer items remain.
+;===============================================================
+GIVEN game map
+  O.
+GIVEN game-over-check enabled.
+
+WHEN a new round starts.
+
+THEN the game is paused.
+and the error message contains "YOU WIN!".
+and map display is actual-map.
+
+;===============================================================
+; No victory when computer has a city.
+;===============================================================
+GIVEN game map
+  AOX
+GIVEN game-over-check enabled.
+
+WHEN a new round starts.
+
+THEN the game is not paused.
+
+;===============================================================
+; No victory when computer has a unit.
+;===============================================================
+GIVEN game map
+  A#a
+GIVEN game-over-check enabled.
+
+WHEN a new round starts.
+
+THEN the game is not paused.
+
+;===============================================================
+; Pressing P requests pause (not immediate).
+;===============================================================
+GIVEN game map
+  A#
+GIVEN round 1.
+
+WHEN the player presses P.
+
+THEN the game is not paused.
+
+;===============================================================
+; Pause takes effect at round boundary.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN round 1.
+GIVEN pause requested.
+
+WHEN the game advances.
+
+THEN the game is paused.
+
+;===============================================================
+; Resume from pause with P.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN the game is paused.
+
+WHEN the player presses P.
+
+THEN the game is not paused.
+
+;===============================================================
+; Step one round with space when paused.
+;===============================================================
+GIVEN game map
+  .#
+GIVEN round 1.
+GIVEN the game is paused.
+
+WHEN the player presses space.
+
+THEN round is 2.
+
+;===============================================================
+; Advance does nothing while paused.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN round 1.
+GIVEN the game is paused.
+
+WHEN the game advances.
+
+THEN round is 1.
+and the game is paused.
+
+;===============================================================
+; Save game shows confirmation.
+;===============================================================
+GIVEN game map
+  A#
+
+WHEN the player saves the game.
+
+THEN the turn message contains "Saved to".
+
+;===============================================================
+; Open load menu.
+;===============================================================
+GIVEN game map
+  A#
+
+WHEN the player opens the load menu.
+
+THEN the load menu is open.
+
+;===============================================================
+; Close load menu with escape.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN load menu is open.
+
+WHEN the player presses escape.
+
+THEN the load menu is not open.
+
+;===============================================================
+; Advance blocked while load menu open.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN round 1.
+GIVEN load menu is open.
+
+WHEN the game advances.
+
+THEN round is 1.

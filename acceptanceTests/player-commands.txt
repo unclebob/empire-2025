@@ -1,0 +1,86 @@
+; Player command tests.
+; Map display toggle, fighter space key, marching orders, flight path.
+
+;===============================================================
+; Plus key cycles player-map to computer-map.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN map display is player-map.
+GIVEN A is waiting for input.
+
+WHEN the player presses +.
+
+THEN the map display is computer-map.
+
+;===============================================================
+; Plus key cycles computer-map to actual-map.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN map display is computer-map.
+GIVEN A is waiting for input.
+
+WHEN the player presses +.
+
+THEN the map display is actual-map.
+
+;===============================================================
+; Plus key cycles actual-map back to player-map.
+;===============================================================
+GIVEN game map
+  A#
+GIVEN map display is actual-map.
+GIVEN A is waiting for input.
+
+WHEN the player presses +.
+
+THEN the map display is player-map.
+
+;===============================================================
+; Fighter space key decrements fuel by speed.
+;===============================================================
+GIVEN game map
+  F#
+GIVEN F has fuel 20.
+GIVEN F is waiting for input.
+
+WHEN the player presses space.
+
+THEN F has fuel 12.
+
+;===============================================================
+; Fighter space key with low fuel destroys fighter.
+;===============================================================
+GIVEN game map
+  F#
+GIVEN F has fuel 8.
+GIVEN F is waiting for input.
+
+WHEN the player presses space.
+
+THEN F has hits 0.
+
+;===============================================================
+; Marching orders via m key at city with destination.
+;===============================================================
+GIVEN game map
+  O#
+GIVEN destination [1 0].
+GIVEN O is waiting for input.
+
+WHEN the mouse is at cell [0 0] and the player presses m.
+
+THEN cell [0 0] has marching-orders [1 0].
+
+;===============================================================
+; Flight path via f key at city with destination.
+;===============================================================
+GIVEN game map
+  O#
+GIVEN destination [1 0].
+GIVEN O is waiting for input.
+
+WHEN the mouse is at cell [0 0] and the player presses f.
+
+THEN cell [0 0] has flight-path [1 0].
