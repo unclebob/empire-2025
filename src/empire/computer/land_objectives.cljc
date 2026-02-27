@@ -86,43 +86,39 @@
         (swap! continent-cache merge cache-entries))
       continent)))
 
+(def ^:private city-status->key
+  {:computer :computer-cities
+   :player :player-cities
+   :free :free-cities})
+
+(def ^:private owner->key
+  {:computer :computer-units
+   :player :player-units})
+
+(defn city-status-key
+  "Returns the counts key for a city cell, or nil if not a city."
+  [cell]
+  (when (= :city (:type cell))
+    (city-status->key (:city-status cell))))
+
+(defn unit-owner-key
+  "Returns the counts key for a cell's unit owner, or nil if no unit."
+  [cell]
+  (owner->key (:owner (:contents cell))))
+
 (defn scan-continent
   "Scan a continent (set of positions) and return counts of items of interest."
   [continent-positions]
-  (let [comp-map @atoms/computer-map
-        game-map @atoms/game-map]
+  (let [comp-map @atoms/computer-map]
     (reduce
      (fn [counts pos]
        (let [comp-cell (get-in comp-map pos)
-             game-cell (get-in game-map pos)
              terrain (get-terrain comp-cell)]
          (cond-> counts
-           ;; Count unexplored
-           (= terrain :unexplored)
-           (update :unexplored (fnil inc 0))
-
-           ;; Count land cells (size)
-           (= terrain :land)
-           (update :size (fnil inc 0))
-
-           ;; Count cities by owner
-           (= :city (:type comp-cell))
-           (cond->
-             (= :computer (:city-status comp-cell))
-             (update :computer-cities (fnil inc 0))
-
-             (= :player (:city-status comp-cell))
-             (update :player-cities (fnil inc 0))
-
-             (= :free (:city-status comp-cell))
-             (update :free-cities (fnil inc 0)))
-
-           ;; Count units by owner
-           (and (:contents comp-cell) (= :computer (:owner (:contents comp-cell))))
-           (update :computer-units (fnil inc 0))
-
-           (and (:contents comp-cell) (= :player (:owner (:contents comp-cell))))
-           (update :player-units (fnil inc 0)))))
+           (= terrain :unexplored) (update :unexplored inc)
+           (= terrain :land) (update :size inc)
+           (city-status-key comp-cell) (update (city-status-key comp-cell) inc)
+           (unit-owner-key comp-cell) (update (unit-owner-key comp-cell) inc))))
      {:unexplored 0 :size 0
       :computer-cities 0 :player-cities 0 :free-cities 0
       :computer-units 0 :player-units 0}

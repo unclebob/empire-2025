@@ -304,6 +304,14 @@
                 (range (count (first @atoms/game-map)))))
         (range (count @atoms/game-map))))
 
+(defn- early-patrol-boat-needed? [coastal?]
+  (and coastal? (not @atoms/early-patrol-boat-produced?)))
+
+(defn- early-satellite-needed? [coastal?]
+  (and @atoms/early-patrol-boat-produced?
+       (not @atoms/early-satellite-produced?)
+       (or (not coastal?) (not (has-inland-computer-city?)))))
+
 (defn- decide-early-production
   "One-shot early production after first transport fully loaded.
    Patrol boat first (coastal city), then satellite (inland preferred).
@@ -311,20 +319,13 @@
   [city-pos coastal?]
   (when @atoms/transport-fully-loaded?
     (cond
-      (and coastal? (not @atoms/early-patrol-boat-produced?))
+      (early-patrol-boat-needed? coastal?)
       (do (reset! atoms/early-patrol-boat-produced? true)
           :patrol-boat)
 
-      (and @atoms/early-patrol-boat-produced?
-           (not @atoms/early-satellite-produced?))
-      (cond
-        (not coastal?)
-        (do (reset! atoms/early-satellite-produced? true)
-            :satellite)
-
-        (not (has-inland-computer-city?))
-        (do (reset! atoms/early-satellite-produced? true)
-            :satellite)))))
+      (early-satellite-needed? coastal?)
+      (do (reset! atoms/early-satellite-produced? true)
+          :satellite))))
 
 (defn decide-production
   "Decide what a computer city should produce. Returns unit type keyword.

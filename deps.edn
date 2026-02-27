@@ -32,7 +32,7 @@
 					                        :main-opts ["-m" "speclj-structure-check.core"]}
 					 :crap {:extra-deps {io.github.unclebob/crap4clj
 					                      {:git/url "https://github.com/unclebob/crap4clj"
-					                       :git/sha "a92acbd819a5dda9bb8a2268a997c66482b8445c"}}
+					                       :git/sha "5656b5cd2e846e3104877152c8807988b4ae78f8"}}
 					        :extra-paths ["spec"]
 					        :main-opts ["-m" "crap4clj.core"]}
 				 }

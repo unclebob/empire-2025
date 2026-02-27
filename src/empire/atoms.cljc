@@ -223,6 +223,13 @@
   "Cached set of computer carrier positions. Updated on spawn/move/death."
   (atom #{}))
 
+(defn computer-city-cell? [cell]
+  (and (= :city (:type cell)) (= :computer (:city-status cell))))
+
+(defn computer-carrier-cell? [cell]
+  (and (= :carrier (get-in cell [:contents :type]))
+       (= :computer (get-in cell [:contents :owner]))))
+
 (defn rebuild-refueling-caches!
   "Scans game-map once to populate computer-city-positions and computer-carrier-positions."
   []
@@ -232,11 +239,8 @@
     (doseq [i (range (count gm))
             j (range (count (first gm)))
             :let [cell (get-in gm [i j])]]
-      (when (and (= :city (:type cell)) (= :computer (:city-status cell)))
-        (conj! cities [i j]))
-      (when (and (= :carrier (get-in cell [:contents :type]))
-                 (= :computer (get-in cell [:contents :owner])))
-        (conj! carriers [i j])))
+      (when (computer-city-cell? cell) (conj! cities [i j]))
+      (when (computer-carrier-cell? cell) (conj! carriers [i j])))
     (reset! computer-city-positions (persistent! cities))
     (reset! computer-carrier-positions (persistent! carriers))))
 

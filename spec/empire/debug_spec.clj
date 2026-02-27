@@ -169,3 +169,73 @@
     (let [filename (debug/generate-dump-filename)]
       ;; Should match debug-YYYY-MM-DD-HHMMSS.txt
       (should (re-find #"debug-\d{4}-\d{2}-\d{2}-\d{6}\.txt" filename)))))
+
+(describe "format-movement-entry"
+  (it "formats basic move entry"
+    (let [entry {:unit-type :army :from [1 2] :to [1 3] :mode :moving :event :move :reason nil}
+          result (#'debug/format-movement-entry entry)]
+      (should-contain "army" result)
+      (should-contain "[1 2]" result)
+      (should-contain "[1 3]" result)
+      (should-contain "moving" result)
+      (should-not-contain "move" (subs result (+ 4 (.indexOf result "moving"))))))
+
+  (it "formats entry with non-move event"
+    (let [entry {:unit-type :army :from [0 0] :to [0 1] :mode :explore :event :wake :reason nil}
+          result (#'debug/format-movement-entry entry)]
+      (should-contain "wake" result)
+      (should-contain "explore" result)))
+
+  (it "formats entry with reason"
+    (let [entry {:unit-type :fighter :from [3 4] :to [3 5] :mode :moving :event :blocked :reason :steps-exhausted}
+          result (#'debug/format-movement-entry entry)]
+      (should-contain "blocked" result)
+      (should-contain "steps-exhausted" result))))
+
+(describe "format-dump"
+  (before (reset-all-atoms!))
+
+  (it "contains header section with round number"
+    (reset! atoms/round-number 5)
+    (reset! atoms/game-map (build-test-map ["##" "##"]))
+    (reset! atoms/player-map (build-test-map ["##" "##"]))
+    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (let [result (debug/format-dump [0 0] [1 1])]
+      (should-contain "Empire Debug Dump" result)
+      (should-contain "Round: 5" result)))
+
+  (it "contains global state section"
+    (reset! atoms/round-number 3)
+    (reset! atoms/waiting-for-input true)
+    (reset! atoms/game-map (build-test-map ["##" "##"]))
+    (reset! atoms/player-map (build-test-map ["##" "##"]))
+    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (let [result (debug/format-dump [0 0] [1 1])]
+      (should-contain "Global State" result)
+      (should-contain "waiting-for-input: true" result)))
+
+  (it "contains map data section"
+    (reset! atoms/game-map (build-test-map ["##" "##"]))
+    (reset! atoms/player-map (build-test-map ["##" "##"]))
+    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (let [result (debug/format-dump [0 0] [1 1])]
+      (should-contain "Map Data" result)
+      (should-contain "game-map" result)
+      (should-contain "player-map" result)
+      (should-contain "computer-map" result)))
+
+  (it "contains production state section"
+    (reset! atoms/game-map (build-test-map ["##" "##"]))
+    (reset! atoms/player-map (build-test-map ["##" "##"]))
+    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (let [result (debug/format-dump [0 0] [1 1])]
+      (should-contain "Production State" result)))
+
+  (it "contains recent actions section"
+    (reset! atoms/game-map (build-test-map ["##" "##"]))
+    (reset! atoms/player-map (build-test-map ["##" "##"]))
+    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (debug/log-action! [:test-action])
+    (let [result (debug/format-dump [0 0] [1 1])]
+      (should-contain "Recent Actions" result)
+      (should-contain "test-action" result))))

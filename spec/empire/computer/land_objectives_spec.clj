@@ -111,6 +111,40 @@
       (should= 1 (:computer-units counts))
       (should= 2 (:player-units counts)))))
 
+(describe "city-status-key"
+  (it "returns :computer-cities for computer city"
+    (should= :computer-cities
+             (land-objectives/city-status-key {:type :city :city-status :computer})))
+
+  (it "returns :player-cities for player city"
+    (should= :player-cities
+             (land-objectives/city-status-key {:type :city :city-status :player})))
+
+  (it "returns :free-cities for free city"
+    (should= :free-cities
+             (land-objectives/city-status-key {:type :city :city-status :free})))
+
+  (it "returns nil for non-city"
+    (should-be-nil (land-objectives/city-status-key {:type :land})))
+
+  (it "returns nil for nil cell"
+    (should-be-nil (land-objectives/city-status-key nil))))
+
+(describe "unit-owner-key"
+  (it "returns :computer-units for computer unit"
+    (should= :computer-units
+             (land-objectives/unit-owner-key {:contents {:owner :computer}})))
+
+  (it "returns :player-units for player unit"
+    (should= :player-units
+             (land-objectives/unit-owner-key {:contents {:owner :player}})))
+
+  (it "returns nil when no contents"
+    (should-be-nil (land-objectives/unit-owner-key {:type :land})))
+
+  (it "returns nil for nil cell"
+    (should-be-nil (land-objectives/unit-owner-key nil))))
+
 (describe "has-land-objective?"
   (it "returns true when unexplored territory exists"
     (should (land-objectives/has-land-objective? {:unexplored 5 :free-cities 0 :player-cities 0})))

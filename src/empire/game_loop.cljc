@@ -111,31 +111,25 @@
   (reset! atoms/cells-needing-attention [])
   (reset! atoms/production-status (ru/format-production-status @atoms/game-map @atoms/player-map)))
 
+(defn- both-lists-empty? []
+  (and (empty? @atoms/player-items) (empty? @atoms/computer-items)))
+
+(defn- handle-pause-or-new-round []
+  (if @atoms/pause-requested
+    (do (reset! atoms/paused true) (reset! atoms/pause-requested false))
+    (start-new-round)))
+
 (defn advance-game
   "Advances the game by processing player items, then computer items.
    Processes multiple non-attention items per frame for faster rounds."
   []
   (cond
     @atoms/load-menu-open nil
-
     @atoms/paused nil
-
-    ;; Both lists empty - start new round (or pause)
-    (and (empty? @atoms/player-items) (empty? @atoms/computer-items))
-    (if @atoms/pause-requested
-      (do (reset! atoms/paused true) (reset! atoms/pause-requested false))
-      (start-new-round))
-
-    ;; Waiting for player input
+    (both-lists-empty?) (handle-pause-or-new-round)
     @atoms/waiting-for-input nil
-
-    ;; Player items to process
-    (seq @atoms/player-items)
-    (item-processing/process-player-items-batch)
-
-    ;; Computer items to process
-    :else
-    (item-processing/process-computer-items)))
+    (seq @atoms/player-items) (item-processing/process-player-items-batch)
+    :else (item-processing/process-computer-items)))
 
 (defn advance-game-batch
   "Calls advance-game up to advances-per-frame times per frame.

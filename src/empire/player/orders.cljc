@@ -43,6 +43,12 @@
   (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
   true)
 
+(defn- player-city? [cell]
+  (and (= (:type cell) :city) (= (:city-status cell) :player)))
+
+(defn- player-transport? [contents]
+  (and (= (:type contents) :transport) (= (:owner contents) :player)))
+
 (defn set-marching-orders-at
   "Sets marching orders on a player city, transport, or waypoint at the given coordinates."
   [[cx cy]]
@@ -50,10 +56,10 @@
     (let [cell (get-in @atoms/game-map [cx cy])
           contents (:contents cell)]
       (cond
-        (and (= (:type cell) :city) (= (:city-status cell) :player))
+        (player-city? cell)
         (apply-marching-orders [cx cy :marching-orders] dest)
 
-        (and (= (:type contents) :transport) (= (:owner contents) :player))
+        (player-transport? contents)
         (apply-marching-orders [cx cy :contents :marching-orders] dest)
 
         (:waypoint cell)
@@ -94,23 +100,23 @@
         (atoms/set-turn-message (str "Waypoint removed from " cx "," cy) 2000)))
     true))
 
+(defn- project-to-edge [[cx cy] [dx dy]]
+  (let [cols (count @atoms/game-map)
+        rows (count (first @atoms/game-map))]
+    (loop [tx cx ty cy]
+      (let [nx (+ tx dx) ny (+ ty dy)]
+        (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
+          (recur nx ny)
+          [tx ty])))))
+
 (defn set-city-marching-orders-by-direction-at
   "Sets marching orders on a player city or waypoint to the map edge in the given direction."
   [[cx cy] k]
   (when-let [direction (config/key->direction k)]
     (let [cell (get-in @atoms/game-map [cx cy])]
       (cond
-        (and (= (:type cell) :city)
-             (= (:city-status cell) :player))
-        (let [[dx dy] direction
-              cols (count @atoms/game-map)
-              rows (count (first @atoms/game-map))
-              target (loop [tx cx ty cy]
-                       (let [nx (+ tx dx)
-                             ny (+ ty dy)]
-                         (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
-                           (recur nx ny)
-                           [tx ty])))]
+        (player-city? cell)
+        (let [target (project-to-edge [cx cy] direction)]
           (swap! atoms/game-map assoc-in [cx cy :marching-orders] target)
           (atoms/set-turn-message (str "Marching orders set to " (first target) "," (second target)) 2000)
           true)

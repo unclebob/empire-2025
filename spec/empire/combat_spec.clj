@@ -548,6 +548,22 @@
     (should-be-nil (:marching-orders (get-in @atoms/game-map [0 0])))
     (should-be-nil (:flight-path (get-in @atoms/game-map [0 0])))))
 
+(describe "dead-escort-destroyer?"
+  (it "true for destroyer with escort-transport-id"
+    (should (combat/dead-escort-destroyer? {:type :destroyer :escort-transport-id 42})))
+  (it "false for destroyer without escort-transport-id"
+    (should-not (combat/dead-escort-destroyer? {:type :destroyer})))
+  (it "false for non-destroyer"
+    (should-not (combat/dead-escort-destroyer? {:type :transport :escort-transport-id 42}))))
+
+(describe "dead-escort-transport?"
+  (it "true for transport with escort-destroyer-id"
+    (should (combat/dead-escort-transport? {:type :transport :escort-destroyer-id 7})))
+  (it "false for transport without escort-destroyer-id"
+    (should-not (combat/dead-escort-transport? {:type :transport})))
+  (it "false for non-transport"
+    (should-not (combat/dead-escort-transport? {:type :destroyer :escort-destroyer-id 7}))))
+
 (describe "escort death handling"
   (before (reset-all-atoms!))
 

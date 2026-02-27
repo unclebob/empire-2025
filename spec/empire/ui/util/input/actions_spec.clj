@@ -6,6 +6,7 @@
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.player.orders :as orders]
+            [empire.player.production :as production]
             [empire.save-load :as save-load]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!]]))
 
@@ -314,3 +315,192 @@
                                              "###"
                                              "###"]))
     (should= [2 1] (#'actions/calculate-extended-target [0 1] [1 0]))))
+
+(describe "handle-key :u (unload)"
+  (before (reset-all-atoms!))
+
+  (it "wakes armies on transport"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~T~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :awake-armies 0)
+    (let [coords (:pos (get-test-unit atoms/game-map "T"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :u)
+      (let [transport (:contents (get-in @atoms/game-map coords))]
+        (should= 2 (:awake-armies transport)))))
+
+  (it "wakes fighters on carrier"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~C~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "C" :mode :awake :hits 1 :fighter-count 2 :awake-fighters 0)
+    (let [coords (:pos (get-test-unit atoms/game-map "C"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :u)
+      (let [carrier (:contents (get-in @atoms/game-map coords))]
+        (should= 2 (:awake-fighters carrier)))))
+
+  (it "returns nil when unit is not a container"
+    (reset! atoms/game-map (build-test-map ["~D~"]))
+    (set-test-unit atoms/game-map "D" :mode :awake :hits 3)
+    (let [coords (:pos (get-test-unit atoms/game-map "D"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      (should-be-nil (actions/handle-key :u)))))
+
+(describe "handle-key production on city"
+  (before (reset-all-atoms!))
+
+  (it "sets army production on player city"
+    (reset! atoms/game-map (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/player-items [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :a)
+      (should= :army (:item (get @atoms/production city-coords)))))
+
+  (it "rejects naval production on non-coastal city"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#O#"
+                                             "###"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/player-items [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (reset! atoms/error-message "")
+      (actions/handle-key :d)
+      ;; Should show error message about coastal city
+      (should-contain "coastal" @atoms/error-message)
+      ;; Should NOT set production
+      (should-be-nil (get @atoms/production city-coords))))
+
+  (it "allows naval production on coastal city"
+    (reset! atoms/game-map (build-test-map ["~O#"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/player-items [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :d)
+      (should= :destroyer (:item (get @atoms/production city-coords)))))
+
+  (it "clears production with :x key"
+    (reset! atoms/game-map (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      ;; Set initial production
+      (production/set-city-production city-coords :army)
+      (should= :army (:item (get @atoms/production city-coords)))
+      ;; Now press :x to clear
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/player-items [city-coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :x)
+      (should= :none (get @atoms/production city-coords)))))
+
+(describe "handle-key :l (look-around)"
+  (before (reset-all-atoms!))
+
+  (it "sets army to explore mode"
+    (reset! atoms/game-map (build-test-map ["###"
+                                             "#A#"
+                                             "###"]))
+    (set-test-unit atoms/game-map "A" :mode :awake)
+    (let [coords (:pos (get-test-unit atoms/game-map "A"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :l)
+      (let [unit (:contents (get-in @atoms/game-map coords))]
+        (should= :explore (:mode unit)))))
+
+  (it "sets transport to coastline-follow mode when near coast"
+    (reset! atoms/game-map (build-test-map ["~#~"
+                                             "~T~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 0)
+    (let [coords (:pos (get-test-unit atoms/game-map "T"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      (actions/handle-key :l)
+      (let [unit (:contents (get-in @atoms/game-map coords))]
+        (should= :coastline-follow (:mode unit)))))
+
+  (it "shows rejection reason for transport not near coast"
+    (reset! atoms/game-map (build-test-map ["~~~~~"
+                                             "~~~~~"
+                                             "~~T~~"
+                                             "~~~~~"
+                                             "~~~~~"]))
+    (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 0)
+    (let [coords (:pos (get-test-unit atoms/game-map "T"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      (reset! atoms/attention-message "")
+      (actions/handle-key :l)
+      (should-contain "coast" @atoms/attention-message))))
+
+(describe "execute-unit-movement: airport-fighter launch"
+  (before (reset-all-atoms!))
+
+  (it "launches fighter from airport"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~O~"
+                                             "~~~"]))
+    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      ;; Set up airport with awake fighter
+      (swap! atoms/game-map update-in city-coords
+             merge {:fighter-count 1 :awake-fighters 1})
+      (reset! atoms/cells-needing-attention [city-coords])
+      (reset! atoms/player-items [city-coords])
+      (reset! atoms/waiting-for-input true)
+      ;; Press 'q' to move up-left
+      (actions/handle-key :q)
+      ;; Fighter should have been launched - city should have 0 fighters now
+      (let [city (get-in @atoms/game-map city-coords)]
+        (should= 0 (:fighter-count city))))))
+
+(describe "execute-unit-movement: carrier-fighter launch"
+  (before (reset-all-atoms!))
+
+  (it "launches fighter from carrier"
+    (reset! atoms/game-map (build-test-map ["~~~"
+                                             "~C~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "C" :mode :sentry :hits 1 :fighter-count 1 :awake-fighters 1)
+    (let [coords (:pos (get-test-unit atoms/game-map "C"))]
+      (reset! atoms/cells-needing-attention [coords])
+      (reset! atoms/player-items [coords])
+      (reset! atoms/waiting-for-input true)
+      ;; Press 'q' to move up-left - should launch fighter
+      (actions/handle-key :q)
+      (let [carrier (:contents (get-in @atoms/game-map coords))]
+        (should= 0 (:fighter-count carrier))))))
+
+(describe "handle-standard-unit-movement: fighter overfly hostile city"
+  (before (reset-all-atoms!))
+
+  (it "fighter gets shot down when flying over hostile city"
+    (reset! atoms/game-map (build-test-map ["~F~"
+                                             "~X~"
+                                             "~~~"]))
+    (set-test-unit atoms/game-map "F" :mode :awake :fuel 20 :hits 1)
+    (let [fighter-coords (:pos (get-test-unit atoms/game-map "F"))
+          city-coords (:pos (get-test-city atoms/game-map "X"))]
+      (reset! atoms/cells-needing-attention [fighter-coords])
+      (reset! atoms/player-items [fighter-coords])
+      (reset! atoms/waiting-for-input true)
+      (reset! atoms/error-message "")
+      ;; Press 'x' to move down toward hostile city
+      (actions/handle-key :x)
+      ;; Fighter should be shot down (hits = 0) at city
+      (let [city-cell (get-in @atoms/game-map city-coords)
+            fighter (:contents city-cell)]
+        (should= 0 (:hits fighter))))))

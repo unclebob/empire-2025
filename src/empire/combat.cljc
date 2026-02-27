@@ -188,30 +188,36 @@
          (:carrier-id dead-unit))
     (release-carrier-escorts dead-unit)))
 
+(defn dead-escort-destroyer? [dead-unit]
+  (and (= :destroyer (:type dead-unit))
+       (:escort-transport-id dead-unit)))
+
+(defn dead-escort-transport? [dead-unit]
+  (and (= :transport (:type dead-unit))
+       (:escort-destroyer-id dead-unit)))
+
+(defn- clear-destroyer-escort [dead-unit]
+  (let [tid (:escort-transport-id dead-unit)
+        coords (find-units-where #(and (= :transport (:type %))
+                                       (= tid (:transport-id %))))]
+    (doseq [pos coords]
+      (swap! atoms/game-map update-in (conj pos :contents) dissoc :escort-destroyer-id))))
+
+(defn- clear-transport-escort [dead-unit]
+  (let [did (:escort-destroyer-id dead-unit)
+        coords (find-units-where #(and (= :destroyer (:type %))
+                                       (= did (:destroyer-id %))))]
+    (doseq [pos coords]
+      (swap! atoms/game-map update-in (conj pos :contents)
+             #(-> % (assoc :escort-mode :seeking)
+                  (dissoc :escort-transport-id))))))
+
 (defn clear-escort-on-death
   "When a unit with escort pairing is destroyed, clear the partner's reference."
   [dead-unit]
   (cond
-    ;; Dead destroyer: clear transport's escort-destroyer-id
-    (and (= :destroyer (:type dead-unit))
-         (:escort-transport-id dead-unit))
-    (let [tid (:escort-transport-id dead-unit)
-          coords (find-units-where #(and (= :transport (:type %))
-                                         (= tid (:transport-id %))))]
-      (doseq [pos coords]
-        (swap! atoms/game-map update-in (conj pos :contents) dissoc :escort-destroyer-id)))
-
-    ;; Dead transport: set destroyer to seeking
-    (and (= :transport (:type dead-unit))
-         (:escort-destroyer-id dead-unit))
-    (let [did (:escort-destroyer-id dead-unit)
-          coords (find-units-where #(and (= :destroyer (:type %))
-                                         (= did (:destroyer-id %))))]
-      (doseq [pos coords]
-        (swap! atoms/game-map update-in (conj pos :contents)
-               #(-> % (assoc :escort-mode :seeking)
-                    (dissoc :escort-transport-id))))))
-  ;; Also handle carrier group pairings
+    (dead-escort-destroyer? dead-unit) (clear-destroyer-escort dead-unit)
+    (dead-escort-transport? dead-unit) (clear-transport-escort dead-unit))
   (clear-carrier-group-on-death dead-unit))
 
 (defn- drown-excess-cargo

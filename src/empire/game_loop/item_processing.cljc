@@ -89,25 +89,26 @@
   [coords]
   (coastline/move-coastline-unit coords))
 
+(defn- airport-flight-path [cell]
+  (or (:flight-path cell) (:flight-path (:contents cell))))
+
+(defn- awake-airport-fighter? [cell]
+  (and (not (:contents cell)) (uc/has-awake? cell :awake-fighters)))
+
+(defn- awake-carrier-fighter? [cell]
+  (let [contents (:contents cell)]
+    (and (= :carrier (:type contents)) (uc/has-awake? contents :awake-fighters))))
+
 (defn- auto-launch-fighter [coords cell]
   "Auto-launches a fighter from city airport or carrier if flight-path is set.
    Returns new coords if launched, nil otherwise."
-  (let [flight-path (or (:flight-path cell)
-                        (:flight-path (:contents cell)))
-        cell-occupied? (:contents cell)
-        has-awake-airport-fighter? (and (not cell-occupied?)
-                                        (uc/has-awake? cell :awake-fighters))
-        has-awake-carrier-fighter? (and (= (:type (:contents cell)) :carrier)
-                                        (uc/has-awake? (:contents cell) :awake-fighters))]
-    (when flight-path
-      (cond
-        has-awake-airport-fighter?
-        (container-ops/launch-fighter-from-airport coords flight-path)
+  (when-let [flight-path (airport-flight-path cell)]
+    (cond
+      (awake-airport-fighter? cell)
+      (container-ops/launch-fighter-from-airport coords flight-path)
 
-        has-awake-carrier-fighter?
-        (container-ops/launch-fighter-from-carrier coords flight-path)
-
-        :else nil))))
+      (awake-carrier-fighter? cell)
+      (container-ops/launch-fighter-from-carrier coords flight-path))))
 
 (defn- auto-disembark-army [coords cell]
   "Auto-disembarks an army from transport if marching-orders is set.
@@ -143,6 +144,10 @@
 (defn- satellite-with-target? [unit]
   (and (= (:type unit) :satellite) (:target unit)))
 
+(defn- try-auto-launch-or-disembark [coords cell]
+  (or (auto-launch-fighter coords cell)
+      (auto-disembark-army coords cell)))
+
 (defn- process-one-item
   "Processes a single player item. Returns :done if item was processed and removed,
    :continue if item needs more processing (e.g., movement), or :waiting if item needs user input."
@@ -152,9 +157,7 @@
         unit (:contents cell)
         sat-moving? (satellite-with-target? unit)
         unit-in-auto-mode? (#{:moving :explore :coastline-follow} (:mode unit))
-        auto-coords (when-not sat-moving?
-                      (or (auto-launch-fighter coords cell)
-                          (auto-disembark-army coords cell)))]
+        auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))]
     (cond
       sat-moving?
       (do (swap! atoms/player-items rest) :done)
@@ -162,7 +165,6 @@
       auto-coords
       (do (swap! atoms/player-items #(cons auto-coords (rest %))) :continue)
 
-      ;; If unit is actively moving, let it move before checking attention
       unit-in-auto-mode?
       (process-auto-movement coords unit)
 

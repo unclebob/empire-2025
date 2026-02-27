@@ -25,17 +25,26 @@
     (= item :satellite)
     (assoc :turns-remaining config/satellite-turns)))
 
+(defn- army-with-lookaround? [item marching-orders]
+  (and (= item :army) (= marching-orders :lookaround)))
+
+(defn- army-with-marching-orders? [item marching-orders]
+  (and (= item :army) marching-orders))
+
+(defn- fighter-with-flight-path? [item flight-path]
+  (and (= item :fighter) flight-path))
+
 (defn- apply-movement-orders
   "Applies marching orders or flight path to unit."
   [unit item marching-orders flight-path]
   (cond
-    (and (= item :army) (= marching-orders :lookaround))
+    (army-with-lookaround? item marching-orders)
     (assoc unit :mode :explore :explore-steps 50)
 
-    (and (= item :army) marching-orders)
+    (army-with-marching-orders? item marching-orders)
     (assoc unit :mode :moving :target marching-orders)
 
-    (and (= item :fighter) flight-path)
+    (fighter-with-flight-path? item flight-path)
     (assoc unit :mode :moving :target flight-path)
 
     :else unit))

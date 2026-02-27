@@ -238,6 +238,31 @@
     (when-not (:country-id (get-in @atoms/game-map pcp))
       (land-objectives/flood-fill-continent pcp))))
 
+(defn- make-unloaded-army [transport]
+  (let [unload-eid (:unload-event-id transport)
+        unload-cid (or (:unload-country-id transport) (:country-id transport))]
+    (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
+      unload-eid (assoc :unload-event-id unload-eid)
+      unload-cid (assoc :country-id unload-cid))))
+
+(defn- transition-to-loading [pos]
+  (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
+  (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
+  (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
+  (let [current-continent (when-let [lp (find-adjacent-land-pos pos)]
+                            (land-objectives/flood-fill-continent lp))
+        next-pickup (find-next-pickup-continent-pos pos current-continent)]
+    (swap! atoms/game-map assoc-in
+           (conj pos :contents :pickup-continent-pos) next-pickup)))
+
+(defn- record-unloaded-country [pos targets to-unload]
+  (let [unloaded-cid (->> (take to-unload targets)
+                          (keep #(:country-id (get-in @atoms/game-map %)))
+                          first)]
+    (when unloaded-cid
+      (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
+             assoc unloaded-cid @atoms/round-number))))
+
 (defn- try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,
    unload all possible armies onto targets. Returns true if any unloaded."
@@ -250,35 +275,16 @@
                   (adjacent-empty-land pos exclude-ids pickup-continent))
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
-      (let [unload-eid (:unload-event-id transport)
-            unload-cid (or (:unload-country-id transport) (:country-id transport))
-            army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
-                   unload-eid (assoc :unload-event-id unload-eid)
-                   unload-cid (assoc :country-id unload-cid))]
+      (let [army (make-unloaded-army transport)]
         (doseq [land-pos (take to-unload targets)]
-          (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
+          (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid (:unload-event-id transport)})
           (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
           (core/stamp-territory land-pos army)
           (visibility/update-cell-visibility land-pos :computer))
-        ;; Record unloaded country-id from land cells
-        (let [unloaded-cid (->> (take to-unload targets)
-                                (keep #(:country-id (get-in @atoms/game-map %)))
-                                first)]
-          (when unloaded-cid
-            (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
-                   assoc unloaded-cid @atoms/round-number)))
-        ;; Update army count
+        (record-unloaded-country pos targets to-unload)
         (swap! atoms/game-map update-in (conj pos :contents :army-count) - to-unload)
-        ;; If fully unloaded, transition to loading
         (when (<= (- army-count to-unload) 0)
-          (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
-          (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
-          (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
-          (let [current-continent (when-let [lp (find-adjacent-land-pos pos)]
-                                    (land-objectives/flood-fill-continent lp))
-                next-pickup (find-next-pickup-continent-pos pos current-continent)]
-            (swap! atoms/game-map assoc-in
-                   (conj pos :contents :pickup-continent-pos) next-pickup)))
+          (transition-to-loading pos))
         true))))
 
 (defn- load-adjacent-armies
@@ -394,6 +400,17 @@
          (not (and unload-eid
                    (= (:unload-event-id unit) unload-eid))))))
 
+(defn- passable-coastal-sea?
+  "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
+  [pos visited game-map]
+  (and (not (visited pos))
+       (let [cell (get-in game-map pos)]
+         (and cell
+              (= :sea (:type cell))
+              (or (nil? (:contents cell))
+                  (= :computer (:owner (:contents cell))))
+              (adjacent-to-land? pos)))))
+
 (defn- has-nearby-loadable-armies?
   "BFS along coastal sea cells up to max-depth hops from pos.
    Returns true if any adjacent land cell at any visited position
@@ -415,14 +432,7 @@
             (>= depth max-depth) (recur (pop queue) visited)
             :else
             (let [coastal-neighbors
-                  (filter (fn [n]
-                            (and (not (visited n))
-                                 (let [cell (get-in game-map n)]
-                                   (and cell
-                                        (= :sea (:type cell))
-                                        (or (nil? (:contents cell))
-                                            (= :computer (:owner (:contents cell))))
-                                        (adjacent-to-land? n)))))
+                  (filter #(passable-coastal-sea? % visited game-map)
                           (core/get-neighbors current))]
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
@@ -437,17 +447,6 @@
            (not (some #(atoms/on-same-continent? % (:country-id cell)) exclude-ids)))
        (or (nil? pickup-continent)
            (not (contains? pickup-continent neighbor-pos)))))
-
-(defn- passable-coastal-sea?
-  "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
-  [pos visited game-map]
-  (and (not (visited pos))
-       (let [cell (get-in game-map pos)]
-         (and cell
-              (= :sea (:type cell))
-              (or (nil? (:contents cell))
-                  (= :computer (:owner (:contents cell))))
-              (adjacent-to-land? pos)))))
 
 (defn- has-nearby-unloadable-land?
   "BFS along coastal sea cells up to max-depth hops from pos.
@@ -716,33 +715,29 @@
           ;; Blocked — keep path for retry next round
           nil)))))
 
+(defn- opportunistic-unload? [pos army-count mission]
+  (and (should-try-opportunistic-unload? army-count mission)
+       (try-opportunistic-unload pos)))
+
+(defn- execute-mission [pos mission army-count]
+  (case mission
+    :invading (process-invading-mission pos)
+    :unloading (process-unloading-mission pos army-count)
+    :sailing (process-sailing-mission pos)
+    :loading (process-loading-mission pos)
+    nil))
+
 (defn- dispatch-transport-mission
   [pos transport]
   (let [army-count (:army-count transport 0)
-        mission (:transport-mission transport)]
-    (fix-idle-mission pos mission)
-    (let [current-mission (or mission :loading)]
-      (debug/log-computer-event! :transport-process pos
-                                 {:mission current-mission :armies army-count
-                                  :pcp (:pickup-continent-pos transport)})
-      (cond
-        (and (should-try-opportunistic-unload? army-count current-mission)
-             (try-opportunistic-unload pos))
-        true
-
-        (= current-mission :invading)
-        (process-invading-mission pos)
-
-        (= current-mission :unloading)
-        (process-unloading-mission pos army-count)
-
-        (= current-mission :sailing)
-        (process-sailing-mission pos)
-
-        (= current-mission :loading)
-        (process-loading-mission pos)
-
-        :else nil))))
+        raw-mission (:transport-mission transport)
+        mission (or raw-mission :loading)]
+    (fix-idle-mission pos raw-mission)
+    (debug/log-computer-event! :transport-process pos
+                               {:mission mission :armies army-count
+                                :pcp (:pickup-continent-pos transport)})
+    (when-not (opportunistic-unload? pos army-count mission)
+      (execute-mission pos mission army-count))))
 
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.

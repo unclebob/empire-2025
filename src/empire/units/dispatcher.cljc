@@ -14,84 +14,47 @@
 (defn- ship-type? [unit-type]
   (contains? ship-types unit-type))
 
+;; Configuration lookup table for non-ship units
+(def ^:private non-ship-config
+  {:army {:speed army/speed :cost army/cost :hits army/hits
+          :display-char army/display-char :visibility-radius army/visibility-radius
+          :strength army/strength}
+   :fighter {:speed fighter/speed :cost fighter/cost :hits fighter/hits
+             :display-char fighter/display-char :visibility-radius fighter/visibility-radius
+             :strength fighter/strength}
+   :satellite {:speed satellite/speed :cost satellite/cost :hits satellite/hits
+               :display-char satellite/display-char :visibility-radius satellite/visibility-radius
+               :strength satellite/strength}
+   :transport {:speed transport/speed :cost transport/cost :hits transport/hits
+               :display-char transport/display-char :visibility-radius transport/visibility-radius
+               :strength transport/strength}
+   :carrier {:speed carrier/speed :cost carrier/cost :hits carrier/hits
+             :display-char carrier/display-char :visibility-radius carrier/visibility-radius
+             :strength carrier/strength}})
+
+(defn- unit-config [unit-type key]
+  (if (ship-type? unit-type)
+    (ships/config unit-type key)
+    (get-in non-ship-config [unit-type key])))
+
 ;; Configuration accessors
-(defn speed [unit-type]
-  (if (ship-type? unit-type)
-    (ships/config unit-type :speed)
-    (case unit-type
-      :army army/speed
-      :fighter fighter/speed
-      :satellite satellite/speed
-      :transport transport/speed
-      :carrier carrier/speed
-      nil)))
-
-(defn cost [unit-type]
-  (if (ship-type? unit-type)
-    (ships/config unit-type :cost)
-    (case unit-type
-      :army army/cost
-      :fighter fighter/cost
-      :satellite satellite/cost
-      :transport transport/cost
-      :carrier carrier/cost
-      nil)))
-
-(defn hits [unit-type]
-  (if (ship-type? unit-type)
-    (ships/config unit-type :hits)
-    (case unit-type
-      :army army/hits
-      :fighter fighter/hits
-      :satellite satellite/hits
-      :transport transport/hits
-      :carrier carrier/hits
-      nil)))
-
-(defn display-char [unit-type]
-  (if (ship-type? unit-type)
-    (ships/config unit-type :display-char)
-    (case unit-type
-      :army army/display-char
-      :fighter fighter/display-char
-      :satellite satellite/display-char
-      :transport transport/display-char
-      :carrier carrier/display-char
-      nil)))
-
-(defn visibility-radius [unit-type]
-  (if (ship-type? unit-type)
-    (ships/config unit-type :visibility-radius)
-    (case unit-type
-      :army army/visibility-radius
-      :fighter fighter/visibility-radius
-      :satellite satellite/visibility-radius
-      :transport transport/visibility-radius
-      :carrier carrier/visibility-radius
-      nil)))
-
-(defn strength [unit-type]
-  (if (ship-type? unit-type)
-    (ships/config unit-type :strength)
-    (case unit-type
-      :army army/strength
-      :fighter fighter/strength
-      :satellite satellite/strength
-      :transport transport/strength
-      :carrier carrier/strength
-      nil)))
+(defn speed [unit-type] (unit-config unit-type :speed))
+(defn cost [unit-type] (unit-config unit-type :cost))
+(defn hits [unit-type] (unit-config unit-type :hits))
+(defn display-char [unit-type] (unit-config unit-type :display-char))
+(defn visibility-radius [unit-type] (unit-config unit-type :visibility-radius))
+(defn strength [unit-type] (unit-config unit-type :strength))
 
 ;; Behavior accessors
+(def ^:private initial-state-fns
+  {:army army/initial-state :fighter fighter/initial-state
+   :satellite satellite/initial-state :transport transport/initial-state
+   :carrier carrier/initial-state})
+
 (defn initial-state [unit-type]
   (if (ship-type? unit-type)
     (ships/initial-state)
-    (case unit-type
-      :army (army/initial-state)
-      :fighter (fighter/initial-state)
-      :satellite (satellite/initial-state)
-      :transport (transport/initial-state)
-      :carrier (carrier/initial-state)
-      {})))
+    (if-let [f (initial-state-fns unit-type)] (f) {})))
 
 (defn can-move-to? [unit-type cell]
   (if (ship-type? unit-type)

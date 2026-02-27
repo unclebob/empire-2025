@@ -12,6 +12,12 @@
             [empire.movement.wake-conditions :as wake]
             [empire.units.dispatcher :as dispatcher]))
 
+(defn dead-unit? [contents]
+  (and contents (<= (:hits contents 1) 0)))
+
+(defn computer-carrier? [contents]
+  (and (= :carrier (:type contents)) (= :computer (:owner contents))))
+
 (defn remove-dead-units
   "Removes units with hits at or below zero."
   []
@@ -19,8 +25,8 @@
           j (range (count (first @atoms/game-map)))
           :let [cell (get-in @atoms/game-map [i j])
                 contents (:contents cell)]
-          :when (and contents (<= (:hits contents 1) 0))]
-    (when (and (= :carrier (:type contents)) (= :computer (:owner contents)))
+          :when (dead-unit? contents)]
+    (when (computer-carrier? contents)
       (swap! atoms/computer-carrier-positions disj [i j]))
     (swap! atoms/game-map assoc-in [i j] (dissoc cell :contents))
     (visibility/update-cell-visibility [i j] (:owner contents))))

@@ -319,6 +319,18 @@
       (first (sort-by #(core/distance pos %)
                       (if (seq away-from-city) away-from-city candidates))))))
 
+(defn- empty-land-for-country? [cell country-id]
+  (and (= :land (:type cell))
+       (or (nil? (:country-id cell))
+           (= country-id (:country-id cell)))
+       (nil? (:contents cell))))
+
+(defn- coast-distance [coastal c]
+  (cond
+    (contains? coastal c) 0
+    (some (partial contains? coastal) (core/get-neighbors c)) 1
+    :else -1))
+
 (defn- find-nearest-cell-close-to-coast
   "Finds nearest empty land cell within 1 step of a registered coastal cell.
    Used for transport queue — army lines up near coast."
@@ -329,18 +341,10 @@
       (when (seq coastal)
         (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
               game-map @atoms/game-map
-              candidates (filter (fn [p]
-                                   (let [cell (get-in game-map p)]
-                                     (and (= :land (:type cell))
-                                          (or (nil? (:country-id cell))
-                                              (= country-id (:country-id cell)))
-                                          (nil? (:contents cell)))))
+              candidates (filter #(empty-land-for-country? (get-in game-map %) country-id)
                                  expanded)
               with-coast-dist (keep (fn [c]
-                                      (let [d (if (contains? coastal c) 0
-                                                (if (some (partial contains? coastal)
-                                                          (core/get-neighbors c))
-                                                  1 -1))]
+                                      (let [d (coast-distance coastal c)]
                                         (when (>= d 0) [c d])))
                                     candidates)]
           (when (seq with-coast-dist)
