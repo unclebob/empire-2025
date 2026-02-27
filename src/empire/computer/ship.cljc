@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-27
 (ns empire.computer.ship
   "Computer ship module - facade delegating to sub-modules."
   (:require [empire.atoms :as atoms]

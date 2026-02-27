@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-27
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
   (:require [empire.atoms :as atoms]
