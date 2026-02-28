@@ -152,6 +152,10 @@ Functions in `input.cljc` and `rendering.cljc` that do not depend on Quil should
 
 Remove unused function arguments before committing. If an argument must be retained for API consistency (e.g., polymorphic dispatch where all implementations share the same signature), prefix it with `_` to indicate it is intentionally unused.
 
+### Large Module Mutation Rule
+
+Before mutating a module larger than 250 lines, explicitly suggest splitting it into smaller modules/functions first. If mutation is still required, keep edits minimal and scoped.
+
 ### Parenthesis Safety
 
 LLMs lose track of parentheses in deeply nested s-expressions. Follow these practices to limit errors:
