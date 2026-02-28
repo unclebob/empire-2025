@@ -125,20 +125,15 @@
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
-  (let [unit (:contents game-cell)]
+  (let [unit (:contents game-cell)
+        player-unit-type? (fn [t] (and unit (= :player (:owner unit)) (= t (:type unit))))
+        player-ship? (fn [] (and unit (= :player (:owner unit)) (enemy-ship-types (:type unit))))
+        player-city? (fn [] (and (= :city (:type game-cell)) (= :player (:city-status game-cell))))]
     (cond
-      (and unit (= :player (:owner unit)) (= :fighter (:type unit)))
-      (handle-fighter-detection! pos)
-
-      (and unit (= :player (:owner unit)) (enemy-ship-types (:type unit)))
-      (handle-ship-detection! pos)
-
-      (and unit (= :player (:owner unit)) (= :army (:type unit)))
-      (activate-major-invasion! pos)
-
-      (and (= :city (:type game-cell)) (= :player (:city-status game-cell)))
-      (activate-major-invasion! pos)
-
+      (player-unit-type? :fighter) (handle-fighter-detection! pos)
+      (player-ship?) (handle-ship-detection! pos)
+      (player-unit-type? :army) (activate-major-invasion! pos)
+      (player-city?) (activate-major-invasion! pos)
       :else nil)))
 
 (defn- dec-threat-rounds
@@ -232,6 +227,38 @@
       (when (fm/consume-fighter-fuel pos)
         {:pos pos :steps-used hops}))))
 
+(defn- attack-threat-step
+  [pos enemy]
+  (when-let [new-pos (fm/attack-enemy pos enemy)]
+    (when (fm/consume-fighter-fuel new-pos)
+      {:pos new-pos :steps-used 1})))
+
+(defn- refuel-at-adjacent-site
+  [pos site]
+  (if (= :city (:type (get-in @atoms/game-map site)))
+    (do (fm/land-at-city pos site) nil)
+    (do (swap! atoms/game-map assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+        {:pos pos :steps-used 1})))
+
+(defn- refuel-threat-step
+  [pos]
+  (when-let [site (fm/find-nearest-refueling-site pos)]
+    (if (<= (fm/distance-to pos site) 1)
+      (refuel-at-adjacent-site pos site)
+      (move-hop-consume pos site))))
+
+(defn- out-of-threat-radius?
+  [pos center radius]
+  (and center (> (core/distance pos center) radius)))
+
+(defn- patrol-threat-step
+  [pos center radius]
+  (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
+    (when (fm/consume-fighter-fuel pos)
+      (if (out-of-threat-radius? pos center radius)
+        (move-hop-consume pos center)
+        {:pos pos :steps-used hops}))))
+
 (defn- fighter-step-threat
   [pos unit]
   (let [center (:threat-center unit)
@@ -240,30 +267,16 @@
         enemy (fm/find-adjacent-enemy pos)]
     (cond
       enemy
-      (when-let [new-pos (fm/attack-enemy pos enemy)]
-        (when (fm/consume-fighter-fuel new-pos)
-          {:pos new-pos :steps-used 1}))
+      (attack-threat-step pos enemy)
 
       (fm/should-return-to-refuel? pos fuel)
-      (if-let [site (fm/find-nearest-refueling-site pos)]
-        (if (<= (fm/distance-to pos site) 1)
-          (if (= :city (:type (get-in @atoms/game-map site)))
-            (do (fm/land-at-city pos site) nil)
-            (do (swap! atoms/game-map assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-                {:pos pos :steps-used 1}))
-          (move-hop-consume pos site))
-        nil)
+      (refuel-threat-step pos)
 
-      (and center (> (core/distance pos center) radius))
+      (out-of-threat-radius? pos center radius)
       (move-hop-consume pos center)
 
       :else
-      (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
-        (if (fm/consume-fighter-fuel pos)
-          (if (and center (> (core/distance pos center) radius))
-            (move-hop-consume pos center)
-            {:pos pos :steps-used hops})
-          nil)))))
+      (patrol-threat-step pos center radius))))
 
 (defn process-fighter-threat
   "Overrides regular fighter logic while fighter-sweep threat mission is active.
@@ -277,6 +290,33 @@
           (recur pos (- remaining steps-used)))))
     true))
 
+(defn- ship-threat-action
+  [pos ship-type move-target]
+  (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
+        (ship-core/attack-enemy pos enemy-pos))
+      (when move-target
+        (ship-core/move-toward pos move-target))
+      (ship-core/explore-sea pos ship-type)))
+
+(defn- sea-scout-target
+  [pos center radius]
+  (when (and center (> (core/distance pos center) radius))
+    center))
+
+(defn- major-invasion-target
+  [pos center]
+  (or center (nearest-major-target pos)))
+
+(defn- handle-sea-scout-ship-threat
+  [pos ship-type center radius]
+  (ship-threat-action pos ship-type (sea-scout-target pos center radius))
+  true)
+
+(defn- handle-major-invasion-ship-threat
+  [pos ship-type center]
+  (ship-threat-action pos ship-type (major-invasion-target pos center))
+  true)
+
 (defn process-ship-threat
   "Overrides regular ship logic for sea-scout and major-invasion missions.
    Returns true when handled."
@@ -285,21 +325,9 @@
         radius (:threat-radius unit threat-radius)]
     (cond
       (= :sea-scout (:threat-mission unit))
-      (do
-        (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
-              (ship-core/attack-enemy pos enemy-pos))
-            (when (and center (> (core/distance pos center) radius))
-              (ship-core/move-toward pos center))
-            (ship-core/explore-sea pos ship-type))
-        true)
+      (handle-sea-scout-ship-threat pos ship-type center radius)
 
       (:major-invasion unit)
-      (do
-        (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
-              (ship-core/attack-enemy pos enemy-pos))
-            (when-let [target (or center (nearest-major-target pos))]
-              (ship-core/move-toward pos target))
-            (ship-core/explore-sea pos ship-type))
-        true)
+      (handle-major-invasion-ship-threat pos ship-type center)
 
       :else false)))

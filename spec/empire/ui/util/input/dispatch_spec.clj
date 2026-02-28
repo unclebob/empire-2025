@@ -321,3 +321,61 @@
     (reset! atoms/destination [2 2])
     (dispatch/dispatch-key :m [0 1])
     (should= [2 2] @atoms/destination)))
+
+(describe "debug drag helpers"
+  (before (reset-all-atoms!))
+
+  (it "modifier-held? returns true when any modifier key is true"
+    (should (dispatch/modifier-held? {:ctrl true}))
+    (should (dispatch/modifier-held? {:meta true}))
+    (should (dispatch/modifier-held? {:alt true})))
+
+  (it "modifier-held? returns false when no modifier is true"
+    (should-not (dispatch/modifier-held? {:ctrl false :meta false :alt false})))
+
+  (it "debug-drag-start! sets start and current positions"
+    (dispatch/debug-drag-start! 10 20)
+    (should= [10 20] @atoms/debug-drag-start)
+    (should= [10 20] @atoms/debug-drag-current))
+
+  (it "debug-drag-update! updates current position only when dragging"
+    (reset! atoms/debug-drag-start nil)
+    (reset! atoms/debug-drag-current nil)
+    (dispatch/debug-drag-update! 1 2)
+    (should-be-nil @atoms/debug-drag-current)
+    (dispatch/debug-drag-start! 3 4)
+    (dispatch/debug-drag-update! 5 6)
+    (should= [5 6] @atoms/debug-drag-current))
+
+  (it "debug-drag-end! clears drag state even when no modifier held"
+    (dispatch/debug-drag-start! 10 10)
+    (dispatch/debug-drag-end! 20 20 {:ctrl false :meta false :alt false})
+    (should-be-nil @atoms/debug-drag-start)
+    (should-be-nil @atoms/debug-drag-current)
+    (should= "" @atoms/debug-message))
+
+  (it "debug-drag-end! does not write dump when selection has no area"
+    (dispatch/debug-drag-start! 10 10)
+    (with-redefs [empire.debug/screen-coords-to-cell-range (fn [_ _] [[1 1] [1 1]])
+                  empire.debug/write-dump! (fn [_ _] (throw (ex-info "should not dump" {})))]
+      (dispatch/debug-drag-end! 20 20 {:ctrl true})
+      (should= "" @atoms/debug-message))
+    (should-be-nil @atoms/debug-drag-start)
+    (should-be-nil @atoms/debug-drag-current))
+
+  (it "debug-drag-end! writes dump and updates debug message for area selection"
+    (dispatch/debug-drag-start! 10 10)
+    (with-redefs [empire.debug/screen-coords-to-cell-range (fn [_ _] [[1 1] [2 3]])
+                  empire.debug/write-dump! (fn [start end]
+                                             (should= [1 1] start)
+                                             (should= [2 3] end)
+                                             "debug-dump.txt")]
+      (dispatch/debug-drag-end! 20 30 {:ctrl true})
+      (should= "Debug: debug-dump.txt" @atoms/debug-message))
+    (should-be-nil @atoms/debug-drag-start)
+    (should-be-nil @atoms/debug-drag-current))
+
+  (it "debug-drag-end! is no-op when no drag is active"
+    (dispatch/debug-drag-end! 1 1 {:ctrl true})
+    (should-be-nil @atoms/debug-drag-start)
+    (should-be-nil @atoms/debug-drag-current)))

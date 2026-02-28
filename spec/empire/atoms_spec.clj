@@ -96,4 +96,39 @@
       (atoms/rebuild-refueling-caches!)
       (should= #{[2 0]} @atoms/computer-city-positions))))
 
+(describe "merge-continents!"
+  (before (reset-all-atoms!))
+
+  (it "ignores nil country ids"
+    (atoms/merge-continents! nil 2)
+    (should= {} @atoms/continent-groups))
+
+  (it "ignores merge with same country id"
+    (atoms/merge-continents! 3 3)
+    (should= {} @atoms/continent-groups))
+
+  (it "merges two previously separate countries"
+    (atoms/merge-continents! 1 2)
+    (should (atoms/on-same-continent? 1 2))
+    (should= {1 1 2 1} @atoms/continent-groups))
+
+  (it "does nothing when groups are already merged"
+    (reset! atoms/continent-groups {1 1 2 1 3 3})
+    (let [before @atoms/continent-groups]
+      (atoms/merge-continents! 1 2)
+      (should= before @atoms/continent-groups)))
+
+  (it "merges by canonical group and rewrites existing members"
+    (reset! atoms/continent-groups {1 1 2 1 3 3 4 3})
+    (atoms/merge-continents! 2 3)
+    (should (atoms/on-same-continent? 1 3))
+    (should (atoms/on-same-continent? 1 4))
+    (should= {1 1 2 1 3 1 4 1} @atoms/continent-groups))
+
+  (it "supports transitive merging across multiple calls"
+    (atoms/merge-continents! 10 11)
+    (atoms/merge-continents! 11 12)
+    (should (atoms/on-same-continent? 10 12))
+    (should= {10 10 11 10 12 10} @atoms/continent-groups)))
+
 (run-specs)
