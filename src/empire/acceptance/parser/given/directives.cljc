@@ -109,6 +109,8 @@
                {:directive :stub
                 :ir {:type :stub
                      :bindings [{:var "empire.computer.production/count-computer-cities"
+                                 :value (str "(constantly " n ")")}
+                                {:var "empire.computer.production.stats/count-computer-cities"
                                  :value (str "(constantly " n ")")}]}})}
    {:regex #"(?:a\s+)?valid\s+carrier\s+position\s+exists"
     :handler (fn [_ _ctx]

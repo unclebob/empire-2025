@@ -300,6 +300,8 @@
             result (given/parse-given lines {})]
         (should= [{:type :stub
                    :bindings [{:var "empire.computer.production/count-computer-cities"
+                               :value "(constantly 12)"}
+                              {:var "empire.computer.production.stats/count-computer-cities"
                                :value "(constantly 12)"}]}]
                  (:givens result))))
 

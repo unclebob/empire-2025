@@ -126,9 +126,8 @@
         unit-counts (stats/count-computer-units)]
     (or (decide-early-production city-pos coastal?)
         (when country-id
-          (decide-country-production city-pos country-id coastal? unit-counts))
-        (when country-id
-          (decide-global-production coastal? unit-counts))
+          (or (decide-country-production city-pos country-id coastal? unit-counts)
+              (decide-global-production coastal? unit-counts)))
         (when-not (and country-id (stats/country-army-limit-reached? country-id))
           :army))))
 
