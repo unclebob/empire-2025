@@ -321,4 +321,16 @@
       (let [lines ["X has a computer army."]
             result (given/parse-given lines {})]
         (should= [{:type :city-unit :city "X" :unit-type :army :owner :computer}]
+                 (:givens result))))
+
+    (it "parses city-status for city references"
+      (let [lines ["X has city-status player."]
+            result (given/parse-given lines {})]
+        (should= [{:type :city-prop :city "X" :prop :city-status :value :player}]
+                 (:givens result))))
+
+    (it "ignores blank and comment lines"
+      (let [lines ["  " "; comment" "GIVEN round 2."]
+            result (given/parse-given lines {})]
+        (should= [{:type :round :value 2}]
                  (:givens result)))))
