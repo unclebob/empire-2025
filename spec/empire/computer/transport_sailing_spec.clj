@@ -2,6 +2,7 @@
   "Tests for VMS Empire style computer transport movement."
   (:require [speclj.core :refer :all]
             [empire.computer.transport :as transport]
+            [empire.computer.transport-core :as tc]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -19,7 +20,7 @@
         (reset! atoms/game-map game-map)
         (swap! atoms/game-map assoc-in [0 0 :contents :unload-event-id] 42)
         (let [transport (get-in @atoms/game-map [0 0 :contents])]
-          (#'transport/mint-unload-event-id [0 0] transport)
+          (tc/mint-unload-event-id [0 0] transport)
           (should= 100 (get-in @atoms/game-map [0 0 :contents :unload-event-id]))
           (should= 101 @atoms/next-unload-event-id)))))
 
@@ -29,7 +30,7 @@
       (reset! atoms/next-country-id 50)
       (let [game-map (build-test-map ["t~"])]
         (reset! atoms/game-map game-map)
-        (#'transport/mint-unload-country-id [0 0])
+        (tc/mint-unload-country-id [0 0])
         (should= 50 (get-in @atoms/game-map [0 0 :contents :unload-country-id]))
         (should= 51 @atoms/next-country-id)))
 
