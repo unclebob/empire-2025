@@ -119,9 +119,13 @@
 
 (defn- reveal-and-track!
   "Reveals a single cell and tracks newly-discovered free cities."
-  [visible-map-atom ni nj stamp-id track-cities? visible-map]
+  [visible-map-atom ni nj stamp-id track-cities? detect-threats? visible-map]
   (let [game-cell (get-in @atoms/game-map [ni nj])]
     (reveal-cell! visible-map-atom ni nj game-cell stamp-id visible-map)
+    (when (and detect-threats?
+               (was-unexplored? visible-map ni nj))
+      (when-let [handle-detection (requiring-resolve 'empire.computer.threat-response/handle-detection!)]
+        (handle-detection [ni nj] game-cell)))
     (when (and track-cities?
                (newly-discovered-free-city? visible-map ni nj game-cell))
       (swap! atoms/land-ho-targets conj [ni nj]))))
@@ -136,7 +140,8 @@
          cell (get-in @atoms/game-map pos)
          radius (cell-visibility-radius cell)
          stamp-id (should-stamp-country? unit)
-         track-cities? (should-track-free-city? owner (:type (:contents cell)))]
+         track-cities? (should-track-free-city? owner (:type (:contents cell)))
+         detect-threats? (= owner :computer)]
      (when @visible-map-atom
        (let [[x y] pos
              height (count @atoms/game-map)
@@ -147,4 +152,4 @@
                  :let [ni (+ x di) nj (+ y dj)]
                  :when (in-bounds? ni nj height width)]
            (reveal-and-track! visible-map-atom ni nj
-                              stamp-id track-cities? visible-map)))))))
+                              stamp-id track-cities? detect-threats? visible-map)))))))

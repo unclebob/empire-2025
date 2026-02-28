@@ -15,6 +15,9 @@ Read this BEFORE loading parser source files.
 ### Map patterns (given-map-patterns)
 Consumed first. Next non-blank lines matching `map-row?` chars become `:rows`.
 
+Notes:
+- Map rows accept fighter alias chars `J/j` in addition to `F/f`.
+
 | Input | IR |
 |-------|-----|
 | `[GIVEN] [game] map` / `[GIVEN] game map` | `{:type :map :target :game-map :rows [...]}` |
@@ -181,7 +184,7 @@ Tried only after bare patterns fail, using timing-stripped text.
 | `<U> has mission <val>` | `{:type :unit-prop :unit U :property :transport-mission :expected :val}` |
 | `<U> has refueling position near <T>` | `{:type :refueling-position-near :unit U :target T}` |
 | `<U> has no <prop>` / `<U> does not have <prop>` | `{:type :unit-prop-absent :unit U :property :prop}` |
-| `<U> has <prop> <val>` | `{:type :unit-prop :unit U :property :prop :expected val}` |
+| `<U> has <prop> <val>` | `{:type :unit-prop :unit U :property :prop :expected val}` (`val` parsing supports number, EDN vector, boolean `true/false`, coords, keyword fallback) |
 | `<U> has mode/is <mode>` | `{:type :unit-prop :unit U :property :mode :expected :mode}` |
 
 ### Map block patterns (extract-then-map-blocks)

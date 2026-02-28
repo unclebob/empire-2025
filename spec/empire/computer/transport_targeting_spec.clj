@@ -2,6 +2,7 @@
   "Tests for VMS Empire style computer transport movement."
   (:require [speclj.core :refer :all]
             [empire.computer.transport :as transport]
+            [empire.computer.transport-targeting :as targeting]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -428,6 +429,33 @@
       (transport/process-transport [0 1])
       (let [transport (:contents (get-in @atoms/game-map [0 1]))]
         (should= 15 (get-in transport [:unloaded-countries 3]))))
+
+    (it "adjacent-to-pickup-continent? distance fallback at boundary (L22)"
+      ;; When pcp has no country-id, falls back to distance <= 2.
+      ;; pos at distance 2 should return true; distance 3 should return false.
+      (reset! atoms/game-map [[{:type :land} {:type :sea} {:type :sea} {:type :sea}]])
+      ;; pcp at [0 0] has no country-id
+      (should (targeting/adjacent-to-pickup-continent? [0 2] [0 0]))
+      (should-not (targeting/adjacent-to-pickup-continent? [0 3] [0 0])))
+
+    (it "score-target-city multiplication affects target ranking (L36)"
+      ;; Two player cities at different distances. Closer one should win.
+      ;; With * the closer city has lower score; with / it would invert.
+      (let [game-map (build-test-map ["###"
+                                      "~~~"
+                                      "O##"  ;; close player city
+                                      "~~~"
+                                      "~~~"
+                                      "~~~"
+                                      "~~~"
+                                      "O##"  ;; far player city
+                                      "###"])]
+        (reset! atoms/game-map game-map)
+        (reset! atoms/computer-map game-map)
+        (reset! atoms/claimed-transport-targets #{})
+        (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
+              target (transport/find-unload-target pickup-continent [1 1])]
+          (should= [0 2] target))))
 
     (it "transport falls back to explore when all armies filtered"
       (reset! atoms/round-number 10)

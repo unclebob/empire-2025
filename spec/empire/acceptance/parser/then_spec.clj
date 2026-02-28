@@ -1,6 +1,7 @@
 (ns empire.acceptance.parser.then-spec
   (:require [speclj.core :refer :all]
-            [empire.acceptance.parser.then :as then-parser]))
+            [empire.acceptance.parser.then :as then-parser]
+            [empire.acceptance.parser.then.parse :as then-parse]))
 
 (describe "parse-then"
     (it "parses unit at position"
@@ -464,6 +465,15 @@
                  (first (:thens result)))
         (should= {:type :unit-prop :unit "A" :property :mode :expected :sentry}
                  (second (:thens result)))))
+
+    (it "tags timing on vector result by updating first element"
+      (let [result (@#'then-parse/tag-timing :at-next-round
+                                             [{:type :unit-at :unit "A"}
+                                              {:type :unit-prop :unit "A" :property :mode :expected :sentry}])]
+        (should= {:type :unit-at :unit "A" :at-next-round true}
+                 (first result))
+        (should= {:type :unit-prop :unit "A" :property :mode :expected :sentry}
+                 (second result))))
 
     (it "produces unrecognized for unparseable clause"
       (let [lines ["THEN something completely gibberish nonsensical."]

@@ -8,6 +8,7 @@
             [empire.computer.land-ho :as land-ho]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.production :as computer-production]
+            [empire.computer.threat-response :as threat-response]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]
@@ -83,6 +84,7 @@
   (round-setup/repair-damaged-ships)
   (round-setup/reset-steps-remaining)
   (round-setup/wake-airport-fighters)
+  (threat-response/on-round-start!)
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
   (reset! atoms/claimed-objectives #{})
   (reset! atoms/claimed-transport-targets #{})

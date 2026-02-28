@@ -226,6 +226,10 @@
   (reset! atoms/patrol-boats-produced {})
   (reset! atoms/seen-coast #{})
   (reset! atoms/land-ho-targets [])
+  (reset! atoms/major-invasion-state {:active? false
+                                      :detection-points #{}
+                                      :target-land-set #{}
+                                      :started-round nil})
   (reset! atoms/transport-fully-loaded? false)
   (reset! atoms/early-patrol-boat-produced? false)
   (reset! atoms/early-satellite-produced? false)

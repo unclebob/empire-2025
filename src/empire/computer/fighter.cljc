@@ -272,10 +272,14 @@
    Returns nil."
   [pos unit]
   (when (and unit (= :computer (:owner unit)) (= :fighter (:type unit)))
-    (ensure-flight-target pos)
-    (loop [current-pos pos
-           steps-remaining fm/fighter-speed]
-      (when (pos? steps-remaining)
-        (when-let [{:keys [pos steps-used]} (step-fighter current-pos)]
-          (recur pos (- steps-remaining steps-used))))))
+    (if (when-let [process-threat (requiring-resolve 'empire.computer.threat-response/process-fighter-threat)]
+          (process-threat pos unit))
+      nil
+      (do
+        (ensure-flight-target pos)
+        (loop [current-pos pos
+               steps-remaining fm/fighter-speed]
+          (when (pos? steps-remaining)
+            (when-let [{:keys [pos steps-used]} (step-fighter current-pos)]
+              (recur pos (- steps-remaining steps-used))))))))
   nil)

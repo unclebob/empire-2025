@@ -1,0 +1,166 @@
+;; mutation-tested: 2026-02-27
+(ns empire.computer.ship-carrier-group
+  "Carrier group escort - battleship and submarine orbiting behavior."
+  (:require [empire.atoms :as atoms]
+            [empire.computer.core :as core]
+            [empire.computer.ship-core :as ship-core]
+            [empire.computer.ship-escort :as escort]
+            [empire.movement.visibility :as visibility]))
+
+(def orbit-ring
+  "16 offsets forming a clockwise Chebyshev ring at radius 2."
+  [[-2 -2] [-2 -1] [-2 0] [-2 1] [-2 2]
+   [-1 2] [0 2] [1 2]
+   [2 2] [2 1] [2 0] [2 -1] [2 -2]
+   [1 -2] [0 -2] [-1 -2]])
+
+(defn- find-carrier-with-open-slot
+  "Finds the nearest computer carrier with an open slot for the given unit type."
+  [pos unit-type]
+  (let [game-map @atoms/game-map
+        candidates (for [i (range (count game-map))
+                         j (range (count (first game-map)))
+                         :let [cell (get-in game-map [i j])
+                               unit (:contents cell)]
+                         :when (and unit
+                                    (= :carrier (:type unit))
+                                    (= :computer (:owner unit))
+                                    (case unit-type
+                                      :battleship (nil? (:group-battleship-id unit))
+                                      :submarine (< (count (:group-submarine-ids unit [])) 2)
+                                      false))]
+                     [i j])]
+    (when (seq candidates)
+      (apply min-key (partial core/distance pos) candidates))))
+
+(defn- initial-orbit-angle
+  "Returns the starting orbit angle for a new escort."
+  [unit-type carrier]
+  (case unit-type
+    :battleship 0
+    :submarine (if (empty? (:group-submarine-ids carrier [])) 5 11)))
+
+(defn- adopt-carrier-escort
+  "Pairs a battleship or submarine escort with a carrier."
+  [pos carrier-pos unit-type]
+  (let [escort-unit (get-in @atoms/game-map (conj pos :contents))
+        carrier (get-in @atoms/game-map (conj carrier-pos :contents))
+        carrier-id (:carrier-id carrier)
+        escort-id (:escort-id escort-unit)
+        angle (initial-orbit-angle unit-type carrier)]
+    (swap! atoms/game-map update-in (conj pos :contents)
+           assoc :escort-carrier-id carrier-id
+                 :escort-mode :intercepting
+                 :orbit-angle angle)
+    (case unit-type
+      :battleship
+      (swap! atoms/game-map update-in (conj carrier-pos :contents)
+             assoc :group-battleship-id escort-id)
+      :submarine
+      (swap! atoms/game-map update-in (conj carrier-pos :contents)
+             update :group-submarine-ids conj escort-id))))
+
+(defn- orbit-target-pos
+  "Computes the absolute position for an orbit angle around carrier."
+  [carrier-pos angle]
+  (let [[dr dc] (nth orbit-ring (mod angle 16))]
+    [(+ (first carrier-pos) dr) (+ (second carrier-pos) dc)]))
+
+(defn- valid-orbit-pos?
+  "Returns true if pos is a valid empty sea cell on the game map."
+  [pos]
+  (let [cell (get-in @atoms/game-map pos)]
+    (and cell (= :sea (:type cell)) (nil? (:contents cell)))))
+
+(defn- find-next-orbit-angle
+  "Finds the next orbit angle with a valid sea position, starting from start-angle.
+   Returns nil if all 16 positions are invalid."
+  [carrier-pos start-angle]
+  (first (for [i (range 16)
+               :let [angle (mod (+ start-angle i) 16)
+                     pos (orbit-target-pos carrier-pos angle)]
+               :when (valid-orbit-pos? pos)]
+           angle)))
+
+(defn- revert-escort-to-seeking
+  "Reverts an escort to seeking mode, clearing carrier reference."
+  [pos]
+  (swap! atoms/game-map update-in (conj pos :contents)
+         #(-> % (assoc :escort-mode :seeking)
+              (dissoc :escort-carrier-id :orbit-angle))))
+
+(defn- process-escort-seeking
+  "Escort seeking: find a carrier with an open slot and adopt it."
+  [pos unit-type]
+  (when-let [carrier-pos (find-carrier-with-open-slot pos unit-type)]
+    (adopt-carrier-escort pos carrier-pos unit-type)
+    (ship-core/move-toward pos carrier-pos)))
+
+(defn- transition-to-orbiting
+  "Transitions an escort to orbiting mode."
+  [pos carrier-pos unit]
+  (let [angle (or (:orbit-angle unit) 0)
+        valid-angle (find-next-orbit-angle carrier-pos angle)]
+    (if valid-angle
+      (let [target (orbit-target-pos carrier-pos valid-angle)]
+        (when (not= pos target)
+          (ship-core/move-toward pos target))
+        (swap! atoms/game-map update-in
+               (conj (or (when (not= pos target) target) pos) :contents)
+               assoc :escort-mode :orbiting :orbit-angle valid-angle))
+      (swap! atoms/game-map update-in (conj pos :contents)
+             assoc :escort-mode :orbiting))))
+
+(defn- process-escort-intercepting
+  "Escort intercepting: move toward carrier, transition to orbiting at radius 2."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))]
+    (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
+      (if (<= (core/chebyshev-distance pos carrier-pos) 2)
+        (transition-to-orbiting pos carrier-pos unit)
+        (ship-core/move-toward pos carrier-pos))
+      (revert-escort-to-seeking pos))))
+
+(defn- process-escort-orbiting
+  "Escort orbiting: advance one step along the orbit ring."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))]
+    (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
+      (let [current-angle (or (:orbit-angle unit) 0)
+            next-angle (find-next-orbit-angle carrier-pos (inc current-angle))]
+        (if next-angle
+          (let [target (orbit-target-pos carrier-pos next-angle)]
+            (if (= pos target)
+              (swap! atoms/game-map update-in (conj pos :contents)
+                     assoc :orbit-angle next-angle)
+              (when (valid-orbit-pos? target)
+                (core/move-unit-to pos target)
+                (visibility/update-cell-visibility pos :computer)
+                (visibility/update-cell-visibility target :computer)
+                (swap! atoms/game-map update-in (conj target :contents)
+                       assoc :orbit-angle next-angle))))
+          nil))
+      (revert-escort-to-seeking pos))))
+
+(defn- find-enemy-near-carrier-group
+  "Finds a player ship adjacent to escort or its carrier."
+  [pos]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        carrier-pos (when (:escort-carrier-id unit)
+                      (escort/find-carrier-by-id (:escort-carrier-id unit)))]
+    (escort/find-enemy-near-positions (filter some? [pos carrier-pos]))))
+
+(defn process-carrier-group-escort
+  "Processes a battleship or submarine in carrier group escort mode."
+  [pos unit-type]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        mode (:escort-mode unit)]
+    (if-let [enemy-pos (when (= :orbiting mode)
+                         (find-enemy-near-carrier-group pos))]
+      (escort/begin-pursuit pos enemy-pos)
+      (case mode
+        :seeking (process-escort-seeking pos unit-type)
+        :intercepting (process-escort-intercepting pos)
+        :orbiting (process-escort-orbiting pos)
+        :pursuing (escort/process-pursuit pos)
+        nil))))

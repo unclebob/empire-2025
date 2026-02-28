@@ -115,6 +115,7 @@ and the attention message for F contains :fighter-bingo.
 |:----:|-----------|
 | `A`  | Army |
 | `F`  | Fighter |
+| `J`  | Fighter (alias) |
 | `T`  | Transport |
 | `D`  | Destroyer |
 | `C`  | Carrier |
@@ -129,6 +130,7 @@ and the attention message for F contains :fighter-bingo.
 |:----:|-----------|
 | `a`  | Army |
 | `f`  | Fighter |
+| `j`  | Fighter (alias) |
 | `t`  | Transport |
 | `d`  | Destroyer |
 | `c`  | Carrier |
@@ -136,6 +138,8 @@ and the attention message for F contains :fighter-bingo.
 | `b`  | Battleship |
 | `p`  | Patrol boat |
 | `v`  | Satellite |
+
+`J/j` are fighter aliases. They are useful in tests that want a fighter marker on sea-style rows while still behaving as a fighter.
 
 ---
 

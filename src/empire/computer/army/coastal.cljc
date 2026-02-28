@@ -1,0 +1,167 @@
+(ns empire.computer.army.coastal
+  "Coastal movement, coast-walk, and coastal positioning behaviors."
+  (:require [empire.atoms :as atoms]
+            [empire.computer.army.movement :as movement]
+            [empire.computer.core :as core]
+            [empire.debug :as debug]))
+
+(defn- count-unexplored-neighbors
+  "Counts unexplored cells adjacent to position on computer-map."
+  [pos]
+  (count (filter (fn [neighbor]
+                   (nil? (get-in @atoms/computer-map neighbor)))
+                 (core/get-neighbors pos))))
+
+(defn- update-backtrack
+  "Adds pos to visited vector, keeping at most 10 entries."
+  [visited pos]
+  (let [v (conj (or visited []) pos)]
+    (if (> (count v) 10)
+      (subvec v (- (count v) 10))
+      v)))
+
+(defn- terminate-coast-walk
+  "Switches army from coast-walk to sentry (or awake if in a city)."
+  [pos]
+  (let [mode (if (= :city (:type (get-in @atoms/game-map pos))) :awake :sentry)]
+    (swap! atoms/game-map update-in (conj pos :contents)
+           #(-> % (assoc :mode mode)
+                (dissoc :coast-direction :coast-start :coast-visited)))))
+
+(defn- coast-walk-candidates
+  "Returns empty land/city neighbors that are adjacent to sea."
+  [pos country-id]
+  (filter movement/adjacent-to-sea?
+          (movement/get-empty-passable-neighbors pos country-id)))
+
+(defn process-coast-walk
+  "Handles coast-walk movement. Returns new position or nil."
+  [pos country-id]
+  (let [unit (get-in @atoms/game-map (conj pos :contents))
+        coast-start (:coast-start unit)
+        visited (set (:coast-visited unit))
+        candidates (coast-walk-candidates pos country-id)]
+    (if (empty? candidates)
+      (do (terminate-coast-walk pos) nil)
+      (let [not-visited (remove visited candidates)
+            pool (if (seq not-visited) not-visited candidates)
+            scored (map (fn [c] [c (count-unexplored-neighbors c)]) pool)
+            best-score (apply max (map second scored))
+            best (map first (filter #(= best-score (second %)) scored))
+            target (if (= 1 (count best)) (first best) (rand-nth (vec best)))]
+        (when (movement/try-move pos target)
+          (swap! atoms/game-map update-in (conj target :contents)
+                 #(assoc % :coast-visited (update-backtrack (:coast-visited %) target)))
+          (if (= target coast-start)
+            (do (terminate-coast-walk target) target)
+            target))))))
+
+(defn- adjacent-to-computer-city?
+  "Returns true if position has an adjacent computer city."
+  [pos]
+  (some (fn [neighbor]
+          (let [cell (get-in @atoms/game-map neighbor)]
+            (and (= :city (:type cell))
+                 (= :computer (:city-status cell)))))
+        (core/get-neighbors pos)))
+
+(defn- find-nearest-unoccupied-coastal-cell
+  "Finds nearest coastal cell from registry with matching country-id, no unit.
+   Excludes cells adjacent to computer cities to avoid blocking production."
+  [pos country-id]
+  (when country-id
+    (movement/ensure-coastal-registry country-id)
+    (let [coastal (get @atoms/coastal-cells-by-country country-id)
+          game-map @atoms/game-map
+          candidates (filter (fn [p]
+                               (let [cell (get-in game-map p)]
+                                 (and (= :land (:type cell))
+                                      (or (nil? (:country-id cell))
+                                          (= country-id (:country-id cell)))
+                                      (nil? (:contents cell)))))
+                             coastal)
+          away-from-city (remove adjacent-to-computer-city? candidates)]
+      (first (sort-by #(core/distance pos %)
+                      (if (seq away-from-city) away-from-city candidates))))))
+
+(defn- empty-land-for-country? [cell country-id]
+  (and (= :land (:type cell))
+       (or (nil? (:country-id cell))
+           (= country-id (:country-id cell)))
+       (nil? (:contents cell))))
+
+(defn- coast-distance [coastal c]
+  (cond
+    (contains? coastal c) 0
+    (some (partial contains? coastal) (core/get-neighbors c)) 1
+    :else -1))
+
+(defn- find-nearest-cell-close-to-coast
+  "Finds nearest empty land cell within 1 step of a registered coastal cell.
+   Used for transport queue - army lines up near coast."
+  [pos country-id]
+  (when country-id
+    (movement/ensure-coastal-registry country-id)
+    (let [coastal (get @atoms/coastal-cells-by-country country-id)]
+      (when (seq coastal)
+        (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
+              game-map @atoms/game-map
+              candidates (filter #(empty-land-for-country? (get-in game-map %) country-id)
+                                 expanded)
+              with-coast-dist (keep (fn [c]
+                                      (let [d (coast-distance coastal c)]
+                                        (when (>= d 0) [c d])))
+                                    candidates)]
+          (when (seq with-coast-dist)
+            (let [best-coast-dist (apply min (map second with-coast-dist))
+                  near-coast (map first (filter #(= best-coast-dist (second %))
+                                                with-coast-dist))]
+              (first (sort-by #(core/distance pos %) near-coast)))))))))
+
+(defn should-sentry-on-coast? [pos country-id]
+  (and country-id
+       (movement/adjacent-to-sea? pos)
+       (not= :city (:type (get-in @atoms/game-map pos)))
+       (not (adjacent-to-computer-city? pos))))
+
+(defn can-settle-here? [pos country-id]
+  (and country-id
+       (movement/adjacent-to-sea? pos)
+       (not= :city (:type (get-in @atoms/game-map pos)))))
+
+(defn- try-move-to-coastal-cell [pos country-id]
+  (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]
+    (movement/move-toward-objective pos target country-id)))
+
+(defn- try-settle-on-coast [pos country-id]
+  (when (can-settle-here? pos country-id)
+    (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
+    (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+    pos))
+
+(defn- try-queue-near-coast [pos country-id]
+  (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
+    (or (movement/move-toward-objective pos target country-id)
+        (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
+            (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+            pos))))
+
+(defn- try-wake-nearby [pos]
+  (when (pos? (core/wake-nearby-sentries pos 3))
+    (debug/log-computer-event! :army-wake-sentries pos {:reason :stuck})
+    nil))
+
+(defn fill-coastal-cell
+  "If army is on a coastal cell away from cities, go sentry.
+   Otherwise move toward nearest unoccupied coastal cell.
+   If no coastal cell available, queue near coast and go sentry.
+   If truly stuck, wake nearby sentries."
+  [pos country-id]
+  (if (should-sentry-on-coast? pos country-id)
+    (do (debug/log-computer-event! :army-sentry pos {:reason :coastal-fill :country-id country-id})
+        (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry)
+        pos)
+    (or (try-move-to-coastal-cell pos country-id)
+        (try-settle-on-coast pos country-id)
+        (try-queue-near-coast pos country-id)
+        (try-wake-nearby pos))))
