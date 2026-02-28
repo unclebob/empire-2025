@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-23
+;; mutation-tested: 2026-02-28
 (ns empire.movement.movement
   (:require [empire.atoms :as atoms]
             [empire.combat :as combat]

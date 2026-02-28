@@ -156,6 +156,27 @@ Remove unused function arguments before committing. If an argument must be retai
 
 Before mutating a module larger than 250 lines, explicitly suggest splitting it into smaller modules/functions first. If mutation is still required, keep edits minimal and scoped.
 
+### Mutation Workflow
+
+When the user asks to mutate a module:
+0. If the module is over 250 lines, split it first; do not run mutation tests until after the split.
+1. Run mutation tests for that module.
+2. Add tests to cover any uncovered functions.
+3. Kill surviving mutants by writing new tests.
+
+### Mutation Playbook (THEN Parser)
+
+For `src/empire/acceptance/parser/then/*` modules:
+1. Run mutation tests in this order: `handlers -> patterns -> parse -> facade`.
+2. Use `clj -M:mutate <path>` and wait for delayed output; baseline output can be deferred.
+3. Preserve regex literals exactly when moving pattern tables; avoid accidental double-escaping.
+4. Ensure coverage of the `tag-timing` vector branch in `then/parse.cljc` (`update result 0 ...`) to avoid uncovered mutations.
+5. A thin facade (`then.cljc`) may report `0 mutation sites`; this is expected.
+6. After mutation/testing changes, rerun:
+   - `clj -M:spec spec/empire/acceptance/parser/then_spec.clj spec/empire/acceptance/parser_spec.clj`
+   - `clj -M:parse-tests && clj -M:generate-specs && clj -M:spec generated-acceptance-specs/`
+7. Check `plans/permanent/equivalent-mutations.md` before adding tests for survivors.
+
 ### Parenthesis Safety
 
 LLMs lose track of parentheses in deeply nested s-expressions. Follow these practices to limit errors:
