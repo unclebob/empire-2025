@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-targeting
   "Transport target selection — finding unload targets and pickup continents."
   (:require [empire.atoms :as atoms]

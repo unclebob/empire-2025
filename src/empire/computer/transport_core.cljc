@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-core
   "Shared transport helpers — no dependencies on other transport sub-modules."
   (:require [empire.atoms :as atoms]

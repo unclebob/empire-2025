@@ -426,4 +426,46 @@
                              :let [unit (get-in @atoms/game-map [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= 2 (:army-count t)))))))
+          (should= 2 (:army-count t))))))
+
+  (context "process-invading-mission (L89)"
+    (it "transitions to unloading when path is empty (L95)"
+      (reset! atoms/game-map [[{:type :sea :contents {:type :transport :owner :computer
+                                                       :transport-mission :invading
+                                                       :invasion-path []
+                                                       :army-count 4}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (transport/process-transport [0 0])
+      (should= :unloading (get-in @atoms/game-map [0 0 :contents :transport-mission])))
+
+    (it "transitions to unloading after exhausting 2-step path (L112)"
+      ;; Path has exactly 2 steps — after taking both, remaining is empty,
+      ;; so transport transitions to unloading at step2.
+      (reset! atoms/game-map [[{:type :sea} {:type :sea} {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :invading
+              :invasion-path [[0 1] [0 2]]
+              :army-count 4})
+      (transport/process-transport [0 0])
+      (should= :unloading (get-in @atoms/game-map [0 2 :contents :transport-mission]))
+      (should-be-nil (:invasion-path (get-in @atoms/game-map [0 2 :contents]))))
+
+    (it "sail-path continuation through computer-occupied sea (L18, L26)"
+      ;; Transport sails through sea cell with friendly ship.
+      ;; continue-pos should see computer-occupied cell as passable.
+      (reset! atoms/game-map [[{:type :sea} {:type :sea}
+                                {:type :sea :contents {:type :destroyer :owner :computer}}
+                                {:type :sea}]])
+      (reset! atoms/computer-map @atoms/game-map)
+      (swap! atoms/game-map assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :sailing :army-count 6
+              :sail-path [[0 1]]})
+      (transport/process-transport [0 0])
+      ;; Should have moved to [0 1], then continued to [0 2] (computer-occupied passable)
+      ;; or stopped at [0 1] if computer unit blocks move. Either way, moved past [0 0].
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))))
+)

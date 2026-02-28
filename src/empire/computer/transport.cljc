@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-28
 (ns empire.computer.transport
   "Computer transport module — facade delegating to sub-modules.
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded

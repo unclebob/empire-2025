@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
   (:require [empire.atoms :as atoms]
