@@ -1,0 +1,129 @@
+; Computer threat-response and major invasion behavior.
+
+;===============================================================
+; Enemy fighter detection assigns fighter sweep mission.
+;===============================================================
+GIVEN game map
+  f~F
+  ~t~
+  ~j~
+GIVEN computer map
+  ...
+  ...
+  ...
+
+WHEN cell visibility updates for t.
+
+THEN f has threat-mission fighter-sweep.
+THEN j has threat-mission fighter-sweep.
+THEN f has threat-center [2 0].
+
+;===============================================================
+; Fighter sweep mission duration decrements each round.
+;===============================================================
+GIVEN game map
+  f~~
+GIVEN f has threat-mission fighter-sweep.
+GIVEN f has threat-rounds-left 2.
+GIVEN f has threat-center [2 0].
+
+WHEN a new round starts.
+
+THEN f has threat-rounds-left 1.
+
+;===============================================================
+; Enemy ship detection assigns sea scout mission.
+;===============================================================
+GIVEN game map
+  p~bD~
+  ~~~t~
+GIVEN computer map
+  .....
+  .....
+
+WHEN cell visibility updates for t.
+
+THEN p has threat-mission sea-scout.
+THEN b has threat-mission sea-scout.
+THEN p has threat-center [3 0].
+
+;===============================================================
+; Enemy city detection triggers major invasion for loaded transport.
+;===============================================================
+GIVEN game map
+  ~t~~
+  ##O#
+  ~~~~
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  ....
+  ....
+  ....
+
+WHEN cell visibility updates for t.
+WHEN a new round starts.
+
+THEN t has major-invasion true.
+THEN t has transport-mission invading.
+THEN t has invasion-target [2 1].
+
+;===============================================================
+; Enemy army detection also triggers major invasion.
+;===============================================================
+GIVEN game map
+  tA~
+  ~~~
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  ...
+  ...
+
+WHEN cell visibility updates for t.
+WHEN a new round starts.
+
+THEN t has major-invasion true.
+THEN t has transport-mission unloading.
+
+;===============================================================
+; Major invasion transport unloads on invasion-connected land.
+;===============================================================
+GIVEN game map
+  ~t~~
+  ##O#
+  ~~~~
+GIVEN t has transport-mission unloading.
+GIVEN t has 2 armies.
+GIVEN computer map
+  ....
+  ....
+  ....
+
+WHEN cell visibility updates for t.
+WHEN a new round starts.
+WHEN computer transport t is processed.
+
+THEN there is a a at [0 1].
+THEN t has 0 armies.
+
+;===============================================================
+; Major invasion tags mobilize ships, carrier, and fighters.
+;===============================================================
+GIVEN game map
+  tO~~~
+  bdsfc
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  .....
+  .....
+
+WHEN cell visibility updates for t.
+WHEN a new round starts.
+
+THEN b has major-invasion true.
+THEN d has major-invasion true.
+THEN s has major-invasion true.
+THEN c has major-invasion true.
+THEN f has major-invasion true.

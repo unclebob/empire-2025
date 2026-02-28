@@ -12,6 +12,7 @@
             [empire.computer.transport-sailing :as sailing]
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.transport-unloading :as unloading]
+            [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
             [empire.movement.visibility :as visibility]))
 
@@ -147,5 +148,6 @@
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
-      (dispatch-transport-mission pos transport)))
+      (threat-response/prepare-transport! pos)
+      (dispatch-transport-mission pos (:contents (get-in @atoms/game-map pos)))))
   nil)

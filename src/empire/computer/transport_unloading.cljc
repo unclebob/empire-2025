@@ -6,6 +6,7 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
+            [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
             [empire.movement.visibility :as visibility]))
 
@@ -13,13 +14,15 @@
   "Returns adjacent land/city positions that are empty (no unit).
    Excludes positions on the pickup continent and land belonging to
    any country-id in exclude-ids set."
-  [pos exclude-ids pickup-continent]
+  [pos exclude-ids pickup-continent major-invasion?]
   (let [game-map @atoms/game-map]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (and cell
                      (#{:land :city} (:type cell))
                      (nil? (:contents cell))
+                     (or (not major-invasion?)
+                         (threat-response/major-invasion-target-land? neighbor))
                      (or (empty? exclude-ids)
                          (not (contains? exclude-ids (:country-id cell))))
                      (or (nil? pickup-continent)
@@ -46,10 +49,12 @@
 
 (defn- unloadable-land-cell?
   "Returns true if cell is empty land/city not excluded by country-id or pickup continent."
-  [cell neighbor-pos exclude-ids pickup-continent]
+  [cell neighbor-pos exclude-ids pickup-continent major-invasion?]
   (and cell
        (#{:land :city} (:type cell))
        (nil? (:contents cell))
+       (or (not major-invasion?)
+           (threat-response/major-invasion-target-land? neighbor-pos))
        (or (empty? exclude-ids)
            (not (contains? exclude-ids (:country-id cell))))
        (or (nil? pickup-continent)
@@ -74,10 +79,11 @@
   (let [game-map @atoms/game-map
         exclude-ids (pickup-exclude-ids transport)
         pickup-continent (pickup-continent-if-needed transport)
+        major-invasion? (:major-invasion transport)
         has-unloadable-neighbor? (fn [p]
                                    (some (fn [n]
                                            (unloadable-land-cell?
-                                             (get-in game-map n) n exclude-ids pickup-continent))
+                                             (get-in game-map n) n exclude-ids pickup-continent major-invasion?))
                                          (core/get-neighbors p)))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
            visited #{pos}]
@@ -113,8 +119,9 @@
         army-count (:army-count transport 0)
         exclude-ids (pickup-exclude-ids transport)
         pickup-continent (pickup-continent-if-needed transport)
+        major-invasion? (:major-invasion transport)
         targets (when (pos? army-count)
-                  (adjacent-empty-land pos exclude-ids pickup-continent))
+                  (adjacent-empty-land pos exclude-ids pickup-continent major-invasion?))
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [unload-eid (:unload-event-id transport)

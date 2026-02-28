@@ -125,12 +125,18 @@
   (when (str/starts-with? s "[")
     (try (edn/read-string s) (catch Exception _ nil))))
 
+(defn- parse-bool [s]
+  (case (str/lower-case (str/trim s))
+    "true" true
+    "false" false
+    nil))
+
 (defn- then-handle-unit-has-prop [[_ unit prop val]]
   (let [val (str/trim val)]
     (when (h/city-or-unit-char? unit)
       {:type :unit-prop :unit unit
        :property (keyword prop)
-       :expected (or (h/parse-number val) (parse-edn-value val)
+       :expected (or (h/parse-number val) (parse-edn-value val) (parse-bool val)
                      (h/parse-coords val) (keyword val))})))
 
 (defn- then-handle-unit-is-mode [[_ unit val]]

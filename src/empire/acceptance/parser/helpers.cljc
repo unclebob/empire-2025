@@ -26,7 +26,7 @@
          (not (str/starts-with? trimmed ";"))
          (not (re-matches #"(?i)^(GIVEN|WHEN|THEN)\b.*" trimmed))
          (not (re-matches #"^[A-Za-z].*\s+(is|has|are|with)\b.*" trimmed))
-         (re-matches #"^[~#.=% +XOAFTDCSBPVatdfcsbpv\-]+$" trimmed))))
+         (re-matches #"^[~#.=% +XOAFTDCSBPVJatdfcsbpvj\-]+$" trimmed))))
 
 (defn territory-map-row? [line]
   (let [trimmed (str/trim line)]
@@ -59,8 +59,8 @@
 (defn normalize-unit-ref [s]
   (get unit-name->char (str/lower-case s) s))
 
-(def player-unit-chars #{"A" "F" "T" "D" "C" "S" "B" "P" "V"})
-(def computer-unit-chars #{"a" "f" "t" "d" "c" "s" "b" "p" "v"})
+(def player-unit-chars #{"A" "F" "T" "D" "C" "S" "B" "P" "V" "J"})
+(def computer-unit-chars #{"a" "f" "t" "d" "c" "s" "b" "p" "v" "j"})
 (def city-chars #{"O" "X" "+"})
 (def ship-unit-chars #{"T" "D" "C" "S" "B" "P" "t" "d" "c" "s" "b" "p"})
 

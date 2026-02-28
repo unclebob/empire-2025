@@ -72,6 +72,10 @@
 
 (defn- dispatch-ship-action [pos ship-type unit]
   (cond
+    (when-let [process-threat (requiring-resolve 'empire.computer.threat-response/process-ship-threat)]
+      (process-threat pos ship-type unit))
+    true
+
     (= :patrol-boat ship-type)
     (patrol/process-patrol-boat pos)
 

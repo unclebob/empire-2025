@@ -277,6 +277,15 @@
    FIFO queue consumed by transport invasion assignment at round start."
   (atom []))
 
+(def major-invasion-state
+  "Global major invasion state for threat-response coordination.
+   {:active? bool :detection-points #{[r c] ...} :target-land-set #{[r c] ...}
+    :started-round N-or-nil}"
+  (atom {:active? false
+         :detection-points #{}
+         :target-land-set #{}
+         :started-round nil}))
+
 (def transport-fully-loaded?
   "Set true when any computer transport first reaches full army load. Never reset."
   (atom false))

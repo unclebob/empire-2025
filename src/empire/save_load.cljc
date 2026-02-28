@@ -28,6 +28,7 @@
    :fighter-leg-records atoms/fighter-leg-records
    :coast-walkers-produced atoms/coast-walkers-produced
    :land-ho-targets atoms/land-ho-targets
+   :major-invasion-state atoms/major-invasion-state
    :transport-fully-loaded? atoms/transport-fully-loaded?
    :early-patrol-boat-produced? atoms/early-patrol-boat-produced?
    :early-satellite-produced? atoms/early-satellite-produced?
