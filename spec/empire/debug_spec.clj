@@ -92,6 +92,22 @@
       (debug/log-action! [:action i]))
     (should= 100 (count @atoms/action-log))))
 
+(describe "log-computer-event!"
+  (before (reset-all-atoms!))
+
+  (it "appends computer event entry"
+    (debug/log-computer-event! :army-move [1 2] {:to [1 3]})
+    (should= 1 (count @atoms/computer-event-log))
+    (let [entry (first @atoms/computer-event-log)]
+      (should= :army-move (:event entry))
+      (should= [1 2] (:pos entry))
+      (should= [1 3] (:to entry))))
+
+  (it "caps computer event log at 2000 entries"
+    (dotimes [i 2001]
+      (debug/log-computer-event! :tick [0 i] {:n i}))
+    (should= 2000 (count @atoms/computer-event-log))))
+
 (describe "dump-region"
   (before (reset-all-atoms!))
 
@@ -238,4 +254,14 @@
     (debug/log-action! [:test-action])
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "Recent Actions" result)
-      (should-contain "test-action" result))))
+      (should-contain "test-action" result)))
+
+  (it "formats computer event extras in dump output"
+    (reset! atoms/game-map (build-test-map ["##" "##"]))
+    (reset! atoms/player-map (build-test-map ["##" "##"]))
+    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (reset! atoms/round-number 10)
+    (reset! atoms/computer-event-log [{:round 10 :event :army-move :pos [1 1] :to [1 2]}])
+    (let [result (debug/format-dump [0 0] [1 1])]
+      (should-contain "army-move" result)
+      (should-contain ":to [1 2]" result))))
