@@ -16,3 +16,4 @@ acceptanceTests/edn/*.edn
 generated-acceptance-specs/acceptance/*.clj
 /.worktrees/
 saves/
+/docs/uml/
