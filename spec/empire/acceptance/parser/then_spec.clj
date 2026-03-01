@@ -611,3 +611,30 @@
             result (then-parser/parse-then lines {})]
         (should= [{:type :refueling-position-near :unit "F" :target "O"}]
                  (:thens result)))))
+
+(describe "split-then-continuations"
+  (it "starts a clause from orphan text and appends continuation text"
+    (should= ["A is at [0 0] still there"]
+             (@#'then-parse/split-then-continuations
+              ["A is at [0 0]" "still there"])))
+
+  (it "starts an and-clause even without a prior THEN"
+    (should= ["and B is at [1 1]."]
+             (@#'then-parse/split-then-continuations
+              ["and B is at [1 1]."])))
+
+  (it "flushes current clause when a new THEN or and clause starts"
+    (should= ["THEN A is at [0 0]." "and B is at [1 1]." "THEN C is at [2 2]."]
+             (@#'then-parse/split-then-continuations
+              ["THEN A is at [0 0]."
+               "and B is at [1 1]."
+               "THEN C is at [2 2]."])))
+
+  (it "ignores blank and comment lines"
+    (should= ["THEN A is at [0 0]." "and B is at [1 1]."]
+             (@#'then-parse/split-then-continuations
+              [""
+               "; comment"
+               "THEN A is at [0 0]."
+               " "
+               "and B is at [1 1]."]))))

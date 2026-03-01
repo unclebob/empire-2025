@@ -38,33 +38,34 @@
                     (h/first-matching-pattern patterns/then-timed-patterns timed-text)
                     {:type :unrecognized :text clean}))))
 
+(defn- then-line-kind [trimmed]
+  (cond
+    (h/blank-or-comment? trimmed) :blank
+    (str/starts-with? (str/upper-case trimmed) "THEN ") :then
+    (boolean (re-matches #"^and\s+.*" trimmed)) :and
+    :else :text))
+
+(defn- flush-current-state [{:keys [result current] :as state}]
+  (if current
+    (assoc state :result (conj result current))
+    state))
+
+(defn- split-continuation-step [state line]
+  (let [trimmed (str/trim line)
+        kind (then-line-kind trimmed)]
+    (case kind
+      :blank state
+      :then (assoc (flush-current-state state) :current trimmed)
+      :and (assoc (flush-current-state state) :current trimmed)
+      :text (if-let [current (:current state)]
+              (assoc state :current (str current " " trimmed))
+              (assoc state :current trimmed)))))
+
 (defn- split-then-continuations [lines]
-  (let [result (atom [])
-        current (atom nil)]
-    (doseq [line lines]
-      (let [trimmed (str/trim line)]
-        (cond
-          (h/blank-or-comment? trimmed)
-          nil
-
-          (str/starts-with? (str/upper-case trimmed) "THEN ")
-          (do
-            (when @current (swap! result conj @current))
-            (reset! current trimmed))
-
-          (re-matches #"^and\s+.*" trimmed)
-          (if @current
-            (do (swap! result conj @current)
-                (reset! current trimmed))
-            (reset! current trimmed))
-
-          @current
-          (swap! current str " " trimmed)
-
-          :else
-          (reset! current trimmed))))
-    (when @current (swap! result conj @current))
-    @result))
+  (let [{:keys [result current]} (reduce split-continuation-step {:result [] :current nil} lines)]
+    (if current
+      (conj result current)
+      result)))
 
 (defn- split-compound-then [clause]
   (let [clean (str/trim clause)]
