@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]
+            [empire.acceptance.parser.ir-contracts :as contracts]
             [empire.acceptance.generator.utils :as utils]
             [empire.acceptance.generator.given :as gen-given]
             [empire.acceptance.generator.when :as gen-when]
@@ -277,10 +279,28 @@
 
 ;; --- Top-level generation ---
 
+(defn- validate-test-ir!
+  "Validate parser IR contracts for all test phases. Throws ex-info on contract violations."
+  [source {:keys [line description givens whens thens]}]
+  (let [phase-data [[:givens ::contracts/givens givens]
+                    [:whens ::contracts/whens whens]
+                    [:thens ::contracts/thens thens]]]
+    (doseq [[phase spec-key value] phase-data]
+      (when-not (s/valid? spec-key value)
+        (throw (ex-info (str "IR contract validation failed for " source
+                             ":" line " (" phase ") - " description)
+                        {:source source
+                         :line line
+                         :phase phase
+                         :description description
+                         :problems (s/explain-data spec-key value)
+                         :explain (s/explain-str spec-key value)}))))))
+
 (defn generate-spec
   "Generate a complete Speclj spec file string from parsed EDN data."
   [edn-data]
   (let [{:keys [source tests]} edn-data
+        _ (doseq [t tests] (validate-test-ir! source t))
         needs (determine-needs tests)
         ns-form (generate-ns-form source needs)
         helpers (generate-helper-fns needs)

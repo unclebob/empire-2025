@@ -345,3 +345,26 @@
       (should-contain "message-matches?" result)
       (should-contain "get-test-cell" result))))
 
+;; --- IR contract validation in generator ---
+
+(describe "generate-spec IR contract validation"
+
+  (it "accepts valid IR"
+    (let [edn-data {:source "foo.txt"
+                    :tests [{:line 1
+                             :description "valid test."
+                             :givens [{:type :map :target :game-map :rows ["X"]}]
+                             :whens [{:type :start-new-round}]
+                             :thens [{:type :waiting-for-input :expected true}]}]}
+          out (gen/generate-spec edn-data)]
+      (should-contain "(describe \"foo.txt\"" out)))
+
+  (it "throws on invalid IR shape"
+    (let [edn-data {:source "foo.txt"
+                    :tests [{:line 2
+                             :description "invalid test."
+                             :givens [{:type :map :target :game-map}] ; missing :rows
+                             :whens []
+                             :thens []}]}]
+      (should-throw clojure.lang.ExceptionInfo
+                    (gen/generate-spec edn-data)))))
