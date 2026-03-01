@@ -1,0 +1,25 @@
+name: Acceptance Boundary Guard
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  boundary-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard acceptance scenarios and parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_ref="origin/${{ github.base_ref }}"
+            scripts/check-acceptance-boundary.sh "$base_ref"
+          else
+            scripts/check-acceptance-boundary.sh HEAD~1
+          fi

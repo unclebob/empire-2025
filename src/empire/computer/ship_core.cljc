@@ -1,8 +1,7 @@
 ;; mutation-tested: 2026-02-27
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.combat :as combat]
             [empire.computer.core :as core]
@@ -18,10 +17,24 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    ((:write-runtime-state! @state-ctx) k next-state)))
+
 (defn get-passable-sea-neighbors
   "Returns passable sea neighbors for a ship."
   [pos]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (and cell
@@ -33,7 +46,7 @@
 (defn find-adjacent-enemy-ship
   "Finds an adjacent enemy ship to attack."
   [pos]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
@@ -46,8 +59,8 @@
 (defn attack-enemy
   "Attack an adjacent enemy. Returns new position or nil if ship died."
   [ship-pos enemy-pos]
-  (let [attacker (get-in @atoms/game-map (conj ship-pos :contents))
-        defender (get-in @atoms/game-map (conj enemy-pos :contents))
+  (let [attacker (get-in (current-world) (conj ship-pos :contents))
+        defender (get-in (current-world) (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)
         dead-unit (if (= :attacker (:winner result)) defender attacker)]
     (update-game-map! update-in ship-pos dissoc :contents)
@@ -55,15 +68,15 @@
       (do
         (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
         (when (= :carrier (:type attacker))
-          (swap! atoms/computer-carrier-positions disj ship-pos)
-          (swap! atoms/computer-carrier-positions conj enemy-pos))
+          (update-runtime-state! :computer-carrier-positions disj ship-pos)
+          (update-runtime-state! :computer-carrier-positions (fnil conj #{}) enemy-pos))
         (visibility/update-cell-visibility ship-pos :computer)
         (visibility/update-cell-visibility enemy-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         enemy-pos)
       (do
         (when (= :carrier (:type attacker))
-          (swap! atoms/computer-carrier-positions disj ship-pos))
+          (update-runtime-state! :computer-carrier-positions disj ship-pos))
         (visibility/update-cell-visibility ship-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         nil))))
@@ -95,14 +108,15 @@
 (defn retreat-if-damaged
   "If damaged and under threat, retreat toward friendly city."
   [pos unit]
-  (when (threat/should-retreat? pos unit @atoms/computer-map)
+  (let [comp-map (read-runtime-state :computer-map)]
+    (when (threat/should-retreat? pos unit comp-map)
     (let [passable (get-passable-sea-neighbors pos)]
-      (threat/retreat-move pos unit @atoms/computer-map passable))))
+      (threat/retreat-move pos unit comp-map passable)))))
 
 (defn find-computer-transports
   "Find computer transports to protect."
   []
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [cell (get-in game-map [i j])
@@ -123,15 +137,15 @@
   "Finds an adjacent friendly city where a damaged ship can dock for repair."
   [pos unit]
   (first (filter (fn [neighbor]
-                   (uc/ship-can-dock? unit (get-in @atoms/game-map neighbor)))
+                   (uc/ship-can-dock? unit (get-in (current-world) neighbor)))
                  (core/get-neighbors pos))))
 
 (defn dock-computer-ship
   "Docks a damaged computer ship into a friendly city's shipyard."
   [ship-pos city-pos]
-  (let [cell (get-in @atoms/game-map ship-pos)
+  (let [cell (get-in (current-world) ship-pos)
         unit (:contents cell)
-        city-cell (get-in @atoms/game-map city-pos)
+        city-cell (get-in (current-world) city-pos)
         updated-city (uc/add-ship-to-shipyard city-cell (:type unit) (:hits unit))]
     (update-game-map! assoc-in ship-pos (dissoc cell :contents))
     (update-game-map! assoc-in city-pos updated-city)

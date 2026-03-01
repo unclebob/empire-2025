@@ -1,6 +1,23 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.computer.stamping
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.application.runtime :as app-runtime]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- next-id!
+  [k]
+  (let [id (or (read-runtime-state k) 1)]
+    (write-runtime-state! k (inc id))
+    id))
 
 (defn- apply-computer-satellite-direction
   "Assigns a random direction to computer satellites."
@@ -13,8 +30,7 @@
   "Stamps transport-mission and transport-id on computer transports."
   [unit]
   (if (and (= :transport (:type unit)) (= :computer (:owner unit)))
-    (let [id @atoms/next-transport-id]
-      (swap! atoms/next-transport-id inc)
+    (let [id (next-id! :next-transport-id)]
       (assoc unit :transport-mission :loading
                   :transport-id id
                   :army-count 0))
@@ -40,8 +56,7 @@
   "Stamps carrier fields on computer carriers: mode, id, group slots."
   [unit]
   (if (and (= :carrier (:type unit)) (= :computer (:owner unit)))
-    (let [id @atoms/next-carrier-id]
-      (swap! atoms/next-carrier-id inc)
+    (let [id (next-id! :next-carrier-id)]
       (assoc unit :carrier-mode :positioning
                   :carrier-id id
                   :group-battleship-id nil
@@ -52,8 +67,7 @@
   "Stamps escort fields on computer battleships and submarines."
   [unit]
   (if (and (#{:battleship :submarine} (:type unit)) (= :computer (:owner unit)))
-    (let [id @atoms/next-escort-id]
-      (swap! atoms/next-escort-id inc)
+    (let [id (next-id! :next-escort-id)]
       (assoc unit :escort-id id :escort-mode :seeking))
     unit))
 
@@ -61,8 +75,7 @@
   "Stamps destroyer-id and escort-mode on computer destroyers."
   [unit]
   (if (and (= :destroyer (:type unit)) (= :computer (:owner unit)))
-    (let [id @atoms/next-destroyer-id]
-      (swap! atoms/next-destroyer-id inc)
+    (let [id (next-id! :next-destroyer-id)]
       (assoc unit :destroyer-id id :escort-mode :seeking))
     unit))
 
@@ -86,13 +99,15 @@
   (if (and (= item :army)
            (= (:city-status cell) :computer)
            (:country-id cell)
-           (< (get @atoms/coast-walkers-produced (:country-id cell) 0) 2)
+           (< (get (read-runtime-state :coast-walkers-produced) (:country-id cell) 0) 2)
            (not ((requiring-resolve 'empire.computer.production/country-coastal-cells-explored?)
                  (:country-id cell))))
     (let [country-id (:country-id cell)
-          produced (get @atoms/coast-walkers-produced country-id 0)
+          produced (get (read-runtime-state :coast-walkers-produced) country-id 0)
           direction (if (even? produced) :clockwise :counter-clockwise)]
-      (swap! atoms/coast-walkers-produced update country-id (fnil inc 0))
+      (write-runtime-state! :coast-walkers-produced
+                            (update (or (read-runtime-state :coast-walkers-produced) {})
+                                    country-id (fnil inc 0)))
       (assoc unit :mode :coast-walk
                   :coast-direction direction
                   :coast-start coords

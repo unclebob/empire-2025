@@ -1,6 +1,7 @@
 (ns empire.computer.army.assignment
   "Attack-target assignment for computer armies."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -13,10 +14,19 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
 (defn- find-assignable-armies
   "Finds all computer armies eligible for city attack assignment (not coast-walking)."
   []
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [cell (get-in game-map [i j])
@@ -30,7 +40,7 @@
 (defn- find-visible-target-cities
   "Finds free/player cities visible on the computer-map."
   []
-  (let [comp-map @atoms/computer-map]
+  (let [comp-map (read-runtime-state :computer-map)]
     (when (vector? comp-map)
       (for [i (range (count comp-map))
             j (range (count (first comp-map)))

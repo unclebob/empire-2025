@@ -1,7 +1,6 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-pathing
-  (:require [empire.atoms :as atoms]
-            [empire.units.dispatcher :as dispatcher]))
+  (:require [empire.units.dispatcher :as dispatcher]))
 
 (defn next-step-pos [pos target]
   (let [[x y] pos
@@ -61,7 +60,7 @@
         valid-sidesteps
         (for [[sdx sdy] candidates
               :let [sidestep-pos [(+ fx sdx) (+ fy sdy)]
-                    sidestep-cell (get-in @atoms/game-map sidestep-pos)]
+                    sidestep-cell (get-in @current-map sidestep-pos)]
               :when (can-move-to? unit-type sidestep-cell)
               :let [final-pos (simulate-path sidestep-pos target unit-type 3 current-map)
                     final-dist (chebyshev-distance final-pos target)]]

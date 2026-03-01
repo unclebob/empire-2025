@@ -1,9 +1,9 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.game-loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
+            [empire.adapters.state.runtime :as runtime-state]
             [empire.config :as config]
             [empire.player.attention :as attention]
             [empire.computer :as computer]
@@ -21,10 +21,28 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
 (defn- computer-has-items?
   "Returns true if computer has any cities or units on the map."
   []
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (some (fn [col]
             (some (fn [cell]
                     (or (= (:city-status cell) :computer)
@@ -35,24 +53,24 @@
 (defn- declare-victory!
   "Declares player victory, pauses game, and flushes remaining items."
   []
-  (reset! atoms/paused true)
-  (reset! atoms/error-message "****YOU WIN!*****")
-  (reset! atoms/error-until Long/MAX_VALUE)
-  (reset! atoms/map-to-display :actual-map)
-  (reset! atoms/player-items [])
-  (reset! atoms/computer-items []))
+  (write-runtime-state! :paused true)
+  (write-runtime-state! :error-message "****YOU WIN!*****")
+  (write-runtime-state! :error-until Long/MAX_VALUE)
+  (write-runtime-state! :map-to-display :actual-map)
+  (write-runtime-state! :player-items [])
+  (write-runtime-state! :computer-items []))
 
 (defn check-player-victory!
   "Checks if player has won (no computer items remain) and declares victory if so."
   []
-  (when (and @atoms/game-over-check-enabled
+  (when (and (read-runtime-state :game-over-check-enabled)
              (not (computer-has-items?)))
     (declare-victory!)))
 
 (defn- advance-step
   "Decrements steps-remaining for unit at pos. Returns pos if steps remain, nil otherwise."
-  [pos]
-  (let [moved-unit (:contents (get-in @atoms/game-map pos))]
+[pos]
+  (let [moved-unit (:contents (get-in (current-world) pos))]
     (when moved-unit
       (let [new-steps (dec (:steps-remaining moved-unit 1))]
         (update-game-map! assoc-in (conj pos :contents :steps-remaining) new-steps)
@@ -60,8 +78,8 @@
 
 (defn- end-combat-move
   "Zeroes steps for attacker at pos if they won (same owner). Combat always ends the move."
-  [pos owner]
-  (let [moved-unit (:contents (get-in @atoms/game-map pos))]
+[pos owner]
+  (let [moved-unit (:contents (get-in (current-world) pos))]
     (when (and moved-unit (= (:owner moved-unit) owner))
       (update-game-map! assoc-in (conj pos :contents :steps-remaining) 0))))
 
@@ -76,16 +94,17 @@
 
 (defn move-current-unit
   "Moves the unit at coords one step. Returns new coords if still moving, nil if done."
-  ([coords] (move-current-unit coords config/max-sidesteps))
-  ([coords max-sidesteps]
-   (let [cell (get-in @atoms/game-map coords)
+ ([coords] (move-current-unit coords config/max-sidesteps))
+ ([coords max-sidesteps]
+   (let [world (current-world)
+         cell (get-in world coords)
          unit (:contents cell)]
-     (when (and (= (:mode unit) :moving)
-                (pos? (:steps-remaining unit 1)))
-       (let [{:keys [result pos]} (movement/move-unit coords (:target unit) cell atoms/game-map)
-             next-pos (resolve-move-result result pos (:owner unit))]
-         (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
-           (recur pos (dec max-sidesteps))
+    (when (and (= (:mode unit) :moving)
+               (pos? (:steps-remaining unit 1)))
+      (let [{:keys [result pos]} (movement/move-unit coords (:target unit) cell (runtime-state/game-map-atom))
+            next-pos (resolve-move-result result pos (:owner unit))]
+        (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
+          (recur pos (dec max-sidesteps))
            next-pos))))))
 
 (defn move-explore-unit
@@ -126,13 +145,13 @@
         marching-orders (:marching-orders contents)
         has-awake-army? (and (= (:type contents) :transport)
                              (pos? (:awake-armies contents 0)))]
-    (when (and marching-orders has-awake-army?)
+        (when (and marching-orders has-awake-army?)
       (let [[x y] coords
             adjacent-cells (for [dx [-1 0 1] dy [-1 0 1]
                                  :when (not (and (zero? dx) (zero? dy)))]
                              [(+ x dx) (+ y dy)])
             valid-target (first (filter (fn [target]
-                                          (let [tcell (get-in @atoms/game-map target)]
+                                          (let [tcell (get-in (current-world) target)]
                                             (and tcell
                                                  (= :land (:type tcell))
                                                  (not (:contents tcell)))))
@@ -147,8 +166,8 @@
                      :moving (move-current-unit coords)
                      nil)]
     (if new-coords
-      (do (swap! atoms/player-items #(cons new-coords (rest %))) :continue)
-      (do (swap! atoms/player-items rest) :done))))
+      (do (update-runtime-state! :player-items #(cons new-coords (rest %))) :continue)
+      (do (update-runtime-state! :player-items rest) :done))))
 
 (defn- satellite-with-target? [unit]
   (and (= (:type unit) :satellite) (:target unit)))
@@ -158,29 +177,28 @@
       (auto-disembark-army coords cell)))
 
 (defn- process-one-item
-  "Processes a single player item. Returns :done if item was processed and removed,
-   :continue if item needs more processing (e.g., movement), or :waiting if item needs user input."
+  "Processes a single player item. Returns :done, :continue, or :waiting."
   []
-  (let [coords (first @atoms/player-items)
-        cell (get-in @atoms/game-map coords)
+  (let [coords (first (read-runtime-state :player-items))
+        cell (get-in (current-world) coords)
         unit (:contents cell)
         sat-moving? (satellite-with-target? unit)
         unit-in-auto-mode? (#{:moving :explore :coastline-follow} (:mode unit))
         auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))]
     (cond
       sat-moving?
-      (do (swap! atoms/player-items rest) :done)
+      (do (update-runtime-state! :player-items rest) :done)
 
       auto-coords
-      (do (swap! atoms/player-items #(cons auto-coords (rest %))) :continue)
+      (do (update-runtime-state! :player-items #(cons auto-coords (rest %))) :continue)
 
       unit-in-auto-mode?
       (process-auto-movement coords unit)
 
       (attention/item-needs-attention? coords)
-      (do (reset! atoms/cells-needing-attention [coords])
+      (do (write-runtime-state! :cells-needing-attention [coords])
           (attention/set-attention-message coords)
-          (reset! atoms/waiting-for-input true)
+          (write-runtime-state! :waiting-for-input true)
           :waiting)
 
       :else
@@ -189,8 +207,8 @@
 (defn- process-one-computer-item
   "Processes a single computer item. Returns :done when item processed."
   []
-  (let [coords (first @atoms/computer-items)
-        cell (get-in @atoms/game-map coords)
+  (let [coords (first (read-runtime-state :computer-items))
+        cell (get-in (current-world) coords)
         is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
         has-computer-unit? (= (:owner (:contents cell)) :computer)]
     ;; Handle city production if this is a computer city
@@ -200,28 +218,23 @@
     (if has-computer-unit?
       (let [new-coords (computer/process-computer-unit coords)]
         (if new-coords
-          (do (swap! atoms/computer-items #(cons new-coords (rest %))) :continue)
-          (do (swap! atoms/computer-items rest) :done)))
+          (do (update-runtime-state! :computer-items #(cons new-coords (rest %))) :continue)
+          (do (update-runtime-state! :computer-items rest) :done)))
       ;; No unit, just city processing done
-      (do (swap! atoms/computer-items rest) :done))))
+      (do (update-runtime-state! :computer-items rest) :done))))
 
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."
   []
   (loop [processed 0]
-    (when (and (seq @atoms/computer-items) (< processed 100))
+    (when (and (seq (read-runtime-state :computer-items)) (< processed 100))
       (process-one-computer-item)
       (recur (inc processed)))))
 
-;; Processes player items in a batch until one of three conditions:
-;; 1. player-items list becomes empty
-;; 2. waiting-for-input is set (unit needs player attention)
-;; 3. 100 items processed (batch limit to keep UI responsive)
-;; 4. Player wins (all computer items eliminated)
 (defn- batch-should-stop? [processed]
-  (or @atoms/paused
-      (empty? @atoms/player-items)
-      @atoms/waiting-for-input
+  (or (read-runtime-state :paused)
+      (empty? (read-runtime-state :player-items))
+      (read-runtime-state :waiting-for-input)
       (>= processed 100)))
 
 (defn process-player-items-batch []

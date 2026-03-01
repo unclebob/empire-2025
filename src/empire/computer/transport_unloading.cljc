@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-unloading
   "Transport unloading — opportunistic and targeted army unloading."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -19,12 +20,21 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
 (defn- adjacent-empty-land
   "Returns adjacent land/city positions that are empty (no unit).
    Excludes positions on the pickup continent and land belonging to
-   any country-id in exclude-ids set."
+  any country-id in exclude-ids set."
   [pos exclude-ids pickup-continent major-invasion?]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (and cell
@@ -45,7 +55,7 @@
   (disj (set [(:country-id transport)
               (:pickup-country-id transport)
               (when-let [pcp (:pickup-continent-pos transport)]
-                (:country-id (get-in @atoms/game-map pcp)))])
+                (:country-id (get-in (current-world) pcp)))])
         nil))
 
 (defn- pickup-continent-if-needed
@@ -53,7 +63,7 @@
    insufficient (no country-id at pickup pos). Uses cached flood-fill."
   [transport]
   (when-let [pcp (:pickup-continent-pos transport)]
-    (when-not (:country-id (get-in @atoms/game-map pcp))
+    (when-not (:country-id (get-in (current-world) pcp))
       (land-objectives/flood-fill-continent pcp))))
 
 (defn- unloadable-land-cell?
@@ -85,7 +95,7 @@
    Returns true if any visited position has adjacent empty land
    not excluded by country-id or pickup continent."
   [pos transport max-depth]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         exclude-ids (pickup-exclude-ids transport)
         pickup-continent (pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
@@ -124,7 +134,8 @@
   "If transport has armies and there is adjacent unclaimed land,
    unload all possible armies onto targets. Returns true if any unloaded."
   [pos]
-  (let [transport (get-in @atoms/game-map (conj pos :contents))
+  (let [game-map (current-world)
+        transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
         exclude-ids (pickup-exclude-ids transport)
         pickup-continent (pickup-continent-if-needed transport)
@@ -145,11 +156,11 @@
           (visibility/update-cell-visibility land-pos :computer))
         ;; Record unloaded country-id from land cells
         (let [unloaded-cid (->> (take to-unload targets)
-                                (keep #(:country-id (get-in @atoms/game-map %)))
+                                (keep #(:country-id (get-in (current-world) %)))
                                 first)]
           (when unloaded-cid
             (update-game-map! update-in (conj pos :contents :unloaded-countries)
-                              assoc unloaded-cid @atoms/round-number)))
+                              assoc unloaded-cid (or (read-runtime-state :round-number) 0))))
         ;; Update army count
         (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
         ;; If fully unloaded, transition to loading
@@ -160,11 +171,12 @@
 (defn unload-armies
   "Unload armies onto adjacent land, excluding pickup continent. Returns true if any unloaded."
   [pos pickup-continent]
-  (let [transport (get-in @atoms/game-map (conj pos :contents))
+  (let [game-map (current-world)
+        transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)]
     (when (pos? army-count)
       (let [land-neighbors (filter (fn [neighbor]
-                                     (let [cell (get-in @atoms/game-map neighbor)]
+                                     (let [cell (get-in game-map neighbor)]
                                        (and cell
                                             (#{:land :city} (:type cell))
                                             (nil? (:contents cell))
@@ -186,17 +198,18 @@
                 (visibility/update-cell-visibility land-pos :computer))))
           ;; Record unloaded country-id
           (let [unloaded-country-id (->> (take to-unload land-neighbors)
-                                          (keep #(:country-id (get-in @atoms/game-map %)))
+                                          (keep #(:country-id (get-in (current-world) %)))
                                           first)]
             (when unloaded-country-id
               (update-game-map! update-in (conj pos :contents :unloaded-countries)
-                                assoc unloaded-country-id @atoms/round-number)))
+                                assoc unloaded-country-id (or (read-runtime-state :round-number) 0))))
           ;; Update transport army count
           (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
           ;; If fully unloaded, change mission to loading and update pickup continent
           (when (<= (- army-count to-unload) 0)
             (update-game-map! assoc-in (conj pos :contents :transport-mission) :loading)
-            (update-game-map! assoc-in (conj pos :contents :loading-since) @atoms/round-number)
+            (update-game-map! assoc-in (conj pos :contents :loading-since)
+                              (or (read-runtime-state :round-number) 0))
             (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
             (let [current-continent (when-let [land-pos (tc/find-adjacent-land-pos pos)]
                                      (land-objectives/flood-fill-continent land-pos))
@@ -209,11 +222,12 @@
   "Moves unloading transport to adjacent coastal sea cell to find empty land.
    Like coastal-crawl-move but without auto-loading armies."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [game-map (current-world)
+        unit (get-in game-map (conj pos :contents))
         history (set (:crawl-history unit []))
         passable (tc/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
-                                 (nil? (:contents (get-in @atoms/game-map n))))
+                                 (nil? (:contents (get-in game-map n))))
                                passable)
         coastal-cells (filter tc/adjacent-to-land? empty-passable)
         preferred (remove history coastal-cells)

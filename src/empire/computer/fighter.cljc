@@ -2,8 +2,7 @@
 (ns empire.computer.fighter
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
@@ -18,20 +17,32 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
 ;; --- Leg-based coverage ---
 
 (defn- current-refueling-site
   "Returns the refueling site position the fighter at pos is at, or nil.
    A fighter is 'at' a city if on it, or 'at' a carrier if adjacent to it."
   [pos]
-  (let [cell (get-in @atoms/game-map pos)]
+  (let [cell (get-in (current-world) pos)]
     (cond
       (and (= :city (:type cell)) (= :computer (:city-status cell)))
       pos
 
       :else
       (first (filter (fn [n]
-                       (let [ncell (get-in @atoms/game-map n)]
+                       (let [ncell (get-in (current-world) n)]
                          (and (= :carrier (get-in ncell [:contents :type]))
                               (= :computer (get-in ncell [:contents :owner]))
                               (= :holding (get-in ncell [:contents :carrier-mode])))))
@@ -45,7 +56,7 @@
         reachable (filter #(and (not= % current-site)
                                 (<= (fm/distance-to current-site %) config/fighter-fuel))
                           sites)
-        leg-records @atoms/fighter-leg-records
+        leg-records (or (read-runtime-state :fighter-leg-records) {})
         scored (map (fn [target]
                       (let [leg-key #{current-site target}
                             record (get leg-records leg-key)
@@ -88,7 +99,7 @@
   "If fighter at pos is at a refueling site with no flight-mode or target,
    refuel and assign either a regular leg or exploration flight."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))]
+  (let [unit (get-in (current-world) (conj pos :contents))]
     (when (and unit (nil? (:flight-mode unit)) (nil? (:flight-target-site unit)))
       (when-let [site-pos (current-refueling-site pos)]
         (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
@@ -99,7 +110,7 @@
 (defn- at-flight-target?
   "True if pos has reached the flight target. City: at position. Carrier: adjacent."
   [pos target]
-  (let [target-cell (get-in @atoms/game-map target)]
+  (let [target-cell (get-in (current-world) target)]
     (or (= pos target)
         (and (= :carrier (get-in target-cell [:contents :type]))
              (<= (fm/distance-to pos target) 1)))))
@@ -112,8 +123,10 @@
         origin (:flight-origin-site unit)]
     ;; Record completed leg (skip degenerate self-loops from returning sorties)
     (when (and origin (not= origin target))
-      (swap! atoms/fighter-leg-records assoc #{origin target}
-             {:last-flown @atoms/round-number}))
+      (write-runtime-state! :fighter-leg-records
+                            (assoc (or (read-runtime-state :fighter-leg-records) {})
+                                   #{origin target}
+                                   {:last-flown (or (read-runtime-state :round-number) 0)})))
     ;; Refuel
     (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
     ;; Clear exploration fields and pick new leg from target site
@@ -172,7 +185,7 @@
 
 (defn- adjacent-to-city-site? [site pos]
   (and site
-       (= :city (:type (get-in @atoms/game-map site)))
+       (= :city (:type (get-in (current-world) site)))
        (<= (fm/distance-to pos site) 1)))
 
 (defn- adjacent-to-site? [site pos]
@@ -253,7 +266,7 @@
 (defn- fighter-at?
   "Returns true if a fighter exists at pos on the game map."
   [pos]
-  (= :fighter (get-in @atoms/game-map (conj pos :contents :type))))
+  (= :fighter (get-in (current-world) (conj pos :contents :type))))
 
 (defn- burn-stuck-fuel
   "Burns fuel for a stuck fighter at pos. Returns pos if survived, nil if died."
@@ -265,7 +278,7 @@
   "Execute one step. Returns {:pos p :steps-used n} or nil (landed/died)."
   [current-pos]
   (when (fighter-at? current-pos)
-    (let [unit (get-in @atoms/game-map (conj current-pos :contents))
+    (let [unit (get-in (current-world) (conj current-pos :contents))
           result (move-fighter-once current-pos unit)]
       (cond
         (= result :landed) nil

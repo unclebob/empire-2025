@@ -4,7 +4,8 @@
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -24,6 +25,20 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
+(defn- write-runtime-state!
+  [k v]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/write-runtime-state! store k v)))
 
 ;; --- Re-exports for backward compatibility ---
 
@@ -48,8 +63,8 @@
   [pos transport]
   (tc/set-transport-mission pos :sailing)
   (tc/mint-unload-event-id pos transport)
-  (when-not @atoms/transport-fully-loaded?
-    (reset! atoms/transport-fully-loaded? true))
+  (when-not (read-runtime-state :transport-fully-loaded?)
+    (write-runtime-state! :transport-fully-loaded? true))
   (tc/mint-unload-country-id pos)
   (tc/record-pickup-continent-pos pos transport)
   (when-let [path (sailing/compute-sail-path pos)]
@@ -70,7 +85,7 @@
 (defn- loading-crawl-move
   [pos]
   (let [move-one (fn [p]
-                   (let [t (get-in @atoms/game-map (conj p :contents))
+                   (let [t (get-in (current-world) (conj p :contents))
                          pcp (:pickup-continent-pos t)]
                      (if pcp
                        (or (move-toward-position p pcp)
@@ -86,14 +101,15 @@
     (start-sailing pos transport)
     (let [new-pcp (targeting/find-next-pickup-continent-pos pos nil 0)]
       (update-game-map! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
-      (update-game-map! assoc-in (conj pos :contents :loading-since) @atoms/round-number)
+      (update-game-map! assoc-in (conj pos :contents :loading-since)
+                        (or (read-runtime-state :round-number) 0))
       (loading-crawl-move pos))))
 
 (defn- process-loading-mission
   [pos]
   (loading/load-adjacent-armies pos)
   (loading/clear-pickup-continent-if-arrived pos)
-  (let [transport' (get-in @atoms/game-map (conj pos :contents))
+  (let [transport' (get-in (current-world) (conj pos :contents))
         army-count' (:army-count transport' 0)]
     (cond
       (loading/should-start-sailing? pos transport' army-count')
@@ -109,7 +125,7 @@
   [pos army-count]
   (if (zero? army-count)
     (transition-to-loading pos)
-    (let [transport (get-in @atoms/game-map (conj pos :contents))]
+    (let [transport (get-in (current-world) (conj pos :contents))]
       (if (unloading/has-nearby-unloadable-land? pos transport 5)
         (if-let [pos1 (unloading/unloading-crawl-move pos)]
           (or (unloading/unloading-crawl-move pos1) pos1)
@@ -153,10 +169,10 @@
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
   [pos]
-  (let [transport (:contents (get-in @atoms/game-map pos))]
+  (let [transport (:contents (get-in (current-world) pos))]
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
       (threat-response/prepare-transport! pos)
-      (dispatch-transport-mission pos (:contents (get-in @atoms/game-map pos)))))
+      (dispatch-transport-mission pos (:contents (get-in (current-world) pos)))))
   nil)

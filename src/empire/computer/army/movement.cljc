@@ -1,6 +1,7 @@
 (ns empire.computer.army.movement
   "Shared movement and passability helpers for computer armies."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -15,18 +16,32 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
+(defn- write-runtime-state!
+  [k v]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/write-runtime-state! store k v)))
+
 (defn adjacent-to-sea?
   "Returns true if position has at least one adjacent sea cell."
   [pos]
   (some (fn [neighbor]
-          (= :sea (:type (get-in @atoms/game-map neighbor))))
+          (= :sea (:type (get-in (current-world) neighbor))))
         (core/get-neighbors pos)))
 
 (defn- seed-coastal-registry
   "One-time full-map scan to populate coastal cell registry for country-id.
    Called only when the registry is empty for that country."
   [country-id]
-  (let [gm @atoms/game-map
+  (let [gm (current-world)
         coastal (for [i (range (count gm))
                       j (range (count (first gm)))
                       :let [cell (get-in gm [i j])]
@@ -35,35 +50,39 @@
                                      (= country-id (:country-id cell)))
                                  (adjacent-to-sea? [i j]))]
                   [i j])]
-    (swap! atoms/coastal-cells-by-country assoc country-id (set coastal))))
+    (let [registry (or (read-runtime-state :coastal-cells-by-country) {})]
+      (write-runtime-state! :coastal-cells-by-country
+                            (assoc registry country-id (set coastal))))))
 
 (defn ensure-coastal-registry [country-id]
-  (when (empty? (get @atoms/coastal-cells-by-country country-id))
+  (when (empty? (get (read-runtime-state :coastal-cells-by-country) country-id))
     (seed-coastal-registry country-id)))
 
 (defn register-coastal-cells
   "Registers coastal land cells near pos for the given country-id.
    Checks pos + neighbors; adds any land cell adjacent to sea with matching country.
-   Also detects continent bumps when adjacent land has a different country-id."
+  Also detects continent bumps when adjacent land has a different country-id."
   [pos country-id]
   (when country-id
-    (let [game-map @atoms/game-map
+    (let [game-map (current-world)
           all-pos (cons pos (core/get-neighbors pos))]
       (doseq [p all-pos]
         (let [cid (:country-id (get-in game-map p))]
           (when (and cid (not= cid country-id))
-            (atoms/merge-continents! country-id cid))))
+            (runtime-state/merge-continents! country-id cid))))
       (let [coastal (filter (fn [p]
                               (let [cell (get-in game-map p)]
                                 (and cell
                                      (= :land (:type cell))
                                      (or (nil? (:country-id cell))
-                                         (atoms/on-same-continent? country-id (:country-id cell)))
+                                         (runtime-state/on-same-continent? country-id (:country-id cell)))
                                      (adjacent-to-sea? p))))
                             all-pos)]
         (when (seq coastal)
-          (swap! atoms/coastal-cells-by-country update country-id
-                 (fn [s] (into (or s #{}) coastal))))))))
+          (let [registry (or (read-runtime-state :coastal-cells-by-country) {})]
+            (write-runtime-state! :coastal-cells-by-country
+                                  (update registry country-id
+                                          (fn [s] (into (or s #{}) coastal))))))))))
 
 (defn sovereign-passable?
   "Returns true if a computer army with country-id can enter the cell.
@@ -76,12 +95,12 @@
        (or (nil? country-id)
            (= :city (:type cell))
            (nil? (:country-id cell))
-           (atoms/on-same-continent? country-id (:country-id cell)))))
+           (runtime-state/on-same-continent? country-id (:country-id cell)))))
 
 (defn get-passable-neighbors
   "Returns passable land neighbors for an army, respecting sovereignty."
   [pos country-id]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (filter (fn [neighbor]
               (sovereign-passable? country-id (get-in game-map neighbor)))
             (core/get-neighbors pos))))
@@ -89,7 +108,7 @@
 (defn get-empty-passable-neighbors
   "Returns passable land neighbors with no unit occupying them."
   [pos country-id]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (nil? (:contents cell))))
@@ -98,7 +117,7 @@
 (defn find-nearest-unclaimed
   "Find nearest position from candidates not in claimed-objectives."
   [candidates pos]
-  (let [unclaimed (remove @atoms/claimed-objectives candidates)]
+  (let [unclaimed (remove (or (read-runtime-state :claimed-objectives) #{}) candidates)]
     (when (seq unclaimed)
       (apply min-key #(core/distance pos %) unclaimed))))
 
@@ -120,7 +139,7 @@
     (visibility/update-cell-visibility pos :computer)
     (visibility/update-cell-visibility target :computer)
     (register-coastal-cells target
-                            (:country-id (get-in @atoms/game-map (conj target :contents))))
+                            (:country-id (get-in (current-world) (conj target :contents))))
     target))
 
 (defn- sovereignty-passability-fn
@@ -133,7 +152,7 @@
    try other empty neighbors sorted by distance to objective.
    Filters out cells in move-history to prevent oscillation."
   [pos objective country-id]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         history (set (:move-history unit))
         pass-fn (when country-id (sovereignty-passability-fn country-id))
         preferred (pathfinding/next-step pos objective :army pass-fn country-id)]
@@ -147,7 +166,7 @@
 
 (defn in-bounds? [pos]
   (let [[c r] pos
-        game-map @atoms/game-map]
+        game-map (current-world)]
     (and (>= c 0) (>= r 0)
          (< c (count game-map))
          (< r (count (first game-map))))))

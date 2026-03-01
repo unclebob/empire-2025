@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -17,10 +18,19 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
 (defn- passable-sea?
   "Returns true if pos is a passable sea cell for a transport."
   [pos]
-  (let [cell (get-in @atoms/game-map pos)]
+  (let [cell (get-in (current-world) pos)]
     (and cell
          (= :sea (:type cell))
          (or (nil? (:contents cell))
@@ -39,7 +49,7 @@
    Looks 4 levels past first hit; prefers unowned coast over unexplored."
   [pos]
   (pathfinding-bfs/bfs-to-coast-target
-    pos @atoms/computer-map))
+    pos (read-runtime-state :computer-map)))
 
 (defn- sail-retreat
   [pos sail-path]
@@ -81,7 +91,7 @@
 
 (defn process-sailing-mission
   [pos]
-  (let [transport (get-in @atoms/game-map (conj pos :contents))
+  (let [transport (get-in (current-world) (conj pos :contents))
         sail-path (:sail-path transport)
         army-count (:army-count transport 0)]
     (cond
@@ -99,7 +109,7 @@
   "Follow precomputed invasion path. Steps up to 2 cells per round.
    When path exhausted, transition to unloading with coast-crawl."
   [pos]
-  (let [transport (get-in @atoms/game-map (conj pos :contents))
+  (let [transport (get-in (current-world) (conj pos :contents))
         path (:invasion-path transport)]
     (if (empty? path)
       (tc/set-transport-mission pos :unloading)

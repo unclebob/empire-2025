@@ -1,6 +1,7 @@
 (ns empire.computer.army.coastal
   "Coastal movement, coast-walk, and coastal positioning behaviors."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.army.movement :as movement]
@@ -13,11 +14,20 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."
   [pos]
   (count (filter (fn [neighbor]
-                   (nil? (get-in @atoms/computer-map neighbor)))
+                   (nil? (get-in (read-runtime-state :computer-map) neighbor)))
                  (core/get-neighbors pos))))
 
 (defn- update-backtrack
@@ -31,7 +41,7 @@
 (defn- terminate-coast-walk
   "Switches army from coast-walk to sentry (or awake if in a city)."
   [pos]
-  (let [mode (if (= :city (:type (get-in @atoms/game-map pos))) :awake :sentry)]
+  (let [mode (if (= :city (:type (get-in (current-world) pos))) :awake :sentry)]
     (update-game-map! update-in (conj pos :contents)
                       #(-> % (assoc :mode mode)
                            (dissoc :coast-direction :coast-start :coast-visited)))))
@@ -45,7 +55,7 @@
 (defn process-coast-walk
   "Handles coast-walk movement. Returns new position or nil."
   [pos country-id]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         coast-start (:coast-start unit)
         visited (set (:coast-visited unit))
         candidates (coast-walk-candidates pos country-id)]
@@ -68,7 +78,7 @@
   "Returns true if position has an adjacent computer city."
   [pos]
   (some (fn [neighbor]
-          (let [cell (get-in @atoms/game-map neighbor)]
+          (let [cell (get-in (current-world) neighbor)]
             (and (= :city (:type cell))
                  (= :computer (:city-status cell)))))
         (core/get-neighbors pos)))
@@ -79,8 +89,8 @@
   [pos country-id]
   (when country-id
     (movement/ensure-coastal-registry country-id)
-    (let [coastal (get @atoms/coastal-cells-by-country country-id)
-          game-map @atoms/game-map
+    (let [coastal (get (read-runtime-state :coastal-cells-by-country) country-id)
+          game-map (current-world)
           candidates (filter (fn [p]
                                (let [cell (get-in game-map p)]
                                  (and (= :land (:type cell))
@@ -110,10 +120,10 @@
   [pos country-id]
   (when country-id
     (movement/ensure-coastal-registry country-id)
-    (let [coastal (get @atoms/coastal-cells-by-country country-id)]
+    (let [coastal (get (read-runtime-state :coastal-cells-by-country) country-id)]
       (when (seq coastal)
         (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
-              game-map @atoms/game-map
+              game-map (current-world)
               candidates (filter #(empty-land-for-country? (get-in game-map %) country-id)
                                  expanded)
               with-coast-dist (keep (fn [c]
@@ -129,13 +139,13 @@
 (defn should-sentry-on-coast? [pos country-id]
   (and country-id
        (movement/adjacent-to-sea? pos)
-       (not= :city (:type (get-in @atoms/game-map pos)))
+       (not= :city (:type (get-in (current-world) pos)))
        (not (adjacent-to-computer-city? pos))))
 
 (defn can-settle-here? [pos country-id]
   (and country-id
        (movement/adjacent-to-sea? pos)
-       (not= :city (:type (get-in @atoms/game-map pos)))))
+       (not= :city (:type (get-in (current-world) pos)))))
 
 (defn- try-move-to-coastal-cell [pos country-id]
   (when-let [target (find-nearest-unoccupied-coastal-cell pos country-id)]

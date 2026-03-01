@@ -2,13 +2,21 @@
 (ns empire.movement.pathfinding
   "A* pathfinding for computer AI units.
    Provides efficient pathfinding that respects terrain constraints."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.movement.map-utils :as map-utils]))
 
 (def path-cache
   "Cache for computed paths: {[start goal unit-type] path-vector}"
   (atom {}))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 (defn clear-path-cache
   "Clears the A* path cache. Called at start of each round."
@@ -93,7 +101,7 @@
 (defn- compute-a-star-step
   "Computes A* path and returns next step."
   [start goal unit-type passability-fn cache-key-extra]
-  (when-let [path (a-star start goal unit-type @atoms/game-map passability-fn)]
+  (when-let [path (a-star start goal unit-type (current-world) passability-fn)]
     (cache-sub-paths! path goal unit-type cache-key-extra)
     (second path)))
 

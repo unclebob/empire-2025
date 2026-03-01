@@ -1,10 +1,10 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.combat
-  (:require [clojure.string]
-            [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
+            [empire.combat.escorts :as escorts]
             [empire.config :as config]
+            [empire.domain.world.combat :as domain-combat]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -15,6 +15,10 @@
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
 (defn- set-game-map!
   [world]
   (app-state/set-world! @state-ctx world))
@@ -22,6 +26,32 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
+(defn- set-error-message!
+  [msg ms]
+  (write-runtime-state! :error-message msg)
+  (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
+
+(defn- set-turn-message!
+  [msg ms]
+  (write-runtime-state! :turn-message msg)
+  (write-runtime-state! :turn-message-until (if (= ms Long/MAX_VALUE)
+                                               Long/MAX_VALUE
+                                               (+ (System/currentTimeMillis) ms))))
 
 (defn- conquer-city-contents-world
   [game-map city-coords new-owner]
@@ -51,16 +81,16 @@
    - Armies are killed
    - Satellites are left unchanged
    - Ships and fighters flip ownership, wake up, clear orders
-   - Transported armies and carried fighters are killed
-   - City production and standing orders are cleared"
+  - Transported armies and carried fighters are killed
+  - City production and standing orders are cleared"
   [city-coords new-owner]
-  (set-game-map! (conquer-city-contents-world @atoms/game-map city-coords new-owner))
+  (set-game-map! (conquer-city-contents-world (current-world) city-coords new-owner))
   ;; Clear production
-  (swap! atoms/production dissoc city-coords)
+  (update-runtime-state! :production dissoc city-coords)
   nil)
 
 (defn hostile-city? [target-coords]
-  (let [target-cell (get-in @atoms/game-map target-coords)]
+  (let [target-cell (get-in (current-world) target-coords)]
     (and (= (:type target-cell) :city)
          (config/hostile-city? (:city-status target-cell)))))
 
@@ -68,23 +98,23 @@
   "Rolls for city conquest. On success, converts city to player and conquers contents.
    On failure, shows failure message. Returns true regardless of outcome."
   [city-coords]
-  (let [city-cell (get-in @atoms/game-map city-coords)]
+  (let [city-cell (get-in (current-world) city-coords)]
     (if (< (rand) 0.5)
       (do
         (when (= :computer (:city-status city-cell))
-          (swap! atoms/computer-city-positions disj city-coords))
+          (update-runtime-state! :computer-city-positions disj city-coords))
         (update-game-map! assoc-in city-coords (assoc city-cell :city-status :player))
         (conquer-city-contents city-coords :player)
-        (swap! atoms/computer-carrier-positions disj city-coords)
+        (update-runtime-state! :computer-carrier-positions disj city-coords)
         (visibility/update-cell-visibility city-coords :player)
-        (swap! atoms/computer-map assoc-in (conj city-coords :city-status) :player))
-      (atoms/set-error-message (:conquest-failed config/messages) config/error-message-duration))
+        (update-runtime-state! :computer-map assoc-in (conj city-coords :city-status) :player))
+      (set-error-message! (:conquest-failed config/messages) config/error-message-duration))
     true))
 
 (defn attempt-conquest
   "Attempts to conquer a city with an army. Returns true if conquest was attempted."
   [army-coords city-coords]
-  (let [army-cell (get-in @atoms/game-map army-coords)]
+  (let [army-cell (get-in (current-world) army-coords)]
     (update-game-map! assoc-in army-coords (dissoc army-cell :contents))
     (visibility/update-cell-visibility army-coords :player)
     (attempt-city-conquest city-coords)))
@@ -100,11 +130,11 @@
 (defn attempt-fighter-overfly
   "Fighter flies over hostile city and gets shot down."
   [fighter-coords city-coords]
-  (let [fighter-cell (get-in @atoms/game-map fighter-coords)
+  (let [fighter-cell (get-in (current-world) fighter-coords)
         fighter (:contents fighter-cell)
         shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
-    (set-game-map! (apply-fighter-overfly-world @atoms/game-map fighter-coords city-coords shot-down-fighter))
-    (atoms/set-error-message (:fighter-destroyed-by-city config/messages) config/error-message-duration)
+    (set-game-map! (apply-fighter-overfly-world (current-world) fighter-coords city-coords shot-down-fighter))
+    (set-error-message! (:fighter-destroyed-by-city config/messages) config/error-message-duration)
     true))
 
 (defn hostile-unit?
@@ -112,130 +142,39 @@
   [unit owner]
   (and unit (not= (:owner unit) owner)))
 
-(defn- unit-name
-  "Returns a capitalized display name for a unit type."
-  [unit-type]
-  (-> unit-type name clojure.string/capitalize))
-
-(defn- format-log-entry
-  "Formats a single combat log entry.
-   Uses lowercase for defender, uppercase for attacker."
-  [entry attacker-type defender-type]
-  (let [unit-char (if (= :defender (:hit entry))
-                    (clojure.string/lower-case (dispatcher/display-char defender-type))
-                    (clojure.string/upper-case (dispatcher/display-char attacker-type)))]
-    (str unit-char "-" (:damage entry))))
-
 (defn format-combat-log
   "Formats a combat log for display.
    Format: c-3,S-1,S-1. Submarine destroyed."
   [log attacker-type defender-type winner]
-  (let [entries (map #(format-log-entry % attacker-type defender-type) log)
-        exchange-str (clojure.string/join "," entries)
-        loser-type (if (= winner :attacker) defender-type attacker-type)
-        loser-name (unit-name loser-type)]
-    (str exchange-str ". " loser-name " destroyed.")))
+  (domain-combat/format-combat-log log attacker-type defender-type winner))
 
 (defn fight-round
   "Executes one round of combat. 50% chance attacker hits, 50% chance defender hits.
    Returns [updated-attacker updated-defender log-entry]."
   [attacker defender]
-  (if (< (rand) 0.5)
-    (let [damage (dispatcher/strength (:type attacker))]
-      [attacker (update defender :hits - damage) {:hit :defender :damage damage}])
-    (let [damage (dispatcher/strength (:type defender))]
-      [(update attacker :hits - damage) defender {:hit :attacker :damage damage}])))
+  (domain-combat/fight-round attacker defender))
 
 (defn resolve-combat
   "Fights combat rounds until one unit dies.
    Returns {:winner :attacker|:defender :survivor unit-map :log [log-entries]}."
   [attacker defender]
-  (loop [a attacker d defender log []]
-    (let [[new-a new-d log-entry] (fight-round a d)
-          new-log (conj log log-entry)]
-      (cond
-        (<= (:hits new-d) 0) {:winner :attacker :survivor new-a :log new-log}
-        (<= (:hits new-a) 0) {:winner :defender :survivor new-d :log new-log}
-        :else (recur new-a new-d new-log)))))
+  (domain-combat/resolve-combat attacker defender))
 
-(defn- find-units-where
-  "Returns coords of all units on game-map where (pred unit) is true."
-  [pred]
-  (let [game-map @atoms/game-map]
-    (for [i (range (count game-map))
-          j (range (count (first game-map)))
-          :let [unit (get-in game-map [i j :contents])]
-          :when (and unit (pred unit))]
-      [i j])))
-
-(defn- clear-dead-escort-from-carrier
-  "Remove dead battleship/submarine reference from its paired carrier."
+(defn dead-escort-destroyer?
   [dead-unit]
-  (let [carrier-id (:escort-carrier-id dead-unit)
-        escort-id (:escort-id dead-unit)
-        coords (find-units-where #(and (= :carrier (:type %))
-                                       (= carrier-id (:carrier-id %))))]
-    (doseq [pos coords]
-      (case (:type dead-unit)
-        :battleship
-        (update-game-map! assoc-in (conj pos :contents :group-battleship-id) nil)
-        :submarine
-        (update-game-map! update-in (conj pos :contents :group-submarine-ids)
-                          (fn [ids] (vec (remove #{escort-id} ids))))))))
+  (escorts/dead-escort-destroyer? dead-unit))
 
-(defn- release-carrier-escorts
-  "When a carrier dies, release all its escorts to seeking mode."
+(defn dead-escort-transport?
   [dead-unit]
-  (let [carrier-id (:carrier-id dead-unit)
-        coords (find-units-where #(= carrier-id (:escort-carrier-id %)))]
-    (doseq [pos coords]
-      (update-game-map! update-in (conj pos :contents)
-                        #(-> % (assoc :escort-mode :seeking)
-                             (dissoc :escort-carrier-id :orbit-angle))))))
-
-(defn- clear-carrier-group-on-death
-  "When a carrier group member dies, update the group pairing."
-  [dead-unit]
-  (cond
-    (and (#{:battleship :submarine} (:type dead-unit))
-         (:escort-carrier-id dead-unit))
-    (clear-dead-escort-from-carrier dead-unit)
-
-    (and (= :carrier (:type dead-unit))
-         (:carrier-id dead-unit))
-    (release-carrier-escorts dead-unit)))
-
-(defn dead-escort-destroyer? [dead-unit]
-  (and (= :destroyer (:type dead-unit))
-       (:escort-transport-id dead-unit)))
-
-(defn dead-escort-transport? [dead-unit]
-  (and (= :transport (:type dead-unit))
-       (:escort-destroyer-id dead-unit)))
-
-(defn- clear-destroyer-escort [dead-unit]
-  (let [tid (:escort-transport-id dead-unit)
-        coords (find-units-where #(and (= :transport (:type %))
-                                       (= tid (:transport-id %))))]
-    (doseq [pos coords]
-      (update-game-map! update-in (conj pos :contents) dissoc :escort-destroyer-id))))
-
-(defn- clear-transport-escort [dead-unit]
-  (let [did (:escort-destroyer-id dead-unit)
-        coords (find-units-where #(and (= :destroyer (:type %))
-                                       (= did (:destroyer-id %))))]
-    (doseq [pos coords]
-      (update-game-map! update-in (conj pos :contents)
-                        #(-> % (assoc :escort-mode :seeking)
-                             (dissoc :escort-transport-id))))))
+  (escorts/dead-escort-transport? dead-unit))
 
 (defn clear-escort-on-death
   "When a unit with escort pairing is destroyed, clear the partner's reference."
   [dead-unit]
-  (cond
-    (dead-escort-destroyer? dead-unit) (clear-destroyer-escort dead-unit)
-    (dead-escort-transport? dead-unit) (clear-transport-escort dead-unit))
-  (clear-carrier-group-on-death dead-unit))
+  (escorts/clear-escort-on-death!
+   {:current-world current-world
+    :update-game-map! update-game-map!}
+   dead-unit))
 
 (defn- drown-excess-cargo
   "After combat, if a container's cargo exceeds its effective capacity, kill excess."
@@ -263,8 +202,9 @@
   "Attempts to attack an enemy unit at target-coords from attacker-coords.
    Returns true if attack was attempted, false otherwise."
   [attacker-coords target-coords]
-  (let [attacker-cell (get-in @atoms/game-map attacker-coords)
-        target-cell (get-in @atoms/game-map target-coords)
+  (let [world (current-world)
+        attacker-cell (get-in world attacker-coords)
+        target-cell (get-in world target-coords)
         attacker (:contents attacker-cell)
         defender (:contents target-cell)]
     (if (or (nil? defender) (not (hostile-unit? defender (:owner attacker))))
@@ -275,10 +215,10 @@
                                        (:type defender)
                                        (:winner result))
             dead-unit (if (= :attacker (:winner result)) defender attacker)]
-        (set-game-map! (apply-attack-world @atoms/game-map attacker-coords target-coords (:survivor result)))
+        (set-game-map! (apply-attack-world world attacker-coords target-coords (:survivor result)))
         ;; Drown excess cargo if surviving container took damage
         (drown-excess-cargo target-coords (:survivor result))
         ;; Clear escort pairing if destroyer or transport died
         (clear-escort-on-death dead-unit)
-        (atoms/set-turn-message message Long/MAX_VALUE)
+        (set-turn-message! message Long/MAX_VALUE)
         true))))

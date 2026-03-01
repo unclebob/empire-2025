@@ -2,7 +2,7 @@
 (ns empire.game-loop
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.computer.army :as army]
             [empire.computer.land-ho :as land-ho]
@@ -17,42 +17,73 @@
             [empire.game-loop.item-processing :as item-processing]
             [empire.ui.util.rendering.format :as ru]))
 
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (visibility/update-combatant-map atoms/player-map :player))
+  (when-let [updated (visibility/update-combatant-map-state
+                      (read-runtime-state :player-map)
+                      :player
+                      (current-world))]
+    (write-runtime-state! :player-map updated)))
 
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (visibility/update-combatant-map atoms/computer-map :computer))
+  (when-let [updated (visibility/update-combatant-map-state
+                      (read-runtime-state :computer-map)
+                      :computer
+                      (current-world))]
+    (write-runtime-state! :computer-map updated)))
 
 (defn build-player-items
   "Builds list of player city/unit coordinates to process this round."
   []
-  (for [i (range (count @atoms/game-map))
-        j (range (count (first @atoms/game-map)))
-        :let [cell (get-in @atoms/game-map [i j])]
+  (let [world (current-world)]
+    (for [i (range (count world))
+          j (range (count (first world)))
+          :let [cell (get-in world [i j])]
         :when (or (= (:city-status cell) :player)
                   (= (:owner (:contents cell)) :player))]
-    [i j]))
+      [i j])))
 
 (defn build-computer-items
   "Builds list of computer city/unit coordinates to process this round."
   []
-  (for [i (range (count @atoms/game-map))
-        j (range (count (first @atoms/game-map)))
-        :let [cell (get-in @atoms/game-map [i j])]
+  (let [world (current-world)]
+    (for [i (range (count world))
+          j (range (count (first world)))
+          :let [cell (get-in world [i j])]
         :when (or (= (:city-status cell) :computer)
                   (= (:owner (:contents cell)) :computer))]
-    [i j]))
+      [i j])))
 
 (defn item-processed
   "Called when user input has been processed for current item.
    Victory check happens in item-processing/process-player-items-batch."
   []
-  (reset! atoms/waiting-for-input false)
-  (reset! atoms/cells-needing-attention []))
+  (write-runtime-state! :waiting-for-input false)
+  (write-runtime-state! :cells-needing-attention []))
 
 ;; Delegate round-setup functions for backward compatibility
 (def remove-dead-units round-setup/remove-dead-units)
@@ -72,7 +103,7 @@
 (defn start-new-round
   "Starts a new round by building player and computer items lists and updating game state."
   []
-  (swap! atoms/round-number inc)
+  (update-runtime-state! :round-number inc)
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)
@@ -86,39 +117,43 @@
   (round-setup/wake-airport-fighters)
   (threat-response/on-round-start!)
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
-  (reset! atoms/claimed-objectives #{})
-  (reset! atoms/claimed-transport-targets #{})
-  (reset! atoms/claimed-patrol-targets #{})
+  (write-runtime-state! :claimed-objectives #{})
+  (write-runtime-state! :claimed-transport-targets #{})
+  (write-runtime-state! :claimed-patrol-targets #{})
   (land-ho/assign-land-ho-invasion)
   (let [player-items (vec (build-player-items))
         computer-items (vec (build-computer-items))]
-    (reset! atoms/player-items player-items)
-    (reset! atoms/computer-items computer-items)
+    (write-runtime-state! :player-items player-items)
+    (write-runtime-state! :computer-items computer-items)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
     ;; Check for game over: no player cities or units
-    (when (and @atoms/game-over-check-enabled (empty? player-items))
-      (reset! atoms/paused true)
-      (reset! atoms/error-message "****GAME OVER*****")
-      (reset! atoms/error-until Long/MAX_VALUE)
-      (reset! atoms/map-to-display :actual-map))
+    (when (and (read-runtime-state :game-over-check-enabled) (empty? player-items))
+      (write-runtime-state! :paused true)
+      (write-runtime-state! :error-message "****GAME OVER*****")
+      (write-runtime-state! :error-until Long/MAX_VALUE)
+      (write-runtime-state! :map-to-display :actual-map))
     ;; Check for victory: no computer cities or units
-    (when (and @atoms/game-over-check-enabled (empty? computer-items))
-      (reset! atoms/paused true)
-      (reset! atoms/error-message "****YOU WIN!*****")
-      (reset! atoms/error-until Long/MAX_VALUE)
-      (reset! atoms/map-to-display :actual-map)))
-  (reset! atoms/waiting-for-input false)
-  (reset! atoms/attention-message "")
-  (reset! atoms/cells-needing-attention [])
-  (reset! atoms/production-status (ru/format-production-status @atoms/game-map @atoms/player-map)))
+    (when (and (read-runtime-state :game-over-check-enabled) (empty? computer-items))
+      (write-runtime-state! :paused true)
+      (write-runtime-state! :error-message "****YOU WIN!*****")
+      (write-runtime-state! :error-until Long/MAX_VALUE)
+      (write-runtime-state! :map-to-display :actual-map)))
+  (write-runtime-state! :waiting-for-input false)
+  (write-runtime-state! :attention-message "")
+  (write-runtime-state! :cells-needing-attention [])
+  (write-runtime-state! :production-status
+                        (ru/format-production-status (current-world)
+                                                     (read-runtime-state :player-map))))
 
 (defn- both-lists-empty? []
-  (and (empty? @atoms/player-items) (empty? @atoms/computer-items)))
+  (and (empty? (read-runtime-state :player-items))
+       (empty? (read-runtime-state :computer-items))))
 
 (defn- handle-pause-or-new-round []
-  (if @atoms/pause-requested
-    (do (reset! atoms/paused true) (reset! atoms/pause-requested false))
+  (if (read-runtime-state :pause-requested)
+    (do (write-runtime-state! :paused true)
+        (write-runtime-state! :pause-requested false))
     (start-new-round)))
 
 (defn advance-game
@@ -126,11 +161,11 @@
    Processes multiple non-attention items per frame for faster rounds."
   []
   (cond
-    @atoms/load-menu-open nil
-    @atoms/paused nil
+    (read-runtime-state :load-menu-open) nil
+    (read-runtime-state :paused) nil
     (both-lists-empty?) (handle-pause-or-new-round)
-    @atoms/waiting-for-input nil
-    (seq @atoms/player-items) (item-processing/process-player-items-batch)
+    (read-runtime-state :waiting-for-input) nil
+    (seq (read-runtime-state :player-items)) (item-processing/process-player-items-batch)
     :else (item-processing/process-computer-items)))
 
 (defn advance-game-batch
@@ -141,28 +176,30 @@
     (when (pos? remaining)
       (advance-game)
       (when (and (> remaining 1)
-                 (not @atoms/paused)
-                 (not @atoms/waiting-for-input)
-                 (or (seq @atoms/player-items) (seq @atoms/computer-items)))
+                 (not (read-runtime-state :paused))
+                 (not (read-runtime-state :waiting-for-input))
+                 (or (seq (read-runtime-state :player-items))
+                     (seq (read-runtime-state :computer-items))))
         (recur (dec remaining))))))
 
 (defn toggle-pause
   "Toggles pause state. If running, requests pause at end of round.
    If paused, resumes immediately."
   []
-  (if @atoms/paused
+  (if (read-runtime-state :paused)
     (do
-      (reset! atoms/paused false)
-      (reset! atoms/pause-requested false))
-    (reset! atoms/pause-requested true)))
+      (write-runtime-state! :paused false)
+      (write-runtime-state! :pause-requested false))
+    (write-runtime-state! :pause-requested true)))
 
 (defn step-one-round
   "When paused, advances one round then pauses again."
   []
-  (when @atoms/paused
-    (reset! atoms/paused false)
-    (reset! atoms/pause-requested true)
-    (when (and (empty? @atoms/player-items) (empty? @atoms/computer-items))
+  (when (read-runtime-state :paused)
+    (write-runtime-state! :paused false)
+    (write-runtime-state! :pause-requested true)
+    (when (and (empty? (read-runtime-state :player-items))
+               (empty? (read-runtime-state :computer-items)))
       (start-new-round))))
 
 (defn update-map

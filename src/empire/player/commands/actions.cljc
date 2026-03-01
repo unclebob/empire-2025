@@ -1,0 +1,169 @@
+;; mutation-tested: no
+(ns empire.player.commands.actions
+  "Extracted unit action handlers for player command processing."
+  (:require [empire.player.attention :as attention]
+            [empire.combat :as combat]
+            [empire.containers.ops :as container-ops]
+            [empire.containers.helpers :as uc]
+            [empire.game-loop :as game-loop]
+            [empire.movement.coastline :as coastline]
+            [empire.movement.explore :as explore]
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.movement :as movement]
+            [empire.config :as config]
+            [empire.units.dispatcher :as dispatcher]))
+
+(defn- current-world [ctx]
+  ((:current-world ctx)))
+
+(defn- update-game-map! [ctx f & args]
+  (apply (:update-game-map! ctx) f args))
+
+(defn- read-runtime-state [ctx k]
+  ((:read-runtime-state ctx) k))
+
+(defn- write-runtime-state! [ctx k v]
+  ((:write-runtime-state! ctx) k v))
+
+(defn- update-runtime-state! [ctx k f & args]
+  (apply (:update-runtime-state! ctx) k f args))
+
+(defn handle-space-key [ctx coords]
+  (let [cell (get-in (current-world ctx) coords)
+        unit (:contents cell)]
+    (when unit
+      (if (= :fighter (:type unit))
+        (let [current-fuel (:fuel unit config/fighter-fuel)
+              fuel-cost (config/unit-speed :fighter)
+              new-fuel (- current-fuel fuel-cost)]
+          (if (<= new-fuel 0)
+            (do
+              (update-game-map! ctx assoc-in (conj coords :contents :hits) 0)
+              (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round))
+            (do
+              (update-game-map! ctx assoc-in (conj coords :contents :fuel) new-fuel)
+              (update-game-map! ctx assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
+        (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round))))
+  (update-runtime-state! ctx :player-items rest)
+  (game-loop/item-processed)
+  true)
+
+(defn handle-unload-key [ctx coords cell]
+  (let [contents (:contents cell)]
+    (cond
+      (uc/transport-with-armies? contents)
+      (do (container-ops/wake-armies-on-transport coords)
+          (game-loop/item-processed)
+          true)
+
+      (uc/carrier-with-fighters? contents)
+      (do (container-ops/wake-fighters-on-carrier coords)
+          (game-loop/item-processed)
+          true)
+
+      :else nil)))
+
+(defn handle-sentry-key [ctx coords cell active-unit]
+  (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
+        is-carrier-fighter? (movement/is-fighter-from-carrier? active-unit)
+        is-airport-fighter? (movement/is-fighter-from-airport? active-unit)]
+    (cond
+      is-army-aboard?
+      (do (container-ops/sleep-armies-on-transport coords)
+          (game-loop/item-processed)
+          true)
+
+      is-carrier-fighter?
+      (do (container-ops/sleep-fighters-on-carrier coords)
+          (game-loop/item-processed)
+          true)
+
+      (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
+      (do (movement/set-unit-mode coords :sentry)
+          (game-loop/item-processed)
+          true)
+
+      :else nil)))
+
+(defn- find-adjacent-land [ctx coords]
+  (let [[x y] coords]
+    (first (for [dx [-1 0 1] dy [-1 0 1]
+                 :when (not (and (zero? dx) (zero? dy)))
+                 :let [target [(+ x dx) (+ y dy)]
+                       tcell (get-in (current-world ctx) target)]
+                 :when (and tcell (= :land (:type tcell)) (not (:contents tcell)))]
+             target))))
+
+(defn- free-army? [active-unit is-army-aboard?]
+  (and (= :army (:type active-unit)) (not is-army-aboard?)))
+
+(defn handle-look-around-key [ctx coords _cell active-unit]
+  (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
+        near-coast? (map-utils/any-neighbor-matches? coords (current-world ctx) map-utils/neighbor-offsets
+                                                   #(= :land (:type %)))
+        rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
+    (cond
+      (free-army? active-unit is-army-aboard?)
+      (do (explore/set-explore-mode coords)
+          (game-loop/item-processed)
+          true)
+
+      is-army-aboard?
+      (do (when-let [valid-target (find-adjacent-land ctx coords)]
+            (container-ops/disembark-army-to-explore coords valid-target)
+            (game-loop/item-processed))
+          true)
+
+      (coastline/coastline-follow-eligible? active-unit near-coast?)
+      (do (coastline/set-coastline-follow-mode coords)
+          (game-loop/item-processed)
+          true)
+
+      rejection-reason
+      (do (write-runtime-state! ctx :attention-message (rejection-reason config/messages))
+          true)
+
+      :else nil)))
+
+(defn- adjacent-coords? [c1 c2]
+  (let [[ax ay] c1 [cx cy] c2]
+    (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))))
+
+(defn- click-army-aboard [attn-coords clicked-coords target-cell]
+  (when (and (adjacent-coords? attn-coords clicked-coords)
+             (= (:type target-cell) :land)
+             (not (:contents target-cell)))
+    (container-ops/disembark-army-from-transport attn-coords clicked-coords)
+    (game-loop/item-processed)))
+
+(defn- click-standard-unit [attn-coords clicked-coords unit-type]
+  (if (and (adjacent-coords? attn-coords clicked-coords)
+           (combat/hostile-city? clicked-coords))
+    (case unit-type
+      :army (combat/attempt-conquest attn-coords clicked-coords)
+      :fighter (combat/attempt-fighter-overfly attn-coords clicked-coords)
+      (movement/set-unit-movement attn-coords clicked-coords))
+    (movement/set-unit-movement attn-coords clicked-coords)))
+
+(defn handle-unit-click
+  "Handles interaction with an attention-needing unit."
+  [ctx clicked-coords attention-coords]
+  (let [attn-coords (first attention-coords)
+        attn-cell (get-in (current-world ctx) attn-coords)
+        active-unit (movement/get-active-unit attn-cell)
+        target-cell (get-in (current-world ctx) clicked-coords)
+        context (movement/movement-context attn-cell active-unit)]
+    (case context
+      :airport-fighter ((:launch-fighter-and-update ctx)
+                        container-ops/launch-fighter-from-airport attn-coords clicked-coords)
+      :army-aboard (click-army-aboard attn-coords clicked-coords target-cell)
+      (click-standard-unit attn-coords clicked-coords (:type active-unit)))
+    (game-loop/item-processed)))
+
+(defn handle-cell-click
+  "Handles clicking on a map cell, prioritizing attention-needing items."
+  [ctx cell-x cell-y]
+  (let [attention-coords (read-runtime-state ctx :cells-needing-attention)
+        clicked-coords [cell-x cell-y]]
+    (when (attention/is-unit-needing-attention? attention-coords)
+      (handle-unit-click ctx clicked-coords attention-coords))))

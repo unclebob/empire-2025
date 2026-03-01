@@ -1,6 +1,7 @@
 (ns empire.computer.army.combat
   "Army combat helpers."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.combat :as combat]
@@ -16,10 +17,19 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
 (defn find-adjacent-enemy
   "Finds an adjacent enemy unit or city to attack."
   [pos]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)]
                        (core/attackable-target? cell)))
@@ -28,14 +38,15 @@
 (defn attack-enemy
   "Attack an adjacent enemy. Returns new position or nil if army died."
   [army-pos enemy-pos]
-  (let [enemy-cell (get-in @atoms/game-map enemy-pos)]
+  (let [game-map (current-world)
+        enemy-cell (get-in game-map enemy-pos)]
     (cond
       (= :city (:type enemy-cell))
       (do (debug/log-computer-event! :army-attack-city army-pos {:target enemy-pos})
           (core/attempt-conquest-computer army-pos enemy-pos))
 
       (:contents enemy-cell)
-      (let [attacker (get-in @atoms/game-map (conj army-pos :contents))
+      (let [attacker (get-in game-map (conj army-pos :contents))
             defender (:contents enemy-cell)
             result (combat/resolve-combat attacker defender)]
         (update-game-map! update-in army-pos dissoc :contents)
@@ -59,8 +70,8 @@
 (defn process-attack-target
   "Moves army toward its attack-target city. Clears target if conquered or gone."
   [pos country-id]
-  (let [target (get-in @atoms/game-map (conj pos :contents :attack-target))
-        comp-cell (get-in @atoms/computer-map target)]
+  (let [target (get-in (current-world) (conj pos :contents :attack-target))
+        comp-cell (get-in (read-runtime-state :computer-map) target)]
     (if (and comp-cell
              (= :city (:type comp-cell))
              (#{:free :player} (:city-status comp-cell)))

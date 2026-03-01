@@ -1,8 +1,7 @@
 ;; mutation-tested: 2026-02-27
 (ns empire.computer.fighter-exploration
   "Fighter exploration: sorties, drone operations, unexplored-cell scoring."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.movement.visibility :as visibility]
@@ -15,6 +14,14 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
 (def ^:private compass-directions
   "All 8 compass directions as [dr dc] vectors."
   [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
@@ -22,10 +29,11 @@
 (defn count-unexplored-neighbors
   "Count neighbors of pos that are unexplored on computer-map."
   [pos]
-  (let [computer-map @atoms/computer-map
+  (let [computer-map (read-runtime-state :computer-map)
         [r c] pos
-        height (count @atoms/game-map)
-        width (count (first @atoms/game-map))]
+        game-map (current-world)
+        height (count game-map)
+        width (count (first game-map))]
     (count (filter (fn [[dr dc]]
                      (let [nr (+ r dr) nc (+ c dc)]
                        (and (>= nr 0) (< nr height)
@@ -37,8 +45,8 @@
   "Project n steps from start in direction [dr dc], count unexplored cells
    (including their visibility neighbors) along the ray."
   [start direction n]
-  (let [computer-map @atoms/computer-map
-        game-map @atoms/game-map
+  (let [computer-map (read-runtime-state :computer-map)
+        game-map (current-world)
         height (count game-map)
         width (count (first game-map))
         [dr dc] direction]

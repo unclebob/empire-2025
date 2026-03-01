@@ -2,13 +2,20 @@
 (ns empire.computer.land-objectives
   "Land objective detection using flood-fill on fog-of-war map.
    Implements VMS Empire style continent recognition that respects unexplored territory."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.computer.core :as core]
             [empire.movement.map-utils :as map-utils]))
 
 ;; Cache for continent flood-fill results.
 ;; Maps position -> continent-set. Cleared each round.
 (def continent-cache (atom {}))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
 
 (defn clear-continent-cache!
   "Clears the continent cache. Called at the start of each round."
@@ -55,7 +62,7 @@
    Marks unexplored cells adjacent to continent but does NOT expand through them.
    Returns a set of positions that are part of this continent (including adjacent unexplored)."
   [start-pos]
-  (let [comp-map @atoms/computer-map]
+  (let [comp-map (read-runtime-state :computer-map)]
     (when (seq comp-map)
       (let [height (count comp-map)
             width (count (first comp-map))]
@@ -109,7 +116,7 @@
 (defn scan-continent
   "Scan a continent (set of positions) and return counts of items of interest."
   [continent-positions]
-  (let [comp-map @atoms/computer-map]
+  (let [comp-map (read-runtime-state :computer-map)]
     (reduce
      (fn [counts pos]
        (let [comp-cell (get-in comp-map pos)
@@ -134,7 +141,7 @@
 (defn find-all-objectives-on-continent
   "Returns all attackable cities and unexplored cells on the continent."
   [continent-positions]
-  (let [comp-map @atoms/computer-map]
+  (let [comp-map (read-runtime-state :computer-map)]
     (filter (fn [pos]
               (let [cell (get-in comp-map pos)]
                 (or (nil? cell)
@@ -145,7 +152,7 @@
 (defn find-nearest-on-continent
   "Find the nearest position on the continent matching the predicate."
   [start-pos continent-positions pred]
-  (let [comp-map @atoms/computer-map
+  (let [comp-map (read-runtime-state :computer-map)
         candidates (filter (fn [pos]
                             (let [cell (get-in comp-map pos)]
                               (pred cell pos)))

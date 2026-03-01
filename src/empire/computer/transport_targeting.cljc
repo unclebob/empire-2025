@@ -1,15 +1,34 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-targeting
   "Transport target selection — finding unload targets and pickup continents."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
+            [empire.application.runtime :as app-runtime]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
+(defn- write-runtime-state!
+  [k v]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/write-runtime-state! store k v)))
 
 (defn adjacent-to-pickup-continent?
   "Returns true if any adjacent land cell shares a country-id with the cell
    at pickup-continent-pos. Cheap O(neighbors) alternative to flood-fill."
   [pos pickup-continent-pos]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         pcp-country-id (:country-id (get-in game-map pickup-continent-pos))]
     (if pcp-country-id
       (some (fn [n]
@@ -52,14 +71,14 @@
         ;; Priority: player cities first
         priority-targets (if (seq player-off) player-off free-off)]
     (when (seq priority-targets)
-      (let [claimed @atoms/claimed-transport-targets
+      (let [claimed (or (read-runtime-state :claimed-transport-targets) #{})
             unclaimed (remove claimed priority-targets)
             candidates (if (seq unclaimed) unclaimed priority-targets)
             best (apply min-key
                         #(score-target-city transport-pos %)
                         candidates)]
         (when best
-          (swap! atoms/claimed-transport-targets conj best)
+          (write-runtime-state! :claimed-transport-targets (conj claimed best))
           best)))))
 
 (defn find-next-pickup-continent-pos
@@ -70,7 +89,7 @@
   ([transport-pos current-continent]
    (find-next-pickup-continent-pos transport-pos current-continent 3))
   ([transport-pos current-continent min-armies]
-   (let [game-map @atoms/game-map
+   (let [game-map (current-world)
          all-armies (for [i (range (count game-map))
                           j (range (count (first game-map)))
                           :let [cell (get-in game-map [i j])

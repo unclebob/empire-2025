@@ -1,7 +1,6 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-resolution
   (:require [clojure.string]
-            [empire.atoms :as atoms]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.combat :as combat]
@@ -19,6 +18,14 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- blocked-by-friendly?
   "Returns true if the next cell contains a friendly unit (same owner)."
@@ -99,14 +106,14 @@
   [from-coords city-coords cell]
   (let [unit (:contents cell)
         unit-type (:type unit)
-        city-cell (get-in @atoms/game-map city-coords)
+        city-cell (get-in (current-world) city-coords)
         updated-city (uc/add-ship-to-shipyard city-cell unit-type (:hits unit))
         updated-origin (dissoc cell :contents)
         type-name (clojure.string/capitalize (name unit-type))]
     (update-game-map! assoc-in from-coords updated-origin)
     (update-game-map! assoc-in city-coords updated-city)
     (visibility/update-cell-visibility city-coords (:owner unit))
-    (reset! atoms/turn-message (str type-name " docked for repair."))
+    (write-runtime-state! :turn-message (str type-name " docked for repair."))
     {:result :docked :pos city-coords}))
 
 (defn- woke-and-blocked? [woke? woken-unit]
@@ -154,7 +161,7 @@
 (defn set-unit-movement
   ([unit-coords target-coords] (set-unit-movement unit-coords target-coords false))
   ([unit-coords target-coords extended?]
-   (let [first-cell (get-in @atoms/game-map unit-coords)
+   (let [first-cell (get-in (current-world) unit-coords)
          unit (:contents first-cell)
          actual-target (if (= :satellite (:type unit))
                          (satellite/calculate-satellite-target unit-coords target-coords)

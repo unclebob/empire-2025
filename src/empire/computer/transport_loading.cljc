@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -16,6 +17,15 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
 
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."
@@ -35,9 +45,9 @@
 (defn has-nearby-loadable-armies?
   "BFS along coastal sea cells up to max-depth hops from pos.
    Returns true if any adjacent land cell at any visited position
-   has a loadable computer army."
+  has a loadable computer army."
   [pos transport max-depth]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         unloaded-countries (:unloaded-countries transport)
         unload-eid (:unload-event-id transport)
         check-neighbors (fn [p]
@@ -69,7 +79,7 @@
   "Loads computer armies from adjacent land cells. Returns number loaded.
    Skips armies from recently unloaded countries."
   [pos]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
         capacity (- 6 army-count)
@@ -103,11 +113,12 @@
   "Moves transport to adjacent sea cell that is also adjacent to land.
    Avoids recent positions from crawl-history."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [game-map (current-world)
+        unit (get-in game-map (conj pos :contents))
         history (set (:crawl-history unit []))
         passable (tc/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
-                                 (nil? (:contents (get-in @atoms/game-map n))))
+                                 (nil? (:contents (get-in game-map n))))
                                passable)
         coastal-cells (filter tc/adjacent-to-land? empty-passable)
         preferred (remove history coastal-cells)
@@ -131,7 +142,7 @@
 
 (defn clear-pickup-continent-if-arrived
   [pos]
-  (let [transport (get-in @atoms/game-map (conj pos :contents))
+  (let [transport (get-in (current-world) (conj pos :contents))
         pcp (:pickup-continent-pos transport)]
     (when (and pcp
                (tc/adjacent-to-land? pos)
@@ -144,4 +155,4 @@
 (defn loading-stale?
   [transport]
   (let [since (:loading-since transport)]
-    (and since (> (- @atoms/round-number since) max-loading-rounds))))
+    (and since (> (- (or (read-runtime-state :round-number) 0) since) max-loading-rounds))))

@@ -1,7 +1,14 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.computer.threat
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
 
 (def ^:private threat-values
   {:battleship 10 :carrier 8 :destroyer 6 :submarine 5
@@ -63,12 +70,13 @@
 (defn- find-visible-cities
   "Finds cities visible on computer-map matching the status predicate."
   [status-pred]
-  (for [i (range (count @atoms/computer-map))
-        j (range (count (first @atoms/computer-map)))
-        :let [cell (get-in @atoms/computer-map [i j])]
+  (let [comp-map (read-runtime-state :computer-map)]
+    (for [i (range (count comp-map))
+          j (range (count (first comp-map)))
+          :let [cell (get-in comp-map [i j])]
         :when (and (= (:type cell) :city)
                    (status-pred (:city-status cell)))]
-    [i j]))
+      [i j])))
 
 (defn distance
   "Manhattan distance between two positions."

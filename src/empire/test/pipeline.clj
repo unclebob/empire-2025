@@ -24,5 +24,6 @@
   (run-step! "Generating acceptance specs..." ["clj" "-M:generate-specs"])
   (run-step! "Checking acceptance boundaries..." ["bash" "scripts/check-acceptance-boundary.sh"])
   (run-step! "Checking generated acceptance boundaries..." ["bash" "scripts/check-generated-acceptance-boundary.sh"])
+  (run-step! "Checking architecture boundaries..." ["bash" "scripts/check-architecture-boundaries.sh"])
   (run-step! "Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"])
   (println "All tests passed."))

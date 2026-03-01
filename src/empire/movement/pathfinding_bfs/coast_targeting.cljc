@@ -1,14 +1,21 @@
 (ns empire.movement.pathfinding-bfs.coast-targeting
   "Coastal BFS target selection over sea routes."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.pathfinding-bfs.core :as core]
             [empire.movement.pathfinding-bfs.exploration :as exploration]))
 
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
 (defn sea-reaches-edge?
   "BFS flood-fill from pos over sea cells. Returns true if any reachable sea cell is on map edge."
   [pos]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         rows (count game-map)
         cols (count (first game-map))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY pos)

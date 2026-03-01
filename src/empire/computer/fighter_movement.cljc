@@ -1,8 +1,7 @@
 ;; mutation-tested: 2026-02-27
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
@@ -18,10 +17,14 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
 (defn get-passable-neighbors
   "Returns passable neighbors for a fighter (can fly over anything except off-map)."
   [pos]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         height (count game-map)
         width (count (first game-map))]
     (filter (fn [[r c]]
@@ -32,7 +35,7 @@
 (defn occupied?
   "Returns true if the cell at pos has contents."
   [pos]
-  (some? (get-in @atoms/game-map (conj pos :contents))))
+  (some? (get-in (current-world) (conj pos :contents))))
 
 (defn- diagonal-move?
   "Returns true if moving from pos to target involves both row and column change."
@@ -42,7 +45,7 @@
 (defn friendly-occupied?
   "Returns true if the cell at pos has a computer-owned unit."
   [pos]
-  (let [contents (get-in @atoms/game-map (conj pos :contents))]
+  (let [contents (get-in (current-world) (conj pos :contents))]
     (and (some? contents) (= :computer (:owner contents)))))
 
 (defn- best-neighbor-toward
@@ -67,7 +70,7 @@
 (defn in-bounds?
   "Returns true if pos is within game-map bounds."
   [[r c]]
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         height (count game-map)
         width (count (first game-map))]
     (and (>= r 0) (< r height)
@@ -99,7 +102,7 @@
 (defn find-adjacent-enemy
   "Finds an adjacent enemy unit to attack (not cities - fighters can't conquer)."
   [pos]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
@@ -110,8 +113,8 @@
 (defn attack-enemy
   "Attack an adjacent enemy. Returns new position or nil if fighter died."
   [fighter-pos enemy-pos]
-  (let [attacker (get-in @atoms/game-map (conj fighter-pos :contents))
-        defender (get-in @atoms/game-map (conj enemy-pos :contents))
+  (let [attacker (get-in (current-world) (conj fighter-pos :contents))
+        defender (get-in (current-world) (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)]
     ;; Remove attacker from original position
     (update-game-map! update-in fighter-pos dissoc :contents)
@@ -166,7 +169,7 @@
 (defn land-at-city
   "Land fighter at city to refuel."
   [pos city-pos]
-  (let [_fighter (get-in @atoms/game-map (conj pos :contents))]
+  (let [_fighter (get-in (current-world) (conj pos :contents))]
     ;; Remove from current position
     (update-game-map! update-in pos dissoc :contents)
     ;; Add to city's airport
@@ -177,7 +180,7 @@
 (defn consume-fighter-fuel
   "Decrement fuel on the fighter at pos. Returns false if fighter died."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         new-fuel (dec (:fuel unit config/fighter-fuel))]
     (if (<= new-fuel 0)
       (do (update-game-map! update-in pos dissoc :contents)

@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.coastline
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
@@ -15,6 +15,10 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."
@@ -32,7 +36,7 @@
 (defn set-coastline-follow-mode
   "Sets a unit to coastline-follow mode with initial state."
   [coords]
-  (let [cell (get-in @atoms/game-map coords)
+  (let [cell (get-in (current-world) coords)
         unit (:contents cell)
         updated-unit (-> unit
                          (assoc :mode :coastline-follow
@@ -93,7 +97,7 @@
 (defn- wake-coastline-unit
   "Wakes a coastline unit with the given reason."
   [coords reason]
-  (let [cell (get-in @atoms/game-map coords)
+  (let [cell (get-in (current-world) coords)
         unit (:contents cell)]
     (update-game-map! assoc-in coords
            (assoc cell :contents (-> unit
@@ -119,11 +123,12 @@
 (defn- post-move-wake-reason
   "Returns wake reason after moving, or nil if unit should continue."
   [unit next-pos remaining-steps start-pos]
-  (let [started-at-edge? (map-utils/at-map-edge? start-pos atoms/game-map)
-        now-at-edge? (map-utils/at-map-edge? next-pos atoms/game-map)]
+  (let [world-atom (runtime-state/game-map-atom)
+        started-at-edge? (map-utils/at-map-edge? start-pos world-atom)
+        now-at-edge? (map-utils/at-map-edge? next-pos world-atom)]
     (cond
       (and now-at-edge? (not started-at-edge?)) :hit-edge
-      (transport-with-armies-in-bay? unit next-pos atoms/game-map) :found-a-bay
+      (transport-with-armies-in-bay? unit next-pos world-atom) :found-a-bay
       (<= remaining-steps 0) :steps-exhausted
       :else nil)))
 
@@ -181,7 +186,8 @@
 (defn- move-coastline-step
   "Moves a coastline-following unit one step. Returns new coords or nil if done."
   [coords]
-  (let [cell (get-in @atoms/game-map coords)
+  (let [world (current-world)
+        cell (get-in world coords)
         unit (:contents cell)
         remaining-steps (dec (:coastline-steps unit config/coastline-steps))
         visited (or (:visited unit) #{})
@@ -191,8 +197,8 @@
       (do (log-coastline-step player? (:type unit) coords coords pre-wake)
           (wake-coastline-unit coords pre-wake)
           nil)
-      (if-let [next-pos (pick-coastline-move coords atoms/game-map visited (:prev-pos unit))]
-        (let [next-cell (get-in @atoms/game-map next-pos)]
+      (if-let [next-pos (pick-coastline-move coords (runtime-state/game-map-atom) visited (:prev-pos unit))]
+        (let [next-cell (get-in (current-world) next-pos)]
           (if (:contents next-cell)
             (handle-coastline-collision coords unit next-pos next-cell player?)
             (perform-coastline-move coords cell unit next-pos next-cell remaining-steps visited player?)))
@@ -201,7 +207,7 @@
 (defn move-coastline-unit
   "Moves a coastline-following unit based on its speed. Returns nil when done."
   [coords]
-  (let [unit (:contents (get-in @atoms/game-map coords))
+  (let [unit (:contents (get-in (current-world) coords))
         speed (config/unit-speed (:type unit))]
     (loop [current-coords coords
            steps-left speed]

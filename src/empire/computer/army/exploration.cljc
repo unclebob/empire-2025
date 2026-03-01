@@ -1,7 +1,6 @@
 (ns empire.computer.army.exploration
   "Army exploration behaviors (interior, inland, random)."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]))
@@ -13,12 +12,16 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
 (defn explore-randomly
   "Move toward any unexplored territory adjacent to computer's explored area.
    Only considers empty cells. Randomizes to avoid all armies picking the same cell.
    Filters out cells in move-history to prevent oscillation."
   [pos country-id]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         history (set (:move-history unit))
         empty (movement/get-empty-passable-neighbors pos country-id)
         filtered (remove history empty)
@@ -32,7 +35,7 @@
 (defn- try-interior-move
   "Attempts to move in a direction, clearing direction if blocked or at coast."
   [pos target]
-  (let [target-cell (get-in @atoms/game-map target)]
+  (let [target-cell (get-in (current-world) target)]
     (if (and (movement/in-bounds? target)
              (#{:land :city} (:type target-cell))
              (not= :computer (:city-status target-cell))
@@ -58,7 +61,7 @@
 (defn process-interior-explore
   "Continues interior exploration in stored direction."
   [pos _country-id]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         [dc dr] (:interior-explore-direction unit)
         [c r] pos
         target [(+ c dc) (+ r dr)]]
@@ -75,7 +78,7 @@
                           :random-explore-rounds 0)
         nil)
     (let [candidates (filter (fn [n]
-                               (let [cell (get-in @atoms/game-map n)]
+                               (let [cell (get-in (current-world) n)]
                                  (and (movement/sovereign-passable? country-id cell)
                                       (nil? (:contents cell))
                                       (not (movement/adjacent-to-sea? n)))))
@@ -85,7 +88,7 @@
 
 (defn- at-sea-coast? [pos]
   (and (movement/adjacent-to-sea? pos)
-       (not= :city (:type (get-in @atoms/game-map pos)))))
+       (not= :city (:type (get-in (current-world) pos)))))
 
 (defn- clear-random-explore-state [pos]
   (update-game-map! update-in (conj pos :contents)
@@ -97,15 +100,15 @@
         [c r] pos
         target [(+ c dc) (+ r dr)]]
     (when (and (movement/in-bounds? target)
-               (movement/sovereign-passable? country-id (get-in @atoms/game-map target))
-               (nil? (:contents (get-in @atoms/game-map target)))
+               (movement/sovereign-passable? country-id (get-in (current-world) target))
+               (nil? (:contents (get-in (current-world) target)))
                (movement/try-move pos target))
       (when (at-sea-coast? target)
         (update-game-map! assoc-in (conj target :contents :mode) :sentry))
       target)))
 
 (defn- handle-blocked-random-explore [pos country-id]
-  (if (= :city (:type (get-in @atoms/game-map pos)))
+  (if (= :city (:type (get-in (current-world) pos)))
     (when-let [neighbors (seq (movement/get-empty-passable-neighbors pos country-id))]
       (movement/try-move pos (rand-nth (vec neighbors))))
     (do (clear-random-explore-state pos) nil)))
@@ -114,7 +117,7 @@
   "Moves army in stored random-explore direction. Goes sentry on coast or when blocked.
    Times out after 10 rounds and transitions to fill-coastal-cell."
   [pos country-id]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         rounds (:random-explore-rounds unit 0)]
     (if (>= rounds 10)
       (do (clear-random-explore-state pos) nil)

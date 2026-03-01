@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
@@ -18,10 +18,28 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
 (defn get-neighbors
   "Returns valid neighbor coordinates for a position."
   [pos]
-  (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets
+  (map-utils/get-matching-neighbors pos (current-world) map-utils/neighbor-offsets
                                     some?))
 
 (defn distance
@@ -45,12 +63,13 @@
 (defn find-visible-cities
   "Finds cities visible on computer-map matching the status predicate."
   [status-pred]
-  (for [i (range (count @atoms/computer-map))
-        j (range (count (first @atoms/computer-map)))
-        :let [cell (get-in @atoms/computer-map [i j])]
+  (let [comp-map (read-runtime-state :computer-map)]
+    (for [i (range (count comp-map))
+          j (range (count (first comp-map)))
+          :let [cell (get-in comp-map [i j])]
         :when (and (= (:type cell) :city)
                    (status-pred (:city-status cell)))]
-    [i j]))
+      [i j])))
 
 (defn move-toward
   "Returns the neighbor that moves closest to target."
@@ -61,7 +80,7 @@
 (defn adjacent-to-computer-unexplored?
   "Returns true if the position has an adjacent unexplored cell on computer-map."
   [pos]
-  (map-utils/any-neighbor-matches? pos @atoms/computer-map map-utils/neighbor-offsets
+  (map-utils/any-neighbor-matches? pos (read-runtime-state :computer-map) map-utils/neighbor-offsets
                                    nil?))
 
 (defn stamp-territory
@@ -70,7 +89,7 @@
   (when (and (= :army (:type unit))
              (= :computer (:owner unit))
              (:country-id unit)
-             (#{:land :city} (:type (get-in @atoms/game-map pos))))
+             (#{:land :city} (:type (get-in (current-world) pos))))
     (update-game-map! assoc-in (conj pos :country-id) (:country-id unit))))
 
 (defn- foreign-territory?
@@ -82,14 +101,14 @@
        (:country-id unit)
        (= :land (:type to-cell))
        (:country-id to-cell)
-       (not (atoms/on-same-continent? (:country-id unit) (:country-id to-cell)))))
+       (not (runtime-state/on-same-continent? (:country-id unit) (:country-id to-cell)))))
 
 (defn move-unit-to
   "Moves a unit from from-pos to to-pos. Returns to-pos if moved, nil if target
    occupied or blocked by sovereignty."
   [from-pos to-pos]
-  (let [from-cell (get-in @atoms/game-map from-pos)
-        to-cell (get-in @atoms/game-map to-pos)
+  (let [from-cell (get-in (current-world) from-pos)
+        to-cell (get-in (current-world) to-pos)
         unit (:contents from-cell)]
     (cond
       (:contents to-cell) nil
@@ -105,19 +124,19 @@
 (defn attempt-conquest-computer
   "Computer army attempts to conquer a city. Returns new position or nil if army died."
   [army-pos city-pos]
-  (let [army-cell (get-in @atoms/game-map army-pos)
+  (let [army-cell (get-in (current-world) army-pos)
         army (:contents army-cell)
-        city-cell (get-in @atoms/game-map city-pos)]
+        city-cell (get-in (current-world) city-pos)]
     (if (< (rand) 0.5)
       ;; Success - conquer the city, army dies
       (do
         (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
         (update-game-map! assoc-in army-pos (dissoc army-cell :contents))
         (update-game-map! assoc-in city-pos (assoc city-cell :city-status :computer))
-        (swap! atoms/computer-city-positions conj city-pos)
+        (update-runtime-state! :computer-city-positions (fnil conj #{}) city-pos)
         (combat/conquer-city-contents city-pos :computer)
         (stamp-territory city-pos army)
-        (let [city-country-id (:country-id (get-in @atoms/game-map city-pos))
+        (let [city-country-id (:country-id (get-in (current-world) city-pos))
               country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
@@ -174,7 +193,7 @@
    Each woken army gets interior-explore-direction pointing away from pos.
    Returns count of armies woken."
   [pos radius]
-  (let [candidates (find-wakeable-sentries @atoms/game-map pos radius)]
+  (let [candidates (find-wakeable-sentries (current-world) pos radius)]
     (doseq [coord candidates
             :let [direction (random-away-direction pos coord)]]
       (update-game-map! update-in (conj coord :contents)
@@ -197,12 +216,13 @@
 (defn find-visible-player-units
   "Finds player units visible on computer-map."
   []
-  (for [i (range (count @atoms/computer-map))
-        j (range (count (first @atoms/computer-map)))
-        :let [cell (get-in @atoms/computer-map [i j])
+  (let [comp-map (read-runtime-state :computer-map)]
+    (for [i (range (count comp-map))
+          j (range (count (first comp-map)))
+          :let [cell (get-in comp-map [i j])
               contents (:contents cell)]
-        :when (and contents (= (:owner contents) :player))]
-    [i j]))
+          :when (and contents (= (:owner contents) :player))]
+      [i j])))
 
 ;; Army-Transport Coordination (used by army module)
 
@@ -220,17 +240,18 @@
   ([]
    (find-loading-transport nil))
   ([army-unload-event-id]
-   (first (for [i (range (count @atoms/game-map))
-                j (range (count (first @atoms/game-map)))
-                :let [cell (get-in @atoms/game-map [i j])
+   (let [game-map (current-world)]
+     (first (for [i (range (count game-map))
+                  j (range (count (first game-map)))
+                  :let [cell (get-in game-map [i j])
                       unit (:contents cell)]
-                :when (and unit
-                           (= :computer (:owner unit))
-                           (= :transport (:type unit))
-                           (= :loading (:transport-mission unit))
-                           (< (:army-count unit 0) 6)
-                           (transport-compatible? unit army-unload-event-id))]
-            [i j]))))
+                  :when (and unit
+                             (= :computer (:owner unit))
+                             (= :transport (:type unit))
+                             (= :loading (:transport-mission unit))
+                             (< (:army-count unit 0) 6)
+                             (transport-compatible? unit army-unload-event-id))]
+              [i j])))))
 
 (defn find-adjacent-loading-transport
   "Finds an adjacent loading transport with room.
@@ -239,7 +260,7 @@
    (find-adjacent-loading-transport pos nil))
   ([pos army-unload-event-id]
    (first (filter (fn [neighbor]
-                    (let [cell (get-in @atoms/game-map neighbor)
+                    (let [cell (get-in (current-world) neighbor)
                           unit (:contents cell)]
                       (and unit
                            (= :computer (:owner unit))

@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
@@ -217,7 +217,8 @@
 
 (defn- apply-wake-action [unit final-result waypoint-orders wake-up?]
   (when (:shot-down? final-result)
-    (atoms/set-error-message (:fighter-destroyed-by-city config/messages) config/error-message-duration))
+    (runtime-state/set-error-message! (:fighter-destroyed-by-city config/messages)
+                                      config/error-message-duration))
   (cond
     waypoint-orders
     (-> unit

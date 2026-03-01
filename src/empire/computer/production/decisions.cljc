@@ -1,10 +1,25 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.computer.production.decisions
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.computer.production.stats :as stats]
             [empire.player.production :as player-production]
             [empire.computer.ship :as ship]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn country-city-producing?
   [city-pos country-id unit-type]
@@ -12,11 +27,11 @@
           (and (map? prod)
                (= unit-type (:item prod))
                (not= coords city-pos)
-               (let [cell (get-in @atoms/game-map coords)]
+               (let [cell (get-in (current-world) coords)]
                  (and (= :city (:type cell))
                       (= :computer (:city-status cell))
                       (= country-id (:country-id cell))))))
-        @atoms/production))
+        (read-runtime-state :production)))
 
 (defn country-city-producing-armies? [city-pos country-id]
   (country-city-producing? city-pos country-id :army))
@@ -25,7 +40,7 @@
   (country-city-producing? city-pos country-id :destroyer))
 
 (defn- should-rotate-transport? [city-pos country-id]
-  (and (= city-pos (get @atoms/last-transport-city country-id))
+  (and (= city-pos (get (read-runtime-state :last-transport-city) country-id))
        (stats/country-has-other-coastal-city? city-pos country-id)))
 
 (defn- should-produce-transport? [city-pos country-id coastal?]
@@ -33,7 +48,9 @@
              (>= (stats/count-country-armies country-id) config/armies-before-transport)
              (stats/country-has-waiting-armies? country-id)
              (not (should-rotate-transport? city-pos country-id)))
-    (swap! atoms/last-transport-city assoc country-id city-pos)
+    (write-runtime-state! :last-transport-city
+                          (assoc (or (read-runtime-state :last-transport-city) {})
+                                 country-id city-pos))
     :transport))
 
 (defn- should-produce-army? [country-id]
@@ -66,7 +83,7 @@
   (count (filter (fn [[_coords prod]]
                    (and (map? prod)
                         (= :carrier (:item prod))))
-                 @atoms/production)))
+                 (read-runtime-state :production))))
 
 (defn- carrier-producible? [coastal? unit-counts]
   (and coastal?
@@ -91,36 +108,37 @@
       (when (satellite-needed? unit-counts) :satellite)))
 
 (defn- has-inland-computer-city? []
-  (some (fn [i]
-          (some (fn [j]
-                  (let [cell (get-in @atoms/game-map [i j])]
-                    (and (= :city (:type cell))
-                         (= :computer (:city-status cell))
-                         (not (stats/city-is-coastal? [i j])))))
-                (range (count (first @atoms/game-map)))))
-        (range (count @atoms/game-map))))
+  (let [game-map (current-world)]
+    (some (fn [i]
+            (some (fn [j]
+                    (let [cell (get-in game-map [i j])]
+                      (and (= :city (:type cell))
+                           (= :computer (:city-status cell))
+                           (not (stats/city-is-coastal? [i j])))))
+                  (range (count (first game-map)))))
+          (range (count game-map)))))
 
 (defn- early-patrol-boat-needed? [coastal?]
-  (and coastal? (not @atoms/early-patrol-boat-produced?)))
+  (and coastal? (not (read-runtime-state :early-patrol-boat-produced?))))
 
 (defn- early-satellite-needed? [coastal?]
-  (and @atoms/early-patrol-boat-produced?
-       (not @atoms/early-satellite-produced?)
+  (and (read-runtime-state :early-patrol-boat-produced?)
+       (not (read-runtime-state :early-satellite-produced?))
        (or (not coastal?) (not (has-inland-computer-city?)))))
 
 (defn decide-early-production [city-pos coastal?]
-  (when @atoms/transport-fully-loaded?
+  (when (read-runtime-state :transport-fully-loaded?)
     (cond
       (early-patrol-boat-needed? coastal?)
-      (do (reset! atoms/early-patrol-boat-produced? true)
+      (do (write-runtime-state! :early-patrol-boat-produced? true)
           :patrol-boat)
 
       (early-satellite-needed? coastal?)
-      (do (reset! atoms/early-satellite-produced? true)
+      (do (write-runtime-state! :early-satellite-produced? true)
           :satellite))))
 
 (defn decide-production [city-pos]
-  (let [city-cell (get-in @atoms/game-map city-pos)
+  (let [city-cell (get-in (current-world) city-pos)
         country-id (:country-id city-cell)
         coastal? (stats/city-is-coastal? city-pos)
         unit-counts (stats/count-computer-units)]
@@ -132,7 +150,7 @@
           :army))))
 
 (defn process-computer-city [pos]
-  (let [current-production (get @atoms/production pos)]
+  (let [current-production (get (read-runtime-state :production) pos)]
     (when (nil? current-production)
       (when-let [unit-type (decide-production pos)]
         (player-production/set-city-production pos unit-type)))))

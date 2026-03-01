@@ -1,7 +1,6 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.movement.satellite
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.movement.visibility :as visibility]))
 
@@ -11,6 +10,10 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 (defn- extend-to-boundary
   "Extends from position in direction until hitting a boundary."
@@ -30,8 +33,9 @@
         [tx ty] target-coords
         dx (Integer/signum (- tx ux))
         dy (Integer/signum (- ty uy))
-        map-height (count @atoms/game-map)
-        map-width (count (first @atoms/game-map))]
+        world (current-world)
+        map-height (count world)
+        map-width (count (first world))]
     (extend-to-boundary unit-coords [dx dy] map-height map-width)))
 
 (defn- opposite-row [x map-height]
@@ -79,7 +83,7 @@
   (loop [cx nx cy ny]
     (cond
       (or (< cx 0) (>= cx map-height) (< cy 0) (>= cy map-width)) nil
-      (blocked-cell? (get-in @atoms/game-map [cx cy])) (recur (+ cx dx) (+ cy dy))
+      (blocked-cell? (get-in (current-world) [cx cy])) (recur (+ cx dx) (+ cy dy))
       :else [cx cy])))
 
 (defn- bounce-direction
@@ -107,13 +111,14 @@
   "Moves a computer satellite one step in its fixed direction.
    Bounces off map edges by picking a new random direction away from the edge."
   [[x y]]
-  (let [cell (get-in @atoms/game-map [x y])
+  (let [world (current-world)
+        cell (get-in world [x y])
         satellite (:contents cell)
         [dx dy] (:direction satellite)
         nx (+ x dx)
         ny (+ y dy)
-        map-height (count @atoms/game-map)
-        map-width (count (first @atoms/game-map))]
+        map-height (count world)
+        map-width (count (first world))]
     (if (and (>= nx 0) (< nx map-height) (>= ny 0) (< ny map-width))
       (if-let [dest (find-open-cell [nx ny] [dx dy] map-height map-width)]
         (do (update-game-map! assoc-in [x y :contents] nil)
@@ -126,7 +131,7 @@
               dest-x (+ x bx)
               dest-y (+ y by)
               updated (assoc satellite :direction new-dir)]
-          (if (blocked-cell? (get-in @atoms/game-map [dest-x dest-y]))
+          (if (blocked-cell? (get-in world [dest-x dest-y]))
             [x y]
             (do (update-game-map! assoc-in [x y :contents] nil)
                 (update-game-map! assoc-in [dest-x dest-y :contents] updated)
@@ -138,9 +143,10 @@
   "Moves a satellite one step toward its target.
    Computer satellites with :direction move in a fixed straight line.
    When at target (always on boundary), calculates new target on opposite boundary.
-   Satellites without a target don't move - they wait for user input."
+  Satellites without a target don't move - they wait for user input."
   [[x y]]
-  (let [cell (get-in @atoms/game-map [x y])
+  (let [world (current-world)
+        cell (get-in world [x y])
         satellite (:contents cell)]
     (if (:direction satellite)
       (move-satellite-straight [x y])
@@ -148,8 +154,8 @@
         (if-not target
           ;; No target - satellite doesn't move, waits for user input
           [x y]
-          (let [map-height (count @atoms/game-map)
-                map-width (count (first @atoms/game-map))
+          (let [map-height (count world)
+                map-width (count (first world))
                 [tx ty] target
                 at-target? (and (= x tx) (= y ty))]
             (if at-target?

@@ -2,7 +2,8 @@
   "Round-start assignment of land-ho invasion targets to transports.
    Checks the FIFO queue of discovered free cities and assigns the nearest
    qualifying transport to invade each target."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -15,11 +16,25 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
+
+(defn- write-runtime-state!
+  [k v]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/write-runtime-state! store k v)))
+
 (defn- find-sailing-transports
   "Returns list of [pos transport] for computer transports in sailing mode
    with 4+ armies."
   []
-  (let [game-map @atoms/game-map
+  (let [game-map (current-world)
         height (count game-map)
         width (count (first game-map))]
     (for [r (range height)
@@ -43,14 +58,14 @@
   "At round start, try to assign the first land-ho target to the nearest
    qualifying transport. One assignment per round."
   []
-  (when-let [targets (seq @atoms/land-ho-targets)]
+  (when-let [targets (seq (read-runtime-state :land-ho-targets))]
     (let [target (first targets)
           transports (find-sailing-transports)]
       (if (empty? transports)
         nil ;; No qualifying transports -- leave target at front
         (let [[tpos _] (nearest-transport transports target)
               path (pathfinding-bfs/bfs-to-land-ho-target
-                     tpos target @atoms/computer-map)]
+                     tpos target (read-runtime-state :computer-map))]
           (if path
             (do
               ;; Assign transport to invading mode
@@ -61,7 +76,7 @@
               (update-game-map! assoc-in
                                 (conj tpos :contents :invasion-path) (vec path))
               ;; Remove target from queue
-              (swap! atoms/land-ho-targets #(vec (rest %))))
+              (write-runtime-state! :land-ho-targets (vec (rest targets))))
             ;; BFS failed -- move target to end of queue
-            (swap! atoms/land-ho-targets
-                   #(conj (vec (rest %)) target))))))))
+            (write-runtime-state! :land-ho-targets
+                                  (conj (vec (rest targets)) target))))))))

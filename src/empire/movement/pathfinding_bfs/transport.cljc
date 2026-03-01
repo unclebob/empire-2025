@@ -1,9 +1,16 @@
 (ns empire.movement.pathfinding-bfs.transport
   "Transport and land-HO BFS helpers."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 (defn adjacent-to-target-continent-land?
   "Returns true if any neighbor of pos is land/city on target-continent."
@@ -22,7 +29,7 @@
   "BFS from start over sea cells to find nearest empty sea cell adjacent
    to land on target-continent."
   [start target-continent]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)

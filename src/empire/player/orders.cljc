@@ -2,8 +2,7 @@
 (ns empire.player.orders
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.movement.movement :as movement]
@@ -16,6 +15,25 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- set-turn-message!
+  [msg ms]
+  (write-runtime-state! :turn-message msg)
+  (write-runtime-state! :turn-message-until (if (= ms Long/MAX_VALUE)
+                                               Long/MAX_VALUE
+                                               (+ (System/currentTimeMillis) ms))))
+
 (defn add-unit-at [coords unit-type owner]
   (movement/add-unit-at coords unit-type owner))
 
@@ -25,7 +43,7 @@
 (defn own-city-at
   "Claims a city at the given coordinates for the player."
   [[cx cy]]
-  (let [cell (get-in @atoms/game-map [cx cy])]
+  (let [cell (get-in (current-world) [cx cy])]
     (when (= (:type cell) :city)
       (update-game-map! assoc-in [cx cy :city-status] :player)
       true)))
@@ -33,23 +51,23 @@
 (defn set-city-lookaround
   "Sets marching orders to :lookaround on a player city at the given coordinates."
   [[cx cy]]
-  (let [cell (get-in @atoms/game-map [cx cy])]
+  (let [cell (get-in (current-world) [cx cy])]
     (when (and (= (:type cell) :city)
                (= (:city-status cell) :player))
       (update-game-map! assoc-in [cx cy :marching-orders] :lookaround)
-      (atoms/set-turn-message "Marching orders set to lookaround" 2000)
+      (set-turn-message! "Marching orders set to lookaround" 2000)
       true)))
 
 (defn set-destination-at
   "Sets the destination to the given coordinates."
   [[cx cy]]
-  (reset! atoms/destination [cx cy])
+  (write-runtime-state! :destination [cx cy])
   true)
 
 (defn- apply-marching-orders [path dest]
   (update-game-map! assoc-in path dest)
-  (reset! atoms/destination nil)
-  (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+  (write-runtime-state! :destination nil)
+  (set-turn-message! (str "Marching orders set to " (first dest) "," (second dest)) 2000)
   true)
 
 (defn- player-city? [cell]
@@ -61,8 +79,8 @@
 (defn set-marching-orders-at
   "Sets marching orders on a player city, transport, or waypoint at the given coordinates."
   [[cx cy]]
-  (when-let [dest @atoms/destination]
-    (let [cell (get-in @atoms/game-map [cx cy])
+  (when-let [dest (read-runtime-state :destination)]
+    (let [cell (get-in (current-world) [cx cy])
           contents (:contents cell)]
       (cond
         (player-city? cell)
@@ -79,22 +97,22 @@
 (defn set-flight-path-at
   "Sets flight path on a player city or carrier at the given coordinates."
   [[cx cy]]
-  (when-let [dest @atoms/destination]
-    (let [cell (get-in @atoms/game-map [cx cy])
+  (when-let [dest (read-runtime-state :destination)]
+    (let [cell (get-in (current-world) [cx cy])
           contents (:contents cell)]
       (cond
         (and (= (:type cell) :city)
              (= (:city-status cell) :player))
         (do (update-game-map! assoc-in [cx cy :flight-path] dest)
-            (reset! atoms/destination nil)
-            (atoms/set-turn-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
+            (write-runtime-state! :destination nil)
+            (set-turn-message! (str "Flight path set to " (first dest) "," (second dest)) 2000)
             true)
 
         (and (= (:type contents) :carrier)
              (= (:owner contents) :player))
         (do (update-game-map! assoc-in [cx cy :contents :flight-path] dest)
-            (reset! atoms/destination nil)
-            (atoms/set-turn-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
+            (write-runtime-state! :destination nil)
+            (set-turn-message! (str "Flight path set to " (first dest) "," (second dest)) 2000)
             true)
 
         :else nil))))
@@ -103,15 +121,16 @@
   "Creates or removes a waypoint at the given coordinates."
   [[cx cy]]
   (when (waypoint/create-waypoint [cx cy])
-    (let [cell (get-in @atoms/game-map [cx cy])]
+    (let [cell (get-in (current-world) [cx cy])]
       (if (:waypoint cell)
-        (atoms/set-turn-message (str "Waypoint placed at " cx "," cy) 2000)
-        (atoms/set-turn-message (str "Waypoint removed from " cx "," cy) 2000)))
+        (set-turn-message! (str "Waypoint placed at " cx "," cy) 2000)
+        (set-turn-message! (str "Waypoint removed from " cx "," cy) 2000)))
     true))
 
 (defn- project-to-edge [[cx cy] [dx dy]]
-  (let [cols (count @atoms/game-map)
-        rows (count (first @atoms/game-map))]
+  (let [world (current-world)
+        cols (count world)
+        rows (count (first world))]
     (loop [tx cx ty cy]
       (let [nx (+ tx dx) ny (+ ty dy)]
         (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
@@ -122,12 +141,12 @@
   "Sets marching orders on a player city or waypoint to the map edge in the given direction."
   [[cx cy] k]
   (when-let [direction (config/key->direction k)]
-    (let [cell (get-in @atoms/game-map [cx cy])]
+    (let [cell (get-in (current-world) [cx cy])]
       (cond
         (player-city? cell)
         (let [target (project-to-edge [cx cy] direction)]
           (update-game-map! assoc-in [cx cy :marching-orders] target)
-          (atoms/set-turn-message (str "Marching orders set to " (first target) "," (second target)) 2000)
+          (set-turn-message! (str "Marching orders set to " (first target) "," (second target)) 2000)
           true)
 
         (:waypoint cell)

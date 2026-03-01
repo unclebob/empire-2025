@@ -3,7 +3,7 @@
 (ns empire.computer.ship-carrier
   "Computer carrier positioning - finding and navigating to holding positions."
   (:require [clojure.set :as set]
-            [empire.atoms :as atoms]
+            [empire.adapters.state.runtime :as runtime-state]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -18,10 +18,28 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
 (defn- find-computer-cities
   "Returns positions of all computer cities."
   []
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [cell (get-in game-map [i j])]
@@ -44,13 +62,13 @@
 (defn update-distant-city-pairs!
   "Updates the distant-city-pairs atom from current game map."
   []
-  (reset! atoms/distant-city-pairs (compute-distant-city-pairs)))
+  (write-runtime-state! :distant-city-pairs (compute-distant-city-pairs)))
 
 (defn find-reserved-pairs
   "Returns set of city pairs already assigned to computer carriers.
    Includes carriers in :positioning and :holding modes."
   []
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (set (for [i (range (count game-map))
                j (range (count (first game-map)))
                :let [unit (get-in game-map [i j :contents])]
@@ -64,9 +82,9 @@
   "Returns a city pair that needs a carrier but has none assigned.
    Returns nil if all distant pairs have carriers or no distant pairs exist."
   []
-  (when (nil? @atoms/distant-city-pairs)
+  (when (nil? (read-runtime-state :distant-city-pairs))
     (update-distant-city-pairs!))
-  (let [distant-pairs @atoms/distant-city-pairs
+  (let [distant-pairs (or (read-runtime-state :distant-city-pairs) #{})
         reserved-pairs (find-reserved-pairs)
         unreserved (set/difference distant-pairs reserved-pairs)]
     (first unreserved)))
@@ -79,7 +97,7 @@
   (let [[city1 city2] (vec city-pair)
         midpoint [(quot (+ (first city1) (first city2)) 2)
                   (quot (+ (second city1) (second city2)) 2)]
-        game-map @atoms/game-map
+        game-map (current-world)
         cols (count game-map)
         rows (count (first game-map))
         candidates (for [i (range cols)
@@ -96,11 +114,12 @@
 (defn find-refueling-sites
   "Returns positions of all computer cities and computer carriers."
   []
-  (when (and (empty? @atoms/computer-city-positions)
-             (empty? @atoms/computer-carrier-positions)
-             @atoms/game-map)
-    (atoms/rebuild-refueling-caches!))
-  (concat @atoms/computer-city-positions @atoms/computer-carrier-positions))
+  (when (and (empty? (or (read-runtime-state :computer-city-positions) #{}))
+             (empty? (or (read-runtime-state :computer-carrier-positions) #{}))
+             (current-world))
+    (runtime-state/rebuild-refueling-caches!))
+  (concat (or (read-runtime-state :computer-city-positions) #{})
+          (or (read-runtime-state :computer-carrier-positions) #{})))
 
 (defn find-carrier-position
   "Finds a carrier position for an unreserved city pair.
@@ -115,7 +134,7 @@
 (defn- target-still-valid?
   "Returns true if the carrier target is still a valid sea cell."
   [target]
-  (let [cell (get-in @atoms/game-map target)]
+  (let [cell (get-in (current-world) target)]
     (and (= :sea (:type cell))
          (nil? (:contents cell)))))
 
@@ -134,8 +153,8 @@
     :else
     (when-let [next-pos (pathfinding/next-step pos target :carrier)]
       (core/move-unit-to pos next-pos)
-      (swap! atoms/computer-carrier-positions disj pos)
-      (swap! atoms/computer-carrier-positions conj next-pos)
+      (update-runtime-state! :computer-carrier-positions disj pos)
+      (update-runtime-state! :computer-carrier-positions (fnil conj #{}) next-pos)
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility next-pos :computer)
       next-pos)))
@@ -148,8 +167,8 @@
                           assoc :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
-          (swap! atoms/computer-carrier-positions disj pos)
-          (swap! atoms/computer-carrier-positions conj next-pos)
+          (update-runtime-state! :computer-carrier-positions disj pos)
+          (update-runtime-state! :computer-carrier-positions (fnil conj #{}) next-pos)
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))
@@ -164,8 +183,8 @@
                           assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
-          (swap! atoms/computer-carrier-positions disj pos)
-          (swap! atoms/computer-carrier-positions conj next-pos)
+          (update-runtime-state! :computer-carrier-positions disj pos)
+          (update-runtime-state! :computer-carrier-positions (fnil conj #{}) next-pos)
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))
@@ -175,7 +194,7 @@
 (defn- pair-still-valid?
   "Returns true if both cities in the pair are still computer-owned."
   [pair]
-  (let [game-map @atoms/game-map]
+  (let [game-map (current-world)]
     (every? (fn [pos]
               (let [cell (get-in game-map pos)]
                 (and (= :city (:type cell))
@@ -185,7 +204,7 @@
 (defn process-carrier
   "Processes a computer carrier based on its carrier-mode."
   [pos]
-  (let [unit (get-in @atoms/game-map (conj pos :contents))
+  (let [unit (get-in (current-world) (conj pos :contents))
         mode (:carrier-mode unit)]
     (case mode
       :positioning

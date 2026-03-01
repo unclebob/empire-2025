@@ -1,14 +1,29 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.computer.production.stats
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]))
 
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
 (defn- get-neighbors [pos]
-  (map-utils/get-matching-neighbors pos @atoms/game-map map-utils/neighbor-offsets some?))
+  (map-utils/get-matching-neighbors pos (current-world) map-utils/neighbor-offsets some?))
 
 (defn city-is-coastal? [city-pos]
   (some (fn [neighbor]
-          (= :sea (:type (get-in @atoms/game-map neighbor))))
+          (= :sea (:type (get-in (current-world) neighbor))))
         (get-neighbors city-pos)))
 
 (defn- coastal? [game-map pos]
@@ -106,8 +121,8 @@
     {} raw))
 
 (defn rebuild-country-stats! []
-  (let [game-map @atoms/game-map
-        comp-map @atoms/computer-map
+  (let [game-map (current-world)
+        comp-map (read-runtime-state :computer-map)
         rows (count (first game-map))
         cols (count game-map)
         raw (reduce (fn [acc i]
@@ -115,57 +130,65 @@
                                 (scan-cell acc game-map comp-map i j))
                               acc (range rows)))
                     {} (range cols))]
-    (reset! atoms/country-stats (derive-stats raw))))
+    (write-runtime-state! :country-stats (derive-stats raw))))
 
 (defn count-computer-units []
-  (let [units (for [i (range (count @atoms/game-map))
-                    j (range (count (first @atoms/game-map)))
-                    :let [unit (:contents (get-in @atoms/game-map [i j]))]
+  (let [game-map (current-world)
+        units (for [i (range (count game-map))
+                    j (range (count (first game-map)))
+                    :let [unit (:contents (get-in game-map [i j]))]
                     :when (and unit (= :computer (:owner unit)))]
                 (:type unit))]
     (frequencies units)))
 
 (defn count-computer-cities []
-  (count (for [i (range (count @atoms/game-map))
-               j (range (count (first @atoms/game-map)))
-               :let [cell (get-in @atoms/game-map [i j])]
+  (let [game-map (current-world)]
+    (count (for [i (range (count game-map))
+                 j (range (count (first game-map)))
+                 :let [cell (get-in game-map [i j])]
                :when (and (= :city (:type cell))
                           (= :computer (:city-status cell)))]
-           [i j])))
+             [i j]))))
 
 (defn count-country-armies [country-id]
-  (get-in @atoms/country-stats [country-id :army-count] 0))
+  (get-in (or (read-runtime-state :country-stats) {}) [country-id :army-count] 0))
 
 (defn count-country-coastal-cells [country-id]
-  (get-in @atoms/country-stats [country-id :coastal-cell-count] 0))
+  (get-in (or (read-runtime-state :country-stats) {}) [country-id :coastal-cell-count] 0))
 
 (defn country-coastal-cells-explored? [country-id]
-  (get-in @atoms/country-stats [country-id :coastal-explored?] true))
+  (get-in (or (read-runtime-state :country-stats) {}) [country-id :coastal-explored?] true))
 
 (defn country-has-waiting-armies? [country-id]
-  (boolean (get-in @atoms/country-stats [country-id :has-waiting-armies?])))
+  (boolean (get-in (or (read-runtime-state :country-stats) {})
+                   [country-id :has-waiting-armies?])))
 
 (defn count-all-computer-fighters []
-  (count (for [i (range (count @atoms/game-map))
-               j (range (count (first @atoms/game-map)))
-               :let [unit (:contents (get-in @atoms/game-map [i j]))]
+  (let [game-map (current-world)]
+    (count (for [i (range (count game-map))
+                 j (range (count (first game-map)))
+                 :let [unit (:contents (get-in game-map [i j]))]
                :when (and unit
                           (= :computer (:owner unit))
                           (= :fighter (:type unit)))]
-           true)))
+             true))))
 
 (defn count-country-patrol-boats [country-id]
-  (get-in @atoms/country-stats [country-id :patrol-boat-count] 0))
+  (get-in (or (read-runtime-state :country-stats) {}) [country-id :patrol-boat-count] 0))
 
 (defn country-has-unadopted-transport? [country-id]
-  (boolean (get-in @atoms/country-stats [country-id :has-unadopted-transport?])))
+  (boolean (get-in (or (read-runtime-state :country-stats) {})
+                   [country-id :has-unadopted-transport?])))
 
 (defn has-unoccupied-coastal-cells? [country-id]
-  (boolean (get-in @atoms/country-stats [country-id :has-unoccupied-coastal-cells?])))
+  (boolean (get-in (or (read-runtime-state :country-stats) {})
+                   [country-id :has-unoccupied-coastal-cells?])))
 
 (defn country-has-other-coastal-city? [city-pos country-id]
-  (let [positions (get-in @atoms/country-stats [country-id :coastal-city-positions] #{})]
+  (let [positions (get-in (or (read-runtime-state :country-stats) {})
+                          [country-id :coastal-city-positions] #{})]
     (some #(not= city-pos %) positions)))
 
 (defn country-army-limit-reached? [country-id]
-  (boolean (get-in @atoms/country-stats [country-id :army-limit-reached?])))
+  (boolean (get-in (or (read-runtime-state :country-stats) {})
+                   [country-id :army-limit-reached?])))

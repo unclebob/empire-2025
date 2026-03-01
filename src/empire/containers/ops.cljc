@@ -1,17 +1,21 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.containers.ops
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
+            [empire.domain.world.containers :as domain-containers]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]
             [empire.player.production :as production]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 (defn- update-game-map!
   [f & args]
@@ -33,9 +37,11 @@
 (defn- wake-transport-if-needed
   "Wakes a sentry transport at beach that has armies loaded."
   [transport-coords]
-  (let [transport (get-in @atoms/game-map (conj transport-coords :contents))
+  (let [world (current-world)
+        transport (get-in world (conj transport-coords :contents))
         has-armies? (pos? (uc/get-count transport :army-count))
-        at-beach? (map-utils/adjacent-to-land? transport-coords atoms/game-map)]
+        at-beach? (map-utils/any-neighbor-matches? transport-coords world map-utils/neighbor-offsets
+                                                   #(= :land (:type %)))]
     (when (and has-armies? at-beach? (= (:mode transport) :sentry))
       (update-game-map! update-in (conj transport-coords :contents)
                         #(assoc % :mode :awake :reason :transport-at-beach)))))
@@ -45,9 +51,10 @@
        (not (uc/full? unit :army-count (dispatcher/effective-capacity :transport (:hits unit))))))
 
 (defn- try-load-from-neighbor [transport-coords [nx ny]]
-  (let [adj-cell (get-in @atoms/game-map [nx ny])
+  (let [world (current-world)
+        adj-cell (get-in world [nx ny])
         adj-unit (:contents adj-cell)
-        transport (get-in @atoms/game-map (conj transport-coords :contents))]
+        transport (get-in world (conj transport-coords :contents))]
     (when (loadable-army? adj-unit transport)
       (update-game-map! assoc-in [nx ny] (dissoc adj-cell :contents))
       (update-game-map! update-in (conj transport-coords :contents) uc/add-unit :army-count))))
@@ -56,10 +63,10 @@
   "Loads adjacent sentry armies onto a transport at the given coords.
    Wakes up the transport if it has armies and is at a beach."
   [transport-coords]
-  (let [unit (:contents (get-in @atoms/game-map transport-coords))]
+  (let [unit (:contents (get-in (current-world) transport-coords))]
     (when (non-full-transport? unit)
       (let [neighbors (map-utils/get-matching-neighbors
-                        transport-coords @atoms/game-map
+                        transport-coords (current-world)
                         map-utils/neighbor-offsets (constantly true))]
         (doseq [n neighbors]
           (try-load-from-neighbor transport-coords n))
@@ -69,13 +76,9 @@
   "Wakes up all armies aboard the transport at the given coords.
    Sets steps-remaining to 0 to end the transport's turn."
   [transport-coords]
-  (let [cell (get-in @atoms/game-map transport-coords)
+  (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
-        updated-transport (-> transport
-                              (uc/wake-all :army-count :awake-armies)
-                              (assoc :mode :sentry)
-                              (assoc :steps-remaining 0)
-                              (dissoc :reason))
+        updated-transport (domain-containers/wake-transport-armies transport)
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)))
 
@@ -83,12 +86,9 @@
   "Puts all armies aboard the transport back to sleep (sentry mode).
    Wakes up the transport so it can receive orders."
   [transport-coords]
-  (let [cell (get-in @atoms/game-map transport-coords)
+  (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
-        updated-transport (-> transport
-                              (uc/sleep-all :awake-armies)
-                              (assoc :mode :awake)
-                              (dissoc :reason))
+        updated-transport (domain-containers/sleep-transport-armies transport)
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)))
 
@@ -96,13 +96,9 @@
   "Removes one awake army from transport without placing it anywhere.
    Wakes the transport when no more awake armies remain."
   [transport-coords]
-  (let [cell (get-in @atoms/game-map transport-coords)
+  (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
-        after-remove (uc/remove-awake-unit transport :army-count :awake-armies)
-        no-more-awake? (not (uc/has-awake? after-remove :awake-armies))
-        updated-transport (cond-> after-remove
-                            no-more-awake? (assoc :mode :awake)
-                            no-more-awake? (dissoc :reason))
+        updated-transport (domain-containers/remove-awake-transport-army transport)
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)))
 
@@ -110,17 +106,12 @@
   "Removes first awake army from transport and places it on target land cell.
    Army remains awake and ready for orders. Other armies remain on transport.
    Wakes the transport when no more awake armies remain.
-   Returns the coordinates where the army was placed."
+  Returns the coordinates where the army was placed."
   [transport-coords target-coords]
-  (let [cell (get-in @atoms/game-map transport-coords)
+  (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
-        after-remove (uc/remove-awake-unit transport :army-count :awake-armies)
-        no-more-awake? (not (uc/has-awake? after-remove :awake-armies))
-        disembarked-army {:type :army :mode :awake :owner (:owner transport) :hits 1
-                         :steps-remaining (config/unit-speed :army)}
-        updated-transport (cond-> after-remove
-                            no-more-awake? (assoc :mode :awake)
-                            no-more-awake? (dissoc :reason))
+        updated-transport (domain-containers/remove-awake-transport-army transport)
+        disembarked-army (domain-containers/disembarked-army (:owner transport))
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)
     (update-game-map! assoc-in (conj target-coords :contents) disembarked-army)
@@ -130,18 +121,12 @@
 (defn disembark-army-with-target
   "Removes first awake army from transport and places it on adjacent cell in moving mode.
    Army will continue moving toward the extended target on subsequent turns.
-   Steps-remaining is 0 because the disembark used the army's one step."
+  Steps-remaining is 0 because the disembark used the army's one step."
   [transport-coords adjacent-coords extended-target]
-  (let [cell (get-in @atoms/game-map transport-coords)
+  (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
-        after-remove (uc/remove-awake-unit transport :army-count :awake-armies)
-        no-more-awake? (not (uc/has-awake? after-remove :awake-armies))
-        moving-army {:type :army :mode :moving :owner (:owner transport) :hits 1
-                     :steps-remaining 0
-                     :target extended-target}
-        updated-transport (cond-> after-remove
-                            no-more-awake? (assoc :mode :awake)
-                            no-more-awake? (dissoc :reason))
+        updated-transport (domain-containers/remove-awake-transport-army transport)
+        moving-army (domain-containers/moving-disembarked-army (:owner transport) extended-target)
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)
     (update-game-map! assoc-in (conj adjacent-coords :contents) moving-army)
@@ -151,17 +136,10 @@
   "Removes first awake army from transport and places it on target land cell in explore mode.
    Returns the coordinates where the army was placed."
   [transport-coords target-coords]
-  (let [cell (get-in @atoms/game-map transport-coords)
+  (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
-        after-remove (uc/remove-awake-unit transport :army-count :awake-armies)
-        no-more-awake? (not (uc/has-awake? after-remove :awake-armies))
-        exploring-army {:type :army :mode :explore :owner (:owner transport) :hits 1
-                        :steps-remaining (config/unit-speed :army)
-                        :explore-steps config/explore-steps
-                        :visited #{target-coords}}
-        updated-transport (cond-> after-remove
-                            no-more-awake? (assoc :mode :awake)
-                            no-more-awake? (dissoc :reason))
+        updated-transport (domain-containers/remove-awake-transport-army transport)
+        exploring-army (domain-containers/exploring-disembarked-army (:owner transport) target-coords)
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)
     (update-game-map! assoc-in (conj target-coords :contents) exploring-army)
@@ -173,12 +151,9 @@
 (defn wake-fighters-on-carrier
   "Wakes up all fighters aboard the carrier at the given coords."
   [carrier-coords]
-  (let [cell (get-in @atoms/game-map carrier-coords)
+  (let [cell (get-in (current-world) carrier-coords)
         carrier (:contents cell)
-        updated-carrier (-> carrier
-                            (uc/wake-all :fighter-count :awake-fighters)
-                            (assoc :mode :sentry)
-                            (dissoc :reason))
+        updated-carrier (domain-containers/wake-carrier-fighters carrier)
         updated-cell (assoc cell :contents updated-carrier)]
     (update-game-map! assoc-in carrier-coords updated-cell)))
 
@@ -186,34 +161,29 @@
   "Puts all fighters aboard the carrier back to sleep.
    Wakes up the carrier so it can receive orders."
   [carrier-coords]
-  (let [cell (get-in @atoms/game-map carrier-coords)
+  (let [cell (get-in (current-world) carrier-coords)
         carrier (:contents cell)
-        updated-carrier (-> carrier
-                            (uc/sleep-all :awake-fighters)
-                            (assoc :mode :awake)
-                            (dissoc :reason))
+        updated-carrier (domain-containers/sleep-carrier-fighters carrier)
         updated-cell (assoc cell :contents updated-carrier)]
     (update-game-map! assoc-in carrier-coords updated-cell)))
 
 (defn launch-fighter-from-carrier
   "Removes first awake fighter from carrier and sets it moving to target.
    Fighter is placed at the adjacent cell toward target.
-   Carrier stays in its current mode (sentry carriers remain sentry).
+  Carrier stays in its current mode (sentry carriers remain sentry).
    Returns the coordinates where the fighter was placed."
   [carrier-coords target-coords]
-  (let [cell (get-in @atoms/game-map carrier-coords)
+  (let [world (current-world)
+        cell (get-in world carrier-coords)
         carrier (:contents cell)
         after-remove (uc/remove-awake-unit carrier :fighter-count :awake-fighters)
-        ;; Calculate first step toward target
-        [cx cy] carrier-coords
-        [tx ty] target-coords
-        dx (cond (zero? (- tx cx)) 0 (pos? (- tx cx)) 1 :else -1)
-        dy (cond (zero? (- ty cy)) 0 (pos? (- ty cy)) 1 :else -1)
-        first-step [(+ cx dx) (+ cy dy)]
-        moving-fighter {:type :fighter :mode :moving :owner (:owner carrier) :fuel config/fighter-fuel :target target-coords :hits 1
-                        :steps-remaining (dec (config/unit-speed :fighter))}
+        first-step (domain-containers/first-step-toward carrier-coords target-coords)
+        moving-fighter (domain-containers/launched-fighter
+                        (:owner carrier)
+                        target-coords
+                        (dec (config/unit-speed :fighter)))
         updated-cell (assoc cell :contents after-remove)
-        target-cell (get-in @atoms/game-map first-step)]
+        target-cell (get-in world first-step)]
     ;; Update carrier
     (update-game-map! assoc-in carrier-coords updated-cell)
     ;; Place fighter at first step position
@@ -227,10 +197,12 @@
   "Removes first awake fighter from airport and sets it moving to target.
    Returns the coordinates where the fighter was placed."
   [city-coords target-coords]
-  (let [cell (get-in @atoms/game-map city-coords)
+  (let [cell (get-in (current-world) city-coords)
         after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
-        moving-fighter {:type :fighter :mode :moving :owner :player :fuel config/fighter-fuel :target target-coords :hits 1
-                        :steps-remaining (config/unit-speed :fighter)}
+        moving-fighter (domain-containers/launched-fighter
+                        :player
+                        target-coords
+                        (config/unit-speed :fighter))
         updated-cell (assoc after-remove :contents moving-fighter)]
     (update-game-map! assoc-in city-coords updated-cell)
     city-coords))
@@ -244,7 +216,7 @@
   ([city-coords ship-index]
    (launch-ship-from-shipyard city-coords ship-index city-coords))
   ([city-coords ship-index launch-pos]
-   (let [cell (get-in @atoms/game-map city-coords)
+   (let [cell (get-in (current-world) city-coords)
          ship-data (get-in cell [:shipyard ship-index])
          owner (case (:city-status cell)
                  :player :player

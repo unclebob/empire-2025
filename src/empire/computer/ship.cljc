@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-27
 (ns empire.computer.ship
   "Computer ship module - facade delegating to sub-modules."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.computer.core :as core]
             [empire.computer.ship-carrier :as carrier]
             [empire.computer.ship-carrier-group :as carrier-group]
@@ -9,6 +9,13 @@
             [empire.computer.ship-escort :as escort]
             [empire.computer.ship-patrol :as patrol]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 ;; --- Core utility re-exports ---
 
@@ -95,7 +102,7 @@
   "Processes a computer ship using VMS Empire style logic.
    Returns nil after processing."
   [pos ship-type]
-  (let [unit (:contents (get-in @atoms/game-map pos))]
+  (let [unit (:contents (get-in (current-world) pos))]
     (when (and unit
                (= :computer (:owner unit))
                (= ship-type (:type unit)))

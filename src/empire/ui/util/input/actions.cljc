@@ -1,6 +1,5 @@
 (ns empire.ui.util.input.actions
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.combat :as combat]
@@ -12,7 +11,6 @@
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement :as movement]
             [empire.player.attention :as attention]
-            [empire.player.orders :as orders]
             [empire.player.production :as production]
             [empire.player.commands :as commands]
             [empire.units.dispatcher :as dispatcher]))
@@ -23,12 +21,35 @@
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
 
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
+(defn- set-error-message!
+  [msg ms]
+  (write-runtime-state! :error-message msg)
+  (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
+
 (defn- try-set-production [coords item]
   (let [[x y] coords
         coastal? (map-utils/on-coast? x y)
         naval? (dispatcher/naval-units item)]
     (if (and naval? (not coastal?))
-      (atoms/set-error-message (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
+      (set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
       (do
         (production/set-city-production coords item)
         (game-loop/item-processed)))
@@ -39,17 +60,18 @@
              (= (:city-status cell) :player)
              (not (movement/get-active-unit cell)))
     (cond
-      (= k :space) (do (swap! atoms/player-items rest)
+      (= k :space) (do (update-runtime-state! :player-items rest)
                        (game-loop/item-processed)
                        true)
-      (= k :x) (do (swap! atoms/production assoc coords :none)
+      (= k :x) (do (update-runtime-state! :production assoc coords :none)
                    (game-loop/item-processed)
                    true)
       (config/key->production-item k) (try-set-production coords (config/key->production-item k)))))
 
 (defn- calculate-extended-target [coords [dx dy]]
-  (let [height (count @atoms/game-map)
-        width (count (first @atoms/game-map))
+  (let [world (current-world)
+        height (count world)
+        width (count (first world))
         [x y] coords]
     (loop [tx x ty y]
       (let [nx (+ tx dx)
@@ -60,18 +82,14 @@
 
 (defn- launch-fighter-and-update [launch-fn coords target]
   (let [fighter-pos (launch-fn coords target)]
-    (reset! atoms/waiting-for-input false)
-    (reset! atoms/attention-message "")
-    (reset! atoms/cells-needing-attention [])
-    (swap! atoms/player-items #(cons fighter-pos (rest %)))
+    (write-runtime-state! :waiting-for-input false)
+    (write-runtime-state! :attention-message "")
+    (write-runtime-state! :cells-needing-attention [])
+    (update-runtime-state! :player-items #(cons fighter-pos (rest %)))
     true))
 
 (defn army-aboard-action [extended? target-cell hostile-city?]
-  (let [valid-land? (and (= (:type target-cell) :land) (not (:contents target-cell)))]
-    (cond
-      valid-land? (if extended? :disembark-with-target :disembark)
-      (and (not extended?) hostile-city?) :conquest
-      :else :ignore)))
+  (commands/army-aboard-action extended? target-cell hostile-city?))
 
 (defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
   (case (army-aboard-action extended? target-cell (combat/hostile-city? adjacent-target))
@@ -86,7 +104,7 @@
   true)
 
 (defn- undamaged-ship-entering-friendly-city? [active-unit adjacent-target]
-  (let [target-cell (get-in @atoms/game-map adjacent-target)
+  (let [target-cell (get-in (current-world) adjacent-target)
         unit-type (:type active-unit)
         max-hits (dispatcher/hits unit-type)]
     (and (dispatcher/naval-unit? unit-type)
@@ -107,7 +125,7 @@
         true)
 
     (and (not extended?) (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
-    (do (atoms/set-error-message "Ship not damaged, entry denied." config/error-message-duration)
+    (do (set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
         true)
 
     :else
@@ -119,7 +137,7 @@
   (let [[x y] coords
         [dx dy] direction
         adjacent-target [(+ x dx) (+ y dy)]
-        target-cell (get-in @atoms/game-map adjacent-target)
+        target-cell (get-in (current-world) adjacent-target)
         target (if extended?
                  (calculate-extended-target coords direction)
                  adjacent-target)
@@ -140,7 +158,7 @@
           (execute-unit-movement coords direction extended? active-unit cell))))))
 
 (defn- handle-space-key [coords]
-  (let [cell (get-in @atoms/game-map coords)
+  (let [cell (get-in (current-world) coords)
         unit (:contents cell)]
     (when unit
       (if (= :fighter (:type unit))
@@ -155,7 +173,7 @@
               (update-game-map! assoc-in (conj coords :contents :fuel) new-fuel)
               (update-game-map! assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
         (update-game-map! assoc-in (conj coords :contents :reason) :skipping-this-round))))
-  (swap! atoms/player-items rest)
+  (update-runtime-state! :player-items rest)
   (game-loop/item-processed)
   true)
 
@@ -201,13 +219,14 @@
     (first (for [dx [-1 0 1] dy [-1 0 1]
                  :when (not (and (zero? dx) (zero? dy)))
                  :let [target [(+ x dx) (+ y dy)]
-                       tcell (get-in @atoms/game-map target)]
+                       tcell (get-in (current-world) target)]
                  :when (and tcell (= :land (:type tcell)) (not (:contents tcell)))]
              target))))
 
 (defn- handle-look-around-key [coords cell active-unit]
   (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
-        near-coast? (map-utils/adjacent-to-land? coords atoms/game-map)
+        near-coast? (map-utils/any-neighbor-matches? coords (current-world) map-utils/neighbor-offsets
+                                                   #(= :land (:type %)))
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond
       ;; Army (not aboard) - explore mode
@@ -231,14 +250,14 @@
 
       ;; Transport or patrol-boat not near coast - show reason
       rejection-reason
-      (do (reset! atoms/attention-message (rejection-reason config/messages))
+      (do (write-runtime-state! :attention-message (rejection-reason config/messages))
           true)
 
       :else nil)))
 
 (defn handle-key [k]
-  (when-let [coords (first @atoms/cells-needing-attention)]
-    (let [cell (get-in @atoms/game-map coords)
+  (when-let [coords (first (read-runtime-state :cells-needing-attention))]
+    (let [cell (get-in (current-world) coords)
           active-unit (movement/get-active-unit cell)]
       (if active-unit
         (case k

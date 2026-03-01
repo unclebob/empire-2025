@@ -1,8 +1,7 @@
 ;; mutation-tested: 2026-02-28
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-state
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
@@ -14,6 +13,24 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
 
 (defn transport-with-awake-armies? [contents]
   (and (= (:type contents) :transport)
@@ -77,7 +94,7 @@
     :else :standard-unit))
 
 (defn set-unit-mode [coords mode]
-  (let [cell (get-in @atoms/game-map coords)
+  (let [cell (get-in (current-world) coords)
         unit (:contents cell)
         updated-unit (dissoc (assoc unit :mode mode) :reason)
         updated-cell (assoc cell :contents updated-unit)]
@@ -89,7 +106,7 @@
    Updates visibility for the owner after adding."
   ([[cx cy] unit-type] (add-unit-at [cx cy] unit-type :player))
   ([[cx cy] unit-type owner]
-   (let [cell (get-in @atoms/game-map [cx cy])
+   (let [cell (get-in (current-world) [cx cy])
          unit {:type unit-type
                :hits (config/item-hits unit-type)
                :mode :awake
@@ -123,11 +140,11 @@
    For transports with armies, also wakes the armies aboard.
    Returns true if something was woken, nil otherwise."
   [[cx cy]]
-  (let [cell (get-in @atoms/game-map [cx cy])
+  (let [cell (get-in (current-world) [cx cy])
         contents (:contents cell)]
     (cond
       (player-city? cell)
-      (do (swap! atoms/production dissoc [cx cy])
+      (do (update-runtime-state! :production dissoc [cx cy])
           true)
 
       (player-transport-with-armies? contents)

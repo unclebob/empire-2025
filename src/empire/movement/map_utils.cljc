@@ -1,7 +1,21 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.map-utils
-  (:require [empire.atoms :as atoms]
+  (:require [empire.adapters.state.runtime :as runtime-state]
+            [empire.application.ports :as ports]
+            [empire.application.runtime :as app-runtime]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  (let [store (runtime-state/runtime-state-store)]
+    (ports/read-runtime-state store k)))
 
 (def neighbor-offsets
   "Offsets for the 8 adjacent cells (excludes center)."
@@ -73,22 +87,23 @@
 (defn on-coast?
   "Checks if a cell is adjacent to sea."
   [cell-x cell-y]
-  (any-neighbor-matches? [cell-x cell-y] @atoms/game-map neighbor-offsets
+  (any-neighbor-matches? [cell-x cell-y] (current-world) neighbor-offsets
                          #(= :sea (:type %))))
 
 (defn on-map?
   "Returns true if the pixel coordinates are within the map display area."
   [x y]
-  (let [[map-w map-h] @atoms/map-screen-dimensions]
+  (let [[map-w map-h] (read-runtime-state :map-screen-dimensions)]
     (and (>= x 0) (< x map-w)
          (>= y 0) (< y map-h))))
 
 (defn determine-cell-coordinates
   "Converts mouse coordinates to map cell coordinates."
   [x y]
-  (let [[map-w map-h] @atoms/map-screen-dimensions
-        cols (count @atoms/game-map)
-        rows (count (first @atoms/game-map))
+  (let [[map-w map-h] (read-runtime-state :map-screen-dimensions)
+        world (current-world)
+        cols (count world)
+        rows (count (first world))
         cell-w (/ map-w cols)
         cell-h (/ map-h rows)]
     [(int (Math/floor (/ x cell-w))) (int (Math/floor (/ y cell-h)))]))
@@ -96,7 +111,7 @@
 (defn city?
   "Returns true if the cell at coords is a city."
   [[x y]]
-  (= :city (:type (get-in @atoms/game-map [x y]))))
+  (= :city (:type (get-in (current-world) [x y]))))
 
 (defn blink?
   "Returns true during the 'on' phase of a blink cycle with the given period in milliseconds."

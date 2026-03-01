@@ -1,8 +1,7 @@
 ;; mutation-tested: 2026-02-28
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-execution
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
@@ -16,6 +15,10 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 (defn process-consumables [unit to-cell]
   (if (and unit (= (:type unit) :fighter))
@@ -66,7 +69,7 @@
 
 (defn do-move [from-coords final-pos cell final-unit]
   (let [from-cell (dissoc cell :contents)
-        to-cell (get-in @atoms/game-map final-pos)
+        to-cell (get-in (current-world) final-pos)
         processed-unit (process-consumables final-unit to-cell)
         original-target (:target (:contents cell))
         move-type (classify-move processed-unit to-cell original-target final-pos)
