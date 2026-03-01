@@ -95,37 +95,48 @@
 (defn- generate-unit-waiting-for-input-then [{:keys [unit]}]
   (str "    (should= :ok (advance-until-unit-waiting \"" unit "\"))"))
 
-(defn- generate-message-assertion [{:keys [area config-key text at-next-round at-next-step unit] :as ir}]
-  (let [atom-str (utils/area->atom area)]
-    (case (:type ir)
-      :message-contains
-      (let [advance (cond
-                      at-next-round "    (should= :ok (advance-until-next-round))\n"
-                      at-next-step  "    (game-loop/advance-game)\n"
-                      :else         "")]
-        (if config-key
-          (str advance
-               "    (should-not-be-nil (:" (name config-key) " config/messages))\n"
-               "    (should (message-matches? (:" (name config-key) " config/messages) @" atom-str "))")
-          (str advance "    (should-contain \"" text "\" @" atom-str ")")))
-      :message-for-unit
-      (str "    (should= :ok\n"
-           "      (loop [n 100]\n"
-           "        (let [u (get-test-unit atoms/game-map \"" unit "\")]\n"
-           "          (cond\n"
-           "            (and u (= :awake (:mode (:unit u))) @atoms/waiting-for-input) :ok\n"
-           "            (zero? n) :timeout\n"
-           "            :else (do (game-loop/advance-game) (recur (dec n)))))))\n"
+(defn- message-advance-prefix [at-next-round at-next-step]
+  (cond
+    at-next-round "    (should= :ok (advance-until-next-round))\n"
+    at-next-step  "    (game-loop/advance-game)\n"
+    :else         ""))
+
+(defn- generate-message-contains-assertion [{:keys [config-key text at-next-round at-next-step]} atom-str]
+  (let [advance (message-advance-prefix at-next-round at-next-step)]
+    (if config-key
+      (str advance
            "    (should-not-be-nil (:" (name config-key) " config/messages))\n"
            "    (should (message-matches? (:" (name config-key) " config/messages) @" atom-str "))")
-      :message-is
-      (if config-key
-        (str "    (should= (:" (name config-key) " config/messages) @" atom-str ")")
-        (let [{:keys [key args]} (:format ir)
-              args-str (str/join " " (map pr-str args))]
-          (str "    (should= (format (:" (name key) " config/messages) " args-str ") @" atom-str ")")))
-      :no-message
-      (str "    (should= \"\" @" atom-str ")"))))
+      (str advance "    (should-contain \"" text "\" @" atom-str ")"))))
+
+(defn- generate-message-for-unit-assertion [{:keys [unit config-key]} atom-str]
+  (str "    (should= :ok\n"
+       "      (loop [n 100]\n"
+       "        (let [u (get-test-unit atoms/game-map \"" unit "\")]\n"
+       "          (cond\n"
+       "            (and u (= :awake (:mode (:unit u))) @atoms/waiting-for-input) :ok\n"
+       "            (zero? n) :timeout\n"
+       "            :else (do (game-loop/advance-game) (recur (dec n)))))))\n"
+       "    (should-not-be-nil (:" (name config-key) " config/messages))\n"
+       "    (should (message-matches? (:" (name config-key) " config/messages) @" atom-str "))"))
+
+(defn- generate-message-is-assertion [{:keys [config-key format]} atom-str]
+  (if config-key
+    (str "    (should= (:" (name config-key) " config/messages) @" atom-str ")")
+    (let [{:keys [key args]} format
+          args-str (str/join " " (map pr-str args))]
+      (str "    (should= (format (:" (name key) " config/messages) " args-str ") @" atom-str ")"))))
+
+(defn- generate-no-message-assertion [atom-str]
+  (str "    (should= \"\" @" atom-str ")"))
+
+(defn- generate-message-assertion [{:keys [area] :as ir}]
+  (let [atom-str (utils/area->atom area)]
+    (case (:type ir)
+      :message-contains (generate-message-contains-assertion ir atom-str)
+      :message-for-unit (generate-message-for-unit-assertion ir atom-str)
+      :message-is (generate-message-is-assertion ir atom-str)
+      :no-message (generate-no-message-assertion atom-str))))
 
 (defn- generate-cell-prop-then [{:keys [coords property expected target]}]
   (let [map-atom (if (= target :computer-map) "atoms/computer-map" "atoms/game-map")]

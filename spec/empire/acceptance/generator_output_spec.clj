@@ -126,6 +126,36 @@
       (should-contain ":hit-edge" result)
       (should-contain "atoms/turn-message" result)))
 
+  (it "generates message-is with format and no args"
+    (let [result (gen/generate-then {:type :message-is
+                                     :area :error
+                                     :format {:key :fighter-bingo :args []}} [])]
+      (should-contain "(format (:fighter-bingo config/messages)" result)
+      (should-contain "atoms/error-message" result)))
+
+  (it "generates message-is with format and args"
+    (let [result (gen/generate-then {:type :message-is
+                                     :area :error
+                                     :format {:key :coastal-city-required :args ["transport"]}} [])]
+      (should-contain "(format (:coastal-city-required config/messages) \"transport\")" result)
+      (should-contain "atoms/error-message" result)))
+
+  (it "generates no-message assertion for turn area"
+    (let [result (gen/generate-then {:type :no-message :area :turn} [])]
+      (should-contain "(should= \"\" @atoms/turn-message)" result)))
+
+  (it "generates no-message assertion for error area"
+    (let [result (gen/generate-then {:type :no-message :area :error} [])]
+      (should-contain "(should= \"\" @atoms/error-message)" result)))
+
+  (it "generates message-for-unit assertion for turn area"
+    (let [result (gen/generate-then {:type :message-for-unit
+                                     :area :turn
+                                     :unit "F"
+                                     :config-key :fighter-bingo} [])]
+      (should-contain "loop [n 100]" result)
+      (should-contain "atoms/turn-message" result)))
+
   (it "generates cell-prop then"
     (let [result (gen/generate-then {:type :cell-prop :coords [1 0] :property :city-status :expected :player} [])]
       (should-contain "should=" result)
