@@ -3,12 +3,20 @@
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
             [empire.movement.visibility :as visibility]
             [empire.config :as config]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]))
+
+(defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 ;; --- Leg-based coverage ---
 
@@ -51,10 +59,10 @@
   "Assign a regular leg flight: choose-leg, set target, origin, and :flight-mode :regular."
   [pos site-pos]
   (when-let [target (choose-leg site-pos)]
-    (swap! atoms/game-map update-in (conj pos :contents)
-           assoc :flight-target-site target
-           :flight-origin-site site-pos
-           :flight-mode :regular)))
+    (update-game-map! update-in (conj pos :contents)
+                      assoc :flight-target-site target
+                      :flight-origin-site site-pos
+                      :flight-mode :regular)))
 
 (def ^:private sortie-half-steps 16)
 
@@ -68,13 +76,13 @@
         [dr dc] heading
         endpoint [(+ (first pos) (* sortie-half-steps dr))
                   (+ (second pos) (* sortie-half-steps dc))]]
-    (swap! atoms/game-map update-in (conj pos :contents)
-           assoc :flight-mode mode
-           :explore-origin site-pos
-           :explore-heading heading
-           :explore-steps-remaining sortie-half-steps
-           :flight-target-site endpoint
-           :flight-origin-site site-pos)))
+    (update-game-map! update-in (conj pos :contents)
+                      assoc :flight-mode mode
+                      :explore-origin site-pos
+                      :explore-heading heading
+                      :explore-steps-remaining sortie-half-steps
+                      :flight-target-site endpoint
+                      :flight-origin-site site-pos)))
 
 (defn- ensure-flight-target
   "If fighter at pos is at a refueling site with no flight-mode or target,
@@ -83,7 +91,7 @@
   (let [unit (get-in @atoms/game-map (conj pos :contents))]
     (when (and unit (nil? (:flight-mode unit)) (nil? (:flight-target-site unit)))
       (when-let [site-pos (current-refueling-site pos)]
-        (swap! atoms/game-map assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+        (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
         (if (>= (rand) 0.5)
           (assign-regular-leg pos site-pos)
           (assign-exploration-flight pos site-pos))))))
@@ -107,13 +115,13 @@
       (swap! atoms/fighter-leg-records assoc #{origin target}
              {:last-flown @atoms/round-number}))
     ;; Refuel
-    (swap! atoms/game-map assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+    (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
     ;; Clear exploration fields and pick new leg from target site
     (let [new-target (choose-leg target)]
-      (swap! atoms/game-map update-in (conj pos :contents)
-             #(-> %
-                  (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)
-                  (assoc :flight-target-site new-target :flight-origin-site target))))
+      (update-game-map! update-in (conj pos :contents)
+                        #(-> %
+                             (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)
+                             (assoc :flight-target-site new-target :flight-origin-site target))))
     {:pos pos :hops 1}))
 
 (defn- select-best-navigation-target
@@ -149,9 +157,9 @@
 (defn- refuel-at-site
   "Refuel fighter in place, recording origin site for leg tracking."
   [pos site-pos]
-  (swap! atoms/game-map assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-  (swap! atoms/game-map update-in (conj pos :contents)
-         assoc :flight-origin-site site-pos)
+  (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+  (update-game-map! update-in (conj pos :contents)
+                    assoc :flight-origin-site site-pos)
   pos)
 
 (defn- move-and-consume-toward

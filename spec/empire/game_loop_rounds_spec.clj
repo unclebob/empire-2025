@@ -4,16 +4,16 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.movement :as movement]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map]]))
+            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
 
 (describe "round management"
   (before (reset-all-atoms!))
 
   (context "start-new-round"
     (before
-      (reset! atoms/game-map (build-test-map ["O"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
-      (reset! atoms/computer-map (build-test-map ["#"]))
+      (set-test-world! (build-test-map ["O"]))
+      (set-test-player-map! (build-test-map ["#"]))
+      (set-test-computer-map! (build-test-map ["#"]))
       (reset! atoms/production {})
       (reset! atoms/round-number 0)
       (reset! atoms/player-items [])
@@ -42,20 +42,20 @@
       (should= [] @atoms/cells-needing-attention))
 
     (it "does not wake carrier fighters - they stay asleep until u is pressed"
-      (reset! atoms/game-map (-> (build-test-map ["C"])
+      (set-test-world! (-> (build-test-map ["C"])
                                   (assoc-in [0 0 :contents :fighter-count] 2)
                                   (assoc-in [0 0 :contents :awake-fighters] 0)))
-      (reset! atoms/player-map (build-test-map ["~"]))
-      (reset! atoms/computer-map (build-test-map ["~"]))
+      (set-test-player-map! (build-test-map ["~"]))
+      (set-test-computer-map! (build-test-map ["~"]))
       (game-loop/start-new-round)
       (let [carrier (:contents (get-in @atoms/game-map [0 0]))]
         (should= 0 (:awake-fighters carrier 0)))))
 
   (context "advance-game"
     (it "starts new round when player-items is empty"
-      (reset! atoms/game-map (build-test-map ["O"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
-      (reset! atoms/computer-map (build-test-map ["#"]))
+      (set-test-world! (build-test-map ["O"]))
+      (set-test-player-map! (build-test-map ["#"]))
+      (set-test-computer-map! (build-test-map ["#"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [])
       (reset! atoms/round-number 0)
@@ -63,7 +63,7 @@
       (should= 1 @atoms/round-number))
 
     (it "sets waiting-for-input when item needs attention"
-      (reset! atoms/game-map (build-test-map ["O"]))
+      (set-test-world! (build-test-map ["O"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0]])
       (reset! atoms/waiting-for-input false)
@@ -72,7 +72,7 @@
       (should= true @atoms/waiting-for-input))
 
     (it "does nothing when waiting for input"
-      (reset! atoms/game-map (build-test-map ["A"]))
+      (set-test-world! (build-test-map ["A"]))
       (set-test-unit atoms/game-map "A" :mode :awake)
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0]])
@@ -83,7 +83,7 @@
       (should= [[0 0]] @atoms/player-items))
 
     (it "moves to next item when unit does not need attention"
-      (reset! atoms/game-map (build-test-map ["A"]))
+      (set-test-world! (build-test-map ["A"]))
       (set-test-unit atoms/game-map "A" :mode :sentry)
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0]])
@@ -93,9 +93,9 @@
 
   (context "update-map"
     (before
-      (reset! atoms/game-map (build-test-map ["O"]))
-      (reset! atoms/player-map (build-test-map ["#"]))
-      (reset! atoms/computer-map (build-test-map ["#"]))
+      (set-test-world! (build-test-map ["O"]))
+      (set-test-player-map! (build-test-map ["#"]))
+      (set-test-computer-map! (build-test-map ["#"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [])
       (reset! atoms/round-number 0))
@@ -148,9 +148,9 @@
         (should @atoms/pause-requested))
 
       (it "starts new round when paused and items empty"
-        (reset! atoms/game-map (build-test-map ["O"]))
-        (reset! atoms/player-map (build-test-map ["#"]))
-        (reset! atoms/computer-map (build-test-map ["#"]))
+        (set-test-world! (build-test-map ["O"]))
+        (set-test-player-map! (build-test-map ["#"]))
+        (set-test-computer-map! (build-test-map ["#"]))
         (reset! atoms/production {})
         (reset! atoms/paused true)
         (reset! atoms/player-items [])
@@ -169,8 +169,8 @@
 
     (context "advance-game pauses at round end"
       (it "pauses at end of round when pause-requested"
-        (reset! atoms/game-map (build-test-map ["#"]))
-        (reset! atoms/player-map (build-test-map ["#"]))
+        (set-test-world! (build-test-map ["#"]))
+        (set-test-player-map! (build-test-map ["#"]))
         (reset! atoms/production {})
         (reset! atoms/player-items [])  ;; Empty means end of round
         (reset! atoms/pause-requested true)
@@ -183,8 +183,8 @@
           (should= round-before @atoms/round-number)))
 
       (it "does not start new round when paused"
-        (reset! atoms/game-map (build-test-map ["#"]))
-        (reset! atoms/player-map (build-test-map ["#"]))
+        (set-test-world! (build-test-map ["#"]))
+        (set-test-player-map! (build-test-map ["#"]))
         (reset! atoms/production {})
         (reset! atoms/player-items [])
         (reset! atoms/paused true)
@@ -194,8 +194,8 @@
           (should= round-before @atoms/round-number)))
 
       (it "starts new round normally when not paused"
-        (reset! atoms/game-map (build-test-map ["#"]))
-        (reset! atoms/player-map (build-test-map ["#"]))
+        (set-test-world! (build-test-map ["#"]))
+        (set-test-player-map! (build-test-map ["#"]))
         (reset! atoms/production {})
         (reset! atoms/player-items [])
         (reset! atoms/paused false)
@@ -208,12 +208,12 @@
   (context "advance-game-batch"
     (it "processes multiple sentry units in one batch"
       ;; 3 sentry units that don't need attention
-      (reset! atoms/game-map (build-test-map ["AAA"]))
+      (set-test-world! (build-test-map ["AAA"]))
       (set-test-unit atoms/game-map "A1" :mode :sentry)
       (set-test-unit atoms/game-map "A2" :mode :sentry)
       (set-test-unit atoms/game-map "A3" :mode :sentry)
-      (reset! atoms/player-map (build-test-map ["###"]))
-      (reset! atoms/computer-map (build-test-map ["###"]))
+      (set-test-player-map! (build-test-map ["###"]))
+      (set-test-computer-map! (build-test-map ["###"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0] [1 0] [2 0]])
       (reset! atoms/waiting-for-input false)
@@ -223,11 +223,11 @@
 
     (it "stops when items exhausted before reaching limit"
       ;; 2 sentry units, advances-per-frame is 10
-      (reset! atoms/game-map (build-test-map ["AA"]))
+      (set-test-world! (build-test-map ["AA"]))
       (set-test-unit atoms/game-map "A1" :mode :sentry)
       (set-test-unit atoms/game-map "A2" :mode :sentry)
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0] [1 0]])
       (reset! atoms/waiting-for-input false)
@@ -237,11 +237,11 @@
 
     (it "stops when waiting for input"
       ;; First unit needs attention (awake), should block
-      (reset! atoms/game-map (build-test-map ["AA"]))
+      (set-test-world! (build-test-map ["AA"]))
       (set-test-unit atoms/game-map "A1" :mode :awake)
       (set-test-unit atoms/game-map "A2" :mode :sentry)
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0] [1 0]])
       (reset! atoms/waiting-for-input false)
@@ -252,10 +252,10 @@
       (should (some #{[1 0]} @atoms/player-items)))
 
     (it "stops when paused"
-      (reset! atoms/game-map (build-test-map ["A"]))
+      (set-test-world! (build-test-map ["A"]))
       (set-test-unit atoms/game-map "A" :mode :sentry)
-      (reset! atoms/player-map (build-test-map ["#"]))
-      (reset! atoms/computer-map (build-test-map ["#"]))
+      (set-test-player-map! (build-test-map ["#"]))
+      (set-test-computer-map! (build-test-map ["#"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0]])
       (reset! atoms/paused true)
@@ -271,45 +271,45 @@
 
   (context "game over"
     (it "pauses game when player has no cities and no units"
-      (reset! atoms/game-map (build-test-map ["X#"]))  ;; Only computer city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["X#"]))  ;; Only computer city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (game-loop/start-new-round)
       (should @atoms/paused))
 
     (it "displays ****GAME OVER***** in error message"
-      (reset! atoms/game-map (build-test-map ["X#"]))  ;; Only computer city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["X#"]))  ;; Only computer city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/error-message "")
       (game-loop/start-new-round)
       (should= "****GAME OVER*****" @atoms/error-message))
 
     (it "does not trigger game over when player has a city"
-      (reset! atoms/game-map (build-test-map ["OX"]))  ;; Player has a city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["OX"]))  ;; Player has a city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (game-loop/start-new-round)
       (should-not @atoms/paused))
 
     (it "does not trigger game over when player has a unit"
-      (reset! atoms/game-map (build-test-map ["AX"]))  ;; Player has an army
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["AX"]))  ;; Player has an army
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (game-loop/start-new-round)
       (should-not @atoms/paused))
 
     (it "switches map display to actual-map on game over"
-      (reset! atoms/game-map (build-test-map ["X#"]))  ;; Only computer city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["X#"]))  ;; Only computer city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/map-to-display :player-map)
       (game-loop/start-new-round)
@@ -317,45 +317,45 @@
 
   (context "player victory"
     (it "pauses game when computer has no cities and no units"
-      (reset! atoms/game-map (build-test-map ["O#"]))  ;; Only player city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["O#"]))  ;; Only player city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (game-loop/start-new-round)
       (should @atoms/paused))
 
     (it "displays ****YOU WIN!***** in error message"
-      (reset! atoms/game-map (build-test-map ["O#"]))  ;; Only player city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["O#"]))  ;; Only player city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/error-message "")
       (game-loop/start-new-round)
       (should= "****YOU WIN!*****" @atoms/error-message))
 
     (it "does not trigger victory when computer has a city"
-      (reset! atoms/game-map (build-test-map ["OX"]))  ;; Computer has a city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["OX"]))  ;; Computer has a city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (game-loop/start-new-round)
       (should-not @atoms/paused))
 
     (it "does not trigger victory when computer has a unit"
-      (reset! atoms/game-map (build-test-map ["Oa"]))  ;; Computer has an army
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["Oa"]))  ;; Computer has an army
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/paused false)
       (game-loop/start-new-round)
       (should-not @atoms/paused))
 
     (it "switches map display to actual-map on victory"
-      (reset! atoms/game-map (build-test-map ["O#"]))  ;; Only player city
-      (reset! atoms/player-map (build-test-map ["##"]))
-      (reset! atoms/computer-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["O#"]))  ;; Only player city
+      (set-test-player-map! (build-test-map ["##"]))
+      (set-test-computer-map! (build-test-map ["##"]))
       (reset! atoms/production {})
       (reset! atoms/map-to-display :player-map)
       (game-loop/start-new-round)
@@ -365,11 +365,11 @@
       ;; Scenario: player has two armies, computer has one army
       ;; First army kills computer army, victory should be declared immediately
       ;; Second army should NOT get attention
-      (reset! atoms/game-map (build-test-map ["Aa#A"]))
+      (set-test-world! (build-test-map ["Aa#A"]))
       (set-test-unit atoms/game-map "A1" :mode :awake :steps-remaining 1)
       (set-test-unit atoms/game-map "A2" :mode :awake :steps-remaining 1)
-      (reset! atoms/player-map (build-test-map ["####"]))
-      (reset! atoms/computer-map (build-test-map ["####"]))
+      (set-test-player-map! (build-test-map ["####"]))
+      (set-test-computer-map! (build-test-map ["####"]))
       (reset! atoms/production {})
       (reset! atoms/player-items [[0 0] [3 0]])  ;; Both player armies in queue
       (reset! atoms/waiting-for-input false)

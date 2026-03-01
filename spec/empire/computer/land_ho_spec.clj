@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.land-ho :as land-ho]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test-utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn make-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))
@@ -21,12 +21,12 @@
                            (and (= r 2) (= c 1)) {:type :city :city-status :free}
                            (= r 2) {:type :land}
                            :else {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         ;; Place a sailing transport with 4 armies at [0 0]
-        (swap! atoms/game-map assoc-in [0 0 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :sailing :army-count 4})
+        (update-test-world! assoc-in [0 0 :contents]
+                            {:type :transport :owner :computer
+                             :transport-mission :sailing :army-count 4})
         ;; Add target city
         (reset! atoms/land-ho-targets [[2 1]])
         (land-ho/assign-land-ho-invasion)
@@ -45,8 +45,8 @@
                          (if (and (= r 2) (= c 1))
                            {:type :city :city-status :free}
                            {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/land-ho-targets [[2 1]])
         (land-ho/assign-land-ho-invasion)
         (should= [[2 1]] @atoms/land-ho-targets))))
@@ -61,11 +61,11 @@
                            (and (= r 2) (= c 4)) {:type :city :city-status :free}
                            (and (= r 1) (= c 0)) {:type :city :city-status :free}
                            :else {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [0 0 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :sailing :army-count 4})
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
+        (update-test-world! assoc-in [0 0 :contents]
+                            {:type :transport :owner :computer
+                             :transport-mission :sailing :army-count 4})
         ;; Unreachable target first, reachable target second
         (reset! atoms/land-ho-targets [[2 4] [1 0]])
         (land-ho/assign-land-ho-invasion)
@@ -86,16 +86,16 @@
                            (and (= r 4) (= c 2)) {:type :city :city-status :free}
                            (= r 4) {:type :land}
                            :else {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         ;; Far transport at [0 0]
-        (swap! atoms/game-map assoc-in [0 0 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :sailing :army-count 4})
+        (update-test-world! assoc-in [0 0 :contents]
+                            {:type :transport :owner :computer
+                             :transport-mission :sailing :army-count 4})
         ;; Near transport at [3 2]
-        (swap! atoms/game-map assoc-in [3 2 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :sailing :army-count 4})
+        (update-test-world! assoc-in [3 2 :contents]
+                            {:type :transport :owner :computer
+                             :transport-mission :sailing :army-count 4})
         (reset! atoms/land-ho-targets [[4 2]])
         (land-ho/assign-land-ho-invasion)
         ;; Near transport should be assigned

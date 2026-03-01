@@ -3,7 +3,7 @@
             [empire.combat :as combat]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!]]
+            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
             [empire.units.dispatcher :as dispatcher]
             [empire.containers.helpers :as uc]
             [empire.computer.core :as computer-core]
@@ -15,9 +15,9 @@
 
   (context "conquer-city-contents"
     (it "flips a fighter at the city to new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
+      (set-test-world! (build-test-map ["X"]))
       ;; Place computer fighter on the city
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :mode :moving :hits 1 :fuel 20 :target [5 5]})
       (combat/conquer-city-contents [0 0] :player)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -27,8 +27,8 @@
         (should-be-nil (:target unit))))
 
     (it "flips a destroyer at the city to new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :destroyer :owner :computer :mode :moving :hits 3 :target [5 5]})
       (combat/conquer-city-contents [0 0] :player)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -38,8 +38,8 @@
         (should-be-nil (:target unit))))
 
     (it "flips a patrol-boat at the city to new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :patrol-boat :owner :computer :mode :sentry :hits 1 :target [3 3]})
       (combat/conquer-city-contents [0 0] :player)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -49,8 +49,8 @@
         (should-be-nil (:target unit))))
 
     (it "flips a submarine at the city to new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :submarine :owner :computer :mode :moving :hits 2 :target [4 4]})
       (combat/conquer-city-contents [0 0] :player)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -60,8 +60,8 @@
         (should-be-nil (:target unit))))
 
     (it "flips a battleship at the city to new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :battleship :owner :computer :mode :moving :hits 10 :target [7 7]})
       (combat/conquer-city-contents [0 0] :player)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -71,8 +71,8 @@
         (should-be-nil (:target unit))))
 
     (it "clears :reason on flipped units"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :mode :moving :hits 1 :fuel 20
               :target [5 5] :reason :some-reason})
       (combat/conquer-city-contents [0 0] :player)
@@ -80,15 +80,15 @@
         (should-be-nil (:reason unit))))
 
     (it "kills army standing on the city"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :computer :mode :awake :hits 1})
       (combat/conquer-city-contents [0 0] :player)
       (should-be-nil (get-in @atoms/game-map [0 0 :contents])))
 
     (it "kills armies inside a transport and flips the transport"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :transport :owner :computer :mode :sentry :hits 1
               :army-count 4 :awake-armies 2})
       (combat/conquer-city-contents [0 0] :player)
@@ -100,8 +100,8 @@
         (should= 0 (:awake-armies unit))))
 
     (it "kills fighters inside a carrier and flips the carrier"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :carrier :owner :computer :mode :sentry :hits 8
               :fighter-count 5 :awake-fighters 3})
       (combat/conquer-city-contents [0 0] :player)
@@ -113,8 +113,8 @@
         (should= 0 (:awake-fighters unit))))
 
     (it "leaves satellites unchanged"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :satellite :owner :computer :mode :moving :hits 1 :turns-remaining 30 :target [5 5]})
       (combat/conquer-city-contents [0 0] :player)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -123,32 +123,32 @@
         (should= :moving (:mode unit))))
 
     (it "clears city production on conquest"
-      (reset! atoms/game-map (build-test-map ["X"]))
+      (set-test-world! (build-test-map ["X"]))
       (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 3})
       (combat/conquer-city-contents [0 0] :player)
       (should-be-nil (get @atoms/production [0 0])))
 
     (it "clears marching-orders and flight-path on conquest"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :marching-orders] [10 10])
-      (swap! atoms/game-map assoc-in [0 0 :flight-path] [20 20])
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :marching-orders] [10 10])
+      (update-test-world! assoc-in [0 0 :flight-path] [20 20])
       (combat/conquer-city-contents [0 0] :player)
       (let [cell (get-in @atoms/game-map [0 0])]
         (should-be-nil (:marching-orders cell))
         (should-be-nil (:flight-path cell))))
 
     (it "preserves airport fighter count for new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :fighter-count] 3)
-      (swap! atoms/game-map assoc-in [0 0 :awake-fighters] 1)
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :fighter-count] 3)
+      (update-test-world! assoc-in [0 0 :awake-fighters] 1)
       (combat/conquer-city-contents [0 0] :player)
       (let [cell (get-in @atoms/game-map [0 0])]
         (should= 3 (:fighter-count cell))
         (should= 1 (:awake-fighters cell))))
 
     (it "preserves shipyard ships for new owner"
-      (reset! atoms/game-map (build-test-map ["X"]))
-      (swap! atoms/game-map assoc-in [0 0 :shipyard]
+      (set-test-world! (build-test-map ["X"]))
+      (update-test-world! assoc-in [0 0 :shipyard]
              [{:type :destroyer :hits 2} {:type :submarine :hits 1}])
       (combat/conquer-city-contents [0 0] :player)
       (let [cell (get-in @atoms/game-map [0 0])]
@@ -157,9 +157,9 @@
 
     (it "player conquest calls conquer-city-contents"
       (with-redefs [rand (constantly 0.1)]
-        (reset! atoms/game-map (build-test-map ["AX"]))
+        (set-test-world! (build-test-map ["AX"]))
         ;; Place a computer destroyer on the city
-        (swap! atoms/game-map assoc-in [1 0 :contents]
+        (update-test-world! assoc-in [1 0 :contents]
                {:type :destroyer :owner :computer :mode :sentry :hits 3})
         (swap! atoms/production assoc [1 0] {:item :fighter :remaining-rounds 5})
         (combat/attempt-conquest [0 0] [1 0])
@@ -174,10 +174,10 @@
 
     (it "computer conquest applies same logic"
       (with-redefs [rand (constantly 0.1)]
-        (reset! atoms/game-map (build-test-map ["aO"]))
-        (reset! atoms/computer-map @atoms/game-map)
+        (set-test-world! (build-test-map ["aO"]))
+        (set-test-computer-map! @atoms/game-map)
         ;; Place a player destroyer on the city
-        (swap! atoms/game-map assoc-in [1 0 :contents]
+        (update-test-world! assoc-in [1 0 :contents]
                {:type :destroyer :owner :player :mode :sentry :hits 3})
         (swap! atoms/production assoc [1 0] {:item :army :remaining-rounds 2})
         (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
@@ -194,9 +194,9 @@
   (context "country-id on conquest"
     (it "computer army with country-id assigns it to conquered city"
       (with-redefs [rand (constantly 0.1)]
-        (reset! atoms/game-map (build-test-map ["aO"]))
-        (reset! atoms/computer-map @atoms/game-map)
-        (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 3)
+        (set-test-world! (build-test-map ["aO"]))
+        (set-test-computer-map! @atoms/game-map)
+        (update-test-world! assoc-in [0 0 :contents :country-id] 3)
         (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
           (core [0 0] [1 0])
           (should= 3 (:country-id (get-in @atoms/game-map [1 0])))))))
@@ -208,7 +208,7 @@
     (it "drowns excess fighters when carrier wins with reduced capacity"
       ;; Carrier at 8 hits with 6 fighters attacks army. Carrier wins but takes hits.
       ;; Carrier ends at 4/8 hits -> capacity 4, so 2 fighters drown.
-      (reset! atoms/game-map (build-test-map ["Ca"]))
+      (set-test-world! (build-test-map ["Ca"]))
       (set-test-unit atoms/game-map "C" :hits 8 :fighter-count 6 :awake-fighters 0)
       (set-test-unit atoms/game-map "a" :hits 1)
       ;; Rolls: 0.6(a hits C:7), 0.6(a hits C:6), 0.6(a hits C:5), 0.6(a hits C:4), 0.4(C hits a:0)
@@ -223,7 +223,7 @@
     (it "does not drown when cargo within capacity"
       ;; Carrier at 8 hits with 3 fighters attacks army. Carrier wins with 4 hits.
       ;; Capacity 4 >= 3 fighters, no drowning.
-      (reset! atoms/game-map (build-test-map ["Ca"]))
+      (set-test-world! (build-test-map ["Ca"]))
       (set-test-unit atoms/game-map "C" :hits 8 :fighter-count 3 :awake-fighters 0)
       (set-test-unit atoms/game-map "a" :hits 1)
       (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
@@ -233,7 +233,7 @@
             (should= 3 (:fighter-count survivor))))))
 
     (it "caps awake-fighters at new fighter-count after drowning"
-      (reset! atoms/game-map (build-test-map ["Ca"]))
+      (set-test-world! (build-test-map ["Ca"]))
       (set-test-unit atoms/game-map "C" :hits 8 :fighter-count 6 :awake-fighters 5)
       (set-test-unit atoms/game-map "a" :hits 1)
       ;; Carrier ends at 4 hits -> capacity 4
@@ -246,9 +246,9 @@
 
     (it "handles carrier with missing cargo keys (defaults to 0)"
       ;; Carrier with no :fighter-count or :awake-fighters keys
-      (reset! atoms/game-map (build-test-map ["Ca"]))
+      (set-test-world! (build-test-map ["Ca"]))
       (set-test-unit atoms/game-map "C" :hits 8)
-      (swap! atoms/game-map update-in [0 0 :contents] dissoc :fighter-count :awake-fighters)
+      (update-test-world! update-in [0 0 :contents] dissoc :fighter-count :awake-fighters)
       (set-test-unit atoms/game-map "a" :hits 1)
       (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
@@ -260,7 +260,7 @@
 
     (it "drowns cargo when defending carrier takes damage"
       ;; Computer army attacks player carrier. Carrier wins but takes damage.
-      (reset! atoms/game-map (build-test-map ["aC"]))
+      (set-test-world! (build-test-map ["aC"]))
       (set-test-unit atoms/game-map "C" :hits 8 :fighter-count 6 :awake-fighters 0)
       (set-test-unit atoms/game-map "a" :hits 1)
       ;; Rolls: 0.6(C hits a:0) -> army dies immediately, carrier unhurt
@@ -271,7 +271,7 @@
       ;; Roll 0.6: defender (carrier) hits attacker (1 damage -> army dies)
       ;; Carrier at 7 hits, capacity 7 >= 6, no drowning.
       ;; Need more damage. Use a stronger attacker.
-      (reset! atoms/game-map (build-test-map ["sC"]))
+      (set-test-world! (build-test-map ["sC"]))
       (set-test-unit atoms/game-map "C" :hits 8 :fighter-count 7 :awake-fighters 0)
       (set-test-unit atoms/game-map "s" :hits 2)
       ;; Rolls: 0.4(sub hits C:5), 0.4(sub hits C:2), 0.6(C hits sub:1), 0.6(C hits sub:0)
@@ -288,10 +288,10 @@
   (context "clear-escort-on-death"
     (it "dead destroyer clears transport's escort-destroyer-id"
       ;; Destroyer at [0,0] paired with transport at [2,0]. Enemy army kills destroyer.
-      (reset! atoms/game-map (build-test-map ["D#Ta"]))
+      (set-test-world! (build-test-map ["D#Ta"]))
       (set-test-unit atoms/game-map "D" :hits 3
                      :escort-transport-id 42 :escort-id 99)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :transport :owner :player :mode :sentry :hits 1
               :transport-id 42 :escort-destroyer-id 99 :army-count 0 :awake-armies 0})
       (set-test-unit atoms/game-map "a" :hits 1)
@@ -304,10 +304,10 @@
 
     (it "dead transport sets paired destroyer to seeking"
       ;; Transport at [0,0] paired with destroyer at [2,0]. Enemy sub kills transport.
-      (reset! atoms/game-map (build-test-map ["T#Ds"]))
+      (set-test-world! (build-test-map ["T#Ds"]))
       (set-test-unit atoms/game-map "T" :hits 1
                      :escort-destroyer-id 77 :army-count 0 :awake-armies 0)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :destroyer :owner :player :mode :moving :hits 3
               :destroyer-id 77 :escort-transport-id 42 :escort-mode :escorting})
       (set-test-unit atoms/game-map "s" :hits 2)
@@ -322,10 +322,10 @@
   (context "clear-carrier-group-on-death"
     (it "dead battleship clears carrier's group-battleship-id"
       ;; Battleship at [0,0] in carrier group. Carrier at [2,0]. Enemy sub kills battleship.
-      (reset! atoms/game-map (build-test-map ["B#Cs"]))
+      (set-test-world! (build-test-map ["B#Cs"]))
       (set-test-unit atoms/game-map "B" :hits 10
                      :escort-carrier-id 55 :escort-id 88)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :carrier :owner :player :mode :sentry :hits 8
               :carrier-id 55 :group-battleship-id 88
               :fighter-count 0 :awake-fighters 0})
@@ -339,10 +339,10 @@
 
     (it "dead submarine removes from carrier's group-submarine-ids"
       ;; Submarine at [0,0] in carrier group. Carrier at [2,0]. Enemy destroyer kills submarine.
-      (reset! atoms/game-map (build-test-map ["S#Cd"]))
+      (set-test-world! (build-test-map ["S#Cd"]))
       (set-test-unit atoms/game-map "S" :hits 2
                      :escort-carrier-id 55 :escort-id 77)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :carrier :owner :player :mode :sentry :hits 8
               :carrier-id 55 :group-submarine-ids [77 99]
               :fighter-count 0 :awake-fighters 0})
@@ -357,11 +357,11 @@
 
     (it "dead carrier releases escorts to seeking"
       ;; Carrier at [0,0] with submarine escort at [2,0]. Enemy sub kills carrier.
-      (reset! atoms/game-map (build-test-map ["C#Ss"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["C#Ss"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :carrier :owner :player :mode :sentry :hits 8
               :carrier-id 55 :fighter-count 0 :awake-fighters 0})
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :submarine :owner :player :mode :moving :hits 2
               :escort-carrier-id 55 :escort-mode :escorting :orbit-angle 0.5})
       (set-test-unit atoms/game-map "s" :hits 2)
@@ -379,9 +379,9 @@
   (context "auto-produce armies on conquest"
     (it "conquered city starts producing armies"
       (with-redefs [rand (constantly 0.1)]
-        (reset! atoms/game-map (build-test-map ["aO"]))
-        (reset! atoms/computer-map @atoms/game-map)
-        (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 3)
+        (set-test-world! (build-test-map ["aO"]))
+        (set-test-computer-map! @atoms/game-map)
+        (update-test-world! assoc-in [0 0 :contents :country-id] 3)
         (computer-core/attempt-conquest-computer [0 0] [1 0])
         ;; City should be computer-owned
         (should= :computer (get-in @atoms/game-map [1 0 :city-status]))
@@ -395,13 +395,13 @@
         ;; Build a wider map with room for 20 armies and the conquering army + city
         ;; With coastal-fill system, army count alone doesn't block production;
         ;; only duplicate production in the same country blocks it
-        (reset! atoms/game-map (build-test-map ["aaaaaaaaaaaaaaaaaaaaO"
+        (set-test-world! (build-test-map ["aaaaaaaaaaaaaaaaaaaaO"
                                                 "a####################"]))
-        (reset! atoms/computer-map @atoms/game-map)
+        (set-test-computer-map! @atoms/game-map)
         ;; Give all 21 armies the same country-id 3
         (doseq [col (range 20)]
-          (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 3))
-        (swap! atoms/game-map assoc-in [0 1 :contents :country-id] 3)
+          (update-test-world! assoc-in [col 0 :contents :country-id] 3))
+        (update-test-world! assoc-in [0 1 :contents :country-id] 3)
         ;; Army at [0 0] conquers city at [20 0]
         (computer-core/attempt-conquest-computer [0 0] [20 0])
         ;; City should be computer-owned
@@ -413,11 +413,11 @@
 
     (it "conquered city does not produce armies when another city in country is already producing"
       (with-redefs [rand (constantly 0.1)]
-        (reset! atoms/game-map (build-test-map ["a#XO"]))
-        (reset! atoms/computer-map @atoms/game-map)
-        (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 3)
+        (set-test-world! (build-test-map ["a#XO"]))
+        (set-test-computer-map! @atoms/game-map)
+        (update-test-world! assoc-in [0 0 :contents :country-id] 3)
         ;; Existing computer city at [2 0] in country 3, already producing armies
-        (swap! atoms/game-map assoc-in [2 0 :country-id] 3)
+        (update-test-world! assoc-in [2 0 :country-id] 3)
         (swap! atoms/production assoc [2 0] {:item :army :remaining-rounds 3})
         ;; Army at [0 0] conquers city at [3 0]
         (computer-core/attempt-conquest-computer [0 0] [3 0])

@@ -7,7 +7,7 @@
             [empire.game-loop :as game-loop]
             [empire.player.orders :as orders]
             [empire.save-load :as save-load]
-            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "key-down :P"
   (before
@@ -23,9 +23,9 @@
 (describe "key-down :space when paused"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["O"]))  ;; Player city so not game over
-    (reset! atoms/player-map (build-test-map ["#"]))
-    (reset! atoms/computer-map (build-test-map ["#"]))
+    (set-test-world! (build-test-map ["O"]))  ;; Player city so not game over
+    (set-test-player-map! (build-test-map ["#"]))
+    (set-test-computer-map! (build-test-map ["#"]))
     (reset! atoms/paused true)
     (reset! atoms/pause-requested false)
     (reset! atoms/backtick-pressed false)
@@ -120,9 +120,9 @@
 (describe "dispatch-key backtick mode"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["#~O"
-                                             "~~~"
-                                             "~~~"]))
+    (set-test-world! (build-test-map ["#~O"
+                                      "~~~"
+                                      "~~~"]))
     (reset! atoms/backtick-pressed true))
 
   (it "places all player unit types"
@@ -139,7 +139,7 @@
       (dispatch/dispatch-key k coords)
       (should= unit-type (:type (:contents (get-in @atoms/game-map coords))))
       (should= :player (:owner (:contents (get-in @atoms/game-map coords))))
-      (swap! atoms/game-map assoc-in (conj coords :contents) nil)))
+      (update-test-world! assoc-in (conj coords :contents) nil)))
 
   (it "places all computer unit types"
     (doseq [[k unit-type coords] [[:a :army [0 0]]
@@ -155,7 +155,7 @@
       (dispatch/dispatch-key k coords)
       (should= unit-type (:type (:contents (get-in @atoms/game-map coords))))
       (should= :computer (:owner (:contents (get-in @atoms/game-map coords))))
-      (swap! atoms/game-map assoc-in (conj coords :contents) nil)))
+      (update-test-world! assoc-in (conj coords :contents) nil)))
 
   (it "claims city for player with :o"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
@@ -177,9 +177,9 @@
 (describe "dispatch-key normal mode mouse commands"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["O~~"
-                                             "~~~"
-                                             "~~~"])))
+    (set-test-world! (build-test-map ["O~~"
+                                      "~~~"
+                                      "~~~"])))
 
   (it ". key sets destination"
     (dispatch/dispatch-key (keyword ".") [1 2])
@@ -282,9 +282,9 @@
 (describe "dispatch-key coverage gaps"
   (around [it]
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["O~~"
-                                             "~~~"
-                                             "~~~"]))
+    (set-test-world! (build-test-map ["O~~"
+                                      "~~~"
+                                      "~~~"]))
     (it))
 
   (it "unknown backtick key places no unit and clears backtick"

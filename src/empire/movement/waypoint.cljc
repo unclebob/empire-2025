@@ -1,6 +1,15 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.waypoint
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn create-waypoint
   "Creates a waypoint at the given coordinates if it's an empty land cell.
@@ -11,13 +20,13 @@
     (cond
       ;; Toggle off existing waypoint
       (:waypoint cell)
-      (do (swap! atoms/game-map update-in [cx cy] dissoc :waypoint)
+      (do (update-game-map! update-in [cx cy] dissoc :waypoint)
           true)
 
       ;; Create waypoint on empty land cell
       (and (= (:type cell) :land)
            (nil? (:contents cell)))
-      (do (swap! atoms/game-map assoc-in [cx cy :waypoint] {})
+      (do (update-game-map! assoc-in [cx cy :waypoint] {})
           true)
 
       :else nil)))
@@ -29,7 +38,7 @@
   (when-let [dest @atoms/destination]
     (let [cell (get-in @atoms/game-map [cx cy])]
       (when (:waypoint cell)
-        (swap! atoms/game-map assoc-in [cx cy :waypoint :marching-orders] dest)
+        (update-game-map! assoc-in [cx cy :waypoint :marching-orders] dest)
         (reset! atoms/destination nil)
         (atoms/set-turn-message (str "Waypoint orders set to " (first dest) "," (second dest)) 2000)
         true))))
@@ -48,6 +57,6 @@
                        (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
                          (recur nx ny)
                          [tx ty])))]
-        (swap! atoms/game-map assoc-in [cx cy :waypoint :marching-orders] target)
+        (update-game-map! assoc-in [cx cy :waypoint :marching-orders] target)
         (atoms/set-turn-message (str "Waypoint orders set to " (first target) "," (second target)) 2000)
         true))))

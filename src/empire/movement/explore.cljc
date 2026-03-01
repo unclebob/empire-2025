@@ -1,10 +1,19 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.explore
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."
@@ -70,10 +79,10 @@
     (if (<= remaining-steps 0)
       ;; Wake up after 50 steps
       (do
-        (swap! atoms/game-map assoc-in coords
-               (assoc cell :contents (-> unit
-                                         (assoc :mode :awake)
-                                         (dissoc :explore-steps :visited))))
+        (update-game-map! assoc-in coords
+                          (assoc cell :contents (-> unit
+                                                    (assoc :mode :awake)
+                                                    (dissoc :explore-steps :visited))))
         nil)
       ;; Try to move (return nil to limit to one step per round)
       (if-let [next-pos (pick-explore-move coords atoms/game-map visited)]
@@ -86,16 +95,16 @@
                            (-> unit
                                (assoc :explore-steps remaining-steps)
                                (assoc :visited (conj visited next-pos))))]
-          (swap! atoms/game-map assoc-in coords (dissoc cell :contents))
-          (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
+          (update-game-map! assoc-in coords (dissoc cell :contents))
+          (update-game-map! assoc-in next-pos (assoc next-cell :contents moved-unit))
           (visibility/update-cell-visibility next-pos (:owner unit))
           nil)
         ;; Stuck - wake up
         (do
-          (swap! atoms/game-map assoc-in coords
-                 (assoc cell :contents (-> unit
-                                           (assoc :mode :awake)
-                                           (dissoc :explore-steps :visited))))
+          (update-game-map! assoc-in coords
+                            (assoc cell :contents (-> unit
+                                                      (assoc :mode :awake)
+                                                      (dissoc :explore-steps :visited))))
           nil)))))
 
 (defn set-explore-mode
@@ -108,4 +117,4 @@
                                 :explore-steps config/explore-steps
                                 :visited #{coords})
                          (dissoc :reason :target))]
-    (swap! atoms/game-map assoc-in coords (assoc cell :contents updated-unit))))
+    (update-game-map! assoc-in coords (assoc cell :contents updated-unit))))

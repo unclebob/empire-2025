@@ -3,6 +3,8 @@
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
@@ -11,6 +13,13 @@
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn dead-unit? [contents]
   (and contents (<= (:hits contents 1) 0)))
@@ -28,7 +37,7 @@
           :when (dead-unit? contents)]
     (when (computer-carrier? contents)
       (swap! atoms/computer-carrier-positions disj [i j]))
-    (swap! atoms/game-map assoc-in [i j] (dissoc cell :contents))
+    (update-game-map! assoc-in [i j] (dissoc cell :contents))
     (visibility/update-cell-visibility [i j] (:owner contents))))
 
 (defn reset-steps-remaining
@@ -40,7 +49,7 @@
                 unit (:contents cell)]
           :when (and unit (= (:owner unit) :player))]
     (let [steps (or (dispatcher/effective-speed (:type unit) (:hits unit)) 1)]
-      (swap! atoms/game-map assoc-in [i j :contents :steps-remaining] steps))))
+      (update-game-map! assoc-in [i j :contents :steps-remaining] steps))))
 
 (defn wake-airport-fighters
   "Wakes all fighters in player city airports at start of round.
@@ -54,7 +63,7 @@
                      (= (:city-status cell) :player)
                      (pos? (uc/get-count cell :fighter-count)))]
     (let [total (uc/get-count cell :fighter-count)]
-      (swap! atoms/game-map assoc-in [i j :awake-fighters] total))))
+      (update-game-map! assoc-in [i j :awake-fighters] total))))
 
 (defn wake-carrier-fighters
   "Wakes all fighters on player carriers at start of round.
@@ -70,7 +79,7 @@
                      (= :player (:owner unit))
                      (pos? (uc/get-count unit :fighter-count)))]
     (let [total (uc/get-count unit :fighter-count)]
-      (swap! atoms/game-map assoc-in [i j :contents :awake-fighters] total))))
+      (update-game-map! assoc-in [i j :contents :awake-fighters] total))))
 
 (defn- bingo-fuel? [pos new-fuel]
   (let [threshold (quot config/fighter-fuel config/bingo-fuel-divisor)]
@@ -87,12 +96,12 @@
 (defn- apply-fuel-action [pos action new-fuel]
   (case action
     :crashed (do (atoms/set-error-message (:fighter-crashed config/messages) config/error-message-duration)
-                 (swap! atoms/game-map assoc-in (conj pos :contents :hits) 0))
-    :out-of-fuel (swap! atoms/game-map update-in (conj pos :contents)
-                        #(assoc % :fuel new-fuel :mode :awake :reason :fighter-out-of-fuel))
-    :bingo (swap! atoms/game-map update-in (conj pos :contents)
-                  #(assoc % :fuel new-fuel :mode :awake :reason :fighter-bingo))
-    :burn (swap! atoms/game-map assoc-in (conj pos :contents :fuel) new-fuel)))
+                 (update-game-map! assoc-in (conj pos :contents :hits) 0))
+    :out-of-fuel (update-game-map! update-in (conj pos :contents)
+                                   #(assoc % :fuel new-fuel :mode :awake :reason :fighter-out-of-fuel))
+    :bingo (update-game-map! update-in (conj pos :contents)
+                             #(assoc % :fuel new-fuel :mode :awake :reason :fighter-bingo))
+    :burn (update-game-map! assoc-in (conj pos :contents :fuel) new-fuel)))
 
 (defn consume-sentry-fighter-fuel
   "Consumes fuel for sentry fighters each round, applying fuel warnings."
@@ -118,8 +127,8 @@
                      (= :player (:owner unit))
                      (= :sentry (:mode unit))
                      (wake/enemy-unit-visible? unit [i j] atoms/game-map))]
-    (swap! atoms/game-map update-in [i j :contents]
-           #(assoc % :mode :awake :reason :enemy-spotted))))
+    (update-game-map! update-in [i j :contents]
+                      #(assoc % :mode :awake :reason :enemy-spotted))))
 
 (defn- find-satellite-coords
   "Returns coordinates of all satellites on the map.
@@ -148,7 +157,7 @@
 
         ;; Satellite expired
         (<= (:turns-remaining satellite 0) 0)
-        (do (swap! atoms/game-map update-in coords dissoc :contents)
+        (do (update-game-map! update-in coords dissoc :contents)
             (visibility/update-cell-visibility coords (:owner satellite))
             nil)
 
@@ -156,10 +165,10 @@
         (zero? steps-left)
         (let [new-turns (dec (:turns-remaining satellite 1))]
           (if (<= new-turns 0)
-            (do (swap! atoms/game-map update-in coords dissoc :contents)
+            (do (update-game-map! update-in coords dissoc :contents)
                 (visibility/update-cell-visibility coords (:owner satellite))
                 nil)
-            (do (swap! atoms/game-map assoc-in (conj coords :contents :turns-remaining) new-turns)
+            (do (update-game-map! assoc-in (conj coords :contents :turns-remaining) new-turns)
                 coords)))
 
         ;; Move one step
@@ -190,7 +199,7 @@
     (when (seq shipyard)
       ;; First, repair all ships
       (let [repaired-ships (mapv uc/repair-ship shipyard)]
-        (swap! atoms/game-map assoc-in (conj city-coords :shipyard) repaired-ships))
+        (update-game-map! assoc-in (conj city-coords :shipyard) repaired-ships))
       ;; Then, launch fully repaired ships
       ;; Process from end to avoid index shifting issues
       (let [updated-cell (get-in @atoms/game-map city-coords)

@@ -2,10 +2,19 @@
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
@@ -73,8 +82,8 @@
         (visibility/update-cell-visibility pos :computer)
         (visibility/update-cell-visibility target :computer)
         (when switch?
-          (swap! atoms/game-map assoc-in
-                 (conj target :contents :patrol-mode) :exploring))
+          (update-game-map! assoc-in
+                            (conj target :contents :patrol-mode) :exploring))
         target))))
 
 (defn- arrived-at-unseen-coast?
@@ -93,15 +102,15 @@
   (when-let [path (pathfinding-bfs/bfs-to-unseen-coast
                     pos @atoms/computer-map @atoms/claimed-patrol-targets)]
     (swap! atoms/claimed-patrol-targets conj (last path))
-    (swap! atoms/game-map assoc-in
-           (conj pos :contents :explore-path) (vec path))
+    (update-game-map! assoc-in
+                      (conj pos :contents :explore-path) (vec path))
     path))
 
 (defn- switch-to-crawling [next-pos]
   "Switch patrol boat to crawling mode and clear explore state."
-  (swap! atoms/game-map update-in (conj next-pos :contents)
-         #(-> % (assoc :patrol-mode :crawling)
-              (dissoc :explore-path))))
+  (update-game-map! update-in (conj next-pos :contents)
+                    #(-> % (assoc :patrol-mode :crawling)
+                         (dissoc :explore-path))))
 
 (defn- follow-explore-path
   "Take one step along stored BFS path. Returns new pos or nil."
@@ -113,11 +122,11 @@
           (visibility/update-cell-visibility next-pos :computer)
           (if (arrived-at-unseen-coast? next-pos)
             (switch-to-crawling next-pos)
-            (swap! atoms/game-map assoc-in
-                   (conj next-pos :contents :explore-path) rest-path))
+            (update-game-map! assoc-in
+                              (conj next-pos :contents :explore-path) rest-path))
           next-pos)
-      (do (swap! atoms/game-map update-in
-                 (conj pos :contents) dissoc :explore-path)
+      (do (update-game-map! update-in
+                            (conj pos :contents) dissoc :explore-path)
           nil))))
 
 (defn- generate-random-sea-walk
@@ -137,8 +146,8 @@
   "Generates a random sea walk and stores it as explore-path on the unit."
   [pos]
   (when-let [path (generate-random-sea-walk pos 10)]
-    (swap! atoms/game-map assoc-in
-           (conj pos :contents :explore-path) (vec path))
+    (update-game-map! assoc-in
+                      (conj pos :contents :explore-path) (vec path))
     path))
 
 (defn patrol-explore-step

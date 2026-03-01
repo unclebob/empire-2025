@@ -3,9 +3,18 @@
 (ns empire.computer.ship-escort
   "Computer destroyer escort and shared pursuit logic."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn find-carrier-by-id
   "Finds the position of a carrier with the given carrier-id."
@@ -69,17 +78,17 @@
   [pos]
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         return-mode (if (:escort-carrier-id unit) :orbiting :escorting)]
-    (swap! atoms/game-map update-in (conj pos :contents)
-           #(-> % (assoc :escort-mode return-mode)
-                (dissoc :pursuit-target :pursuit-steps-remaining)))))
+    (update-game-map! update-in (conj pos :contents)
+                      #(-> % (assoc :escort-mode return-mode)
+                           (dissoc :pursuit-target :pursuit-steps-remaining)))))
 
 (defn begin-pursuit
   "Switches an escort ship to pursuing mode, targeting the enemy."
   [pos enemy-pos]
-  (swap! atoms/game-map update-in (conj pos :contents)
-         assoc :escort-mode :pursuing
-               :pursuit-target enemy-pos
-               :pursuit-steps-remaining 5)
+  (update-game-map! update-in (conj pos :contents)
+                    assoc :escort-mode :pursuing
+                    :pursuit-target enemy-pos
+                    :pursuit-steps-remaining 5)
   (ship-core/move-toward pos enemy-pos))
 
 (defn process-pursuit
@@ -101,9 +110,9 @@
       (let [chosen (rand-nth (vec sea-candidates))
             new-pos (ship-core/move-toward pos chosen)]
         (when new-pos
-          (swap! atoms/game-map update-in (conj new-pos :contents)
-                 assoc :pursuit-target chosen
-                       :pursuit-steps-remaining (dec steps)))))))
+          (update-game-map! update-in (conj new-pos :contents)
+                            assoc :pursuit-target chosen
+                            :pursuit-steps-remaining (dec steps)))))))
 
 ;; --- Destroyer-specific escort ---
 
@@ -130,10 +139,10 @@
         transport (get-in @atoms/game-map (conj transport-pos :contents))
         d-id (:destroyer-id destroyer)
         t-id (:transport-id transport)]
-    (swap! atoms/game-map update-in (conj pos :contents)
-           #(assoc % :escort-transport-id t-id :escort-mode :intercepting))
-    (swap! atoms/game-map update-in (conj transport-pos :contents)
-           #(assoc % :escort-destroyer-id d-id))))
+    (update-game-map! update-in (conj pos :contents)
+                      #(assoc % :escort-transport-id t-id :escort-mode :intercepting))
+    (update-game-map! update-in (conj transport-pos :contents)
+                      #(assoc % :escort-destroyer-id d-id))))
 
 (defn- find-enemy-near-destroyer-group
   "Finds a player ship adjacent to destroyer or its escorted transport."
@@ -146,9 +155,9 @@
 (defn- revert-destroyer-to-seeking
   "Reverts a destroyer escort to seeking mode, clearing transport reference."
   [pos]
-  (swap! atoms/game-map update-in (conj pos :contents)
-         #(-> % (assoc :escort-mode :seeking)
-              (dissoc :escort-transport-id)))
+  (update-game-map! update-in (conj pos :contents)
+                    #(-> % (assoc :escort-mode :seeking)
+                         (dissoc :escort-transport-id)))
   nil)
 
 (defn- process-destroyer-seeking [pos]
@@ -159,8 +168,8 @@
 (defn- process-destroyer-intercepting [pos unit]
   (if-let [transport-pos (find-transport-by-id (:escort-transport-id unit))]
     (if (<= (core/distance pos transport-pos) 1)
-      (swap! atoms/game-map update-in (conj pos :contents)
-             assoc :escort-mode :escorting)
+      (update-game-map! update-in (conj pos :contents)
+                        assoc :escort-mode :escorting)
       (ship-core/move-toward pos transport-pos))
     (revert-destroyer-to-seeking pos)))
 

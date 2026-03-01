@@ -2,12 +2,21 @@
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.threat :as threat]
             [empire.containers.helpers :as uc]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn get-passable-sea-neighbors
   "Returns passable sea neighbors for a ship."
@@ -41,10 +50,10 @@
         defender (get-in @atoms/game-map (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)
         dead-unit (if (= :attacker (:winner result)) defender attacker)]
-    (swap! atoms/game-map update-in ship-pos dissoc :contents)
+    (update-game-map! update-in ship-pos dissoc :contents)
     (if (= :attacker (:winner result))
       (do
-        (swap! atoms/game-map assoc-in (conj enemy-pos :contents) (:survivor result))
+        (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
         (when (= :carrier (:type attacker))
           (swap! atoms/computer-carrier-positions disj ship-pos)
           (swap! atoms/computer-carrier-positions conj enemy-pos))
@@ -124,7 +133,7 @@
         unit (:contents cell)
         city-cell (get-in @atoms/game-map city-pos)
         updated-city (uc/add-ship-to-shipyard city-cell (:type unit) (:hits unit))]
-    (swap! atoms/game-map assoc-in ship-pos (dissoc cell :contents))
-    (swap! atoms/game-map assoc-in city-pos updated-city)
+    (update-game-map! assoc-in ship-pos (dissoc cell :contents))
+    (update-game-map! assoc-in city-pos updated-city)
     (visibility/update-cell-visibility city-pos :computer)
     city-pos))

@@ -3,8 +3,17 @@
    Checks the FIFO queue of discovered free cities and assigns the nearest
    qualifying transport to invade each target."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- find-sailing-transports
   "Returns list of [pos transport] for computer transports in sailing mode
@@ -45,12 +54,12 @@
           (if path
             (do
               ;; Assign transport to invading mode
-              (swap! atoms/game-map assoc-in
-                     (conj tpos :contents :transport-mission) :invading)
-              (swap! atoms/game-map assoc-in
-                     (conj tpos :contents :invasion-target) target)
-              (swap! atoms/game-map assoc-in
-                     (conj tpos :contents :invasion-path) (vec path))
+              (update-game-map! assoc-in
+                                (conj tpos :contents :transport-mission) :invading)
+              (update-game-map! assoc-in
+                                (conj tpos :contents :invasion-target) target)
+              (update-game-map! assoc-in
+                                (conj tpos :contents :invasion-path) (vec path))
               ;; Remove target from queue
               (swap! atoms/land-ho-targets #(vec (rest %))))
             ;; BFS failed -- move target to end of queue

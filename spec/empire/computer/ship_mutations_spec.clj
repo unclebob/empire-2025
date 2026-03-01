@@ -5,7 +5,7 @@
             [empire.computer.core :as core]
             [empire.config :as config]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-unit]]
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.containers.helpers :as uc]
             [empire.combat :as combat]
             [empire.computer.threat :as threat]))
@@ -21,12 +21,12 @@
                          (= j 0) {:type :city :city-status :computer}
                          (= j fuel) {:type :city :city-status :computer}
                          :else {:type :sea})))]
-        (reset! atoms/game-map [row])
+        (set-test-world! [row])
         (should (empty? (ship/compute-distant-city-pairs))))))
 
   (context "find-unreserved-pair lazy init (L511)"
     (it "initializes distant-city-pairs when nil"
-      (reset! atoms/game-map (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
+      (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
       (reset! atoms/distant-city-pairs nil)
       (let [pair (ship/find-unreserved-pair)]
@@ -40,7 +40,7 @@
                                (= c 10) {:type :city :city-status :computer}
                                (= c 50) {:type :city :city-status :computer}
                                :else {:type :sea})]))]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (let [pos (ship/find-position-between-cities #{[10 0] [50 0]})]
           (should-not-be-nil pos)
           ;; Should be near midpoint col 30, not near col 18
@@ -53,7 +53,7 @@
                          (= r 10) {:type :city :city-status :computer}
                          (= r 50) {:type :city :city-status :computer}
                          :else {:type :sea})))]
-        (reset! atoms/game-map [col])
+        (set-test-world! [col])
         (let [pos (ship/find-position-between-cities #{[0 10] [0 50]})]
           (should-not-be-nil pos)
           ;; Should be near midpoint row 30, not near row 18
@@ -66,32 +66,32 @@
                          (= j 0) {:type :city :city-status :computer}
                          (= j (* 2 fuel)) {:type :city :city-status :computer}
                          :else {:type :sea})))]
-        (reset! atoms/game-map [row])
+        (set-test-world! [row])
         (let [pos (ship/find-position-between-cities #{[0 0] [0 (* 2 fuel)]})]
           (should-not-be-nil pos)
           (should= [0 fuel] pos)))))
 
   (context "find-refueling-sites (L547-L551)"
     (it "includes computer cities"
-      (reset! atoms/game-map [[{:type :city :city-status :computer} {:type :sea}]])
+      (set-test-world! [[{:type :city :city-status :computer} {:type :sea}]])
       (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "excludes player cities"
-      (reset! atoms/game-map [[{:type :city :city-status :player} {:type :sea}]])
+      (set-test-world! [[{:type :city :city-status :player} {:type :sea}]])
       (should (empty? (ship/find-refueling-sites))))
 
     (it "includes holding computer carriers"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :computer
+      (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer
                                                        :carrier-mode :holding}} {:type :sea}]])
       (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "includes positioning computer carriers"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :computer
+      (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer
                                                        :carrier-mode :positioning}} {:type :sea}]])
       (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "excludes player carriers"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :carrier :owner :player
+      (set-test-world! [[{:type :sea :contents {:type :carrier :owner :player
                                                        :carrier-mode :holding}} {:type :sea}]])
       (should (empty? (ship/find-refueling-sites)))))
 
@@ -105,15 +105,15 @@
                                                             :carrier-pair #{[0 0] [0 59]}}}
                            (= j 59) {:type :city :city-status :computer}
                            :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 30] :carrier)
         (should= :holding (get-in @atoms/game-map [0 30 :contents :carrier-mode])))))
 
   (context "carrier submarine slot cap (L689)"
     (it "submarine does not adopt carrier with 2 existing subs"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2
+      (set-test-world! [[{:type :sea :contents {:type :submarine :owner :computer :hits 2
                                                        :escort-id 3 :escort-mode :seeking}}
                                 {:type :sea}
                                 {:type :sea}
@@ -121,7 +121,7 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids [1 2]}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (ship/process-ship [0 0] :submarine)
       (let [sub (first (for [c (range 4)
                              :let [unit (get-in @atoms/game-map [0 c :contents])]
@@ -131,7 +131,7 @@
 
   (context "initial-orbit-angle (L698, L700)"
     (it "battleship starts with orbit-angle 0"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :battleship :owner :computer :hits 8
+      (set-test-world! [[{:type :sea :contents {:type :battleship :owner :computer :hits 8
                                                        :escort-id 1 :escort-mode :seeking}}
                                 {:type :sea}
                                 {:type :sea}
@@ -139,7 +139,7 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids []}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (ship/process-ship [0 0] :battleship)
       (let [bb (first (for [c (range 4)
                             :let [unit (get-in @atoms/game-map [0 c :contents])]
@@ -148,7 +148,7 @@
         (should= 0 (:orbit-angle bb))))
 
     (it "first submarine starts with orbit-angle 5"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2
+      (set-test-world! [[{:type :sea :contents {:type :submarine :owner :computer :hits 2
                                                        :escort-id 2 :escort-mode :seeking}}
                                 {:type :sea}
                                 {:type :sea}
@@ -156,7 +156,7 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids []}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (ship/process-ship [0 0] :submarine)
       (let [sub (first (for [c (range 4)
                              :let [unit (get-in @atoms/game-map [0 c :contents])]
@@ -165,7 +165,7 @@
         (should= 5 (:orbit-angle sub))))
 
     (it "second submarine starts with orbit-angle 11"
-      (reset! atoms/game-map [[{:type :sea :contents {:type :submarine :owner :computer :hits 2
+      (set-test-world! [[{:type :sea :contents {:type :submarine :owner :computer :hits 2
                                                        :escort-id 3 :escort-mode :seeking}}
                                 {:type :sea}
                                 {:type :sea}
@@ -173,7 +173,7 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids [2]}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (ship/process-ship [0 0] :submarine)
       (let [sub (first (for [c (range 4)
                              :let [unit (get-in @atoms/game-map [0 c :contents])]
@@ -193,13 +193,13 @@
                                       "~#~~~~~"
                                       "~~~~~~~"
                                       "~~~~~~~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [3 3 :contents]
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
+        (update-test-world! assoc-in [3 3 :contents]
                {:type :carrier :owner :computer :hits 8
                 :carrier-id 1 :carrier-mode :holding
                 :group-battleship-id 1 :group-submarine-ids []})
-        (swap! atoms/game-map assoc-in [1 3 :contents]
+        (update-test-world! assoc-in [1 3 :contents]
                {:type :battleship :owner :computer :hits 8
                 :escort-id 1 :escort-mode :orbiting
                 :escort-carrier-id 1 :orbit-angle 2})

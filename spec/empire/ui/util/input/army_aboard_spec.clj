@@ -5,14 +5,14 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.game-loop :as game-loop]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "handle-army-aboard-movement"
   (before (reset-all-atoms!))
 
   (context "disembark to empty land (not extended)"
     (it "calls disembark-army-from-transport and item-processed"
-      (reset! atoms/game-map (build-test-map ["t#"]))
+      (set-test-world! (build-test-map ["t#"]))
       (let [disembarked (atom nil)
             processed (atom false)]
         (with-redefs [container-ops/disembark-army-from-transport
@@ -25,7 +25,7 @@
 
   (context "disembark with extended target"
     (it "calls disembark-army-with-target and item-processed"
-      (reset! atoms/game-map (build-test-map ["t#"]))
+      (set-test-world! (build-test-map ["t#"]))
       (let [disembarked (atom nil)
             processed (atom false)]
         (with-redefs [container-ops/disembark-army-with-target
@@ -38,7 +38,7 @@
 
   (context "conquest of hostile city"
     (it "removes army and attempts city conquest"
-      (reset! atoms/game-map (build-test-map ["tX"]))
+      (set-test-world! (build-test-map ["tX"]))
       (let [removed (atom false)
             conquered (atom nil)
             processed (atom false)]
@@ -55,7 +55,7 @@
 
   (context "ignore (target is sea or occupied land)"
     (it "takes no action and returns true"
-      (reset! atoms/game-map (build-test-map ["t~"]))
+      (set-test-world! (build-test-map ["t~"]))
       (let [processed (atom false)]
         (with-redefs [game-loop/item-processed (fn [] (reset! processed true))]
           (let [result (#'actions/handle-army-aboard-movement [0 0] [1 0] [1 0] false

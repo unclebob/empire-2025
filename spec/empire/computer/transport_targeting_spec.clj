@@ -7,7 +7,8 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map!
+                                       set-test-world! update-test-world!]]))
 
 (describe "process-transport"
   (before (reset-all-atoms!))
@@ -24,8 +25,8 @@
                                       "~~~"
                                       "O##"
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target (transport/find-unload-target pickup-continent [1 1])]
@@ -39,8 +40,8 @@
                                       "~~~"
                                       "+##"
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target (transport/find-unload-target pickup-continent [1 1])]
@@ -55,8 +56,8 @@
                                       "~~~"
                                       "O##"
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target (transport/find-unload-target pickup-continent [1 1])]
@@ -76,8 +77,8 @@
                                       "~~~"
                                       "O##"
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target1 (transport/find-unload-target pickup-continent [1 2])
@@ -94,8 +95,8 @@
                                       "~~~"
                                       "O##"
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target1 (transport/find-unload-target pickup-continent [2 1])
@@ -115,8 +116,8 @@
                                       "~~~"
                                       "O##"  ;; continent without computer city
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target (transport/find-unload-target pickup-continent [2 1])]
@@ -134,8 +135,8 @@
                                       "~~~"
                                       "O##"   ;; farther target
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               ;; Transport at row 1 is closer to city at row 2 than row 7
@@ -147,14 +148,14 @@
       ;; Transport from city (country-id 1), loaded from country-id 5.
       ;; pcp cleared (nil). Adjacent land has country-id 5.
       ;; Should NOT unload because pickup-country-id 5 should be excluded.
-      (reset! atoms/game-map [[{:type :land :country-id 5}
+      (set-test-world! [[{:type :land :country-id 5}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :sailing :army-count 6
                                                         :sail-path [[0 2]]
                                                         :country-id 1
                                                         :pickup-country-id 5}}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (transport/process-transport [0 1])
       (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
 
@@ -166,14 +167,14 @@
                                       "~~~"
                                       "~~~"
                                       "~~~"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (doseq [c (range 3)]
-          (swap! atoms/game-map assoc-in [c 0 :country-id] 7))
-        (reset! atoms/computer-map
+          (update-test-world! assoc-in [c 0 :country-id] 7))
+        (set-test-computer-map!
                 (vec (for [c (range 3)]
                        (vec (for [r (range 5)]
                               (if (< r 4) (get-in game-map [c r]) nil))))))
-        (swap! atoms/game-map assoc-in [1 1 :contents]
+        (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6})
         (transport/process-transport [1 1])
@@ -200,9 +201,9 @@
                                       "~~~~~"
                                       "O####"
                                       "#####"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [3 2 :contents]
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
+        (update-test-world! assoc-in [3 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :pickup-continent-pos [0 1]})
@@ -223,14 +224,14 @@
                                       "~~t~~"
                                       "~~~~~"
                                       "~~~~~"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (doseq [c (range 5) r (range 2)]
-          (swap! atoms/game-map assoc-in [c r :country-id] 1))
-        (reset! atoms/computer-map
+          (update-test-world! assoc-in [c r :country-id] 1))
+        (set-test-computer-map!
                 (vec (for [c (range 5)]
                        (vec (for [r (range 5)]
                               (if (< r 3) (get-in @atoms/game-map [c r]) nil))))))
-        (swap! atoms/game-map assoc-in [2 2 :contents]
+        (update-test-world! assoc-in [2 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :country-id 1
@@ -248,12 +249,12 @@
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map
+        (set-test-world! game-map)
+        (set-test-computer-map!
                 (vec (for [c (range 5)]
                        (vec (for [r (range 3)]
                               (if (< r 2) {:type :sea} nil))))))
-        (swap! atoms/game-map assoc-in [2 1 :contents]
+        (update-test-world! assoc-in [2 1 :contents]
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :unload-target-city [0 5]})
@@ -267,12 +268,12 @@
     (it "unload-target-city cleared when transport transitions to loading"
       ;; Transport with 1 army unloads completely, transitioning to loading.
       ;; The stored unload-target-city should be cleared.
-      (reset! atoms/game-map [[{:type :land}
+      (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
                                                         :army-count 1
                                                         :unload-target-city [0 0]}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (transport/process-transport [0 1])
       (let [transport (:contents (get-in @atoms/game-map [0 1]))]
         (should= :loading (:transport-mission transport))
@@ -288,12 +289,12 @@
                                       "~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map
+        (set-test-world! game-map)
+        (set-test-computer-map!
                 (vec (for [c (range 5)]
                        (vec (for [r (range 5)]
                               (if (< r 3) {:type :sea} nil))))))
-        (swap! atoms/game-map assoc-in [2 2 :contents]
+        (update-test-world! assoc-in [2 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :pickup-continent-pos [0 1]})
@@ -313,12 +314,12 @@
                                       "~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map
+        (set-test-world! game-map)
+        (set-test-computer-map!
                 (vec (for [c (range 5)]
                        (vec (for [r (range 5)]
                               (if (< r 3) {:type :sea} nil))))))
-        (swap! atoms/game-map assoc-in [2 2 :contents]
+        (update-test-world! assoc-in [2 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
 })
@@ -337,15 +338,15 @@
                                       "~~~"
                                       "~~~"
                                       "~~~"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         ;; Row 4 unexplored
-        (reset! atoms/computer-map
+        (set-test-computer-map!
                 (vec (for [c (range 3)]
                        (vec (for [r (range 5)]
                               (if (< r 4)
                                 (get-in game-map [c r])
                                 nil))))))
-        (swap! atoms/game-map assoc-in [1 3 :contents]
+        (update-test-world! assoc-in [1 3 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
 })
@@ -363,12 +364,12 @@
       ;; Transport adjacent to two armies: country-1 (recently unloaded) and country-2.
       ;; Should only load the country-2 army during auto-load.
       (reset! atoms/round-number 10)
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :country-id 1}}
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :country-id 1}}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :loading :army-count 0
                                                         :unloaded-countries {1 5}}}
                                 {:type :land :contents {:type :army :owner :computer :country-id 2}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (transport/process-transport [0 1])
       ;; Country-1 army should still be on land (skipped by filter)
       (should= :army (get-in @atoms/game-map [0 0 :contents :type]))
@@ -385,12 +386,12 @@
       ;; Same as avoidance test but round 20 (15 rounds since unload at round 5 - expired).
       ;; Country-1 army should now be loadable again.
       (reset! atoms/round-number 20)
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :country-id 1}}
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :country-id 1}}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :loading :army-count 0
                                                         :unloaded-countries {1 5}}}
                                 {:type :land :contents {:type :army :owner :computer :country-id 2}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (transport/process-transport [0 1])
       ;; Both armies should be loaded (exclusion expired)
       (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
@@ -404,13 +405,13 @@
 
     (it "armies with no country-id are not filtered"
       (reset! atoms/round-number 10)
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer}}
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer}}
                                 {:type :sea}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :loading :army-count 0
                                                         :unloaded-countries {1 5}}}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (transport/process-transport [0 2])
       ;; Should move toward army (no country-id, not filtered)
       (let [transport-pos (first (for [c (range 4)
@@ -420,12 +421,12 @@
 
     (it "records unloaded country-id on unload"
       (reset! atoms/round-number 15)
-      (reset! atoms/game-map [[{:type :land :country-id 3}
+      (set-test-world! [[{:type :land :country-id 3}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
                                                         :army-count 1}}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (transport/process-transport [0 1])
       (let [transport (:contents (get-in @atoms/game-map [0 1]))]
         (should= 15 (get-in transport [:unloaded-countries 3]))))
@@ -433,7 +434,7 @@
     (it "adjacent-to-pickup-continent? distance fallback at boundary (L22)"
       ;; When pcp has no country-id, falls back to distance <= 2.
       ;; pos at distance 2 should return true; distance 3 should return false.
-      (reset! atoms/game-map [[{:type :land} {:type :sea} {:type :sea} {:type :sea}]])
+      (set-test-world! [[{:type :land} {:type :sea} {:type :sea} {:type :sea}]])
       ;; pcp at [0 0] has no country-id
       (should (targeting/adjacent-to-pickup-continent? [0 2] [0 0]))
       (should-not (targeting/adjacent-to-pickup-continent? [0 3] [0 0])))
@@ -450,8 +451,8 @@
                                       "~~~"
                                       "O##"  ;; far player city
                                       "###"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (reset! atoms/claimed-transport-targets #{})
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])
               target (transport/find-unload-target pickup-continent [1 1])]
@@ -462,13 +463,13 @@
       (let [game-map (build-test-map ["a~a"
                                       "~t~"
                                       "~~~"])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map (build-test-map ["a~a"
+        (set-test-world! game-map)
+        (set-test-computer-map! (build-test-map ["a~a"
                                                     "~t~"
                                                     "~~-"]))
-        (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
-        (swap! atoms/game-map assoc-in [2 0 :contents :country-id] 1)
-        (swap! atoms/game-map assoc-in [1 1 :contents]
+        (update-test-world! assoc-in [0 0 :contents :country-id] 1)
+        (update-test-world! assoc-in [2 0 :contents :country-id] 1)
+        (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 0
                 :unloaded-countries {1 5}})

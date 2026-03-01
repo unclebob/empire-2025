@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "set-error-message"
   (before (reset-all-atoms!))
@@ -53,46 +53,46 @@
 
   (it "populates computer-city-positions from game map"
     (let [game-map (build-test-map ["X~O"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{[0 0]} @atoms/computer-city-positions)))
 
   (it "populates computer-carrier-positions from game map"
     (let [game-map (build-test-map ["c~C"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{[0 0]} @atoms/computer-carrier-positions)))
 
   (it "finds both cities and carriers"
     (let [game-map (build-test-map ["X~c"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{[0 0]} @atoms/computer-city-positions)
       (should= #{[2 0]} @atoms/computer-carrier-positions)))
 
   (it "ignores player cities and carriers"
     (let [game-map (build-test-map ["O~C"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{} @atoms/computer-city-positions)
       (should= #{} @atoms/computer-carrier-positions)))
 
   (it "returns empty sets for empty map"
     (let [game-map (build-test-map ["~~"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{} @atoms/computer-city-positions)
       (should= #{} @atoms/computer-carrier-positions)))
 
   (it "finds multiple computer cities"
     (let [game-map (build-test-map ["X~X"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{[0 0] [2 0]} @atoms/computer-city-positions)))
 
   (it "ignores free cities"
     (let [game-map (build-test-map ["+~X"])]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       (atoms/rebuild-refueling-caches!)
       (should= #{[2 0]} @atoms/computer-city-positions))))
 

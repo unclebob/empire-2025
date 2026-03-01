@@ -3,13 +3,13 @@
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.atoms :as atoms]
             [empire.save-load :as save-load]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "mouse-down"
   (before (reset-all-atoms!)
-          (reset! atoms/game-map (build-test-map ["O##"
-                                                   "###"
-                                                   "###"]))
+          (set-test-world! (build-test-map ["O##"
+                                            "###"
+                                            "###"]))
           (reset! atoms/map-screen-dimensions [300 300]))
 
   (context "when load menu is open"

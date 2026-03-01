@@ -7,7 +7,7 @@
             [empire.computer.stamping :as stamping]
             [empire.combat :as combat]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "army stamping and territory"
   (before (reset-all-atoms!))
@@ -54,7 +54,7 @@
 
   (context "stamp-territory on cities"
     (it "stamps city cell with army's country-id"
-      (reset! atoms/game-map [[{:type :city :city-status :computer}]])
+      (set-test-world! [[{:type :city :city-status :computer}]])
       (let [army {:type :army :owner :computer :country-id 5}]
         (core/stamp-territory [0 0] army)
         (should= 5 (:country-id (get-in @atoms/game-map [0 0])))))))
@@ -66,8 +66,8 @@
 
   (context "attack-enemy deterministic combat (L115)"
     (it "attacker wins — moves to enemy position"
-      (reset! atoms/game-map (build-test-map ["aA#"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-world! (build-test-map ["aA#"]))
+      (set-test-computer-map! @atoms/game-map)
       (with-redefs [combat/resolve-combat
                     (fn [atk _def] {:winner :attacker :survivor atk})]
         (army/process-army [0 0]))
@@ -78,8 +78,8 @@
       (should-be-nil (get-in @atoms/game-map [0 0 :contents])))
 
     (it "attacker loses — removed from map"
-      (reset! atoms/game-map (build-test-map ["aA#"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-world! (build-test-map ["aA#"]))
+      (set-test-computer-map! @atoms/game-map)
       (with-redefs [combat/resolve-combat
                     (fn [_atk def] {:winner :defender :survivor def})]
         (army/process-army [0 0]))
@@ -97,9 +97,9 @@
       ;; Targets player city first → army moves LEFT toward [0 0].
       ;; With L142 mutation (= → not=): player-cities filter broken → empty.
       ;; Falls to free-cities → army moves RIGHT toward [4 0].
-      (reset! atoms/game-map (build-test-map ["O#a#+"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (set-test-world! (build-test-map ["O#a#+"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
       (army/process-army [2 0])
       ;; Army should have moved toward player city (left, to [1 0])
@@ -122,9 +122,9 @@
       ;; find-city-objective → target [0 0] → step to [1 0].
       ;; With mutation: no target → explore-randomly → might pick [1 0] or [3 0].
       ;; Mock rand-nth to pick last → would pick [3 0] with explore.
-      (reset! atoms/game-map (build-test-map ["+#a#"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (set-test-world! (build-test-map ["+#a#"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
       (with-redefs [rand-nth last]
         (army/process-army [2 0]))
@@ -136,9 +136,9 @@
       ;; Army at center, free city far left. All cities pre-claimed → fallback min-key.
       ;; "+##a##" → col0=free, col1-2=land, col3=army, col4-5=land
       ;; Army at [3 0], city at [0 0] (distance 3). Not adjacent → no attack.
-      (reset! atoms/game-map (build-test-map ["+##a##"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [3 0 :contents]
+      (set-test-world! (build-test-map ["+##a##"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [3 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
       (reset! atoms/claimed-objectives #{[0 0]})
       ;; rand-nth last so explore-randomly picks rightmost neighbor [4 0]
@@ -152,9 +152,9 @@
     (it "falls through to sorted empty neighbors when preferred is in history"
       ;; Army at [1 0] with attack-target [3 0] (free city), move-history [[2 0]]
       ;; pathfinding prefers [2 0] but it's in history → fallback to sorted empty
-      (reset! atoms/game-map (build-test-map ["#a#+"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+      (set-test-world! (build-test-map ["#a#+"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake
               :attack-target [3 0] :move-history [[2 0]]})
       (army/process-army [1 0])
@@ -168,14 +168,14 @@
       ;; Fallback to empty neighbors → [1 0] blocked by sovereignty → no valid moves.
       ;; With mutation (when-not): pass-fn used when country-id nil → for non-nil country-id,
       ;; pass-fn = nil → default passability → [1 0] passable → army moves to [1 0].
-      (reset! atoms/game-map (build-test-map ["a##"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["a##"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake
               :attack-target [2 0] :country-id 1})
-      (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 2)
-      (swap! atoms/game-map assoc-in [2 0 :country-id] 2)
+      (update-test-world! assoc-in [0 0 :country-id] 1)
+      (update-test-world! assoc-in [1 0 :country-id] 2)
+      (update-test-world! assoc-in [2 0 :country-id] 2)
       (army/process-army [0 0])
       ;; Correct: army can't pass foreign territory → stays at [0 0], target cleared.
       ;; With mutation: army walks through foreign territory to [1 0].
@@ -188,9 +188,9 @@
     (it "falls back to unfiltered empty when all empty neighbors in history"
       ;; Army at [1 0], only neighbor [0 0] and [2 0], both in history
       ;; No country-id, no city objectives → falls to explore-randomly
-      (reset! atoms/game-map (build-test-map ["#a#"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+      (set-test-world! (build-test-map ["#a#"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake
               :move-history [[0 0] [2 0]]})
       ;; Make sure explore-randomly is the one running (no city objectives, no country-id)
@@ -204,10 +204,10 @@
     (it "handles two equally-scored coast candidates"
       ;; Map: 3x2, army at [1 0], sea on row 1.
       ;; [0 0] and [2 0] both adjacent to sea, both unvisited, equal unexplored neighbors
-      (reset! atoms/game-map (build-test-map ["#a#"
+      (set-test-world! (build-test-map ["#a#"
                                                "~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1
               :mode :coast-walk :coast-direction :clockwise
               :coast-start [2 0] :coast-visited [[1 0]]})
@@ -226,14 +226,14 @@
       ;; Army at [1 0]: nearest unfiltered coastal = [2 1] (dist 2).
       ;; Correct: target [2 1], step diagonally to [2 1].
       ;; Mutation: target [1 1] (dist 1, no longer filtered), step to [1 1].
-      (reset! atoms/game-map (build-test-map ["####"
+      (set-test-world! (build-test-map ["####"
                                                "X###"
                                                "~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 4)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 1 :country-id] 1))
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 1 :country-id] 1))
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [1 0]))
@@ -245,13 +245,13 @@
   (context "find-nearest-unoccupied-coastal-cell (L259, L264, L266, L272)"
     (it "finds coastal cell with matching country-id (L259, L264, L266)"
       ;; Army at [0 0] interior, coastal cell at [0 2] with country-id 1
-      (reset! atoms/game-map [[{:type :land :country-id 1
+      (set-test-world! [[{:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1
                                             :mode :awake :country-id 1}}
                                 {:type :land :country-id 1}
                                 {:type :land :country-id 1}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [0 0]))
       ;; Army should have moved toward coast (row 2)
@@ -267,7 +267,7 @@
       ;; col 2: [land, land, sea]
       ;; BUT we need all coastal cells adjacent to a computer city.
       ;; Put cities adjacent to every coastal cell.
-      (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
+      (set-test-world! [[{:type :city :city-status :computer :country-id 1}
                                 {:type :land :country-id 1}
                                 {:type :sea}]
                                [{:type :land :country-id 1
@@ -278,7 +278,7 @@
                                [{:type :city :city-status :computer :country-id 1}
                                 {:type :land :country-id 1}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [1 0]))
       ;; Army should move toward a coastal cell despite it being near cities (fallback)
@@ -306,7 +306,7 @@
       ;;   → the code picks the nearest near-coastal cell.
       ;; To test L290/L291 distinctly: I need BOTH a directly-coastal empty cell AND a near-coastal cell.
       ;; Let me have one coastal cell empty and one near-coastal cell empty, and verify the coastal one wins.
-      (reset! atoms/game-map [[{:type :land :country-id 1}
+      (set-test-world! [[{:type :land :country-id 1}
                                 {:type :land :country-id 1}
                                 {:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}
@@ -322,7 +322,7 @@
                                 {:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       ;; [1 2] is the only empty coastal cell (adj to [1 3]=sea).
       ;; [0 1], [1 1], [2 1] are near-coastal (neighbors of row 2 which is coastal).
       ;; find-nearest-unoccupied-coastal-cell should find [1 2].
@@ -336,7 +336,7 @@
     (it "wakes nearby sentries when no coastal or near-coast cells available"
       ;; Army at [2 1], all coastal and near-coast cells occupied by sentries
       ;; No coastal cells, no near-coast cells → falls to wake-nearby-sentries
-      (reset! atoms/game-map [[{:type :land :country-id 1
+      (set-test-world! [[{:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]
                                [{:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]
@@ -346,7 +346,7 @@
                                  :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]
                                [{:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       ;; No sea anywhere → no coastal cells → fill-coastal-cell can't find targets
       ;; Army is at [2 0], all land, all occupied
       (with-redefs [rand (constantly 0.5)
@@ -360,14 +360,14 @@
     (it "correctly adds direction to position"
       ;; Call start-interior-exploration directly via var reference
       ;; Army at [2 1], direction [1 1] → target = [3 2]
-      (reset! atoms/game-map (build-test-map ["#####"
+      (set-test-world! (build-test-map ["#####"
                                                "#####"
                                                "#####"
                                                "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 5) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
-      (swap! atoms/game-map assoc-in [2 1 :contents]
+        (update-test-world! assoc-in [col row :country-id] 1))
+      (update-test-world! assoc-in [2 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       (with-redefs [rand-nth (constantly [1 1])]
         (@#'army/start-interior-exploration [2 1] 1))
@@ -379,12 +379,12 @@
     (it "moves toward city objective when one exists"
       ;; Call find-and-execute-land-action directly via var reference
       ;; Army at [0 0] with country-id 1, free city at [3 0]
-      (reset! atoms/game-map (build-test-map ["a##+"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["a##+"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       (doseq [col (range 4)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1))
       (with-redefs [rand (constantly 0.5)]
         (@#'army/find-and-execute-land-action [0 0] 1))
       ;; Army should have moved toward the city
@@ -395,11 +395,11 @@
     (it "goes sentry after moving to coastal cell"
       ;; Army at [1 0] in random-explore mode heading [0 1] (south).
       ;; Target [1 1] is land adjacent to sea (coastal).
-      (reset! atoms/game-map (build-test-map ["###"
+      (set-test-world! (build-test-map ["###"
                                                "###"
                                                "~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [0 1] :country-id 1})
       (army/process-army [1 0])
@@ -412,13 +412,13 @@
     (it "sentry army in computer city fills coastal cell"
       ;; Sentry army in a computer city. With country-id, should trigger fill-coastal-cell.
       ;; Coastal cell at [1 0] is empty, adjacent to sea at [1 1].
-      (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1
+      (set-test-world! [[{:type :city :city-status :computer :country-id 1
                                  :contents {:type :army :owner :computer :hits 1
                                             :mode :sentry :country-id 1}}
                                 {:type :sea}]
                                [{:type :land :country-id 1}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army should have moved to [1 0] (coastal fill)
       (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
@@ -426,13 +426,13 @@
 
     (it "sentry army NOT in city does NOT trigger fill-coastal-cell"
       ;; Sentry army on plain land (not a city) should NOT move
-      (reset! atoms/game-map [[{:type :land :country-id 1
+      (set-test-world! [[{:type :land :country-id 1
                                  :contents {:type :army :owner :computer :hits 1
                                             :mode :sentry :country-id 1}}
                                 {:type :sea}]
                                [{:type :land :country-id 1}
                                 {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army should stay put as sentry on non-city land
       (should= :army (get-in @atoms/game-map [0 0 :contents :type]))

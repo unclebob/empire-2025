@@ -3,7 +3,7 @@
             [empire.config :as config]
             [empire.containers.ops :refer :all]
             [empire.containers.helpers :as uc]
-            [empire.test-utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit]]
+            [empire.test-utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "non-full-transport?"
@@ -20,7 +20,7 @@
   (before (reset-all-atoms!))
 
   (it "loads adjacent sentry armies onto transport"
-    (reset! atoms/game-map (build-test-map ["--#--"
+    (set-test-world! (build-test-map ["--#--"
                                             "--AT-"
                                             "---A-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
@@ -36,7 +36,7 @@
       (should= nil (:contents (get-in @atoms/game-map army2-coords)))))
 
   (it "does not load awake armies onto transport"
-    (reset! atoms/game-map (build-test-map ["-#--"
+    (set-test-world! (build-test-map ["-#--"
                                             "-AT-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
@@ -48,7 +48,7 @@
       (should-not= nil (:contents (get-in @atoms/game-map army-coords)))))
 
   (it "does not load non-army units onto transport"
-    (reset! atoms/game-map (build-test-map ["-#--"
+    (set-test-world! (build-test-map ["-#--"
                                             "-DT-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "D" :mode :sentry :hits 1)
@@ -60,7 +60,7 @@
   (it "loads army at map edge onto transport at edge"
     ;; Transport at [0 0] — army at [1 0] or [0 1]
     ;; This kills mutations on bounds-check arithmetic (+ -> -)
-    (reset! atoms/game-map (build-test-map ["TA-"
+    (set-test-world! (build-test-map ["TA-"
                                             "~#-"]))
     ;; After transpose: T at [0 0], A at [1 0]
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
@@ -72,7 +72,7 @@
 
   (it "loads army at row-zero boundary (L27)"
     ;; Transport at [0,1], army at [0,0] — nx=0 kills >= -> > and 0 -> 1
-    (reset! atoms/game-map (build-test-map ["A"
+    (set-test-world! (build-test-map ["A"
                                             "T"
                                             "#"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
@@ -83,7 +83,7 @@
         (should= 1 (:army-count transport)))))
 
   (it "wakes transport after loading armies if at beach"
-    (reset! atoms/game-map (build-test-map ["-#---"
+    (set-test-world! (build-test-map ["-#---"
                                             "-AT--"
                                             "--#--"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1)
@@ -96,7 +96,7 @@
         (should= 1 (:army-count transport)))))
 
   (it "does nothing when transport is already full"
-    (reset! atoms/game-map (build-test-map ["-#--"
+    (set-test-world! (build-test-map ["-#--"
                                             "-AT-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 6)
     (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
@@ -106,7 +106,7 @@
       (should-not-be-nil (:contents (get-in @atoms/game-map army-coords)))))
 
   (it "does not load enemy sentry armies"
-    (reset! atoms/game-map (build-test-map ["-#--"
+    (set-test-world! (build-test-map ["-#--"
                                             "-At-"]))
     (set-test-unit atoms/game-map "t" :mode :sentry :hits 1)
     (set-test-unit atoms/game-map "A" :mode :sentry :hits 1)
@@ -116,7 +116,7 @@
         (should= 0 (:army-count transport 0)))))
 
   (it "does not wake transport in open sea with pre-loaded armies"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~T~"
                                             "~~~"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 1)
@@ -130,7 +130,7 @@
   (before (reset-all-atoms!))
 
   (it "wakes all armies and sets transport to sentry"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :reason :transport-at-beach)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
@@ -142,7 +142,7 @@
         (should= 2 (:awake-armies transport)))))
 
   (it "clears steps-remaining to end transport's turn"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :reason :transport-at-beach :steps-remaining 2)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
@@ -154,7 +154,7 @@
   (before (reset-all-atoms!))
 
   (it "puts armies to sleep and wakes transport"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
@@ -169,7 +169,7 @@
   (before (reset-all-atoms!))
 
   (it "removes one army and decrements counts"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 3 :awake-armies 3)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
@@ -185,7 +185,7 @@
         (should= (config/unit-speed :army) (:steps-remaining disembarked)))))
 
   (it "wakes transport when last army disembarks"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 1 :awake-armies 1)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
@@ -196,7 +196,7 @@
         (should= 0 (:army-count transport)))))
 
   (it "wakes transport when no more awake armies remain"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 1)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
@@ -211,7 +211,7 @@
   (before (reset-all-atoms!))
 
   (it "disembarks army and sets it moving toward extended target"
-    (reset! atoms/game-map (build-test-map ["-T---"
+    (set-test-world! (build-test-map ["-T---"
                                             "-#---"
                                             "-----"
                                             "-----"
@@ -235,7 +235,7 @@
   (before (reset-all-atoms!))
 
   (it "disembarks army in explore mode"
-    (reset! atoms/game-map (build-test-map ["-T-"
+    (set-test-world! (build-test-map ["-T-"
                                             "-#-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 2)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))
@@ -257,7 +257,7 @@
   (before (reset-all-atoms!))
 
   (it "wakes all fighters and sets carrier to sentry"
-    (reset! atoms/game-map (build-test-map ["-C-"]))
+    (set-test-world! (build-test-map ["-C-"]))
     (set-test-unit atoms/game-map "C" :mode :awake :hits 8 :fighter-count 2)
     (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))]
       (wake-fighters-on-carrier carrier-coords)
@@ -270,7 +270,7 @@
   (before (reset-all-atoms!))
 
   (it "puts fighters to sleep and wakes carrier"
-    (reset! atoms/game-map (build-test-map ["-C-"]))
+    (set-test-world! (build-test-map ["-C-"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 2 :awake-fighters 2)
     (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))]
       (sleep-fighters-on-carrier carrier-coords)
@@ -283,7 +283,7 @@
   (before (reset-all-atoms!))
 
   (it "removes fighter and places it at adjacent cell"
-    (reset! atoms/game-map (build-test-map ["-C~-"]))
+    (set-test-world! (build-test-map ["-C~-"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 2 :awake-fighters 2)
     (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
           adjacent-cell [(inc (first carrier-coords)) (second carrier-coords)]
@@ -298,7 +298,7 @@
         (should= target-coords (:target launched-fighter)))))
 
   (it "keeps carrier in sentry mode after last fighter launches"
-    (reset! atoms/game-map (build-test-map ["-C~-"]))
+    (set-test-world! (build-test-map ["-C~-"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
     (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
           target-coords [(+ 2 (first carrier-coords)) (second carrier-coords)]]
@@ -308,7 +308,7 @@
         (should= 0 (:fighter-count carrier)))))
 
   (it "launches fighter toward target in negative x direction"
-    (reset! atoms/game-map (build-test-map ["-~C-"]))
+    (set-test-world! (build-test-map ["-~C-"]))
     ;; After transpose: C at [2 0], ~ at [1 0]
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
     (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
@@ -321,7 +321,7 @@
         (should= target-coords (:target fighter)))))
 
   (it "launches fighter toward target in y direction"
-    (reset! atoms/game-map (build-test-map ["--"
+    (set-test-world! (build-test-map ["--"
                                              "-C"
                                              "-~"
                                              "--"]))
@@ -339,7 +339,7 @@
   (it "launches fighter toward target in negative y direction"
     ;; Carrier at y=3, target at y=1, so dy should be -1
     ;; This kills the mutant (+ ty cy) because ty=1, cy=3, (+ 1 3)=4>0 gives dy=1 (wrong)
-    (reset! atoms/game-map (build-test-map ["----"
+    (set-test-world! (build-test-map ["----"
                                              "----"
                                              "----"
                                              "-~C-"
@@ -360,7 +360,7 @@
   (it "launches fighter along x-axis when target at same y"
     ;; Kills M27: (- ty cy) → (+ ty cy) in zero? check
     ;; When carrier at y=1 and target at y=1, (+ 1 1) = 2 ≠ 0 makes mutant give wrong dy
-    (reset! atoms/game-map (build-test-map ["---"
+    (set-test-world! (build-test-map ["---"
                                              "-C~"
                                              "---"]))
     ;; After transpose: C at [1 1], ~ at [2 1]
@@ -375,7 +375,7 @@
         (should= (second carrier-coords) (second (:target fighter))))))
 
   (it "sets steps-remaining to speed minus one"
-    (reset! atoms/game-map (build-test-map ["-C~-"]))
+    (set-test-world! (build-test-map ["-C~-"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 8 :fighter-count 1 :awake-fighters 1)
     (let [carrier-coords (:pos (get-test-unit atoms/game-map "C"))
           adjacent-cell [(inc (first carrier-coords)) (second carrier-coords)]
@@ -388,9 +388,9 @@
   (before (reset-all-atoms!))
 
   (it "removes awake fighter from airport and places it moving"
-    (reset! atoms/game-map (build-test-map ["-O#-"]))
-    (swap! atoms/game-map assoc-in [1 0 :fighter-count] 2)
-    (swap! atoms/game-map assoc-in [1 0 :awake-fighters] 2)
+    (set-test-world! (build-test-map ["-O#-"]))
+    (update-test-world! assoc-in [1 0 :fighter-count] 2)
+    (update-test-world! assoc-in [1 0 :awake-fighters] 2)
     (launch-fighter-from-airport [1 0] [3 0])
     (let [city (get-in @atoms/game-map [1 0])
           fighter (:contents city)]
@@ -405,7 +405,7 @@
   (before (reset-all-atoms!))
 
   (it "decrements army-count and awake-armies"
-    (reset! atoms/game-map (build-test-map ["-T-"]))
+    (set-test-world! (build-test-map ["-T-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 3 :awake-armies 2)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
       (remove-army-from-transport transport-coords)
@@ -414,7 +414,7 @@
         (should= 1 (:awake-armies transport)))))
 
   (it "wakes transport when no more awake armies remain"
-    (reset! atoms/game-map (build-test-map ["-T-"]))
+    (set-test-world! (build-test-map ["-T-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 2 :awake-armies 1 :reason :transport-at-beach)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
       (remove-army-from-transport transport-coords)
@@ -425,7 +425,7 @@
         (should= 0 (:awake-armies transport)))))
 
   (it "does not wake transport when awake armies remain"
-    (reset! atoms/game-map (build-test-map ["-T-"]))
+    (set-test-world! (build-test-map ["-T-"]))
     (set-test-unit atoms/game-map "T" :mode :sentry :hits 1 :army-count 3 :awake-armies 2 :reason :transport-at-beach)
     (let [transport-coords (:pos (get-test-unit atoms/game-map "T"))]
       (remove-army-from-transport transport-coords)
@@ -439,8 +439,8 @@
   (before (reset-all-atoms!))
 
   (it "launches ship at city coords when no launch-pos given"
-    (reset! atoms/game-map (build-test-map ["-O-"]))
-    (swap! atoms/game-map assoc-in [1 0 :shipyard]
+    (set-test-world! (build-test-map ["-O-"]))
+    (update-test-world! assoc-in [1 0 :shipyard]
            [{:type :destroyer :hits 3}])
     (launch-ship-from-shipyard [1 0] 0)
     (let [city (get-in @atoms/game-map [1 0])
@@ -453,8 +453,8 @@
       (should= :awake (:mode ship))))
 
   (it "launches ship at separate launch-pos when provided"
-    (reset! atoms/game-map (build-test-map ["-O~-"]))
-    (swap! atoms/game-map assoc-in [1 0 :shipyard]
+    (set-test-world! (build-test-map ["-O~-"]))
+    (update-test-world! assoc-in [1 0 :shipyard]
            [{:type :destroyer :hits 3}])
     (launch-ship-from-shipyard [1 0] 0 [2 0])
     (let [city (get-in @atoms/game-map [1 0])

@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.save-load :as save-load]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test-utils :refer [reset-all-atoms! set-test-world!]]))
 
 (describe "load menu atoms"
   (before (reset-all-atoms!))
@@ -74,7 +74,7 @@
   (it "saves game-map atom value"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")
           test-map [[{:type :land}]]]
-      (reset! atoms/game-map test-map)
+      (set-test-world! test-map)
       (try
         (let [filename (save-load/save-game! dir)
               saved (clojure.edn/read-string (slurp (str dir "/" filename)))]
@@ -105,10 +105,10 @@
   (it "restores game-map from saved file"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")
           test-map [[{:type :land} {:type :sea}]]]
-      (reset! atoms/game-map test-map)
+      (set-test-world! test-map)
       (try
         (let [filename (save-load/save-game! dir)]
-          (reset! atoms/game-map nil)
+          (set-test-world! nil)
           (save-load/load-game! dir filename)
           (should= test-map @atoms/game-map))
         (finally

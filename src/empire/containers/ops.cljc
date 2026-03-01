@@ -1,12 +1,21 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.containers.ops
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]
             [empire.player.production :as production]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 ;; Transport operations
 
@@ -28,8 +37,8 @@
         has-armies? (pos? (uc/get-count transport :army-count))
         at-beach? (map-utils/adjacent-to-land? transport-coords atoms/game-map)]
     (when (and has-armies? at-beach? (= (:mode transport) :sentry))
-      (swap! atoms/game-map update-in (conj transport-coords :contents)
-             #(assoc % :mode :awake :reason :transport-at-beach)))))
+      (update-game-map! update-in (conj transport-coords :contents)
+                        #(assoc % :mode :awake :reason :transport-at-beach)))))
 
 (defn non-full-transport? [unit]
   (and (= (:type unit) :transport)
@@ -40,8 +49,8 @@
         adj-unit (:contents adj-cell)
         transport (get-in @atoms/game-map (conj transport-coords :contents))]
     (when (loadable-army? adj-unit transport)
-      (swap! atoms/game-map assoc-in [nx ny] (dissoc adj-cell :contents))
-      (swap! atoms/game-map update-in (conj transport-coords :contents) uc/add-unit :army-count))))
+      (update-game-map! assoc-in [nx ny] (dissoc adj-cell :contents))
+      (update-game-map! update-in (conj transport-coords :contents) uc/add-unit :army-count))))
 
 (defn load-adjacent-sentry-armies
   "Loads adjacent sentry armies onto a transport at the given coords.
@@ -68,7 +77,7 @@
                               (assoc :steps-remaining 0)
                               (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
-    (swap! atoms/game-map assoc-in transport-coords updated-cell)))
+    (update-game-map! assoc-in transport-coords updated-cell)))
 
 (defn sleep-armies-on-transport
   "Puts all armies aboard the transport back to sleep (sentry mode).
@@ -81,7 +90,7 @@
                               (assoc :mode :awake)
                               (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
-    (swap! atoms/game-map assoc-in transport-coords updated-cell)))
+    (update-game-map! assoc-in transport-coords updated-cell)))
 
 (defn remove-army-from-transport
   "Removes one awake army from transport without placing it anywhere.
@@ -95,7 +104,7 @@
                             no-more-awake? (assoc :mode :awake)
                             no-more-awake? (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
-    (swap! atoms/game-map assoc-in transport-coords updated-cell)))
+    (update-game-map! assoc-in transport-coords updated-cell)))
 
 (defn disembark-army-from-transport
   "Removes first awake army from transport and places it on target land cell.
@@ -113,8 +122,8 @@
                             no-more-awake? (assoc :mode :awake)
                             no-more-awake? (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
-    (swap! atoms/game-map assoc-in transport-coords updated-cell)
-    (swap! atoms/game-map assoc-in (conj target-coords :contents) disembarked-army)
+    (update-game-map! assoc-in transport-coords updated-cell)
+    (update-game-map! assoc-in (conj target-coords :contents) disembarked-army)
     (visibility/update-cell-visibility target-coords (:owner transport))
     target-coords))
 
@@ -134,8 +143,8 @@
                             no-more-awake? (assoc :mode :awake)
                             no-more-awake? (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
-    (swap! atoms/game-map assoc-in transport-coords updated-cell)
-    (swap! atoms/game-map assoc-in (conj adjacent-coords :contents) moving-army)
+    (update-game-map! assoc-in transport-coords updated-cell)
+    (update-game-map! assoc-in (conj adjacent-coords :contents) moving-army)
     (visibility/update-cell-visibility adjacent-coords (:owner transport))))
 
 (defn disembark-army-to-explore
@@ -154,8 +163,8 @@
                             no-more-awake? (assoc :mode :awake)
                             no-more-awake? (dissoc :reason))
         updated-cell (assoc cell :contents updated-transport)]
-    (swap! atoms/game-map assoc-in transport-coords updated-cell)
-    (swap! atoms/game-map assoc-in (conj target-coords :contents) exploring-army)
+    (update-game-map! assoc-in transport-coords updated-cell)
+    (update-game-map! assoc-in (conj target-coords :contents) exploring-army)
     (visibility/update-cell-visibility target-coords (:owner transport))
     target-coords))
 
@@ -171,7 +180,7 @@
                             (assoc :mode :sentry)
                             (dissoc :reason))
         updated-cell (assoc cell :contents updated-carrier)]
-    (swap! atoms/game-map assoc-in carrier-coords updated-cell)))
+    (update-game-map! assoc-in carrier-coords updated-cell)))
 
 (defn sleep-fighters-on-carrier
   "Puts all fighters aboard the carrier back to sleep.
@@ -184,7 +193,7 @@
                             (assoc :mode :awake)
                             (dissoc :reason))
         updated-cell (assoc cell :contents updated-carrier)]
-    (swap! atoms/game-map assoc-in carrier-coords updated-cell)))
+    (update-game-map! assoc-in carrier-coords updated-cell)))
 
 (defn launch-fighter-from-carrier
   "Removes first awake fighter from carrier and sets it moving to target.
@@ -206,9 +215,9 @@
         updated-cell (assoc cell :contents after-remove)
         target-cell (get-in @atoms/game-map first-step)]
     ;; Update carrier
-    (swap! atoms/game-map assoc-in carrier-coords updated-cell)
+    (update-game-map! assoc-in carrier-coords updated-cell)
     ;; Place fighter at first step position
-    (swap! atoms/game-map assoc-in first-step (assoc target-cell :contents moving-fighter))
+    (update-game-map! assoc-in first-step (assoc target-cell :contents moving-fighter))
     (visibility/update-cell-visibility first-step (:owner carrier))
     first-step))
 
@@ -223,7 +232,7 @@
         moving-fighter {:type :fighter :mode :moving :owner :player :fuel config/fighter-fuel :target target-coords :hits 1
                         :steps-remaining (config/unit-speed :fighter)}
         updated-cell (assoc after-remove :contents moving-fighter)]
-    (swap! atoms/game-map assoc-in city-coords updated-cell)
+    (update-game-map! assoc-in city-coords updated-cell)
     city-coords))
 
 ;; Shipyard operations
@@ -248,8 +257,8 @@
                    :steps-remaining (dispatcher/effective-speed (:type ship-data) (:hits ship-data))}
                   (production/stamp-unit-fields cell))
          updated-city (uc/remove-ship-from-shipyard cell ship-index)]
-     (swap! atoms/game-map assoc-in city-coords updated-city)
+     (update-game-map! assoc-in city-coords updated-city)
      (if (= launch-pos city-coords)
-       (swap! atoms/game-map assoc-in city-coords (assoc updated-city :contents ship))
-       (swap! atoms/game-map assoc-in (conj launch-pos :contents) ship))
+       (update-game-map! assoc-in city-coords (assoc updated-city :contents ship))
+       (update-game-map! assoc-in (conj launch-pos :contents) ship))
      (visibility/update-cell-visibility launch-pos owner))))

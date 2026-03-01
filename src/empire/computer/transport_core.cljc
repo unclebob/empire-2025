@@ -2,9 +2,18 @@
 (ns empire.computer.transport-core
   "Shared transport helpers — no dependencies on other transport sub-modules."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn get-passable-sea-neighbors
   "Returns passable sea neighbors for a transport."
@@ -41,9 +50,9 @@
 (defn set-transport-mission
   "Set the transport's mission state."
   [pos mission]
-  (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) mission)
+  (update-game-map! assoc-in (conj pos :contents :transport-mission) mission)
   (when (= mission :loading)
-    (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)))
+    (update-game-map! assoc-in (conj pos :contents :loading-since) @atoms/round-number)))
 
 (defn mint-unload-event-id
   "Mint a new unload-event-id each time transport transitions to unloading.
@@ -51,7 +60,7 @@
   [pos _transport]
   (let [id @atoms/next-unload-event-id]
     (swap! atoms/next-unload-event-id inc)
-    (swap! atoms/game-map assoc-in
+    (update-game-map! assoc-in
            (conj pos :contents :unload-event-id) id)))
 
 (defn mint-unload-country-id
@@ -59,7 +68,7 @@
   [pos]
   (let [cid @atoms/next-country-id]
     (swap! atoms/next-country-id inc)
-    (swap! atoms/game-map assoc-in
+    (update-game-map! assoc-in
            (conj pos :contents :unload-country-id) cid)))
 
 (defn record-pickup-continent-pos
@@ -68,8 +77,8 @@
   [pos transport]
   (when-not (:pickup-continent-pos transport)
     (when-let [land-pos (find-adjacent-land-pos pos)]
-      (swap! atoms/game-map assoc-in
+      (update-game-map! assoc-in
              (conj pos :contents :pickup-continent-pos) land-pos)
       (when-let [cid (:country-id (get-in @atoms/game-map land-pos))]
-        (swap! atoms/game-map assoc-in
+        (update-game-map! assoc-in
                (conj pos :contents :pickup-country-id) cid)))))

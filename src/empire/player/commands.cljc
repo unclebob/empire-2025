@@ -3,6 +3,8 @@
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.player.attention :as attention]
             [empire.combat :as combat]
@@ -15,6 +17,13 @@
             [empire.movement.movement :as movement]
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- try-set-production [coords item]
   (let [[x y] coords
@@ -142,12 +151,12 @@
               new-fuel (- current-fuel fuel-cost)]
           (if (<= new-fuel 0)
             (do
-              (swap! atoms/game-map assoc-in (conj coords :contents :hits) 0)
-              (swap! atoms/game-map assoc-in (conj coords :contents :reason) :skipping-this-round))
+              (update-game-map! assoc-in (conj coords :contents :hits) 0)
+              (update-game-map! assoc-in (conj coords :contents :reason) :skipping-this-round))
             (do
-              (swap! atoms/game-map assoc-in (conj coords :contents :fuel) new-fuel)
-              (swap! atoms/game-map assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
-        (swap! atoms/game-map assoc-in (conj coords :contents :reason) :skipping-this-round))))
+              (update-game-map! assoc-in (conj coords :contents :fuel) new-fuel)
+              (update-game-map! assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
+        (update-game-map! assoc-in (conj coords :contents :reason) :skipping-this-round))))
   (swap! atoms/player-items rest)
   (game-loop/item-processed)
   true)

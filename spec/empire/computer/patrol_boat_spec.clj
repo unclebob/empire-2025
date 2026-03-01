@@ -23,7 +23,7 @@
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~~~~~~~#"
                                        "~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
+      (tu/set-test-world! game-map)
       (let [path (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{})]
         (should-not-be-nil path)
         (should (pos? (count path)))
@@ -34,14 +34,14 @@
     (let [game-map (tu/build-test-map ["~~~"
                                        "~~~"
                                        "~~~"])]
-      (reset! atoms/game-map game-map)
+      (tu/set-test-world! game-map)
       (should-be-nil (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{}))))
 
   (it "excludes cells already in seen-coast"
     (let [game-map (tu/build-test-map ["~~#"
                                        "~~#"
                                        "~~#"])]
-      (reset! atoms/game-map game-map)
+      (tu/set-test-world! game-map)
       (reset! atoms/seen-coast #{[1 0] [1 1] [1 2]})
       (should-be-nil (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{}))))
 
@@ -49,7 +49,7 @@
     (let [game-map (tu/build-test-map ["~#~~~~~~~~~~~#"
                                        "~#~~~~~~~~~~~#"
                                        "~#~~~~~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
+      (tu/set-test-world! game-map)
       (let [path (pathfinding-bfs/bfs-to-unseen-coast [2 0] game-map #{})
             target (last path)]
         (should-not-be-nil path)
@@ -68,7 +68,7 @@
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~~~~~~~#"
                                        "~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
+      (tu/set-test-world! game-map)
       ;; Find the natural target first
       (let [path1 (pathfinding-bfs/bfs-to-unseen-coast [0 0] game-map #{})
             target1 (last path1)]
@@ -91,8 +91,8 @@
     (let [game-map (tu/build-test-map ["###"
                                        "#p~"
                                        "#~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (with-redefs [rand-nth first]
         (let [result (ship/patrol-crawl-step [1 1])]
           (should-not-be-nil result)
@@ -103,8 +103,8 @@
     (let [game-map (tu/build-test-map ["###"
                                        "#p~"
                                        "#~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (with-redefs [rand-nth first]
         (ship/patrol-crawl-step [1 1])
         (should-contain [1 1] @atoms/seen-coast))))
@@ -114,8 +114,8 @@
                                        "#p~~"
                                        "#~~~"
                                        "~~~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       ;; Mark [1,2] as seen, leave [2,0] unseen
       ;; Coastal neighbors of [1,1]: [1,2] and [2,0] are adjacent to land
       (reset! atoms/seen-coast #{[1 2]})
@@ -129,8 +129,8 @@
     (let [game-map (tu/build-test-map ["###"
                                        "#p~"
                                        "#~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       ;; Mark all coastal neighbors as seen
       ;; Coastal neighbors of [1,1]: empty sea cells adjacent to land
       ;; are [1,2] and [2,1].
@@ -151,8 +151,8 @@
     (let [game-map (tu/build-test-map ["~p~"
                                        "~~~"
                                        "~~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (should-be-nil (ship/patrol-crawl-step [1 0])))))
 
 (describe "patrol-explore-step"
@@ -163,8 +163,8 @@
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~p~~~~~#"
                                        "~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (let [result (ship/patrol-explore-step [1 1])]
         (should-not-be-nil result)
         ;; Should move closer to the coast (col increases)
@@ -178,8 +178,8 @@
     (let [game-map (tu/build-test-map ["~~~~~~~~~~~#"
                                        "~p~#~~~~~~~#"
                                        "~~~~~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (let [result (ship/patrol-explore-step [1 1])]
         (should-not-be-nil result)
         (let [unit (get-in @atoms/game-map (conj result :contents))]
@@ -189,8 +189,8 @@
     (let [game-map (tu/build-test-map ["~~~"
                                        "~p~"
                                        "~~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       ;; All sea, no coast — falls back to random walk
       (with-redefs [rand-nth first]
         (let [result (ship/patrol-explore-step [1 1])]
@@ -201,8 +201,8 @@
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~p~~~~~#"
                                        "~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :exploring)
       (let [result (ship/patrol-explore-step [1 1])
             unit (get-in @atoms/game-map (conj result :contents))]
@@ -215,11 +215,11 @@
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~p~~~~~#"
                                        "~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :exploring)
       ;; Pre-store a path on the unit
-      (swap! atoms/game-map assoc-in [1 1 :contents :explore-path]
+      (tu/update-test-world! assoc-in [1 1 :contents :explore-path]
              [[2 1] [3 1] [4 1]])
       (let [bfs-call-count (atom 0)]
         (with-redefs [pathfinding-bfs/bfs-to-unseen-coast
@@ -236,10 +236,10 @@
     (let [game-map (tu/build-test-map ["####"
                                        "~p~#"
                                        "####"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       ;; Path leads to [2,1] which is adjacent to land at [3,1]
-      (swap! atoms/game-map assoc-in [1 1 :contents :explore-path] [[2 1]])
+      (tu/update-test-world! assoc-in [1 1 :contents :explore-path] [[2 1]])
       (let [result (ship/patrol-explore-step [1 1])
             unit (get-in @atoms/game-map (conj result :contents))]
         (should= [2 1] result)
@@ -250,10 +250,10 @@
     (let [game-map (tu/build-test-map ["~~~"
                                        "~pd"
                                        "~~~"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       ;; Path leads to [2,1] which is occupied by a computer destroyer
-      (swap! atoms/game-map assoc-in [1 1 :contents :explore-path] [[2 1]])
+      (tu/update-test-world! assoc-in [1 1 :contents :explore-path] [[2 1]])
       (let [result (ship/patrol-explore-step [1 1])]
         (should-be-nil result)
         (let [unit (get-in @atoms/game-map [1 1 :contents])]
@@ -266,8 +266,8 @@
     (let [game-map (tu/build-test-map ["########"
                                        "#p~~~~~~"
                                        "########"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
       (with-redefs [rand-nth first]
         (ship/process-ship [1 1] :patrol-boat)
@@ -280,8 +280,8 @@
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~p~~~~~#"
                                        "~~~~~~~#"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :exploring)
       (ship/process-ship [1 1] :patrol-boat)
       (let [{:keys [pos]} (tu/get-test-unit atoms/game-map "p")]
@@ -292,8 +292,8 @@
     (let [game-map (tu/build-test-map ["########"
                                        "#pT~~~~~"
                                        "########"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
       (ship/process-ship [1 1] :patrol-boat)
       ;; Combat should have occurred — patrol boat no longer at [1,1]
@@ -303,8 +303,8 @@
     (let [game-map (tu/build-test-map ["~###"
                                        "~pD~"
                                        "~###"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
       (ship/process-ship [1 1] :patrol-boat)
       ;; Patrol boat should have moved away from destroyer at [2,1]
@@ -316,8 +316,8 @@
     (let [game-map (tu/build-test-map ["########"
                                        "#p~~~~~~"
                                        "########"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
       (with-redefs [rand-nth first]
         (ship/process-ship [1 1] :patrol-boat)
@@ -328,8 +328,8 @@
     (let [game-map (tu/build-test-map ["########"
                                        "#p~~~~~~"
                                        "########"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       ;; No :patrol-mode set — defaults to :crawling
       (ship/process-ship [1 1] :patrol-boat)
       (should-be-nil (get-in @atoms/game-map [1 1 :contents]))))
@@ -340,10 +340,10 @@
     (let [game-map (tu/build-test-map ["########"
                                        "~p~~~~~~"
                                        "########"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
-      (swap! atoms/game-map assoc-in [6 1 :contents]
+      (tu/update-test-world! assoc-in [6 1 :contents]
              {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
       (with-redefs [rand-nth first]
         ;; Process first boat — it adds [1 1] to seen-coast
@@ -364,8 +364,8 @@
     (let [game-map (tu/build-test-map ["##"
                                        "p~"
                                        "##"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
       (reset! atoms/seen-coast #{[1 1]})
       (with-redefs [rand-nth first]
@@ -379,8 +379,8 @@
     (let [game-map (tu/build-test-map ["########"
                                        "~p~~~~~~"
                                        "########"])]
-      (reset! atoms/game-map game-map)
-      (reset! atoms/computer-map game-map)
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! game-map)
       (tu/set-test-unit atoms/game-map "p" :patrol-mode :crawling)
       (with-redefs [rand-nth first]
         (ship/process-ship [1 1] :patrol-boat)

@@ -3,7 +3,7 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.coastline :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "coastline-follow-eligible?"
   (before (reset-all-atoms!))
@@ -76,7 +76,7 @@
     (let [game-map (atom (build-test-map ["#~~"
                                     "#~~"
                                     "#~~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (let [move (pick-coastline-move [1 1] game-map #{} nil)]
         (should (some #{move} [[1 0] [1 2] [2 0] [2 1] [2 2]])))))
 
@@ -84,14 +84,14 @@
     (let [game-map (atom (build-test-map ["###"
                                     "#~#"
                                     "###"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (should-be-nil (pick-coastline-move [1 1] game-map #{} nil))))
 
   (it "avoids previous position"
     (let [game-map (atom (build-test-map ["#~#"
                                     "#~#"
                                     "#~#"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (dotimes [_ 10]
         (let [move (pick-coastline-move [1 1] game-map #{} [1 0])]
           (should-not= [1 0] move)))))
@@ -102,7 +102,7 @@
                                     "#~~"
                                     "#~~"]))]
       ;; player-map with nil at [0 0] means unexplored
-      (reset! atoms/player-map (build-test-map ["-~~"
+      (set-test-player-map! (build-test-map ["-~~"
                                                  "#~~"
                                                  "#~~"]))
       (dotimes [_ 10]
@@ -120,7 +120,7 @@
       ;; Player map: [0 2] is unexplored (nil), so [1 2] is adjacent to unexplored
       ;; [1 2] is diagonally adjacent to land at [2 2]
       ;; No cells are orthogonally adjacent to land from [1 1]
-      (reset! atoms/player-map (build-test-map ["~~~"
+      (set-test-player-map! (build-test-map ["~~~"
                                                  "~~~"
                                                  "-~#"]))
       (dotimes [_ 10]
@@ -134,7 +134,7 @@
                                     "~~~"
                                     "~~#"]))]
       ;; All explored (no nil cells)
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (let [move (pick-coastline-move [1 1] game-map #{} nil)]
         ;; Should pick [1 2] or [2 2] - the coastal cells (diagonal to land)
         (should (some #{move} [[1 2] [2 1] [2 2]])))))
@@ -144,7 +144,7 @@
     (let [game-map (atom (build-test-map ["~~~"
                                     "#~~"
                                     "~~~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       ;; Mark all cells except [0 1] (land) and [1 0] (visited coastal) as visited
       (let [visited #{[0 0] [2 0] [0 2] [2 1] [1 2] [2 2]}]
         (dotimes [_ 10]
@@ -157,7 +157,7 @@
     (let [game-map (atom (build-test-map ["#~~"
                                     "~~~"
                                     "~~~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       ;; All cells visited except we allow backstepping to coastal
       (let [visited #{[1 0] [0 1] [2 0] [2 1] [0 2] [1 2] [2 2]}]
         (dotimes [_ 10]
@@ -180,7 +180,7 @@
       ;; For coastal: is [2 0] adjacent to land? Its neighbors include [1 0] which is land (orthogonally!)
       ;; So [2 0] IS orthogonally adjacent to land
       ;; I need a setup where diagonals are coastal but not orthogonally adjacent to land
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (let [visited #{[2 0] [0 2] [1 2] [2 1] [2 2]}]  ;; Mark all as visited, leaving only [2 0] (visited, diagonal coastal)
         ;; prev-pos blocks backstepping
         (let [move (pick-coastline-move [1 1] game-map visited nil)]
@@ -206,17 +206,17 @@
       ;; So [1 0] IS orthogonally adjacent to land! This won't work.
       ;; I need a different setup where no sea cell is orthogonally adjacent to land.
       ;; Let's try a 5x5 map with land only at corners
-      (reset! atoms/game-map (build-test-map ["#~~~#"
-                                               "~~~~~"
-                                               "~~~~~"
-                                               "~~~~~"
-                                               "#~~~#"]))
+      (set-test-world! (build-test-map ["#~~~#"
+                                        "~~~~~"
+                                        "~~~~~"
+                                        "~~~~~"
+                                        "#~~~#"]))
       ;; From [2 2]: all orthogonal neighbors [2 1], [2 3], [1 2], [3 2] are sea
       ;; None of them are orthogonally adjacent to land (land is only at corners)
       ;; But [1 1], [3 1], [1 3], [3 3] (diagonals of [2 2]) are sea and diagonally adjacent to corners
       ;; Actually [1 1] is diagonally adjacent to [0 0] (land), so [1 1] is coastal (diagonal)
       ;; We need unexplored cells: make [0 0] unexplored in player-map
-      (reset! atoms/player-map (build-test-map ["-~~~#"
+      (set-test-player-map! (build-test-map ["-~~~#"
                                                  "~~~~~"
                                                  "~~~~~"
                                                  "~~~~~"
@@ -238,7 +238,7 @@
                                     "~~~~~"
                                     "~~~~~"
                                     "#~~~#"]))]
-      (reset! atoms/player-map @game-map)  ;; All explored
+      (set-test-player-map! @game-map)  ;; All explored
       ;; From [2 2]: coastal cells (diagonal to land) are [1 1], [3 1], [1 3], [3 3]
       ;; Non-coastal cells are [2 1], [1 2], [3 2], [2 3]
       ;; Mark all non-coastal as unvisited, coastal as visited
@@ -261,7 +261,7 @@
     (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
                                     "~~~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       ;; Mark some as visited, leave others unvisited
       (let [visited #{[0 0] [1 0] [2 0] [0 1]}]
         (let [move (pick-coastline-move [1 1] game-map visited nil)]
@@ -273,10 +273,9 @@
     (let [game-map (atom (build-test-map ["~~~"
                                     "~~~"
                                     "~~~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       ;; All neighbors visited
       (let [visited #{[0 0] [1 0] [2 0] [0 1] [2 1] [0 2] [1 2] [2 2]}]
         (let [move (pick-coastline-move [1 1] game-map visited nil)]
           ;; Should pick any valid cell
           (should (some #{move} [[0 0] [1 0] [2 0] [0 1] [2 1] [0 2] [1 2] [2 2]])))))))
-

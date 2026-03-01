@@ -3,7 +3,7 @@
             [empire.computer.fighter :as fighter]
             [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map set-test-unit
-                                       get-test-unit reset-all-atoms!]]))
+                                       get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "explore-hop-over"
   (before (reset-all-atoms!))
@@ -11,14 +11,14 @@
   (context "hop over one friendly to empty cell"
     (it "moves fighter past friendly army to empty inland cell"
       ;; Wide map so fighter stays in explore mode for all 8 steps
-      (reset! atoms/game-map (build-test-map ["Xfa###########"]))
+      (set-test-world! (build-test-map ["Xfa###########"]))
       (set-test-unit atoms/game-map "f"
                      :fuel 20
                      :flight-mode :explore
                      :explore-steps-remaining 20
                      :flight-target-site [13 0]
                      :explore-origin [0 0])
-      (reset! atoms/computer-map (build-test-map ["Xfa..........."]))
+      (set-test-computer-map! (build-test-map ["Xfa..........."]))
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit))
       ;; Army should still be at [2,0]
@@ -31,14 +31,14 @@
 
   (context "hop over multiple friendlies"
     (it "hops over two consecutive friendly armies"
-      (reset! atoms/game-map (build-test-map ["Xfaa###########"]))
+      (set-test-world! (build-test-map ["Xfaa###########"]))
       (set-test-unit atoms/game-map "f"
                      :fuel 20
                      :flight-mode :explore
                      :explore-steps-remaining 20
                      :flight-target-site [14 0]
                      :explore-origin [0 0])
-      (reset! atoms/computer-map (build-test-map ["Xfaa..........."]))
+      (set-test-computer-map! (build-test-map ["Xfaa..........."]))
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit))
       ;; Armies untouched
@@ -52,14 +52,14 @@
   (context "hop reaches map edge"
     (it "returns nil when next cell after friendly is off-map"
       ;; 3-col map: fighter at [1,0], army at [2,0], [3,0] is OOB
-      (reset! atoms/game-map (build-test-map ["Xfa"]))
+      (set-test-world! (build-test-map ["Xfa"]))
       (set-test-unit atoms/game-map "f"
                      :fuel 20
                      :flight-mode :explore
                      :explore-steps-remaining 20
                      :flight-target-site [2 0]
                      :explore-origin [0 0])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit))
       ;; Fighter couldn't hop — stayed at [1,0] and burned fuel
@@ -70,14 +70,14 @@
   (context "hop blocked by enemy"
     (it "returns nil when cell after friendly chain is enemy-occupied"
       ;; [0,0]=city [1,0]=fighter [2,0]=comp-army [3,0]=player-army [4..13]=land
-      (reset! atoms/game-map (build-test-map ["XfaA##########"]))
+      (set-test-world! (build-test-map ["XfaA##########"]))
       (set-test-unit atoms/game-map "f"
                      :fuel 20
                      :flight-mode :explore
                      :explore-steps-remaining 20
                      :flight-target-site [13 0]
                      :explore-origin [0 0])
-      (reset! atoms/computer-map (build-test-map ["Xfa..........."]))
+      (set-test-computer-map! (build-test-map ["Xfa..........."]))
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit))
       ;; The friendly army at [2,0] should be untouched

@@ -2,6 +2,8 @@
 (ns empire.computer.transport-unloading
   "Transport unloading — opportunistic and targeted army unloading."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
@@ -9,6 +11,13 @@
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- adjacent-empty-land
   "Returns adjacent land/city positions that are empty (no unit).
@@ -104,12 +113,12 @@
   "Inline loading transition — avoids circular dep with facade."
   [pos]
   (tc/set-transport-mission pos :loading)
-  (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
+  (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
   (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
                             (land-objectives/flood-fill-continent lp))
         next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-    (swap! atoms/game-map assoc-in
-           (conj pos :contents :pickup-continent-pos) next-pickup)))
+    (update-game-map! assoc-in
+                      (conj pos :contents :pickup-continent-pos) next-pickup)))
 
 (defn try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,
@@ -131,7 +140,7 @@
                    unload-cid (assoc :country-id unload-cid))]
         (doseq [land-pos (take to-unload targets)]
           (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-          (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
+          (update-game-map! assoc-in (conj land-pos :contents) army)
           (core/stamp-territory land-pos army)
           (visibility/update-cell-visibility land-pos :computer))
         ;; Record unloaded country-id from land cells
@@ -139,10 +148,10 @@
                                 (keep #(:country-id (get-in @atoms/game-map %)))
                                 first)]
           (when unloaded-cid
-            (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
-                   assoc unloaded-cid @atoms/round-number)))
+            (update-game-map! update-in (conj pos :contents :unloaded-countries)
+                              assoc unloaded-cid @atoms/round-number)))
         ;; Update army count
-        (swap! atoms/game-map update-in (conj pos :contents :army-count) - to-unload)
+        (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
         ;; If fully unloaded, transition to loading
         (when (<= (- army-count to-unload) 0)
           (transition-to-loading-inline pos))
@@ -172,7 +181,7 @@
                            unload-eid (assoc :unload-event-id unload-eid)
                            unload-cid (assoc :country-id unload-cid))]
                 (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-                (swap! atoms/game-map assoc-in (conj land-pos :contents) army)
+                (update-game-map! assoc-in (conj land-pos :contents) army)
                 (core/stamp-territory land-pos army)
                 (visibility/update-cell-visibility land-pos :computer))))
           ;; Record unloaded country-id
@@ -180,20 +189,20 @@
                                           (keep #(:country-id (get-in @atoms/game-map %)))
                                           first)]
             (when unloaded-country-id
-              (swap! atoms/game-map update-in (conj pos :contents :unloaded-countries)
-                     assoc unloaded-country-id @atoms/round-number)))
+              (update-game-map! update-in (conj pos :contents :unloaded-countries)
+                                assoc unloaded-country-id @atoms/round-number)))
           ;; Update transport army count
-          (swap! atoms/game-map update-in (conj pos :contents :army-count) - to-unload)
+          (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
           ;; If fully unloaded, change mission to loading and update pickup continent
           (when (<= (- army-count to-unload) 0)
-            (swap! atoms/game-map assoc-in (conj pos :contents :transport-mission) :loading)
-            (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
-            (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
+            (update-game-map! assoc-in (conj pos :contents :transport-mission) :loading)
+            (update-game-map! assoc-in (conj pos :contents :loading-since) @atoms/round-number)
+            (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
             (let [current-continent (when-let [land-pos (tc/find-adjacent-land-pos pos)]
                                      (land-objectives/flood-fill-continent land-pos))
                   next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-              (swap! atoms/game-map assoc-in
-                     (conj pos :contents :pickup-continent-pos) next-pickup)))
+              (update-game-map! assoc-in
+                                (conj pos :contents :pickup-continent-pos) next-pickup)))
           true)))))
 
 (defn unloading-crawl-move
@@ -215,5 +224,5 @@
         (visibility/update-cell-visibility pos :computer)
         (visibility/update-cell-visibility target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
-          (swap! atoms/game-map assoc-in (conj target :contents :crawl-history) new-history))
+          (update-game-map! assoc-in (conj target :contents :crawl-history) new-history))
         target))))

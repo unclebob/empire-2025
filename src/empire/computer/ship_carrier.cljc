@@ -4,10 +4,19 @@
   "Computer carrier positioning - finding and navigating to holding positions."
   (:require [clojure.set :as set]
             [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.config :as config]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- find-computer-cities
   "Returns positions of all computer cities."
@@ -115,11 +124,11 @@
   [pos target]
   (cond
     (= pos target)
-    (swap! atoms/game-map update-in (conj pos :contents)
-           #(-> % (assoc :carrier-mode :holding) (dissoc :carrier-target)))
+    (update-game-map! update-in (conj pos :contents)
+                      #(-> % (assoc :carrier-mode :holding) (dissoc :carrier-target)))
 
     (not (target-still-valid? target))
-    (do (swap! atoms/game-map update-in (conj pos :contents) dissoc :carrier-target)
+    (do (update-game-map! update-in (conj pos :contents) dissoc :carrier-target)
         (position-carrier-without-target pos))
 
     :else
@@ -135,8 +144,8 @@
   "Handles carrier in positioning mode without a target. Finds one or holds."
   [pos]
   (if-let [{:keys [position pair]} (find-carrier-position)]
-    (do (swap! atoms/game-map update-in (conj pos :contents)
-               assoc :carrier-target position :carrier-pair pair :refueling :position)
+    (do (update-game-map! update-in (conj pos :contents)
+                          assoc :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
           (swap! atoms/computer-carrier-positions disj pos)
@@ -144,15 +153,15 @@
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))
-    (swap! atoms/game-map update-in (conj pos :contents)
-           assoc :carrier-mode :holding)))
+    (update-game-map! update-in (conj pos :contents)
+                      assoc :carrier-mode :holding)))
 
 (defn- reposition-carrier
   "Handles carrier in repositioning mode. Finds new position or holds."
   [pos]
   (if-let [{:keys [position pair]} (find-carrier-position)]
-    (do (swap! atoms/game-map update-in (conj pos :contents)
-               assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
+    (do (update-game-map! update-in (conj pos :contents)
+                          assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
         (when-let [next-pos (pathfinding/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
           (swap! atoms/computer-carrier-positions disj pos)
@@ -160,8 +169,8 @@
           (visibility/update-cell-visibility pos :computer)
           (visibility/update-cell-visibility next-pos :computer)
           next-pos))
-    (swap! atoms/game-map update-in (conj pos :contents)
-           assoc :carrier-mode :holding)))
+    (update-game-map! update-in (conj pos :contents)
+                      assoc :carrier-mode :holding)))
 
 (defn- pair-still-valid?
   "Returns true if both cities in the pair are still computer-owned."
@@ -189,8 +198,8 @@
       (let [pair (:carrier-pair unit)]
         (if (or (nil? pair) (pair-still-valid? pair))
           nil
-          (do (swap! atoms/game-map update-in (conj pos :contents)
-                     #(-> % (assoc :carrier-mode :repositioning) (dissoc :carrier-pair)))
+          (do (update-game-map! update-in (conj pos :contents)
+                                #(-> % (assoc :carrier-mode :repositioning) (dissoc :carrier-pair)))
               nil)))
 
       :repositioning (reposition-carrier pos)

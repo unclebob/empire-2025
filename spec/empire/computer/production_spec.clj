@@ -4,7 +4,7 @@
             [empire.computer.production :as production]
             [empire.computer.ship :as ship]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 ;; ===== 1. utility functions =====
 
@@ -14,23 +14,23 @@
   (context "city-is-coastal?"
 
     (it "returns true when city has adjacent sea"
-      (reset! atoms/game-map (build-test-map ["~X#"]))
+      (set-test-world! (build-test-map ["~X#"]))
       (should (production/city-is-coastal? [1 0])))
 
     (it "returns false when city has no adjacent sea"
-      (reset! atoms/game-map (build-test-map ["#X#"]))
+      (set-test-world! (build-test-map ["#X#"]))
       (should-not (production/city-is-coastal? [1 0]))))
 
   (context "count-computer-units"
 
     (it "counts computer units by type"
-      (reset! atoms/game-map (build-test-map ["aad"]))
+      (set-test-world! (build-test-map ["aad"]))
       (let [counts (production/count-computer-units)]
         (should= 2 (get counts :army))
         (should= 1 (get counts :destroyer))))
 
     (it "ignores player units"
-      (reset! atoms/game-map (build-test-map ["aAD"]))
+      (set-test-world! (build-test-map ["aAD"]))
       (let [counts (production/count-computer-units)]
         (should= 1 (get counts :army))
         (should-be-nil (get counts :destroyer)))))
@@ -38,21 +38,21 @@
   (context "count-computer-cities"
 
     (it "counts computer cities"
-      (reset! atoms/game-map (build-test-map ["X#X~O"]))
+      (set-test-world! (build-test-map ["X#X~O"]))
       (should= 2 (production/count-computer-cities)))
 
     (it "ignores player and free cities"
-      (reset! atoms/game-map (build-test-map ["O+X"]))
+      (set-test-world! (build-test-map ["O+X"]))
       (should= 1 (production/count-computer-cities))))
 
   (context "count-country-armies default army-count (L79)"
 
     (it "counts 0 armies aboard transport with no :army-count key"
       ;; Transport with no :army-count key should default to 0, not 1
-      (reset! atoms/game-map (build-test-map ["~t"]))
-      (swap! atoms/game-map assoc-in [1 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [1 0 :contents :army-count] nil)
-      (swap! atoms/game-map update-in [1 0 :contents] dissoc :army-count)
+      (set-test-world! (build-test-map ["~t"]))
+      (update-test-world! assoc-in [1 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [1 0 :contents :army-count] nil)
+      (update-test-world! update-in [1 0 :contents] dissoc :army-count)
       (production/rebuild-country-stats!)
       (should= 0 (production/count-country-armies 1)))))
 
@@ -68,18 +68,18 @@
       ;; Row 0: ~ X a a t d ~ p p p p
       ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       ;; Coastal cells: [2,0],[3,0] — filled by armies → army priority satisfied
-      (reset! atoms/game-map (build-test-map ["~Xaatd~pppp"
+      (set-test-world! (build-test-map ["~Xaatd~pppp"
                                                "~~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :escort-destroyer-id] 1)
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :transport-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :escort-destroyer-id] 1)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
       (should= :fighter (production/decide-production [1 0])))
 
@@ -88,12 +88,12 @@
       ;; Row 0: ~ # X #
       ;; Row 1: ~ # # #
       ;; City at [2,0] is inland (surrounded by land). Country has coastal cell [1,0] unfilled.
-      (reset! atoms/game-map (build-test-map ["~#X#"
+      (set-test-world! (build-test-map ["~#X#"
                                                "~###"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col [1 2 3]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 1 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 1 :country-id] 1))
       (production/rebuild-country-stats!)
       (should= :army (production/decide-production [2 0]))))
 
@@ -104,13 +104,13 @@
       ;; Row 0: ~ X a a a a a a
       ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~
       ;; Armies at [2-7,0] are adjacent to sea at row 1
-      (reset! atoms/game-map (build-test-map ["~Xaaaaaa"
+      (set-test-world! (build-test-map ["~Xaaaaaa"
                                                "~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 2 8)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0]))))
 
@@ -118,25 +118,25 @@
 
     (it "coastal city produces transport when country has 6+ coastal armies waiting"
       ;; 2-row map: armies on coastal cells, no transports
-      (reset! atoms/game-map (build-test-map ["~Xaaaaaa"
+      (set-test-world! (build-test-map ["~Xaaaaaa"
                                                "~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 2 8)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0])))
 
     (it "coastal city does not produce transport when country has fewer than 6 armies"
       ;; 2-row map: only 5 coastal armies
-      (reset! atoms/game-map (build-test-map ["~Xaaaaa"
+      (set-test-world! (build-test-map ["~Xaaaaa"
                                                "~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 2 7)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0])))
 
@@ -144,14 +144,14 @@
       ;; Two coastal cities, plenty of coastal armies, no transports
       ;; Row 0: ~ X a a a a a a X a a a a a
       ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-      (reset! atoms/game-map (build-test-map ["~XaaaaaaXaaaaa"
+      (set-test-world! (build-test-map ["~XaaaaaaXaaaaa"
                                                "~~~~~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [8 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [8 0 :country-id] 1)
       (doseq [col (concat (range 2 8) (range 9 14))]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
       (let [first-decision (production/decide-production [1 0])]
         (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 20}})
@@ -160,28 +160,28 @@
 
     (it "does not produce transport when existing transport has room"
       ;; Transport with army-count < 6 and :loading mission
-      (reset! atoms/game-map (build-test-map ["~Xaaaaaaa~t"
+      (set-test-world! (build-test-map ["~Xaaaaaaa~t"
                                                "~~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 2 9)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [10 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [10 0 :contents :transport-id] 1)
-      (swap! atoms/game-map assoc-in [10 0 :contents :army-count] 2)
-      (swap! atoms/game-map assoc-in [10 0 :contents :transport-mission] :loading)
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [10 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [10 0 :contents :transport-id] 1)
+      (update-test-world! assoc-in [10 0 :contents :army-count] 2)
+      (update-test-world! assoc-in [10 0 :contents :transport-mission] :loading)
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0])))
 
     (it "landlocked city does not produce transport even when country needs one"
-      (reset! atoms/game-map (build-test-map ["###"
+      (set-test-world! (build-test-map ["###"
                                                "#X#"
                                                "###"]))
-      (reset! atoms/computer-map (build-test-map ["###"
+      (set-test-computer-map! (build-test-map ["###"
                                                    "#X#"
                                                    "###"]))
-      (swap! atoms/game-map assoc-in [1 1 :country-id] 1)
+      (update-test-world! assoc-in [1 1 :country-id] 1)
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 1])))
 
@@ -191,27 +191,27 @@
       ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
       ;; Coastal cells of country: [2,0],[3,0],[4,0],[5,0],[6,0] — all adj to sea at row 1
       ;; Armies only at [3,0] and [4,0], still unfilled coastal cells
-      (reset! atoms/game-map (build-test-map ["~X#aa##~pppp"
+      (set-test-world! (build-test-map ["~X#aa##~pppp"
                                                "~~~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3 4 5 6]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
-      (swap! atoms/game-map assoc-in [3 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
+        (update-test-world! assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [3 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
       (doseq [col [8 9 10 11]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0])))
 
     (it "does not produce army when another city in country is already producing armies"
       ;; City 1 at [1,0] already producing army, city 2 at [3,0] should not also produce army
       ;; 2-row map so cities have coastal cells
-      (reset! atoms/game-map (build-test-map ["~X~X~"
+      (set-test-world! (build-test-map ["~X~X~"
                                                "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
       (reset! atoms/production {[1 0] {:item :army :remaining-rounds 3}})
       (production/rebuild-country-stats!)
       (should-not= :army (production/decide-production [3 0]))))
@@ -219,51 +219,51 @@
   (context "country-city-producing? coordination"
 
     (it "returns true when another city in country is producing the unit type"
-      (reset! atoms/game-map (build-test-map ["~X~X~"]))
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+      (set-test-world! (build-test-map ["~X~X~"]))
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
       (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 10}})
       (should (production/country-city-producing? [3 0] 1 :transport)))
 
     (it "returns false when no other city in country is producing the unit type"
-      (reset! atoms/game-map (build-test-map ["~X~X~"]))
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+      (set-test-world! (build-test-map ["~X~X~"]))
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
       (reset! atoms/production {})
       (should-not (production/country-city-producing? [3 0] 1 :transport)))
 
     (it "returns false when city producing is from different country"
-      (reset! atoms/game-map (build-test-map ["~X~X~"]))
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 2)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+      (set-test-world! (build-test-map ["~X~X~"]))
+      (update-test-world! assoc-in [1 0 :country-id] 2)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
       (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 10}})
       (should-not (production/country-city-producing? [3 0] 1 :transport)))
 
     (it "produces transport even when another city in country is already producing one"
       ;; 2-row map: coastal armies fill all coastal cells → army priority met
       ;; Another city already producing transport — second city should also produce transport
-      (reset! atoms/game-map (build-test-map ["~X~Xaaaaaa"
+      (set-test-world! (build-test-map ["~X~Xaaaaaa"
                                                "~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
       (doseq [col (range 4 10)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/production {[1 0] {:item :transport :remaining-rounds 10}})
       (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [3 0])))
 
     (it "does not produce destroyer when another city in country is already producing"
       ;; Two coastal cities, same country, 200 armies in transport, 4 patrol boats, first producing destroyer
-      (reset! atoms/game-map (build-test-map ["~X~X~t~pppp"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [3 0 :country-id] 1)
-      (swap! atoms/game-map assoc-in [5 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [5 0 :contents :army-count] 200)
+      (set-test-world! (build-test-map ["~X~X~t~pppp"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
+      (update-test-world! assoc-in [5 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [5 0 :contents :army-count] 200)
       (doseq [col [7 8 9 10]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (reset! atoms/production {[1 0] {:item :destroyer :remaining-rounds 10}})
       (production/rebuild-country-stats!)
       (should= :fighter (production/decide-production [3 0]))))
@@ -273,12 +273,12 @@
     (it "army limit reached at 2/3 of coastal cells"
       ;; 6 coastal land cells (cols 2-7, row 0) adjacent to sea at row 1
       ;; Place 4 armies -> 2/3 * 6 = 4, so limit reached
-      (reset! atoms/game-map (build-test-map ["~X######~"
+      (set-test-world! (build-test-map ["~X######~"
                                                "~~~~~~~~~"]))
       (doseq [col (range 2 8)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1))
       (doseq [col (range 2 6)]
-        (swap! atoms/game-map assoc-in [col 0 :contents]
+        (update-test-world! assoc-in [col 0 :contents]
                {:type :army :owner :computer :hits 1 :country-id 1}))
       (production/rebuild-country-stats!)
       (should (#'empire.computer.production/country-army-limit-reached? 1)))
@@ -286,12 +286,12 @@
     (it "army limit not reached below 2/3 of coastal cells"
       ;; 6 coastal land cells (cols 2-7, row 0) adjacent to sea at row 1
       ;; Place 3 armies -> 3 < 4, so limit NOT reached
-      (reset! atoms/game-map (build-test-map ["~X######~"
+      (set-test-world! (build-test-map ["~X######~"
                                                "~~~~~~~~~"]))
       (doseq [col (range 2 8)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1))
       (doseq [col (range 2 5)]
-        (swap! atoms/game-map assoc-in [col 0 :contents]
+        (update-test-world! assoc-in [col 0 :contents]
                {:type :army :owner :computer :hits 1 :country-id 1}))
       (production/rebuild-country-stats!)
       (should-not (#'empire.computer.production/country-army-limit-reached? 1))))
@@ -299,17 +299,17 @@
   (context "process-computer-city"
 
     (it "sets production when none exists and city has a country-id"
-      (reset! atoms/game-map (build-test-map ["X+#"]))
-      (reset! atoms/computer-map (build-test-map ["X+#"]))
-      (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+      (set-test-world! (build-test-map ["X+#"]))
+      (set-test-computer-map! (build-test-map ["X+#"]))
+      (update-test-world! assoc-in [0 0 :country-id] 1)
       (reset! atoms/production {})
       (production/rebuild-country-stats!)
       (production/process-computer-city [0 0])
       (should-not-be-nil (get @atoms/production [0 0])))
 
     (it "does not change existing production"
-      (reset! atoms/game-map (build-test-map ["X#"]))
-      (reset! atoms/computer-map (build-test-map ["X#"]))
+      (set-test-world! (build-test-map ["X#"]))
+      (set-test-computer-map! (build-test-map ["X#"]))
       (reset! atoms/production {[0 0] {:item :fighter :remaining-rounds 10}})
       (production/process-computer-city [0 0])
       (should= :fighter (:item (get @atoms/production [0 0])))))
@@ -320,10 +320,10 @@
       (let [game-map (build-test-map ["X~~"
                                       "###"
                                       "~~~"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (reset! atoms/transport-fully-loaded? true)
         (reset! atoms/early-patrol-boat-produced? false)
-        (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (update-test-world! assoc-in [0 0 :country-id] 1)
         (production/rebuild-country-stats!)
         (should= :patrol-boat (production/decide-production [0 0]))
         (should @atoms/early-patrol-boat-produced?)))
@@ -333,11 +333,11 @@
                                       "####"
                                       "#X##"
                                       "####"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (reset! atoms/transport-fully-loaded? true)
         (reset! atoms/early-patrol-boat-produced? true)
         (reset! atoms/early-satellite-produced? false)
-        (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (update-test-world! assoc-in [1 2 :country-id] 1)
         (production/rebuild-country-stats!)
         (should= :satellite (production/decide-production [1 2]))))
 
@@ -346,11 +346,11 @@
                                       "####"
                                       "#X##"
                                       "####"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (reset! atoms/transport-fully-loaded? true)
         (reset! atoms/early-patrol-boat-produced? false)
         (reset! atoms/early-satellite-produced? false)
-        (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (update-test-world! assoc-in [1 2 :country-id] 1)
         (production/rebuild-country-stats!)
         (should-not= :satellite (production/decide-production [1 2]))))
 
@@ -359,12 +359,12 @@
                                       "####"
                                       "#X##"
                                       "####"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (reset! atoms/transport-fully-loaded? true)
         (reset! atoms/early-patrol-boat-produced? true)
         (reset! atoms/early-satellite-produced? false)
-        (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [1 2 :country-id] 1)
+        (update-test-world! assoc-in [0 0 :country-id] 1)
+        (update-test-world! assoc-in [1 2 :country-id] 1)
         (production/rebuild-country-stats!)
         ;; [0 0] is coastal — should skip satellite, fall through
         (should-not= :satellite (production/decide-production [0 0]))))
@@ -373,11 +373,11 @@
       (let [game-map (build-test-map ["X~~"
                                       "~~~"
                                       "~~~"])]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         (reset! atoms/transport-fully-loaded? true)
         (reset! atoms/early-patrol-boat-produced? true)
         (reset! atoms/early-satellite-produced? false)
-        (swap! atoms/game-map assoc-in [0 0 :country-id] 1)
+        (update-test-world! assoc-in [0 0 :country-id] 1)
         (production/rebuild-country-stats!)
         (should= :satellite (production/decide-production [0 0]))))))
 

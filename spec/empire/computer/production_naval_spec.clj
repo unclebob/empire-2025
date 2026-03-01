@@ -4,7 +4,7 @@
             [empire.computer.production :as production]
             [empire.computer.ship :as ship]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! update-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn- rebuild! [] (production/rebuild-country-stats!))
 
@@ -13,8 +13,8 @@
   []
   (let [rows (count (first @atoms/game-map))
         sea-col (vec (repeat rows {:type :sea}))]
-    (swap! atoms/game-map conj sea-col)
-    (swap! atoms/computer-map conj sea-col)))
+    (update-test-world! conj sea-col)
+    (update-test-computer-map! conj sea-col)))
 
 (defn- count-test-computer-cities
   "Counts computer cities in the test map."
@@ -43,7 +43,7 @@
                         :when (and (= :sea (:type cell)) (nil? (:contents cell)))]
                     [i j])]
     (doseq [pos (take needed empty-sea)]
-      (swap! atoms/game-map assoc-in (conj pos :contents)
+      (update-test-world! assoc-in (conj pos :contents)
              {:type :fighter :owner :computer :mode :awake :hits 1 :fuel 20}))))
 
 (defn- satisfy-coastal-per-country
@@ -51,14 +51,14 @@
    Places armies on coastal land cells and adds 4 patrol boats.
    Saturates fighter limit so global production decisions can be reached."
   [city-col]
-  (swap! atoms/game-map assoc-in [0 city-col :country-id] 1)
+  (update-test-world! assoc-in [0 city-col :country-id] 1)
   ;; 1 transport with escort
-  (swap! atoms/game-map assoc-in [0 5 :contents]
+  (update-test-world! assoc-in [0 5 :contents]
          {:type :transport :owner :computer :country-id 1 :transport-id 1
           :escort-destroyer-id 1 :army-count 0 :hits 3})
   ;; 4 patrol boats (new cap)
   (doseq [j [7 9 11 13]]
-    (swap! atoms/game-map assoc-in [0 j :contents]
+    (update-test-world! assoc-in [0 j :contents]
            {:type :patrol-boat :owner :computer :country-id 1 :hits 1}))
   ;; Fill any coastal land cells with armies to satisfy coastal-fill guard
   (let [game-map @atoms/game-map
@@ -68,7 +68,7 @@
             :when (and (= :land (:type cell))
                        (nil? (:contents cell))
                        (= 1 (:country-id cell)))]
-      (swap! atoms/game-map assoc-in [0 j :contents]
+      (update-test-world! assoc-in [0 j :contents]
              {:type :army :owner :computer :country-id 1 :hits 1 :mode :sentry})))
   ;; Saturate fighter limit so per-country production falls through to global
   (saturate-fighter-limit)
@@ -83,33 +83,33 @@
 
     (it "produces destroyer when country has unadopted transport and global cap allows"
       ;; 2-row: armies fill coastal cells, unadopted transport, 4 patrol boats
-      (reset! atoms/game-map (build-test-map ["~Xaat~pppp"
+      (set-test-world! (build-test-map ["~Xaat~pppp"
                                                "~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :transport-id] 1)
       (doseq [col [6 7 8 9]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (rebuild!)
       (should= :destroyer (production/decide-production [1 0])))
 
     (it "does not produce destroyer when global cap reached"
       ;; 2-row: same but 1 destroyer already → destroyers >= transports
-      (reset! atoms/game-map (build-test-map ["~Xaat~ppppd"
+      (set-test-world! (build-test-map ["~Xaat~ppppd"
                                                "~~~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :transport-id] 1)
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :transport-id] 1)
       (doseq [col [6 7 8 9]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (rebuild!)
       (should-not= :destroyer (production/decide-production [1 0]))))
 
@@ -125,8 +125,8 @@
                             (and (even? j) (>= j 50) (<= j 60)) {:type :city :city-status :computer}
                             (and (>= j 50) (<= j 60)) {:type :land}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 10)
         (ship/update-distant-city-pairs!)
         (should= :carrier (production/decide-production [0 10]))))
@@ -137,8 +137,8 @@
                             (and (even? j) (<= j 18)) {:type :city :city-status :computer}
                             (<= j 18) {:type :land}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 18)
         (should-not= :carrier (production/decide-production [0 18]))))
 
@@ -148,8 +148,8 @@
                             (and (even? j) (<= j 22)) {:type :city :city-status :computer}
                             (<= j 22) {:type :land}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
@@ -162,8 +162,8 @@
                             (<= j 22) {:type :land}
                             (<= 30 j 37) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (should-not= :carrier (production/decide-production [0 22]))))
 
@@ -173,8 +173,8 @@
                             (and (even? j) (<= j 22)) {:type :city :city-status :computer}
                             (<= j 22) {:type :land}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (should-not= :carrier (production/decide-production [0 22])))))
 
@@ -190,8 +190,8 @@
                                                              :group-battleship-id nil
                                                              :group-submarine-ids []}}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
@@ -205,8 +205,8 @@
                             (= j 30) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
                             (= j 31) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
@@ -222,8 +222,8 @@
                             (= j 30) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
                             (= j 31) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
@@ -239,8 +239,8 @@
                             (= j 32) {:type :sea :contents {:type :submarine :owner :computer :hits 2}}
                             (= j 33) {:type :sea :contents {:type :submarine :owner :computer :hits 2}}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
@@ -252,38 +252,38 @@
       ;; 3 computer cities, 2 fighters — 2 < 3 so should produce fighter.
       ;; Coastal city at [1,0], other per-country priorities met.
       ;; Two extra computer cities at [30,0] and [31,0].
-      (reset! atoms/game-map (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppff"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-world! (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppff"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 3 23)]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [23 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [23 0 :contents :transport-id] 1)
-      (swap! atoms/game-map assoc-in [23 0 :contents :escort-destroyer-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [23 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [23 0 :contents :transport-id] 1)
+      (update-test-world! assoc-in [23 0 :contents :escort-destroyer-id] 1)
       (doseq [col [26 27 28 29]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [31 0 :contents :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [30 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [31 0 :contents :country-id] 1)
       ;; Add 2 extra computer cities (total 3 cities, 2 fighters)
-      (swap! atoms/game-map assoc-in [32 0] {:type :city :city-status :computer :country-id 2})
-      (swap! atoms/game-map assoc-in [33 0] {:type :city :city-status :computer :country-id 3})
+      (update-test-world! assoc-in [32 0] {:type :city :city-status :computer :country-id 2})
+      (update-test-world! assoc-in [33 0] {:type :city :city-status :computer :country-id 3})
       (rebuild!)
       (should= :fighter (production/decide-production [1 0])))
 
     (it "does not produce fighter when total fighters >= total computer cities"
       ;; 1 computer city, 1 fighter — 1 >= 1 so should NOT produce fighter.
       ;; Coastal city at [1,0], other per-country priorities met.
-      (reset! atoms/game-map (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppf"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-world! (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppf"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 3 23)]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [23 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [23 0 :contents :transport-id] 1)
-      (swap! atoms/game-map assoc-in [23 0 :contents :escort-destroyer-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [23 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [23 0 :contents :transport-id] 1)
+      (update-test-world! assoc-in [23 0 :contents :escort-destroyer-id] 1)
       (doseq [col [26 27 28 29]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
-      (swap! atoms/game-map assoc-in [30 0 :contents :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (update-test-world! assoc-in [30 0 :contents :country-id] 1)
       (rebuild!)
       (should-not= :fighter (production/decide-production [1 0]))))
 
@@ -295,8 +295,8 @@
                               {:type :city :city-status :computer :country-id 1}
                               {:type :land :country-id 1})))
             game-map (vec [city-row])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (add-sea-column)
         (satisfy-coastal-per-country 0)
         (should= :satellite (production/decide-production [0 0]))))
@@ -322,9 +322,9 @@
                               :else
                               {:type :land :country-id 1
                                :contents {:type :army :owner :player :hits 1}})))]
-        (reset! atoms/game-map [city-row (vec (repeat 34 {:type :sea}))])
-        (reset! atoms/computer-map @atoms/game-map)
-        (swap! atoms/game-map assoc-in [1 0 :contents]
+        (set-test-world! [city-row (vec (repeat 34 {:type :sea}))])
+        (set-test-computer-map! @atoms/game-map)
+        (update-test-world! assoc-in [1 0 :contents]
                {:type :satellite :owner :computer :direction [1 0] :turns-remaining 50})
         (saturate-fighter-limit)
         (production/rebuild-country-stats!)
@@ -337,8 +337,8 @@
                               {:type :city :city-status :computer :country-id 1}
                               {:type :land :country-id 1})))
             game-map (vec [city-row])]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map game-map)
+        (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (add-sea-column)
         (satisfy-coastal-per-country 0)
         (should-not= :satellite (production/decide-production [0 0])))))
@@ -348,15 +348,15 @@
     (it "does not produce destroyer when no transports exist"
       ;; L297: 0 -> 1 for transport default would make (< destroyers 1) true
       ;; when no transports exist, allowing destroyer production inappropriately
-      (reset! atoms/game-map (build-test-map ["~Xaa~pppp"
+      (set-test-world! (build-test-map ["~Xaa~pppp"
                                                "~~~~~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1)
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (doseq [col [5 6 7 8]]
-        (swap! atoms/game-map assoc-in [col 0 :contents :country-id] 1))
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       ;; No transports exist → should not produce destroyer
       (rebuild!)
       (should-not= :destroyer (production/decide-production [1 0]))))
@@ -387,8 +387,8 @@
                             :else {:type :sea})))]
         ;; 10 cities at j=0,2,...,18 (no distant city adds to count beyond 10)
         ;; Actually distant city would make 11. Use 9 close + distant pair setup via mock.
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 18)
         (ship/update-distant-city-pairs!)
         ;; Count is 10 + 1 distant = 11... need exact 10.
@@ -401,8 +401,8 @@
                                 (and (even? j) (<= j 18)) {:type :city :city-status :computer :country-id 1}
                                 (<= j 18) {:type :land :country-id 1}
                                 :else {:type :sea})))]
-            (reset! atoms/game-map [cells2])
-            (reset! atoms/computer-map [cells2])
+            (set-test-world! [cells2])
+            (set-test-computer-map! [cells2])
             (satisfy-coastal-per-country 18)
             (production/rebuild-country-stats!)
             (should-not= :carrier (production/decide-production [0 18]))))))
@@ -416,8 +416,8 @@
                              (<= j 22) {:type :land :country-id 1}
                              (<= 30 j 37) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
                              :else {:type :sea})))]
-          (reset! atoms/game-map [cells])
-          (reset! atoms/computer-map [cells])
+          (set-test-world! [cells])
+          (set-test-computer-map! [cells])
           (satisfy-coastal-per-country 22)
           (production/rebuild-country-stats!)
           ;; 12 cities > 10 threshold, 8 live carriers = max → should not produce
@@ -431,8 +431,8 @@
                              (and (even? j) (<= j 22)) {:type :city :city-status :computer :country-id 1}
                              (<= j 22) {:type :land :country-id 1}
                              :else {:type :sea})))]
-          (reset! atoms/game-map [cells])
-          (reset! atoms/computer-map [cells])
+          (set-test-world! [cells])
+          (set-test-computer-map! [cells])
           (satisfy-coastal-per-country 22)
           (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
                                     [0 2] {:item :carrier :remaining-rounds 10}})
@@ -451,8 +451,8 @@
                             (<= j 22) {:type :land :country-id 1}
                             (= j 30) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
                             :else {:type :sea})))]
-        (reset! atoms/game-map [cells])
-        (reset! atoms/computer-map [cells])
+        (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
         ;; No carriers, 1 battleship → battleships >= carriers, skip BB
         (production/rebuild-country-stats!)

@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map set-test-world!]]))
 
 (describe "process-map"
   (before (reset-all-atoms!))
@@ -69,23 +69,23 @@
 (describe "on-coast?"
   (before (reset-all-atoms!))
   (it "returns true when cell is adjacent to sea"
-    (reset! atoms/game-map (build-test-map ["#~"
+    (set-test-world! (build-test-map ["#~"
                                              "##"]))
     (should (map-utils/on-coast? 0 0)))
 
   (it "returns false when cell is not adjacent to sea"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "###"
                                              "###"]))
     (should-not (map-utils/on-coast? 1 1)))
 
   (it "handles corner cells"
-    (reset! atoms/game-map (build-test-map ["##"
+    (set-test-world! (build-test-map ["##"
                                              "#~"]))
     (should (map-utils/on-coast? 0 0)))
 
   (it "handles edge cells"
-    (reset! atoms/game-map (build-test-map ["~"
+    (set-test-world! (build-test-map ["~"
                                              "#"
                                              "#"]))
     (should (map-utils/on-coast? 0 1))
@@ -110,7 +110,7 @@
   (before (reset-all-atoms!))
   (it "converts pixel coordinates to cell coordinates"
     (reset! atoms/map-screen-dimensions [800 600])
-    (reset! atoms/game-map (make-initial-test-map 6 8 nil))
+    (set-test-world! (make-initial-test-map 6 8 nil))
     ;; 800/8 = 100 pixels per cell width, 600/6 = 100 pixels per cell height
     (should= [0 0] (map-utils/determine-cell-coordinates 0 0))
     (should= [0 0] (map-utils/determine-cell-coordinates 50 50))
@@ -121,15 +121,15 @@
 (describe "city?"
   (before (reset-all-atoms!))
   (it "returns true for city cells"
-    (reset! atoms/game-map (build-test-map ["+"]))
+    (set-test-world! (build-test-map ["+"]))
     (should (map-utils/city? [0 0])))
 
   (it "returns false for non-city cells"
-    (reset! atoms/game-map (build-test-map ["#"]))
+    (set-test-world! (build-test-map ["#"]))
     (should-not (map-utils/city? [0 0])))
 
   (it "returns false for sea cells"
-    (reset! atoms/game-map (build-test-map ["~"]))
+    (set-test-world! (build-test-map ["~"]))
     (should-not (map-utils/city? [0 0]))))
 
 (describe "blink?"
@@ -364,7 +364,7 @@
   (before (reset-all-atoms!))
 
   (it "returns land neighbors for army"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#a#"
                                              "~~~"]))
     (let [neighbors (map-utils/get-passable-neighbors [1 1] :army @atoms/game-map)]
@@ -376,7 +376,7 @@
       (should-contain [2 1] neighbors)))
 
   (it "returns sea neighbors for ship"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~d~"
                                              "###"]))
     (let [neighbors (map-utils/get-passable-neighbors [1 1] :destroyer @atoms/game-map)]
@@ -388,7 +388,7 @@
       (should-contain [2 1] neighbors)))
 
   (it "returns all neighbors for fighter"
-    (reset! atoms/game-map (build-test-map ["#~#"
+    (set-test-world! (build-test-map ["#~#"
                                              "~f~"
                                              "#~#"]))
     (let [neighbors (map-utils/get-passable-neighbors [1 1] :fighter @atoms/game-map)]

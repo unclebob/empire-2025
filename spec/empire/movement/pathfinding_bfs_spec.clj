@@ -3,7 +3,7 @@
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "bfs-to-unexplored-coast"
   (before (reset-all-atoms!))
@@ -179,20 +179,20 @@
   (before (reset-all-atoms!))
 
   (it "returns true when sea cell is on edge"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "###"
                                              "###"]))
     (should (pathfinding-bfs/sea-reaches-edge? [0 0])))
 
   (it "returns true when sea connects to edge"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#~#"
                                              "#~~"]))
     ;; [1 1] connects via [2 1] or [1 2] or [2 2] to edge
     (should (pathfinding-bfs/sea-reaches-edge? [1 1])))
 
   (it "returns false for landlocked sea"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#~~~#"
                                              "#~~~#"
                                              "#~~~#"
@@ -200,12 +200,12 @@
     (should-not (pathfinding-bfs/sea-reaches-edge? [2 2])))
 
   (it "returns true for sea cell directly on edge"
-    (reset! atoms/game-map (build-test-map ["~#"
+    (set-test-world! (build-test-map ["~#"
                                              "#~"]))
     (should (pathfinding-bfs/sea-reaches-edge? [0 0])))
 
   (it "returns true for corner sea cell"
-    (reset! atoms/game-map (build-test-map ["##"
+    (set-test-world! (build-test-map ["##"
                                              "#~"]))
     (should (pathfinding-bfs/sea-reaches-edge? [1 1]))))
 
@@ -284,10 +284,10 @@
   (before (reset-all-atoms!))
 
   (it "finds sea cell adjacent to unexplored territory"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"]))
-    (reset! atoms/computer-map (build-test-map ["~~~"
+    (set-test-computer-map! (build-test-map ["~~~"
                                                 "~~~"
                                                 "~~-"]))
     (let [target (pathfinding-bfs/find-nearest-unexplored [0 0] :transport)]
@@ -296,20 +296,20 @@
       (should (some #{target} [[1 1] [1 2] [2 1]]))))
 
   (it "returns nil when no unexplored territory exists"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"]))
-    (reset! atoms/computer-map (build-test-map ["~~~"
+    (set-test-computer-map! (build-test-map ["~~~"
                                                 "~~~"]))
     (should-be-nil (pathfinding-bfs/find-nearest-unexplored [0 0] :transport)))
 
   (it "does not exhibit northwest bias"
     ;; Transport at center [2,2], unexplored only in SE corner
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                             "~~~~~"
                                             "~~~~~"
                                             "~~~~~"
                                             "~~~~~"]))
-    (reset! atoms/computer-map (build-test-map ["~~~~~"
+    (set-test-computer-map! (build-test-map ["~~~~~"
                                                 "~~~~~"
                                                 "~~~~~"
                                                 "~~~~~"
@@ -321,9 +321,9 @@
       (should (>= (second target) 2))))
 
   (it "skips start position even if adjacent to unexplored"
-    (reset! atoms/game-map (build-test-map ["~~"
+    (set-test-world! (build-test-map ["~~"
                                             "~~"]))
-    (reset! atoms/computer-map (build-test-map ["~-"
+    (set-test-computer-map! (build-test-map ["~-"
                                                 "~~"]))
     (let [target (pathfinding-bfs/find-nearest-unexplored [0 0] :transport)]
       (should-not-be-nil target)
@@ -331,12 +331,12 @@
 
   (it "returns nil when only start is adjacent to unexplored"
     ;; Only one sea cell, surrounded by land. Start is the only sea cell.
-    (reset! atoms/game-map (build-test-map ["#~#"]))
-    (reset! atoms/computer-map (build-test-map ["#~-"]))
+    (set-test-world! (build-test-map ["#~#"]))
+    (set-test-computer-map! (build-test-map ["#~-"]))
     (should-be-nil (pathfinding-bfs/find-nearest-unexplored [1 0] :transport)))
 
   (it "detects {:type :unexplored} cells as unexplored (real game format)"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"]))
     (let [computer-map (vec (for [r (range 3)]
@@ -344,7 +344,7 @@
                                      (if (and (= r 2) (= c 2))
                                        {:type :unexplored}
                                        {:type :sea})))))]
-      (reset! atoms/computer-map computer-map)
+      (set-test-computer-map! computer-map)
       (let [target (pathfinding-bfs/find-nearest-unexplored [0 0] :transport)]
         (should-not-be-nil target)
         ;; Target should be adjacent to the unexplored cell [2,2]
@@ -352,10 +352,10 @@
 
   (it "works with fighter unit type over all terrain"
     ;; Fighter can traverse land and sea
-    (reset! atoms/game-map (build-test-map ["##~"
+    (set-test-world! (build-test-map ["##~"
                                             "#~~"
                                             "~~~"]))
-    (reset! atoms/computer-map (build-test-map ["##~"
+    (set-test-computer-map! (build-test-map ["##~"
                                                 "#~~"
                                                 "~~-"]))
     (let [target (pathfinding-bfs/find-nearest-unexplored [0 0] :fighter)]
@@ -369,10 +369,10 @@
     (pathfinding-bfs/clear-bfs-caches))
 
   (it "caches unexplored BFS result for same unit-type"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"]))
-    (reset! atoms/computer-map (build-test-map ["~~~"
+    (set-test-computer-map! (build-test-map ["~~~"
                                                 "~~~"
                                                 "~~-"]))
     ;; Two calls with different starts but same unit-type return same result
@@ -382,7 +382,7 @@
       (should= result1 result2)))
 
   (it "caches unload BFS result for same target-continent"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"
                                             "###"]))
@@ -393,10 +393,10 @@
       (should= result1 result2)))
 
   (it "clear-bfs-caches resets the caches"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"]))
-    (reset! atoms/computer-map (build-test-map ["~~~"
+    (set-test-computer-map! (build-test-map ["~~~"
                                                 "~~~"
                                                 "~~-"]))
     ;; Populate cache
@@ -404,7 +404,7 @@
     ;; Clear caches
     (pathfinding-bfs/clear-bfs-caches)
     ;; Change the map so a fresh BFS would give a different result
-    (reset! atoms/computer-map (build-test-map ["-~~"
+    (set-test-computer-map! (build-test-map ["-~~"
                                                 "~~~"
                                                 "~~~"]))
     ;; After clearing, fresh BFS runs and finds new target
@@ -414,10 +414,10 @@
       (should (some #{result} [[0 1] [1 0] [1 1]]))))
 
   (it "different unit-types get independent cache entries"
-    (reset! atoms/game-map (build-test-map ["##~"
+    (set-test-world! (build-test-map ["##~"
                                             "#~~"
                                             "~~~"]))
-    (reset! atoms/computer-map (build-test-map ["##~"
+    (set-test-computer-map! (build-test-map ["##~"
                                                 "#~~"
                                                 "~~-"]))
     ;; Transport can only traverse sea; fighter can traverse all
@@ -433,7 +433,7 @@
   (before (reset-all-atoms!))
 
   (it "finds nearest sea cell adjacent to target-continent land"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                             "###"
                                             "~~~"
                                             "~~~"
@@ -446,7 +446,7 @@
       (should= 3 (second result))))
 
   (it "returns nil when target-continent land is unreachable"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                             "~~~"
                                             "~~~"]))
     (let [target-continent #{[10 10] [11 10]}
@@ -454,7 +454,7 @@
       (should-be-nil result)))
 
   (it "ignores non-target-continent land"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                             "~~~"
                                             "~~~"
                                             "~~~"
@@ -465,7 +465,7 @@
       (should= 3 (second result))))
 
   (it "skips occupied sea cells as unload destinations"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                             "~~~"
                                             "~~~"
                                             "~d~"
@@ -477,7 +477,7 @@
       (should-not= [1 3] result)))
 
   (it "finds globally nearest position on target continent"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"
                                             "~~~"
@@ -497,12 +497,12 @@
   (before (reset-all-atoms!))
 
   (it "finds sea cell at coastal exploration frontier"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"
                                             "~~~"
                                             "###"]))
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
                                 [{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
                                 [{:type :sea} {:type :sea} {:type :sea} nil nil]])
     (let [target (pathfinding-bfs/find-nearest-unexplored-coastline [0 0] :transport)]
@@ -510,22 +510,22 @@
       (should (>= (second target) 2))))
 
   (it "returns nil when no coastline frontier exists"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"]))
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea} {:type :sea}]
                                 [{:type :sea} {:type :sea} {:type :sea}]
                                 [{:type :sea} {:type :sea} nil]])
     (should-be-nil (pathfinding-bfs/find-nearest-unexplored-coastline [0 0] :transport)))
 
   (it "uses distinct cache key from regular unexplored BFS"
     (pathfinding-bfs/clear-bfs-caches)
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"
                                             "~~~"
                                             "###"]))
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
                                 [{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
                                 [{:type :sea} {:type :sea} {:type :sea} nil nil]])
     (let [coastline (pathfinding-bfs/find-nearest-unexplored-coastline [0 0] :transport)
@@ -535,12 +535,12 @@
 
   (it "returns cached result on second call with same unit-type"
     (pathfinding-bfs/clear-bfs-caches)
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                             "~~~"
                                             "~~~"
                                             "~~~"
                                             "###"]))
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
                                 [{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :land}]
                                 [{:type :sea} {:type :sea} {:type :sea} nil nil]])
     (let [result1 (pathfinding-bfs/find-nearest-unexplored-coastline [0 0] :transport)
@@ -563,14 +563,14 @@
   (context "find-nearest-unload-position start-skip"
     (it "does not return start even when start is valid unload position"
       ;; Start [0,0] is sea, empty, adjacent to target continent land [1,0]
-      (reset! atoms/game-map (build-test-map ["~#" "~#"]))
+      (set-test-world! (build-test-map ["~#" "~#"]))
       (let [target-continent #{[1 0] [1 1]}
             result (pathfinding-bfs/find-nearest-unload-position [0 0] target-continent)]
         (should-not-be-nil result)
         (should-not= [0 0] result)))
 
     (it "finds unload position adjacent to city on target continent"
-      (reset! atoms/game-map [[{:type :sea} {:type :city :city-status :free}]
+      (set-test-world! [[{:type :sea} {:type :city :city-status :free}]
                                [{:type :sea} {:type :sea}]])
       (let [target-continent #{[0 1]}
             result (pathfinding-bfs/find-nearest-unload-position [1 0] target-continent)]
@@ -579,25 +579,25 @@
 
   (context "sea-reaches-edge? edge isolation"
     (it "detects right edge only (kills dec-rows mutation)"
-      (reset! atoms/game-map (build-test-map ["###" "##~" "###"]))
+      (set-test-world! (build-test-map ["###" "##~" "###"]))
       (should (pathfinding-bfs/sea-reaches-edge? [2 1])))
 
     (it "detects bottom edge only (kills dec-cols mutation)"
-      (reset! atoms/game-map (build-test-map ["###" "#~#"]))
+      (set-test-world! (build-test-map ["###" "#~#"]))
       (should (pathfinding-bfs/sea-reaches-edge? [1 1])))
 
     (it "detects left edge only (kills zero-r mutation)"
-      (reset! atoms/game-map (build-test-map ["~###" "~###" "~###"]))
+      (set-test-world! (build-test-map ["~###" "~###" "~###"]))
       (should (pathfinding-bfs/sea-reaches-edge? [0 1])))
 
     (it "detects top edge only (kills zero-c mutation)"
-      (reset! atoms/game-map (build-test-map ["##~##" "##~##" "##~##"]))
+      (set-test-world! (build-test-map ["##~##" "##~##" "##~##"]))
       (should (pathfinding-bfs/sea-reaches-edge? [2 0]))))
 
   (context "find-nearest-unexplored-coastline start-skip"
     (it "does not return start even when start is at coastal frontier"
-      (reset! atoms/game-map (build-test-map ["~#" "~~"]))
-      (reset! atoms/computer-map [[{:type :sea} nil]
+      (set-test-world! (build-test-map ["~#" "~~"]))
+      (set-test-computer-map! [[{:type :sea} nil]
                                    [{:type :land} {:type :sea}]])
       (let [result (pathfinding-bfs/find-nearest-unexplored-coastline [0 0] :transport)]
         (should-not-be-nil result)

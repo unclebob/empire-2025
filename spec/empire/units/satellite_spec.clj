@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.units.satellite :as satellite]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world!]]))
 
 (describe "satellite unit module"
   (before (reset-all-atoms!))
@@ -126,39 +126,39 @@
 
   (context "move-one-step"
     (before
-      (reset! atoms/game-map (build-test-map ["##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"
-                                               "##########"]))
-      (reset! atoms/player-map (make-initial-test-map 10 10 nil)))
+      (set-test-world! (build-test-map ["##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"
+                                        "##########"]))
+      (set-test-player-map! (make-initial-test-map 10 10 nil)))
 
     (it "does not move without target"
-      (swap! atoms/game-map assoc-in [5 5 :contents]
-             {:type :satellite :owner :player :turns-remaining 50})
+      (update-test-world! assoc-in [5 5 :contents]
+                          {:type :satellite :owner :player :turns-remaining 50})
       (should= [5 5] (satellite/move-one-step [5 5])))
 
     (it "moves toward target"
-      (swap! atoms/game-map assoc-in [5 5 :contents]
-             {:type :satellite :owner :player :target [9 9] :turns-remaining 50})
+      (update-test-world! assoc-in [5 5 :contents]
+                          {:type :satellite :owner :player :target [9 9] :turns-remaining 50})
       (should= [6 6] (satellite/move-one-step [5 5])))
 
     (it "moves toward lower coordinates"
-      (swap! atoms/game-map assoc-in [5 5 :contents]
-             {:type :satellite :owner :player :target [2 2] :turns-remaining 50})
+      (update-test-world! assoc-in [5 5 :contents]
+                          {:type :satellite :owner :player :target [2 2] :turns-remaining 50})
       (should= [4 4] (satellite/move-one-step [5 5])))
 
     (it "moves along same row toward target"
-      (swap! atoms/game-map assoc-in [5 3 :contents]
-             {:type :satellite :owner :player :target [5 9] :turns-remaining 50})
+      (update-test-world! assoc-in [5 3 :contents]
+                          {:type :satellite :owner :player :target [5 9] :turns-remaining 50})
       (should= [5 4] (satellite/move-one-step [5 3])))
 
     (it "moves along same column toward target"
-      (swap! atoms/game-map assoc-in [3 5 :contents]
-             {:type :satellite :owner :player :target [9 5] :turns-remaining 50})
+      (update-test-world! assoc-in [3 5 :contents]
+                          {:type :satellite :owner :player :target [9 5] :turns-remaining 50})
       (should= [4 5] (satellite/move-one-step [3 5])))))

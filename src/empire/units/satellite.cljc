@@ -1,6 +1,15 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.satellite
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 ;; Configuration
 (def speed 10)
@@ -88,11 +97,11 @@
         (if at-target?
           (let [new-target (calculate-bounce-target [x y] map-height map-width)
                 updated-satellite (assoc satellite :target new-target)]
-            (swap! atoms/game-map assoc-in [x y :contents] updated-satellite)
+            (update-game-map! assoc-in [x y :contents] updated-satellite)
             [x y])
           (let [dx (Integer/signum (- tx x))
                 dy (Integer/signum (- ty y))
                 new-pos [(+ x dx) (+ y dy)]]
-            (swap! atoms/game-map assoc-in [x y :contents] nil)
-            (swap! atoms/game-map assoc-in (conj new-pos :contents) satellite)
+            (update-game-map! assoc-in [x y :contents] nil)
+            (update-game-map! assoc-in (conj new-pos :contents) satellite)
             new-pos))))))

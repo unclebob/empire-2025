@@ -3,7 +3,7 @@
             [empire.atoms :as atoms]
             [empire.computer.threat-response :as threat-response]
             [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn computer-units
   [pred]
@@ -26,8 +26,8 @@
                               "f~~"
                               "~~F"
                               "f~~"])]
-      (reset! atoms/game-map gm)
-      (reset! atoms/computer-map gm)
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
       (let [enemy-cell (get-in @atoms/game-map [2 7])]
         (threat-response/handle-detection! [2 7] enemy-cell))
       (let [assigned (computer-units #(= :fighter-sweep (:threat-mission %)))
@@ -47,8 +47,8 @@
                               "~~~~"
                               "~~~~"
                               "~~~D"])]
-      (reset! atoms/game-map gm)
-      (reset! atoms/computer-map gm)
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
       (threat-response/handle-detection! [3 8] (get-in @atoms/game-map [3 8]))
       (let [assigned (computer-units #(= :sea-scout (:threat-mission %)))
             patrols (count (filter #(= :patrol-boat (:type (second %))) assigned))
@@ -62,10 +62,10 @@
                               "~~~~"
                               "##O#"
                               "~~~~"])]
-      (reset! atoms/game-map gm)
-      (reset! atoms/computer-map gm)
-      (swap! atoms/game-map assoc-in [0 0 :contents :army-count] 4)
-      (swap! atoms/game-map assoc-in [0 0 :contents :transport-mission] :sailing)
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
+      (update-test-world! assoc-in [0 0 :contents :army-count] 4)
+      (update-test-world! assoc-in [0 0 :contents :transport-mission] :sailing)
       (threat-response/handle-detection! [2 2] (get-in @atoms/game-map [2 2]))
       (threat-response/refresh-major-invasion-assignments!)
       (let [transport (get-in @atoms/game-map [0 0 :contents])]
@@ -78,8 +78,8 @@
 
   (it "ignores non-threat detections"
     (let [gm (build-test-map ["~~~"])]
-      (reset! atoms/game-map gm)
-      (reset! atoms/computer-map gm)
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
       (should-be-nil
        (threat-response/handle-detection! [0 0] (get-in @atoms/game-map [0 0])))
       (should-not (:active? @atoms/major-invasion-state)))))
@@ -96,7 +96,7 @@
                                                                :threat-radius 5}))))
 
   (it "lands at city when refuel is needed and city is adjacent"
-    (reset! atoms/game-map (build-test-map ["#O#"]))
+    (set-test-world! (build-test-map ["#O#"]))
     (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
                   empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] true)
                   empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [1 0])
@@ -106,8 +106,8 @@
        (@#'threat-response/fighter-step-threat [0 0] {:fuel 1 :threat-center [0 0]}))))
 
   (it "refuels in place when adjacent refuel site is not a city"
-    (reset! atoms/game-map (build-test-map ["~~~"]))
-    (swap! atoms/game-map assoc-in [0 0 :contents] {:type :fighter :owner :computer :fuel 1})
+    (set-test-world! (build-test-map ["~~~"]))
+    (update-test-world! assoc-in [0 0 :contents] {:type :fighter :owner :computer :fuel 1})
     (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
                   empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] true)
                   empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [1 0])
@@ -203,7 +203,7 @@
     (should-be-nil (threat-response/process-fighter-threat [0 0] {:threat-mission :none})))
 
   (it "returns true and iterates while fighter-step-threat yields moves"
-    (reset! atoms/game-map (build-test-map ["f"]))
+    (set-test-world! (build-test-map ["f"]))
     (let [calls (atom 0)]
       (with-redefs [empire.computer.threat-response/fighter-step-threat
                     (fn [_ _]
@@ -223,12 +223,12 @@
 
   (it "returns nil when active but cell is not a transport"
     (reset! atoms/major-invasion-state {:active? true :detection-points [] :target-land-set #{}})
-    (reset! atoms/game-map (build-test-map ["a"]))
+    (set-test-world! (build-test-map ["a"]))
     (should-be-nil (threat-response/prepare-transport! [0 0])))
 
   (it "delegates to transport invasion prep and returns true"
     (reset! atoms/major-invasion-state {:active? true :detection-points [[1 1]] :target-land-set #{}})
-    (reset! atoms/game-map (build-test-map ["t"]))
+    (set-test-world! (build-test-map ["t"]))
     (let [called (atom nil)]
       (with-redefs [empire.computer.threat-response/prepare-transport-major-invasion!
                     (fn [pos unit] (reset! called [pos (:type unit)]))]
@@ -247,7 +247,7 @@
         (should-not @called?))))
 
   (it "marks fighters and major ship types; delegates transports"
-    (reset! atoms/game-map (build-test-map ["fpta"]))
+    (set-test-world! (build-test-map ["fpta"]))
     (reset! atoms/major-invasion-state {:active? true :detection-points [[3 3]] :target-land-set #{}})
     (let [transport-calls (atom [])]
       (with-redefs [empire.computer.threat-response/nearest-major-target (fn [_] [3 3])

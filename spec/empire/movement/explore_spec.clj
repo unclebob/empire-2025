@@ -4,7 +4,7 @@
             [empire.config :as config]
             [empire.movement.explore :refer :all]
             [empire.movement.map-utils :as map-utils]
-            [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "valid-explore-cell?"
   (before (reset-all-atoms!))
@@ -55,12 +55,12 @@
 (describe "adjacent-to-unexplored?"
   (before (reset-all-atoms!))
   (it "returns true when adjacent to unexplored cell"
-    (reset! atoms/player-map (build-test-map ["#-"
+    (set-test-player-map! (build-test-map ["#-"
                                                "##"]))
     (should (adjacent-to-unexplored? [0 0])))
 
   (it "returns false when all adjacent cells are explored"
-    (reset! atoms/player-map (build-test-map ["###"
+    (set-test-player-map! (build-test-map ["###"
                                                "###"
                                                "###"]))
     (should-not (adjacent-to-unexplored? [1 1]))))
@@ -71,7 +71,7 @@
     (let [game-map (atom (build-test-map ["###"
                                     "###"
                                     "###"]))]
-      (reset! atoms/player-map (build-test-map ["##-"
+      (set-test-player-map! (build-test-map ["##-"
                                                  "##-"
                                                  "##-"]))
       ;; From [1 1], moves to column 2 should be adjacent to unexplored
@@ -86,7 +86,7 @@
     (let [game-map (atom (build-test-map ["###"
                                     "###"
                                     "###"]))]
-      (reset! atoms/player-map (build-test-map ["##-"
+      (set-test-player-map! (build-test-map ["##-"
                                                  "###"
                                                  "###"]))
       (let [move (pick-explore-move [1 1] game-map #{})]
@@ -97,7 +97,7 @@
     (let [game-map (atom (build-test-map ["~~~"
                                     "~#~"
                                     "###"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       ;; All valid moves are visited
       (let [visited #{[0 2] [1 2] [2 2]}
             move (pick-explore-move [1 1] game-map visited)]
@@ -108,7 +108,7 @@
     (let [game-map (atom (build-test-map ["##~"
                                           "#A~"
                                           "##~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (with-redefs [rand-nth first]
         (let [move (pick-explore-move [1 1] game-map #{})]
           (should (map-utils/adjacent-to-sea? move game-map))))))
@@ -117,13 +117,13 @@
     (let [game-map (atom (build-test-map ["~~~"
                                     "~#~"
                                     "~~~"]))]
-      (reset! atoms/player-map @game-map)
+      (set-test-player-map! @game-map)
       (should-be-nil (pick-explore-move [1 1] game-map #{})))))
 
 (describe "set-explore-mode"
   (before (reset-all-atoms!))
   (it "sets unit to explore mode with initial state"
-    (reset! atoms/game-map (build-test-map ["A"]))
+    (set-test-world! (build-test-map ["A"]))
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (set-explore-mode unit-coords)
       (let [unit (get-in @atoms/game-map (conj unit-coords :contents))]
@@ -132,7 +132,7 @@
         (should= #{unit-coords} (:visited unit)))))
 
   (it "removes reason and target when setting explore mode"
-    (reset! atoms/game-map (build-test-map ["A"]))
+    (set-test-world! (build-test-map ["A"]))
     (set-test-unit atoms/game-map "A" :reason :some-reason :target [5 5])
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (set-explore-mode unit-coords)
@@ -144,10 +144,10 @@
 (describe "move-explore-unit"
   (before (reset-all-atoms!))
   (it "wakes up after explore-steps exhausted"
-    (reset! atoms/game-map (build-test-map ["A#"]))
+    (set-test-world! (build-test-map ["A#"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 1 :visited #{})
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/player-map (build-test-map ["##"]))
+      (set-test-player-map! (build-test-map ["##"]))
       (move-explore-unit unit-coords)
       (let [unit (get-in @atoms/game-map (conj unit-coords :contents))]
         (should= :awake (:mode unit))
@@ -155,12 +155,12 @@
         (should-be-nil (:visited unit)))))
 
   (it "wakes up when stuck with no valid moves"
-    (reset! atoms/game-map (build-test-map ["~~~"
-                                             "~A~"
-                                             "~~~"]))
+    (set-test-world! (build-test-map ["~~~"
+                                      "~A~"
+                                      "~~~"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 10 :visited #{})
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/player-map (build-test-map ["~~~"
+      (set-test-player-map! (build-test-map ["~~~"
                                                  "~#~"
                                                  "~~~"]))
       (move-explore-unit unit-coords)
@@ -168,11 +168,11 @@
         (should= :awake (:mode unit)))))
 
   (it "wakes up when finding hostile city"
-    (reset! atoms/game-map (build-test-map ["A#X"]))
+    (set-test-world! (build-test-map ["A#X"]))
     (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 10 :visited #{})
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
           dest-coords [(inc (first unit-coords)) (second unit-coords)]]
-      (reset! atoms/player-map (build-test-map ["##X"]))
+      (set-test-player-map! (build-test-map ["##X"]))
       (move-explore-unit unit-coords)
       ;; After moving to dest-coords which is adjacent to hostile city, unit should wake
       (let [unit (get-in @atoms/game-map (conj dest-coords :contents))]

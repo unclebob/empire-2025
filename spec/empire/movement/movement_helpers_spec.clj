@@ -7,7 +7,7 @@
     [empire.movement.movement :refer :all]
     [empire.movement.visibility :as visibility]
     [empire.movement.wake-conditions :as wake]
-    [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms!]]
+    [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]
     [speclj.core :refer :all]))
 
 (describe "diagonal?"
@@ -45,33 +45,33 @@
 (describe "wake-at"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["###" "###" "###"]))
+    (set-test-world! (build-test-map ["###" "###" "###"]))
     (reset! atoms/production {}))
 
   (it "wakes a sleeping unit"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :army :owner :player :mode :sentry})
     (should (wake-at [1 1]))
     (should= :awake (get-in @atoms/game-map [1 1 :contents :mode])))
 
   (it "wakes unit in explore mode"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :army :owner :player :mode :explore})
     (should (wake-at [1 1]))
     (should= :awake (get-in @atoms/game-map [1 1 :contents :mode])))
 
   (it "returns nil for already awake unit"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :army :owner :player :mode :awake})
     (should-not (wake-at [1 1])))
 
   (it "returns nil for enemy unit"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :army :owner :computer :mode :sentry})
     (should-not (wake-at [1 1])))
 
   (it "wakes player city and removes production"
-    (swap! atoms/game-map assoc-in [1 1]
+    (update-test-world! assoc-in [1 1]
            {:type :city :city-status :player :sleeping-fighters 0 :awake-fighters 0})
     (reset! atoms/production {[1 1] {:item :army :remaining-rounds 5}})
     (should (wake-at [1 1]))
@@ -81,12 +81,12 @@
     (should-not (wake-at [1 1])))
 
   (it "returns nil for enemy city"
-    (swap! atoms/game-map assoc-in [1 1]
+    (update-test-world! assoc-in [1 1]
            {:type :city :city-status :computer})
     (should-not (wake-at [1 1])))
 
   (it "wakes armies aboard a sentry transport"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :transport :owner :player :mode :sentry :army-count 3 :awake-armies 0})
     (should (wake-at [1 1]))
     (let [transport (get-in @atoms/game-map [1 1 :contents])]
@@ -94,13 +94,13 @@
       (should= 3 (:awake-armies transport))))
 
   (it "wakes armies aboard an already-awake transport"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :transport :owner :player :mode :awake :army-count 4 :awake-armies 0})
     (should (wake-at [1 1]))
     (should= 4 (get-in @atoms/game-map [1 1 :contents :awake-armies])))
 
   (it "clears coastline state when waking a coastline-follow unit"
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :patrol-boat :owner :player :mode :coastline-follow :hits 2
             :coastline-steps 5 :visited #{[0 0] [1 0]} :start-pos [0 0] :prev-pos [1 0]
             :target [2 2] :reason :something})
@@ -118,10 +118,10 @@
   (before (reset-all-atoms!))
 
   (it "army attacks enemy army when moving into its cell"
-    (reset! atoms/game-map (build-test-map ["Aa"]))
+    (set-test-world! (build-test-map ["Aa"]))
     (set-test-unit atoms/game-map "A" :hits 1 :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "a" :hits 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (with-redefs [rand (constantly 0.4)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -129,10 +129,10 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [1 0]))))))
 
   (it "army is destroyed when losing to enemy army"
-    (reset! atoms/game-map (build-test-map ["Aa"]))
+    (set-test-world! (build-test-map ["Aa"]))
     (set-test-unit atoms/game-map "A" :hits 1 :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "a" :hits 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (with-redefs [rand (constantly 0.6)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -140,10 +140,10 @@
       (should= :computer (:owner (:contents (get-in @atoms/game-map [1 0]))))))
 
   (it "destroyer attacks enemy transport on sea"
-    (reset! atoms/game-map (build-test-map ["Dt"]))
+    (set-test-world! (build-test-map ["Dt"]))
     (set-test-unit atoms/game-map "D" :hits 3 :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "t" :hits 1)
-    (reset! atoms/player-map (build-test-map ["~~"]))
+    (set-test-player-map! (build-test-map ["~~"]))
     (with-redefs [rand (constantly 0.4)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -151,10 +151,10 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [1 0]))))))
 
   (it "fighter attacks enemy fighter"
-    (reset! atoms/game-map (build-test-map ["Ff"]))
+    (set-test-world! (build-test-map ["Ff"]))
     (set-test-unit atoms/game-map "F" :hits 1 :fuel 20 :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "f" :hits 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (with-redefs [rand (constantly 0.4)]
       (game-loop/move-current-unit [0 0])
       (should= nil (:contents (get-in @atoms/game-map [0 0])))
@@ -162,10 +162,10 @@
       (should= :player (:owner (:contents (get-in @atoms/game-map [1 0]))))))
 
   (it "attacker survives with reduced hits"
-    (reset! atoms/game-map (build-test-map ["Dd"]))
+    (set-test-world! (build-test-map ["Dd"]))
     (set-test-unit atoms/game-map "D" :hits 3 :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "d" :hits 3)
-    (reset! atoms/player-map (build-test-map ["~~"]))
+    (set-test-player-map! (build-test-map ["~~"]))
     ;; Rolls: 0.4 (D hits d:2), 0.6 (d hits D:2), 0.4 (D hits d:1), 0.4 (D hits d:0)
     (let [rolls (atom [0.4 0.6 0.4 0.4])]
       (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
@@ -176,20 +176,20 @@
           (should= 2 (:hits survivor))))))
 
   (it "does not attack friendly units"
-    (reset! atoms/game-map (build-test-map ["AA"]))
+    (set-test-world! (build-test-map ["AA"]))
     (set-test-unit atoms/game-map "A1" :hits 1 :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "A2" :hits 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (game-loop/move-current-unit [0 0])
     ;; Should wake up, not attack
     (should= :awake (:mode (:contents (get-in @atoms/game-map [0 0]))))
     (should= :army (:type (:contents (get-in @atoms/game-map [1 0])))))
 
   (it "army cannot attack ship on sea (terrain incompatible)"
-    (reset! atoms/game-map (build-test-map ["A~"]))
-    (swap! atoms/game-map assoc-in [1 0 :contents] {:type :destroyer :owner :computer :hits 3})
+    (set-test-world! (build-test-map ["A~"]))
+    (update-test-world! assoc-in [1 0 :contents] {:type :destroyer :owner :computer :hits 3})
     (set-test-unit atoms/game-map "A" :hits 1 :mode :moving :target [1 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (game-loop/move-current-unit [0 0])
     ;; Army should wake up because it can't move onto sea
     (should= :awake (:mode (:contents (get-in @atoms/game-map [0 0]))))
@@ -323,7 +323,7 @@
   (before (reset-all-atoms!))
 
   (it "sets mode to moving with target"
-    (reset! atoms/game-map (build-test-map ["A##"]))
+    (set-test-world! (build-test-map ["A##"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
     (set-unit-movement [0 0] [0 2])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -332,7 +332,7 @@
       (should-be-nil (:extended unit))))
 
   (it "sets extended flag when extended is true"
-    (reset! atoms/game-map (build-test-map ["A##"]))
+    (set-test-world! (build-test-map ["A##"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
     (set-unit-movement [0 0] [0 2] true)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -340,7 +340,7 @@
       (should (:extended unit))))
 
   (it "does not set extended flag when extended is false"
-    (reset! atoms/game-map (build-test-map ["A##"]))
+    (set-test-world! (build-test-map ["A##"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
     (set-unit-movement [0 0] [0 2] false)
     (should-be-nil (:extended (get-in @atoms/game-map [0 0 :contents])))))
@@ -349,9 +349,9 @@
   (before (reset-all-atoms!))
 
   (it "fighter landing at player city increments fighter-count"
-    (reset! atoms/game-map (build-test-map ["FO"]))
+    (set-test-world! (build-test-map ["FO"]))
     (set-test-unit atoms/game-map "F" :fuel 20 :mode :moving :target [1 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (game-loop/move-current-unit [0 0])
     (let [city (get-in @atoms/game-map [1 0])]
       ;; Fighter should be absorbed into city, not placed as contents
@@ -359,18 +359,18 @@
       (should= 1 (:fighter-count city))))
 
   (it "fighter landing on carrier increments carrier fighter-count"
-    (reset! atoms/game-map (build-test-map ["JC"]))
+    (set-test-world! (build-test-map ["JC"]))
     (set-test-unit atoms/game-map "F" :fuel 20 :mode :moving :target [1 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["~~"]))
+    (set-test-player-map! (build-test-map ["~~"]))
     (game-loop/move-current-unit [0 0])
     (let [carrier (get-in @atoms/game-map [1 0 :contents])]
       (should= :carrier (:type carrier))
       (should= 1 (:fighter-count carrier))))
 
   (it "fighter landing at player city does not remain as contents"
-    (reset! atoms/game-map (build-test-map ["FO"]))
+    (set-test-world! (build-test-map ["FO"]))
     (set-test-unit atoms/game-map "F" :fuel 20 :mode :moving :target [1 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["--"]))
+    (set-test-player-map! (build-test-map ["--"]))
     (game-loop/move-current-unit [0 0])
     ;; Fighter absorbed into city — not left as contents
     (should-be-nil (:contents (get-in @atoms/game-map [1 0])))))
@@ -381,10 +381,10 @@
   (it "army sidesteps around friendly city"
     ;; Army at [1,0] moving right, friendly city at [2,0]
     ;; Should sidestep to [2,1] (diagonal) then continue toward [4,0]
-    (reset! atoms/game-map (build-test-map ["#AO##"
+    (set-test-world! (build-test-map ["#AO##"
                                              "#####"]))
     (set-test-unit atoms/game-map "A" :mode :moving :target [4 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["-----" "-----"]))
+    (set-test-player-map! (build-test-map ["-----" "-----"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [1 0]))
     ;; Army should have sidestepped, not stayed at [1,0]
@@ -394,10 +394,10 @@
 
   (it "fighter sidesteps around non-target city"
     ;; Fighter at [1,0] heading toward [4,0], player city at [2,0] is NOT target
-    (reset! atoms/game-map (build-test-map ["#FO##"
+    (set-test-world! (build-test-map ["#FO##"
                                              "#####"]))
     (set-test-unit atoms/game-map "F" :fuel 20 :mode :moving :target [4 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["-----" "-----"]))
+    (set-test-player-map! (build-test-map ["-----" "-----"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [1 0]))
     ;; Fighter should have sidestepped
@@ -405,10 +405,10 @@
 
   (it "fighter does not sidestep its target city"
     ;; Fighter heading to a player city that IS its target — should land there
-    (reset! atoms/game-map (build-test-map ["FO#"
+    (set-test-world! (build-test-map ["FO#"
                                              "###"]))
     (set-test-unit atoms/game-map "F" :fuel 20 :mode :moving :target [1 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["---" "---"]))
+    (set-test-player-map! (build-test-map ["---" "---"]))
     (game-loop/move-current-unit [0 0])
     ;; Fighter should land at the city (its target), not sidestep
     (let [city (get-in @atoms/game-map [1 0])]
@@ -417,10 +417,10 @@
   (it "fighter sidesteps computer city that is not its target"
     ;; Fighter at [1,0] heading to [4,0], computer city at [2,0]
     ;; Fighter should sidestep around the non-target city
-    (reset! atoms/game-map (build-test-map ["#FX##"
+    (set-test-world! (build-test-map ["#FX##"
                                              "#####"]))
     (set-test-unit atoms/game-map "F" :fuel 20 :mode :moving :target [4 0] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["-----" "-----"]))
+    (set-test-player-map! (build-test-map ["-----" "-----"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [1 0]))
     ;; Fighter should have moved away from [1,0] via sidestep
@@ -434,11 +434,11 @@
     ;; Blocked direction is [1,0] (horizontal). Sidestep candidates:
     ;; [[1 1] [1 -1] [0 1] [0 -1]] → positions [3,2] [3,0] [2,2] [2,0]
     ;; Make [3,0] sea so only [3,2], [2,2], [2,0] are valid land
-    (reset! atoms/game-map (build-test-map ["###~##"
+    (set-test-world! (build-test-map ["###~##"
                                              "##AO##"
                                              "######"]))
     (set-test-unit atoms/game-map "A" :mode :moving :target [5 1] :steps-remaining 1)
-    (reset! atoms/player-map (build-test-map ["------" "------" "------"]))
+    (set-test-player-map! (build-test-map ["------" "------" "------"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [2 1]))
     ;; [3,2] should be best (diagonal toward target, gets closest)
@@ -449,13 +449,13 @@
     ;; Blocked direction is [0,1] (vertical). Sidestep candidates:
     ;; [[1 dy] [-1 dy] [1 0] [-1 0]] = [[1 1] [-1 1] [1 0] [-1 0]]
     ;; → positions [2,1] [0,1] [2,0] [0,0]
-    (reset! atoms/game-map (build-test-map ["#A#"
+    (set-test-world! (build-test-map ["#A#"
                                              "#A#"
                                              "###"
                                              "###"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [1 3] :steps-remaining 1)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (build-test-map ["---" "---" "---" "---"]))
+    (set-test-player-map! (build-test-map ["---" "---" "---" "---"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [1 0]))
     ;; Should have sidestepped to [2,1] (first candidate that's closer)
@@ -467,11 +467,11 @@
 
   (it "army sidesteps around friendly army blocking path"
     ;; Army at [0,0] moving right toward [3,0], friendly army at [1,0]
-    (reset! atoms/game-map (build-test-map ["AA##"
+    (set-test-world! (build-test-map ["AA##"
                                              "####"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [3 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (build-test-map ["----" "----"]))
+    (set-test-player-map! (build-test-map ["----" "----"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [0 0]))
     ;; Army should have sidestepped (not stayed at [0,0])
@@ -484,12 +484,12 @@
 
   (it "army sidesteps diagonally when blocked diagonally"
     ;; Army at [0,0] moving toward [2,2], friendly army at [1,1]
-    (reset! atoms/game-map (build-test-map ["A--"
+    (set-test-world! (build-test-map ["A--"
                                              "-A-"
                                              "--#"]))
     (set-test-unit atoms/game-map "A1" :mode :moving :target [2 2] :steps-remaining 1)
     (set-test-unit atoms/game-map "A2" :mode :sentry)
-    (reset! atoms/player-map (build-test-map ["---" "---" "---"]))
+    (set-test-player-map! (build-test-map ["---" "---" "---"]))
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [0 0]))
     ;; Should have attempted to sidestep
@@ -505,11 +505,11 @@
 
   (it "loads adjacent sentry army after transport moves"
     ;; Transport at [0,0] (sea), target [1,0] (sea), sentry army at [1,1] (land)
-    (reset! atoms/game-map (build-test-map ["T~"
+    (set-test-world! (build-test-map ["T~"
                                              "~A"]))
     (set-test-unit atoms/game-map "T" :mode :moving :target [1 0] :steps-remaining 1)
     (set-test-unit atoms/game-map "A" :mode :sentry)
-    (reset! atoms/player-map (build-test-map ["~~" "~~"]))
+    (set-test-player-map! (build-test-map ["~~" "~~"]))
     (game-loop/move-current-unit [0 0])
     ;; Transport moved to [1,0]; sentry army at [1,1] should be loaded
     (let [transport (get-in @atoms/game-map [1 0 :contents])]
@@ -521,12 +521,12 @@
 (describe "wake-at return values"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["###" "###" "###"]))
+    (set-test-world! (build-test-map ["###" "###" "###"]))
     (reset! atoms/production {}))
 
   (it "returns truthy for waking a transport without armies"
     ;; A moving transport (no armies) should be woken via the regular unit branch
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :transport :owner :player :mode :moving :hits 1})
     (should (wake-at [1 1]))
     (should= :awake (get-in @atoms/game-map [1 1 :contents :mode])))
@@ -534,7 +534,7 @@
   (it "wakes transport without armies via regular branch not transport branch"
     ;; Transport with NO army-count key — default 0 means (pos? 0) = false
     ;; Should fall through to regular unit wake branch, not transport-armies branch
-    (swap! atoms/game-map assoc-in [1 1 :contents]
+    (update-test-world! assoc-in [1 1 :contents]
            {:type :transport :owner :player :mode :sentry})
     (should (wake-at [1 1]))
     (should= :awake (get-in @atoms/game-map [1 1 :contents :mode]))
@@ -544,7 +544,7 @@
 (describe "add-unit-at satellite"
   (before
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["###" "###" "###"])))
+    (set-test-world! (build-test-map ["###" "###" "###"])))
 
   (it "adds satellite with turns-remaining"
     (add-unit-at [1 1] :satellite)

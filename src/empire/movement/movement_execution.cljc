@@ -2,11 +2,20 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-execution
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.containers.ops :as container-ops]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn process-consumables [unit to-cell]
   (if (and unit (= (:type unit) :fighter))
@@ -62,8 +71,8 @@
         original-target (:target (:contents cell))
         move-type (classify-move processed-unit to-cell original-target final-pos)
         updated-to-cell (update-destination-cell move-type to-cell processed-unit)]
-    (swap! atoms/game-map assoc-in from-coords from-cell)
-    (swap! atoms/game-map assoc-in final-pos updated-to-cell)
+    (update-game-map! assoc-in from-coords from-cell)
+    (update-game-map! assoc-in final-pos updated-to-cell)
     (visibility/update-cell-visibility final-pos (:owner (:contents cell)))
     (when (= (:type processed-unit) :transport)
       (container-ops/load-adjacent-sentry-armies final-pos))))

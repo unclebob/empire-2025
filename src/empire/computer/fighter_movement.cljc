@@ -2,12 +2,21 @@
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
             [empire.combat :as combat]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]
             [empire.config :as config]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn get-passable-neighbors
   "Returns passable neighbors for a fighter (can fly over anything except off-map)."
@@ -105,11 +114,11 @@
         defender (get-in @atoms/game-map (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)]
     ;; Remove attacker from original position
-    (swap! atoms/game-map update-in fighter-pos dissoc :contents)
+    (update-game-map! update-in fighter-pos dissoc :contents)
     (if (= :attacker (:winner result))
       ;; Attacker won - move to enemy position
       (do
-        (swap! atoms/game-map assoc-in (conj enemy-pos :contents) (:survivor result))
+        (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
         (visibility/update-cell-visibility fighter-pos :computer)
         (visibility/update-cell-visibility enemy-pos :computer)
         enemy-pos)
@@ -159,9 +168,9 @@
   [pos city-pos]
   (let [_fighter (get-in @atoms/game-map (conj pos :contents))]
     ;; Remove from current position
-    (swap! atoms/game-map update-in pos dissoc :contents)
+    (update-game-map! update-in pos dissoc :contents)
     ;; Add to city's airport
-    (swap! atoms/game-map update-in (conj city-pos :fighter-count) (fnil inc 0))
+    (update-game-map! update-in (conj city-pos :fighter-count) (fnil inc 0))
     (visibility/update-cell-visibility pos :computer)
     :landed))
 
@@ -171,10 +180,10 @@
   (let [unit (get-in @atoms/game-map (conj pos :contents))
         new-fuel (dec (:fuel unit config/fighter-fuel))]
     (if (<= new-fuel 0)
-      (do (swap! atoms/game-map update-in pos dissoc :contents)
+      (do (update-game-map! update-in pos dissoc :contents)
           (visibility/update-cell-visibility pos :computer)
           false)
-      (do (swap! atoms/game-map assoc-in (conj pos :contents :fuel) new-fuel)
+      (do (update-game-map! assoc-in (conj pos :contents :fuel) new-fuel)
           true))))
 
 (defn consume-hop-fuel

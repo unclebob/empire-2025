@@ -1,8 +1,17 @@
 (ns empire.computer.army.assignment
   "Attack-target assignment for computer armies."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- find-assignable-armies
   "Finds all computer armies eligible for city attack assignment (not coast-walking)."
@@ -38,10 +47,10 @@
         armies (find-assignable-armies)
         assigned (atom #{})]
     (doseq [city cities]
-      (let [city-continent (land-objectives/flood-fill-continent city)
+        (let [city-continent (land-objectives/flood-fill-continent city)
             available (remove #(contains? @assigned (:pos %)) armies)
             reachable (filter #(contains? city-continent (:pos %)) available)
             closest (take 6 (sort-by #(core/distance (:pos %) city) reachable))]
         (doseq [{:keys [pos]} closest]
-          (swap! atoms/game-map assoc-in (conj pos :contents :attack-target) city)
+          (update-game-map! assoc-in (conj pos :contents :attack-target) city)
           (swap! assigned conj pos))))))

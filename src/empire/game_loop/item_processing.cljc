@@ -2,6 +2,8 @@
 (ns empire.game-loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.player.attention :as attention]
             [empire.computer :as computer]
@@ -11,6 +13,13 @@
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.movement :as movement]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- computer-has-items?
   "Returns true if computer has any cities or units on the map."
@@ -46,7 +55,7 @@
   (let [moved-unit (:contents (get-in @atoms/game-map pos))]
     (when moved-unit
       (let [new-steps (dec (:steps-remaining moved-unit 1))]
-        (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) new-steps)
+        (update-game-map! assoc-in (conj pos :contents :steps-remaining) new-steps)
         (when (pos? new-steps) pos)))))
 
 (defn- end-combat-move
@@ -54,7 +63,7 @@
   [pos owner]
   (let [moved-unit (:contents (get-in @atoms/game-map pos))]
     (when (and moved-unit (= (:owner moved-unit) owner))
-      (swap! atoms/game-map assoc-in (conj pos :contents :steps-remaining) 0))))
+      (update-game-map! assoc-in (conj pos :contents :steps-remaining) 0))))
 
 (defn- resolve-move-result
   "Resolves a move result into the next position. Returns pos if unit should continue, nil if done."

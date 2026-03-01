@@ -1,18 +1,18 @@
 (ns empire.computer.production.stats-spec
   (:require [empire.atoms :as atoms]
             [empire.computer.production.stats :as stats]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map!]]
             [speclj.core :refer :all]))
 
 (describe "production stats module"
   (before (reset-all-atoms!))
 
   (it "tracks coastal cities, unexplored coast, and unoccupied coastal land"
-    (reset! atoms/game-map (build-test-map ["~X~#~X~"]))
-    (swap! atoms/game-map assoc-in [1 0 :country-id] 7)
-    (swap! atoms/game-map assoc-in [3 0 :country-id] 7)
-    (swap! atoms/game-map assoc-in [5 0 :country-id] 7)
-    (reset! atoms/computer-map [[{:type :sea}] [nil] [{:type :sea}] [{:type :land}] [{:type :sea}] [{:type :city :city-status :computer}] [{:type :sea}]])
+    (set-test-world! (build-test-map ["~X~#~X~"]))
+    (update-test-world! assoc-in [1 0 :country-id] 7)
+    (update-test-world! assoc-in [3 0 :country-id] 7)
+    (update-test-world! assoc-in [5 0 :country-id] 7)
+    (set-test-computer-map! [[{:type :sea}] [nil] [{:type :sea}] [{:type :land}] [{:type :sea}] [{:type :city :city-status :computer}] [{:type :sea}]])
     (stats/rebuild-country-stats!)
     (should (stats/has-unoccupied-coastal-cells? 7))
     (should-not (stats/country-coastal-cells-explored? 7))
@@ -41,8 +41,8 @@
     (should-not (stats/country-has-other-coastal-city? [9 9] 8)))
 
   (it "counts only computer fighters globally"
-    (reset! atoms/game-map (build-test-map ["fF~"]))
-    (swap! atoms/game-map assoc-in [2 0 :contents] {:type :army :owner :computer :country-id 1})
+    (set-test-world! (build-test-map ["fF~"]))
+    (update-test-world! assoc-in [2 0 :contents] {:type :army :owner :computer :country-id 1})
     (should= 1 (stats/count-all-computer-fighters)))
 
   (it "covers private helper predicates"

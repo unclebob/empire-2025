@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.movement.visibility :as visibility]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test-utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn make-game-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))
@@ -17,13 +17,12 @@
                          (if (and (= r 2) (= c 3))
                            {:type :city :city-status :free}
                            {:type :sea})))]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         ;; Computer-map starts with all unexplored
-        (reset! atoms/computer-map
-                (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
+        (set-test-computer-map! (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
         ;; Place a computer ship adjacent to the free city
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :patrol-boat :owner :computer})
+        (update-test-world! assoc-in [2 2 :contents]
+                            {:type :patrol-boat :owner :computer})
         ;; Update visibility for the computer ship at [2 2]
         (visibility/update-cell-visibility [2 2] :computer)
         (should-contain [2 3] @atoms/land-ho-targets))))
@@ -35,11 +34,10 @@
                          (if (and (= r 2) (= c 3))
                            {:type :city :city-status :free}
                            {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/player-map
-                (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :patrol-boat :owner :player})
+        (set-test-world! game-map)
+        (set-test-player-map! (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
+        (update-test-world! assoc-in [2 2 :contents]
+                            {:type :patrol-boat :owner :player})
         (visibility/update-cell-visibility [2 2] :player)
         (should= [] @atoms/land-ho-targets))))
 
@@ -50,11 +48,10 @@
                          (if (and (= r 2) (= c 3))
                            {:type :city :city-status :computer}
                            {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map
-                (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :patrol-boat :owner :computer})
+        (set-test-world! game-map)
+        (set-test-computer-map! (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
+        (update-test-world! assoc-in [2 2 :contents]
+                            {:type :patrol-boat :owner :computer})
         (visibility/update-cell-visibility [2 2] :computer)
         (should= [] @atoms/land-ho-targets))))
 
@@ -65,11 +62,11 @@
                          (if (and (= r 2) (= c 3))
                            {:type :city :city-status :free}
                            {:type :sea})))]
-        (reset! atoms/game-map game-map)
+        (set-test-world! game-map)
         ;; Computer-map already has the city revealed
-        (reset! atoms/computer-map game-map)
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :patrol-boat :owner :computer})
+        (set-test-computer-map! game-map)
+        (update-test-world! assoc-in [2 2 :contents]
+                            {:type :patrol-boat :owner :computer})
         (visibility/update-cell-visibility [2 2] :computer)
         (should= [] @atoms/land-ho-targets))))
 
@@ -81,11 +78,10 @@
                            (and (= r 2) (= c 3)) {:type :city :city-status :free}
                            (and (= r 2) (= c 2)) {:type :land}
                            :else {:type :sea})))]
-        (reset! atoms/game-map game-map)
-        (reset! atoms/computer-map
-                (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
-        (swap! atoms/game-map assoc-in [2 2 :contents]
-               {:type :army :owner :computer :hits 1})
+        (set-test-world! game-map)
+        (set-test-computer-map! (make-game-map 5 5 (fn [_ _] {:type :unexplored})))
+        (update-test-world! assoc-in [2 2 :contents]
+                            {:type :army :owner :computer :hits 1})
         (visibility/update-cell-visibility [2 2] :computer
                                            {:type :army :owner :computer :hits 1})
         (should= [] @atoms/land-ho-targets)))))

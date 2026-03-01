@@ -3,6 +3,8 @@
   "Threat-response coordinator for enemy detections.
    Handles fighter/ship local responses and global major invasion mobilization."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.ship-core :as ship-core]
@@ -20,6 +22,17 @@
 
 (def ^:private major-invasion-ship-types
   #{:patrol-boat :destroyer :submarine :carrier :battleship})
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
+
+(defn- update-major-invasion-state!
+  [f & args]
+  (apply swap! atoms/major-invasion-state f args))
 
 (defn major-invasion-active?
   []
@@ -63,7 +76,7 @@
                               (into acc (or (flood-fill-land p) #{})))
                             #{}
                             points)]
-    (swap! atoms/major-invasion-state assoc :target-land-set target-land)))
+    (update-major-invasion-state! assoc :target-land-set target-land)))
 
 (defn- find-computer-unit-positions
   [pred]
@@ -79,7 +92,7 @@
 (defn- assign-threat-mission!
   [positions mission-kv]
   (doseq [pos positions]
-    (swap! atoms/game-map update-in (conj pos :contents) merge mission-kv)))
+    (update-game-map! update-in (conj pos :contents) merge mission-kv)))
 
 (defn- closest-positions
   [origin positions n]
@@ -89,13 +102,26 @@
 
 (defn- activate-major-invasion!
   [pos]
-  (swap! atoms/major-invasion-state
-         (fn [s]
-           (-> s
-               (assoc :active? true)
-               (update :detection-points conj pos)
-               (assoc :started-round (or (:started-round s) @atoms/round-number)))))
+  (update-major-invasion-state!
+   (fn [s]
+     (-> s
+         (assoc :active? true)
+         (update :detection-points conj pos)
+         (assoc :started-round (or (:started-round s) @atoms/round-number)))))
   (recompute-major-invasion-target-land!))
+
+(defn- detection-trigger
+  [game-cell]
+  (let [unit (:contents game-cell)
+        player-unit-type? (fn [t] (and unit (= :player (:owner unit)) (= t (:type unit))))
+        player-ship? (fn [] (and unit (= :player (:owner unit)) (enemy-ship-types (:type unit))))
+        player-city? (fn [] (and (= :city (:type game-cell)) (= :player (:city-status game-cell))))]
+    (cond
+      (player-unit-type? :fighter) :fighter-detected
+      (player-ship?) :ship-detected
+      (player-unit-type? :army) :major-invasion-trigger
+      (player-city?) :major-invasion-trigger
+      :else nil)))
 
 (defn- handle-fighter-detection!
   [pos]
@@ -125,16 +151,11 @@
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
-  (let [unit (:contents game-cell)
-        player-unit-type? (fn [t] (and unit (= :player (:owner unit)) (= t (:type unit))))
-        player-ship? (fn [] (and unit (= :player (:owner unit)) (enemy-ship-types (:type unit))))
-        player-city? (fn [] (and (= :city (:type game-cell)) (= :player (:city-status game-cell))))]
-    (cond
-      (player-unit-type? :fighter) (handle-fighter-detection! pos)
-      (player-ship?) (handle-ship-detection! pos)
-      (player-unit-type? :army) (activate-major-invasion! pos)
-      (player-city?) (activate-major-invasion! pos)
-      :else nil)))
+  (case (detection-trigger game-cell)
+    :fighter-detected (handle-fighter-detection! pos)
+    :ship-detected (handle-ship-detection! pos)
+    :major-invasion-trigger (activate-major-invasion! pos)
+    nil))
 
 (defn- dec-threat-rounds
   [unit]
@@ -156,19 +177,19 @@
         target (nearest-major-target pos)
         mission (:transport-mission unit)]
     (when target
-      (swap! atoms/game-map update-in (conj pos :contents)
-             assoc :major-invasion true :major-invasion-target target))
+      (update-game-map! update-in (conj pos :contents)
+                        assoc :major-invasion true :major-invasion-target target))
     (cond
       (zero? army-count)
-      (swap! atoms/game-map update-in (conj pos :contents)
-             assoc :transport-mission :loading)
+      (update-game-map! update-in (conj pos :contents)
+                        assoc :transport-mission :loading)
 
       (and target (not= mission :unloading))
       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target pos target @atoms/computer-map)]
-        (swap! atoms/game-map update-in (conj pos :contents)
-               assoc :transport-mission :invading
-               :invasion-target target
-               :invasion-path (vec path))))))
+        (update-game-map! update-in (conj pos :contents)
+                          assoc :transport-mission :invading
+                          :invasion-target target
+                          :invasion-path (vec path))))))
 
 (defn refresh-major-invasion-assignments!
   "Applies major-invasion tags/targets to all mobilized computer units."
@@ -180,14 +201,14 @@
                     t (:type unit)]]
         (cond
           (= :fighter t)
-          (swap! atoms/game-map update-in (conj pos :contents)
-                 assoc :major-invasion true
-                 :major-invasion-target (nearest-major-target pos))
+          (update-game-map! update-in (conj pos :contents)
+                            assoc :major-invasion true
+                            :major-invasion-target (nearest-major-target pos))
 
           (major-invasion-ship-types t)
-          (swap! atoms/game-map update-in (conj pos :contents)
-                 assoc :major-invasion true
-                 :major-invasion-target (nearest-major-target pos))
+          (update-game-map! update-in (conj pos :contents)
+                            assoc :major-invasion true
+                            :major-invasion-target (nearest-major-target pos))
 
           (= :transport t)
           (prepare-transport-major-invasion! pos unit)
@@ -205,7 +226,7 @@
             :when (and unit
                        (= :computer (:owner unit))
                        (:threat-mission unit))]
-      (swap! atoms/game-map update-in [i j :contents] dec-threat-rounds)))
+      (update-game-map! update-in [i j :contents] dec-threat-rounds)))
   ;; Recompute invasion theater and refresh global mobilization tags each round.
   (when (major-invasion-active?)
     (recompute-major-invasion-target-land!)
@@ -237,7 +258,7 @@
   [pos site]
   (if (= :city (:type (get-in @atoms/game-map site)))
     (do (fm/land-at-city pos site) nil)
-    (do (swap! atoms/game-map assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+    (do (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
         {:pos pos :steps-used 1})))
 
 (defn- refuel-threat-step

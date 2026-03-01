@@ -1,7 +1,7 @@
 (ns empire.movement.movement-execution-spec
   (:require [empire.atoms :as atoms]
             [empire.movement.movement-execution :as execution]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "movement-execution"
@@ -13,7 +13,7 @@
                                      {:type :land})))
 
   (it "does normal move when fighter enters non-player city"
-    (reset! atoms/game-map (build-test-map ["FX"]))
+    (set-test-world! (build-test-map ["FX"]))
     (let [cell {:type :land
                 :contents {:type :fighter :owner :player :fuel 10 :mode :moving :target [1 0]}}
           final-unit (:contents cell)]

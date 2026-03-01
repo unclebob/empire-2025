@@ -3,9 +3,18 @@
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.movement.movement :as movement]
             [empire.movement.waypoint :as waypoint]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn add-unit-at [coords unit-type owner]
   (movement/add-unit-at coords unit-type owner))
@@ -18,7 +27,7 @@
   [[cx cy]]
   (let [cell (get-in @atoms/game-map [cx cy])]
     (when (= (:type cell) :city)
-      (swap! atoms/game-map assoc-in [cx cy :city-status] :player)
+      (update-game-map! assoc-in [cx cy :city-status] :player)
       true)))
 
 (defn set-city-lookaround
@@ -27,7 +36,7 @@
   (let [cell (get-in @atoms/game-map [cx cy])]
     (when (and (= (:type cell) :city)
                (= (:city-status cell) :player))
-      (swap! atoms/game-map assoc-in [cx cy :marching-orders] :lookaround)
+      (update-game-map! assoc-in [cx cy :marching-orders] :lookaround)
       (atoms/set-turn-message "Marching orders set to lookaround" 2000)
       true)))
 
@@ -38,7 +47,7 @@
   true)
 
 (defn- apply-marching-orders [path dest]
-  (swap! atoms/game-map assoc-in path dest)
+  (update-game-map! assoc-in path dest)
   (reset! atoms/destination nil)
   (atoms/set-turn-message (str "Marching orders set to " (first dest) "," (second dest)) 2000)
   true)
@@ -76,14 +85,14 @@
       (cond
         (and (= (:type cell) :city)
              (= (:city-status cell) :player))
-        (do (swap! atoms/game-map assoc-in [cx cy :flight-path] dest)
+        (do (update-game-map! assoc-in [cx cy :flight-path] dest)
             (reset! atoms/destination nil)
             (atoms/set-turn-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
             true)
 
         (and (= (:type contents) :carrier)
              (= (:owner contents) :player))
-        (do (swap! atoms/game-map assoc-in [cx cy :contents :flight-path] dest)
+        (do (update-game-map! assoc-in [cx cy :contents :flight-path] dest)
             (reset! atoms/destination nil)
             (atoms/set-turn-message (str "Flight path set to " (first dest) "," (second dest)) 2000)
             true)
@@ -117,7 +126,7 @@
       (cond
         (player-city? cell)
         (let [target (project-to-edge [cx cy] direction)]
-          (swap! atoms/game-map assoc-in [cx cy :marching-orders] target)
+          (update-game-map! assoc-in [cx cy :marching-orders] target)
           (atoms/set-turn-message (str "Marching orders set to " (first target) "," (second target)) 2000)
           true)
 

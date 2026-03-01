@@ -1,11 +1,20 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.coastline
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.explore :as explore]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."
@@ -32,7 +41,7 @@
                                 :visited #{coords}
                                 :prev-pos nil)
                          (dissoc :reason :target))]
-    (swap! atoms/game-map assoc-in coords (assoc cell :contents updated-unit))))
+    (update-game-map! assoc-in coords (assoc cell :contents updated-unit))))
 
 (defn valid-coastline-cell?
   "Returns true if a cell is valid for coastline movement (sea, no unit)."
@@ -86,7 +95,7 @@
   [coords reason]
   (let [cell (get-in @atoms/game-map coords)
         unit (:contents cell)]
-    (swap! atoms/game-map assoc-in coords
+    (update-game-map! assoc-in coords
            (assoc cell :contents (-> unit
                                      (assoc :mode :awake :reason reason)
                                      (dissoc :coastline-steps :visited :start-pos :target :prev-pos))))))
@@ -158,8 +167,8 @@
                      (make-continuing-unit unit remaining-steps visited next-pos coords))]
     (debug/log-action! [:coastline-move (:type unit) coords next-pos])
     (log-coastline-step player? (:type unit) coords next-pos post-wake)
-    (swap! atoms/game-map assoc-in coords (dissoc cell :contents))
-    (swap! atoms/game-map assoc-in next-pos (assoc next-cell :contents moved-unit))
+    (update-game-map! assoc-in coords (dissoc cell :contents))
+    (update-game-map! assoc-in next-pos (assoc next-cell :contents moved-unit))
     (visibility/update-cell-visibility next-pos (:owner unit))
     (when-not post-wake next-pos)))
 

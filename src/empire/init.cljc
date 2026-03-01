@@ -3,6 +3,8 @@
   (:require [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.movement.visibility :as visibility]
             [empire.player.production :as production]))
 
@@ -161,11 +163,12 @@
         map-with-computer-city (occupy-random-free-city map-with-player-city :computer [px py min-start-distance] config/min-surrounding-land)
         visibility-map (vec (for [_ (range width)]
                               (vec (for [_ (range height)]
-                                     {:type :unexplored}))))]
-    (reset! atoms/game-map map-with-computer-city)
+                                     {:type :unexplored}))))
+        state-ctx (app-runtime/default-state-ctx)]
+    (app-state/set-world! state-ctx map-with-computer-city)
     ;; Assign country-id 1 to computer's starting city and begin army production
     (when-let [computer-city-pos (find-city-position @atoms/game-map :computer)]
-      (swap! atoms/game-map assoc-in (conj computer-city-pos :country-id) 1)
+      (app-state/update-world! state-ctx assoc-in (conj computer-city-pos :country-id) 1)
       (reset! atoms/next-country-id 2)
       (production/set-city-production computer-city-pos :army))
     (reset! atoms/player-map visibility-map)

@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.threat :as threat]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test-utils :refer [reset-all-atoms! set-test-computer-map!]]))
 
 (describe "unit-threat"
   (it "returns 10 for battleship"
@@ -255,18 +255,18 @@
   (before (reset-all-atoms!))
 
   (it "finds nearest computer city"
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea}]])
     (should= [2 0] (threat/find-nearest-friendly-base [0 0] :destroyer)))
 
   (it "returns nil when no computer cities exist"
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]])
     (should-be-nil (threat/find-nearest-friendly-base [0 0] :destroyer)))
 
   (it "picks closest among multiple cities"
-    (reset! atoms/computer-map [[{:type :city :city-status :computer} {:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :city :city-status :computer} {:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea} {:type :sea}]])
@@ -274,7 +274,7 @@
     (should= [0 0] (threat/find-nearest-friendly-base [1 1] :destroyer)))
 
   (it "ignores player and free cities"
-    (reset! atoms/computer-map [[{:type :city :city-status :player} {:type :sea}]
+    (set-test-computer-map! [[{:type :city :city-status :player} {:type :sea}]
                                  [{:type :city :city-status :free} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea}]])
     (should= [2 0] (threat/find-nearest-friendly-base [0 0] :destroyer))))
@@ -283,7 +283,7 @@
   (before (reset-all-atoms!))
 
   (it "picks move toward friendly base with lowest threat"
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea}]])
     (let [computer-map @atoms/computer-map
@@ -293,13 +293,13 @@
       (should= [1 0] (threat/retreat-move [0 1] unit computer-map moves))))
 
   (it "returns nil when no passable moves"
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea}]])
     (let [unit {:type :destroyer :hits 1}]
       (should-be-nil (threat/retreat-move [0 0] unit @atoms/computer-map []))))
 
   (it "returns nil when no friendly base exists"
-    (reset! atoms/computer-map [[{:type :sea} {:type :sea}]
+    (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]])
     (let [unit {:type :destroyer :hits 1}
           moves [[0 0] [1 0]]]
@@ -310,7 +310,7 @@
     ;; Move B=[4,0] far from base but safe.
     ;; Score = dist + 2*threat. A: 1+20=21. B: 4+0=4. B wins.
     ;; With -: A: 1-20=-19. B: 4-0=4. A wins (wrong).
-    (reset! atoms/computer-map [[{:type :city :city-status :computer} {:type :sea}]
+    (set-test-computer-map! [[{:type :city :city-status :computer} {:type :sea}]
                                  [{:type :sea :contents {:type :battleship :owner :player}} {:type :sea}]
                                  [{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]

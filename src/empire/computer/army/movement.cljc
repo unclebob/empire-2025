@@ -1,10 +1,19 @@
 (ns empire.computer.army.movement
   "Shared movement and passability helpers for computer armies."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.debug :as debug]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn adjacent-to-sea?
   "Returns true if position has at least one adjacent sea cell."
@@ -106,8 +115,8 @@
   [pos target]
   (when (core/move-unit-to pos target)
     (debug/log-computer-event! :army-move pos {:to target})
-    (swap! atoms/game-map update-in (conj target :contents :move-history)
-           update-move-history pos)
+    (update-game-map! update-in (conj target :contents :move-history)
+                      update-move-history pos)
     (visibility/update-cell-visibility pos :computer)
     (visibility/update-cell-visibility target :computer)
     (register-coastal-cells target

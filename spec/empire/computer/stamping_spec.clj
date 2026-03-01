@@ -4,7 +4,7 @@
             [empire.computer.production :as computer-production]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "stamp-computer-fields"
   (before (reset-all-atoms!))
@@ -180,11 +180,11 @@
 
   (it "first 2 armies get coast-walk while coastal cells unexplored"
     ;; Map with unexplored coastal cells
-    (reset! atoms/game-map (build-test-map ["~###~"]))
+    (set-test-world! (build-test-map ["~###~"]))
     (doseq [col [1 2 3]]
-      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [col 0 :country-id] 1))
     ;; Computer map: coastal cells unexplored
-    (reset! atoms/computer-map [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
+    (set-test-computer-map! [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
     (computer-production/rebuild-country-stats!)
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
           cell {:type :city :city-status :computer :country-id 1}]
@@ -202,10 +202,10 @@
         (should= :awake (:mode s)))))
 
   (it "no coast-walk when all coastal cells explored"
-    (reset! atoms/game-map (build-test-map ["~###~"]))
-    (reset! atoms/computer-map (build-test-map ["~###~"]))
+    (set-test-world! (build-test-map ["~###~"]))
+    (set-test-computer-map! (build-test-map ["~###~"]))
     (doseq [col [1 2 3]]
-      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [col 0 :country-id] 1))
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
           cell {:type :city :city-status :computer :country-id 1}
           stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
@@ -213,10 +213,10 @@
       (should-not-contain :coast-direction stamped)))
 
   (it "player army does not get coast-walk"
-    (reset! atoms/game-map (build-test-map ["~###~"]))
-    (reset! atoms/computer-map [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
+    (set-test-world! (build-test-map ["~###~"]))
+    (set-test-computer-map! [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
     (doseq [col [1 2 3]]
-      (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [col 0 :country-id] 1))
     (let [unit {:type :army :owner :player :hits 1 :mode :awake}
           cell {:type :city :city-status :player :country-id 1}
           stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]

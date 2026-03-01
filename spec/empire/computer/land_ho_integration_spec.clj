@@ -3,7 +3,7 @@
             [empire.movement.visibility :as visibility]
             [empire.computer.land-ho :as land-ho]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test-utils :refer [reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (defn make-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))
@@ -21,25 +21,24 @@
                          (and (= r 2) (= c 1)) {:type :city :city-status :free}
                          (and (= r 2) (#{0 2} c)) {:type :land}
                          :else {:type :sea})))]
-      (reset! atoms/game-map game-map)
+      (set-test-world! game-map)
       ;; Computer-map: only row 0 explored, rest unexplored
-      (reset! atoms/computer-map
-              (make-map 3 4
+      (set-test-computer-map! (make-map 3 4
                 (fn [r c]
                   (if (= r 0) (get-in game-map [r c]) {:type :unexplored}))))
       ;; Patrol boat at [0 0]
-      (swap! atoms/game-map assoc-in [0 0 :contents]
-             {:type :patrol-boat :owner :computer})
+      (update-test-world! assoc-in [0 0 :contents]
+                          {:type :patrol-boat :owner :computer})
       ;; Transport at [0 3] with 4 armies, sailing
-      (swap! atoms/game-map assoc-in [0 3 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :sailing :army-count 4})
+      (update-test-world! assoc-in [0 3 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :sailing :army-count 4})
 
       ;; Step 1: Patrol boat moves to [1 1] and discovers the free city
       ;; Simulate by updating visibility from [1 1]
-      (swap! atoms/computer-map assoc-in [1 1] (get-in game-map [1 1]))
-      (swap! atoms/game-map assoc-in [1 1 :contents]
-             {:type :patrol-boat :owner :computer})
+      (update-test-computer-map! assoc-in [1 1] (get-in game-map [1 1]))
+      (update-test-world! assoc-in [1 1 :contents]
+                          {:type :patrol-boat :owner :computer})
       (visibility/update-cell-visibility [1 1] :computer)
 
       ;; City should be in land-ho-targets

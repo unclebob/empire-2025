@@ -8,12 +8,13 @@
             [empire.player.orders :as orders]
             [empire.player.production :as production]
             [empire.save-load :as save-load]
-            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!
+                                       set-test-world! update-test-world!]]))
 
 (describe "set-city-lookaround"
   (around [it]
     (reset-all-atoms!)
-    (reset! atoms/game-map (build-test-map ["~O"
+    (set-test-world! (build-test-map ["~O"
                                              "X#"]))
     (it))
 
@@ -45,7 +46,7 @@
 (describe "handle-key :space"
   (before (reset-all-atoms!))
   (it "sets reason to :skipping-this-round on the unit"
-    (reset! atoms/game-map (build-test-map ["A"]))
+    (set-test-world! (build-test-map ["A"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
     (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
       (reset! atoms/cells-needing-attention [unit-coords])
@@ -58,7 +59,7 @@
   (it "burns a full round of fuel for fighters when skipping"
     (let [initial-fuel 20
           fighter-speed (config/unit-speed :fighter)]
-      (reset! atoms/game-map (build-test-map ["F"]))
+      (set-test-world! (build-test-map ["F"]))
       (set-test-unit atoms/game-map "F" :mode :awake :fuel initial-fuel)
       (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
         (reset! atoms/cells-needing-attention [unit-coords])
@@ -70,7 +71,7 @@
 
   (it "fighter crashes when skipping with insufficient fuel"
     (let [_fighter-speed (config/unit-speed :fighter)]
-      (reset! atoms/game-map (build-test-map ["F"]))
+      (set-test-world! (build-test-map ["F"]))
       (set-test-unit atoms/game-map "F" :mode :awake :fuel 3 :hits 1)
       (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
         (reset! atoms/cells-needing-attention [unit-coords])
@@ -81,7 +82,7 @@
           (should= 0 (:hits unit))))))
 
   (it "includes fuel in reason when fighter skips"
-    (reset! atoms/game-map (build-test-map ["F"]))
+    (set-test-world! (build-test-map ["F"]))
     (set-test-unit atoms/game-map "F" :mode :awake :fuel 20)
     (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
       (reset! atoms/cells-needing-attention [unit-coords])
@@ -95,7 +96,7 @@
   (before (reset-all-atoms!))
 
   (it "clears attention when space is pressed on city without production"
-    (reset! atoms/game-map (build-test-map ["O"]))
+    (set-test-world! (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/waiting-for-input true)
@@ -104,7 +105,7 @@
       (should= false @atoms/waiting-for-input)))
 
   (it "does not add production when space is pressed"
-    (reset! atoms/game-map (build-test-map ["O"]))
+    (set-test-world! (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/waiting-for-input true)
@@ -112,7 +113,7 @@
       (should-be-nil (get @atoms/production city-coords))))
 
   (it "removes city from player-items when space is pressed"
-    (reset! atoms/game-map (build-test-map ["O"]))
+    (set-test-world! (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/player-items [city-coords])
@@ -121,7 +122,7 @@
       (should= [] @atoms/player-items)))
 
   (it "does nothing for computer cities"
-    (reset! atoms/game-map (build-test-map ["X"]))
+    (set-test-world! (build-test-map ["X"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/waiting-for-input true)
@@ -133,7 +134,7 @@
   (before (reset-all-atoms!))
 
   (it "does not add disembarked army to player-items (no double move)"
-    (reset! atoms/game-map (build-test-map ["---------"
+    (set-test-world! (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -157,7 +158,7 @@
       (should (some #{transport-coords} @atoms/player-items))))
 
   (it "keeps transport in player-items when more awake armies remain"
-    (reset! atoms/game-map (build-test-map ["---------"
+    (set-test-world! (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -185,7 +186,7 @@
   (before (reset-all-atoms!))
 
   (it "rejects command and shows error message"
-    (reset! atoms/game-map (build-test-map ["~D~"
+    (set-test-world! (build-test-map ["~D~"
                                              "~O~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "D" :mode :awake :hits 3)  ; full health destroyer (max 3)
@@ -205,7 +206,7 @@
       (should= true @atoms/waiting-for-input)))
 
   (it "allows damaged ship to set movement toward city"
-    (reset! atoms/game-map (build-test-map ["~D~"
+    (set-test-world! (build-test-map ["~D~"
                                              "~O~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "D" :mode :awake :hits 2)  ; damaged destroyer
@@ -256,7 +257,7 @@
 (describe "calculate-extended-target"
   (before (reset-all-atoms!))
   (it "calculates target at map edge going east"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "#####"
                                              "#####"
@@ -264,7 +265,7 @@
     (should= [4 0] (#'actions/calculate-extended-target [0 0] [1 0])))
 
   (it "calculates target at map edge going south"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "#####"
                                              "#####"
@@ -272,7 +273,7 @@
     (should= [0 4] (#'actions/calculate-extended-target [0 0] [0 1])))
 
   (it "calculates target at map edge going southeast"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "#####"
                                              "#####"
@@ -280,7 +281,7 @@
     (should= [4 4] (#'actions/calculate-extended-target [0 0] [1 1])))
 
   (it "calculates target at map edge going west"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "#####"
                                              "#####"
@@ -288,7 +289,7 @@
     (should= [0 2] (#'actions/calculate-extended-target [4 2] [-1 0])))
 
   (it "calculates target at map edge going north"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "#####"
                                              "#####"
@@ -296,7 +297,7 @@
     (should= [2 0] (#'actions/calculate-extended-target [2 4] [0 -1])))
 
   (it "returns starting position when already at edge"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "#####"
                                              "#####"
@@ -304,7 +305,7 @@
     (should= [0 0] (#'actions/calculate-extended-target [0 0] [-1 0])))
 
   (it "works with non-square maps"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "###"
                                              "###"
                                              "###"
@@ -320,7 +321,7 @@
   (before (reset-all-atoms!))
 
   (it "wakes armies on transport"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~T~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 2 :awake-armies 0)
@@ -333,7 +334,7 @@
         (should= 2 (:awake-armies transport)))))
 
   (it "wakes fighters on carrier"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~C~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "C" :mode :awake :hits 1 :fighter-count 2 :awake-fighters 0)
@@ -346,7 +347,7 @@
         (should= 2 (:awake-fighters carrier)))))
 
   (it "returns nil when unit is not a container"
-    (reset! atoms/game-map (build-test-map ["~D~"]))
+    (set-test-world! (build-test-map ["~D~"]))
     (set-test-unit atoms/game-map "D" :mode :awake :hits 3)
     (let [coords (:pos (get-test-unit atoms/game-map "D"))]
       (reset! atoms/cells-needing-attention [coords])
@@ -358,7 +359,7 @@
   (before (reset-all-atoms!))
 
   (it "sets army production on player city"
-    (reset! atoms/game-map (build-test-map ["O"]))
+    (set-test-world! (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/player-items [city-coords])
@@ -367,7 +368,7 @@
       (should= :army (:item (get @atoms/production city-coords)))))
 
   (it "rejects naval production on non-coastal city"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#O#"
                                              "###"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
@@ -382,7 +383,7 @@
       (should-be-nil (get @atoms/production city-coords))))
 
   (it "allows naval production on coastal city"
-    (reset! atoms/game-map (build-test-map ["~O#"]))
+    (set-test-world! (build-test-map ["~O#"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/player-items [city-coords])
@@ -391,7 +392,7 @@
       (should= :destroyer (:item (get @atoms/production city-coords)))))
 
   (it "clears production with :x key"
-    (reset! atoms/game-map (build-test-map ["O"]))
+    (set-test-world! (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       ;; Set initial production
       (production/set-city-production city-coords :army)
@@ -407,7 +408,7 @@
   (before (reset-all-atoms!))
 
   (it "sets army to explore mode"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#A#"
                                              "###"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
@@ -420,7 +421,7 @@
         (should= :explore (:mode unit)))))
 
   (it "sets transport to coastline-follow mode when near coast"
-    (reset! atoms/game-map (build-test-map ["~#~"
+    (set-test-world! (build-test-map ["~#~"
                                              "~T~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 0)
@@ -433,7 +434,7 @@
         (should= :coastline-follow (:mode unit)))))
 
   (it "shows rejection reason for transport not near coast"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~T~~"
                                              "~~~~~"
@@ -451,12 +452,12 @@
   (before (reset-all-atoms!))
 
   (it "launches fighter from airport"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~O~"
                                              "~~~"]))
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
       ;; Set up airport with awake fighter
-      (swap! atoms/game-map update-in city-coords
+      (update-test-world! update-in city-coords
              merge {:fighter-count 1 :awake-fighters 1})
       (reset! atoms/cells-needing-attention [city-coords])
       (reset! atoms/player-items [city-coords])
@@ -471,7 +472,7 @@
   (before (reset-all-atoms!))
 
   (it "launches fighter from carrier"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~C~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "C" :mode :sentry :hits 1 :fighter-count 1 :awake-fighters 1)
@@ -488,7 +489,7 @@
   (before (reset-all-atoms!))
 
   (it "fighter gets shot down when flying over hostile city"
-    (reset! atoms/game-map (build-test-map ["~F~"
+    (set-test-world! (build-test-map ["~F~"
                                              "~X~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "F" :mode :awake :fuel 20 :hits 1)

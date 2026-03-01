@@ -1,10 +1,54 @@
 (ns empire.test-utils
   (:require [clojure.string :as str]
             [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.units.dispatcher :as dispatcher]))
+
+(defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
+
+(defn- world-atom?
+  [map-atom]
+  (identical? map-atom atoms/game-map))
+
+(defn set-test-world!
+  [world]
+  (app-state/set-world! @state-ctx world))
+
+(defn update-test-world!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
+
+(defn set-test-player-map!
+  [player-map]
+  (reset! atoms/player-map player-map))
+
+(defn update-test-player-map!
+  [f & args]
+  (apply swap! atoms/player-map f args))
+
+(defn set-test-computer-map!
+  [computer-map]
+  (reset! atoms/computer-map computer-map))
+
+(defn update-test-computer-map!
+  [f & args]
+  (apply swap! atoms/computer-map f args))
+
+(defn- update-map-atom!
+  [map-atom f & args]
+  (if (world-atom? map-atom)
+    (apply update-test-world! f args)
+    (apply swap! map-atom f args)))
+
+(defn- map-value
+  [game-map-source]
+  (if (vector? game-map-source)
+    game-map-source
+    @game-map-source))
 
 (defn- make-unit [unit-type owner]
   (merge {:type unit-type :owner owner :hits (dispatcher/hits unit-type)}
@@ -110,7 +154,7 @@
   (let [pos (find-unit-pos @game-map-atom unit-spec)]
     (when (nil? pos)
       (throw (ex-info (str "Unit not found: " unit-spec) {:unit-spec unit-spec})))
-    (swap! game-map-atom update-in (conj pos :contents) merge (apply hash-map kvs))))
+    (update-map-atom! game-map-atom update-in (conj pos :contents) merge (apply hash-map kvs))))
 
 (defn- matches-filters? [unit filters]
   (every? (fn [[k v]] (= v (get unit k))) filters))
@@ -122,7 +166,7 @@
         n (if (> (count unit-spec) 1)
             (Integer/parseInt (subs unit-spec 1))
             1)
-        game-map @game-map-atom
+        game-map (map-value game-map-atom)
         matches (for [row-idx (range (count game-map))
                       col-idx (range (count (nth game-map row-idx)))
                       :let [cell (get-in game-map [row-idx col-idx])
@@ -148,7 +192,7 @@
 
 (defn get-test-city [game-map-atom city-spec]
   (let [[city-status n] (parse-city-spec city-spec)
-        game-map @game-map-atom
+        game-map (map-value game-map-atom)
         matches (for [row-idx (range (count game-map))
                       col-idx (range (count (nth game-map row-idx)))
                       :let [cell (get-in game-map [row-idx col-idx])]
@@ -162,7 +206,7 @@
         n (if (> (count cell-spec) 1)
             (Integer/parseInt (subs cell-spec 1))
             1)
-        game-map @game-map-atom
+        game-map (map-value game-map-atom)
         matches (for [row-idx (range (count game-map))
                       col-idx (range (count (nth game-map row-idx)))
                       :let [cell (get-in game-map [row-idx col-idx])]
@@ -187,7 +231,7 @@
   (reset! atoms/text-font nil)
   (reset! atoms/production-char-font nil)
   (reset! atoms/production {})
-  (reset! atoms/game-map nil)
+  (set-test-world! nil)
   (reset! atoms/player-map {})
   (reset! atoms/cells-needing-attention [])
   (reset! atoms/player-items [])

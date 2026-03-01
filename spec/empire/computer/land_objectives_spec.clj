@@ -3,20 +3,20 @@
   (:require [speclj.core :refer :all]
             [empire.computer.land-objectives :as land-objectives]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "flood-fill-continent"
   (before (reset-all-atoms!))
 
   (it "finds all connected land cells"
-    (reset! atoms/computer-map (build-test-map ["###"
+    (set-test-computer-map! (build-test-map ["###"
                                                  "###"
                                                  "###"]))
     (let [cont (land-objectives/flood-fill-continent [1 1])]
       (should= 9 (count cont))))
 
   (it "stops at sea boundaries"
-    (reset! atoms/computer-map (build-test-map ["###~##"
+    (set-test-computer-map! (build-test-map ["###~##"
                                                  "###~##"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])]
       ;; Should only find left 3x2 = 6 cells
@@ -27,7 +27,7 @@
 
   (it "marks but does not expand through unexplored territory"
     ;; Map where middle column is unexplored (nil)
-    (reset! atoms/computer-map [[{:type :land} nil {:type :land}]
+    (set-test-computer-map! [[{:type :land} nil {:type :land}]
                                  [{:type :land} nil {:type :land}]])
     (let [cont (land-objectives/flood-fill-continent [0 0])]
       ;; Should find left column (2) + adjacent unexplored (2) = 4
@@ -41,13 +41,13 @@
       (should-not-contain [1 2] cont)))
 
   (it "treats cities as land for connectivity"
-    (reset! atoms/computer-map (build-test-map ["#X#"]))
+    (set-test-computer-map! (build-test-map ["#X#"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])]
       (should= 3 (count cont))))
 
   (it "finds isolated landmass when separated by unexplored"
     ;; Two explored regions separated by unexplored
-    (reset! atoms/computer-map [[{:type :land} nil nil {:type :land}]])
+    (set-test-computer-map! [[{:type :land} nil nil {:type :land}]])
     (let [cont-left (land-objectives/flood-fill-continent [0 0])
           cont-right (land-objectives/flood-fill-continent [0 3])]
       ;; Left region sees 1 land + 1 adjacent unexplored
@@ -59,24 +59,24 @@
       (should-not-contain [0 0] cont-right)))
 
   (it "returns nil for empty map"
-    (reset! atoms/computer-map [])
+    (set-test-computer-map! [])
     (should-be-nil (land-objectives/flood-fill-continent [0 0]))))
 
 (describe "scan-continent"
   (before (reset-all-atoms!))
 
   (it "counts unexplored cells"
-    (reset! atoms/computer-map [[{:type :land} nil]
+    (set-test-computer-map! [[{:type :land} nil]
                                  [{:type :land} nil]])
-    (reset! atoms/game-map [[{:type :land} {:type :land}]
+    (set-test-world! [[{:type :land} {:type :land}]
                              [{:type :land} {:type :land}]])
     (let [cont (land-objectives/flood-fill-continent [0 0])
           counts (land-objectives/scan-continent cont)]
       (should= 2 (:unexplored counts))))
 
   (it "counts cities by owner"
-    (reset! atoms/computer-map (build-test-map ["X+O#"]))
-    (reset! atoms/game-map (build-test-map ["X+O#"]))
+    (set-test-computer-map! (build-test-map ["X+O#"]))
+    (set-test-world! (build-test-map ["X+O#"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           counts (land-objectives/scan-continent cont)]
       (should= 1 (:computer-cities counts))
@@ -84,8 +84,8 @@
       (should= 1 (:player-cities counts))))
 
   (it "counts units by owner"
-    (reset! atoms/computer-map (build-test-map ["aA#"]))
-    (reset! atoms/game-map (build-test-map ["aA#"]))
+    (set-test-computer-map! (build-test-map ["aA#"]))
+    (set-test-world! (build-test-map ["aA#"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           counts (land-objectives/scan-continent cont)]
       (should= 1 (:computer-units counts))
@@ -93,9 +93,9 @@
 
   (it "counts land size separately from unexplored"
     ;; Asymmetric: 6 land, 2 unexplored — kills L97 and L101
-    (reset! atoms/computer-map [[{:type :land} {:type :land} {:type :land} nil]
+    (set-test-computer-map! [[{:type :land} {:type :land} {:type :land} nil]
                                 [{:type :land} {:type :land} {:type :land} nil]])
-    (reset! atoms/game-map [[{:type :land} {:type :land} {:type :land} {:type :land}]
+    (set-test-world! [[{:type :land} {:type :land} {:type :land} {:type :land}]
                             [{:type :land} {:type :land} {:type :land} {:type :land}]])
     (let [cont (land-objectives/flood-fill-continent [0 0])
           counts (land-objectives/scan-continent cont)]
@@ -104,8 +104,8 @@
 
   (it "distinguishes computer from player units with unequal counts"
     ;; 2 player armies, 1 computer army — kills L117 and L120
-    (reset! atoms/computer-map (build-test-map ["AAa#"]))
-    (reset! atoms/game-map (build-test-map ["AAa#"]))
+    (set-test-computer-map! (build-test-map ["AAa#"]))
+    (set-test-world! (build-test-map ["AAa#"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           counts (land-objectives/scan-continent cont)]
       (should= 1 (:computer-units counts))
@@ -163,7 +163,7 @@
 
   (it "includes free and player cities as objectives"
     ;; Kills L141
-    (reset! atoms/computer-map (build-test-map ["#+O"]))
+    (set-test-computer-map! (build-test-map ["#+O"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           objectives (set (land-objectives/find-all-objectives-on-continent cont))]
       (should= 2 (count objectives))
@@ -174,14 +174,14 @@
   (before (reset-all-atoms!))
 
   (it "finds nearest unexplored cell"
-    (reset! atoms/computer-map [[{:type :land} {:type :land} nil]
+    (set-test-computer-map! [[{:type :land} {:type :land} nil]
                                  [{:type :land} {:type :land} {:type :land}]])
     (let [cont (land-objectives/flood-fill-continent [0 0])
           nearest (land-objectives/find-unexplored-on-continent [0 0] cont)]
       (should= [0 2] nearest)))
 
   (it "returns nil when no unexplored on continent"
-    (reset! atoms/computer-map (build-test-map ["###"]))
+    (set-test-computer-map! (build-test-map ["###"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           nearest (land-objectives/find-unexplored-on-continent [0 0] cont)]
       (should-be-nil nearest))))
@@ -190,13 +190,13 @@
   (before (reset-all-atoms!))
 
   (it "finds nearest free city"
-    (reset! atoms/computer-map (build-test-map ["##+"]))
+    (set-test-computer-map! (build-test-map ["##+"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           nearest (land-objectives/find-free-city-on-continent [0 0] cont)]
       (should= [2 0] nearest)))
 
   (it "returns nil when no free city on continent"
-    (reset! atoms/computer-map (build-test-map ["##X"]))
+    (set-test-computer-map! (build-test-map ["##X"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           nearest (land-objectives/find-free-city-on-continent [0 0] cont)]
       (should-be-nil nearest))))
@@ -205,13 +205,13 @@
   (before (reset-all-atoms!))
 
   (it "finds nearest player city"
-    (reset! atoms/computer-map (build-test-map ["##O"]))
+    (set-test-computer-map! (build-test-map ["##O"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           nearest (land-objectives/find-player-city-on-continent [0 0] cont)]
       (should= [2 0] nearest)))
 
   (it "returns nil when no player city on continent"
-    (reset! atoms/computer-map (build-test-map ["##X"]))
+    (set-test-computer-map! (build-test-map ["##X"]))
     (let [cont (land-objectives/flood-fill-continent [0 0])
           nearest (land-objectives/find-player-city-on-continent [0 0] cont)]
       (should-be-nil nearest))))

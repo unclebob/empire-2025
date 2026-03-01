@@ -2,10 +2,19 @@
 (ns empire.computer.ship-carrier-group
   "Carrier group escort - battleship and submarine orbiting behavior."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (def orbit-ring
   "16 offsets forming a clockwise Chebyshev ring at radius 2."
@@ -48,17 +57,17 @@
         carrier-id (:carrier-id carrier)
         escort-id (:escort-id escort-unit)
         angle (initial-orbit-angle unit-type carrier)]
-    (swap! atoms/game-map update-in (conj pos :contents)
-           assoc :escort-carrier-id carrier-id
-                 :escort-mode :intercepting
-                 :orbit-angle angle)
+    (update-game-map! update-in (conj pos :contents)
+                      assoc :escort-carrier-id carrier-id
+                      :escort-mode :intercepting
+                      :orbit-angle angle)
     (case unit-type
       :battleship
-      (swap! atoms/game-map update-in (conj carrier-pos :contents)
-             assoc :group-battleship-id escort-id)
+      (update-game-map! update-in (conj carrier-pos :contents)
+                        assoc :group-battleship-id escort-id)
       :submarine
-      (swap! atoms/game-map update-in (conj carrier-pos :contents)
-             update :group-submarine-ids conj escort-id))))
+      (update-game-map! update-in (conj carrier-pos :contents)
+                        update :group-submarine-ids conj escort-id))))
 
 (defn- orbit-target-pos
   "Computes the absolute position for an orbit angle around carrier."
@@ -85,9 +94,9 @@
 (defn- revert-escort-to-seeking
   "Reverts an escort to seeking mode, clearing carrier reference."
   [pos]
-  (swap! atoms/game-map update-in (conj pos :contents)
-         #(-> % (assoc :escort-mode :seeking)
-              (dissoc :escort-carrier-id :orbit-angle))))
+  (update-game-map! update-in (conj pos :contents)
+                    #(-> % (assoc :escort-mode :seeking)
+                         (dissoc :escort-carrier-id :orbit-angle))))
 
 (defn- process-escort-seeking
   "Escort seeking: find a carrier with an open slot and adopt it."
@@ -105,11 +114,11 @@
       (let [target (orbit-target-pos carrier-pos valid-angle)]
         (when (not= pos target)
           (ship-core/move-toward pos target))
-        (swap! atoms/game-map update-in
-               (conj (or (when (not= pos target) target) pos) :contents)
-               assoc :escort-mode :orbiting :orbit-angle valid-angle))
-      (swap! atoms/game-map update-in (conj pos :contents)
-             assoc :escort-mode :orbiting))))
+        (update-game-map! update-in
+                          (conj (or (when (not= pos target) target) pos) :contents)
+                          assoc :escort-mode :orbiting :orbit-angle valid-angle))
+      (update-game-map! update-in (conj pos :contents)
+                        assoc :escort-mode :orbiting))))
 
 (defn- process-escort-intercepting
   "Escort intercepting: move toward carrier, transition to orbiting at radius 2."
@@ -131,14 +140,14 @@
         (if next-angle
           (let [target (orbit-target-pos carrier-pos next-angle)]
             (if (= pos target)
-              (swap! atoms/game-map update-in (conj pos :contents)
-                     assoc :orbit-angle next-angle)
+              (update-game-map! update-in (conj pos :contents)
+                                assoc :orbit-angle next-angle)
               (when (valid-orbit-pos? target)
                 (core/move-unit-to pos target)
                 (visibility/update-cell-visibility pos :computer)
                 (visibility/update-cell-visibility target :computer)
-                (swap! atoms/game-map update-in (conj target :contents)
-                       assoc :orbit-angle next-angle))))
+                (update-game-map! update-in (conj target :contents)
+                                  assoc :orbit-angle next-angle))))
           nil))
       (revert-escort-to-seeking pos))))
 

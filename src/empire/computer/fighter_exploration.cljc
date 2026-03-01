@@ -2,9 +2,18 @@
 (ns empire.computer.fighter-exploration
   "Fighter exploration: sorties, drone operations, unexplored-cell scoring."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.movement.visibility :as visibility]
             [empire.computer.fighter-movement :as fm]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (def ^:private compass-directions
   "All 8 compass directions as [dr dc] vectors."
@@ -122,12 +131,12 @@
   (let [endpoint (:flight-target-site unit)]
     (when-let [{:keys [pos hops]} (explore-move-step pos endpoint)]
       (let [remaining (dec (:explore-steps-remaining unit))]
-        (swap! atoms/game-map assoc-in
-               (conj pos :contents :explore-steps-remaining) remaining)
+        (update-game-map! assoc-in
+                          (conj pos :contents :explore-steps-remaining) remaining)
         (when (<= remaining 0)
-          (swap! atoms/game-map update-in (conj pos :contents)
-                 assoc :flight-mode :regular
-                 :flight-target-site (:explore-origin unit))))
+          (update-game-map! update-in (conj pos :contents)
+                            assoc :flight-mode :regular
+                            :flight-target-site (:explore-origin unit))))
       {:pos pos :hops hops})))
 
 (defn drone-step

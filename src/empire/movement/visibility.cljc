@@ -1,7 +1,16 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.visibility
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- is-players?
   "Returns true if the cell is owned by the player."
@@ -96,7 +105,7 @@
     (let [existing-cid (:country-id game-cell)]
       (when (and existing-cid (not= stamp-id existing-cid))
         (atoms/merge-continents! stamp-id existing-cid)))
-    (swap! atoms/game-map assoc-in [row col :country-id] stamp-id)))
+    (update-game-map! assoc-in [row col :country-id] stamp-id)))
 
 (defn- should-track-free-city?
   "Returns true if owner is computer and unit is not an army."

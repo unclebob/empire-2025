@@ -12,7 +12,7 @@
             [empire.movement.movement :as movement]
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-unit]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-unit set-test-world! update-test-world!]]))
 
 ;; Helpers
 
@@ -29,7 +29,7 @@
 
   (context "unit movement"
     (it "sets army to :moving mode when direction key pressed"
-      (reset! atoms/game-map (build-test-map ["##"
+      (set-test-world! (build-test-map ["##"
                                                "#A"]))
       (set-test-unit atoms/game-map "A" :mode :awake)
       (setup-unit-attention [1 1])
@@ -40,7 +40,7 @@
         (should= [0 0] (:target unit))))
 
     (it "sets extended target when shift-direction key pressed"
-      (reset! atoms/game-map (build-test-map ["###"
+      (set-test-world! (build-test-map ["###"
                                                "###"
                                                "##A"]))
       (set-test-unit atoms/game-map "A" :mode :awake)
@@ -52,13 +52,13 @@
         (should= [0 0] (:target unit))))
 
     (it "returns nil for non-direction key"
-      (reset! atoms/game-map (build-test-map ["A"]))
+      (set-test-world! (build-test-map ["A"]))
       (set-test-unit atoms/game-map "A" :mode :awake)
       (setup-unit-attention [0 0])
       (should-be-nil (commands/handle-key :j)))
 
     (it "does not move computer-owned units"
-      (reset! atoms/game-map (build-test-map ["a#"]))
+      (set-test-world! (build-test-map ["a#"]))
       ;; Computer army at [0 0], land at [1 0]
       (reset! atoms/cells-needing-attention [[0 0]])
       (reset! atoms/player-items (list [0 0]))
@@ -69,7 +69,7 @@
   (context "army conquest"
     (it "attempts conquest when army moves toward hostile city"
       (let [conquest-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["AX"]))
+        (set-test-world! (build-test-map ["AX"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
         (setup-unit-attention [0 0])
         (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
@@ -79,7 +79,7 @@
   (context "fighter overfly hostile city"
     (it "attempts fighter overfly when fighter moves toward hostile city"
       (let [overfly-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["FX"]))
+        (set-test-world! (build-test-map ["FX"]))
         (set-test-unit atoms/game-map "F" :mode :awake :fuel 32)
         (setup-unit-attention [0 0])
         (with-redefs [combat/hostile-city? (fn [_] true)
@@ -89,14 +89,14 @@
 
   (context "undamaged ship entering friendly city"
     (it "shows error when undamaged destroyer tries to enter player city"
-      (reset! atoms/game-map (build-test-map ["DO"]))
+      (set-test-world! (build-test-map ["DO"]))
       (set-test-unit atoms/game-map "D" :mode :awake :hits (dispatcher/hits :destroyer))
       (setup-unit-attention [0 0])
       (commands/handle-key :d)
       (should-contain "not damaged" @atoms/error-message))
 
     (it "allows damaged destroyer to enter player city (sets movement)"
-      (reset! atoms/game-map (build-test-map ["DO"]))
+      (set-test-world! (build-test-map ["DO"]))
       (set-test-unit atoms/game-map "D" :mode :awake :hits 1)
       (setup-unit-attention [0 0])
       (commands/handle-key :d)
@@ -106,7 +106,7 @@
 
   (context "standard unit movement target"
     (it "sets movement target equal to adjacent cell for normal direction"
-      (reset! atoms/game-map (build-test-map ["~D"
+      (set-test-world! (build-test-map ["~D"
                                                "~~"]))
       (set-test-unit atoms/game-map "D" :mode :awake)
       (setup-unit-attention [1 0])
@@ -118,7 +118,7 @@
         (should= [1 1] (:target unit))))
 
     (it "sets extended target to map edge for shift direction"
-      (reset! atoms/game-map (build-test-map ["~~D"
+      (set-test-world! (build-test-map ["~~D"
                                                "~~~"
                                                "~~~"]))
       (set-test-unit atoms/game-map "D" :mode :awake)
@@ -130,7 +130,7 @@
         (should= [2 2] (:target unit))))
 
     (it "sets extended target to column edge for shift direction along columns"
-      (reset! atoms/game-map (build-test-map ["D~~"]))
+      (set-test-world! (build-test-map ["D~~"]))
       (set-test-unit atoms/game-map "D" :mode :awake)
       (setup-unit-attention [0 0])
       ;; :D = far east [1, 0] -> extends along columns to [2 0]
@@ -147,9 +147,9 @@
   (context "airport fighter launch"
     (it "launches fighter from airport on direction key"
       (let [launch-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["O#"]))
-        (swap! atoms/game-map assoc-in [0 0 :awake-fighters] 1)
-        (swap! atoms/game-map assoc-in [0 0 :fighter-count] 1)
+        (set-test-world! (build-test-map ["O#"]))
+        (update-test-world! assoc-in [0 0 :awake-fighters] 1)
+        (update-test-world! assoc-in [0 0 :fighter-count] 1)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/launch-fighter-from-airport
                       (fn [_ _] (reset! launch-called true) [0 0])]
@@ -161,7 +161,7 @@
   (context "carrier fighter launch"
     (it "launches fighter from carrier on direction key"
       (let [launch-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["C~"]))
+        (set-test-world! (build-test-map ["C~"]))
         (set-test-unit atoms/game-map "C" :mode :sentry :fighter-count 2 :awake-fighters 1)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/launch-fighter-from-carrier
@@ -173,7 +173,7 @@
     (it "disembarks army to adjacent land"
       (let [disembark-called (atom false)]
         ;; Transport at [0 0] (sea), land at [1 0]
-        (reset! atoms/game-map (build-test-map ["T#"]))
+        (set-test-world! (build-test-map ["T#"]))
         (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/disembark-army-from-transport
@@ -184,7 +184,7 @@
     (it "disembarks army with extended target on shift key"
       (let [disembark-target-called (atom false)]
         ;; Transport at [0 0] (sea), land cells to the east
-        (reset! atoms/game-map (build-test-map ["T###"]))
+        (set-test-world! (build-test-map ["T###"]))
         (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/disembark-army-with-target
@@ -194,7 +194,7 @@
 
     (it "does not disembark army to sea"
       (let [disembark-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["T~"]))
+        (set-test-world! (build-test-map ["T~"]))
         (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/disembark-army-from-transport
@@ -205,7 +205,7 @@
 
     (it "does not disembark army to occupied land"
       (let [disembark-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["TA"]))
+        (set-test-world! (build-test-map ["TA"]))
         (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/disembark-army-from-transport
@@ -221,7 +221,7 @@
   (context "handle-cell-click"
     (it "calls handle-unit-click when attention unit exists"
       (let [movement-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["A##"
+        (set-test-world! (build-test-map ["A##"
                                                  "###"
                                                  "###"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
@@ -232,14 +232,14 @@
           (should @movement-called))))
 
     (it "does nothing when no attention units exist"
-      (reset! atoms/game-map (build-test-map ["#"]))
+      (set-test-world! (build-test-map ["#"]))
       (reset! atoms/cells-needing-attention [])
       (should-be-nil (commands/handle-cell-click 0 0))))
 
   (context "handle-unit-click"
     (it "sets movement for standard unit click"
       (let [movement-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["A##"
+        (set-test-world! (build-test-map ["A##"
                                                  "###"
                                                  "###"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
@@ -252,11 +252,11 @@
 
     (it "launches airport fighter on click"
       (let [launch-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["O##"
+        (set-test-world! (build-test-map ["O##"
                                                  "###"
                                                  "###"]))
-        (swap! atoms/game-map assoc-in [0 0 :awake-fighters] 1)
-        (swap! atoms/game-map assoc-in [0 0 :fighter-count] 1)
+        (update-test-world! assoc-in [0 0 :awake-fighters] 1)
+        (update-test-world! assoc-in [0 0 :fighter-count] 1)
         (reset! atoms/cells-needing-attention [[0 0]])
         (reset! atoms/player-items (list [0 0]))
         (with-redefs [container-ops/launch-fighter-from-airport
@@ -267,7 +267,7 @@
 
     (it "disembarks army from transport on adjacent land click"
       (let [disembark-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["T#"]))
+        (set-test-world! (build-test-map ["T#"]))
         (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
         (reset! atoms/cells-needing-attention [[0 0]])
         (reset! atoms/player-items (list [0 0]))
@@ -277,7 +277,7 @@
           (should @disembark-called))))
 
     (it "ignores invalid army-aboard click targets"
-      (reset! atoms/game-map (build-test-map ["T~"]))
+      (set-test-world! (build-test-map ["T~"]))
       (set-test-unit atoms/game-map "T" :mode :sentry :army-count 2 :awake-armies 2)
       (reset! atoms/cells-needing-attention [[0 0]])
       (reset! atoms/player-items (list [0 0]))
@@ -288,7 +288,7 @@
 
     (it "attempts conquest when army clicks adjacent hostile city"
       (let [conquest-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["AX"]))
+        (set-test-world! (build-test-map ["AX"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
         (reset! atoms/cells-needing-attention [[0 0]])
         (reset! atoms/player-items (list [0 0]))
@@ -298,7 +298,7 @@
 
     (it "attempts fighter overfly when fighter clicks adjacent hostile city"
       (let [overfly-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["FX"]))
+        (set-test-world! (build-test-map ["FX"]))
         (set-test-unit atoms/game-map "F" :mode :awake :fuel 32)
         (reset! atoms/cells-needing-attention [[0 0]])
         (reset! atoms/player-items (list [0 0]))
@@ -309,7 +309,7 @@
 
     (it "attempts conquest when army clicks adjacent hostile city at non-origin coords"
       (let [conquest-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["###" "###" "#AX"]))
+        (set-test-world! (build-test-map ["###" "###" "#AX"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
         (reset! atoms/cells-needing-attention [[1 2]])
         (reset! atoms/player-items (list [1 2]))
@@ -319,7 +319,7 @@
 
     (it "attempts conquest on diagonally adjacent hostile city click"
       (let [conquest-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["###" "#A#" "##X"]))
+        (set-test-world! (build-test-map ["###" "#A#" "##X"]))
         (set-test-unit atoms/game-map "A" :mode :awake)
         (reset! atoms/cells-needing-attention [[1 1]])
         (reset! atoms/player-items (list [1 1]))
@@ -329,9 +329,9 @@
 
     (it "resets waiting-for-input on airport fighter launch click"
       (let [launch-called (atom false)]
-        (reset! atoms/game-map (build-test-map ["O##" "###" "###"]))
-        (swap! atoms/game-map assoc-in [0 0 :awake-fighters] 1)
-        (swap! atoms/game-map assoc-in [0 0 :fighter-count] 1)
+        (set-test-world! (build-test-map ["O##" "###" "###"]))
+        (update-test-world! assoc-in [0 0 :awake-fighters] 1)
+        (update-test-world! assoc-in [0 0 :fighter-count] 1)
         (reset! atoms/cells-needing-attention [[0 0]])
         (reset! atoms/player-items (list [0 0]))
         (reset! atoms/waiting-for-input true)

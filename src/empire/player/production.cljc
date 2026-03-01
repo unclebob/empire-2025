@@ -1,9 +1,18 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.stamping :as computer-stamping]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn set-city-production
   "Sets the production for a city at given coordinates to the specified item."
@@ -68,7 +77,7 @@
     (doseq [n neighbors]
       (let [cell (get-in game-map n)]
         (when (and (= :land (:type cell)) (nil? (:country-id cell)))
-          (swap! atoms/game-map assoc-in (conj n :country-id) country-id))))))
+          (update-game-map! assoc-in (conj n :country-id) country-id))))))
 
 (defn- spawn-unit
   "Creates and places a unit at the given city coordinates."
@@ -82,7 +91,7 @@
                  (computer-stamping/apply-random-explore-fields item cell)
                  (apply-movement-orders item marching-orders flight-path)
                  (cond-> (= item :transport) (assoc :produced-at coords)))]
-    (swap! atoms/game-map assoc-in (conj coords :contents) unit)
+    (update-game-map! assoc-in (conj coords :contents) unit)
     (when (and (= owner :computer) (= item :army) (:country-id cell))
       (stamp-adjacent-land coords (:country-id cell)))
     (when (and (= owner :computer) (= item :carrier))

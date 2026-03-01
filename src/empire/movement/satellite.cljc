@@ -1,7 +1,16 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.movement.satellite
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- extend-to-boundary
   "Extends from position in direction until hitting a boundary."
@@ -107,8 +116,8 @@
         map-width (count (first @atoms/game-map))]
     (if (and (>= nx 0) (< nx map-height) (>= ny 0) (< ny map-width))
       (if-let [dest (find-open-cell [nx ny] [dx dy] map-height map-width)]
-        (do (swap! atoms/game-map assoc-in [x y :contents] nil)
-            (swap! atoms/game-map assoc-in (conj dest :contents) satellite)
+        (do (update-game-map! assoc-in [x y :contents] nil)
+            (update-game-map! assoc-in (conj dest :contents) satellite)
             (visibility/update-cell-visibility dest (:owner satellite))
             dest)
         [x y])
@@ -119,8 +128,8 @@
               updated (assoc satellite :direction new-dir)]
           (if (blocked-cell? (get-in @atoms/game-map [dest-x dest-y]))
             [x y]
-            (do (swap! atoms/game-map assoc-in [x y :contents] nil)
-                (swap! atoms/game-map assoc-in [dest-x dest-y :contents] updated)
+            (do (update-game-map! assoc-in [x y :contents] nil)
+                (update-game-map! assoc-in [dest-x dest-y :contents] updated)
                 (visibility/update-cell-visibility [dest-x dest-y] (:owner satellite))
                 [dest-x dest-y])))
         [x y]))))
@@ -147,7 +156,7 @@
               ;; At target (on boundary) - bounce to opposite side
               (let [new-target (calculate-new-satellite-target [x y] map-height map-width)
                     updated-satellite (assoc satellite :target new-target)]
-                (swap! atoms/game-map assoc-in [x y :contents] updated-satellite)
+                (update-game-map! assoc-in [x y :contents] updated-satellite)
                 (visibility/update-cell-visibility [x y] (:owner satellite))
                 [x y])
               ;; Not at target - move toward it, skipping blocked cells
@@ -155,8 +164,8 @@
                     dy (Integer/signum (- ty y))
                     next-pos [(+ x dx) (+ y dy)]]
                 (if-let [dest (find-open-cell next-pos [dx dy] map-height map-width)]
-                  (do (swap! atoms/game-map assoc-in [x y :contents] nil)
-                      (swap! atoms/game-map assoc-in (conj dest :contents) satellite)
+                  (do (update-game-map! assoc-in [x y :contents] nil)
+                      (update-game-map! assoc-in (conj dest :contents) satellite)
                       (visibility/update-cell-visibility dest (:owner satellite))
                       dest)
                   [x y])))))))))

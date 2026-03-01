@@ -2,12 +2,12 @@
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
             [empire.movement.visibility :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms! make-initial-test-map]]))
+            [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
 
 (describe "update-cell-visibility"
   (before (reset-all-atoms!))
   (it "reveals cells near player-owned units"
-    (reset! atoms/game-map (build-test-map ["---------"
+    (set-test-world! (build-test-map ["---------"
                                              "---------"
                                              "---------"
                                              "---------"
@@ -17,7 +17,7 @@
                                              "---------"
                                              "---------"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
-    (reset! atoms/player-map (make-initial-test-map 9 9 nil))
+    (set-test-player-map! (make-initial-test-map 9 9 nil))
     (update-cell-visibility [4 4] :player)
     ;; Check that the unit's cell and neighbors are revealed
     (should= {:type :land :contents {:type :army :owner :player :hits 1 :mode :awake}} (get-in @atoms/player-map [4 4]))
@@ -28,81 +28,81 @@
     (should= nil (get-in @atoms/player-map [8 8])))
 
   (it "computer non-army discovers free city — added to land-ho-targets"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~t+"
                                              "~~~"]))
     (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
-    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
     (reset! atoms/land-ho-targets #{})
     (update-cell-visibility [1 1] :computer)
     (should-contain [2 1] @atoms/land-ho-targets))
 
   (it "computer army discovers free city — NOT added to land-ho-targets"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#a+"
                                              "###"]))
     (set-test-unit atoms/game-map "a" :mode :moving :target [2 1])
-    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
     (reset! atoms/land-ho-targets #{})
     (update-cell-visibility [1 1] :computer)
     (should= #{} @atoms/land-ho-targets))
 
   (it "player discovers free city — NOT added to land-ho-targets"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~T+"
                                              "~~~"]))
     (set-test-unit atoms/game-map "T" :mode :moving :target [2 1])
-    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
     (reset! atoms/land-ho-targets #{})
     (update-cell-visibility [1 1] :player)
     (should= #{} @atoms/land-ho-targets))
 
   (it "computer non-army discovers non-free city — NOT added to land-ho-targets"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~t~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
-    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
     (reset! atoms/land-ho-targets #{})
     (update-cell-visibility [1 1] :computer)
     (should= #{} @atoms/land-ho-targets))
 
   (it "stamps country-id when 3-arity called with computer army unit"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#a#"
                                              "###"]))
     (set-test-unit atoms/game-map "a" :mode :moving :target [2 1] :country-id 7)
-    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
     (let [unit {:type :army :owner :computer :country-id 7}]
       (update-cell-visibility [1 1] :computer unit))
     (should= 7 (get-in @atoms/game-map [0 0 :country-id])))
 
   (it "does not stamp when visible-map is nil"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#a#"
                                              "###"]))
     (set-test-unit atoms/game-map "a" :mode :moving :target [2 1])
-    (reset! atoms/computer-map nil)
+    (set-test-computer-map! nil)
     (update-cell-visibility [1 1] :computer)
     (should-not (get-in @atoms/game-map [0 0 :country-id])))
 
   (it "3-arity with player army does not stamp and does not track"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#A#"
                                              "##+"]))
     (set-test-unit atoms/game-map "A" :mode :moving :target [2 2])
-    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
     (let [unit {:type :army :owner :player}]
       (update-cell-visibility [1 1] :player unit))
     (should= {:type :land} (get-in @atoms/player-map [0 0]))
     (should-not (get-in @atoms/game-map [0 0 :country-id])))
 
   (it "reveals corner cell with edge clamping"
-    (reset! atoms/game-map (build-test-map ["A~~"
+    (set-test-world! (build-test-map ["A~~"
                                              "~~~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
-    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
     (update-cell-visibility [0 0] :player)
     (should (get-in @atoms/player-map [0 0]))
     (should (get-in @atoms/player-map [0 1]))
@@ -111,22 +111,22 @@
     (should-not (get-in @atoms/player-map [2 2])))
 
   (it "computer transport discovers free city — added to land-ho-targets (3-arity)"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~t+"
                                              "~~~"]))
     (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
-    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
     (reset! atoms/land-ho-targets #{})
     (let [unit {:type :transport :owner :computer}]
       (update-cell-visibility [1 1] :computer unit))
     (should-contain [2 1] @atoms/land-ho-targets))
 
   (it "computer army 3-arity stamps land but does not track free city"
-    (reset! atoms/game-map (build-test-map ["##+"
+    (set-test-world! (build-test-map ["##+"
                                              "#a#"
                                              "###"]))
     (set-test-unit atoms/game-map "a" :mode :moving :target [0 2])
-    (reset! atoms/computer-map (make-initial-test-map 3 3 nil))
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
     (reset! atoms/land-ho-targets #{})
     (let [unit {:type :army :owner :computer :country-id 5}]
       (update-cell-visibility [1 1] :computer unit))
@@ -134,36 +134,36 @@
     (should= #{} @atoms/land-ho-targets))
 
   (it "computer satellite discovers free city in outer ring — added to land-ho-targets"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~v~~"
                                              "~~~~~"
                                              "~~~~+"]))
     (set-test-unit atoms/game-map "v" :target [4 4] :turns-remaining 50)
-    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (set-test-computer-map! (make-initial-test-map 5 5 nil))
     (reset! atoms/land-ho-targets #{})
     (update-cell-visibility [2 2] :computer)
     (should-contain [4 4] @atoms/land-ho-targets))
 
   (it "3-arity with computer transport and nil visible-map — no-op"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~t~"
                                              "~~~"]))
     (set-test-unit atoms/game-map "t" :mode :moving :target [2 1])
-    (reset! atoms/computer-map nil)
+    (set-test-computer-map! nil)
     (reset! atoms/land-ho-targets #{})
     (let [unit {:type :transport :owner :computer}]
       (update-cell-visibility [1 1] :computer unit))
     (should= #{} @atoms/land-ho-targets))
 
   (it "reveals two rectangular rings for satellites"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "##V##"
                                              "#####"
                                              "#####"]))
     (set-test-unit atoms/game-map "V" :target [4 4] :turns-remaining 50)
-    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-cell-visibility [2 2] :player)
     ;; All 25 cells in the 5x5 map should be visible (rings 1 and 2 plus center)
     (doseq [row (range 5)
@@ -173,12 +173,12 @@
 (describe "update-combatant-map"
   (before (reset-all-atoms!))
   (it "reveals all 9 cells around a player unit in center of map"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~A~~"
                                              "~~~~~"
                                              "~~~~~"]))
-    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-combatant-map atoms/player-map :player)
     ;; All 9 cells around [2 2] should be revealed
     (should= {:type :sea} (get-in @atoms/player-map [1 1]))
@@ -197,12 +197,12 @@
     (should= nil (get-in @atoms/player-map [4 4])))
 
   (it "clamps visibility at map edges for unit in corner"
-    (reset! atoms/game-map (build-test-map ["A~~~~"
+    (set-test-world! (build-test-map ["A~~~~"
                                              "~~~~~"
                                              "~~~~~"
                                              "~~~~~"
                                              "~~~~~"]))
-    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-combatant-map atoms/player-map :player)
     ;; Cells at and adjacent to [0 0] should be revealed (clamped)
     (should= {:type :land :contents {:type :army :owner :player :hits 1}} (get-in @atoms/player-map [0 0]))
@@ -213,12 +213,12 @@
     (should= nil (get-in @atoms/player-map [2 2])))
 
   (it "reveals cells around player city"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~O~~"
                                              "~~~~~"
                                              "~~~~~"]))
-    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-combatant-map atoms/player-map :player)
     ;; All 9 cells around [2 2] should be revealed
     (should= {:type :city :city-status :player} (get-in @atoms/player-map [2 2]))
@@ -226,22 +226,22 @@
     (should= {:type :sea} (get-in @atoms/player-map [3 3])))
 
   (it "does nothing when visible-map-atom is nil"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~A~~"
                                              "~~~~~"
                                              "~~~~~"]))
-    (reset! atoms/player-map nil)
+    (set-test-player-map! nil)
     (update-combatant-map atoms/player-map :player)
     (should= nil @atoms/player-map))
 
   (it "works for computer owner"
-    (reset! atoms/game-map (build-test-map ["~~~~~"
+    (set-test-world! (build-test-map ["~~~~~"
                                              "~~~~~"
                                              "~~a~~"
                                              "~~~~~"
                                              "~~~~~"]))
-    (reset! atoms/computer-map (make-initial-test-map 5 5 nil))
+    (set-test-computer-map! (make-initial-test-map 5 5 nil))
     (update-combatant-map atoms/computer-map :computer)
     ;; All 9 cells around [2 2] should be revealed in computer map
     (should= {:type :land :contents {:type :army :owner :computer :hits 1}} (get-in @atoms/computer-map [2 2]))
@@ -249,13 +249,13 @@
     (should= {:type :sea} (get-in @atoms/computer-map [3 3])))
 
   (it "reveals 5x5 area for satellite in update-combatant-map"
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "##V##"
                                              "#####"
                                              "#####"]))
     (set-test-unit atoms/game-map "V" :target [4 4] :turns-remaining 50)
-    (reset! atoms/player-map (make-initial-test-map 5 5 nil))
+    (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-combatant-map atoms/player-map :player)
     ;; All 25 cells should be visible (satellite radius = 2)
     (doseq [row (range 5)
@@ -263,14 +263,14 @@
       (should-not-be-nil (get-in @atoms/player-map [row col]))))
 
   (it "handles multiple units revealing overlapping areas"
-    (reset! atoms/game-map (build-test-map ["~~~~~~~"
+    (set-test-world! (build-test-map ["~~~~~~~"
                                              "~~~~~~~"
                                              "~~A~~~~"
                                              "~~~~~~~"
                                              "~~~~A~~"
                                              "~~~~~~~"
                                              "~~~~~~~"]))
-    (reset! atoms/player-map (make-initial-test-map 7 7 nil))
+    (set-test-player-map! (make-initial-test-map 7 7 nil))
     (update-combatant-map atoms/player-map :player)
     ;; Both units and their surroundings should be visible
     (should= {:type :land :contents {:type :army :owner :player :hits 1}} (get-in @atoms/player-map [2 2]))
@@ -358,7 +358,7 @@
   (before (reset-all-atoms!))
 
   (it "reveals a game cell in the visible map"
-    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
     (let [game-cell {:type :land}
           visible-map @atoms/player-map]
       (#'empire.movement.visibility/reveal-cell!
@@ -366,10 +366,10 @@
       (should= {:type :land} (get-in @atoms/player-map [1 1]))))
 
   (it "stamps country-id on newly-revealed land cell"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "###"
                                              "###"]))
-    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
     (let [game-cell {:type :land}
           visible-map @atoms/player-map]
       (#'empire.movement.visibility/reveal-cell!
@@ -377,10 +377,10 @@
       (should= 5 (get-in @atoms/game-map [1 1 :country-id]))))
 
   (it "does not stamp country-id on sea cell"
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "~~~"
                                              "~~~"]))
-    (reset! atoms/player-map (make-initial-test-map 3 3 nil))
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
     (let [game-cell {:type :sea}
           visible-map @atoms/player-map]
       (#'empire.movement.visibility/reveal-cell!
@@ -388,13 +388,13 @@
       (should-not (get-in @atoms/game-map [1 1 :country-id]))))
 
   (it "does not stamp country-id on already-revealed cell"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "###"
                                              "###"]))
     (let [pre-revealed [[{:type :land} {:type :land} {:type :land}]
                         [{:type :land} {:type :land} {:type :land}]
                         [{:type :land} {:type :land} {:type :land}]]]
-      (reset! atoms/player-map pre-revealed)
+      (set-test-player-map! pre-revealed)
       (let [game-cell {:type :land}
             visible-map @atoms/player-map]
         (#'empire.movement.visibility/reveal-cell!

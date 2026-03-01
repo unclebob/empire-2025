@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.debug :as debug]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
             [clojure.string :as str]))
 
 (describe "format-cell handles nil contents fields"
@@ -112,13 +112,13 @@
   (before (reset-all-atoms!))
 
   (it "extracts cells from coordinate range"
-    (reset! atoms/game-map (build-test-map ["###"
-                                             "###"
-                                             "###"]))
-    (reset! atoms/player-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
+                                      "###"
+                                      "###"]))
+    (set-test-player-map! (build-test-map ["###"
                                                "###"
                                                "###"]))
-    (reset! atoms/computer-map (build-test-map ["###"
+    (set-test-computer-map! (build-test-map ["###"
                                                  "###"
                                                  "###"]))
     (let [result (debug/dump-region [0 0] [1 1])]
@@ -129,9 +129,9 @@
       (should= 4 (count (:game-map result)))))
 
   (it "handles empty maps gracefully"
-    (reset! atoms/game-map [[nil nil] [nil nil]])
-    (reset! atoms/player-map [[nil nil] [nil nil]])
-    (reset! atoms/computer-map [[nil nil] [nil nil]])
+    (set-test-world! [[nil nil] [nil nil]])
+    (set-test-player-map! [[nil nil] [nil nil]])
+    (set-test-computer-map! [[nil nil] [nil nil]])
     (let [result (debug/dump-region [0 0] [1 1])]
       (should= 0 (count (:game-map result))))))
 
@@ -140,11 +140,11 @@
 
   (it "converts screen coords to cell range"
     (reset! atoms/map-screen-dimensions [100 100])
-    (reset! atoms/game-map (build-test-map ["#####"
-                                             "#####"
-                                             "#####"
-                                             "#####"
-                                             "#####"]))
+    (set-test-world! (build-test-map ["#####"
+                                      "#####"
+                                      "#####"
+                                      "#####"
+                                      "#####"]))
     (let [[[sr sc] [er ec]] (debug/screen-coords-to-cell-range [0 0] [99 99])]
       (should= 0 sr)
       (should= 0 sc)
@@ -153,11 +153,11 @@
 
   (it "normalizes reversed coordinates"
     (reset! atoms/map-screen-dimensions [100 100])
-    (reset! atoms/game-map (build-test-map ["#####"
-                                             "#####"
-                                             "#####"
-                                             "#####"
-                                             "#####"]))
+    (set-test-world! (build-test-map ["#####"
+                                      "#####"
+                                      "#####"
+                                      "#####"
+                                      "#####"]))
     (let [[[sr sc] [er ec]] (debug/screen-coords-to-cell-range [99 99] [0 0])]
       (should= 0 sr)
       (should= 0 sc)
@@ -166,9 +166,9 @@
 
   (it "clamps to map bounds"
     (reset! atoms/map-screen-dimensions [100 100])
-    (reset! atoms/game-map (build-test-map ["###"
-                                             "###"
-                                             "###"]))
+    (set-test-world! (build-test-map ["###"
+                                      "###"
+                                      "###"]))
     (let [[[sr sc] [er ec]] (debug/screen-coords-to-cell-range [0 0] [200 200])]
       (should (>= sr 0))
       (should (>= sc 0))
@@ -213,9 +213,9 @@
 
   (it "contains header section with round number"
     (reset! atoms/round-number 5)
-    (reset! atoms/game-map (build-test-map ["##" "##"]))
-    (reset! atoms/player-map (build-test-map ["##" "##"]))
-    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "Empire Debug Dump" result)
       (should-contain "Round: 5" result)))
@@ -223,17 +223,17 @@
   (it "contains global state section"
     (reset! atoms/round-number 3)
     (reset! atoms/waiting-for-input true)
-    (reset! atoms/game-map (build-test-map ["##" "##"]))
-    (reset! atoms/player-map (build-test-map ["##" "##"]))
-    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "Global State" result)
       (should-contain "waiting-for-input: true" result)))
 
   (it "contains map data section"
-    (reset! atoms/game-map (build-test-map ["##" "##"]))
-    (reset! atoms/player-map (build-test-map ["##" "##"]))
-    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "Map Data" result)
       (should-contain "game-map" result)
@@ -241,25 +241,25 @@
       (should-contain "computer-map" result)))
 
   (it "contains production state section"
-    (reset! atoms/game-map (build-test-map ["##" "##"]))
-    (reset! atoms/player-map (build-test-map ["##" "##"]))
-    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "Production State" result)))
 
   (it "contains recent actions section"
-    (reset! atoms/game-map (build-test-map ["##" "##"]))
-    (reset! atoms/player-map (build-test-map ["##" "##"]))
-    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
     (debug/log-action! [:test-action])
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "Recent Actions" result)
       (should-contain "test-action" result)))
 
   (it "formats computer event extras in dump output"
-    (reset! atoms/game-map (build-test-map ["##" "##"]))
-    (reset! atoms/player-map (build-test-map ["##" "##"]))
-    (reset! atoms/computer-map (build-test-map ["##" "##"]))
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
     (reset! atoms/round-number 10)
     (reset! atoms/computer-event-log [{:round 10 :event :army-move :pos [1 1] :to [1 2]}])
     (let [result (debug/format-dump [0 0] [1 1])]

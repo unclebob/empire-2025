@@ -2,9 +2,18 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-state
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn transport-with-awake-armies? [contents]
   (and (= (:type contents) :transport)
@@ -72,7 +81,7 @@
         unit (:contents cell)
         updated-unit (dissoc (assoc unit :mode mode) :reason)
         updated-cell (assoc cell :contents updated-unit)]
-    (swap! atoms/game-map assoc-in coords updated-cell)))
+    (update-game-map! assoc-in coords updated-cell)))
 
 (defn add-unit-at
   "Adds a unit of the given type at the specified cell coordinates.
@@ -92,7 +101,7 @@
                 (assoc unit :turns-remaining config/satellite-turns)
                 unit)]
      (when-not (:contents cell)
-       (swap! atoms/game-map assoc-in [cx cy :contents] unit)
+       (update-game-map! assoc-in [cx cy :contents] unit)
        (visibility/update-cell-visibility [cx cy] owner)))))
 
 (defn- player-city? [cell]
@@ -122,14 +131,14 @@
           true)
 
       (player-transport-with-armies? contents)
-      (do (swap! atoms/game-map update-in [cx cy :contents]
+      (do (update-game-map! update-in [cx cy :contents]
                  #(-> %
                       (assoc :mode :awake)
                       (uc/wake-all :army-count :awake-armies)))
           true)
 
       (sleeping-player-unit? contents)
-      (do (swap! atoms/game-map assoc-in [cx cy :contents]
+      (do (update-game-map! assoc-in [cx cy :contents]
                  (-> contents
                      (assoc :mode :awake)
                      (dissoc :coastline-steps :visited :start-pos :prev-pos :target :reason)))

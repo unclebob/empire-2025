@@ -2,7 +2,7 @@
   (:require [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.wake-conditions :refer :all]
-            [empire.test-utils :refer [build-test-map make-initial-test-map reset-all-atoms!]]
+            [empire.test-utils :refer [build-test-map make-initial-test-map reset-all-atoms! set-test-player-map! set-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "near-hostile-city?"
@@ -178,7 +178,7 @@
   (before (reset-all-atoms!))
   (it "wakes army when near hostile city"
     (let [game-map (atom (build-test-map ["##X"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [2 0]}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :awake (:mode result))
@@ -186,7 +186,7 @@
 
   (it "wakes fighter when entering friendly city"
     (let [game-map (atom (build-test-map ["#O"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [1 0] :fuel 10}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :awake (:mode result))
@@ -195,7 +195,7 @@
 
   (it "wakes fighter when fuel reaches 1"
     (let [game-map (atom (build-test-map ["###"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [2 0] :fuel 1}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :awake (:mode result))
@@ -203,7 +203,7 @@
 
   (it "wakes transport when finding land from open sea"
     (let [game-map (atom (build-test-map ["~~~#~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :transport :mode :moving :owner :player :target [3 0] :army-count 1}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :awake (:mode result))
@@ -211,7 +211,7 @@
 
   (it "wakes transport at beach with armies"
     (let [game-map (atom (build-test-map ["#~~#~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       ;; Transport at [1 0] (sea, adjacent to land at [0 0]) moving to [2 0] (sea, adjacent to land at [3 0])
       ;; Since it wasn't in open sea before, found-land? is false, but at-beach with armies triggers
       (let [unit {:type :transport :mode :moving :owner :player :target [3 0] :army-count 1}
@@ -222,7 +222,7 @@
   (it "follows waypoint orders when arriving"
     (let [game-map (atom (assoc-in (build-test-map ["###"])
                                    [2 0] {:type :land :waypoint {:marching-orders [2 2]}}))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [2 0]}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :moving (:mode result))
@@ -230,14 +230,14 @@
 
   (it "returns unit unchanged for naval units without special conditions"
     (let [game-map (atom (build-test-map ["~~~~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :destroyer :mode :moving :owner :player :target [3 0] :hits 3}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :moving (:mode result)))))
 
   (it "sets hit-edge reason when extended-move unit reaches target at map edge"
     (let [game-map (atom (build-test-map ["###"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [2 0] :fuel 20 :extended true}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :awake (:mode result))
@@ -245,7 +245,7 @@
 
   (it "does not set hit-edge reason for non-extended move to map edge"
     (let [game-map (atom (build-test-map ["###"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [2 0] :fuel 20}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :awake (:mode result))
@@ -253,7 +253,7 @@
 
   (it "sets hits to 0 when fighter is shot down over hostile city"
     (let [game-map (atom (build-test-map ["#X"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [1 0] :fuel 10}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :awake (:mode result))
@@ -263,14 +263,14 @@
 
   (it "sets error message when fighter is shot down"
     (let [game-map (atom (build-test-map ["#X"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [1 0] :fuel 10}]
         (wake-after-move unit [0 0] [1 0] game-map)
         (should= (:fighter-destroyed-by-city config/messages) @atoms/error-message))))
 
   (it "wakes fighter at bingo fuel near friendly city"
     (let [game-map (atom (build-test-map ["O####"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [4 0] :fuel 5}
             result (wake-after-move unit [2 0] [3 0] game-map)]
         (should= :awake (:mode result))
@@ -278,21 +278,21 @@
 
   (it "does not wake fighter at bingo fuel when target is reachable friendly city"
     (let [game-map (atom (build-test-map ["O####"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [0 0] :fuel 5}
             result (wake-after-move unit [2 0] [3 0] game-map)]
         (should= :moving (:mode result)))))
 
   (it "does not wake transport without armies at beach"
     (let [game-map (atom (build-test-map ["#~~#~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :transport :mode :moving :owner :player :target [3 0] :army-count 0}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :moving (:mode result)))))
 
   (it "sets been-to-sea when transport enters open sea"
     (let [game-map (atom (build-test-map ["#~~~~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :transport :mode :moving :owner :player :target [4 0] :army-count 0}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :moving (:mode result))
@@ -300,7 +300,7 @@
 
   (it "sets been-to-sea to false when transport finds land"
     (let [game-map (atom (build-test-map ["~~~#~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :transport :mode :moving :owner :player :target [3 0] :army-count 1 :been-to-sea true}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :awake (:mode result))
@@ -308,21 +308,21 @@
 
   (it "wakes unit when arriving at target"
     (let [game-map (atom (build-test-map ["~~~~"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :destroyer :mode :moving :owner :player :target [2 0] :hits 3}
             result (wake-after-move unit [1 0] [2 0] game-map)]
         (should= :awake (:mode result)))))
 
   (it "preserves handler reason when enemy is also spotted"
     (let [game-map (atom (build-test-map ["#X#a"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [3 0]}
             result (wake-after-move unit [0 0] [2 0] game-map)]
         (should= :army-found-city (:reason result)))))
 
   (it "removes target when unit wakes after move"
     (let [game-map (atom (build-test-map ["##X"]))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [2 0]}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should-be-nil (:target result)))))
@@ -330,7 +330,7 @@
   (it "follows waypoint orders even when enemy is spotted"
     (let [game-map (atom (assoc-in (build-test-map ["##a"])
                                    [1 0] {:type :land :waypoint {:marching-orders [5 5]}}))]
-      (reset! atoms/game-map @game-map)
+      (set-test-world! @game-map)
       (let [unit {:type :army :mode :moving :owner :player :target [1 0]}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :moving (:mode result))
@@ -341,37 +341,37 @@
 
   (it "returns true when enemy unit is adjacent"
     (let [game-map (atom (build-test-map ["#a"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 2 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 2 nil))
       (let [unit {:type :army :mode :moving :owner :player}]
         (should (enemy-unit-visible? unit [0 0] game-map)))))
 
   (it "returns false when no enemy units are visible"
     (let [game-map (atom (build-test-map ["###"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 3 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 3 nil))
       (let [unit {:type :army :mode :moving :owner :player}]
         (should-not (enemy-unit-visible? unit [1 0] game-map)))))
 
   (it "returns false when only friendly units are visible"
     (let [game-map (atom (build-test-map ["#A"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 2 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 2 nil))
       (let [unit {:type :army :mode :moving :owner :player}]
         (should-not (enemy-unit-visible? unit [0 0] game-map)))))
 
   (it "returns false when enemy unit is outside visibility radius"
     (let [game-map (atom (build-test-map ["#---a"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 5 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 5 nil))
       ;; Enemy at [4 0], unit at [0 0], distance is 4, radius is 1
       (let [unit {:type :army :mode :moving :owner :player}]
         (should-not (enemy-unit-visible? unit [0 0] game-map)))))
 
   (it "returns true for satellite with larger visibility radius"
     (let [game-map (atom (build-test-map ["#-a"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 3 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 3 nil))
       ;; Enemy at [2 0], unit at [0 0], distance is 2, satellite radius is 2
       (let [unit {:type :satellite :mode :moving :owner :player}]
         (should (enemy-unit-visible? unit [0 0] game-map))))))
@@ -410,8 +410,8 @@
 
   (it "wakes unit when enemy is spotted"
     (let [game-map (atom (build-test-map ["##a"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 3 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 3 nil))
       (let [unit {:type :army :mode :moving :owner :player :target [2 0]}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :awake (:mode result))
@@ -419,16 +419,16 @@
 
   (it "does not wake when no enemy is visible"
     (let [game-map (atom (build-test-map ["###"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 3 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 3 nil))
       (let [unit {:type :army :mode :moving :owner :player :target [2 0]}
             result (wake-after-move unit [0 0] [1 0] game-map)]
         (should= :moving (:mode result)))))
 
   (it "wakes naval unit when enemy is spotted"
     (let [game-map (atom (build-test-map ["~~s"]))]
-      (reset! atoms/game-map @game-map)
-      (reset! atoms/player-map (make-initial-test-map 1 3 nil))
+      (set-test-world! @game-map)
+      (set-test-player-map! (make-initial-test-map 1 3 nil))
       ;; Enemy submarine at [2 0], unit at [1 0] after move, distance is 1
       (let [unit {:type :destroyer :mode :moving :owner :player :target [2 0] :hits 3}
             result (wake-after-move unit [0 0] [1 0] game-map)]

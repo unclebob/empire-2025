@@ -2,6 +2,8 @@
 (ns empire.movement.movement-resolution
   (:require [clojure.string]
             [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.combat :as combat]
             [empire.containers.helpers :as uc]
             [empire.movement.movement-execution :as execution]
@@ -10,6 +12,13 @@
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- blocked-by-friendly?
   "Returns true if the next cell contains a friendly unit (same owner)."
@@ -75,7 +84,7 @@
         (execution/do-move from-coords sidestep-pos cell final-unit)
         {:result :sidestep :pos sidestep-pos})
       (let [updated-cell (assoc cell :contents woken-unit)]
-        (swap! atoms/game-map assoc-in from-coords updated-cell)
+        (update-game-map! assoc-in from-coords updated-cell)
         (visibility/update-cell-visibility from-coords (:owner unit))
         {:result :woke :pos from-coords}))))
 
@@ -94,8 +103,8 @@
         updated-city (uc/add-ship-to-shipyard city-cell unit-type (:hits unit))
         updated-origin (dissoc cell :contents)
         type-name (clojure.string/capitalize (name unit-type))]
-    (swap! atoms/game-map assoc-in from-coords updated-origin)
-    (swap! atoms/game-map assoc-in city-coords updated-city)
+    (update-game-map! assoc-in from-coords updated-origin)
+    (update-game-map! assoc-in city-coords updated-city)
     (visibility/update-cell-visibility city-coords (:owner unit))
     (reset! atoms/turn-message (str type-name " docked for repair."))
     {:result :docked :pos city-coords}))
@@ -120,7 +129,7 @@
 
       woke?
       (let [updated-cell (assoc cell :contents woken-unit)]
-        (swap! atoms/game-map assoc-in from-coords updated-cell)
+        (update-game-map! assoc-in from-coords updated-cell)
         (visibility/update-cell-visibility from-coords (:owner unit))
         {:result :woke :pos from-coords})
 
@@ -154,4 +163,4 @@
                               (assoc :mode :moving :target actual-target)
                               (dissoc :reason :extended)
                               (cond-> extended? (assoc :extended true)))]
-     (swap! atoms/game-map assoc-in unit-coords (assoc first-cell :contents updated-contents)))))
+     (update-game-map! assoc-in unit-coords (assoc first-cell :contents updated-contents)))))

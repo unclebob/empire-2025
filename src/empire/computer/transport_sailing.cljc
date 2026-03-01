@@ -2,11 +2,20 @@
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-unloading :as unloading]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- passable-sea?
   "Returns true if pos is a passable sea cell for a transport."
@@ -38,9 +47,9 @@
     (when (core/move-unit-to pos retreat)
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility retreat :computer)
-      (swap! atoms/game-map assoc-in
-             (conj retreat :contents :sail-path)
-             (vec (cons pos sail-path)))
+      (update-game-map! assoc-in
+                        (conj retreat :contents :sail-path)
+                        (vec (cons pos sail-path)))
       retreat)))
 
 (defn- sail-take-second-step
@@ -51,12 +60,12 @@
     (if moved2
       (do (visibility/update-cell-visibility next-pos :computer)
           (visibility/update-cell-visibility step2 :computer)
-          (swap! atoms/game-map assoc-in
-                 (conj step2 :contents :sail-path) remaining2)
+          (update-game-map! assoc-in
+                            (conj step2 :contents :sail-path) remaining2)
           (unloading/try-opportunistic-unload step2)
           step2)
-      (do (swap! atoms/game-map assoc-in
-                 (conj next-pos :contents :sail-path) remaining)
+      (do (update-game-map! assoc-in
+                            (conj next-pos :contents :sail-path) remaining)
           (unloading/try-opportunistic-unload next-pos)
           next-pos))))
 
@@ -101,7 +110,7 @@
             (visibility/update-cell-visibility pos :computer)
             (visibility/update-cell-visibility step1 :computer)
             (if (empty? remaining1)
-              (do (swap! atoms/game-map update-in (conj step1 :contents) dissoc :invasion-path)
+              (do (update-game-map! update-in (conj step1 :contents) dissoc :invasion-path)
                   (tc/set-transport-mission step1 :unloading))
               (let [step2 (first remaining1)
                     remaining2 (vec (rest remaining1))]
@@ -110,11 +119,11 @@
                     (visibility/update-cell-visibility step1 :computer)
                     (visibility/update-cell-visibility step2 :computer)
                     (if (empty? remaining2)
-                      (do (swap! atoms/game-map update-in (conj step2 :contents) dissoc :invasion-path)
+                      (do (update-game-map! update-in (conj step2 :contents) dissoc :invasion-path)
                           (tc/set-transport-mission step2 :unloading))
-                      (swap! atoms/game-map assoc-in
-                             (conj step2 :contents :invasion-path) remaining2)))
-                  (swap! atoms/game-map assoc-in
-                         (conj step1 :contents :invasion-path) remaining1)))))
+                      (update-game-map! assoc-in
+                                        (conj step2 :contents :invasion-path) remaining2)))
+                  (update-game-map! assoc-in
+                                    (conj step1 :contents :invasion-path) remaining1)))))
           ;; Blocked — keep path for retry next round
           nil)))))

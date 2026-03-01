@@ -6,20 +6,20 @@
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map set-test-unit
-                                       get-test-unit reset-all-atoms!]]))
+                                       get-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "process-fighter"
   (before (reset-all-atoms!))
 
   (context "ignores non-computer fighters"
     (it "returns nil for player fighter"
-      (reset! atoms/game-map (build-test-map ["F"]))
+      (set-test-world! (build-test-map ["F"]))
       (set-test-unit atoms/game-map "F" :fuel 20)
       (let [unit (:contents (get-in @atoms/game-map [0 0]))]
         (should-be-nil (fighter/process-fighter [0 0] unit))))
 
     (it "returns nil for non-fighter"
-      (reset! atoms/game-map (build-test-map ["a"]))
+      (set-test-world! (build-test-map ["a"]))
       (let [unit (:contents (get-in @atoms/game-map [0 0]))]
         (should-be-nil (fighter/process-fighter [0 0] unit)))))
 
@@ -32,16 +32,16 @@
             rows (-> (vec (repeat 20 land-row))
                      (assoc 0 row-0)
                      (assoc 10 row-10))]
-        (reset! atoms/game-map (build-test-map rows))
+        (set-test-world! (build-test-map rows))
         ;; Place carriers in holding mode
-        (swap! atoms/game-map assoc-in [10 0 :contents]
+        (update-test-world! assoc-in [10 0 :contents]
                {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
-        (swap! atoms/game-map assoc-in [0 10 :contents]
+        (update-test-world! assoc-in [0 10 :contents]
                {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
         ;; Place fighter on city
-        (swap! atoms/game-map assoc-in [10 10 :contents]
+        (update-test-world! assoc-in [10 10 :contents]
                {:type :fighter :owner :computer :hits 1 :fuel 32})
-        (reset! atoms/computer-map @atoms/game-map)
+        (set-test-computer-map! @atoms/game-map)
         ;; North leg is flown, west leg is unflown
         (reset! atoms/fighter-leg-records
                 {#{[10 10] [10 0]} {:last-flown 5}})
@@ -66,14 +66,14 @@
             rows (-> (vec (repeat 20 land-row))
                      (assoc 0 row-0)
                      (assoc 10 row-10))]
-        (reset! atoms/game-map (build-test-map rows))
-        (swap! atoms/game-map assoc-in [10 0 :contents]
+        (set-test-world! (build-test-map rows))
+        (update-test-world! assoc-in [10 0 :contents]
                {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
-        (swap! atoms/game-map assoc-in [0 10 :contents]
+        (update-test-world! assoc-in [0 10 :contents]
                {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
-        (swap! atoms/game-map assoc-in [10 10 :contents]
+        (update-test-world! assoc-in [10 10 :contents]
                {:type :fighter :owner :computer :hits 1 :fuel 32})
-        (reset! atoms/computer-map @atoms/game-map)
+        (set-test-computer-map! @atoms/game-map)
         ;; Both legs flown; west leg is older (lower round number)
         (reset! atoms/fighter-leg-records
                 {#{[10 10] [10 0]} {:last-flown 10}
@@ -90,11 +90,11 @@
                 (should (>= c 8))))))))
 
     (it "records leg on arrival at target city"
-      (reset! atoms/game-map (build-test-map ["X#####fX"]))
+      (set-test-world! (build-test-map ["X#####fX"]))
       (set-test-unit atoms/game-map "f" :fuel 20
                      :flight-target-site [7 0]
                      :flight-origin-site [0 0])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (reset! atoms/round-number 42)
       (let [unit (get-in @atoms/game-map [6 0 :contents])]
         (fighter/process-fighter [6 0] unit)
@@ -103,12 +103,12 @@
 
     (it "refuels at carrier when low on fuel"
       ;; Fighter on sea adjacent to carrier, no city nearby
-      (reset! atoms/game-map (build-test-map ["#####~j~"]))
+      (set-test-world! (build-test-map ["#####~j~"]))
       ;; Place carrier at [7,0] in holding mode
-      (swap! atoms/game-map assoc-in [7 0 :contents]
+      (update-test-world! assoc-in [7 0 :contents]
              {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
       (set-test-unit atoms/game-map "f" :fuel 2)
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [6 0 :contents])]
         (fighter/process-fighter [6 0] unit)
         ;; Fighter should have refueled and still be alive
@@ -119,10 +119,10 @@
 
     (it "falls back to patrol when no reachable legs"
       ;; Fighter at a city with no other refueling sites within range
-      (reset! atoms/game-map (build-test-map ["Xf########"]))
+      (set-test-world! (build-test-map ["Xf########"]))
       (set-test-unit atoms/game-map "f" :fuel 20)
       ;; Unexplored territory to the right
-      (reset! atoms/computer-map (build-test-map ["Xf........"]))
+      (set-test-computer-map! (build-test-map ["Xf........"]))
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         ;; Fighter should have moved (patrol behavior) even without a leg target
@@ -135,11 +135,11 @@
   (context "fuel burn when stuck"
     (it "stuck fighter with 8 fuel burns all fuel and dies"
       ;; Fighter completely surrounded, with exactly 8 fuel (one per step)
-      (reset! atoms/game-map (build-test-map ["aaa"
+      (set-test-world! (build-test-map ["aaa"
                                                "afa"
                                                "aaa"]))
       (set-test-unit atoms/game-map "f" :fuel 8)
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [1 1 :contents])]
         (fighter/process-fighter [1 1] unit)
         ;; Fighter should be dead after burning 8 fuel
@@ -147,11 +147,11 @@
 
     (it "stuck fighter with more than 8 fuel survives the round"
       ;; Fighter completely surrounded, with 10 fuel - burns 8, survives with 2
-      (reset! atoms/game-map (build-test-map ["aaa"
+      (set-test-world! (build-test-map ["aaa"
                                                "afa"
                                                "aaa"]))
       (set-test-unit atoms/game-map "f" :fuel 10)
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [1 1 :contents])]
         (fighter/process-fighter [1 1] unit)
         ;; Fighter should survive with 2 fuel remaining
@@ -162,13 +162,13 @@
   (context "carrier refueling site (L363-365)"
     (it "refuels at adjacent holding carrier"
       ;; Fighter on land, carrier on adjacent sea in holding mode
-      (reset! atoms/game-map [[{:type :land :contents {:type :fighter :owner :computer
+      (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer
                                                         :hits 1 :fuel 3}}
                                 {:type :sea :contents {:type :carrier :owner :computer
                                                        :hits 8 :carrier-mode :holding
                                                        :carrier-id 1}}
                                 {:type :land}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
         (fighter/process-fighter [0 0] unit)
         ;; Fighter should have refueled
@@ -179,12 +179,12 @@
   (context "arrival at target (L431-453)"
     (it "records leg on arrival and picks new target"
       ;; Fighter close to target city, should arrive and record leg
-      (reset! atoms/game-map (build-test-map ["X####fX"]))
+      (set-test-world! (build-test-map ["X####fX"]))
       (set-test-unit atoms/game-map "f" :fuel 20
                      :flight-target-site [6 0]
                      :flight-origin-site [0 0]
                      :flight-mode :regular)
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (reset! atoms/round-number 10)
       (let [unit (get-in @atoms/game-map [5 0 :contents])]
         (fighter/process-fighter [5 0] unit)
@@ -196,13 +196,13 @@
   (context "navigation toward target (L460-479)"
     (it "navigates toward flight target with fuel margin"
       ;; Fighter with flight target, enough fuel for margin exploration
-      (reset! atoms/game-map (build-test-map ["X######f##########X"]))
+      (set-test-world! (build-test-map ["X######f##########X"]))
       (set-test-unit atoms/game-map "f" :fuel 25
                      :flight-target-site [18 0]
                      :flight-origin-site [0 0]
                      :flight-mode :regular)
       ;; Some unexplored territory along the way
-      (reset! atoms/computer-map (build-test-map ["X######f..........X"]))
+      (set-test-computer-map! (build-test-map ["X######f..........X"]))
       (let [unit (get-in @atoms/game-map [7 0 :contents])]
         (fighter/process-fighter [7 0] unit)
         ;; Fighter should have moved toward target
@@ -215,10 +215,10 @@
   (context "ensure-flight-target (L420-423)"
     (it "assigns regular leg when rand >= 0.5 (L423 if->if-not)"
       ;; Fighter at a city with another refueling site in range
-      (reset! atoms/game-map (build-test-map ["X###########X"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X###########X"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       ;; Force regular leg assignment (rand >= 0.5)
       (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
         (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -230,11 +230,11 @@
               (should-not-be-nil (:flight-target-site (:unit result))))))))
 
     (it "assigns exploration flight when rand < 0.5"
-      (reset! atoms/game-map (build-test-map ["X############"]))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (set-test-world! (build-test-map ["X############"]))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
       ;; Lots of unexplored territory
-      (reset! atoms/computer-map (build-test-map ["X............"]))
+      (set-test-computer-map! (build-test-map ["X............"]))
       (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))]
         (let [unit (get-in @atoms/game-map [0 0 :contents])]
           (fighter/process-fighter [0 0] unit)
@@ -248,10 +248,10 @@
   (context "desperate patrol on low fuel (L524)"
     (it "patrols when no refueling site and low fuel"
       ;; Fighter with low fuel, no city or carrier anywhere
-      (reset! atoms/game-map (build-test-map ["###f###"]))
+      (set-test-world! (build-test-map ["###f###"]))
       (set-test-unit atoms/game-map "f" :fuel 3)
       ;; Unexplored territory to give patrol a target
-      (reset! atoms/computer-map (build-test-map ["###f..."]))
+      (set-test-computer-map! (build-test-map ["###f..."]))
       (let [unit (get-in @atoms/game-map [3 0 :contents])]
         (fighter/process-fighter [3 0] unit)
         ;; Fighter should have attempted movement (may be alive or dead)
@@ -262,13 +262,13 @@
     (it "detects carrier in holding mode as refueling site"
       ;; Fighter on land, adjacent holding carrier on sea
       ;; build-test-map ["~f#"]: col0=sea, col1=fighter on land, col2=land
-      (reset! atoms/game-map (build-test-map ["~f#"]))
+      (set-test-world! (build-test-map ["~f#"]))
       ;; Place carrier at [0,0] (sea cell)
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :carrier :owner :computer :hits 8 :carrier-mode :holding
               :carrier-id 1})
       (set-test-unit atoms/game-map "f" :fuel 3)
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         ;; Fighter should have refueled (fuel > 3)
@@ -281,10 +281,10 @@
       ;; Two cities: one within range, one not
       ;; Fighter at first city, second city within fighter-fuel range
       (let [row-str (apply str "X" (apply str (repeat 29 \#)) "X")]
-        (reset! atoms/game-map (build-test-map [row-str]))
-        (swap! atoms/game-map assoc-in [0 0 :contents]
+        (set-test-world! (build-test-map [row-str]))
+        (update-test-world! assoc-in [0 0 :contents]
                {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
-        (reset! atoms/computer-map @atoms/game-map)
+        (set-test-computer-map! @atoms/game-map)
         ;; Force regular leg
         (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
           (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -297,13 +297,13 @@
   (context "navigate with explore preference (L460-461, L471-472)"
     (it "explores during navigation when fuel margin allows"
       ;; Fighter navigating with enough fuel to explore side paths
-      (reset! atoms/game-map (build-test-map ["X######f#######################X"]))
+      (set-test-world! (build-test-map ["X######f#######################X"]))
       (set-test-unit atoms/game-map "f" :fuel 30
                      :flight-target-site [30 0]
                      :flight-origin-site [0 0]
                      :flight-mode :regular)
       ;; Unexplored territory along the way
-      (reset! atoms/computer-map (build-test-map ["X######f.......................X"]))
+      (set-test-computer-map! (build-test-map ["X######f.......................X"]))
       (let [unit (get-in @atoms/game-map [7 0 :contents])]
         (fighter/process-fighter [7 0] unit)
         (let [result (get-test-unit atoms/game-map "f")]
@@ -314,12 +314,12 @@
   (context "low fuel refuel at carrier (L514)"
     (it "refuels at adjacent carrier when low on fuel"
       ;; Fighter low on fuel, adjacent to holding carrier, no city nearby
-      (reset! atoms/game-map (build-test-map ["#f~"]))
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (set-test-world! (build-test-map ["#f~"]))
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :carrier :owner :computer :hits 8 :carrier-mode :holding
               :carrier-id 1})
       (set-test-unit atoms/game-map "f" :fuel 2)
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (let [unit (get-in @atoms/game-map [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         ;; Fighter should have refueled
@@ -331,19 +331,19 @@
   (before (reset-all-atoms!))
 
   (it "adjacent-to-city-site? returns true for adjacent city site"
-    (reset! atoms/game-map (build-test-map ["Xf"]))
+    (set-test-world! (build-test-map ["Xf"]))
     (should (@#'fighter/adjacent-to-city-site? [0 0] [1 0])))
 
   (it "adjacent-to-city-site? returns false for nil site"
-    (reset! atoms/game-map (build-test-map ["#f"]))
+    (set-test-world! (build-test-map ["#f"]))
     (should-not (@#'fighter/adjacent-to-city-site? nil [1 0])))
 
   (it "adjacent-to-city-site? returns false for non-city site"
-    (reset! atoms/game-map (build-test-map ["#f"]))
+    (set-test-world! (build-test-map ["#f"]))
     (should-not (@#'fighter/adjacent-to-city-site? [0 0] [1 0])))
 
   (it "adjacent-to-city-site? returns false for distant city"
-    (reset! atoms/game-map (build-test-map ["X#f"]))
+    (set-test-world! (build-test-map ["X#f"]))
     (should-not (@#'fighter/adjacent-to-city-site? [0 0] [2 0])))
 
   (it "adjacent-to-site? returns true for adjacent site"
@@ -356,15 +356,15 @@
     (should-not (@#'fighter/adjacent-to-site? [0 0] [3 0])))
 
   (it "desperate-patrol returns nil when do-patrol returns nil"
-    (reset! atoms/game-map (build-test-map ["f"]))
+    (set-test-world! (build-test-map ["f"]))
     (set-test-unit atoms/game-map "f" :fuel 5)
-    (reset! atoms/computer-map @atoms/game-map)
+    (set-test-computer-map! @atoms/game-map)
     (should-be-nil (@#'fighter/desperate-patrol [0 0])))
 
   (it "desperate-patrol returns result when patrol succeeds"
-    (reset! atoms/game-map (build-test-map ["f##"]))
+    (set-test-world! (build-test-map ["f##"]))
     (set-test-unit atoms/game-map "f" :fuel 5)
-    (reset! atoms/computer-map (build-test-map ["f--"]))
+    (set-test-computer-map! (build-test-map ["f--"]))
     (let [result (@#'fighter/desperate-patrol [0 0])]
       (should-not-be-nil result)
       (should (contains? result :pos))

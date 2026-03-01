@@ -2,11 +2,20 @@
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
             [empire.debug :as debug]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."
@@ -81,10 +90,10 @@
     (let [loaded-positions (vec (take to-load armies))]
       (doseq [army-pos loaded-positions]
         (debug/log-computer-event! :transport-load-army pos {:from army-pos})
-        (swap! atoms/game-map update-in army-pos dissoc :contents)
+        (update-game-map! update-in army-pos dissoc :contents)
         (visibility/update-cell-visibility army-pos :computer))
       (when (pos? to-load)
-        (swap! atoms/game-map update-in (conj pos :contents :army-count) (fnil + 0) to-load))
+        (update-game-map! update-in (conj pos :contents :army-count) (fnil + 0) to-load))
       ;; Wake nearby sentries to advance the transport queue
       (doseq [army-pos loaded-positions]
         (core/wake-nearby-sentries army-pos 3))
@@ -109,7 +118,7 @@
         (visibility/update-cell-visibility pos :computer)
         (visibility/update-cell-visibility target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
-          (swap! atoms/game-map assoc-in (conj target :contents :crawl-history) new-history))
+          (update-game-map! assoc-in (conj target :contents :crawl-history) new-history))
         ;; Auto-load armies from adjacent land at new position
         (load-adjacent-armies target)
         target))))
@@ -127,7 +136,7 @@
     (when (and pcp
                (tc/adjacent-to-land? pos)
                (targeting/adjacent-to-pickup-continent? pos pcp))
-      (swap! atoms/game-map update-in (conj pos :contents)
+      (update-game-map! update-in (conj pos :contents)
              dissoc :pickup-continent-pos))))
 
 (def ^:private max-loading-rounds 10)

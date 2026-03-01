@@ -1,8 +1,17 @@
 (ns empire.computer.army.exploration
   "Army exploration behaviors (interior, inland, random)."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn explore-randomly
   "Move toward any unexplored territory adjacent to computer's explored area.
@@ -29,11 +38,11 @@
              (not= :computer (:city-status target-cell))
              (movement/try-move pos target))
       (do (when (movement/adjacent-to-sea? target)
-            (swap! atoms/game-map update-in (conj target :contents)
-                   dissoc :interior-explore-direction))
+            (update-game-map! update-in (conj target :contents)
+                              dissoc :interior-explore-direction))
           target)
-      (do (swap! atoms/game-map update-in (conj pos :contents)
-                 dissoc :interior-explore-direction)
+      (do (update-game-map! update-in (conj pos :contents)
+                            dissoc :interior-explore-direction)
           nil))))
 
 (defn start-interior-exploration
@@ -43,7 +52,7 @@
         [dc dr] direction
         [c r] pos
         target [(+ c dc) (+ r dr)]]
-    (swap! atoms/game-map assoc-in (conj pos :contents :interior-explore-direction) direction)
+    (update-game-map! assoc-in (conj pos :contents :interior-explore-direction) direction)
     (try-interior-move pos target)))
 
 (defn process-interior-explore
@@ -60,10 +69,10 @@
    If blocked, stays in :move-inland and skips the turn."
   [pos country-id]
   (if-not (movement/adjacent-to-sea? pos)
-    (do (swap! atoms/game-map update-in (conj pos :contents)
-               assoc :mode :random-explore
-               :random-explore-direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
-               :random-explore-rounds 0)
+    (do (update-game-map! update-in (conj pos :contents)
+                          assoc :mode :random-explore
+                          :random-explore-direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+                          :random-explore-rounds 0)
         nil)
     (let [candidates (filter (fn [n]
                                (let [cell (get-in @atoms/game-map n)]
@@ -79,9 +88,9 @@
        (not= :city (:type (get-in @atoms/game-map pos)))))
 
 (defn- clear-random-explore-state [pos]
-  (swap! atoms/game-map update-in (conj pos :contents)
-         #(-> % (assoc :mode :awake)
-              (dissoc :random-explore-direction :random-explore-rounds))))
+  (update-game-map! update-in (conj pos :contents)
+                    #(-> % (assoc :mode :awake)
+                         (dissoc :random-explore-direction :random-explore-rounds))))
 
 (defn- try-random-direction-move [pos country-id unit]
   (let [[dc dr] (:random-explore-direction unit)
@@ -92,7 +101,7 @@
                (nil? (:contents (get-in @atoms/game-map target)))
                (movement/try-move pos target))
       (when (at-sea-coast? target)
-        (swap! atoms/game-map assoc-in (conj target :contents :mode) :sentry))
+        (update-game-map! assoc-in (conj target :contents :mode) :sentry))
       target)))
 
 (defn- handle-blocked-random-explore [pos country-id]
@@ -109,11 +118,11 @@
         rounds (:random-explore-rounds unit 0)]
     (if (>= rounds 10)
       (do (clear-random-explore-state pos) nil)
-      (do (swap! atoms/game-map update-in (conj pos :contents)
-                 update :random-explore-rounds (fnil inc 0))
+      (do (update-game-map! update-in (conj pos :contents)
+                            update :random-explore-rounds (fnil inc 0))
           (cond
             (at-sea-coast? pos)
-            (do (swap! atoms/game-map assoc-in (conj pos :contents :mode) :sentry) pos)
+            (do (update-game-map! assoc-in (conj pos :contents :mode) :sentry) pos)
 
             :else
             (or (try-random-direction-move pos country-id unit)

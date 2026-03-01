@@ -4,14 +4,14 @@
             [empire.computer.production :as computer-production]
             [empire.atoms :as atoms]
             [empire.config :as config]
-            [empire.test-utils :refer [build-test-map get-test-city reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map get-test-city reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "update-production"
   (around [it]
     (reset-all-atoms!)
     (reset! atoms/production {})
-    (reset! atoms/game-map (build-test-map ["~O"
-                                             "O#"]))
+    (set-test-world! (build-test-map ["~O"
+                                      "O#"]))
     (it))
 
   (it "decrements remaining-rounds when not complete"
@@ -55,14 +55,14 @@
   (it "does not decrement remaining-rounds if city has a unit"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
       (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 3})
-      (swap! atoms/game-map assoc-in (conj city-coords :contents) {:type :fighter :hits 1}) ; Put a unit in the city
+      (update-test-world! assoc-in (conj city-coords :contents) {:type :fighter :hits 1}) ; Put a unit in the city
       (production/update-production)
       (should= {:item :army :remaining-rounds 3} (@atoms/production city-coords)) ; Should not decrement
       (should= {:type :fighter :hits 1} (:contents (get-in @atoms/game-map city-coords)))))
 
   (it "creates army with marching orders when city has them"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :marching-orders) [5 5])
+      (update-test-world! assoc-in (conj city-coords :marching-orders) [5 5])
       (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -81,7 +81,7 @@
 
   (it "creates fighter with flight path when city has one"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :flight-path) [10 10])
+      (update-test-world! assoc-in (conj city-coords :flight-path) [10 10])
       (swap! atoms/production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -102,7 +102,7 @@
 
   (it "ignores marching orders for non-army units"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :marching-orders) [5 5])
+      (update-test-world! assoc-in (conj city-coords :marching-orders) [5 5])
       (swap! atoms/production assoc city-coords {:item :transport :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -112,7 +112,7 @@
 
   (it "ignores flight path for non-fighter units"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :flight-path) [10 10])
+      (update-test-world! assoc-in (conj city-coords :flight-path) [10 10])
       (swap! atoms/production assoc city-coords {:item :destroyer :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -122,7 +122,7 @@
 
   (it "creates unit owned by computer for computer city"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (update-test-world! assoc-in (conj city-coords :city-status) :computer)
       (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -131,7 +131,7 @@
 
   (it "creates army in explore mode when city has lookaround marching orders"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :marching-orders) :lookaround)
+      (update-test-world! assoc-in (conj city-coords :marching-orders) :lookaround)
       (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -142,7 +142,7 @@
 
   (it "ignores lookaround marching orders for non-army units"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :marching-orders) :lookaround)
+      (update-test-world! assoc-in (conj city-coords :marching-orders) :lookaround)
       (swap! atoms/production assoc city-coords {:item :transport :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -152,8 +152,8 @@
 
   (it "assigns country-id to fighter when city has country-id"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
-      (swap! atoms/game-map assoc-in (conj city-coords :country-id) 7)
+      (update-test-world! assoc-in (conj city-coords :city-status) :computer)
+      (update-test-world! assoc-in (conj city-coords :country-id) 7)
       (swap! atoms/production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -162,8 +162,8 @@
 
   (it "stamps country-id on adjacent land when computer army spawns"
     (let [city-coords (:pos (get-test-city atoms/game-map "O2"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
-      (swap! atoms/game-map assoc-in (conj city-coords :country-id) 3)
+      (update-test-world! assoc-in (conj city-coords :city-status) :computer)
+      (update-test-world! assoc-in (conj city-coords :country-id) 3)
       (swap! atoms/production assoc city-coords {:item :army :remaining-rounds 1})
       (with-redefs [rand (constantly 0.9)]
         (production/update-production))
@@ -172,7 +172,7 @@
 
   (it "does not assign country-id to fighter when city lacks country-id"
     (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (swap! atoms/game-map assoc-in (conj city-coords :city-status) :computer)
+      (update-test-world! assoc-in (conj city-coords :city-status) :computer)
       (swap! atoms/production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
       (let [unit (:contents (get-in @atoms/game-map city-coords))]
@@ -186,10 +186,10 @@
 
   (it "first computer army gets clockwise coast-walk"
     ;; Need coastal land cells unexplored on computer-map for coast-walk to trigger
-    (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
-                              {:type :sea}]
-                             [{:type :land :country-id 1}
-                              {:type :sea}]])
+    (set-test-world! [[{:type :city :city-status :computer :country-id 1}
+                       {:type :sea}]
+                      [{:type :land :country-id 1}
+                       {:type :sea}]])
     ;; computer-map is {} so land at [1 0] is unexplored → coastal cells not explored
     (computer-production/rebuild-country-stats!)
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
@@ -202,10 +202,10 @@
 
   (it "second computer army gets counter-clockwise coast-walk"
     (reset! atoms/coast-walkers-produced {1 1})
-    (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
-                              {:type :sea}]
-                             [{:type :land :country-id 1}
-                              {:type :sea}]])
+    (set-test-world! [[{:type :city :city-status :computer :country-id 1}
+                       {:type :sea}]
+                      [{:type :land :country-id 1}
+                       {:type :sea}]])
     (computer-production/rebuild-country-stats!)
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
@@ -214,12 +214,12 @@
       (should= :counter-clockwise (:coast-direction unit))))
 
   (it "no coast-walk when all coastal cells explored"
-    (reset! atoms/game-map [[{:type :city :city-status :computer :country-id 1}
-                              {:type :sea}]
-                             [{:type :land :country-id 1}
-                              {:type :sea}]])
+    (set-test-world! [[{:type :city :city-status :computer :country-id 1}
+                       {:type :sea}]
+                      [{:type :land :country-id 1}
+                       {:type :sea}]])
     ;; Make all coastal cells visible on computer-map
-    (reset! atoms/computer-map [[{:type :city} {:type :sea}]
+    (set-test-computer-map! [[{:type :city} {:type :sea}]
                                  [{:type :land} {:type :sea}]])
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (with-redefs [rand (constantly 0.9)]
@@ -229,10 +229,10 @@
       (should-be-nil (:coast-direction unit))))
 
   (it "player army does not get coast-walk"
-    (reset! atoms/game-map [[{:type :city :city-status :player :country-id 1}
-                              {:type :sea}]
-                             [{:type :land :country-id 1}
-                              {:type :sea}]])
+    (set-test-world! [[{:type :city :city-status :player :country-id 1}
+                       {:type :sea}]
+                      [{:type :land :country-id 1}
+                       {:type :sea}]])
     (swap! atoms/production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]

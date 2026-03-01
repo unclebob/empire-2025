@@ -2,12 +2,21 @@
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.combat :as combat]
             [empire.player.production :as production]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 (defn get-neighbors
   "Returns valid neighbor coordinates for a position."
@@ -62,7 +71,7 @@
              (= :computer (:owner unit))
              (:country-id unit)
              (#{:land :city} (:type (get-in @atoms/game-map pos))))
-    (swap! atoms/game-map assoc-in (conj pos :country-id) (:country-id unit))))
+    (update-game-map! assoc-in (conj pos :country-id) (:country-id unit))))
 
 (defn- foreign-territory?
   "Returns true if unit is a computer army with a country-id and the target
@@ -87,8 +96,8 @@
       (foreign-territory? unit to-cell) nil
       :else
       (do
-        (swap! atoms/game-map assoc-in from-pos (dissoc from-cell :contents))
-        (swap! atoms/game-map assoc-in (conj to-pos :contents) unit)
+        (update-game-map! assoc-in from-pos (dissoc from-cell :contents))
+        (update-game-map! assoc-in (conj to-pos :contents) unit)
         (stamp-territory to-pos unit)
         (visibility/update-cell-visibility to-pos (:owner unit) unit)
         to-pos))))
@@ -103,8 +112,8 @@
       ;; Success - conquer the city, army dies
       (do
         (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
-        (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
-        (swap! atoms/game-map assoc-in city-pos (assoc city-cell :city-status :computer))
+        (update-game-map! assoc-in army-pos (dissoc army-cell :contents))
+        (update-game-map! assoc-in city-pos (assoc city-cell :city-status :computer))
         (swap! atoms/computer-city-positions conj city-pos)
         (combat/conquer-city-contents city-pos :computer)
         (stamp-territory city-pos army)
@@ -119,7 +128,7 @@
       ;; Failure - army dies
       (do
         (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
-        (swap! atoms/game-map assoc-in army-pos (dissoc army-cell :contents))
+        (update-game-map! assoc-in army-pos (dissoc army-cell :contents))
         (visibility/update-cell-visibility army-pos :computer)
         nil))))
 
@@ -168,7 +177,7 @@
   (let [candidates (find-wakeable-sentries @atoms/game-map pos radius)]
     (doseq [coord candidates
             :let [direction (random-away-direction pos coord)]]
-      (swap! atoms/game-map update-in (conj coord :contents)
+      (update-game-map! update-in (conj coord :contents)
              #(-> % (assoc :mode :awake
                             :interior-explore-direction direction)
                   (dissoc :move-history))))
@@ -181,8 +190,8 @@
   (when-not (adjacent? army-pos transport-pos)
     (throw (ex-info "Cannot board transport from non-adjacent cell"
                     {:army-pos army-pos :transport-pos transport-pos})))
-  (swap! atoms/game-map update-in army-pos dissoc :contents)
-  (swap! atoms/game-map update-in (conj transport-pos :contents :army-count) (fnil inc 0))
+  (update-game-map! update-in army-pos dissoc :contents)
+  (update-game-map! update-in (conj transport-pos :contents :army-count) (fnil inc 0))
   (wake-nearby-sentries army-pos 3))
 
 (defn find-visible-player-units

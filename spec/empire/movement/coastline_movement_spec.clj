@@ -3,12 +3,12 @@
             [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.coastline :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "set-coastline-follow-mode"
   (before (reset-all-atoms!))
   (it "sets unit to coastline-follow mode with initial state"
-    (reset! atoms/game-map (build-test-map ["T"]))
+    (set-test-world! (build-test-map ["T"]))
     (set-coastline-follow-mode [0 0])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :coastline-follow (:mode unit))
@@ -18,7 +18,7 @@
       (should-be-nil (:prev-pos unit))))
 
   (it "removes reason and target"
-    (reset! atoms/game-map (build-test-map ["T"]))
+    (set-test-world! (build-test-map ["T"]))
     (set-test-unit atoms/game-map "T" :reason :some-reason :target [5 5])
     (set-coastline-follow-mode [0 0])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -28,7 +28,7 @@
 (describe "move-coastline-unit"
   (before (reset-all-atoms!))
   (it "moves transport along coastline"
-    (reset! atoms/game-map (build-test-map ["#~~~~"
+    (set-test-world! (build-test-map ["#~~~~"
                                              "#~~~~"
                                              "#T~~~"
                                              "~~~~~"
@@ -39,7 +39,7 @@
                    :start-pos [1 2]
                    :visited #{[1 2]}
                    :prev-pos nil)
-    (reset! atoms/player-map (build-test-map ["~~~~~"
+    (set-test-player-map! (build-test-map ["~~~~~"
                                                "~~~~~"
                                                "~~~~~"
                                                "~~~~~"
@@ -48,7 +48,7 @@
     (should-be-nil (:contents (get-in @atoms/game-map [1 2]))))
 
   (it "wakes up when blocked"
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#T#"
                                              "###"]))
     (set-test-unit atoms/game-map "T"
@@ -57,7 +57,7 @@
                    :start-pos [1 1]
                    :visited #{[1 1]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [1 1])
     (let [unit (get-in @atoms/game-map [1 1 :contents])]
       (should= :awake (:mode unit))
@@ -65,7 +65,7 @@
 
   (it "wakes up when returning to start position after traveling"
     ;; Create a small loop where unit can return to start after 5+ moves
-    (reset! atoms/game-map (build-test-map ["#~~~"
+    (set-test-world! (build-test-map ["#~~~"
                                              "#T#~"
                                              "#~~~"
                                              "####"]))
@@ -76,7 +76,7 @@
                    ;; Simulating having traveled 6+ cells, now adjacent to start
                    :visited #{[1 0] [2 0] [3 0] [3 1] [3 2] [2 2] [1 2]}
                    :prev-pos [1 2])
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [1 1])
     ;; Unit should wake because it's adjacent to start-pos [1 0] and visited > 5
     (let [unit (get-in @atoms/game-map [1 1 :contents])]
@@ -85,7 +85,7 @@
 
   (it "wakes up when hitting map edge (started away from edge)"
     ;; Unit starts away from edge, moves to edge
-    (reset! atoms/game-map (build-test-map ["~~~"
+    (set-test-world! (build-test-map ["~~~"
                                              "#T~"
                                              "#~~"]))
     (set-test-unit atoms/game-map "T"
@@ -94,7 +94,7 @@
                    :start-pos [1 1]  ;; Started at [1 1], not at edge
                    :visited #{[1 1]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [1 1])
     ;; Unit should move to edge (row 0) and wake
     (let [cell-1-0 (get-in @atoms/game-map [1 0])
@@ -109,7 +109,7 @@
     ;; build-test-map transposes: row strings become columns
     ;; So "T~~~~" at row-index 0 becomes column 0.
     ;; T at string position 0 => [0 0] which is at edge (x=0, y=0)
-    (reset! atoms/game-map (build-test-map ["T~~~~"
+    (set-test-world! (build-test-map ["T~~~~"
                                              "~~~~~"
                                              "#~~~~"
                                              "#~~~~"
@@ -121,7 +121,7 @@
                    :start-pos [0 0]  ;; Started at edge
                    :visited #{[0 0]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [0 0])
     ;; Unit should continue (not wake with :hit-edge) because it started at edge
     (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :coastline-follow)]
@@ -129,7 +129,7 @@
 
   (it "wakes up when steps exhausted"
     ;; Map where unit starts in middle, not at edge
-    (reset! atoms/game-map (build-test-map ["#~~~~"
+    (set-test-world! (build-test-map ["#~~~~"
                                              "#~~~~"
                                              "#T~~~"
                                              "#~~~~"
@@ -140,7 +140,7 @@
                    :start-pos [1 2]    ;; Started in middle, not at edge
                    :visited #{[1 2]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [1 2])
     (let [{:keys [unit]} (get-test-unit atoms/game-map "T" :mode :awake)]
       (should= :awake (:mode unit))
@@ -153,7 +153,7 @@
   (it "continues moving when not waking (tests make-continuing-unit and recur)"
     ;; Map where unit won't hit any wake conditions
     ;; Transport has speed 2, and with 50 coastline-steps, it should continue
-    (reset! atoms/game-map (build-test-map ["#~~~~"
+    (set-test-world! (build-test-map ["#~~~~"
                                              "#~~~~"
                                              "#~~~~"
                                              "#T~~~"
@@ -166,7 +166,7 @@
                    :start-pos [1 3]    ;; Started in middle, not at edge
                    :visited #{[1 3]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     ;; transport has speed 2, so it should take 2 steps and not wake
     (move-coastline-unit [1 3])
     ;; Unit should have moved but still be in coastline-follow mode (not woken)
@@ -180,7 +180,7 @@
     ;; [2 3] neighbors: [1,2]=#, [3,2]=#, [1,3]=#, [3,3]=#,
     ;;   [1,4]=#, [2,4]=#, [3,4]=#, [2,2]=sea(T) => 7 land = bay
     ;; Only valid move from [2 2] is [2 3] (the bay).
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "##T##"
                                              "##~##"
@@ -192,7 +192,7 @@
                    :start-pos [2 2]
                    :visited #{[2 2]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [2 2])
     ;; Transport moved to [2 3] (bay) and should wake
     (let [unit (get-in @atoms/game-map [2 3 :contents])]
@@ -203,7 +203,7 @@
   (it "does NOT wake patrol-boat in bay (only transports wake for bays)"
     ;; Same bay setup but with patrol-boat — should NOT get :found-a-bay
     ;; Patrol-boat has no army-count concept, but even if it did, type check should block it
-    (reset! atoms/game-map (build-test-map ["#####"
+    (set-test-world! (build-test-map ["#####"
                                              "#####"
                                              "##P##"
                                              "##~##"
@@ -215,7 +215,7 @@
                    :start-pos [2 2]
                    :visited #{[2 2]}
                    :prev-pos nil)
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [2 2])
     ;; Patrol-boat moved to [2 3] but should NOT wake with :found-a-bay
     (let [unit (get-in @atoms/game-map [2 3 :contents])]
@@ -226,7 +226,7 @@
     ;; Start-pos differs only in x from current position
     ;; This kills the mutant that removes dx from adjacent-positions
     ;; 7-row map so unit at [3 3] is not at edge
-    (reset! atoms/game-map (build-test-map ["#~~~~~~"
+    (set-test-world! (build-test-map ["#~~~~~~"
                                              "#~~~~~~"
                                              "#~~~~~~"
                                              "#~T~~~~"
@@ -241,7 +241,7 @@
                    :start-pos [3 3]
                    :visited #{[3 3] [3 2] [3 1] [2 1] [2 2] [2 3]}
                    :prev-pos [2 2])
-    (reset! atoms/player-map @atoms/game-map)
+    (set-test-player-map! @atoms/game-map)
     (move-coastline-unit [2 3])
     ;; Should wake with :returned-to-start because [2 3] is adjacent to start [3 3]
     ;; and visited count > 5
@@ -257,7 +257,7 @@
     ;; Set up: patrol boat next to another unit in narrow channel
     ;; The defensive check should prevent overwriting if pick-coastline-move
     ;; returns an occupied cell (simulating race condition)
-    (reset! atoms/game-map (build-test-map ["###"
+    (set-test-world! (build-test-map ["###"
                                              "#~#"
                                              "#P#"
                                              "#D#"
@@ -268,7 +268,7 @@
       ;; Set patrol boat to coastline-follow mode
       (set-test-unit atoms/game-map "P" :mode :coastline-follow
                      :coastline-steps 10 :start-pos patrol-coords :visited #{patrol-coords} :prev-pos [1 1])
-      (reset! atoms/player-map @atoms/game-map)
+      (set-test-player-map! @atoms/game-map)
 
       ;; Mock pick-coastline-move to return the destroyer's position
       ;; This simulates a race condition where the cell was empty when checked

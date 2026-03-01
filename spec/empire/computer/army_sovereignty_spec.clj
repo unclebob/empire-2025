@@ -7,70 +7,70 @@
             [empire.computer.stamping :as stamping]
             [empire.combat :as combat]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "process-army"
   (before (reset-all-atoms!))
 
   (context "ignores non-computer units"
     (it "returns nil for player army"
-      (reset! atoms/game-map (build-test-map ["A#"]))
+      (set-test-world! (build-test-map ["A#"]))
       (should-be-nil (army/process-army [0 0])))
 
     (it "returns nil for empty cell"
-      (reset! atoms/game-map (build-test-map ["##"]))
+      (set-test-world! (build-test-map ["##"]))
       (should-be-nil (army/process-army [0 0]))))
 
   (context "country sovereignty"
     (it "army is blocked by foreign territory"
       ;; Army with country-id 1 at [0 0], target land has country-id 2
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
                                                         :country-id 1 :mode :random-explore
                                                         :random-explore-direction [0 1]}}
                                 {:type :land :country-id 2}
                                 {:type :land :country-id 2}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army should not have moved into foreign territory
       (should= :army (get-in @atoms/game-map [0 0 :contents :type])))
 
     (it "army passes through own territory"
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
                                                         :country-id 1 :mode :random-explore
                                                         :random-explore-direction [0 1]}}
                                 {:type :land :country-id 1}
                                 {:type :land :country-id 1}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army should have moved into own territory
       (should= :army (get-in @atoms/game-map [0 1 :contents :type])))
 
     (it "army passes through unclaimed land"
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
                                                         :country-id 1 :mode :random-explore
                                                         :random-explore-direction [0 1]}}
                                 {:type :land}
                                 {:type :land}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army should have moved into unclaimed land
       (should= :army (get-in @atoms/game-map [0 1 :contents :type])))
 
     (it "army with no country-id passes through any territory"
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
                                                         :mode :random-explore
                                                         :random-explore-direction [0 1]}}
                                 {:type :land :country-id 2}
                                 {:type :land :country-id 2}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army without country-id should move freely
       (should= :army (get-in @atoms/game-map [0 1 :contents :type])))
 
     (it "army can approach cities in foreign territory"
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1 :country-id 1}}
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :country-id 1}}
                                 {:type :city :city-status :free :country-id 2}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Army should attack the city despite foreign country-id
       ;; (army is removed after conquest attempt either way)
@@ -78,14 +78,14 @@
 
     (it "coast-walk terminates at sovereignty boundary"
       ;; Coast-walking army hits foreign territory - no valid candidates
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
                                                        :country-id 1
                                                        :mode :coast-walk :coast-direction :clockwise
                                                        :coast-start [0 0] :coast-visited [[0 0]]}}
                                 {:type :land :country-id 2}
                                 {:type :land :country-id 2}]
                                [{:type :sea} {:type :sea} {:type :sea}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Should terminate coast-walk and switch to sentry
       (let [unit (get-in @atoms/game-map [0 0 :contents])]
@@ -94,9 +94,9 @@
 
     (it "army can still attack adjacent enemy across sovereignty border"
       ;; Army with country-id 1 adjacent to player army in foreign territory
-      (reset! atoms/game-map [[{:type :land :contents {:type :army :owner :computer :hits 1 :country-id 1}}
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :country-id 1}}
                                 {:type :land :country-id 2 :contents {:type :army :owner :player :hits 1}}]])
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (army/process-army [0 0])
       ;; Combat should have occurred - computer army no longer at [0 0]
       (should-be-nil (get-in @atoms/game-map [0 0 :contents]))))
@@ -105,12 +105,12 @@
     (it "goes sentry on coastal cell when no cities to target"
       ;; Army at [1 0] on coastal cell (adjacent to sea at row 1)
       ;; Fully explored, no player/free cities
-      (reset! atoms/game-map (build-test-map ["####"
+      (set-test-world! (build-test-map ["####"
                                                "~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 4)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+        (update-test-world! assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [1 0]))
@@ -123,14 +123,14 @@
       ;; ####
       ;; ####
       ;; ~~~~
-      (reset! atoms/game-map (build-test-map ["####"
+      (set-test-world! (build-test-map ["####"
                                                "####"
                                                "####"
                                                "~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 4) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+        (update-test-world! assoc-in [col row :country-id] 1))
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [1 0]))
@@ -143,14 +143,14 @@
   (context "interior exploration"
     (it "interior explorer continues walking in its direction"
       ;; Army at [1 1] with interior-explore-direction already set
-      (reset! atoms/game-map (build-test-map ["####"
+      (set-test-world! (build-test-map ["####"
                                                "####"
                                                "####"
                                                "~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 4) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
-      (swap! atoms/game-map assoc-in [1 1 :contents]
+        (update-test-world! assoc-in [col row :country-id] 1))
+      (update-test-world! assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
               :interior-explore-direction [0 -1]})
       (army/process-army [1 1])
@@ -161,14 +161,14 @@
 
     (it "interior explorer clears direction when reaching coast"
       ;; Army at [1 1] heading south [0 1] toward sea
-      (reset! atoms/game-map (build-test-map ["####"
+      (set-test-world! (build-test-map ["####"
                                                "####"
                                                "####"
                                                "~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 4) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
-      (swap! atoms/game-map assoc-in [1 1 :contents]
+        (update-test-world! assoc-in [col row :country-id] 1))
+      (update-test-world! assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
               :interior-explore-direction [0 1]})
       (army/process-army [1 1])
@@ -179,14 +179,14 @@
 
     (it "interior explorer clears direction when blocked"
       ;; Army at [0 0] heading north [0 -1] — would go off map
-      (reset! atoms/game-map (build-test-map ["####"
+      (set-test-world! (build-test-map ["####"
                                                "####"
                                                "####"
                                                "~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 4) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
-      (swap! atoms/game-map assoc-in [0 0 :contents]
+        (update-test-world! assoc-in [col row :country-id] 1))
+      (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
               :interior-explore-direction [0 -1]})
       (army/process-army [0 0])
@@ -200,37 +200,37 @@
 
   (context "backtrack memory"
     (it "records move-history after moving"
-      (reset! atoms/game-map (build-test-map ["a##"]))
-      (reset! atoms/computer-map @atoms/game-map)
-      (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [0 0 :contents :mode] :awake)
+      (set-test-world! (build-test-map ["a##"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [0 0 :contents :mode] :awake)
       (doseq [col (range 3)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1))
       ;; Give interior-explore-direction to force predictable move
-      (swap! atoms/game-map assoc-in [0 0 :contents :interior-explore-direction] [1 0])
+      (update-test-world! assoc-in [0 0 :contents :interior-explore-direction] [1 0])
       (army/process-army [0 0])
       ;; Army should be at [1 0] with move-history containing [0 0]
       (should= [[0 0]] (get-in @atoms/game-map [1 0 :contents :move-history])))
 
     (it "caps move-history at 4 entries"
-      (reset! atoms/game-map (build-test-map ["a######"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-world! (build-test-map ["a######"]))
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 7)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
-      (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [0 0 :contents :interior-explore-direction] [1 0])
+        (update-test-world! assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [0 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [0 0 :contents :interior-explore-direction] [1 0])
       ;; Move 1: [0 0] -> [1 0]
       (army/process-army [0 0])
-      (swap! atoms/game-map assoc-in [1 0 :contents :interior-explore-direction] [1 0])
+      (update-test-world! assoc-in [1 0 :contents :interior-explore-direction] [1 0])
       ;; Move 2: [1 0] -> [2 0]
       (army/process-army [1 0])
-      (swap! atoms/game-map assoc-in [2 0 :contents :interior-explore-direction] [1 0])
+      (update-test-world! assoc-in [2 0 :contents :interior-explore-direction] [1 0])
       ;; Move 3: [2 0] -> [3 0]
       (army/process-army [2 0])
-      (swap! atoms/game-map assoc-in [3 0 :contents :interior-explore-direction] [1 0])
+      (update-test-world! assoc-in [3 0 :contents :interior-explore-direction] [1 0])
       ;; Move 4: [3 0] -> [4 0]
       (army/process-army [3 0])
-      (swap! atoms/game-map assoc-in [4 0 :contents :interior-explore-direction] [1 0])
+      (update-test-world! assoc-in [4 0 :contents :interior-explore-direction] [1 0])
       ;; Move 5: [4 0] -> [5 0]
       (army/process-army [4 0])
       ;; Should have last 4: [1 0] [2 0] [3 0] [4 0] — not [0 0]
@@ -242,16 +242,16 @@
     (it "does not oscillate between two cells"
       ;; Computer city at [2 0] with army, sentries at [0 0] and [4 0]
       ;; Sea on row 1. Army should NOT bounce city<->adjacent.
-      (reset! atoms/game-map (build-test-map ["a#X#a"
+      (set-test-world! (build-test-map ["a#X#a"
                                                "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 5)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
-      (swap! atoms/game-map assoc-in [0 0 :contents :mode] :sentry)
-      (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :mode] :sentry)
-      (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+        (update-test-world! assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [0 0 :contents :mode] :sentry)
+      (update-test-world! assoc-in [0 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :mode] :sentry)
+      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       ;; Round 1: army leaves city
       (with-redefs [rand (constantly 0.5)]
@@ -268,17 +268,17 @@
 
     (it "wakes nearby sentries when stuck"
       ;; Army boxed in by sentries on all neighbors
-      (reset! atoms/game-map (build-test-map ["#####"
+      (set-test-world! (build-test-map ["#####"
                                                "##a##"
                                                "#####"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 5) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+        (update-test-world! assoc-in [col row :country-id] 1))
       (doseq [pos [[1 0] [2 0] [3 0] [1 1] [3 1] [1 2] [2 2] [3 2]]]
-        (swap! atoms/game-map assoc-in (conj pos :contents)
+        (update-test-world! assoc-in (conj pos :contents)
                {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}))
-      (swap! atoms/game-map assoc-in [2 1 :contents :mode] :awake)
-      (swap! atoms/game-map assoc-in [2 1 :contents :country-id] 1)
+      (update-test-world! assoc-in [2 1 :contents :mode] :awake)
+      (update-test-world! assoc-in [2 1 :contents :country-id] 1)
       (with-redefs [rand (constantly 0.5)
                     rand-nth first]
         (army/process-army [2 1]))
@@ -288,21 +288,21 @@
         (should (some #(not= :sentry %) modes))))
 
     (it "woken sentries have interior-explore-direction away from stuck army"
-      (reset! atoms/game-map (build-test-map ["a#a##"
+      (set-test-world! (build-test-map ["a#a##"
                                                "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 5)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1))
       ;; Sentry at [0 0]
-      (swap! atoms/game-map assoc-in [0 0 :contents :mode] :sentry)
-      (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [0 0 :contents :mode] :sentry)
+      (update-test-world! assoc-in [0 0 :contents :country-id] 1)
       ;; Army at [2 0] — all neighbors occupied or sea
-      (swap! atoms/game-map assoc-in [2 0 :contents :mode] :awake)
-      (swap! atoms/game-map assoc-in [2 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [2 0 :contents :mode] :awake)
+      (update-test-world! assoc-in [2 0 :contents :country-id] 1)
       ;; Sentries at [3 0] and [4 0]
-      (swap! atoms/game-map assoc-in [3 0 :contents]
+      (update-test-world! assoc-in [3 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
-      (swap! atoms/game-map assoc-in [4 0 :contents]
+      (update-test-world! assoc-in [4 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
       (with-redefs [rand (constantly 0.5)
                     rand-nth first]
@@ -313,18 +313,18 @@
 
     (it "army goes sentry near coast when all coastal cells occupied"
       ;; All coastal cells (row 2) have sentries. Army at interior [2 1].
-      (reset! atoms/game-map (build-test-map ["#####"
+      (set-test-world! (build-test-map ["#####"
                                                "##a##"
                                                "#####"
                                                "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 5) row (range 3)]
-        (swap! atoms/game-map assoc-in [col row :country-id] 1))
+        (update-test-world! assoc-in [col row :country-id] 1))
       ;; Fill all coastal cells (row 2) with sentries
       (doseq [col (range 5)]
-        (swap! atoms/game-map assoc-in [col 2 :contents]
+        (update-test-world! assoc-in [col 2 :contents]
                {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}))
-      (swap! atoms/game-map assoc-in [2 1 :contents :country-id] 1)
+      (update-test-world! assoc-in [2 1 :contents :country-id] 1)
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [2 1]))
       ;; Army should have moved toward coast or gone sentry (queued)
@@ -334,19 +334,19 @@
                     (= :sentry (:mode unit))))))
 
     (it "wakes nearby sentries when army boards transport"
-      (reset! atoms/game-map (build-test-map ["###"
+      (set-test-world! (build-test-map ["###"
                                                "~t~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 3)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1))
       ;; Army at [1 0]
-      (swap! atoms/game-map assoc-in [1 0 :contents]
+      (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       ;; Sentry at [2 0]
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
       ;; Transport at [1 1] in loading mode
-      (swap! atoms/game-map assoc-in [1 1 :contents :transport-mission] :loading)
+      (update-test-world! assoc-in [1 1 :contents :transport-mission] :loading)
       ;; Board the army
       (core/board-transport [1 0] [1 1])
       ;; Sentry at [2 0] should be woken
@@ -354,16 +354,16 @@
 
     (it "army progresses over multiple rounds instead of oscillating"
       ;; Integration test: run multiple rounds, verify progress
-      (reset! atoms/game-map (build-test-map ["a#X#a"
+      (set-test-world! (build-test-map ["a#X#a"
                                                "~~~~~"]))
-      (reset! atoms/computer-map @atoms/game-map)
+      (set-test-computer-map! @atoms/game-map)
       (doseq [col (range 5)]
-        (swap! atoms/game-map assoc-in [col 0 :country-id] 1))
-      (swap! atoms/game-map assoc-in [0 0 :contents :mode] :sentry)
-      (swap! atoms/game-map assoc-in [0 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [4 0 :contents :mode] :sentry)
-      (swap! atoms/game-map assoc-in [4 0 :contents :country-id] 1)
-      (swap! atoms/game-map assoc-in [2 0 :contents]
+        (update-test-world! assoc-in [col 0 :country-id] 1))
+      (update-test-world! assoc-in [0 0 :contents :mode] :sentry)
+      (update-test-world! assoc-in [0 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [4 0 :contents :mode] :sentry)
+      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
       ;; Run 6 rounds
       (with-redefs [rand (constantly 0.5)
@@ -394,10 +394,10 @@
       (let [cols 14
             land-str (apply str (cons \a (repeat (dec cols) \#)))
             sea-str (apply str (repeat cols \~))]
-        (reset! atoms/game-map (build-test-map [land-str sea-str]))
-        (reset! atoms/computer-map @atoms/game-map)
+        (set-test-world! (build-test-map [land-str sea-str]))
+        (set-test-computer-map! @atoms/game-map)
         ;; Start army at [0 0] in coast-walk mode with 10 already-visited entries
-        (swap! atoms/game-map assoc-in [0 0 :contents]
+        (update-test-world! assoc-in [0 0 :contents]
                {:type :army :owner :computer :hits 1
                 :mode :coast-walk :coast-direction :clockwise
                 :coast-start [13 0]

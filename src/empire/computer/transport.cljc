@@ -5,6 +5,8 @@
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
   (:require [empire.atoms :as atoms]
+            [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
@@ -15,6 +17,13 @@
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
             [empire.movement.visibility :as visibility]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
 
 ;; --- Re-exports for backward compatibility ---
 
@@ -44,19 +53,19 @@
   (tc/mint-unload-country-id pos)
   (tc/record-pickup-continent-pos pos transport)
   (when-let [path (sailing/compute-sail-path pos)]
-    (swap! atoms/game-map assoc-in
-           (conj pos :contents :sail-path) path)))
+    (update-game-map! assoc-in
+                      (conj pos :contents :sail-path) path)))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."
   [pos]
   (tc/set-transport-mission pos :loading)
-  (swap! atoms/game-map update-in (conj pos :contents) dissoc :unload-target-city)
+  (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
   (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
                             (land-objectives/flood-fill-continent lp))
         next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-    (swap! atoms/game-map assoc-in
-           (conj pos :contents :pickup-continent-pos) next-pickup)))
+    (update-game-map! assoc-in
+                      (conj pos :contents :pickup-continent-pos) next-pickup)))
 
 (defn- loading-crawl-move
   [pos]
@@ -76,8 +85,8 @@
   (if (pos? army-count)
     (start-sailing pos transport)
     (let [new-pcp (targeting/find-next-pickup-continent-pos pos nil 0)]
-      (swap! atoms/game-map assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
-      (swap! atoms/game-map assoc-in (conj pos :contents :loading-since) @atoms/round-number)
+      (update-game-map! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
+      (update-game-map! assoc-in (conj pos :contents :loading-since) @atoms/round-number)
       (loading-crawl-move pos))))
 
 (defn- process-loading-mission
