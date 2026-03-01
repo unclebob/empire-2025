@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  scripts/mermaid-to-pdf [options] <input.md|input.mmd> [output.pdf]
+
+Options:
+  --width <px>       Mermaid canvas width (passed to mmdc --width)
+  --height <px>      Mermaid canvas height (passed to mmdc --height)
+  --scale <factor>   Puppeteer scale (passed to mmdc --scale)
+  --pdf-fit          Expand PDF page to fit the rendered chart (mmdc --pdfFit)
+  --font-size <px>   Mermaid theme font size, e.g. 24
+  --rotate <deg>     Rotate final PDF by 90, 180, or 270 (requires qpdf)
+
+Mermaid note:
+  Quote labels, especially if they contain brackets.
+  Example: A["Text with [brackets]"]
+
+Examples:
+  scripts/mermaid-to-pdf docs/uml/components.md
+  scripts/mermaid-to-pdf docs/uml/components.md docs/uml/components.pdf
+  scripts/mermaid-to-pdf --pdf-fit --font-size 24 docs/uml/components.md docs/uml/components.pdf
+  scripts/mermaid-to-pdf --width 2800 --height 2200 --scale 2 docs/uml/components.md docs/uml/components.pdf
+  scripts/mermaid-to-pdf --rotate 90 docs/uml/components.md docs/uml/components-rotated.pdf
+  scripts/mermaid-to-pdf diagram.mmd diagram.pdf
+EOF
+}
+
+rotate_degrees=""
+canvas_width=""
+canvas_height=""
+render_scale=""
+pdf_fit=false
+font_size=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --rotate)
+      if [[ $# -lt 2 ]]; then
+        echo "--rotate requires one argument: 90, 180, or 270" >&2
+        exit 1
+      fi
+      rotate_degrees="$2"
+      shift 2
+      ;;
+    --width)
+      if [[ $# -lt 2 ]]; then
+        echo "--width requires one argument (pixels)" >&2
+        exit 1
+      fi
+      canvas_width="$2"
+      shift 2
+      ;;
+    --height)
+      if [[ $# -lt 2 ]]; then
+        echo "--height requires one argument (pixels)" >&2
+        exit 1
+      fi
+      canvas_height="$2"
+      shift 2
+      ;;
+    --scale)
+      if [[ $# -lt 2 ]]; then
+        echo "--scale requires one argument (factor)" >&2
+        exit 1
+      fi
+      render_scale="$2"
+      shift 2
+      ;;
+    --pdf-fit)
+      pdf_fit=true
+      shift
+      ;;
+    --font-size)
+      if [[ $# -lt 2 ]]; then
+        echo "--font-size requires one argument (pixels)" >&2
+        exit 1
+      fi
+      font_size="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $# -lt 1 ]]; then
+  usage
+  exit 0
+fi
+
+input="$1"
+output="${2:-}"
+
+if [[ ! -f "$input" ]]; then
+  echo "Input file not found: $input" >&2
+  exit 1
+fi
+
+if [[ -z "$output" ]]; then
+  case "$input" in
+    *.md)  output="${input%.md}.pdf" ;;
+    *.mmd) output="${input%.mmd}.pdf" ;;
+    *)     output="${input}.pdf" ;;
+  esac
+fi
+
+tmp_mmd=""
+tmp_cfg=""
+cleanup() {
+  if [[ -n "$tmp_mmd" && -f "$tmp_mmd" ]]; then
+    rm -f "$tmp_mmd"
+  fi
+  if [[ -n "$tmp_cfg" && -f "$tmp_cfg" ]]; then
+    rm -f "$tmp_cfg"
+  fi
+}
+trap cleanup EXIT
+
+input_for_mmdc="$input"
+
+if [[ "$input" == *.md ]]; then
+  tmp_mmd="$(mktemp -t mermaid-diagram-XXXXXX.mmd)"
+  awk '
+    BEGIN { in_block=0; seen=0 }
+    /^```mermaid[[:space:]]*$/ && in_block==0 { in_block=1; seen=1; next }
+    /^```[[:space:]]*$/ && in_block==1 { in_block=0; exit }
+    in_block==1 { print }
+    END {
+      if (seen==0) {
+        print "No ```mermaid fenced block found in markdown input." > "/dev/stderr"
+        exit 2
+      }
+      if (in_block==1) {
+        print "Unclosed ```mermaid fenced block in markdown input." > "/dev/stderr"
+        exit 3
+      }
+    }
+  ' "$input" > "$tmp_mmd"
+  input_for_mmdc="$tmp_mmd"
+fi
+
+if [[ -n "$font_size" ]]; then
+  tmp_cfg="$(mktemp -t mermaid-config-XXXXXX.json)"
+  cat > "$tmp_cfg" <<EOF
+{
+  "themeVariables": {
+    "fontSize": "${font_size}px"
+  }
+}
+EOF
+fi
+
+run_mmdc() {
+  local cmd=("$@")
+  local args=("-i" "$input_for_mmdc" "-o" "$output")
+  if [[ -n "$canvas_width" ]]; then
+    args+=("--width" "$canvas_width")
+  fi
+  if [[ -n "$canvas_height" ]]; then
+    args+=("--height" "$canvas_height")
+  fi
+  if [[ -n "$render_scale" ]]; then
+    args+=("--scale" "$render_scale")
+  fi
+  if [[ "$pdf_fit" == true ]]; then
+    args+=("--pdfFit")
+  fi
+  if [[ -n "$tmp_cfg" ]]; then
+    args+=("--configFile" "$tmp_cfg")
+  fi
+  "${cmd[@]}" "${args[@]}"
+}
+
+if command -v mmdc >/dev/null 2>&1; then
+  run_mmdc mmdc
+else
+  # Falls back to npx if mmdc is not installed globally.
+  run_mmdc npx -y @mermaid-js/mermaid-cli
+fi
+
+if [[ -n "$rotate_degrees" ]]; then
+  case "$rotate_degrees" in
+    90|180|270) ;;
+    *)
+      echo "Invalid rotate value: $rotate_degrees (use 90, 180, or 270)" >&2
+      exit 1
+      ;;
+  esac
+  if ! command -v qpdf >/dev/null 2>&1; then
+    echo "Rotation requested but qpdf is not installed. Install qpdf and retry." >&2
+    exit 1
+  fi
+  tmp_rotated="$(mktemp -t mermaid-rotated-XXXXXX.pdf)"
+  qpdf --rotate="+${rotate_degrees}:1-z" "$output" "$tmp_rotated"
+  mv "$tmp_rotated" "$output"
+fi
+
+echo "Wrote PDF: $output"

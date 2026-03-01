@@ -336,6 +336,38 @@ The implementation preserves the core gameplay mechanics and the retro feel whil
 - **saves/** - Directory containing saved game files (`.edn` format)
 - **debug-*.txt** - Debug dump files generated during gameplay
 
+## Diagram Generation
+
+Render Mermaid diagrams to PDF with:
+
+```bash
+scripts/mermaid-to-pdf docs/uml/components.md
+```
+
+You can also pass an explicit output path:
+
+```bash
+scripts/mermaid-to-pdf docs/uml/components.md docs/uml/components.pdf
+```
+
+Rotate the final PDF page(s):
+
+```bash
+scripts/mermaid-to-pdf --rotate 90 docs/uml/components.md docs/uml/components.pdf
+```
+
+For larger, more readable diagrams:
+
+```bash
+scripts/mermaid-to-pdf --pdf-fit --font-size 24 --width 2600 --height 1800 docs/uml/components.md docs/uml/components.pdf
+```
+
+Notes:
+- Input may be either a Mermaid markdown file (`.md`, first ```mermaid block is used) or a raw Mermaid file (`.mmd`).
+- The script uses `mmdc` if installed, otherwise falls back to `npx @mermaid-js/mermaid-cli`.
+- `--rotate` requires `qpdf` to be installed.
+- When authoring Mermaid, quote text labels, especially those with brackets. Example: `A["Text with [brackets]"]`.
+
 ## License
 
 This implementation is based on the classic Empire game. The original C version by Chuck Simmons was released under the terms described in the COPYING file distributed with that version.
