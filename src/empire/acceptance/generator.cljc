@@ -4,7 +4,6 @@
             [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [empire.acceptance.parser.ir-contracts :as contracts]
-            [empire.acceptance.generator.utils :as utils]
             [empire.acceptance.generator.given :as gen-given]
             [empire.acceptance.generator.when :as gen-when]
             [empire.acceptance.generator.then :as gen-then]))
@@ -23,18 +22,9 @@
         whens (:whens test)
         thens (:thens test)
         all-nodes (concat givens whens thens)
-        types (node-types all-nodes)
-        then-targets (keep :target thens)
-        given-pi-targets (mapcat :items (filter #(= :player-items (:type %)) givens))
-        given-ut-targets (keep :target (filter #(= :unit-target (:type %)) givens))
-        given-prod-cities (keep :city (filter #(= :production (:type %)) givens))
-        given-vtc-refs (keep :ref (filter #(= :visible-to-computer (:type %)) givens))
-        all-targets (concat then-targets given-pi-targets given-ut-targets given-prod-cities given-vtc-refs)
-        map-rows (:rows (first (filter #(= :map (:type %)) givens)))
-        wfi-units (keep #(when (= :waiting-for-input (:type %)) (:unit %)) givens)]
+        types (node-types all-nodes)]
     {:givens givens :whens whens :thens thens
-     :types types :all-targets all-targets
-     :map-rows map-rows :wfi-units wfi-units}))
+     :types types}))
 
 (def ^:private need-rules
   [{:need :config
@@ -47,46 +37,15 @@
                 (some #(= :battle (:type %)) whens)
                 (some :at-next-round thens)
                 (some :at-next-step thens)))}
-   {:need :item-processing
-    :pred (fn [{:keys [givens whens types]}]
-            (or (some #(= :waiting-for-input (:type %)) (concat givens whens))
-                (some #{:process-player-items} types)))}
-   {:need :get-test-cell
-    :pred (fn [{:keys [all-targets]}]
-            (some #(or (= "=" %) (= "%" %)) all-targets))}
-   {:need :get-test-city
-    :pred (fn [{:keys [all-targets thens givens map-rows wfi-units]}]
-            (or (some utils/city-spec? all-targets)
-                (some utils/city-spec? (keep :target-unit thens))
-                (some #(and (= :container-prop (:type %)) (= :city (:lookup %))) thens)
-                (some #(and (= :container-state (:type %))
-                            (utils/city-spec? (:target %))) givens)
-                (some #(and (= :production (:type %))
-                            (utils/city-spec? (:city %))) givens)
-                (some #(= :city-prop (:type %)) givens)
-                (some #(#{:shipyard-state :city-unit} (:type %)) givens)
-                (some #(#{:shipyard-has-ship :shipyard-empty} (:type %)) thens)
-                (some #(and (= :waiting-for-input (:type %))
-                            (utils/city-spec? (:unit %))) givens)
-                (some #(and (= :unit-props (:type %))
-                            (utils/city-spec? (:unit %))) givens)
-                (some (fn [u] (and (not (utils/city-spec? u))
-                                   map-rows
-                                   (not (some #(str/includes? % u) map-rows)))) wfi-units)))}
    {:need :make-initial-test-map
     :pred (fn [{:keys [givens whens]}]
             (or (some #(= :waiting-for-input (:type %)) (concat givens whens))
                 (some #(= :visible-to-computer (:type %)) givens)))}
    {:need :advance-until-waiting-helper
-    :needs-also #{:quil :game-loop}
+    :needs-also #{:game-loop}
     :pred (fn [{:keys [whens thens]}]
             (or (some #(= :advance-until-waiting (:type %)) whens)
                 (some #(= :unit-waiting-for-input (:type %)) thens)))}
-   {:need :quil
-    :pred (fn [{:keys [whens]}]
-            (or (some #(and (= :key-press (:type %)) (= :key-down (:input-fn %))) whens)
-                (some #(= :backtick (:type %)) whens)
-                (some #(= :mouse-at-key (:type %)) whens)))}
    {:need :advance-helper
     :pred (fn [{:keys [types thens]}]
             (or (some #{:unit-eventually-at :unit-after-steps} types)
@@ -134,32 +93,22 @@
 ;; --- NS form generation ---
 
 (def ^:private optional-refers
-  [[:get-test-cell   ["get-test-cell"]]
-   [:get-test-city   ["get-test-city"]]
-   [:config          ["message-matches?"]]
+  [[:config          ["message-matches?"]]
    [:make-initial-test-map ["make-initial-test-map"]]
    [:visibility-mask ["visibility-mask"]]
    [:territory-mask  ["territory-mask" "build-territory-expected"]]])
 
 (def ^:private optional-requires
-  [[:config              "[empire.config :as config]"]
-   [:game-loop           "[empire.game-loop :as game-loop]"]
-   [:item-processing     "[empire.game-loop.item-processing :as item-processing]"]
-   [:quil                "[quil.core :as q]"]
-   [:quil                "[empire.ui.quil.input :as quil-input]"]
-   [:computer-production "[empire.computer.production :as computer-production]"]
-   [:computer-transport  "[empire.computer.transport :as computer-transport]"]
-   [:computer-fighter    "[empire.computer.fighter :as computer-fighter]"]
-   [:visibility          "[empire.movement.visibility :as visibility]"]
-   [:computer-ship       "[empire.computer.ship :as computer-ship]"]])
+  [[:config              "[empire.config :as config]"]])
 
-(defn- collect-refers [needs]
-  (into ["build-test-map" "set-test-unit" "get-test-unit" "reset-all-atoms!"]
+(defn- collect-harness-refers [needs]
+  (into ["build-test-map" "set-test-world!" "update-test-world!"
+         "reset-all-atoms!"]
         (mapcat (fn [[need refs]] (when (contains? needs need) refs))
                 optional-refers)))
 
 (defn- collect-requires [needs]
-  (into ["[empire.atoms :as atoms]" "[empire.ui.util.input.dispatch :as input]"]
+  (into []
         (keep (fn [[need req]] (when (contains? needs need) req))
               optional-requires)))
 
@@ -168,11 +117,11 @@
   [source-name needs]
   (let [base-name (str/replace source-name #"\.txt$" "")
         ns-name (str "acceptance." base-name "-spec")
-        refers (collect-refers needs)
+        harness-refers (collect-harness-refers needs)
         requires (collect-requires needs)]
     (str "(ns " ns-name "\n"
          "  (:require [speclj.core :refer :all]\n"
-         "            [empire.test-utils :refer [" (str/join " " refers) "]]\n"
+         "            [empire.acceptance.harness :as h :refer [" (str/join " " harness-refers) "]]\n"
          (str/join "\n" (map #(str "            " %) requires))
          "))")))
 
@@ -185,42 +134,39 @@
     (when (contains? needs :advance-helper)
       (swap! parts conj
              (str "(defn- advance-until-next-round []\n"
-                  "  (let [start-round @atoms/round-number]\n"
+                  "  (let [start-round (h/read-state :round-number)]\n"
                   "    (loop [n 100]\n"
                   "      (cond\n"
-                  "        (not= start-round @atoms/round-number)\n"
-                  "        (do (game-loop/advance-game) :ok)\n"
+                  "        (not= start-round (h/read-state :round-number))\n"
+                  "        (do (h/advance-game!) :ok)\n"
                   "\n"
                   "        (zero? n) :timeout\n"
                   "\n"
                   "        :else\n"
-                  "        (do (game-loop/advance-game)\n"
+                  "        (do (h/advance-game!)\n"
                   "            (recur (dec n)))))))")))
     (when (contains? needs :advance-until-waiting-helper)
       (swap! parts conj
              (str "(defn- advance-until-unit-waiting [unit-label]\n"
                   "  (loop [n 100]\n"
                   "    (cond\n"
-                  "      (and @atoms/waiting-for-input\n"
-                  "           (let [u (get-test-unit atoms/game-map unit-label)]\n"
-                  "             (and u (= (:pos u) (first @atoms/cells-needing-attention)))))\n"
+                  "      (and (h/read-state :waiting-for-input)\n"
+                  "           (let [u (h/get-unit unit-label)]\n"
+                  "             (and u (= (:pos u) (first (h/read-state :cells-needing-attention))))))\n"
                   "      :ok\n"
                   "\n"
                   "      (zero? n) :timeout\n"
                   "\n"
-                  "      @atoms/waiting-for-input\n"
-                  "      (let [coords (first @atoms/cells-needing-attention)\n"
-                  "            cell (get-in @atoms/game-map coords)\n"
+                  "      (h/read-state :waiting-for-input)\n"
+                  "      (let [coords (first (h/read-state :cells-needing-attention))\n"
+                  "            cell (get-in (h/read-state :game-map) coords)\n"
                   "            k (if (= :city (:type cell)) :x :space)]\n"
-                  "        (with-redefs [q/mouse-x (constantly 0)\n"
-                  "                      q/mouse-y (constantly 0)]\n"
-                  "          (reset! atoms/last-key nil)\n"
-                  "          (quil-input/key-down k))\n"
-                  "        (game-loop/advance-game)\n"
+                  "        (h/key-down! k)\n"
+                  "        (h/advance-game!)\n"
                   "        (recur (dec n)))\n"
                   "\n"
                   "      :else\n"
-                  "      (do (game-loop/advance-game)\n"
+                  "      (do (h/advance-game!)\n"
                   "          (recur (dec n))))))")))
     (if (seq @parts)
       (str "\n\n" (str/join "\n\n" @parts))

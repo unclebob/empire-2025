@@ -23,7 +23,7 @@
 
   (it "generates unit-at then with named target"
     (let [result (gen/generate-then {:type :unit-at :unit "F" :target "="} [])]
-      (should-contain "get-test-cell" result)
+      (should-contain "h/get-cell" result)
       (should-contain "should=" result)))
 
   (it "generates unit-present then with coords"
@@ -34,19 +34,19 @@
   (it "generates unit-at-next-round then with timeout check"
     (let [result (gen/generate-then {:type :unit-at-next-round :unit "D" :target "="} [])]
       (should-contain "should= :ok (advance-until-next-round)" result)
-      (should-contain "get-test-cell" result)))
+      (should-contain "h/get-cell" result)))
 
   (it "generates unit-at-next-step then with single advance"
     (let [result (gen/generate-then {:type :unit-at-next-round :unit "A" :target "%" :at-next-step true} [])]
-      (should-contain "game-loop/advance-game" result)
+      (should-contain "h/advance-game!" result)
       (should-not-contain "advance-until-next-round" result)
-      (should-contain "get-test-cell" result)))
+      (should-contain "h/get-cell" result)))
 
   (it "generates unit-after-moves then"
     (let [result (gen/generate-then {:type :unit-after-moves :unit "F" :moves 2 :target "="} [])]
       (should-contain "dotimes" result)
       (should-contain "_ 2" result)
-      (should-contain "get-test-cell" result)))
+      (should-contain "h/get-cell" result)))
 
   (it "generates unit-after-steps then with step advances"
     (let [result (gen/generate-then {:type :unit-after-steps :unit "F" :steps 1 :target "%"} [])]
@@ -54,7 +54,7 @@
       (should-contain "dotimes" result)
       (should-contain "_ 1" result)
       (should-contain "should-not-be-nil" result)
-      (should-contain "get-test-cell" result)))
+      (should-contain "h/get-cell" result)))
 
   (it "generates unit-after-steps then with multiple steps"
     (let [result (gen/generate-then {:type :unit-after-steps :unit "F" :steps 3 :target "%"} [])]
@@ -83,17 +83,17 @@
       (should-contain "message-matches?" result)
       (should-contain ":army-found-city" result)
       (should-contain "config/messages" result)
-      (should-contain "atoms/attention-message" result)))
+      (should-contain "(h/read-state :attention-message)" result)))
 
   (it "generates message-contains with text then"
     (let [result (gen/generate-then {:type :message-contains :area :attention :text "fuel:20"} [])]
       (should-contain "should-contain" result)
       (should-contain "\"fuel:20\"" result)
-      (should-contain "atoms/attention-message" result)))
+      (should-contain "(h/read-state :attention-message)" result)))
 
   (it "generates message-contains with turn area"
     (let [result (gen/generate-then {:type :message-contains :area :turn :text "Destroyer destroyed"} [])]
-      (should-contain "atoms/turn-message" result)))
+      (should-contain "(h/read-state :turn-message)" result)))
 
   (it "generates message-contains with :at-next-round and timeout check"
     (let [result (gen/generate-then {:type :message-contains :area :attention :config-key :cant-move-into-city :at-next-round true} [])]
@@ -104,7 +104,7 @@
 
   (it "generates message-contains with :at-next-step using advance-game"
     (let [result (gen/generate-then {:type :message-contains :area :attention :config-key :cant-move-into-city :at-next-step true} [])]
-      (should-contain "game-loop/advance-game" result)
+      (should-contain "h/advance-game!" result)
       (should-not-contain "advance-until-next-round" result)
       (should-contain "should-not-be-nil" result)
       (should-contain "message-matches?" result)
@@ -113,40 +113,40 @@
   (it "generates message-for-unit then with advance loop and message-matches?"
     (let [result (gen/generate-then {:type :message-for-unit :area :attention :unit "F" :config-key :fighter-bingo} [])]
       (should-contain "loop [n 100]" result)
-      (should-contain "get-test-unit" result)
+      (should-contain "h/get-unit" result)
       (should-contain ":awake" result)
       (should-contain "should-not-be-nil" result)
       (should-contain "message-matches?" result)
       (should-contain ":fighter-bingo" result)
-      (should-contain "atoms/attention-message" result)))
+      (should-contain "(h/read-state :attention-message)" result)))
 
   (it "generates message-is with config-key then"
     (let [result (gen/generate-then {:type :message-is :area :turn :config-key :hit-edge} [])]
       (should-contain "should=" result)
       (should-contain ":hit-edge" result)
-      (should-contain "atoms/turn-message" result)))
+      (should-contain "(h/read-state :turn-message)" result)))
 
   (it "generates message-is with format and no args"
     (let [result (gen/generate-then {:type :message-is
                                      :area :error
                                      :format {:key :fighter-bingo :args []}} [])]
       (should-contain "(format (:fighter-bingo config/messages)" result)
-      (should-contain "atoms/error-message" result)))
+      (should-contain "(h/read-state :error-message)" result)))
 
   (it "generates message-is with format and args"
     (let [result (gen/generate-then {:type :message-is
                                      :area :error
                                      :format {:key :coastal-city-required :args ["transport"]}} [])]
       (should-contain "(format (:coastal-city-required config/messages) \"transport\")" result)
-      (should-contain "atoms/error-message" result)))
+      (should-contain "(h/read-state :error-message)" result)))
 
   (it "generates no-message assertion for turn area"
     (let [result (gen/generate-then {:type :no-message :area :turn} [])]
-      (should-contain "(should= \"\" @atoms/turn-message)" result)))
+      (should-contain "(should= \"\" (h/read-state :turn-message))" result)))
 
   (it "generates no-message assertion for error area"
     (let [result (gen/generate-then {:type :no-message :area :error} [])]
-      (should-contain "(should= \"\" @atoms/error-message)" result)))
+      (should-contain "(should= \"\" (h/read-state :error-message))" result)))
 
   (it "generates message-for-unit assertion for turn area"
     (let [result (gen/generate-then {:type :message-for-unit
@@ -154,7 +154,7 @@
                                      :unit "F"
                                      :config-key :fighter-bingo} [])]
       (should-contain "loop [n 100]" result)
-      (should-contain "atoms/turn-message" result)))
+      (should-contain "(h/read-state :turn-message)" result)))
 
   (it "generates cell-prop then"
     (let [result (gen/generate-then {:type :cell-prop :coords [1 0] :property :city-status :expected :player} [])]
@@ -164,11 +164,11 @@
 
   (it "generates waiting-for-input true then"
     (let [result (gen/generate-then {:type :waiting-for-input :expected true} [])]
-      (should-contain "should @atoms/waiting-for-input" result)))
+      (should-contain "should (h/read-state :waiting-for-input)" result)))
 
   (it "generates waiting-for-input false then"
     (let [result (gen/generate-then {:type :waiting-for-input :expected false} [])]
-      (should-contain "should-not @atoms/waiting-for-input" result)))
+      (should-contain "should-not (h/read-state :waiting-for-input)" result)))
 
   (it "generates unit-waiting-for-input then with advance"
     (let [result (gen/generate-then {:type :unit-waiting-for-input :unit "C"} [])]
@@ -178,29 +178,29 @@
 
   (it "generates container-state given for unit with container props"
     (let [result (gen/generate-given {:type :container-state :target "C" :props {:fighter-count 2 :awake-fighters 0}})]
-      (should-contain "set-test-unit" result)
+      (should-contain "h/set-unit!" result)
       (should-contain ":fighter-count 2" result)
       (should-contain ":awake-fighters 0" result)))
 
   (it "generates container-prop city lookup then"
     (let [result (gen/generate-then {:type :container-prop :target "O" :property :fighter-count :expected 1 :lookup :city} [])]
-      (should-contain "get-test-city" result)
+      (should-contain "h/get-city" result)
       (should-contain ":fighter-count" result)))
 
   (it "generates container-prop unit lookup then"
     (let [result (gen/generate-then {:type :container-prop :target "C" :property :fighter-count :expected 1 :lookup :unit} [])]
-      (should-contain "get-test-unit" result)
+      (should-contain "h/get-unit" result)
       (should-contain ":fighter-count" result)))
 
   (it "generates container-prop unit lookup for unit-level prop"
     (let [result (gen/generate-then {:type :container-prop :target "C" :property :awake-fighters :expected 2 :lookup :unit} [])]
-      (should-contain "get-test-unit" result)
+      (should-contain "h/get-unit" result)
       (should-contain ":awake-fighters" result)
       (should-contain ":unit" result)))
 
   (it "generates container-prop city lookup with at-next-step"
     (let [result (gen/generate-then {:type :container-prop :target "O" :property :fighter-count :expected 1 :lookup :city :at-next-step true} [])]
-      (should-contain "game-loop/advance-game" result)
+      (should-contain "h/advance-game!" result)
       (should-contain ":fighter-count" result)))
 
   (it "generates container-prop city lookup with at-next-round"
@@ -211,13 +211,13 @@
   (it "generates player-map-cell-not-nil then"
     (let [result (gen/generate-then {:type :player-map-cell-not-nil :coords [1 2]} [])]
       (should-contain "should-not-be-nil" result)
-      (should-contain "atoms/player-map" result)
+      (should-contain "(h/cell-at :player-map [1 2])" result)
       (should-contain "[1 2]" result)))
 
   (it "generates player-map-cell-nil then"
     (let [result (gen/generate-then {:type :player-map-cell-nil :coords [1 2]} [])]
       (should-contain "should-be-nil" result)
-      (should-contain "atoms/player-map" result)
+      (should-contain "(h/cell-at :player-map [1 2])" result)
       (should-contain "[1 2]" result)))
 
   (it "generates player-map-visibility then"
@@ -226,7 +226,7 @@
       (should-contain "visibility-mask" result)
       (should-contain "build-test-map" result)
       (should-contain "\".###.\"" result)
-      (should-contain "atoms/player-map" result)))
+      (should-contain "(h/read-state :player-map)" result)))
 
   (it "generates production-with-rounds then"
     (let [result (gen/generate-then {:type :production-with-rounds :city "O" :expected :army :remaining-rounds 5} [])]
@@ -234,7 +234,7 @@
       (should-contain ":army" result)
       (should-contain ":remaining-rounds" result)
       (should-contain "5" result)
-      (should-contain "get-test-city" result)))
+      (should-contain "h/get-city" result)))
 
   (it "generates cell-props given with coordinate value"
     (let [result (gen/generate-given {:type :cell-props :coords [0 0] :props {:marching-orders [4 0]}})]
@@ -252,8 +252,8 @@
     (let [result (gen/generate-then {:type :production-not :city "X" :excluded :army} [])]
       (should-contain "should-not=" result)
       (should-contain ":army" result)
-      (should-contain "get-test-city" result)
-      (should-contain "atoms/production" result)))
+      (should-contain "h/get-city" result)
+      (should-contain "(h/read-state :production)" result)))
 
   (it "generates stub given as empty string"
     (let [result (gen/generate-given {:type :stub
@@ -315,11 +315,10 @@
           result (gen/generate-spec edn-data)]
       (should-contain "(ns acceptance.army-spec" result)
       (should-contain "speclj.core :refer :all" result)
-      (should-contain "empire.atoms :as atoms" result)
+      (should-not-contain "empire.test-utils" result)
+      (should-not-contain "empire.atoms :as atoms" result)
       (should-contain "empire.config :as config" result)
-      (should-contain "empire.ui.util.input.dispatch :as input" result)
-      (should-contain "quil.core :as q" result)
-      (should-contain "empire.ui.quil.input :as quil-input" result)))
+      (should-contain "empire.acceptance.harness :as h" result)))
 
   (it "generates army spec with correct describe"
     (let [edn-data {:source "army.txt"
@@ -358,7 +357,7 @@
                              :thens [{:type :unit-prop :unit "A" :property :mode :expected :sentry}]}]}
           result (gen/generate-spec edn-data)]
       (should-contain "build-test-map [\"A#\"]" result)
-      (should-contain "(should= :sentry (:mode (:unit (get-test-unit atoms/game-map \"A\"))))" result)))
+      (should-contain "(should= :sentry (:mode (:unit (h/get-unit \"A\"))))" result)))
 
   (it "generates backtick-commands spec with correct ns form"
     (let [edn-data {:source "backtick-commands.txt"
@@ -368,8 +367,8 @@
                              :thens [{:type :unit-present :unit "A" :coords [0 0]}]}]}
           result (gen/generate-spec edn-data)]
       (should-contain "(ns acceptance.backtick-commands-spec" result)
-      (should-contain "quil.core :as q" result)
-      (should-contain "empire.ui.quil.input :as quil-input" result)))
+      (should-not-contain "empire.test-utils" result)
+      (should-contain "empire.acceptance.harness :as h" result)))
 
   (it "generates backtick-commands spec with all 13 tests"
     (let [edn-data {:source "backtick-commands.txt"

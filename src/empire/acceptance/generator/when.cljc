@@ -4,28 +4,23 @@
 
 (defn- generate-key-press-when [{:keys [key input-fn]}]
   (if (= input-fn :key-down)
-    (str "    (with-redefs [q/mouse-x (constantly 0)\n"
-         "                  q/mouse-y (constantly 0)]\n"
-         "      (reset! atoms/last-key nil)\n"
-         "      (quil-input/key-down :" (name key) "))")
-    (str "    (input/handle-key :" (name key) ")")))
+    (str "    (h/key-down! :" (name key) ")")
+    (str "    (h/handle-key! :" (name key) ")")))
 
 (defn- generate-battle-when [{:keys [key outcome combat-type]}]
   (let [rand-val (if (= outcome :win) "0.0" "1.0")]
     (if (= combat-type :ship)
       (str "    (with-redefs [rand (constantly " rand-val ")]\n"
-           "      (input/handle-key :" (name key) ")\n"
-           "      (game-loop/advance-game))")
+           "      (h/handle-key! :" (name key) ")\n"
+           "      (h/advance-game!))")
       (str "    (with-redefs [rand (constantly " rand-val ")]\n"
-           "      (input/handle-key :" (name key) "))"))))
+           "      (h/handle-key! :" (name key) "))"))))
 
 (defn- generate-backtick-when [{:keys [key mouse-cell]}]
   (let [[x y] mouse-cell]
-    (str "    (reset! atoms/map-screen-dimensions [22 16])\n"
-         "    (with-redefs [q/mouse-x (constantly " x ")\n"
-         "                  q/mouse-y (constantly " y ")]\n"
-         "      (quil-input/key-down (keyword \"`\"))\n"
-         "      (quil-input/key-down :" (name key) "))")))
+    (str "    (h/set-state! :map-screen-dimensions [22 16])\n"
+         "    (h/key-down-at! (keyword \"`\") " x " " y ")\n"
+         "    (h/key-down-at! :" (name key) " " x " " y ")")))
 
 (defn- mouse-at-key-expr [key]
   (case key
@@ -37,71 +32,69 @@
   (let [[cx cy] coords
         key-expr (mouse-at-key-expr key)]
     (str "    (let [map-w 22 map-h 16\n"
-         "          cols (count @atoms/game-map)\n"
-         "          rows (count (first @atoms/game-map))\n"
+         "          gm (h/read-state :game-map)\n"
+         "          cols (count gm)\n"
+         "          rows (count (first gm))\n"
          "          cell-w (/ map-w cols) cell-h (/ map-h rows)\n"
          "          px (int (+ (* " cx " cell-w) (/ cell-w 2)))\n"
          "          py (int (+ (* " cy " cell-h) (/ cell-h 2)))]\n"
-         "      (reset! atoms/map-screen-dimensions [map-w map-h])\n"
-         "      (with-redefs [q/mouse-x (constantly px)\n"
-         "                    q/mouse-y (constantly py)]\n"
-         "        (quil-input/key-down " key-expr ")))")))
+         "      (h/set-state! :map-screen-dimensions [map-w map-h])\n"
+         "      (h/key-down-at! " key-expr " px py))")))
 
 (defn- generate-visibility-update-when [_]
-  "    (game-loop/update-player-map)")
+  "    (h/update-player-map!)")
 
 (defn- generate-cell-visibility-update-when [{:keys [unit]}]
   (let [pos-expr (utils/target-pos-expr unit)]
     (str "    (let [pos " pos-expr "\n"
-         "          cell (get-in @atoms/game-map pos)]\n"
-         "      (visibility/update-cell-visibility pos (:owner (:contents cell)) (:contents cell)))")))
+          "          cell (get-in (h/read-state :game-map) pos)]\n"
+         "      (h/update-cell-visibility! pos (:owner (:contents cell)) (:contents cell)))")))
 
 (defn- generate-evaluate-production-when [{:keys [city]}]
   (let [pos-expr (utils/target-pos-expr city)]
-    (str "    (computer-production/rebuild-country-stats!)\n"
-         "    (computer-production/process-computer-city " pos-expr ")")))
+    (str "    (h/evaluate-computer-production! " pos-expr ")")))
 
 (defn- generate-process-computer-transport-when [{:keys [unit]}]
   (let [pos-expr (utils/target-pos-expr unit)]
-    (str "    (computer-transport/process-transport " pos-expr ")")))
+    (str "    (h/process-computer-transport! " pos-expr ")")))
 
 (defn- generate-process-computer-fighter-when [{:keys [unit]}]
   (let [pos-expr (utils/target-pos-expr unit)]
     (str "    (let [pos " pos-expr "\n"
-         "          unit (get-in @atoms/game-map (conj pos :contents))]\n"
-         "      (computer-fighter/process-fighter pos unit))")))
+          "          unit (get-in (h/read-state :game-map) (conj pos :contents))]\n"
+         "      (h/process-computer-fighter! pos unit))")))
 
 (defn- generate-process-computer-ship-when [{:keys [unit ship-type]}]
   (let [pos-expr (utils/target-pos-expr unit)]
-    (str "    (computer-ship/process-ship " pos-expr " :" (name ship-type) ")")))
+    (str "    (h/process-computer-ship! " pos-expr " :" (name ship-type) ")")))
 
 (defn- generate-computer-rounds-when [{:keys [count]}]
   (str "    (dotimes [_ " count "]\n"
        "      ;; Process all computer transports\n"
-       "      (doseq [i (range (count @atoms/game-map))\n"
-       "              j (range (count (first @atoms/game-map)))\n"
-       "              :let [cell (get-in @atoms/game-map [i j])\n"
+       "      (doseq [i (range (count (h/read-state :game-map)))\n"
+       "              j (range (count (first (h/read-state :game-map))))\n"
+       "              :let [cell (get-in (h/read-state :game-map) [i j])\n"
        "                    unit (:contents cell)]\n"
        "              :when (and unit\n"
        "                         (= :transport (:type unit))\n"
        "                         (= :computer (:owner unit)))]\n"
-       "        (computer-transport/process-transport [i j])))"))
+       "        (h/process-computer-transport! [i j])))"))
 
 (defn- generate-start-new-round-when [_]
-  (str "    (game-loop/start-new-round)\n"
+  (str "    (h/start-new-round!)\n"
        "    (loop [n 200]\n"
        "      (when (and (pos? n)\n"
-       "                 (not @atoms/waiting-for-input)\n"
-       "                 (not @atoms/paused)\n"
-       "                 (or (seq @atoms/player-items) (seq @atoms/computer-items)))\n"
-       "        (game-loop/advance-game)\n"
+       "                 (not (h/read-state :waiting-for-input))\n"
+       "                 (not (h/read-state :paused))\n"
+       "                 (or (seq (h/read-state :player-items)) (seq (h/read-state :computer-items))))\n"
+       "        (h/advance-game!)\n"
        "        (recur (dec n))))"))
 
 (defn- generate-advance-game-when [_]
-  "    (game-loop/advance-game)")
+  "    (h/advance-game!)")
 
 (defn- generate-process-player-items-when [_]
-  "    (item-processing/process-player-items-batch)")
+  "    (h/process-player-items-batch!)")
 
 (defn- generate-advance-until-waiting-when [{:keys [unit]}]
   (str "    (should= :ok (advance-until-unit-waiting \"" unit "\"))"))
@@ -124,16 +117,10 @@
    :computer-rounds            generate-computer-rounds-when
    :process-computer-ship      generate-process-computer-ship-when
    :save-game                  (fn [_]
-                                  (str "    (with-redefs [spit (constantly nil)\n"
-                                       "                  q/mouse-x (constantly 0)\n"
-                                       "                  q/mouse-y (constantly 0)]\n"
-                                       "      (reset! atoms/last-key nil)\n"
-                                       "      (quil-input/key-down :!))"))
+                                  (str "    (with-redefs [spit (constantly nil)]\n"
+                                       "      (h/key-down! :!))"))
    :open-load-menu             (fn [_]
-                                  (str "    (with-redefs [q/mouse-x (constantly 0)\n"
-                                       "                  q/mouse-y (constantly 0)]\n"
-                                       "      (reset! atoms/last-key nil)\n"
-                                       "      (quil-input/key-down (keyword \"^\")))"))})
+                                  (str "    (h/key-down! (keyword \"^\"))"))})
 
 (defn generate-when
   "Generate code string for a single WHEN IR node."

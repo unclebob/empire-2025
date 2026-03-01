@@ -11,16 +11,16 @@
 (defn target-pos-expr [target]
   (cond
     (city-spec? target)
-    (str "(:pos (get-test-city atoms/game-map \"" target "\"))")
+    (str "(:pos (h/get-city \"" target "\"))")
 
     (contains? cell-label-chars target)
-    (str "(:pos (get-test-cell atoms/game-map \"" target "\"))")
+    (str "(:pos (h/get-cell \"" target "\"))")
 
     :else
-    (str "(:pos (get-test-unit atoms/game-map \"" target "\"))")))
+    (str "(:pos (h/get-unit \"" target "\"))")))
 
-(defn area->atom [area]
+(defn area->state-key [area]
   (case area
-    :attention "atoms/attention-message"
-    :turn "atoms/turn-message"
-    :error "atoms/error-message"))
+    :attention :attention-message
+    :turn :turn-message
+    :error :error-message))

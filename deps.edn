@@ -21,6 +21,9 @@
 					               :extra-paths ["spec"]}
 					 :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
 					                  :extra-paths ["generated-acceptance-specs"]}
+           :acceptance-tests {:main-opts ["-m" "empire.acceptance.pipeline"]}
+           :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
+           :all-tests-fast {:main-opts ["-m" "empire.test.pipeline-fast"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"
 					                         :git/sha "426045ea9d738facea204357b1243bc93070d3f6"}}

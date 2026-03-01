@@ -24,6 +24,28 @@ Examples:
     clj -M:run 80 50        # Smaller 80x50 map
     clj -M:run 120 70       # Larger 120x70 map (if monitor permits)
 
+## Testing
+
+Run all unit specs:
+
+    clj -M:spec
+
+Run all tests (unit specs + acceptance pipeline):
+
+    clj -M:all-tests
+
+Run a faster all-tests pass (unit specs + already-generated acceptance specs):
+
+    clj -M:all-tests-fast
+
+Run acceptance pipeline (parse scenarios, generate specs, enforce acceptance boundaries, run generated acceptance specs):
+
+    scripts/run-acceptance-tests.sh
+
+Equivalent Clojure alias:
+
+    clj -M:acceptance-tests
+
 ## The World
 
 The world is a rectangle 100 columns by 60 rows (by default). The geography is randomly generated for each game by creating a height map, smoothing it to form natural terrain features, then setting a sea level to achieve approximately 30% land and 70% water. This produces a world of continents, islands, and ocean passages that varies from game to game.
