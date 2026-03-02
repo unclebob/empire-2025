@@ -140,7 +140,15 @@
     (let [unit (:contents (get-in @atoms/game-map [0 0]))]
       (should= :moving (:mode unit))
       (should= [1 0] (:target unit))
-      (should= 3 (:steps-remaining unit)))))
+      (should= 3 (:steps-remaining unit))))
+
+  (it "clamps out-of-bounds targets to map edge"
+    (set-test-world! (build-test-map ["F##"]))
+    (set-test-unit atoms/game-map "F" :mode :awake :steps-remaining 3)
+    (movement/set-unit-movement [0 0] [99 99])
+    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+      (should= :moving (:mode unit))
+      (should= [2 0] (:target unit)))))
 
 (describe "move-current-unit"
   (before (reset-all-atoms!))

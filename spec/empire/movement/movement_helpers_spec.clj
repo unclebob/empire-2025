@@ -325,16 +325,16 @@
   (it "sets mode to moving with target"
     (set-test-world! (build-test-map ["A##"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
-    (set-unit-movement [0 0] [0 2])
+    (set-unit-movement [0 0] [2 0])
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :moving (:mode unit))
-      (should= [0 2] (:target unit))
+      (should= [2 0] (:target unit))
       (should-be-nil (:extended unit))))
 
   (it "sets extended flag when extended is true"
     (set-test-world! (build-test-map ["A##"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
-    (set-unit-movement [0 0] [0 2] true)
+    (set-unit-movement [0 0] [2 0] true)
     (let [unit (get-in @atoms/game-map [0 0 :contents])]
       (should= :moving (:mode unit))
       (should (:extended unit))))
@@ -342,7 +342,7 @@
   (it "does not set extended flag when extended is false"
     (set-test-world! (build-test-map ["A##"]))
     (set-test-unit atoms/game-map "A" :mode :awake)
-    (set-unit-movement [0 0] [0 2] false)
+    (set-unit-movement [0 0] [2 0] false)
     (should-be-nil (:extended (get-in @atoms/game-map [0 0 :contents])))))
 
 (describe "fighter landing"

@@ -245,6 +245,19 @@
                 (when mode
                   (should (#{:explore :drone} mode))))))))))
 
+  (context "exploration target bounds"
+    (it "clamps exploration flight target to map bounds"
+      (set-test-world! (build-test-map ["X##"
+                                        "###"
+                                        "###"]))
+      (update-test-world! assoc-in [0 0 :contents]
+             {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
+      (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))
+                    empire.computer.fighter-exploration/best-exploration-heading (fn [_ _] [-1 -1])]
+        ((ns-resolve 'empire.computer.fighter 'assign-exploration-flight) [0 0] [0 0])
+        (let [target (get-in @atoms/game-map [0 0 :contents :flight-target-site])]
+          (should= [0 0] target)))))
+
   (context "desperate patrol on low fuel (L524)"
     (it "patrols when no refueling site and low fuel"
       ;; Fighter with low fuel, no city or carrier anywhere

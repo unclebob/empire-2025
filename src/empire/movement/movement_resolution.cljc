@@ -27,6 +27,17 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
+(defn- clamp-to-map-bounds
+  "Clamps [x y] to the current map bounds."
+  [[x y]]
+  (let [world (current-world)
+        cols (count world)
+        rows (count (first world))
+        max-x (dec cols)
+        max-y (dec rows)]
+    [(-> x (max 0) (min max-x))
+     (-> y (max 0) (min max-y))]))
+
 (defn- blocked-by-friendly?
   "Returns true if the next cell contains a friendly unit (same owner)."
   [unit next-cell]
@@ -163,9 +174,10 @@
   ([unit-coords target-coords extended?]
    (let [first-cell (get-in (current-world) unit-coords)
          unit (:contents first-cell)
-         actual-target (if (= :satellite (:type unit))
-                         (satellite/calculate-satellite-target unit-coords target-coords)
-                         target-coords)
+         actual-target (-> (if (= :satellite (:type unit))
+                             (satellite/calculate-satellite-target unit-coords target-coords)
+                             target-coords)
+                           clamp-to-map-bounds)
          updated-contents (-> unit
                               (assoc :mode :moving :target actual-target)
                               (dissoc :reason :extended)

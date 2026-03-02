@@ -77,6 +77,17 @@
 
 (def ^:private sortie-half-steps 16)
 
+(defn- clamp-to-map-bounds
+  "Clamps [r c] to the current game-map bounds."
+  [[r c]]
+  (let [game-map (current-world)
+        height (count game-map)
+        width (count (first game-map))
+        max-r (dec height)
+        max-c (dec width)]
+    [(-> r (max 0) (min max-r))
+     (-> c (max 0) (min max-c))]))
+
 (defn- assign-exploration-flight
   "Assign exploration sortie or drone. Roll 1/20 for drone.
    Pick heading, set exploration fields, project endpoint."
@@ -85,8 +96,9 @@
         drone? (< (rand) 0.05)
         mode (if drone? :drone :explore)
         [dr dc] heading
-        endpoint [(+ (first pos) (* sortie-half-steps dr))
-                  (+ (second pos) (* sortie-half-steps dc))]]
+        endpoint (clamp-to-map-bounds
+                  [(+ (first pos) (* sortie-half-steps dr))
+                   (+ (second pos) (* sortie-half-steps dc))])]
     (update-game-map! update-in (conj pos :contents)
                       assoc :flight-mode mode
                       :explore-origin site-pos

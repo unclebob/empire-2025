@@ -1,7 +1,14 @@
+;; mutation-tested: 2026-03-01
 (ns empire.ui.util.rendering.display
   (:require [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.ui.util.rendering.format :as fmt]))
+
+(def ^:private default-cell-color [0 0 0])
+
+(defn- safe-color
+  [cell]
+  (or (config/color-of cell) default-cell-color))
 
 (defn resolve-display-map
   "Returns the appropriate map based on map-to-display keyword."
@@ -55,7 +62,7 @@
             total (config/item-cost item)
             remaining (:remaining-rounds prod)
             progress (/ (- total remaining) (double total))
-            base-color (config/color-of cell)
+            base-color (safe-color cell)
             dark-color (mapv #(* % 0.5) base-color)]
         {:prod-char (config/item-chars item)
          :progress progress
@@ -75,7 +82,7 @@
        (let [cell (get-in the-map [col row])]
          (if (= :unexplored (:type cell))
            acc
-           (let [color (config/color-of cell)
+           (let [color (safe-color cell)
                  current [col row]
                  should-flash-black (= current attention-cell)
                  completed? (and (= (:type cell) :city)

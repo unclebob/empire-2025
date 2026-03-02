@@ -104,6 +104,16 @@
       (should= 1 (count result))
       (should= 1 (count (get result [139 69 19])))))
 
+  (it "uses default color for nil cells instead of crashing"
+    (let [the-map [[nil]]
+          result (display/group-cells-by-color the-map nil {} false false)]
+      (should= 1 (count (get result [0 0 0])))))
+
+  (it "uses default color for unknown cell type instead of crashing"
+    (let [the-map [[{:type :mystery-cell}]]
+          result (display/group-cells-by-color the-map nil {} false false)]
+      (should= 1 (count (get result [0 0 0])))))
+
   (it "flashes attention cell black when blink-attention is true"
     (let [the-map [[{:type :land}]]
           result (display/group-cells-by-color the-map [[0 0]] {} true false)]
@@ -196,14 +206,22 @@
   (it "returns paused prefix when both paused and requested"
     (let [result (display/resolve-round-status-text 10 true true)]
       (should= "PAUSED  Round: 10" (:text result))
-      (should (:paused? result)))))
+      (should (:paused? result))))
+
+  (it "returns exact non-paused shape when both paused flags are false"
+    (should= {:text "Round: 9" :paused? false}
+             (display/resolve-round-status-text 9 false false))))
 
 (describe "should-show-error?"
   (it "returns true when error-until is in the future"
     (should (display/should-show-error? (+ (System/currentTimeMillis) 10000))))
 
   (it "returns false when error-until is in the past"
-    (should-not (display/should-show-error? (- (System/currentTimeMillis) 10000)))))
+    (should-not (display/should-show-error? (- (System/currentTimeMillis) 10000))))
+
+  (it "returns false when error-until equals current time"
+    (let [t (System/currentTimeMillis)]
+      (should-not (display/should-show-error? t)))))
 
 (describe "compute-hover-result"
   (it "returns hover message using player-map"
