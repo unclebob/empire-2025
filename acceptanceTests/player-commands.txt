@@ -96,3 +96,31 @@ GIVEN O is waiting for input.
 WHEN the mouse is at cell [0 0] and the player presses f.
 
 THEN cell [0 0] has flight-path [1 0].
+
+;===============================================================
+; Flight path clamps destination to right edge.
+;===============================================================
+GIVEN game map
+  ###
+  #O#
+  ###
+GIVEN destination [99 1].
+GIVEN O is waiting for input.
+
+WHEN the mouse is at cell [1 1] and the player presses f.
+
+THEN cell [1 1] has flight-path [2 1].
+
+;===============================================================
+; Flight path clamps destination to bottom edge.
+;===============================================================
+GIVEN game map
+  ###
+  #O#
+  ###
+GIVEN destination [1 99].
+GIVEN O is waiting for input.
+
+WHEN the mouse is at cell [1 1] and the player presses f.
+
+THEN cell [1 1] has flight-path [1 2].

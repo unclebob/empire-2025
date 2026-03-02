@@ -52,4 +52,48 @@
     (update-test-world! assoc-in [0 0 :contents]
                         {:type :army :owner :player :mode :awake :hits 1})
     (resolution/set-unit-movement [0 0] [2 0])
-    (should-be-nil (get-in @atoms/game-map [0 0 :contents :extended]))))
+    (should-be-nil (get-in @atoms/game-map [0 0 :contents :extended])))
+
+  (it "clamps out-of-bounds movement target to right edge"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~F~"
+                                      "~~~"]))
+    (let [cell (get-in @atoms/game-map [1 1])]
+      (should= [2 1] (:pos (resolution/move-unit [1 1] [99 1] cell atoms/game-map)))))
+
+  (it "clamps out-of-bounds movement target to left edge"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~F~"
+                                      "~~~"]))
+    (let [cell (get-in @atoms/game-map [1 1])]
+      (should= [0 1] (:pos (resolution/move-unit [1 1] [-99 1] cell atoms/game-map)))))
+
+  (it "clamps out-of-bounds movement target to top edge"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~F~"
+                                      "~~~"]))
+    (let [cell (get-in @atoms/game-map [1 1])]
+      (should= [1 0] (:pos (resolution/move-unit [1 1] [1 -99] cell atoms/game-map)))))
+
+  (it "clamps out-of-bounds movement target to bottom edge"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~F~"
+                                      "~~~"]))
+    (let [cell (get-in @atoms/game-map [1 1])]
+      (should= [1 2] (:pos (resolution/move-unit [1 1] [1 99] cell atoms/game-map)))))
+
+  (it "applies movement target clamping consistently across unit types"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~~~"
+                                      "~~~"]))
+    (doseq [unit-type [:army :fighter :battleship]]
+      (let [cell {:type :sea
+                  :contents {:type unit-type :owner :player :mode :moving :target [99 99] :steps-remaining 1}}]
+        (with-redefs [empire.containers.helpers/ship-can-dock? (constantly false)
+                      empire.movement.wake-conditions/wake-before-move (fn [u _] [u false])
+                      empire.movement.wake-conditions/wake-after-move (fn [u _ _ _] u)
+                      empire.movement.movement-execution/do-move (fn [& _] nil)]
+          (should= [0 1] (:pos (resolution/move-unit [1 1] [-99 1] cell atoms/game-map)))
+          (should= [2 1] (:pos (resolution/move-unit [1 1] [99 1] cell atoms/game-map)))
+          (should= [1 0] (:pos (resolution/move-unit [1 1] [1 -99] cell atoms/game-map)))
+          (should= [1 2] (:pos (resolution/move-unit [1 1] [1 99] cell atoms/game-map))))))))

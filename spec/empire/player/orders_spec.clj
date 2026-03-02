@@ -142,7 +142,7 @@
                                             "~~"]))
     (reset! atoms/destination [8 12])
     (should (orders/set-flight-path-at [0 0]))
-    (should= [8 12] (get-in @atoms/game-map [0 0 :flight-path]))
+    (should= [1 1] (get-in @atoms/game-map [0 0 :flight-path]))
     (should-be-nil @atoms/destination))
 
   (it "sets a turn message with flight path coordinates"
@@ -150,14 +150,14 @@
                                             "~~"]))
     (reset! atoms/destination [8 12])
     (orders/set-flight-path-at [0 0])
-    (should= "Flight path set to 8,12" @atoms/turn-message))
+    (should= "Flight path set to 1,1" @atoms/turn-message))
 
   (it "sets flight path on a player carrier when destination exists"
     (set-test-world! (build-test-map ["~C"
                                             "~~"]))
     (reset! atoms/destination [6 9])
     (should (orders/set-flight-path-at [1 0]))
-    (should= [6 9] (get-in @atoms/game-map [1 0 :contents :flight-path]))
+    (should= [1 1] (get-in @atoms/game-map [1 0 :contents :flight-path]))
     (should-be-nil @atoms/destination))
 
   (it "returns nil when no destination is set"
@@ -176,7 +176,39 @@
     (set-test-world! (build-test-map ["~c"
                                             "~~"]))
     (reset! atoms/destination [5 10])
-    (should-be-nil (orders/set-flight-path-at [1 0]))))
+    (should-be-nil (orders/set-flight-path-at [1 0])))
+
+  (it "clamps flight path destination to right edge"
+    (set-test-world! (build-test-map ["###"
+                                      "#O#"
+                                      "###"]))
+    (reset! atoms/destination [99 1])
+    (should (orders/set-flight-path-at [1 1]))
+    (should= [2 1] (get-in @atoms/game-map [1 1 :flight-path])))
+
+  (it "clamps flight path destination to left edge"
+    (set-test-world! (build-test-map ["###"
+                                      "#O#"
+                                      "###"]))
+    (reset! atoms/destination [-99 1])
+    (should (orders/set-flight-path-at [1 1]))
+    (should= [0 1] (get-in @atoms/game-map [1 1 :flight-path])))
+
+  (it "clamps flight path destination to top edge"
+    (set-test-world! (build-test-map ["###"
+                                      "#O#"
+                                      "###"]))
+    (reset! atoms/destination [1 -99])
+    (should (orders/set-flight-path-at [1 1]))
+    (should= [1 0] (get-in @atoms/game-map [1 1 :flight-path])))
+
+  (it "clamps flight path destination to bottom edge"
+    (set-test-world! (build-test-map ["###"
+                                      "#O#"
+                                      "###"]))
+    (reset! atoms/destination [1 99])
+    (should (orders/set-flight-path-at [1 1]))
+    (should= [1 2] (get-in @atoms/game-map [1 1 :flight-path]))))
 
 (describe "set-waypoint-at"
   (before (reset-all-atoms!))

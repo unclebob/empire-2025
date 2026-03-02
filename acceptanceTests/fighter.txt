@@ -122,6 +122,34 @@ WHEN a new round starts and F is waiting for input.
 THEN F is at [2 0].
 
 ;===============================================================
+; Fighter clamps out-of-bounds target to right edge.
+;===============================================================
+GIVEN game map
+  ~~~
+  ~F~
+  ~~~
+GIVEN F has mode moving.
+GIVEN F has target [99 1].
+
+WHEN a new round starts and F is waiting for input.
+
+THEN F is at [2 1].
+
+;===============================================================
+; Fighter clamps out-of-bounds target to bottom edge.
+;===============================================================
+GIVEN game map
+  ~~~
+  ~F~
+  ~~~
+GIVEN F has mode moving.
+GIVEN F has target [1 99].
+
+WHEN a new round starts and F is waiting for input.
+
+THEN F is at [1 2].
+
+;===============================================================
 ; Computer fighter hops over one friendly army.
 ; The fighter at [6 0] moves toward a distant target, hopping
 ; over the computer army at [7 0] and landing at [8 0], then
