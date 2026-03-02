@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.transport-unloading :as unloading]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-world!]]))
 
 (describe "transport-unloading"
   (before (reset-all-atoms!))
@@ -95,4 +95,23 @@
       (should (unloading/unload-armies [0 1] nil))
       (should= 0 (get-in @atoms/game-map [0 1 :contents :army-count]))
       (should= :sailing (get-in @atoms/game-map [0 1 :contents :transport-mission]))
-      (should= true (get-in @atoms/game-map [0 1 :contents :never-reload?])))))
+      (should= true (get-in @atoms/game-map [0 1 :contents :never-reload?]))))
+
+  (context "pickup-continent exclusion"
+    (it "does not unload onto the same pickup landmass even when country-ids differ"
+      (set-test-world! (build-test-map ["###"
+                                        "#t#"
+                                        "###"]))
+      (set-test-computer-map! (build-test-map ["###"
+                                               "#t#"
+                                               "###"]))
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :transport :owner :computer
+                          :army-count 3
+                          :country-id 1
+                          :pickup-continent-pos [0 0]})
+      ;; Simulate drifted country-ids on the same landmass.
+      (doseq [p [[0 1] [1 0] [1 2] [2 1]]]
+        (update-test-world! assoc-in (conj p :country-id) 15))
+      (should-be-nil (unloading/try-opportunistic-unload [1 1]))
+      (should= 3 (get-in @atoms/game-map [1 1 :contents :army-count])))))

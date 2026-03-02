@@ -151,7 +151,7 @@
              {:type :transport :owner :computer
               :transport-mission :unloading :army-count 2
               :country-id 1
-              :pickup-continent-pos [0 0]})
+              :pickup-country-id 1})
       (transport/process-transport [0 1])
       ;; Transport crawls toward unloadable coast and unloads immediately on arrival.
       (should-be-nil (:contents (get-in @atoms/game-map [0 1])))
@@ -801,7 +801,7 @@
              {:type :transport :owner :computer
               :transport-mission :unloading :army-count 2
               :country-id 1
-              :pickup-continent-pos [0 0]})
+              :pickup-country-id 1})
       (with-redefs [rand (constantly 0.0)]
         (transport/process-transport [1 1]))
       ;; Transport should have crawled rightward (speed 2)
@@ -824,7 +824,7 @@
                          {:type :transport :owner :computer
                           :transport-mission :unloading :army-count 1
                           :country-id 1
-                          :pickup-continent-pos [0 0]})
+                          :pickup-country-id 1})
       (transport/process-transport [0 1])
       ;; Same round unload should happen at [2,0] after first crawl step.
       (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
@@ -1141,6 +1141,7 @@
                 :transport-mission :loading :army-count 6
                 :country-id 1 :transport-id 1
                 :hits 1 :been-to-sea true :awake-armies 0})
+        (reset! atoms/transport-fully-loaded? false)
         (should= false @atoms/transport-fully-loaded?)
         (transport/process-transport [1 0])
         (should= true @atoms/transport-fully-loaded?)))

@@ -59,12 +59,12 @@
         nil))
 
 (defn- pickup-continent-if-needed
-  "Returns the pickup continent set only when country-id exclusion is
-   insufficient (no country-id at pickup pos). Uses cached flood-fill."
+  "Returns the pickup continent set for pickup-continent-pos using cached flood-fill.
+   Always prefer geography-based exclusion to avoid load/unload loops when
+   country-id stamping changes on the same landmass."
   [transport]
   (when-let [pcp (:pickup-continent-pos transport)]
-    (when-not (:country-id (get-in (current-world) pcp))
-      (land-objectives/flood-fill-continent pcp))))
+    (land-objectives/flood-fill-continent pcp)))
 
 (defn- unloadable-land-cell?
   "Returns true if cell is empty land/city not excluded by country-id or pickup continent."
