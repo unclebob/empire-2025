@@ -10,16 +10,57 @@
             [empire.computer.threat-response.processing :as processing]
             [empire.computer.ship-core :as ship-core]
             [empire.config :as config]
+            [empire.debug.profile :as profile]
             [empire.domain.ai.threat-policy :as threat-policy]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
 
 (def ^:private threat-radius threat-policy/threat-radius)
+(def ^:private major-invasion-unload-radius 2)
 
 (def ^:private major-invasion-ship-types
   #{:patrol-boat :destroyer :submarine :carrier :battleship})
 
+(def ^:private computer-sea-unit-types
+  (conj major-invasion-ship-types :transport))
+(def ^:private max-invasion-coastal-candidates 24)
+
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
+
+(declare recompute-sea-reachable-detection-points!)
+
+(defn profile-snapshot
+  []
+  (profile/profile-snapshot))
+
+(defn reset-profile!
+  []
+  (profile/reset-profile!))
+
+(defn start-invasion-profile!
+  [round-number]
+  (profile/start! round-number))
+
+(defn write-profile!
+  "Writes current profiling snapshot to disk as EDN and returns absolute file path.
+   Default output directory is `saves`."
+  ([] (profile/write! "saves"))
+  ([dir-path] (profile/write! dir-path)))
+
+(defn tick-profile-round!
+  "Advances the active profiling session using current round number.
+   Returns output path once ten rounds from profile start have elapsed."
+  [round-number]
+  (profile/tick-round! round-number))
+
+(defn finalize-profile!
+  "Writes profile immediately when a session is running and returns output path."
+  []
+  (profile/finalize!))
+
+(defn consume-profile-exit-request!
+  []
+  (profile/consume-exit-request!))
 
 (defn- update-game-map!
   [f & args]
@@ -61,11 +102,20 @@
 
 (defn- recompute-major-invasion-target-land!
   []
-  (let [state (load-major-invasion-state)
-        target-land (invasion-state/recompute-target-land
-                     (current-world)
-                     (:detection-points state))]
-    (update-major-invasion-state! assoc :target-land-set target-land)))
+  (let [timer (profile/begin :threat/recompute-target-land)]
+    (let [state (load-major-invasion-state)
+          target-land (invasion-state/recompute-target-land
+                       (current-world)
+                       (:detection-points state))
+          current-target-land (:target-land-set state)
+          changed? (not= current-target-land target-land)
+          next-revision (if changed?
+                          (inc (or (:target-land-revision state) 0))
+                          (or (:target-land-revision state) 0))]
+      (update-major-invasion-state! assoc
+                                    :target-land-set target-land
+                                    :target-land-revision next-revision))
+    (profile/end! timer)))
 
 (defn- find-computer-unit-positions
   [pred]
@@ -91,11 +141,23 @@
 
 (defn- activate-major-invasion!
   [pos]
-  (update-major-invasion-state!
-   invasion-state/activate-state
-   pos
-   (read-runtime-state :round-number))
-  (recompute-major-invasion-target-land!))
+  (let [state (load-major-invasion-state)
+        nearby-existing? (some #(<= (core/chebyshev-distance pos %) 2)
+                               (:detection-points state))
+        should-add? (or (not (:active? state))
+                        (not nearby-existing?))]
+    ;; Start targeted profiling exactly when major invasion first activates.
+    (when (and should-add? (not (:active? state)))
+      (start-invasion-profile! (read-runtime-state :round-number)))
+    (let [timer (profile/begin :threat/activate-major-invasion)]
+      (when should-add?
+        (update-major-invasion-state!
+         invasion-state/activate-state
+         pos
+         (read-runtime-state :round-number))
+        (recompute-major-invasion-target-land!)
+        (recompute-sea-reachable-detection-points!))
+      (profile/end! timer))))
 
 (defn- handle-fighter-detection!
   [pos]
@@ -116,10 +178,13 @@
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
-  (case (threat-policy/detection-trigger game-cell)
-    :fighter-detected (handle-fighter-detection! pos)
-    :ship-detected (handle-ship-detection! pos)
-    :major-invasion-trigger (activate-major-invasion! pos)
+  (let [timer (profile/begin :threat/handle-detection)]
+    (case (threat-policy/detection-trigger game-cell)
+      :fighter-detected (handle-fighter-detection! pos)
+      :ship-detected (handle-ship-detection! pos)
+      :major-invasion-trigger (activate-major-invasion! pos)
+      nil)
+    (profile/end! timer)
     nil))
 
 (defn- dec-threat-rounds
@@ -130,25 +195,182 @@
   [pos]
   (invasion-state/nearest-target (load-major-invasion-state) pos))
 
+(defn- target-land-candidates-within-radius*
+  [state target]
+  (let [candidates (filter #(<= (core/chebyshev-distance % target) major-invasion-unload-radius)
+                           (:target-land-set state))]
+    (if (seq candidates)
+      candidates
+      [target])))
+
+(defn- coastal-land?
+  [computer-map land-pos]
+  (some (fn [n]
+          (= :sea (get-in computer-map (conj n :type))))
+        (core/get-neighbors land-pos)))
+
+(defn- connected-target-land
+  [computer-map state target]
+  (or (invasion-state/flood-fill-land computer-map target)
+      (set (target-land-candidates-within-radius* state target))))
+
+(defn- connected-coastal-candidates
+  [computer-map state target]
+  (let [connected-land (connected-target-land computer-map state target)
+        coastal (filter #(coastal-land? computer-map %) connected-land)]
+    (if (seq coastal)
+      coastal
+      (target-land-candidates-within-radius* state target))))
+
+(defn- flood-sea-reachable
+  [computer-map starts]
+  (loop [queue (into clojure.lang.PersistentQueue/EMPTY starts)
+         visited (set starts)]
+    (if (empty? queue)
+      visited
+      (let [current (peek queue)
+            rest-queue (pop queue)
+            sea-neighbors (for [n (core/get-neighbors current)
+                                :let [cell (get-in computer-map n)]
+                                :when (and cell
+                                           (= :sea (:type cell))
+                                           (not (contains? visited n)))]
+                            n)]
+        (recur (into rest-queue sea-neighbors)
+               (into visited sea-neighbors))))))
+
+(defn- reachable-sea-set
+  [computer-map]
+  (let [starts (for [i (range (count computer-map))
+                     j (range (count (first computer-map)))
+                     :let [unit (get-in computer-map [i j :contents])]
+                     :when (and unit
+                                (= :computer (:owner unit))
+                                (computer-sea-unit-types (:type unit))
+                                (= :sea (get-in computer-map [i j :type])))]
+                 [i j])]
+    (if (seq starts)
+      (flood-sea-reachable computer-map starts)
+      #{})))
+
+(defn- land-has-reachable-sea-neighbor?
+  [computer-map reachable-sea land-pos]
+  (some (fn [n]
+          (let [cell (get-in computer-map n)]
+            (and cell
+                 (= :sea (:type cell))
+                 (contains? reachable-sea n))))
+        (core/get-neighbors land-pos)))
+
+(defn- sea-reachable-detection-points
+  [state computer-map]
+  (let [reachable-sea (reachable-sea-set computer-map)]
+    (if (empty? reachable-sea)
+      #{}
+      (set (filter (fn [target]
+                     (some #(land-has-reachable-sea-neighbor? computer-map reachable-sea %)
+                           (connected-coastal-candidates computer-map state target)))
+                   (:detection-points state))))))
+
+(defn- recompute-sea-reachable-detection-points!
+  []
+  (let [state (load-major-invasion-state)
+        computer-map (read-runtime-state :computer-map)
+        sea-reachable (sea-reachable-detection-points state computer-map)]
+    (update-major-invasion-state! assoc :sea-reachable-detection-points sea-reachable)))
+
+(defn- nearest-major-sea-target
+  [pos]
+  (let [state (load-major-invasion-state)
+        sea-points (:sea-reachable-detection-points state ::unset)]
+    (cond
+      (= ::unset sea-points)
+      (invasion-state/nearest-target state pos)
+
+      (seq sea-points)
+      (apply min-key #(core/distance pos %) sea-points)
+
+      :else nil)))
+
+(defn- best-invasion-target-and-path
+  [pos target]
+  (let [state (load-major-invasion-state)
+        computer-map (read-runtime-state :computer-map)
+        candidates (->> (connected-coastal-candidates computer-map state target)
+                        (sort-by (fn [candidate]
+                                   [(core/chebyshev-distance candidate target)
+                                    candidate]))
+                        (take max-invasion-coastal-candidates))
+        scored (keep (fn [candidate]
+                       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target pos candidate computer-map)]
+                         {:target candidate
+                          :path (vec path)
+                          :score [(count path)
+                                  (core/chebyshev-distance candidate target)
+                                  candidate]}))
+                     candidates)]
+    (when (seq scored)
+      (let [{:keys [target path]} (first (sort-by :score scored))]
+        {:target target :path path}))))
+
+(defn- current-target-land-revision
+  []
+  (or (:target-land-revision (load-major-invasion-state)) 0))
+
+(defn- valid-invasion-plan?
+  [pos unit target-revision]
+  (and (= :invading (:transport-mission unit))
+       (seq (:invasion-path unit))
+       (= pos (:invasion-path-origin unit))
+       (= target-revision (:invasion-plan-revision unit))))
+
 (defn- prepare-transport-major-invasion!
   [pos unit]
   (let [army-count (:army-count unit 0)
         target (nearest-major-target pos)
-        mission (:transport-mission unit)]
-    (when target
+        mission (:transport-mission unit)
+        target-revision (current-target-land-revision)]
+    (if target
+      (do
+        (update-game-map! update-in (conj pos :contents)
+                          assoc :major-invasion true :major-invasion-target target)
+        (when (and (not (zero? army-count))
+                   (not= mission :unloading)
+                   (not (valid-invasion-plan? pos unit target-revision)))
+          (let [{actual-target :target path :path}
+                (or (best-invasion-target-and-path pos target)
+                    {:target target :path nil})]
+            (when (some? path)
+              (if (empty? path)
+                (update-game-map! update-in (conj pos :contents)
+                                  assoc :transport-mission :unloading
+                                  :invasion-target actual-target
+                                  :invasion-plan-revision target-revision
+                                  :invasion-path-origin pos)
+                (update-game-map! update-in (conj pos :contents)
+                                  assoc :transport-mission :invading
+                                  :invasion-target actual-target
+                                  :invasion-path path
+                                  :invasion-plan-revision target-revision
+                                  :invasion-path-origin pos))))))
+      ;; No invasion objective: clear stale invasion routing.
       (update-game-map! update-in (conj pos :contents)
-                        assoc :major-invasion true :major-invasion-target target))
+                        (fn [transport]
+                          (let [transport' (-> transport
+                                               (assoc :major-invasion true
+                                                      :major-invasion-target nil)
+                                               (dissoc :invasion-target
+                                                       :invasion-path
+                                                       :invasion-plan-revision
+                                                       :invasion-path-origin))]
+                            (if (= :invading (:transport-mission transport'))
+                              (assoc transport' :transport-mission :sailing)
+                              transport')))))
     (cond
       (zero? army-count)
       (update-game-map! update-in (conj pos :contents)
                         assoc :transport-mission :loading)
-
-      (and target (not= mission :unloading))
-      (when-let [path (pathfinding-bfs/bfs-to-land-ho-target pos target (read-runtime-state :computer-map))]
-        (update-game-map! update-in (conj pos :contents)
-                          assoc :transport-mission :invading
-                          :invasion-target target
-                          :invasion-path (vec path))))))
+      :else nil)))
 
 (defn refresh-major-invasion-assignments!
   "Applies major-invasion tags/targets to all mobilized computer units."
@@ -178,6 +400,8 @@
 (defn on-round-start!
   "Round-start maintenance for threat responses."
   []
+  (when-let [path (tick-profile-round! (read-runtime-state :round-number))]
+    (println (str "Profile written: " path)))
   ;; Tick temporary fighter/ship response timers.
   (let [game-map (current-world)]
     (doseq [i (range (count game-map))
@@ -190,6 +414,7 @@
   ;; Recompute invasion theater and refresh global mobilization tags each round.
   (when (major-invasion-active?)
     (recompute-major-invasion-target-land!)
+    (recompute-sea-reachable-detection-points!)
     (refresh-major-invasion-assignments!)))
 
 (defn prepare-transport!
@@ -228,7 +453,8 @@
    Returns true when handled."
   [pos ship-type unit]
   (processing/process-ship-threat
-   {:nearest-major-target nearest-major-target
+   {:current-world current-world
+    :nearest-major-target nearest-major-target
     :threat-radius threat-radius}
    pos
    ship-type

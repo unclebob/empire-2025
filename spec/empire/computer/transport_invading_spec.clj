@@ -27,7 +27,8 @@
         (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
         (let [transport (get-in @atoms/game-map [0 2 :contents])]
           (should= :invading (:transport-mission transport))
-          (should= [[0 3]] (:invasion-path transport))))))
+          (should= [[0 3]] (:invasion-path transport))
+          (should= [0 2] (:invasion-path-origin transport))))))
 
   (context "when path is exhausted"
     (it "transitions to unloading mode"
@@ -49,4 +50,5 @@
         (transport/process-transport [0 0])
         ;; Should have moved to [0 1] and transitioned to unloading
         (let [transport (get-in @atoms/game-map [0 1 :contents])]
-          (should= :unloading (:transport-mission transport)))))))
+          (should= :unloading (:transport-mission transport))
+          (should-be-nil (:invasion-path-origin transport)))))))

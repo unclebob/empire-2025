@@ -65,7 +65,7 @@ WHEN cell visibility updates for t.
 WHEN a new round starts.
 
 THEN t has major-invasion true.
-THEN t has transport-mission invading.
+THEN t has transport-mission unloading.
 THEN t has invasion-target [2 1].
 
 ;===============================================================
@@ -84,7 +84,6 @@ WHEN cell visibility updates for t.
 WHEN a new round starts.
 
 THEN t has major-invasion true.
-THEN t has transport-mission unloading.
 
 ;===============================================================
 ; Major invasion transport unloads on invasion-connected land.
@@ -127,3 +126,43 @@ THEN d has major-invasion true.
 THEN s has major-invasion true.
 THEN c has major-invasion true.
 THEN f has major-invasion true.
+
+;===============================================================
+; Major invasion chooses unload target within radius 2 of detection.
+;===============================================================
+GIVEN game map
+  ~~~~~
+  ~###~
+  ~#O#~
+  t~~~~
+  ~~~~~
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  .....
+  .....
+  .....
+  .....
+  .....
+
+WHEN cell visibility updates for t.
+WHEN computer transport t is processed.
+
+THEN there is a a at [1 2].
+THEN t has 3 armies.
+
+;===============================================================
+; Major invasion patrol boat yields to nearby invading transport.
+;===============================================================
+GIVEN game map
+  ~~~
+  tp~
+  ~~~
+GIVEN p has major-invasion true.
+GIVEN p has major-invasion-target [1 1].
+GIVEN t has major-invasion true.
+GIVEN t has transport-mission invading.
+
+WHEN computer patrol-boat p is processed.
+
+THEN p is at [2 0].

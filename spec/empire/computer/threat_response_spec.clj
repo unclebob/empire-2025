@@ -1,6 +1,7 @@
 (ns empire.computer.threat-response-spec
   (:require [speclj.core :refer :all]
             [empire.atoms :as atoms]
+            [empire.computer.core :as core]
             [empire.computer.threat-response :as threat-response]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
@@ -76,13 +77,67 @@
         (should (seq (:invasion-path transport))))
       (should (threat-response/major-invasion-target-land? [1 2]))))
 
+  (it "selects a radius-2 invasion unload target when it yields a shorter approach"
+    (let [gm (build-test-map ["~~~~~"
+                              "~###~"
+                              "~#O#~"
+                              "t~~~~"
+                              "~~~~~"])]
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
+      (update-test-world! assoc-in [0 3 :contents :army-count] 4)
+      (update-test-world! assoc-in [0 3 :contents :transport-mission] :sailing)
+      (threat-response/handle-detection! [2 2] (get-in @atoms/game-map [2 2]))
+      (threat-response/refresh-major-invasion-assignments!)
+      (let [transport (get-in @atoms/game-map [0 3 :contents])]
+        (should= :unloading (:transport-mission transport))
+        (should= [1 2] (:invasion-target transport))
+        (should-be-nil (:invasion-path transport)))))
+
   (it "ignores non-threat detections"
     (let [gm (build-test-map ["~~~"])]
       (set-test-world! gm)
       (set-test-computer-map! gm)
       (should-be-nil
        (threat-response/handle-detection! [0 0] (get-in @atoms/game-map [0 0])))
-      (should-not (:active? @atoms/major-invasion-state)))))
+      (should-not (:active? @atoms/major-invasion-state))))
+
+  (it "coalesces nearby major invasion detections to avoid repeated recompute"
+    (let [recompute-count (atom 0)
+          city-cell {:type :city :city-status :player}]
+      (with-redefs [empire.computer.threat-response/recompute-major-invasion-target-land!
+                    (fn [] (swap! recompute-count inc))]
+        (threat-response/handle-detection! [10 10] city-cell)
+        (threat-response/handle-detection! [11 10] city-cell)
+        (threat-response/handle-detection! [20 20] city-cell))
+      (should= 2 @recompute-count)
+      (should= 2 (count (:detection-points @atoms/major-invasion-state)))))
+
+  (it "assigns naval invasion pathing toward coastal staging when city is not directly sea-reachable"
+    (let [gm (build-test-map ["t~~~~~~"
+                              "#######"
+                              "#~~~~~#"
+                              "#~#O#~#"
+                              "#~~~~~#"
+                              "#######"
+                              "~~~~~~~"])
+          bfs-calls (atom 0)]
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
+      (update-test-world! assoc-in [0 0 :contents :army-count] 4)
+      (update-test-world! assoc-in [0 0 :contents :transport-mission] :sailing)
+      (reset! atoms/major-invasion-state {:active? true
+                                          :detection-points [[3 3]]
+                                          :target-land-set #{[3 3]}
+                                          :sea-reachable-detection-points #{}
+                                          :target-land-revision 1})
+      (with-redefs [empire.movement.pathfinding-bfs/bfs-to-land-ho-target
+                    (fn [& _]
+                      (swap! bfs-calls inc)
+                      nil)]
+        (threat-response/refresh-major-invasion-assignments!))
+      (should (< 0 @bfs-calls))
+      (should= :sailing (get-in @atoms/game-map [0 0 :contents :transport-mission])))))
 
 (describe "fighter-step-threat"
   (before (reset-all-atoms!))
@@ -194,7 +249,57 @@
         (should
          (threat-response/process-ship-threat
           [0 0] :destroyer {:major-invasion true}))
-        (should @explored?)))))
+        (should @explored?))))
+
+  (it "moves major-invasion ship toward detection point even when direct sea access is unavailable"
+    (reset! atoms/major-invasion-state
+            {:active? true
+             :detection-points [[3 3]]
+             :sea-reachable-detection-points #{}
+             :target-land-set #{}
+             :started-round 1})
+    (let [moved? (atom false)
+          explored? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ _] (reset! moved? true) :moved)
+                    empire.computer.ship-core/explore-sea (fn [_ _] (reset! explored? true) :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :destroyer {:major-invasion true :major-invasion-target [3 3]}))
+        (should @moved?)
+        (should-not @explored?))))
+
+  (it "makes patrol boats yield away from nearby invading transports"
+    (set-test-world! (build-test-map ["~~~"
+                                      "tp~"
+                                      "~~~"]))
+    (set-test-computer-map! @atoms/game-map)
+    (update-test-world! assoc-in [0 1 :contents :major-invasion] true)
+    (update-test-world! assoc-in [0 1 :contents :transport-mission] :invading)
+    (let [move-called? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [& _] (reset! move-called? true) nil)
+                    empire.computer.ship-core/explore-sea (fn [& _] (reset! move-called? true) nil)]
+        (should
+         (threat-response/process-ship-threat
+          [1 1] :patrol-boat {:major-invasion true :major-invasion-target [1 1]}))
+        (should-not @move-called?)))
+    (let [patrol-pos (first (for [x (range 3)
+                                  y (range 3)
+                                  :when (= :patrol-boat (get-in @atoms/game-map [x y :contents :type]))]
+                              [x y]))]
+      (should-not= [1 1] patrol-pos)
+      (should (> (core/distance patrol-pos [0 1]) 1)))))
+
+  (it "does not run explore BFS for major-invasion patrol boats when move fails"
+    (let [explored? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ _] nil)
+                    empire.computer.ship-core/explore-sea (fn [& _] (reset! explored? true) :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :patrol-boat {:major-invasion true :major-invasion-target [0 0]}))
+        (should-not @explored?))))
 
 (describe "process-fighter-threat"
   (before (reset-all-atoms!))
@@ -235,6 +340,61 @@
         (should (threat-response/prepare-transport! [0 0]))
         (should= [[0 0] :transport] @called)))))
 
+(describe "prepare-transport-major-invasion!"
+  (before (reset-all-atoms!))
+
+  (it "reuses existing invasion plan when position and target revision are unchanged"
+    (set-test-world! (build-test-map ["t~"
+                                      "~O"]))
+    (set-test-computer-map! @atoms/game-map)
+    (reset! atoms/major-invasion-state {:active? true
+                                        :detection-points [[1 1]]
+                                        :target-land-set #{[1 1]}
+                                        :sea-reachable-detection-points #{[1 1]}
+                                        :target-land-revision 7})
+    (update-test-world! assoc-in [0 0 :contents]
+                        {:type :transport :owner :computer :army-count 4
+                         :transport-mission :invading
+                         :invasion-target [1 1]
+                         :invasion-path [[0 1]]
+                         :invasion-path-origin [0 0]
+                         :invasion-plan-revision 7})
+    (let [called? (atom false)
+          unit (get-in @atoms/game-map [0 0 :contents])]
+      (with-redefs [empire.computer.threat-response/best-invasion-target-and-path
+                    (fn [& _] (reset! called? true) {:target [1 1] :path [[0 1]]})]
+        (@#'threat-response/prepare-transport-major-invasion! [0 0] unit))
+      (should-not @called?)
+      (should= [[0 1]] (get-in @atoms/game-map [0 0 :contents :invasion-path]))))
+
+  (it "recomputes invasion plan when target revision changes"
+    (set-test-world! (build-test-map ["t~"
+                                      "~O"]))
+    (set-test-computer-map! @atoms/game-map)
+    (reset! atoms/major-invasion-state {:active? true
+                                        :detection-points [[1 1]]
+                                        :target-land-set #{[1 1]}
+                                        :sea-reachable-detection-points #{[1 1]}
+                                        :target-land-revision 9})
+    (update-test-world! assoc-in [0 0 :contents]
+                        {:type :transport :owner :computer :army-count 4
+                         :transport-mission :invading
+                         :invasion-target [1 1]
+                         :invasion-path [[0 1]]
+                         :invasion-path-origin [0 0]
+                         :invasion-plan-revision 8})
+    (let [calls (atom 0)
+          unit (get-in @atoms/game-map [0 0 :contents])]
+      (with-redefs [empire.computer.threat-response/nearest-major-sea-target (fn [_] [1 1])
+                    empire.computer.threat-response/best-invasion-target-and-path
+                    (fn [& _]
+                      (swap! calls inc)
+                      {:target [1 1] :path [[1 0] [1 1]]})]
+        (@#'threat-response/prepare-transport-major-invasion! [0 0] unit))
+      (should= 1 @calls)
+      (should= 9 (get-in @atoms/game-map [0 0 :contents :invasion-plan-revision]))
+      (should= [0 0] (get-in @atoms/game-map [0 0 :contents :invasion-path-origin])))))
+
 (describe "refresh-major-invasion-assignments!"
   (before (reset-all-atoms!))
 
@@ -248,9 +408,12 @@
 
   (it "marks fighters and major ship types; delegates transports"
     (set-test-world! (build-test-map ["fpta"]))
-    (reset! atoms/major-invasion-state {:active? true :detection-points [[3 3]] :target-land-set #{}})
+    (reset! atoms/major-invasion-state {:active? true
+                                        :detection-points [[3 3]]
+                                        :sea-reachable-detection-points #{[3 3]}
+                                        :target-land-set #{}})
     (let [transport-calls (atom [])]
-      (with-redefs [empire.computer.threat-response/nearest-major-target (fn [_] [3 3])
+      (with-redefs [empire.computer.threat-response/nearest-major-sea-target (fn [_] [3 3])
                     empire.computer.threat-response/prepare-transport-major-invasion!
                     (fn [pos unit] (swap! transport-calls conj [pos (:type unit)]))]
         (threat-response/refresh-major-invasion-assignments!)

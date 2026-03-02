@@ -120,7 +120,8 @@
             (visibility/update-cell-visibility pos :computer)
             (visibility/update-cell-visibility step1 :computer)
             (if (empty? remaining1)
-              (do (update-game-map! update-in (conj step1 :contents) dissoc :invasion-path)
+              (do (update-game-map! update-in (conj step1 :contents)
+                                    dissoc :invasion-path :invasion-path-origin)
                   (tc/set-transport-mission step1 :unloading))
               (let [step2 (first remaining1)
                     remaining2 (vec (rest remaining1))]
@@ -129,11 +130,14 @@
                     (visibility/update-cell-visibility step1 :computer)
                     (visibility/update-cell-visibility step2 :computer)
                     (if (empty? remaining2)
-                      (do (update-game-map! update-in (conj step2 :contents) dissoc :invasion-path)
+                      (do (update-game-map! update-in (conj step2 :contents)
+                                            dissoc :invasion-path :invasion-path-origin)
                           (tc/set-transport-mission step2 :unloading))
-                      (update-game-map! assoc-in
-                                        (conj step2 :contents :invasion-path) remaining2)))
-                  (update-game-map! assoc-in
-                                    (conj step1 :contents :invasion-path) remaining1)))))
+                      (update-game-map! update-in (conj step2 :contents)
+                                        assoc :invasion-path remaining2
+                                        :invasion-path-origin step2)))
+                  (update-game-map! update-in (conj step1 :contents)
+                                    assoc :invasion-path remaining1
+                                    :invasion-path-origin step1)))))
           ;; Blocked — keep path for retry next round
           nil)))))
