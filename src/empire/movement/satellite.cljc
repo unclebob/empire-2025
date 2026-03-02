@@ -76,15 +76,20 @@
   (or (= :city (:type cell))
       (some? (:contents cell))))
 
+(defn- in-bounds?
+  [[x y] map-height map-width]
+  (and (>= x 0) (< x map-height) (>= y 0) (< y map-width)))
+
 (defn- find-open-cell
-  "Scans from [nx ny] in direction [dx dy] for the first non-blocked cell.
-   Returns the position or nil if none found before the map boundary."
+  "Scans from [nx ny] in direction [dx dy] for first non-blocked cell.
+   Returns {:dest [x y]} or {:hit-edge true} if blocked chain runs off-map."
   [[nx ny] [dx dy] map-height map-width]
   (loop [cx nx cy ny]
-    (cond
-      (or (< cx 0) (>= cx map-height) (< cy 0) (>= cy map-width)) nil
-      (blocked-cell? (get-in (current-world) [cx cy])) (recur (+ cx dx) (+ cy dy))
-      :else [cx cy])))
+    (let [pos [cx cy]]
+      (cond
+        (not (in-bounds? pos map-height map-width)) {:hit-edge true}
+        (blocked-cell? (get-in (current-world) pos)) (recur (+ cx dx) (+ cy dy))
+        :else {:dest pos}))))
 
 (defn- bounce-direction
   "Returns a random direction vector pointing away from the map edge.
@@ -119,25 +124,31 @@
         ny (+ y dy)
         map-height (count world)
         map-width (count (first world))]
-    (if (and (>= nx 0) (< nx map-height) (>= ny 0) (< ny map-width))
-      (if-let [dest (find-open-cell [nx ny] [dx dy] map-height map-width)]
-        (do (update-game-map! assoc-in [x y :contents] nil)
-            (update-game-map! assoc-in (conj dest :contents) satellite)
-            (visibility/update-cell-visibility dest (:owner satellite))
-            dest)
-        [x y])
-      (if-let [new-dir (bounce-direction [x y] map-height map-width)]
-        (let [[bx by] new-dir
-              dest-x (+ x bx)
-              dest-y (+ y by)
-              updated (assoc satellite :direction new-dir)]
-          (if (blocked-cell? (get-in world [dest-x dest-y]))
-            [x y]
-            (do (update-game-map! assoc-in [x y :contents] nil)
-                (update-game-map! assoc-in [dest-x dest-y :contents] updated)
-                (visibility/update-cell-visibility [dest-x dest-y] (:owner satellite))
-                [dest-x dest-y])))
-        [x y]))))
+    (letfn [(bounce []
+              (if-let [new-dir (bounce-direction [x y] map-height map-width)]
+                (let [[bx by] new-dir
+                      dest [(+ x bx) (+ y by)]
+                      updated (assoc satellite :direction new-dir)]
+                  (if (or (not (in-bounds? dest map-height map-width))
+                          (blocked-cell? (get-in world dest)))
+                    [x y]
+                    (do (update-game-map! assoc-in [x y :contents] nil)
+                        (update-game-map! assoc-in (conj dest :contents) updated)
+                        (visibility/update-cell-visibility [x y] (:owner satellite))
+                        (visibility/update-cell-visibility dest (:owner satellite))
+                        dest)))
+                [x y]))]
+      (if (in-bounds? [nx ny] map-height map-width)
+        (let [{:keys [dest hit-edge]} (find-open-cell [nx ny] [dx dy] map-height map-width)]
+          (cond
+            dest (do (update-game-map! assoc-in [x y :contents] nil)
+                     (update-game-map! assoc-in (conj dest :contents) satellite)
+                     (visibility/update-cell-visibility [x y] (:owner satellite))
+                     (visibility/update-cell-visibility dest (:owner satellite))
+                     dest)
+            hit-edge (bounce)
+            :else [x y]))
+        (bounce)))))
 
 (defn move-satellite
   "Moves a satellite one step toward its target.
@@ -169,9 +180,21 @@
               (let [dx (Integer/signum (- tx x))
                     dy (Integer/signum (- ty y))
                     next-pos [(+ x dx) (+ y dy)]]
-                (if-let [dest (find-open-cell next-pos [dx dy] map-height map-width)]
-                  (do (update-game-map! assoc-in [x y :contents] nil)
-                      (update-game-map! assoc-in (conj dest :contents) satellite)
-                      (visibility/update-cell-visibility dest (:owner satellite))
-                      dest)
-                  [x y])))))))))
+                (let [{:keys [dest hit-edge]} (find-open-cell next-pos [dx dy] map-height map-width)]
+                  (cond
+                    dest
+                    (do (update-game-map! assoc-in [x y :contents] nil)
+                        (update-game-map! assoc-in (conj dest :contents) satellite)
+                        (visibility/update-cell-visibility [x y] (:owner satellite))
+                        (visibility/update-cell-visibility dest (:owner satellite))
+                        dest)
+
+                    hit-edge
+                    (let [edge (extend-to-boundary [x y] [dx dy] map-height map-width)
+                          new-target (calculate-new-satellite-target edge map-height map-width)
+                          updated-satellite (assoc satellite :target new-target)]
+                      (update-game-map! assoc-in [x y :contents] updated-satellite)
+                      (visibility/update-cell-visibility [x y] (:owner satellite))
+                      [x y])
+
+                    :else [x y]))))))))))

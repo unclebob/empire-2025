@@ -107,7 +107,8 @@
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
                        (and unit
-                            (= :player (:owner unit)))))
+                            (= :player (:owner unit))
+                            (not= :satellite (:type unit)))))
                    (core/get-neighbors pos)))))
 
 (defn attack-enemy

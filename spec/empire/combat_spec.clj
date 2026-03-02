@@ -232,6 +232,18 @@
       (set-test-unit atoms/game-map "A2" :hits 1)
       (should= false (combat/attempt-attack [0 0] [1 0])))
 
+    (it "returns false when defender is a satellite"
+      (set-test-world! (build-test-map ["Av"]))
+      (set-test-unit atoms/game-map "A" :hits 1)
+      (set-test-unit atoms/game-map "v" :hits 1)
+      (should= false (combat/attempt-attack [0 0] [1 0])))
+
+    (it "returns false when attacker is a satellite"
+      (set-test-world! (build-test-map ["Va"]))
+      (set-test-unit atoms/game-map "V" :hits 1)
+      (set-test-unit atoms/game-map "a" :hits 1)
+      (should= false (combat/attempt-attack [0 0] [1 0])))
+
     (it "returns true when attacking enemy unit"
       (set-test-world! (build-test-map ["Aa"]))
       (set-test-unit atoms/game-map "A" :hits 1)

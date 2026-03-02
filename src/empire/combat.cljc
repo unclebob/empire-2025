@@ -207,7 +207,11 @@
         target-cell (get-in world target-coords)
         attacker (:contents attacker-cell)
         defender (:contents target-cell)]
-    (if (or (nil? defender) (not (hostile-unit? defender (:owner attacker))))
+    (if (or (nil? attacker)
+            (nil? defender)
+            (= :satellite (:type attacker))
+            (= :satellite (:type defender))
+            (not (hostile-unit? defender (:owner attacker))))
       false
       (let [result (resolve-combat attacker defender)
             message (format-combat-log (:log result)

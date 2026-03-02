@@ -54,6 +54,18 @@
       (should sat)
       (should= 4 (:turns-remaining sat))))
 
+  (it "reflects when hop-over chain runs off-map due to blocker at map edge"
+    (set-test-world! (build-test-map ["VAa"
+                                      "###"
+                                      "###"]))
+    (set-test-unit atoms/game-map "V" :direction [1 0] :turns-remaining 50)
+    (set-test-player-map! (make-initial-test-map 3 3 nil))
+    (with-redefs [empire.movement.satellite/bounce-direction (fn [& _] [0 1])]
+      (move-satellite [0 0]))
+    ;; East path is fully blocked to edge; reflection should move inward (south).
+    (should (:contents (get-in @atoms/game-map [0 1])))
+    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
   (it "moves toward its target"
     (set-test-world! (build-test-map ["####"
                                              "#V##"
@@ -383,6 +395,15 @@
       (should (:contents (get-in @atoms/game-map [3 0])))  ;; army still there
       (should (:contents (get-in @atoms/game-map [4 0])))))
 
+  (it "clears old satellite position on computer-map after long hop"
+    (set-test-world! (build-test-map ["vaaaaaa#"]))
+    (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
+    (set-test-computer-map! @atoms/game-map)
+    (let [new-pos (move-satellite [0 0])]
+      (should= [7 0] new-pos)
+      (should-be-nil (get-in @atoms/computer-map [0 0 :contents]))
+      (should= :satellite (get-in @atoms/computer-map [7 0 :contents :type]))))
+
   (it "skips multiple consecutive blocked cells"
     (set-test-world! (build-test-map ["##vOO###"]))
     (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
@@ -391,14 +412,14 @@
       ;; Cells [3 0] and [4 0] are both cities — should skip to [5 0]
       (should= [5 0] new-pos)))
 
-  (it "stays put when all forward cells are blocked or off map"
+  (it "bounces left when blocked chain runs off map at right edge"
     (set-test-world! (build-test-map ["##vO"]))
     (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
     (set-test-computer-map! (make-initial-test-map 1 4 nil))
     (let [new-pos (move-satellite [2 0])]
-      ;; Next cell is city, beyond that is off map — should stay put
-      (should= [2 0] new-pos)
-      (should (:contents (get-in @atoms/game-map [2 0])))))
+      ;; Blocked chain reaches right edge; satellite bounces left to [1 0]
+      (should= [1 0] new-pos)
+      (should= [-1 0] (get-in @atoms/game-map [1 0 :contents :direction])))))
 
   (it "player satellite without :direction uses target-based movement"
     (set-test-world! (build-test-map ["#####"
@@ -411,7 +432,7 @@
     (move-satellite [1 1])
     ;; Player satellite should use target-based movement, moving toward [4 4]
     (should (:contents (get-in @atoms/game-map [2 2])))
-    (should-be-nil (:contents (get-in @atoms/game-map [1 1])))))
+    (should-be-nil (:contents (get-in @atoms/game-map [1 1]))))
 
 (describe "player satellite skipping"
   (before (reset-all-atoms!))
@@ -435,6 +456,15 @@
       (should= [3 0] new-pos)
       (should (:contents (get-in @atoms/game-map [2 0])))  ;; army still there
       (should (:contents (get-in @atoms/game-map [3 0])))))
+
+  (it "clears old satellite position on player-map after long hop"
+    (set-test-world! (build-test-map ["VAAAAAA#"]))
+    (set-test-unit atoms/game-map "V" :target [7 0] :turns-remaining 50)
+    (set-test-player-map! @atoms/game-map)
+    (let [new-pos (move-satellite [0 0])]
+      (should= [7 0] new-pos)
+      (should-be-nil (get-in @atoms/player-map [0 0 :contents]))
+      (should= :satellite (get-in @atoms/player-map [7 0 :contents :type]))))
 
   (it "skips over a free city"
     (set-test-world! (build-test-map ["#V+####"]))

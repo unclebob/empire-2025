@@ -47,6 +47,19 @@
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :combat (:result (resolution/move-unit [0 0] [2 0] cell current-map))))))
 
+  (it "does not enter combat path when enemy blocker is a satellite"
+    (set-test-world! (build-test-map ["Av#"]))
+    (let [cell {:type :land :contents {:type :army :owner :player :mode :moving :target [2 0] :steps-remaining 1}}
+          current-map atoms/game-map
+          attack-called? (atom false)]
+      (with-redefs [empire.movement.wake-conditions/wake-before-move
+                    (fn [_ _] [{:type :army :owner :player :mode :awake :reason :somethings-in-the-way} true])
+                    empire.units.dispatcher/can-move-to? (fn [_ _] true)
+                    empire.combat/attempt-attack (fn [_ _] (reset! attack-called? true) true)
+                    visibility/update-cell-visibility (fn [& _] nil)]
+        (should= :woke (:result (resolution/move-unit [0 0] [2 0] cell current-map)))
+        (should-not @attack-called?))))
+
   (it "does not set :extended when using 2-arity set-unit-movement"
     (set-test-world! (build-test-map ["A##"]))
     (update-test-world! assoc-in [0 0 :contents]

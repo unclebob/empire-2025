@@ -166,6 +166,7 @@ WHEN computer fighter f is processed.
 
 THEN f is at [14 0].
 THEN f has fuel 22.
+THEN no unit at [6 0].
 
 ;===============================================================
 ; Computer fighter hops over multiple friendly armies.

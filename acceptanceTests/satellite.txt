@@ -74,6 +74,31 @@ WHEN the player presses D.
 THEN at next round V will be at %.
 
 ;===============================================================
+; Satellite skips over an enemy unit and does not attack it.
+;===============================================================
+GIVEN game map
+  V####a#####%
+GIVEN V is waiting for input.
+
+WHEN the player presses D.
+
+THEN at next round V will be at %.
+THEN there is an a at [5 0].
+THEN no unit at [0 0].
+
+;===============================================================
+; Armies cannot attack satellites.
+;===============================================================
+GIVEN game map
+  Av
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN there is an A at [0 0].
+THEN there is a v at [1 0].
+
+;===============================================================
 ; Computer satellite skips over a player city.
 ;===============================================================
 GIVEN game map

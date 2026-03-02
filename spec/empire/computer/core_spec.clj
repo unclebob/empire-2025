@@ -169,7 +169,14 @@
     (set-test-computer-map! (build-test-map ["a#"]))
     (update-test-world! assoc-in [0 0 :contents :country-id] 1)
     (update-test-world! assoc-in [1 0 :country-id] 1)
-    (should= [1 0] (core/move-unit-to [0 0] [1 0]))))
+    (should= [1 0] (core/move-unit-to [0 0] [1 0])))
+
+  (it "clears old fighter position on computer-map for long move"
+    (set-test-world! (build-test-map ["f######"]))
+    (set-test-computer-map! @atoms/game-map)
+    (should= [6 0] (core/move-unit-to [0 0] [6 0]))
+    (should-be-nil (get-in @atoms/computer-map [0 0 :contents]))
+    (should= :fighter (get-in @atoms/computer-map [6 0 :contents :type]))))
 
 (describe "attempt-conquest-computer"
   (before (reset-all-atoms!))

@@ -66,6 +66,8 @@
    The unit must be able to occupy the terrain (ignoring the enemy)."
   [unit next-cell]
   (and (blocked-by-enemy? unit next-cell)
+       (not= :satellite (:type unit))
+       (not= :satellite (get-in next-cell [:contents :type]))
        (dispatcher/can-move-to? (:type unit) (dissoc next-cell :contents))))
 
 (defn- handle-combat

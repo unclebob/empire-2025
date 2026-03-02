@@ -58,7 +58,8 @@
   (or (and (= (:type cell) :city)
            (#{:player :free} (:city-status cell)))
       (and (:contents cell)
-           (= (:owner (:contents cell)) :player))))
+           (= (:owner (:contents cell)) :player)
+           (not= :satellite (:type (:contents cell))))))
 
 (defn find-visible-cities
   "Finds cities visible on computer-map matching the status predicate."
@@ -118,6 +119,7 @@
         (update-game-map! assoc-in from-pos (dissoc from-cell :contents))
         (update-game-map! assoc-in (conj to-pos :contents) unit)
         (stamp-territory to-pos unit)
+        (visibility/update-cell-visibility from-pos (:owner unit))
         (visibility/update-cell-visibility to-pos (:owner unit) unit)
         to-pos))))
 
