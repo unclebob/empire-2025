@@ -10,17 +10,25 @@
 (def enemy-ship-types
   #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
 
+(defn- player-unit-type
+  [game-cell]
+  (let [unit (:contents game-cell)]
+    (when (= :player (:owner unit))
+      (:type unit))))
+
+(defn- player-city?
+  [game-cell]
+  (and (= :city (:type game-cell))
+       (= :player (:city-status game-cell))))
+
 (defn detection-trigger
   [game-cell]
-  (let [unit (:contents game-cell)
-        player-unit-type? (fn [t] (and unit (= :player (:owner unit)) (= t (:type unit))))
-        player-ship? (fn [] (and unit (= :player (:owner unit)) (enemy-ship-types (:type unit))))
-        player-city? (fn [] (and (= :city (:type game-cell)) (= :player (:city-status game-cell))))]
+  (let [unit-type (player-unit-type game-cell)]
     (cond
-      (player-unit-type? :fighter) :fighter-detected
-      (player-ship?) :ship-detected
-      (player-unit-type? :army) :major-invasion-trigger
-      (player-city?) :major-invasion-trigger
+      (= :fighter unit-type) :fighter-detected
+      (enemy-ship-types unit-type) :ship-detected
+      (= :army unit-type) :major-invasion-trigger
+      (player-city? game-cell) :major-invasion-trigger
       :else nil)))
 
 (defn fighter-sweep-mission

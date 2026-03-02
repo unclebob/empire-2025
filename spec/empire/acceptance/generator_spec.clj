@@ -1,7 +1,8 @@
 (ns empire.acceptance.generator-spec
   (:require [speclj.core :refer :all]
             [empire.acceptance.generator :as gen]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.java.io :as io]))
 
 ;; --- determine-needs tests ---
 
@@ -319,3 +320,16 @@
                              :thens []}]}]
       (should-throw clojure.lang.ExceptionInfo
                     (gen/generate-spec edn-data)))))
+
+(describe "generator -main"
+  (it "writes generated spec files for each input edn"
+    (let [base (str (java.nio.file.Files/createTempDirectory "gen-main-spec" (make-array java.nio.file.attribute.FileAttribute 0)))
+          in-dir (str base "/in")
+          out-dir (str base "/out")
+          _ (.mkdirs (io/file in-dir))
+          _ (spit (str in-dir "/alpha.edn") "{:source \"alpha.txt\" :tests []}")
+          _ (spit (str in-dir "/beta-case.edn") "{:source \"beta-case.txt\" :tests []}")]
+      (with-redefs [gen/generate-spec (fn [_] "(ns acceptance.stub-spec)\n(describe \"stub\")\n")]
+        (gen/-main in-dir out-dir))
+      (should (.exists (io/file (str out-dir "/alpha_spec.clj"))))
+      (should (.exists (io/file (str out-dir "/beta_case_spec.clj")))))))

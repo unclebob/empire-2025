@@ -1271,3 +1271,65 @@
       (transport/process-transport [1 0])
       (should (#{:invading :unloading}
                (get-in @atoms/game-map [1 0 :contents :transport-mission])))))
+
+(describe "transport internals"
+  (before (reset-all-atoms!))
+
+  (it "process-load-for-invasion-with-armies prioritizes unload-zone transition"
+    (let [called (atom nil)]
+      (with-redefs [empire.computer.transport/transition-load-for-invasion-to-unloading!
+                    (fn [pos target] (reset! called [:unload pos target]))
+                    empire.computer.transport/transition-load-for-invasion-to-sailing!
+                    (fn [_] (reset! called [:sail]))]
+        (@#'transport/process-load-for-invasion-with-armies
+         [2 3] {:army-count 1} [9 9] true false)
+        (should= [:unload [2 3] [9 9]] @called))))
+
+  (it "process-load-for-invasion-with-armies transitions to sailing on timeout"
+    (let [called (atom nil)]
+      (with-redefs [empire.computer.transport/transition-load-for-invasion-to-unloading!
+                    (fn [& _] (reset! called [:unload]))
+                    empire.computer.transport/transition-load-for-invasion-to-sailing!
+                    (fn [pos] (reset! called [:sail pos]))]
+        (@#'transport/process-load-for-invasion-with-armies
+         [1 1] {:army-count 1} [4 4] false true)
+        (should= [:sail [1 1]] @called))))
+
+  (it "process-load-for-invasion-with-armies transitions to sailing when unloadable land is nearby"
+    (let [called (atom nil)]
+      (with-redefs [empire.computer.transport/transition-load-for-invasion-to-sailing!
+                    (fn [pos] (reset! called [:sail pos]))
+                    empire.computer.transport-unloading/has-nearby-unloadable-land? (fn [& _] true)]
+        (@#'transport/process-load-for-invasion-with-armies
+         [3 1] {:army-count 2} [4 4] false false)
+        (should= [:sail [3 1]] @called))))
+
+  (it "process-load-for-invasion-with-armies returns nil when no branch applies"
+    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (fn [& _] false)]
+      (should-be-nil
+       (@#'transport/process-load-for-invasion-with-armies
+        [0 0] {:army-count 1} [2 2] false false))))
+
+  (it "passable-sea-cell? accepts empty sea and friendly-occupied sea only"
+    (should (@#'transport/passable-sea-cell? {:type :sea :contents nil}))
+    (should (@#'transport/passable-sea-cell? {:type :sea :contents {:owner :computer}}))
+    (should-not (@#'transport/passable-sea-cell? {:type :sea :contents {:owner :player}}))
+    (should-not (@#'transport/passable-sea-cell? {:type :land :contents nil})))
+
+  (it "load-for-invasion-start! stamps mission and current round"
+    (reset! atoms/round-number 12)
+    (set-test-world! (build-test-map ["~t~"]))
+    (@#'transport/load-for-invasion-start! [1 0])
+    (let [unit (get-in @atoms/game-map [1 0 :contents])]
+      (should= :load-for-invasion (:transport-mission unit))
+      (should= 12 (:invasion-load-since unit))))
+
+  (it "sea-load-points returns passable sea adjacent to computer armies"
+    (set-test-world! (build-test-map ["a~~"
+                                      "~~~"
+                                      "~~~"]))
+    (set-test-computer-map! @atoms/game-map)
+    (let [points (set (@#'transport/sea-load-points))]
+      (should (contains? points [1 0]))
+      (should (contains? points [0 1]))
+      (should-not (contains? points [2 2])))))

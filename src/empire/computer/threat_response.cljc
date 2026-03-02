@@ -299,6 +299,66 @@
        (= pos (:invasion-path-origin unit))
        (= target-revision (:invasion-plan-revision unit))))
 
+(defn- stamp-transport-major-invasion-target!
+  [pos target target-revision]
+  (update-game-map! update-in (conj pos :contents)
+                    #(cond-> (assoc % :major-invasion true :major-invasion-target target)
+                       (not= target-revision (:major-invasion-skip-revision %))
+                       (dissoc :major-invasion-skip-revision))))
+
+(defn- should-plan-invasion-route?
+  [pos unit army-count mission opted-out? target-revision]
+  (and (not opted-out?)
+       (not (zero? army-count))
+       (not= mission :unloading)
+       (not= mission :load-for-invasion)
+       (not (valid-invasion-plan? pos unit target-revision))))
+
+(defn- update-transport-invasion-route!
+  [pos target target-revision]
+  (let [{actual-target :target path :path}
+        (or (best-invasion-target-and-path pos target)
+            {:target target :path nil})]
+    (when (some? path)
+      (if (empty? path)
+        (update-game-map! update-in (conj pos :contents)
+                          assoc :transport-mission :unloading
+                          :invasion-target actual-target
+                          :invasion-plan-revision target-revision
+                          :invasion-path-origin pos)
+        (update-game-map! update-in (conj pos :contents)
+                          assoc :transport-mission :invading
+                          :invasion-target actual-target
+                          :invasion-path path
+                          :invasion-plan-revision target-revision
+                          :invasion-path-origin pos)))))
+
+(defn- clear-stale-invasion-routing!
+  [pos]
+  ;; No invasion objective: clear stale invasion routing.
+  (update-game-map! update-in (conj pos :contents)
+                    (fn [transport]
+                      (let [transport' (-> transport
+                                           (assoc :major-invasion true
+                                                  :major-invasion-target nil)
+                                           (dissoc :invasion-target
+                                                   :invasion-path
+                                                   :invasion-plan-revision
+                                                   :invasion-path-origin))]
+                        (if (= :invading (:transport-mission transport'))
+                          (assoc transport' :transport-mission :sailing)
+                          transport')))))
+
+(defn- maybe-mark-find-armies-for-invasion!
+  [pos army-count target-revision]
+  (when (zero? army-count)
+    (update-game-map! update-in (conj pos :contents)
+                      (fn [transport]
+                        (if (or (= :load-for-invasion (:transport-mission transport))
+                                (= target-revision (:major-invasion-skip-revision transport)))
+                          transport
+                          (assoc transport :transport-mission :find-armies-for-invasion))))))
+
 (defn- prepare-transport-major-invasion!
   [pos unit]
   (let [army-count (:army-count unit 0)
@@ -309,53 +369,11 @@
         opted-out? (= skip-revision target-revision)]
     (if target
       (do
-        (update-game-map! update-in (conj pos :contents)
-                          #(cond-> (assoc % :major-invasion true :major-invasion-target target)
-                             (not= target-revision (:major-invasion-skip-revision %))
-                             (dissoc :major-invasion-skip-revision)))
-        (when (and (not opted-out?)
-                   (not (zero? army-count))
-                   (not= mission :unloading)
-                   (not= mission :load-for-invasion)
-                   (not (valid-invasion-plan? pos unit target-revision)))
-          (let [{actual-target :target path :path}
-                (or (best-invasion-target-and-path pos target)
-                    {:target target :path nil})]
-            (when (some? path)
-              (if (empty? path)
-                (update-game-map! update-in (conj pos :contents)
-                                  assoc :transport-mission :unloading
-                                  :invasion-target actual-target
-                                  :invasion-plan-revision target-revision
-                                  :invasion-path-origin pos)
-                (update-game-map! update-in (conj pos :contents)
-                                  assoc :transport-mission :invading
-                                  :invasion-target actual-target
-                                  :invasion-path path
-                                  :invasion-plan-revision target-revision
-                                  :invasion-path-origin pos))))))
-      ;; No invasion objective: clear stale invasion routing.
-      (update-game-map! update-in (conj pos :contents)
-                        (fn [transport]
-                          (let [transport' (-> transport
-                                               (assoc :major-invasion true
-                                                      :major-invasion-target nil)
-                                               (dissoc :invasion-target
-                                                       :invasion-path
-                                                       :invasion-plan-revision
-                                                       :invasion-path-origin))]
-                            (if (= :invading (:transport-mission transport'))
-                              (assoc transport' :transport-mission :sailing)
-                              transport')))))
-    (cond
-      (zero? army-count)
-      (update-game-map! update-in (conj pos :contents)
-                        (fn [transport]
-                          (if (or (= :load-for-invasion (:transport-mission transport))
-                                  (= target-revision (:major-invasion-skip-revision transport)))
-                            transport
-                            (assoc transport :transport-mission :find-armies-for-invasion))))
-      :else nil)))
+        (stamp-transport-major-invasion-target! pos target target-revision)
+        (when (should-plan-invasion-route? pos unit army-count mission opted-out? target-revision)
+          (update-transport-invasion-route! pos target target-revision)))
+      (clear-stale-invasion-routing! pos))
+    (maybe-mark-find-armies-for-invasion! pos army-count target-revision)))
 
 (defn- assign-army-invasion-embark!
   [pos unit]
@@ -367,6 +385,28 @@
                           #(cond-> (assoc % :mode :move-to-coast-for-invasion)
                              target (assoc :coast-target target)))))))
 
+(defn- apply-major-invasion-assignment!
+  [pos unit]
+  (let [t (:type unit)]
+    (cond
+      (= :fighter t)
+      (update-game-map! update-in (conj pos :contents)
+                        assoc :major-invasion true
+                        :major-invasion-target (nearest-major-target pos))
+
+      (major-invasion-ship-types t)
+      (update-game-map! update-in (conj pos :contents)
+                        assoc :major-invasion true
+                        :major-invasion-target (nearest-major-ship-target pos))
+
+      (= :transport t)
+      (prepare-transport-major-invasion! pos unit)
+
+      (= :army t)
+      (assign-army-invasion-embark! pos unit)
+
+      :else nil)))
+
 (defn refresh-major-invasion-assignments!
   "Applies major-invasion tags/targets to all mobilized computer units."
   []
@@ -374,26 +414,9 @@
     (let [units (find-computer-unit-positions (constantly true))
           world (current-world)]
       (doseq [pos units
-              :let [unit (get-in world (conj pos :contents))
-                    t (:type unit)]]
-        (cond
-          (= :fighter t)
-          (update-game-map! update-in (conj pos :contents)
-                            assoc :major-invasion true
-                            :major-invasion-target (nearest-major-target pos))
-
-          (major-invasion-ship-types t)
-          (update-game-map! update-in (conj pos :contents)
-                            assoc :major-invasion true
-                            :major-invasion-target (nearest-major-ship-target pos))
-
-          (= :transport t)
-          (prepare-transport-major-invasion! pos unit)
-
-          (= :army t)
-          (assign-army-invasion-embark! pos unit)
-
-          :else nil)))))
+              :let [unit (get-in world (conj pos :contents))]
+              :when unit]
+        (apply-major-invasion-assignment! pos unit)))))
 
 (defn on-round-start!
   "Round-start maintenance for threat responses."

@@ -45,6 +45,21 @@
              (not (and unload-eid
                        (= (:unload-event-id unit) unload-eid)))))))
 
+(defn- passable-coastal-sea-neighbor?
+  [n game-map visited]
+  (and (not (visited n))
+       (let [cell (get-in game-map n)]
+         (and cell
+              (= :sea (:type cell))
+              (or (nil? (:contents cell))
+                  (= :computer (:owner (:contents cell))))
+              (tc/adjacent-to-land? n)))))
+
+(defn- coastal-sea-neighbors
+  [current game-map visited]
+  (filter #(passable-coastal-sea-neighbor? % game-map visited)
+          (core/get-neighbors current)))
+
 (defn has-nearby-loadable-armies?
   "BFS along coastal sea cells up to max-depth hops from pos.
    Returns true if any adjacent land cell at any visited position
@@ -65,16 +80,7 @@
             (check-neighbors current) true
             (>= depth max-depth) (recur (pop queue) visited)
             :else
-            (let [coastal-neighbors
-                  (filter (fn [n]
-                            (and (not (visited n))
-                                 (let [cell (get-in game-map n)]
-                                   (and cell
-                                        (= :sea (:type cell))
-                                        (or (nil? (:contents cell))
-                                            (= :computer (:owner (:contents cell))))
-                                        (tc/adjacent-to-land? n)))))
-                          (core/get-neighbors current))]
+            (let [coastal-neighbors (coastal-sea-neighbors current game-map visited)]
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
 
