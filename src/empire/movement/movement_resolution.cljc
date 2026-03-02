@@ -38,6 +38,15 @@
     [(-> x (max 0) (min max-x))
      (-> y (max 0) (min max-y))]))
 
+(defn- normalize-target
+  "Returns a safe in-bounds target. Falls back to from-coords when target is missing/malformed."
+  [from-coords target-coords]
+  (if (and (vector? target-coords)
+           (= 2 (count target-coords))
+           (every? number? target-coords))
+    (clamp-to-map-bounds target-coords)
+    from-coords))
+
 (defn- blocked-by-friendly?
   "Returns true if the next cell contains a friendly unit (same owner)."
   [unit next-cell]
@@ -162,12 +171,19 @@
    :pos - the new position (or original if woke)"
   [from-coords target-coords cell current-map]
   (let [unit (:contents cell)
-        next-pos (pathing/next-step-pos from-coords target-coords)
+        safe-target (normalize-target from-coords target-coords)
+        safe-unit (if (= (:target unit) safe-target)
+                    unit
+                    (assoc unit :target safe-target))
+        safe-cell (if (= safe-unit unit)
+                    cell
+                    (assoc cell :contents safe-unit))
+        next-pos (pathing/next-step-pos from-coords safe-target)
         next-cell (get-in @current-map next-pos)]
-    (if (uc/ship-can-dock? unit next-cell)
-      (dock-ship-for-repair from-coords next-pos cell)
-      (let [[woken-unit woke?] (wake/wake-before-move unit next-cell)]
-        (handle-movement-result from-coords next-pos target-coords cell unit woken-unit woke? next-cell current-map)))))
+    (if (uc/ship-can-dock? safe-unit next-cell)
+      (dock-ship-for-repair from-coords next-pos safe-cell)
+      (let [[woken-unit woke?] (wake/wake-before-move safe-unit next-cell)]
+        (handle-movement-result from-coords next-pos safe-target safe-cell safe-unit woken-unit woke? next-cell current-map)))))
 
 (defn set-unit-movement
   ([unit-coords target-coords] (set-unit-movement unit-coords target-coords false))

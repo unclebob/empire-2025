@@ -34,6 +34,16 @@
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
 
+(defn- clamp-to-map-bounds
+  [[x y]]
+  (let [world (current-world)
+        cols (count world)
+        rows (count (first world))
+        max-x (dec cols)
+        max-y (dec rows)]
+    [(-> x (max 0) (min max-x))
+     (-> y (max 0) (min max-y))]))
+
 (defn add-unit-at [coords unit-type owner]
   (movement/add-unit-at coords unit-type owner))
 
@@ -99,20 +109,21 @@
   [[cx cy]]
   (when-let [dest (read-runtime-state :destination)]
     (let [cell (get-in (current-world) [cx cy])
+          clamped-dest (clamp-to-map-bounds dest)
           contents (:contents cell)]
       (cond
         (and (= (:type cell) :city)
              (= (:city-status cell) :player))
-        (do (update-game-map! assoc-in [cx cy :flight-path] dest)
+        (do (update-game-map! assoc-in [cx cy :flight-path] clamped-dest)
             (write-runtime-state! :destination nil)
-            (set-turn-message! (str "Flight path set to " (first dest) "," (second dest)) 2000)
+            (set-turn-message! (str "Flight path set to " (first clamped-dest) "," (second clamped-dest)) 2000)
             true)
 
         (and (= (:type contents) :carrier)
              (= (:owner contents) :player))
-        (do (update-game-map! assoc-in [cx cy :contents :flight-path] dest)
+        (do (update-game-map! assoc-in [cx cy :contents :flight-path] clamped-dest)
             (write-runtime-state! :destination nil)
-            (set-turn-message! (str "Flight path set to " (first dest) "," (second dest)) 2000)
+            (set-turn-message! (str "Flight path set to " (first clamped-dest) "," (second clamped-dest)) 2000)
             true)
 
         :else nil))))

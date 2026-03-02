@@ -84,3 +84,15 @@ GIVEN O is waiting for input.
 WHEN the mouse is at cell [0 0] and the player presses f.
 
 THEN cell [0 0] has flight-path [1 0].
+
+;===============================================================
+; Flight path clamps out-of-bounds destination to map edge.
+;===============================================================
+GIVEN game map
+  O#
+GIVEN destination [99 99].
+GIVEN O is waiting for input.
+
+WHEN the mouse is at cell [0 0] and the player presses f.
+
+THEN cell [0 0] has flight-path [1 0].
