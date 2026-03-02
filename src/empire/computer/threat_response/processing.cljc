@@ -166,7 +166,22 @@
                         :score (+ (* 4 clearance)
                                   (shore-band-score world cand)
                                   center-bias)})]
-          (when-let [target (top-random-choice scored)]
+          ;; Use deterministic tie-breaking so yield behavior is stable in tests and gameplay.
+          ;; Prefer higher transport-clearance score, then lateral separation from blockers.
+          (when-let [target (:pos (first (sort-by (fn [{:keys [score] :as cand}]
+                                                    (let [cand-pos (:pos cand)
+                                                          lane-separation
+                                                          (reduce + (map #(Math/abs (- (second cand-pos) (second %)))
+                                                                         transports))
+                                                          diagonal? (and (not= (first cand-pos) (first pos))
+                                                                         (not= (second cand-pos) (second pos)))]
+                                                      [(- score)
+                                                       ;; Prefer diagonal sidesteps to clear transport lanes faster.
+                                                       (if diagonal? 0 1)
+                                                       (- lane-separation)
+                                                       (- (first cand-pos))
+                                                       (second cand-pos)]))
+                                                  scored)))]
             (when (core/move-unit-to pos target)
               target)))))))
 
@@ -196,14 +211,16 @@
         (let [world ((:current-world ctx))]
           (if (nil? (get-in world (conj current :contents)))
             current
-            (if-let [next-pos
-                     (or (patrol-yield-to-transport ctx current center)
-                         (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship current)]
-                           (ship-core/attack-enemy current enemy-pos))
-                         (patrol-stand-off-step ctx current
-                                                (major-invasion-target nearest-major-target current center)))]
-              (recur next-pos (dec steps-left))
-              (recur current (dec steps-left)))))))
+            (if-let [yield-pos (patrol-yield-to-transport ctx current center)]
+              ;; Yield once to clear transport lanes, then stop this patrol boat for the round.
+              yield-pos
+              (if-let [next-pos
+                       (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship current)]
+                             (ship-core/attack-enemy current enemy-pos))
+                           (patrol-stand-off-step ctx current
+                                                  (major-invasion-target nearest-major-target current center)))]
+                (recur next-pos (dec steps-left))
+                (recur current (dec steps-left))))))))
     (ship-threat-action pos ship-type (major-invasion-target nearest-major-target pos center)))
   true)
 

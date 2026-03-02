@@ -128,7 +128,13 @@
   [pos transport]
   (if (unloading/has-nearby-unloadable-land? pos transport 5)
     (set-unloading-and-try! pos)
-    (compute-and-follow-sail-path! pos)))
+    (or (compute-and-follow-sail-path! pos)
+        ;; No path and no adjacent coast at all: switch to unloading crawl mode.
+        (when-not (some (fn [n]
+                          (let [cell (get-in (current-world) n)]
+                            (and cell (#{:land :city} (:type cell)))))
+                        (core/get-neighbors pos))
+          (set-unloading-and-try! pos)))))
 
 (defn- handle-loaded-transport-without-path!
   [pos transport]
@@ -142,7 +148,12 @@
   (let [transport (get-in (current-world) (conj pos :contents))
         sail-path (:sail-path transport)
         army-count (:army-count transport 0)
-        never-reload? (:never-reload? transport)]
+        never-reload? (:never-reload? transport)
+        city-cell? (= :city (:type (get-in (current-world) pos)))
+        adjacent-land? (some (fn [n]
+                               (let [cell (get-in (current-world) n)]
+                                 (and cell (#{:land :city} (:type cell)))))
+                             (core/get-neighbors pos))]
     (cond
       (and (empty? sail-path) (zero? army-count) (not never-reload?))
       (tc/set-transport-mission pos :loading)
@@ -153,7 +164,15 @@
         (sail-follow-path pos (vec new-path)))
 
       (and (empty? sail-path) (pos? army-count))
-      (handle-loaded-transport-without-path! pos transport)
+      (cond
+        city-cell?
+        (handle-loaded-transport-without-path! pos transport)
+
+        adjacent-land?
+        (maybe-unload-or-sail! pos transport)
+
+        :else
+        (set-unloading-and-try! pos))
 
       (seq sail-path)
       (sail-follow-path pos sail-path))))
