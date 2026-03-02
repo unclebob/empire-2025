@@ -15,26 +15,28 @@
             [empire.ui.util.input.dispatch :as input]
             [quil.core :as q]))
 
+(def ^:private read-state-atoms
+  {:round-number atoms/round-number
+   :waiting-for-input atoms/waiting-for-input
+   :paused atoms/paused
+   :player-items atoms/player-items
+   :computer-items atoms/computer-items
+   :cells-needing-attention atoms/cells-needing-attention
+   :game-map atoms/game-map
+   :player-map atoms/player-map
+   :computer-map atoms/computer-map
+   :last-key atoms/last-key
+   :production atoms/production
+   :attention-message atoms/attention-message
+   :turn-message atoms/turn-message
+   :error-message atoms/error-message
+   :map-to-display atoms/map-to-display
+   :load-menu-open atoms/load-menu-open
+   :destination atoms/destination})
+
 (defn read-state
   [k]
-  (case k
-    :round-number @atoms/round-number
-    :waiting-for-input @atoms/waiting-for-input
-    :paused @atoms/paused
-    :player-items @atoms/player-items
-    :computer-items @atoms/computer-items
-    :cells-needing-attention @atoms/cells-needing-attention
-    :game-map @atoms/game-map
-    :player-map @atoms/player-map
-    :computer-map @atoms/computer-map
-    :last-key @atoms/last-key
-    :production @atoms/production
-    :attention-message @atoms/attention-message
-    :turn-message @atoms/turn-message
-    :error-message @atoms/error-message
-    :map-to-display @atoms/map-to-display
-    :load-menu-open @atoms/load-menu-open
-    :destination @atoms/destination))
+  (some-> (get read-state-atoms k) deref))
 
 (defn set-last-key!
   [v]
@@ -113,36 +115,40 @@
                             (= :computer (:owner (:contents cell))))]
              true))))
 
+(def ^:private set-state-atoms
+  {:round-number atoms/round-number
+   :waiting-for-input atoms/waiting-for-input
+   :paused atoms/paused
+   :player-items atoms/player-items
+   :computer-items atoms/computer-items
+   :cells-needing-attention atoms/cells-needing-attention
+   :game-map atoms/game-map
+   :player-map atoms/player-map
+   :computer-map atoms/computer-map
+   :last-key atoms/last-key
+   :map-screen-dimensions atoms/map-screen-dimensions
+   :production atoms/production
+   :destination atoms/destination
+   :game-over-check-enabled atoms/game-over-check-enabled
+   :pause-requested atoms/pause-requested
+   :map-to-display atoms/map-to-display
+   :load-menu-open atoms/load-menu-open})
+
 (defn set-state!
   [k v]
-  (case k
-    :round-number (reset! atoms/round-number v)
-    :waiting-for-input (reset! atoms/waiting-for-input v)
-    :paused (reset! atoms/paused v)
-    :player-items (reset! atoms/player-items v)
-    :computer-items (reset! atoms/computer-items v)
-    :cells-needing-attention (reset! atoms/cells-needing-attention v)
-    :game-map (reset! atoms/game-map v)
-    :player-map (reset! atoms/player-map v)
-    :computer-map (reset! atoms/computer-map v)
-    :last-key (reset! atoms/last-key v)
-    :map-screen-dimensions (reset! atoms/map-screen-dimensions v)
-    :production (reset! atoms/production v)
-    :destination (reset! atoms/destination v)
-    :game-over-check-enabled (reset! atoms/game-over-check-enabled v)
-    :pause-requested (reset! atoms/pause-requested v)
-    :map-to-display (reset! atoms/map-to-display v)
-    :load-menu-open (reset! atoms/load-menu-open v)
+  (if-let [target-atom (get set-state-atoms k)]
+    (reset! target-atom v)
     (throw (ex-info (str "Unsupported harness set-state! key: " k) {:key k}))))
 
 (defn update-state!
   [k f & args]
-  (case k
-    :production (apply swap! atoms/production f args)
-    :player-map (apply swap! atoms/player-map f args)
-    :computer-map (apply swap! atoms/computer-map f args)
-    :player-items (apply swap! atoms/player-items f args)
-    :game-map (apply swap! atoms/game-map f args)
+  (if-let [target-atom (get {:production atoms/production
+                             :player-map atoms/player-map
+                             :computer-map atoms/computer-map
+                             :player-items atoms/player-items
+                             :game-map atoms/game-map}
+                            k)]
+    (apply swap! target-atom f args)
     (throw (ex-info (str "Unsupported harness update-state! key: " k) {:key k}))))
 
 (defn handle-key!

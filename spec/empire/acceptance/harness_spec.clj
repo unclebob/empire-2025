@@ -10,6 +10,9 @@
     (h/set-state! :round-number 7)
     (should= 7 (h/read-state :round-number)))
 
+  (it "returns nil for unsupported read-state key"
+    (should-be-nil (h/read-state :unsupported-key)))
+
   (it "updates production via update-state!"
     (h/set-state! :production {1 {:item :army :remaining-rounds 3}})
     (h/update-state! :production assoc 2 {:item :fighter :remaining-rounds 5})
@@ -35,4 +38,12 @@
   (it "supports variadic update-test-world! operations"
     (h/set-test-world! (h/build-test-map ["##" "##"]))
     (h/update-test-world! assoc-in [1 0 :waypoint] true)
-    (should (true? (:waypoint (h/cell-at [1 0]))))))
+    (should (true? (:waypoint (h/cell-at [1 0])))))
+
+  (it "throws on unsupported set-state! key"
+    (should-throw clojure.lang.ExceptionInfo
+                  (h/set-state! :unsupported-key 1)))
+
+  (it "throws on unsupported update-state! key"
+    (should-throw clojure.lang.ExceptionInfo
+                  (h/update-state! :unsupported-key assoc :x 1))))

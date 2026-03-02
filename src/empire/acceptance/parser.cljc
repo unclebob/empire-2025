@@ -51,17 +51,20 @@
     (and (:current-test state) (:section state))
     (update-in [:current-test (section-keys (:section state))] conj trimmed)))
 
+(def ^:private line-kind-handlers
+  {:separator (fn [state _ _] (handle-separator state))
+   :header-comment (fn [state _ trimmed] (assoc state :header-desc (str/trim (subs trimmed 1))))
+   :given (fn [state line-num trimmed] (-> state (ensure-test-started line-num) (add-to-section :given trimmed)))
+   :when (fn [state _ trimmed] (add-to-section state :when trimmed))
+   :then (fn [state _ trimmed] (add-to-section state :then trimmed))
+   :where (fn [state _ _] (assoc state :section :where))
+   :blank (fn [state _ _] state)
+   :content (fn [state _ trimmed] (add-content-line state trimmed))})
+
 (defn- process-test-line [state [line-num line]]
-  (let [trimmed (str/trim line)]
-    (case (classify-line trimmed (:in-header state))
-      :separator (handle-separator state)
-      :header-comment (assoc state :header-desc (str/trim (subs trimmed 1)))
-      :given (-> state (ensure-test-started line-num) (add-to-section :given trimmed))
-      :when (add-to-section state :when trimmed)
-      :then (add-to-section state :then trimmed)
-      :where (assoc state :section :where)
-      :blank state
-      :content (add-content-line state trimmed))))
+  (let [trimmed (str/trim line)
+        kind (classify-line trimmed (:in-header state))]
+    ((get line-kind-handlers kind) state line-num trimmed)))
 
 (defn split-into-tests
   "Split lines (with 1-based line numbers) into test groups.

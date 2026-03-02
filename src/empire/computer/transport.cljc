@@ -192,6 +192,39 @@
 
 (def ^:private invasion-load-timeout-rounds 5)
 
+(defn- transition-load-for-invasion-to-sailing!
+  [pos]
+  (tc/set-transport-mission pos :sailing)
+  (threat-response/prepare-transport! pos))
+
+(defn- transition-load-for-invasion-to-unloading!
+  [pos major-target]
+  (update-game-map! update-in (conj pos :contents)
+                    #(assoc % :transport-mission :unloading
+                              :invasion-target (or (:invasion-target %)
+                                                   major-target))))
+
+(defn- process-load-for-invasion-with-armies
+  [pos transport major-target in-unload-zone? timed-out?]
+  (cond
+    in-unload-zone?
+    (transition-load-for-invasion-to-unloading! pos major-target)
+
+    timed-out?
+    (transition-load-for-invasion-to-sailing! pos)
+
+    (unloading/has-nearby-unloadable-land? pos transport 5)
+    (transition-load-for-invasion-to-sailing! pos)
+
+    :else nil))
+
+(defn- process-load-for-invasion-empty
+  [pos timed-out?]
+  (when timed-out?
+    (transition-to-loading pos)
+    (update-game-map! update-in (conj pos :contents)
+                      dissoc :invasion-load-since)))
+
 (defn- process-load-for-invasion
   [pos]
   (loading/load-adjacent-armies pos)
@@ -202,29 +235,12 @@
                              (<= (core/chebyshev-distance pos major-target) 2))
         now (or (read-runtime-state :round-number) 0)
         started (or (:invasion-load-since transport) now)
-        elapsed (- now started)]
-    (cond
-      (and (pos? army-count) in-unload-zone?)
-      (update-game-map! update-in (conj pos :contents)
-                        #(assoc % :transport-mission :unloading
-                                  :invasion-target (or (:invasion-target %)
-                                                       major-target)))
-
-      (and (pos? army-count)
-           (unloading/has-nearby-unloadable-land? pos transport 5))
-      (do (tc/set-transport-mission pos :sailing)
-          (threat-response/prepare-transport! pos))
-
-      (and (>= elapsed invasion-load-timeout-rounds) (pos? army-count))
-      (do (tc/set-transport-mission pos :sailing)
-          (threat-response/prepare-transport! pos))
-
-      (and (>= elapsed invasion-load-timeout-rounds) (zero? army-count))
-      (do (transition-to-loading pos)
-          (update-game-map! update-in (conj pos :contents)
-                            dissoc :invasion-load-since))
-
-      :else nil)))
+        elapsed (- now started)
+        timed-out? (>= elapsed invasion-load-timeout-rounds)
+        has-armies? (pos? army-count)]
+    (if has-armies?
+      (process-load-for-invasion-with-armies pos transport major-target in-unload-zone? timed-out?)
+      (process-load-for-invasion-empty pos timed-out?))))
 
 (defn- loading-crawl-move
   [pos]
@@ -265,37 +281,57 @@
       :else
       (loading-crawl-move pos))))
 
+(defn- take-second-unloading-step
+  [pos1 after-first]
+  (let [unit1 (get-in (current-world) (conj pos1 :contents))
+        can-second? (and unit1
+                         (= :unloading (:transport-mission unit1))
+                         (not after-first))]
+    (if can-second?
+      (if-let [pos2 (unloading/unloading-crawl-move pos1)]
+        (do
+          (when (= :unloading
+                   (:transport-mission (get-in (current-world) (conj pos2 :contents))))
+            (unloading/try-opportunistic-unload pos2))
+          pos2)
+        pos1)
+      pos1)))
+
+(defn- process-unloading-with-armies
+  [pos transport]
+  (if (unloading/has-nearby-unloadable-land? pos transport 5)
+    (if-let [pos1 (unloading/unloading-crawl-move pos)]
+      (let [after-first (or (when (= :unloading
+                                   (:transport-mission (get-in (current-world) (conj pos1 :contents))))
+                              (unloading/try-opportunistic-unload pos1))
+                            false)]
+        (take-second-unloading-step pos1 after-first))
+      (start-sailing pos transport))
+    (start-sailing pos transport)))
+
 (defn- process-unloading-mission
   [pos army-count]
   (if (zero? army-count)
     (transition-to-loading pos)
     (let [transport (get-in (current-world) (conj pos :contents))]
-      (if (unloading/has-nearby-unloadable-land? pos transport 5)
-        (if-let [pos1 (unloading/unloading-crawl-move pos)]
-          (let [after-first (or (when (= :unloading
-                                       (:transport-mission (get-in (current-world) (conj pos1 :contents))))
-                                  (unloading/try-opportunistic-unload pos1))
-                                false)
-                unit1 (get-in (current-world) (conj pos1 :contents))
-                can-second? (and unit1
-                                 (= :unloading (:transport-mission unit1))
-                                 (not after-first))]
-            (if can-second?
-              (if-let [pos2 (unloading/unloading-crawl-move pos1)]
-                (do
-                  (when (= :unloading
-                           (:transport-mission (get-in (current-world) (conj pos2 :contents))))
-                    (unloading/try-opportunistic-unload pos2))
-                  pos2)
-                pos1)
-              pos1))
-          (start-sailing pos transport))
-        (start-sailing pos transport)))))
+      (process-unloading-with-armies pos transport))))
 
 (defn- fix-idle-mission
   [pos mission]
   (when (or (nil? mission) (= :idle mission))
     (tc/set-transport-mission pos :loading)))
+
+(defn- run-transport-mission
+  [pos current-mission army-count]
+  (if-let [handler (get {:invading #(sailing/process-invading-mission pos)
+                         :find-armies-for-invasion #(process-find-armies-for-invasion pos)
+                         :load-for-invasion #(process-load-for-invasion pos)
+                         :unloading #(process-unloading-mission pos army-count)
+                         :sailing #(sailing/process-sailing-mission pos)
+                         :loading #(process-loading-mission pos)}
+                        current-mission)]
+    (handler)
+    nil))
 
 (defn- dispatch-transport-mission
   [pos transport]
@@ -306,30 +342,10 @@
       (debug/log-computer-event! :transport-process pos
                                  {:mission current-mission :armies army-count
                                   :pcp (:pickup-continent-pos transport)})
-      (cond
-        (and (targeting/should-try-opportunistic-unload? army-count current-mission)
-             (unloading/try-opportunistic-unload pos))
+      (if (and (targeting/should-try-opportunistic-unload? army-count current-mission)
+               (unloading/try-opportunistic-unload pos))
         true
-
-        (= current-mission :invading)
-        (sailing/process-invading-mission pos)
-
-        (= current-mission :find-armies-for-invasion)
-        (process-find-armies-for-invasion pos)
-
-        (= current-mission :load-for-invasion)
-        (process-load-for-invasion pos)
-
-        (= current-mission :unloading)
-        (process-unloading-mission pos army-count)
-
-        (= current-mission :sailing)
-        (sailing/process-sailing-mission pos)
-
-        (= current-mission :loading)
-        (process-loading-mission pos)
-
-        :else nil))))
+        (run-transport-mission pos current-mission army-count)))))
 
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.

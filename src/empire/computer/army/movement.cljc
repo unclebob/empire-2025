@@ -58,6 +58,31 @@
   (when (empty? (get (read-runtime-state :coastal-cells-by-country) country-id))
     (seed-coastal-registry country-id)))
 
+(defn- merge-neighbor-continents!
+  [all-pos country-id game-map]
+  (doseq [p all-pos]
+    (let [cid (:country-id (get-in game-map p))]
+      (when (and cid (not= cid country-id))
+        (runtime-state/merge-continents! country-id cid)))))
+
+(defn- local-coastal-cells
+  [all-pos country-id game-map]
+  (filter (fn [p]
+            (let [cell (get-in game-map p)]
+              (and cell
+                   (= :land (:type cell))
+                   (or (nil? (:country-id cell))
+                       (runtime-state/on-same-continent? country-id (:country-id cell)))
+                   (adjacent-to-sea? p))))
+          all-pos))
+
+(defn- update-coastal-registry!
+  [country-id coastal]
+  (let [registry (or (read-runtime-state :coastal-cells-by-country) {})]
+    (write-runtime-state! :coastal-cells-by-country
+                          (update registry country-id
+                                  (fn [s] (into (or s #{}) coastal))))))
+
 (defn register-coastal-cells
   "Registers coastal land cells near pos for the given country-id.
    Checks pos + neighbors; adds any land cell adjacent to sea with matching country.
@@ -66,23 +91,10 @@
   (when country-id
     (let [game-map (current-world)
           all-pos (cons pos (core/get-neighbors pos))]
-      (doseq [p all-pos]
-        (let [cid (:country-id (get-in game-map p))]
-          (when (and cid (not= cid country-id))
-            (runtime-state/merge-continents! country-id cid))))
-      (let [coastal (filter (fn [p]
-                              (let [cell (get-in game-map p)]
-                                (and cell
-                                     (= :land (:type cell))
-                                     (or (nil? (:country-id cell))
-                                         (runtime-state/on-same-continent? country-id (:country-id cell)))
-                                     (adjacent-to-sea? p))))
-                            all-pos)]
+      (merge-neighbor-continents! all-pos country-id game-map)
+      (let [coastal (local-coastal-cells all-pos country-id game-map)]
         (when (seq coastal)
-          (let [registry (or (read-runtime-state :coastal-cells-by-country) {})]
-            (write-runtime-state! :coastal-cells-by-country
-                                  (update registry country-id
-                                          (fn [s] (into (or s #{}) coastal))))))))))
+          (update-coastal-registry! country-id coastal))))))
 
 (defn sovereign-passable?
   "Returns true if a computer army with country-id can enter the cell.
