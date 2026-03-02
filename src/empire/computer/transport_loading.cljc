@@ -31,16 +31,19 @@
   "Returns true if neighbor n has a loadable computer army."
   [n game-map unloaded-countries unload-eid]
   (let [cell (get-in game-map n)
-        unit (:contents cell)]
+        unit (:contents cell)
+        invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
     (and unit
          (= :army (:type unit))
          (= :computer (:owner unit))
-         (not (and (seq unloaded-countries)
-                   (:country-id unit)
-                   (tc/recently-unloaded-country?
-                     unloaded-countries (:country-id unit))))
-         (not (and unload-eid
-                   (= (:unload-event-id unit) unload-eid))))))
+         (or invasion-pickup?
+             (not (and (seq unloaded-countries)
+                       (:country-id unit)
+                       (tc/recently-unloaded-country?
+                         unloaded-countries (:country-id unit)))))
+         (or invasion-pickup?
+             (not (and unload-eid
+                       (= (:unload-event-id unit) unload-eid)))))))
 
 (defn has-nearby-loadable-armies?
   "BFS along coastal sea cells up to max-depth hops from pos.
@@ -87,14 +90,16 @@
         neighbors (core/get-neighbors pos)
         armies (filter (fn [n]
                          (let [cell (get-in game-map n)
-                               unit (:contents cell)]
+                               unit (:contents cell)
+                               invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
                            (and unit
                                 (= :army (:type unit))
                                 (= :computer (:owner unit))
-                                (not (and (seq unloaded-countries)
-                                          (:country-id unit)
-                                          (tc/recently-unloaded-country?
-                                            unloaded-countries (:country-id unit)))))))
+                                (or invasion-pickup?
+                                    (not (and (seq unloaded-countries)
+                                              (:country-id unit)
+                                              (tc/recently-unloaded-country?
+                                                unloaded-countries (:country-id unit))))))))
                        neighbors)
         to-load (min capacity (count armies))]
     (let [loaded-positions (vec (take to-load armies))]

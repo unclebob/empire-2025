@@ -80,15 +80,23 @@
        "                         (= :computer (:owner unit)))]\n"
        "        (h/process-computer-transport! [i j])))"))
 
+(def ^:private start-new-round-step
+  (str "      (h/start-new-round!)\n"
+       "      (loop [n 200]\n"
+       "        (when (and (pos? n)\n"
+       "                   (not (h/read-state :waiting-for-input))\n"
+       "                   (not (h/read-state :paused))\n"
+       "                   (or (seq (h/read-state :player-items)) (seq (h/read-state :computer-items))))\n"
+       "          (h/advance-game!)\n"
+       "          (recur (dec n))))"))
+
 (defn- generate-start-new-round-when [_]
-  (str "    (h/start-new-round!)\n"
-       "    (loop [n 200]\n"
-       "      (when (and (pos? n)\n"
-       "                 (not (h/read-state :waiting-for-input))\n"
-       "                 (not (h/read-state :paused))\n"
-       "                 (or (seq (h/read-state :player-items)) (seq (h/read-state :computer-items))))\n"
-       "        (h/advance-game!)\n"
-       "        (recur (dec n))))"))
+  (str "    (do\n" start-new-round-step "\n    )"))
+
+(defn- generate-rounds-complete-when [{:keys [count]}]
+  (str "    (dotimes [_ " count "]\n"
+       start-new-round-step
+       "\n    )"))
 
 (defn- generate-advance-game-when [_]
   "    (h/advance-game!)")
@@ -115,6 +123,7 @@
    :process-computer-transport generate-process-computer-transport-when
    :process-computer-fighter   generate-process-computer-fighter-when
    :computer-rounds            generate-computer-rounds-when
+   :rounds-complete            generate-rounds-complete-when
    :process-computer-ship      generate-process-computer-ship-when
    :save-game                  (fn [_]
                                   (str "    (with-redefs [spit (constantly nil)]\n"

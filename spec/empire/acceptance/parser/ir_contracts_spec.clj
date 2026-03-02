@@ -29,6 +29,7 @@
                     "WHEN the player presses D and wins the battle."
                     "WHEN production for X is evaluated."
                     "WHEN computer destroyer D is processed."
+                    "WHEN 3 rounds are complete."
                     "WHEN the player presses space."]
                    {:has-waiting-for-input true
                     :unit-types #{"D"}})]

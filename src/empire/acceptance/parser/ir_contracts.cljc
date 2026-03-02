@@ -161,6 +161,7 @@
 (defmethod when-ir-spec :process-computer-fighter [_] (s/keys :req-un [::type ::unit]))
 (defmethod when-ir-spec :process-computer-ship [_] (s/keys :req-un [::type ::ship-type ::unit]))
 (defmethod when-ir-spec :computer-rounds [_] (s/keys :req-un [::type ::count]))
+(defmethod when-ir-spec :rounds-complete [_] (s/keys :req-un [::type ::count]))
 (defmethod when-ir-spec :save-game [_] (s/keys :req-un [::type]))
 (defmethod when-ir-spec :open-load-menu [_] (s/keys :req-un [::type]))
 (defmethod when-ir-spec :unrecognized [_] (s/keys :req-un [::type ::text]))

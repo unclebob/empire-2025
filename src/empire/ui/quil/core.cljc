@@ -1,6 +1,5 @@
 (ns empire.ui.quil.core
   (:require [empire.atoms :as atoms]
-            [empire.computer.threat-response :as threat-response]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.init :as init]
@@ -45,11 +44,6 @@
   (game-loop/update-computer-map)
   (game-loop/advance-game-batch)
   (render-overlay/update-hover-status)
-  (when (threat-response/consume-profile-exit-request!)
-    (q/no-loop)
-    (q/exit)
-    (println "Empire closed.")
-    (System/exit 0))
   state)
 
 (defn draw-state
@@ -99,8 +93,6 @@
   state)
 
 (defn on-close [_]
-  (when-let [path (threat-response/finalize-profile!)]
-    (println (str "Profile written: " path)))
   (q/no-loop)
   (q/exit)
   (println "Empire closed.")

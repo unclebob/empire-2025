@@ -11,7 +11,6 @@
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
-            [empire.debug.profile :as profile]
             [empire.movement.visibility :as visibility]))
 
 (def ^:private state-ctx
@@ -96,32 +95,29 @@
    Returns true if any visited position has adjacent empty land
    not excluded by country-id or pickup continent."
   [pos transport max-depth]
-  (let [timer (profile/begin :transport/has-nearby-unloadable-land)]
-    (let [game-map (current-world)
-          exclude-ids (pickup-exclude-ids transport)
-          pickup-continent (pickup-continent-if-needed transport)
-          major-invasion? (:major-invasion transport)
-          has-unloadable-neighbor? (fn [p]
-                                     (some (fn [n]
-                                             (unloadable-land-cell?
-                                               (get-in game-map n) n exclude-ids pickup-continent major-invasion?))
-                                           (core/get-neighbors p)))
-          result (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
-                        visited #{pos}]
-                   (if (empty? queue)
-                     false
-                     (let [[current depth] (peek queue)]
-                       (cond
-                         (has-unloadable-neighbor? current) true
-                         (>= depth max-depth) (recur (pop queue) visited)
-                         :else
-                         (let [coastal-neighbors
-                               (filter #(passable-coastal-sea? % visited game-map)
-                                       (core/get-neighbors current))]
-                           (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
-                                  (into visited coastal-neighbors)))))))]
-      (profile/end! timer)
-      result)))
+  (let [game-map (current-world)
+        exclude-ids (pickup-exclude-ids transport)
+        pickup-continent (pickup-continent-if-needed transport)
+        major-invasion? (:major-invasion transport)
+        has-unloadable-neighbor? (fn [p]
+                                   (some (fn [n]
+                                           (unloadable-land-cell?
+                                             (get-in game-map n) n exclude-ids pickup-continent major-invasion?))
+                                         (core/get-neighbors p)))]
+    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
+           visited #{pos}]
+      (if (empty? queue)
+        false
+        (let [[current depth] (peek queue)]
+          (cond
+            (has-unloadable-neighbor? current) true
+            (>= depth max-depth) (recur (pop queue) visited)
+            :else
+            (let [coastal-neighbors
+                  (filter #(passable-coastal-sea? % visited game-map)
+                          (core/get-neighbors current))]
+              (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
+                     (into visited coastal-neighbors)))))))))
 
 (defn- transition-to-loading-inline
   "Inline loading transition — avoids circular dep with facade."
@@ -138,42 +134,39 @@
   "If transport has armies and there is adjacent unclaimed land,
    unload all possible armies onto targets. Returns true if any unloaded."
   [pos]
-  (let [timer (profile/begin :transport/try-opportunistic-unload)]
-    (let [game-map (current-world)
-          transport (get-in game-map (conj pos :contents))
-          army-count (:army-count transport 0)
-          exclude-ids (pickup-exclude-ids transport)
-          pickup-continent (pickup-continent-if-needed transport)
-          major-invasion? (:major-invasion transport)
-          targets (when (pos? army-count)
-                    (adjacent-empty-land pos exclude-ids pickup-continent major-invasion?))
-          to-unload (min army-count (count targets))
-          result (when (pos? to-unload)
-                   (let [unload-eid (:unload-event-id transport)
-                         unload-cid (or (:unload-country-id transport) (:country-id transport))
-                         army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
-                                unload-eid (assoc :unload-event-id unload-eid)
-                                unload-cid (assoc :country-id unload-cid))]
-                     (doseq [land-pos (take to-unload targets)]
-                       (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-                       (update-game-map! assoc-in (conj land-pos :contents) army)
-                       (core/stamp-territory land-pos army)
-                       (visibility/update-cell-visibility land-pos :computer))
-                     ;; Record unloaded country-id from land cells
-                     (let [unloaded-cid (->> (take to-unload targets)
-                                             (keep #(:country-id (get-in (current-world) %)))
-                                             first)]
-                       (when unloaded-cid
-                         (update-game-map! update-in (conj pos :contents :unloaded-countries)
-                                           assoc unloaded-cid (or (read-runtime-state :round-number) 0))))
-                     ;; Update army count
-                     (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
-                     ;; If fully unloaded, transition to loading
-                     (when (<= (- army-count to-unload) 0)
-                       (transition-to-loading-inline pos))
-                     true))]
-      (profile/end! timer)
-      result)))
+  (let [game-map (current-world)
+        transport (get-in game-map (conj pos :contents))
+        army-count (:army-count transport 0)
+        exclude-ids (pickup-exclude-ids transport)
+        pickup-continent (pickup-continent-if-needed transport)
+        major-invasion? (:major-invasion transport)
+        targets (when (pos? army-count)
+                  (adjacent-empty-land pos exclude-ids pickup-continent major-invasion?))
+        to-unload (min army-count (count targets))]
+    (when (pos? to-unload)
+      (let [unload-eid (:unload-event-id transport)
+            unload-cid (or (:unload-country-id transport) (:country-id transport))
+            army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
+                   unload-eid (assoc :unload-event-id unload-eid)
+                   unload-cid (assoc :country-id unload-cid))]
+        (doseq [land-pos (take to-unload targets)]
+          (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
+          (update-game-map! assoc-in (conj land-pos :contents) army)
+          (core/stamp-territory land-pos army)
+          (visibility/update-cell-visibility land-pos :computer))
+        ;; Record unloaded country-id from land cells
+        (let [unloaded-cid (->> (take to-unload targets)
+                                (keep #(:country-id (get-in (current-world) %)))
+                                first)]
+          (when unloaded-cid
+            (update-game-map! update-in (conj pos :contents :unloaded-countries)
+                              assoc unloaded-cid (or (read-runtime-state :round-number) 0))))
+        ;; Update army count
+        (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
+        ;; If fully unloaded, transition to loading
+        (when (<= (- army-count to-unload) 0)
+          (transition-to-loading-inline pos))
+        true))))
 
 (defn unload-armies
   "Unload armies onto adjacent land, excluding pickup continent. Returns true if any unloaded."

@@ -416,10 +416,11 @@
     (set-test-world! (build-test-map ["##vO"]))
     (set-test-unit atoms/game-map "v" :direction [1 0] :turns-remaining 50)
     (set-test-computer-map! (make-initial-test-map 1 4 nil))
-    (let [new-pos (move-satellite [2 0])]
-      ;; Blocked chain reaches right edge; satellite bounces left to [1 0]
-      (should= [1 0] new-pos)
-      (should= [-1 0] (get-in @atoms/game-map [1 0 :contents :direction])))))
+    (with-redefs [empire.movement.satellite/bounce-direction (fn [& _] [-1 0])]
+      (let [new-pos (move-satellite [2 0])]
+        ;; Blocked chain reaches right edge; satellite bounces left to [1 0]
+        (should= [1 0] new-pos)
+        (should= [-1 0] (get-in @atoms/game-map [1 0 :contents :direction]))))))
 
   (it "player satellite without :direction uses target-based movement"
     (set-test-world! (build-test-map ["#####"

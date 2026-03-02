@@ -69,6 +69,26 @@ THEN t has transport-mission unloading.
 THEN t has invasion-target [2 1].
 
 ;===============================================================
+; Empty transport opts out when no coastal army is within 6.
+;===============================================================
+GIVEN game map
+  #######a
+  t~~~~~~~
+  ~~~~~~~~
+GIVEN t has transport-mission find-armies-for-invasion.
+GIVEN t has major-invasion true.
+GIVEN t has major-invasion-target [7 0].
+GIVEN t has 0 armies.
+GIVEN computer map
+  ........
+  ........
+  ........
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission loading.
+
+;===============================================================
 ; Enemy army detection also triggers major invasion.
 ;===============================================================
 GIVEN game map
@@ -166,3 +186,74 @@ GIVEN t has transport-mission invading.
 WHEN computer patrol-boat p is processed.
 
 THEN p is at [2 0].
+
+;===============================================================
+; Empty invasion transport enters find-armies state.
+;===============================================================
+GIVEN game map
+  tO~~~
+  ~~~~#
+  a####
+GIVEN t has transport-mission sailing.
+GIVEN t has 0 armies.
+GIVEN computer map
+  .....
+  .....
+  .....
+
+WHEN cell visibility updates for t.
+WHEN a new round starts.
+
+THEN t has transport-mission find-armies-for-invasion.
+
+;===============================================================
+; Invasion army not on coast enters move-to-coast state.
+;===============================================================
+GIVEN game map
+  fO~~~
+  #####
+  ##a##
+  #####
+  ~~~~~
+GIVEN computer map
+  .....
+  .....
+  .....
+  .....
+  .....
+
+WHEN cell visibility updates for f.
+WHEN a new round starts.
+
+THEN a has mode move-to-coast-for-invasion.
+
+;===============================================================
+; Invasion loading timeout with no armies does not join invasion.
+;===============================================================
+GIVEN game map
+  ~t~
+  ###
+GIVEN t has transport-mission load-for-invasion.
+GIVEN t has major-invasion true.
+GIVEN t has invasion-load-since 0.
+GIVEN t has 0 armies.
+
+WHEN 6 rounds are complete.
+
+THEN t has transport-mission loading.
+
+;===============================================================
+; Invasion loading with armies near target joins invasion immediately.
+;===============================================================
+GIVEN game map
+  ~t~
+  ###
+GIVEN t has transport-mission load-for-invasion.
+GIVEN t has major-invasion true.
+GIVEN t has major-invasion-target [1 1].
+GIVEN t has invasion-load-since 0.
+GIVEN t has 1 armies.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission unloading.

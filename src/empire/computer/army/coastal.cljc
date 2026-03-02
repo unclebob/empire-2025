@@ -4,8 +4,8 @@
             [empire.application.ports :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
-            [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
+            [empire.computer.army.movement :as movement]
             [empire.debug :as debug]))
 
 (defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
@@ -183,3 +183,96 @@
         (try-settle-on-coast pos country-id)
         (try-queue-near-coast pos country-id)
         (try-wake-nearby pos))))
+
+(defn- coastal-cell?
+  [pos country-id]
+  (let [cell (get-in (current-world) pos)]
+    (and (movement/sovereign-passable? country-id cell)
+         (movement/adjacent-to-sea? pos))))
+
+(defn- empty-coastal-cell?
+  [pos country-id]
+  (let [cell (get-in (current-world) pos)]
+    (and (coastal-cell? pos country-id)
+         (nil? (:contents cell)))))
+
+(defn- bfs-land-distances
+  "Land-only BFS from start with sovereignty passability.
+   Returns map of pos -> distance."
+  [start country-id]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+         visited #{start}
+         distances {start 0}]
+    (if (empty? queue)
+      distances
+      (let [current (peek queue)
+            depth (get distances current 0)
+            nexts (remove visited (movement/get-passable-neighbors current country-id))]
+        (recur (into (pop queue) nexts)
+               (into visited nexts)
+               (reduce (fn [m p] (assoc m p (inc depth))) distances nexts))))))
+
+(defn- closest-staging-cell
+  [distances country-id]
+  (let [visited (keys distances)
+        coastal-seeds (filter #(coastal-cell? % country-id) visited)]
+    (when (seq coastal-seeds)
+      (let [staging (filter (fn [p]
+                              (let [cell (get-in (current-world) p)]
+                                (and (movement/sovereign-passable? country-id cell)
+                                     (or (nil? (:contents cell))
+                                         (= p (first coastal-seeds))))))
+                            visited)]
+        (first (sort-by (fn [p]
+                          (let [coast-dist (apply min (map #(core/distance p %) coastal-seeds))]
+                            [coast-dist (get distances p 9999) p]))
+                        staging))))))
+
+(defn find-coast-target-once
+  "One-time land-only BFS target selection for invasion embarkation.
+   Prefers nearest empty coastal cell; if none reachable, picks nearest staging cell."
+  [start country-id]
+  (let [distances (bfs-land-distances start country-id)
+        reachable (keys distances)
+        empty-coastal (filter #(empty-coastal-cell? % country-id) reachable)]
+    (if (seq empty-coastal)
+      (first (sort-by (fn [p] [(get distances p 9999) p]) empty-coastal))
+      (closest-staging-cell distances country-id))))
+
+(defn- local-empty-coast-target
+  "Radius-2 land-only BFS around pos, returning nearest empty coastal cell."
+  [pos country-id]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
+         visited #{pos}]
+    (if (empty? queue)
+      nil
+      (let [[current depth] (peek queue)]
+        (cond
+          (and (not= current pos) (empty-coastal-cell? current country-id)) current
+          (>= depth 2) (recur (pop queue) visited)
+          :else
+          (let [nexts (->> (movement/get-passable-neighbors current country-id)
+                           (remove visited))]
+            (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) nexts)
+                   (into visited nexts))))))))
+
+(defn process-move-to-coast-for-invasion
+  "Move an army toward its cached coast target for pickup.
+   When already coastal, switch to sentry and stop moving.
+   If blocked before reaching coast, do a local radius-2 land BFS for an empty coastal cell."
+  [pos country-id]
+  (if (should-sentry-on-coast? pos country-id)
+    (do
+      (update-game-map! update-in (conj pos :contents)
+                        #(-> %
+                             (assoc :mode :sentry)
+                             (dissoc :coast-target)))
+      pos)
+    (let [unit (get-in (current-world) (conj pos :contents))
+          target (or (:coast-target unit) (find-coast-target-once pos country-id))]
+      (when target
+        (update-game-map! assoc-in (conj pos :contents :coast-target) target)
+        (or (movement/move-toward-objective pos target country-id)
+            (when-let [local-target (local-empty-coast-target pos country-id)]
+              (update-game-map! assoc-in (conj pos :contents :coast-target) local-target)
+              (movement/move-toward-objective pos local-target country-id)))))))

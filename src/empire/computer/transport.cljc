@@ -17,6 +17,7 @@
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
 
 (def ^:private state-ctx
@@ -82,6 +83,149 @@
     (update-game-map! assoc-in
                       (conj pos :contents :pickup-continent-pos) next-pickup)))
 
+(defn- load-for-invasion-start!
+  [pos]
+  (update-game-map! update-in (conj pos :contents)
+                    #(assoc % :transport-mission :load-for-invasion
+                              :invasion-load-since (or (read-runtime-state :round-number) 0))))
+
+(defn- loadable-army-neighbor?
+  [transport-pos]
+  (let [world (current-world)]
+    (some (fn [n]
+            (let [unit (get-in world (conj n :contents))]
+              (and unit
+                   (= :computer (:owner unit))
+                   (= :army (:type unit)))))
+          (core/get-neighbors transport-pos))))
+
+(defn- passable-sea-cell?
+  [cell]
+  (and (= :sea (:type cell))
+       (or (nil? (:contents cell))
+           (= :computer (:owner (:contents cell))))))
+
+(defn- sea-load-points
+  "All passable sea cells adjacent to at least one computer army."
+  []
+  (let [world (current-world)]
+    (for [i (range (count world))
+          j (range (count (first world)))
+          :let [cell (get-in world [i j])]
+          :when (and cell
+                     (passable-sea-cell? cell)
+                     (loadable-army-neighbor? [i j]))]
+      [i j])))
+
+(def ^:private invasion-army-search-max-distance 6)
+
+(defn- coastal-army?
+  [pos computer-map]
+  (some (fn [n]
+          (= :sea (:type (get-in computer-map n))))
+        (core/get-neighbors pos)))
+
+(defn- candidate-coastal-armies
+  [transport-pos]
+  (let [world (current-world)
+        computer-map (read-runtime-state :computer-map)]
+    (for [i (range (count world))
+          j (range (count (first world)))
+          :let [unit (get-in world [i j :contents])
+                army-pos [i j]]
+          :when (and unit
+                     (= :army (:type unit))
+                     (= :computer (:owner unit))
+                     (<= (core/chebyshev-distance transport-pos army-pos)
+                         invasion-army-search-max-distance)
+                     (coastal-army? army-pos computer-map))]
+      army-pos)))
+
+(defn- nearest-reachable-coastal-army
+  [transport-pos]
+  (let [computer-map (read-runtime-state :computer-map)
+        candidates (candidate-coastal-armies transport-pos)
+        scored (keep (fn [army-pos]
+                       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target
+                                        transport-pos army-pos computer-map)]
+                         {:army-pos army-pos
+                          :path path
+                          :score [(count path)
+                                  (core/chebyshev-distance transport-pos army-pos)
+                                  army-pos]}))
+                     candidates)]
+    (first (sort-by :score scored))))
+
+(defn- move-to-sea-step
+  [pos step]
+  (when (and step (core/move-unit-to pos step))
+    (visibility/update-cell-visibility pos :computer)
+    (visibility/update-cell-visibility step :computer)
+    (loading/load-adjacent-armies step)
+    step))
+
+(defn- process-find-armies-for-invasion
+  [pos]
+  (loading/load-adjacent-armies pos)
+  (let [transport (get-in (current-world) (conj pos :contents))
+        army-count (:army-count transport 0)]
+    (cond
+      (pos? army-count)
+      (load-for-invasion-start! pos)
+
+      (loadable-army-neighbor? pos)
+      (load-for-invasion-start! pos)
+
+      :else
+      (if-let [{:keys [path]} (nearest-reachable-coastal-army pos)]
+        (if (seq path)
+          (or (move-to-sea-step pos (first path))
+              (loading/coastal-crawl-move pos))
+          (load-for-invasion-start! pos))
+        ;; No coastal army within 6 sea-chebyshev that is sea-reachable:
+        ;; leave this transport out of the current invasion revision.
+        (update-game-map! update-in (conj pos :contents)
+                          #(assoc %
+                                  :transport-mission :loading
+                                  :major-invasion-skip-revision
+                                  (threat-response/major-invasion-target-revision)))))))
+
+(def ^:private invasion-load-timeout-rounds 5)
+
+(defn- process-load-for-invasion
+  [pos]
+  (loading/load-adjacent-armies pos)
+  (let [transport (get-in (current-world) (conj pos :contents))
+        army-count (:army-count transport 0)
+        major-target (:major-invasion-target transport)
+        in-unload-zone? (and major-target
+                             (<= (core/chebyshev-distance pos major-target) 2))
+        now (or (read-runtime-state :round-number) 0)
+        started (or (:invasion-load-since transport) now)
+        elapsed (- now started)]
+    (cond
+      (and (pos? army-count) in-unload-zone?)
+      (update-game-map! update-in (conj pos :contents)
+                        #(assoc % :transport-mission :unloading
+                                  :invasion-target (or (:invasion-target %)
+                                                       major-target)))
+
+      (and (pos? army-count)
+           (unloading/has-nearby-unloadable-land? pos transport 5))
+      (do (tc/set-transport-mission pos :sailing)
+          (threat-response/prepare-transport! pos))
+
+      (and (>= elapsed invasion-load-timeout-rounds) (pos? army-count))
+      (do (tc/set-transport-mission pos :sailing)
+          (threat-response/prepare-transport! pos))
+
+      (and (>= elapsed invasion-load-timeout-rounds) (zero? army-count))
+      (do (transition-to-loading pos)
+          (update-game-map! update-in (conj pos :contents)
+                            dissoc :invasion-load-since))
+
+      :else nil)))
+
 (defn- loading-crawl-move
   [pos]
   (let [move-one (fn [p]
@@ -128,7 +272,23 @@
     (let [transport (get-in (current-world) (conj pos :contents))]
       (if (unloading/has-nearby-unloadable-land? pos transport 5)
         (if-let [pos1 (unloading/unloading-crawl-move pos)]
-          (or (unloading/unloading-crawl-move pos1) pos1)
+          (let [after-first (or (when (= :unloading
+                                       (:transport-mission (get-in (current-world) (conj pos1 :contents))))
+                                  (unloading/try-opportunistic-unload pos1))
+                                false)
+                unit1 (get-in (current-world) (conj pos1 :contents))
+                can-second? (and unit1
+                                 (= :unloading (:transport-mission unit1))
+                                 (not after-first))]
+            (if can-second?
+              (if-let [pos2 (unloading/unloading-crawl-move pos1)]
+                (do
+                  (when (= :unloading
+                           (:transport-mission (get-in (current-world) (conj pos2 :contents))))
+                    (unloading/try-opportunistic-unload pos2))
+                  pos2)
+                pos1)
+              pos1))
           (start-sailing pos transport))
         (start-sailing pos transport)))))
 
@@ -153,6 +313,12 @@
 
         (= current-mission :invading)
         (sailing/process-invading-mission pos)
+
+        (= current-mission :find-armies-for-invasion)
+        (process-find-armies-for-invasion pos)
+
+        (= current-mission :load-for-invasion)
+        (process-load-for-invasion pos)
 
         (= current-mission :unloading)
         (process-unloading-mission pos army-count)

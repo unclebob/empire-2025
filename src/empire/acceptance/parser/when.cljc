@@ -96,6 +96,9 @@
 (defn- when-handle-computer-rounds [[_ n] _ctx]
   [{:type :computer-rounds :count (h/parse-count n)}])
 
+(defn- when-handle-rounds-complete [[_ n] _ctx]
+  [{:type :rounds-complete :count (h/parse-count n)}])
+
 ;; --- WHEN parsing: pattern table ---
 
 (def ^:private when-patterns
@@ -143,6 +146,8 @@
                [{:type :process-computer-ship :ship-type (keyword ship-type) :unit unit}])}
    {:regex #"(\w+)\s+computer\s+rounds?\s+pass"
     :handler when-handle-computer-rounds}
+   {:regex #"(\w+)\s+rounds?\s+(?:are|is)\s+complete"
+    :handler when-handle-rounds-complete}
    {:regex #"(\w+)\s+is\s+waiting\s+for\s+input"
     :handler when-handle-standalone-waiting}])
 

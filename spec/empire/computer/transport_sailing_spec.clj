@@ -247,6 +247,25 @@
                            unit))]
           (should= :sailing (:transport-mission t)))))
 
+    (it "invading transport sidesteps when invasion path step is blocked"
+      (set-test-world! (build-test-map ["~~~"
+                                        "td~"
+                                        "~~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      ;; Force blocker to be a computer transport occupying the first invasion step.
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :transport :owner :computer :transport-mission :invading :army-count 2})
+      (update-test-world! assoc-in [0 1 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :invading
+                          :army-count 4
+                          :invasion-target [2 1]
+                          :invasion-path [[1 1] [2 1]]
+                          :invasion-path-origin [0 1]})
+      (transport/process-transport [0 1])
+      (should= :transport (get-in @atoms/game-map [1 0 :contents :type]))
+      (should-be-nil (get-in @atoms/game-map [0 1 :contents]))))
+
     (it "full transport sails even when nearby armies exist"
       ;; Full transport in narrow channel with armies on adjacent land
       ;; Should still sail because it can't load any more
@@ -304,6 +323,39 @@
       (let [t (:contents (get-in @atoms/game-map [2 0]))]
         (should= :transport (:type t))
         (should= [[3 0]] (:sail-path t))))
+
+    (it "sailing with armies and empty path does not flip to unloading when no unloadable land exists"
+      (set-test-world! (build-test-map ["t~~"
+                                        "###"]))
+      (set-test-computer-map! @atoms/game-map)
+      ;; Exclude all adjacent land by matching country-id.
+      (doseq [c (range 3)]
+        (update-test-world! assoc-in [c 1 :country-id] 1))
+      (update-test-world! assoc-in [0 0 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :sailing :army-count 3
+                          :country-id 1
+                          :sail-path []})
+      (with-redefs [empire.computer.transport-sailing/compute-sail-path (constantly nil)]
+        (transport/process-transport [0 0]))
+      (should= :sailing (get-in @atoms/game-map [0 0 :contents :transport-mission])))
+
+    (it "sailing transport in city launches to adjacent sea when path is empty"
+      (set-test-world! (build-test-map ["~O~"
+                                        "~~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :sailing :army-count 1
+                          :sail-path []})
+      (with-redefs [empire.computer.transport-sailing/compute-sail-path (constantly nil)]
+        (transport/process-transport [1 0]))
+      (let [tpos (first (for [c (range 3) r (range 2)
+                              :when (= :transport (get-in @atoms/game-map [c r :contents :type]))]
+                          [c r]))]
+        (should-not-be-nil tpos)
+        (should-not= [1 0] tpos)
+        (should (contains? #{[0 0] [2 0] [1 1]} tpos)))))
 
     (it "continues in same direction when sail-path exhausted after 1 step"
       ;; t at [0 0], sail-path [[1 0]] — only 1 step.
@@ -383,9 +435,9 @@
         (should (vector? (:sail-path t)))
         (should (pos? (count (:sail-path t))))))
 
-    (it "exhausted sail-path with armies transitions to unloading"
+    (it "exhausted sail-path with armies recomputes sailing path instead of forced unload"
       ;; t at [4 0], fog on both sides, sail-path []
-      ;; Should transition to :unloading (then start-sailing on next round if no coast)
+      ;; Should stay in :sailing and obtain movement/path rather than flip-flopping.
       (set-test-world! (build-test-map ["~~~~~~~~~"]))
       (set-test-computer-map!
               (vec (for [c (range 9)]
@@ -397,8 +449,14 @@
               :transport-mission :sailing :army-count 6
               :sail-path []})
       (transport/process-transport [4 0])
-      (let [t (:contents (get-in @atoms/game-map [4 0]))]
-        (should= :unloading (:transport-mission t)))))
+      (let [t-pos (first (for [c (range 9)
+                               :let [u (get-in @atoms/game-map [c 0 :contents])]
+                               :when (= :transport (:type u))]
+                           [c 0]))
+            t (get-in @atoms/game-map (conj t-pos :contents))]
+        (should= :sailing (:transport-mission t))
+        (should (or (not= [4 0] t-pos)
+                    (seq (:sail-path t))))))
 
   (context "load armies after move-toward-position"
     (it "loads army adjacent to destination when moving toward pickup continent"
@@ -439,6 +497,20 @@
       (transport/process-transport [0 0])
       (should= :unloading (get-in @atoms/game-map [0 0 :contents :transport-mission])))
 
+    (it "empty invasion path with target keeps moving toward target instead of forcing unload"
+      (set-test-world! (build-test-map ["t~~~~~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 0 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :invading
+                          :invasion-path []
+                          :invasion-target [6 0]
+                          :army-count 4})
+      (transport/process-transport [0 0])
+      ;; Should advance toward target and remain in invading mode (not forced unloading).
+      (should= :transport (get-in @atoms/game-map [2 0 :contents :type]))
+      (should= :invading (get-in @atoms/game-map [2 0 :contents :transport-mission])))
+
     (it "transitions to unloading after exhausting 2-step path (L112)"
       ;; Path has exactly 2 steps — after taking both, remaining is empty,
       ;; so transport transitions to unloading at step2.
@@ -468,4 +540,3 @@
       ;; Should have moved to [0 1], then continued to [0 2] (computer-occupied passable)
       ;; or stopped at [0 1] if computer unit blocks move. Either way, moved past [0 0].
       (should-be-nil (:contents (get-in @atoms/game-map [0 0])))))
-)

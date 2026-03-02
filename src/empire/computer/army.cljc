@@ -93,6 +93,7 @@
   [[enemy-pos                               #(army-combat/attack-enemy pos enemy-pos)]
    [(:attack-target unit)                   #(army-combat/process-attack-target pos country-id)]
    [(= :coast-walk mode)                    #(coastal/process-coast-walk pos country-id)]
+   [(= :move-to-coast-for-invasion mode)    #(coastal/process-move-to-coast-for-invasion pos country-id)]
    [(= :move-inland mode)                   #(exploration/process-move-inland pos country-id)]
    [(= :random-explore mode)                #(exploration/process-random-explore pos country-id)]
    [(= :sentry mode)                        #(process-sentry-in-city pos country-id cell)]

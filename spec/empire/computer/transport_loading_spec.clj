@@ -79,6 +79,18 @@
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :army-count 0}}]])
       (should= 1 (loading/load-adjacent-armies [0 1]))
+      (should= 1 (get-in @atoms/game-map [0 1 :contents :army-count])))
+
+    (it "loads invasion-bound adjacent armies even from recently unloaded country"
+      (reset! atoms/round-number 20)
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
+                                                 :country-id 130
+                                                 :mode :move-to-coast-for-invasion}}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :army-count 0
+                                                :unloaded-countries {130 15}}}]])
+      (should= 1 (loading/load-adjacent-armies [0 1]))
+      (should-be-nil (get-in @atoms/game-map [0 0 :contents]))
       (should= 1 (get-in @atoms/game-map [0 1 :contents :army-count]))))
 
   (context "loading-stale? (L135)"

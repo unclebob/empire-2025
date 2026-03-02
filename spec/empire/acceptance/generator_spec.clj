@@ -191,6 +191,12 @@
       (should-contain "start-new-round" result)
       (should-contain "advance-game" result)))
 
+  (it "generates rounds-complete when"
+    (let [result (gen/generate-when {:type :rounds-complete :count 6})]
+      (should-contain "dotimes [_ 6]" result)
+      (should-contain "start-new-round" result)
+      (should-contain "advance-game" result)))
+
   (it "generates advance-game when"
     (let [result (gen/generate-when {:type :advance-game})]
       (should-contain "advance-game" result)))

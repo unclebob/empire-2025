@@ -4,8 +4,10 @@
   (:require [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.ship-core :as ship-core]
-            [empire.config :as config]
-            [empire.debug.profile :as profile]))
+            [empire.config :as config]))
+
+(def ^:private patrol-yield-radius 4)
+(def ^:private patrol-max-invasion-distance 10)
 
 (defn- move-hop-consume
   [pos target]
@@ -86,39 +88,87 @@
         (ship-core/move-toward pos move-target))
       (ship-core/explore-sea pos ship-type)))
 
-(defn- nearby-invading-transport
+(defn- nearby-invading-transports
   [world pos]
-  (let [timer (profile/begin :threat/nearby-invading-transport-scan)]
-    (let [[x y] pos
-          transports (for [dx (range -2 3)
-                           dy (range -2 3)
-                           :when (<= (max (Math/abs dx) (Math/abs dy)) 2)
-                           :let [candidate [(+ x dx) (+ y dy)]
-                                 unit (get-in world (conj candidate :contents))]
-                           :when (and unit
-                                      (= :computer (:owner unit))
-                                      (= :transport (:type unit))
-                                      (:major-invasion unit)
-                                      (#{:invading :unloading} (:transport-mission unit)))]
-                       candidate)]
-      (profile/end! timer)
-      (when (seq transports)
-        (apply min-key #(core/distance pos %) transports)))))
+  (let [[x y] pos
+        transports (for [dx (range (- patrol-yield-radius) (inc patrol-yield-radius))
+                         dy (range (- patrol-yield-radius) (inc patrol-yield-radius))
+                         :when (<= (max (Math/abs dx) (Math/abs dy)) patrol-yield-radius)
+                         :let [candidate [(+ x dx) (+ y dy)]
+                               unit (get-in world (conj candidate :contents))]
+                         :when (and unit
+                                    (= :computer (:owner unit))
+                                    (= :transport (:type unit))
+                                    (:major-invasion unit)
+                                    (#{:invading :unloading} (:transport-mission unit)))]
+                     candidate)]
+    (vec transports)))
+
+(defn- land-at-distance?
+  [world [x y] d]
+  (boolean
+   (some (fn [pos]
+           (let [cell (get-in world pos)]
+             (and cell (#{:land :city} (:type cell)))))
+         (for [dx (range (- d) (inc d))
+               dy (range (- d) (inc d))
+               :when (= d (max (Math/abs dx) (Math/abs dy)))]
+           [(+ x dx) (+ y dy)]))))
+
+(defn- shore-band-score
+  [world pos]
+  (cond
+    (land-at-distance? world pos 1) -20
+    (land-at-distance? world pos 2) 12
+    (land-at-distance? world pos 3) 4
+    :else 0))
+
+(defn- top-random-choice
+  [scored]
+  (when (seq scored)
+    (let [sorted (sort-by (fn [{:keys [score]}] (- score)) scored)
+          topn (vec (take 3 sorted))]
+      (:pos (rand-nth topn)))))
+
+(defn- candidate-neighbors
+  [world pos center]
+  (let [passable (ship-core/get-passable-sea-neighbors pos)
+        empty-passable (filter #(nil? (:contents (get-in world %))) passable)]
+    (if center
+      (filter #(<= (core/distance % center) patrol-max-invasion-distance) empty-passable)
+      empty-passable)))
+
+(defn- patrol-stand-off-step
+  [ctx pos center]
+  (let [world ((:current-world ctx))
+        candidates (candidate-neighbors world pos center)
+        scored (for [cand candidates]
+                 {:pos cand
+                  :score (+ (shore-band-score world cand)
+                            ;; Bias toward invasion point while respecting max radius.
+                            (if center (- 12 (min 12 (core/distance cand center))) 0))})]
+    (when-let [target (top-random-choice scored)]
+      (when (core/move-unit-to pos target)
+        target))))
 
 (defn- patrol-yield-to-transport
   [ctx pos center]
   (let [world ((:current-world ctx))]
-    (when-let [transport-pos (nearby-invading-transport world pos)]
-      (let [from-dist (core/distance pos transport-pos)
-            passable (ship-core/get-passable-sea-neighbors pos)
-            empty-passable (filter #(nil? (:contents (get-in world %))) passable)
-            preferred (->> empty-passable
-                           (filter #(> (core/distance % transport-pos) from-dist))
-                           (sort-by (fn [p] [(- (core/distance p transport-pos))
-                                             (- (core/distance p (or center transport-pos)))
-                                             p])))]
-        (when-let [target (first preferred)]
-          (core/move-unit-to pos target))))))
+    (let [transports (nearby-invading-transports world pos)]
+      (when (seq transports)
+        (let [candidates (candidate-neighbors world pos center)
+              scored (for [cand candidates
+                           :let [clearance (apply min (map #(core/distance cand %) transports))
+                                 center-bias (if center
+                                               (- 8 (min 8 (core/distance cand center)))
+                                               0)]]
+                       {:pos cand
+                        :score (+ (* 4 clearance)
+                                  (shore-band-score world cand)
+                                  center-bias)})]
+          (when-let [target (top-random-choice scored)]
+            (when (core/move-unit-to pos target)
+              target)))))))
 
 (defn- sea-scout-target
   [pos center radius]
@@ -137,13 +187,23 @@
 (defn- handle-major-invasion-ship-threat
   [ctx nearest-major-target pos ship-type center]
   (if (= :patrol-boat ship-type)
-    ;; Keep patrol boats cheap in crowded invasion theaters:
-    ;; yield to transports, otherwise attack/move/hold (no BFS explore fallback).
-    (or (patrol-yield-to-transport ctx pos center)
-        (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
-          (ship-core/attack-enemy pos enemy-pos))
-        (when-let [target (major-invasion-target nearest-major-target pos center)]
-          (ship-core/move-toward pos target)))
+    ;; Keep patrol boats cheap in crowded invasion theaters, but preserve patrol speed.
+    ;; Do not run expensive BFS explore fallback while invasion is active.
+    (loop [current pos
+           steps-left 4]
+      (if (zero? steps-left)
+        current
+        (let [world ((:current-world ctx))]
+          (if (nil? (get-in world (conj current :contents)))
+            current
+            (if-let [next-pos
+                     (or (patrol-yield-to-transport ctx current center)
+                         (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship current)]
+                           (ship-core/attack-enemy current enemy-pos))
+                         (patrol-stand-off-step ctx current
+                                                (major-invasion-target nearest-major-target current center)))]
+              (recur next-pos (dec steps-left))
+              (recur current (dec steps-left)))))))
     (ship-threat-action pos ship-type (major-invasion-target nearest-major-target pos center)))
   true)
 
@@ -151,8 +211,7 @@
   "Overrides regular ship logic for sea-scout and major-invasion missions.
    Returns true when handled."
   [ctx pos ship-type unit]
-  (let [timer (profile/begin :threat/process-ship-threat)
-        center (or (:threat-center unit) (:major-invasion-target unit))
+  (let [center (or (:threat-center unit) (:major-invasion-target unit))
         radius (:threat-radius unit (:threat-radius ctx))
         nearest-major-target (:nearest-major-target ctx)
         result (cond
@@ -163,5 +222,4 @@
                  (handle-major-invasion-ship-threat ctx nearest-major-target pos ship-type center)
 
                  :else false)]
-    (profile/end! timer)
     result))

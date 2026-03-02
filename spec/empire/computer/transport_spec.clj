@@ -137,7 +137,7 @@
       ;; Transport should have fewer armies
       (should= 1 (:army-count (:contents (get-in @atoms/game-map [0 1])))))
 
-    (it "unloading crawl moves 2 cells per round (speed 2)"
+    (it "unloading crawl moves toward unloadable coast and unloads as soon as possible"
       ;; ########   land at row 0 (cols 0-1 excluded, cols 2+ unloadable)
       ;; t~~~~~~~   transport at [0,1] in unloading mode
       ;; Adjacent land excluded → opportunistic unload fails.
@@ -153,10 +153,11 @@
               :country-id 1
               :pickup-continent-pos [0 0]})
       (transport/process-transport [0 1])
-      ;; Transport should have crawled 2 cells, not 1
+      ;; Transport crawls toward unloadable coast and unloads immediately on arrival.
       (should-be-nil (:contents (get-in @atoms/game-map [0 1])))
-      (should-be-nil (:contents (get-in @atoms/game-map [1 1])))
-      (should= :transport (get-in @atoms/game-map [2 1 :contents :type])))
+      (should= :transport (get-in @atoms/game-map [1 1 :contents :type]))
+      (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
+      (should= 1 (get-in @atoms/game-map [1 1 :contents :army-count])))
 
     (it "changes to loading mode after full unload"
       (set-test-world! [[{:type :land}
@@ -204,6 +205,40 @@
                            [0 c]))
             transport (get-in @atoms/game-map (conj t-pos :contents))]
         (should= :loading (:transport-mission transport)))))
+
+  (context "find-armies-for-invasion targeting"
+    (it "targets nearest coastal army within chebyshev 6 using sea BFS"
+      ;; transport at [0,1], inland army at [7,0], coastal army at [2,0]
+      ;; should move toward the coastal one, not the inland one.
+      (set-test-world! (build-test-map ["##a####a"
+                                        "t~~~~~~~"
+                                        "~~~~~~~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 1 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :find-armies-for-invasion
+                          :major-invasion true
+                          :major-invasion-target [4 0]
+                          :army-count 0})
+      (transport/process-transport [0 1])
+      (should= :transport (get-in @atoms/game-map [1 1 :contents :type])))
+
+    (it "opts out of invasion loading when no coastal army is reachable within 6"
+      ;; nearest coastal army exists but beyond distance threshold.
+      (set-test-world! (build-test-map ["#######a"
+                                        "t~~~~~~~"
+                                        "~~~~~~~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 1 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :find-armies-for-invasion
+                          :major-invasion true
+                          :major-invasion-target [7 0]
+                          :army-count 0})
+      (transport/process-transport [0 1])
+      (let [t (:contents (get-in @atoms/game-map [0 1]))]
+        (should= :loading (:transport-mission t))
+        (should= 0 (:major-invasion-skip-revision t)))))
 
   (context "ignores non-computer transports"
     (it "returns nil for player transport"
@@ -777,6 +812,28 @@
                     (for [c (range 7) r (range 2)] [c r]))]
         (should= :unloading (:transport-mission t)))))
 
+    (it "unloads immediately after first unloading crawl step when adjacent land becomes available"
+      ;; ###   land row (0,0) and (1,0) excluded by country-id 1; (2,0) unloadable
+      ;; t~~   transport starts at [0,1], can crawl to [1,1]
+      (set-test-world! (build-test-map ["###"
+                                        "t~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 0 :country-id] 1)
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (update-test-world! assoc-in [0 1 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :unloading :army-count 1
+                          :country-id 1
+                          :pickup-continent-pos [0 0]})
+      (transport/process-transport [0 1])
+      ;; Same round unload should happen at [2,0] after first crawl step.
+      (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
+      (let [t (some (fn [[c r]]
+                      (let [u (get-in @atoms/game-map [c r :contents])]
+                        (when (= :transport (:type u)) u)))
+                    (for [c (range 3) r (range 2)] [c r]))]
+        (should= 0 (:army-count t)))))
+
   (context "continue-pos sailing"
     (it "sailing with 1-element sail-path continues direction for second step"
       ;; ~~~   row 0
@@ -1157,4 +1214,60 @@
       (transport/process-transport [0 0])
       (let [t (:contents (get-in @atoms/game-map [0 0]))]
         (should= :loading (:transport-mission t))
-        (should= 5 (:loading-since t))))))
+        (should= 5 (:loading-since t)))))
+
+  (context "major invasion transport loading"
+    (it "empty invasion transport enters find-armies-for-invasion"
+      (set-test-world! (build-test-map ["tO~~~"
+                                        "~~~~#"
+                                        "a####"]))
+      (set-test-computer-map! @atoms/game-map)
+      (reset! atoms/major-invasion-state {:active? true
+                                          :detection-points #{[1 0]}
+                                          :target-land-set #{[1 0]}
+                                          :sea-reachable-detection-points #{}
+                                          :target-land-revision 1})
+      (update-test-world! assoc-in [0 0 :contents :transport-mission] :sailing)
+      (update-test-world! assoc-in [0 0 :contents :army-count] 0)
+      (transport/process-transport [0 0])
+      (let [t (some (fn [[c r]]
+                      (let [u (get-in @atoms/game-map [c r :contents])]
+                        (when (= :transport (:type u)) u)))
+                    (for [c (range 5) r (range 3)] [c r]))]
+        (should= :find-armies-for-invasion (:transport-mission t))))
+
+    (it "load-for-invasion times out empty transport back to loading"
+      (reset! atoms/round-number 6)
+      (set-test-world! (build-test-map ["~t~"
+                                        "###"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [1 0 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :load-for-invasion
+                          :major-invasion true
+                          :invasion-load-since 0
+                          :army-count 0})
+      (transport/process-transport [1 0])
+      (should= :loading (get-in @atoms/game-map [1 0 :contents :transport-mission])))
+
+    (it "load-for-invasion with armies times out into invasion mission"
+      (reset! atoms/round-number 6)
+      (set-test-world! (build-test-map ["~t~"
+                                        "###"
+                                        "~O~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (reset! atoms/major-invasion-state {:active? true
+                                          :detection-points #{[1 2]}
+                                          :target-land-set #{[1 2]}
+                                          :sea-reachable-detection-points #{[1 2]}
+                                          :target-land-revision 1})
+      (update-test-world! assoc-in [1 0 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :load-for-invasion
+                          :major-invasion true
+                          :major-invasion-target [1 2]
+                          :invasion-load-since 0
+                          :army-count 1})
+      (transport/process-transport [1 0])
+      (should (#{:invading :unloading}
+               (get-in @atoms/game-map [1 0 :contents :transport-mission])))))

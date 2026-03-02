@@ -71,6 +71,12 @@
         (should= [{:type :start-new-round}]
                  (:whens result))))
 
+    (it "parses rounds are complete"
+      (let [lines ["WHEN 6 rounds are complete."]
+            result (when-parser/parse-when lines {})]
+        (should= [{:type :rounds-complete :count 6}]
+                 (:whens result))))
+
     (it "parses game advances"
       (let [lines ["WHEN the game advances."]
             result (when-parser/parse-when lines {})]

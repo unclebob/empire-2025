@@ -32,7 +32,7 @@
             (some :config-key (concat thens whens)))}
    {:need :game-loop
     :pred (fn [{:keys [types whens thens]}]
-            (or (some #{:start-new-round :advance-game :advance-game-batch :visibility-update} types)
+            (or (some #{:start-new-round :rounds-complete :advance-game :advance-game-batch :visibility-update} types)
                 (some #{:unit-at-next-round :unit-after-moves :unit-after-steps :message-for-unit} types)
                 (some #(= :battle (:type %)) whens)
                 (some :at-next-round thens)
