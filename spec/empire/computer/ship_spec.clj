@@ -305,6 +305,24 @@
                                unit))]
         (should-not-be-nil destroyer))))
 
+  (context "lake sentry behavior"
+    (it "ship in known lake backs away from shore then enters sentry"
+      (set-test-world! (build-test-map ["#####"
+                                        "#d~~#"
+                                        "#~~~#"
+                                        "#~~~#"
+                                        "#####"]))
+      (set-test-computer-map! @atoms/game-map)
+      (reset! atoms/lake-max-cells 20)
+      (update-test-world! assoc-in [1 1 :contents :lake-locked?] true)
+      (ship/process-ship [1 1] :destroyer)
+      (should= :destroyer (get-in @atoms/game-map [2 2 :contents :type]))
+      (should= :sentry (get-in @atoms/game-map [2 2 :contents :mode]))
+      ;; Once parked as sentry, it should never move again.
+      (ship/process-ship [2 2] :destroyer)
+      (should= :destroyer (get-in @atoms/game-map [2 2 :contents :type]))
+      (should= :sentry (get-in @atoms/game-map [2 2 :contents :mode]))))
+
   (context "carrier group escort intercepting"
     (it "intercepting escort moves toward carrier when far away"
       ;; Battleship at [0 0] intercepting, carrier at [0 5] (distance > 2)

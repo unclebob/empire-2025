@@ -149,6 +149,10 @@
   [the-map owner]
   (first (map-utils/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= owner (:city-status cell)))))))
 
+(defn- compute-lake-max-cells
+  [width height]
+  (int (Math/floor (* 0.10 width height))))
+
 (defn make-initial-map
   "Creates and initializes the complete game map with terrain and free cities."
   [map-size smooth-count land-fraction number-of-cities min-city-distance]
@@ -171,6 +175,8 @@
       (app-state/update-world! state-ctx assoc-in (conj computer-city-pos :country-id) 1)
       (reset! atoms/next-country-id 2)
       (production/set-city-production computer-city-pos :army))
+    (reset! atoms/lake-max-cells (compute-lake-max-cells width height))
+    (reset! atoms/known-lake-cells #{})
     (reset! atoms/player-map visibility-map)
     (reset! atoms/computer-map visibility-map)
     ;; Initialize visibility around starting positions

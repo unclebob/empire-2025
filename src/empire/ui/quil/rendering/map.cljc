@@ -70,7 +70,12 @@
         blink-attention? (map-utils/blink? 125)
         blink-completed? (map-utils/blink? 500)
         blink-unit? (map-utils/blink? 250)
-        cells-by-color (display/group-cells-by-color the-map attention-coords production blink-attention? blink-completed?)]
+        cells-by-color (display/group-cells-by-color the-map
+                                                     attention-coords
+                                                     production
+                                                     blink-attention?
+                                                     blink-completed?
+                                                     @atoms/map-to-display)]
     (q/no-stroke)
     ;; Draw all rects batched by color
     (doseq [[color cells] cells-by-color]

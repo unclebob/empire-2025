@@ -11,7 +11,8 @@
             [empire.units.dispatcher :as dispatcher]
             [empire.test-utils :refer [build-test-map reset-all-atoms!
                                        set-test-unit get-test-unit
-                                       set-test-world! update-test-world!]]))
+                                       set-test-world! set-test-computer-map!
+                                       update-test-world!]]))
 
 ;; --- dead-unit? ---
 
@@ -507,5 +508,117 @@
               sea2 (get-in @atoms/game-map [2 0])]
           (should (or (= :destroyer (:type (:contents sea0)))
                       (= :destroyer (:type (:contents sea2))))))))))
+
+;; --- evacuate-lake-patrol-boats ---
+
+(describe "evacuate-lake-patrol-boats"
+  (before (reset-all-atoms!))
+
+  (it "moves patrol boat from computer lake-shore city to adjacent sea"
+    (let [world (build-test-map ["~~~"
+                                 "~X~"
+                                 "~~~"])
+          computer-map (build-test-map ["~~~"
+                                        "~X~"
+                                        "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! computer-map)
+      (reset! atoms/lake-max-cells 10)
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :patrol-boat :owner :computer :hits 1 :mode :awake})
+      (setup/evacuate-lake-patrol-boats)
+      (should-be-nil (get-in @atoms/game-map [1 1 :contents]))
+      (let [sea-neighbors (for [pos [[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]]
+                                :let [u (get-in @atoms/game-map (conj pos :contents))]
+                                :when (= :patrol-boat (:type u))]
+                            pos)]
+        (should= 1 (count sea-neighbors)))))
+
+  (it "leaves patrol boat in city when no adjacent sea is empty"
+    (let [world (build-test-map ["~~~"
+                                 "~X~"
+                                 "~~~"])
+          computer-map (build-test-map ["~~~"
+                                        "~X~"
+                                        "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! computer-map)
+      (reset! atoms/lake-max-cells 10)
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :patrol-boat :owner :computer :hits 1 :mode :awake})
+      (doseq [pos [[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]]]
+        (update-test-world! assoc-in (conj pos :contents)
+                           {:type :transport :owner :computer :hits 1 :mode :awake}))
+      (setup/evacuate-lake-patrol-boats)
+      (should= :patrol-boat (get-in @atoms/game-map [1 1 :contents :type]))
+      (should= :computer (get-in @atoms/game-map [1 1 :contents :owner]))))
+
+  (it "moves transport out of computer lake-shore city and preserves cargo state"
+    (let [world (build-test-map ["~~~"
+                                 "~X~"
+                                 "~~~"])
+          computer-map (build-test-map ["~~~"
+                                        "~X~"
+                                        "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! computer-map)
+      (reset! atoms/lake-max-cells 10)
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :transport
+                          :owner :computer
+                          :hits 1
+                          :mode :awake
+                          :army-count 3
+                          :transport-mission :invading})
+      (setup/evacuate-lake-patrol-boats)
+      (should-be-nil (get-in @atoms/game-map [1 1 :contents]))
+      (let [moved (first (for [pos [[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]]
+                               :let [u (get-in @atoms/game-map (conj pos :contents))]
+                               :when (= :transport (:type u))]
+                           u))]
+        (should-not-be-nil moved)
+        (should= 3 (:army-count moved))
+        (should= :land-locked (:transport-mission moved))
+        (should= true (:never-reload? moved))))))
+
+(describe "lake discovery army retask"
+  (before (reset-all-atoms!))
+
+  (it "wakes and retasks all computer armies on lake-adjacent landmass"
+    (let [world (build-test-map ["~~~~~"
+                                 "#####"
+                                 "##~##"
+                                 "#####"
+                                 "#####"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (reset! atoms/lake-max-cells 2)
+      (reset! atoms/known-lake-cells #{})
+      (update-test-world! assoc-in [0 4 :country-id] 1)
+      (update-test-world! assoc-in [4 4 :country-id] 1)
+      (update-test-world! assoc-in [0 4 :contents]
+                         {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
+      (update-test-world! assoc-in [4 4 :contents]
+                         {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      (setup/mark-lake-locked-ships)
+      (should= :move-to-coast-for-invasion (get-in @atoms/game-map [0 4 :contents :mode]))
+      (should= :move-to-coast-for-invasion (get-in @atoms/game-map [4 4 :contents :mode]))
+      (should (vector? (get-in @atoms/game-map [0 4 :contents :coast-target])))
+      (should (vector? (get-in @atoms/game-map [4 4 :contents :coast-target])))
+      (should= #{[2 2]} @atoms/known-lake-cells)))
+
+  (it "does not retask again when no newly discovered lake cells"
+    (let [world (build-test-map ["###"
+                                 "#~#"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (reset! atoms/lake-max-cells 10)
+      (reset! atoms/known-lake-cells #{[1 1]})
+      (update-test-world! assoc-in [0 0 :country-id] 1)
+      (update-test-world! assoc-in [0 0 :contents]
+                         {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
+      (setup/mark-lake-locked-ships)
+      (should= :sentry (get-in @atoms/game-map [0 0 :contents :mode])))))
 
 (run-specs)

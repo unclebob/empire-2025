@@ -1,5 +1,7 @@
 (ns empire.ui.util.rendering.display-spec
   (:require [speclj.core :refer :all]
+            [empire.atoms :as atoms]
+            [empire.test-utils :refer [reset-all-atoms!]]
             [empire.ui.util.rendering.display :as display]))
 
 (describe "determine-display-unit"
@@ -90,6 +92,8 @@
       (should (every? #(<= % 128) (:dark-color result))))))
 
 (describe "group-cells-by-color"
+  (before (reset-all-atoms!))
+
   (it "groups cells by their base color"
     (let [the-map [[{:type :land} {:type :sea}]
                    [{:type :land} {:type :sea}]]
@@ -140,7 +144,14 @@
     (let [the-map [[{:type :city :city-status :player}]]
           production {[0 0] {:item :army :remaining-rounds 0}}
           result (display/group-cells-by-color the-map [[0 0]] production true true)]
-      (should= 1 (count (get result [0 0 0]))))))
+      (should= 1 (count (get result [0 0 0])))))
+
+  (it "renders lake cells as deeper blue on computer-map display"
+    (let [the-map [[{:type :sea} {:type :sea}]
+                   [{:type :sea} {:type :land}]]]
+      (reset! atoms/lake-max-cells 3)
+      (let [result (display/group-cells-by-color the-map nil {} false false :computer-map)]
+        (should= 3 (count (get result [0 120 220])))))))
 
 (describe "compute-hover-message"
   (it "returns formatted status for cell with unit"

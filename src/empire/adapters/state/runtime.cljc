@@ -51,7 +51,9 @@
    :transport-fully-loaded? atoms/transport-fully-loaded?
    :early-patrol-boat-produced? atoms/early-patrol-boat-produced?
    :early-satellite-produced? atoms/early-satellite-produced?
-   :distant-city-pairs atoms/distant-city-pairs})
+   :distant-city-pairs atoms/distant-city-pairs
+   :lake-max-cells atoms/lake-max-cells
+   :known-lake-cells atoms/known-lake-cells})
 
 (def ^:private runtime-state*
   (atom {}))

@@ -9,6 +9,7 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
+            [empire.computer.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-loading :as loading]
@@ -75,13 +76,20 @@
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."
   [pos]
-  (tc/set-transport-mission pos :loading)
-  (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
-  (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
-                            (land-objectives/flood-fill-continent lp))
-        next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-    (update-game-map! assoc-in
-                      (conj pos :contents :pickup-continent-pos) next-pickup)))
+  (let [transport (get-in (current-world) (conj pos :contents))]
+    (if (:never-reload? transport)
+      (do
+        (tc/set-transport-mission pos :sailing)
+        (update-game-map! update-in (conj pos :contents)
+                          dissoc :unload-target-city :pickup-continent-pos))
+      (do
+        (tc/set-transport-mission pos :loading)
+        (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
+        (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
+                                  (land-objectives/flood-fill-continent lp))
+              next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
+          (update-game-map! assoc-in
+                            (conj pos :contents :pickup-continent-pos) next-pickup))))))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -292,6 +300,37 @@
           (start-sailing pos transport))
         (start-sailing pos transport)))))
 
+(defn- park-lake-transport-if-empty
+  [pos lake-cells-set]
+  (let [unit (get-in (current-world) (conj pos :contents))]
+    (if (zero? (:army-count unit 0))
+      (if-let [step (lake-naval/retreat-step-from-shore (current-world) lake-cells-set pos)]
+        (if (core/move-unit-to pos step)
+          (when (lake-naval/deep-water? (current-world) step)
+            (update-game-map! update-in (conj step :contents)
+                              #(assoc % :mode :sentry
+                                      :transport-mission :land-locked)))
+          (update-game-map! update-in (conj pos :contents)
+                            #(assoc % :mode :sentry
+                                    :transport-mission :land-locked)))
+        (update-game-map! update-in (conj pos :contents)
+                          #(assoc % :mode :sentry
+                                  :transport-mission :land-locked)))
+      false)))
+
+(defn- process-land-locked-mission
+  [pos lake-cells-set]
+  (let [unloaded-now? (boolean (unloading/try-opportunistic-unload-any-land pos))]
+    (or (park-lake-transport-if-empty pos lake-cells-set)
+        (let [unit (get-in (current-world) (conj pos :contents))
+              army-count (:army-count unit 0)]
+          (when (pos? army-count)
+            (if-let [next-pos (unloading/unloading-crawl-move pos)]
+              (do
+                (unloading/try-opportunistic-unload-any-land next-pos)
+                (park-lake-transport-if-empty next-pos lake-cells-set))
+              unloaded-now?)))))) 
+
 (defn- fix-idle-mission
   [pos mission]
   (when (or (nil? mission) (= :idle mission))
@@ -302,7 +341,12 @@
   (let [army-count (:army-count transport 0)
         mission (:transport-mission transport)]
     (fix-idle-mission pos mission)
-    (let [current-mission (or mission :loading)]
+    (when (and (= :loading (or mission :loading))
+               (:never-reload? transport))
+      (tc/set-transport-mission pos :sailing))
+    (let [current-mission (or (:transport-mission (get-in (current-world) (conj pos :contents)))
+                              mission
+                              :loading)]
       (debug/log-computer-event! :transport-process pos
                                  {:mission current-mission :armies army-count
                                   :pcp (:pickup-continent-pos transport)})
@@ -320,6 +364,11 @@
         (= current-mission :load-for-invasion)
         (process-load-for-invasion pos)
 
+        (= current-mission :land-locked)
+        (process-land-locked-mission pos
+                                     (lake-naval/lake-cells (read-runtime-state :computer-map)
+                                                            (read-runtime-state :lake-max-cells)))
+
         (= current-mission :unloading)
         (process-unloading-mission pos army-count)
 
@@ -331,6 +380,24 @@
 
         :else nil))))
 
+(defn- maybe-handle-lake-transport
+  [pos transport]
+  (if (= :sentry (:mode transport))
+    true
+    (when (:lake-locked? transport)
+      (let [lake-cells-set (lake-naval/lake-cells (read-runtime-state :computer-map)
+                                                   (read-runtime-state :lake-max-cells))]
+        ;; Lake transports are one-way: unload what they have, then park.
+        (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
+        (let [unit (get-in (current-world) (conj pos :contents))
+              army-count (:army-count unit 0)]
+          (if (pos? army-count)
+            (do
+              (update-game-map! assoc-in (conj pos :contents :transport-mission) :land-locked)
+              (process-land-locked-mission pos lake-cells-set))
+            (park-lake-transport-if-empty pos lake-cells-set)))
+        true))))
+
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
@@ -339,6 +406,8 @@
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
-      (threat-response/prepare-transport! pos)
-      (dispatch-transport-mission pos (:contents (get-in (current-world) pos)))))
+      (when-not (or (= :sentry (:mode transport))
+                    (maybe-handle-lake-transport pos transport))
+        (threat-response/prepare-transport! pos)
+        (dispatch-transport-mission pos (:contents (get-in (current-world) pos))))))
   nil)

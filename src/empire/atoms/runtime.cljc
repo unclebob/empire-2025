@@ -122,6 +122,16 @@
    nil means not yet computed; #{} means computed but empty."
   (atom nil))
 
+(def lake-max-cells
+  "Maximum sea-component size (cells) to classify as a lake/landlocked water body.
+   Computed from map dimensions at game start."
+  (atom 0))
+
+(def known-lake-cells
+  "Set of lake sea cells currently classified on computer-map.
+   Used to detect newly discovered lakes and trigger land response once."
+  (atom #{}))
+
 ;; Load menu state
 (def load-menu-open
   "An atom indicating if the load game menu is open."

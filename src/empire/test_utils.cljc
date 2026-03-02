@@ -278,6 +278,8 @@
   (reset! atoms/early-patrol-boat-produced? false)
   (reset! atoms/early-satellite-produced? false)
   (reset! atoms/distant-city-pairs nil)
+  (reset! atoms/lake-max-cells 0)
+  (reset! atoms/known-lake-cells #{})
   (reset! atoms/computer-event-log [])
   (reset! atoms/action-log [])
   (reset! atoms/player-movement-log [])

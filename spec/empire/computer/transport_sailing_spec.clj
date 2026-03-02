@@ -247,6 +247,65 @@
                            unit))]
           (should= :sailing (:transport-mission t)))))
 
+  (context "lake transport behavior"
+    (it "lake transport unloads first, then parks in deep water as sentry"
+      (set-test-world! (build-test-map ["#####"
+                                        "#t~~#"
+                                        "#~~~#"
+                                        "#~~~#"
+                                        "#####"]))
+      (set-test-computer-map! @atoms/game-map)
+      (reset! atoms/lake-max-cells 20)
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :transport :owner :computer :hits 1
+                          :transport-mission :sailing :army-count 1 :mode :awake
+                          :lake-locked? true})
+      ;; First pass should prioritize unloading.
+      (transport/process-transport [1 1])
+      (let [tpos (first (for [c (range 5) r (range 5)
+                              :when (= :transport (get-in @atoms/game-map [c r :contents :type]))]
+                          [c r]))]
+        (should-not-be-nil tpos)
+        (should= 0 (get-in @atoms/game-map (conj tpos :contents :army-count)))
+        (should= true (get-in @atoms/game-map (conj tpos :contents :never-reload?)))
+        (should= :land-locked (get-in @atoms/game-map (conj tpos :contents :transport-mission)))
+        ;; Next pass should back away from shore and park as sentry.
+        (transport/process-transport tpos))
+      ;; Next pass should back away from shore and park as sentry.
+      (should= :transport (get-in @atoms/game-map [2 2 :contents :type]))
+      (should= :sentry (get-in @atoms/game-map [2 2 :contents :mode]))
+      ;; Once parked, it should not move again.
+      (transport/process-transport [2 2])
+      (should= :transport (get-in @atoms/game-map [2 2 :contents :type]))
+      (should= :sentry (get-in @atoms/game-map [2 2 :contents :mode]))))
+
+    (it "lake-locked major-invasion transport unloads on adjacent land outside target area"
+      (set-test-world! [[{:type :land} {:type :land} {:type :land}]
+                        [{:type :land}
+                         {:type :sea}
+                         {:type :land}]
+                        [{:type :land}
+                         {:type :sea}
+                         {:type :land}]])
+      (set-test-computer-map! @atoms/game-map)
+      (reset! atoms/lake-max-cells 4)
+      (update-test-world! assoc-in [1 1 :contents]
+                         {:type :transport :owner :computer :hits 1
+                          :transport-mission :land-locked
+                          :major-invasion true
+                          :army-count 1 :mode :awake
+                          :lake-locked? true})
+      (transport/process-transport [1 1])
+      (let [tpos (first (for [c (range 3) r (range 3)
+                              :when (= :transport (get-in @atoms/game-map [c r :contents :type]))]
+                          [c r]))
+            unloaded? (some true?
+                            (for [c (range 3) r (range 3)]
+                              (= :army (get-in @atoms/game-map [c r :contents :type]))))]
+        (should unloaded?)
+        (should-not-be-nil tpos)
+        (should= 0 (get-in @atoms/game-map (conj tpos :contents :army-count)))))
+
     (it "invading transport sidesteps when invasion path step is blocked"
       (set-test-world! (build-test-map ["~~~"
                                         "td~"

@@ -5,6 +5,7 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
+            [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
             [empire.debug :as debug]))
 
@@ -83,6 +84,21 @@
                  (= :computer (:city-status cell)))))
         (core/get-neighbors pos)))
 
+(defn- known-lake-cells
+  []
+  (lake-naval/lake-cells (read-runtime-state :computer-map)
+                         (read-runtime-state :lake-max-cells)))
+
+(defn- adjacent-to-ocean?
+  [pos]
+  (let [world (current-world)
+        lakes (known-lake-cells)]
+    (some (fn [neighbor]
+            (let [cell (get-in world neighbor)]
+              (and (= :sea (:type cell))
+                   (not (contains? lakes neighbor)))))
+          (core/get-neighbors pos))))
+
 (defn- find-nearest-unoccupied-coastal-cell
   "Finds nearest coastal cell from registry with matching country-id, no unit.
    Excludes cells adjacent to computer cities to avoid blocking production."
@@ -94,6 +110,7 @@
           candidates (filter (fn [p]
                                (let [cell (get-in game-map p)]
                                  (and (= :land (:type cell))
+                                      (adjacent-to-ocean? p)
                                       (or (nil? (:country-id cell))
                                           (= country-id (:country-id cell)))
                                       (nil? (:contents cell)))))
@@ -120,7 +137,8 @@
   [pos country-id]
   (when country-id
     (movement/ensure-coastal-registry country-id)
-    (let [coastal (get (read-runtime-state :coastal-cells-by-country) country-id)]
+    (let [coastal (set (filter adjacent-to-ocean?
+                               (get (read-runtime-state :coastal-cells-by-country) country-id)))]
       (when (seq coastal)
         (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
               game-map (current-world)
@@ -138,13 +156,13 @@
 
 (defn should-sentry-on-coast? [pos country-id]
   (and country-id
-       (movement/adjacent-to-sea? pos)
+       (adjacent-to-ocean? pos)
        (not= :city (:type (get-in (current-world) pos)))
        (not (adjacent-to-computer-city? pos))))
 
 (defn can-settle-here? [pos country-id]
   (and country-id
-       (movement/adjacent-to-sea? pos)
+       (adjacent-to-ocean? pos)
        (not= :city (:type (get-in (current-world) pos)))))
 
 (defn- try-move-to-coastal-cell [pos country-id]
@@ -188,7 +206,7 @@
   [pos country-id]
   (let [cell (get-in (current-world) pos)]
     (and (movement/sovereign-passable? country-id cell)
-         (movement/adjacent-to-sea? pos))))
+         (adjacent-to-ocean? pos))))
 
 (defn- empty-coastal-cell?
   [pos country-id]
@@ -256,6 +274,26 @@
             (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) nexts)
                    (into visited nexts))))))))
 
+(def ^:private local-coast-repath-interval-rounds 3)
+
+(defn- settle-at-coast-target!
+  [pos]
+  (update-game-map! update-in (conj pos :contents)
+                    #(-> %
+                         (assoc :mode :sentry)
+                         (dissoc :coast-target :coast-repath-after-round :lake-retask?))))
+
+(defn- step-toward-target-cheap
+  "Cheap local step toward target without global pathfinding (no A*).
+   Picks empty passable neighbor that strictly reduces Manhattan distance."
+  [pos target country-id]
+  (let [current-dist (core/distance pos target)
+        candidates (->> (movement/get-empty-passable-neighbors pos country-id)
+                        (filter #(> current-dist (core/distance % target)))
+                        (sort-by #(core/distance % target)))]
+    (when-let [best (first candidates)]
+      (movement/try-move pos best))))
+
 (defn process-move-to-coast-for-invasion
   "Move an army toward its cached coast target for pickup.
    When already coastal, switch to sentry and stop moving.
@@ -266,13 +304,27 @@
       (update-game-map! update-in (conj pos :contents)
                         #(-> %
                              (assoc :mode :sentry)
-                             (dissoc :coast-target)))
+                             (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
       pos)
     (let [unit (get-in (current-world) (conj pos :contents))
           target (or (:coast-target unit) (find-coast-target-once pos country-id))]
       (when target
         (update-game-map! assoc-in (conj pos :contents :coast-target) target)
-        (or (movement/move-toward-objective pos target country-id)
-            (when-let [local-target (local-empty-coast-target pos country-id)]
-              (update-game-map! assoc-in (conj pos :contents :coast-target) local-target)
-              (movement/move-toward-objective pos local-target country-id)))))))
+        (cond
+          (= pos target)
+          (do (settle-at-coast-target! pos) pos)
+
+          (:lake-retask? unit)
+          (or (step-toward-target-cheap pos target country-id)
+              (do (settle-at-coast-target! pos) pos))
+
+          :else
+          (or (movement/move-toward-objective pos target country-id)
+              (let [now (or (read-runtime-state :round-number) 0)
+                    retry-at (:coast-repath-after-round unit)]
+                (when (or (nil? retry-at) (<= retry-at now))
+                  (update-game-map! assoc-in (conj pos :contents :coast-repath-after-round)
+                                    (+ now local-coast-repath-interval-rounds))
+                  (when-let [local-target (local-empty-coast-target pos country-id)]
+                    (update-game-map! assoc-in (conj pos :contents :coast-target) local-target)
+                    (movement/move-toward-objective pos local-target country-id))))))))))

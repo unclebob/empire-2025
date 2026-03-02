@@ -116,10 +116,16 @@
   [pos]
   (let [transport (get-in (current-world) (conj pos :contents))
         sail-path (:sail-path transport)
-        army-count (:army-count transport 0)]
+        army-count (:army-count transport 0)
+        never-reload? (:never-reload? transport)]
     (cond
-      (and (empty? sail-path) (zero? army-count))
+      (and (empty? sail-path) (zero? army-count) (not never-reload?))
       (tc/set-transport-mission pos :loading)
+
+      (and (empty? sail-path) (zero? army-count) never-reload?)
+      (when-let [new-path (seq (compute-sail-path pos))]
+        (update-game-map! assoc-in (conj pos :contents :sail-path) (vec new-path))
+        (sail-follow-path pos (vec new-path)))
 
       (and (empty? sail-path) (pos? army-count))
       (if-let [sea-pos (launch-from-city-to-sea pos transport)]

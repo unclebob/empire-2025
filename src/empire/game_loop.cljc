@@ -111,6 +111,8 @@
   (round-setup/consume-sentry-fighter-fuel)
   (round-setup/wake-sentries-seeing-enemy)
   (round-setup/remove-dead-units)
+  (round-setup/mark-lake-locked-ships)
+  (round-setup/evacuate-lake-patrol-boats)
   (production/update-production)
   (round-setup/repair-damaged-ships)
   (round-setup/reset-steps-remaining)

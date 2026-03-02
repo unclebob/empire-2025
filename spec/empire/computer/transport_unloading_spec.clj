@@ -83,4 +83,16 @@
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :army-count 2}}
                          {:type :sea}]])
-      (should-be-nil (unloading/unload-armies [0 1] nil)))))
+      (should-be-nil (unloading/unload-armies [0 1] nil)))
+
+    (it "never-reload transport transitions to sailing after full unload"
+      (set-test-world! [[{:type :land}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :transport-mission :unloading
+                                                :army-count 1
+                                                :never-reload? true}}
+                         {:type :sea}]])
+      (should (unloading/unload-armies [0 1] nil))
+      (should= 0 (get-in @atoms/game-map [0 1 :contents :army-count]))
+      (should= :sailing (get-in @atoms/game-map [0 1 :contents :transport-mission]))
+      (should= true (get-in @atoms/game-map [0 1 :contents :never-reload?])))))

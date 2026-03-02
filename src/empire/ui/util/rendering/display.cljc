@@ -1,10 +1,14 @@
 ;; mutation-tested: 2026-03-01
 (ns empire.ui.util.rendering.display
-  (:require [empire.config :as config]
+  (:require [empire.atoms :as atoms]
+            [empire.config :as config]
             [empire.containers.helpers :as uc]
+            [empire.movement.lakes :as lakes]
             [empire.ui.util.rendering.format :as fmt]))
 
 (def ^:private default-cell-color [0 0 0])
+(def ^:private lake-cell-color [0 120 220])
+(defonce ^:private lake-cache* (atom {:map nil :limit nil :cells #{}}))
 
 (defn- safe-color
   [cell]
@@ -73,16 +77,30 @@
   "Groups map cells by their display color for batched rendering.
    Returns a map of [r g b] color to seq of {:col :row :cell} maps.
    blink-attention? and blink-completed? control flash states for attention cells and completed cities."
-  [the-map attention-coords production blink-attention? blink-completed?]
-  (let [cols (count the-map)
+  ([the-map attention-coords production blink-attention? blink-completed?]
+   (group-cells-by-color the-map attention-coords production blink-attention? blink-completed? :player-map))
+  ([the-map attention-coords production blink-attention? blink-completed? map-to-display]
+   (let [cols (count the-map)
         rows (count (first the-map))
-        attention-cell (first attention-coords)]
+        attention-cell (first attention-coords)
+        lake-limit @atoms/lake-max-cells
+        lake-cells (if (and (= :computer-map map-to-display) (pos? lake-limit))
+                     (let [{:keys [map limit cells]} @lake-cache*]
+                       (if (and (identical? map the-map) (= limit lake-limit))
+                         cells
+                         (let [computed (lakes/lake-cells the-map lake-limit)]
+                           (reset! lake-cache* {:map the-map :limit lake-limit :cells computed})
+                           computed)))
+                     #{})]
     (reduce
      (fn [acc [col row]]
        (let [cell (get-in the-map [col row])]
          (if (= :unexplored (:type cell))
            acc
-           (let [color (safe-color cell)
+           (let [base-color (if (and (= :sea (:type cell))
+                                     (contains? lake-cells [col row]))
+                              lake-cell-color
+                              (safe-color cell))
                  current [col row]
                  should-flash-black (= current attention-cell)
                  completed? (and (= (:type cell) :city)
@@ -93,10 +111,10 @@
                  blink-black? (and should-flash-black blink-attention?)
                  final-color (cond blink-black? [0 0 0]
                                    blink-white? [255 255 255]
-                                   :else color)]
+                                   :else base-color)]
              (update acc final-color conj {:col col :row row :cell cell})))))
      {}
-     (for [col (range cols) row (range rows)] [col row]))))
+     (for [col (range cols) row (range rows)] [col row])))))
 
 (defn should-show-error?
   "Returns true if the error message should be shown."

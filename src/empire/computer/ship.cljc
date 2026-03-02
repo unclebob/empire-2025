@@ -2,7 +2,9 @@
 (ns empire.computer.ship
   "Computer ship module - facade delegating to sub-modules."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
             [empire.computer.core :as core]
+            [empire.computer.lake-naval :as lake-naval]
             [empire.computer.ship-carrier :as carrier]
             [empire.computer.ship-carrier-group :as carrier-group]
             [empire.computer.ship-core :as ship-core]
@@ -16,6 +18,14 @@
 (defn- current-world
   []
   ((:load-world @state-ctx)))
+
+(defn- update-game-map!
+  [f & args]
+  (apply app-state/update-world! @state-ctx f args))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
 
 ;; --- Core utility re-exports ---
 
@@ -98,6 +108,24 @@
         (try-hunt-player-ship pos)
         (ship-core/explore-sea pos ship-type))))
 
+(defn- maybe-handle-lake-ship
+  [pos unit]
+  (if (= :sentry (:mode unit))
+    true
+    (when (:lake-locked? unit)
+      (let [world (current-world)
+            lake-cells-set (lake-naval/lake-cells (read-runtime-state :computer-map)
+                                                  (read-runtime-state :lake-max-cells))]
+        (if-let [step (lake-naval/retreat-step-from-shore world lake-cells-set pos)]
+          (do
+            (when (core/move-unit-to pos step)
+              (when (lake-naval/deep-water? (current-world) step)
+                (update-game-map! assoc-in (conj step :contents :mode) :sentry)))
+            true)
+          (do
+            (update-game-map! assoc-in (conj pos :contents :mode) :sentry)
+            true))))))
+
 (defn process-ship
   "Processes a computer ship using VMS Empire style logic.
    Returns nil after processing."
@@ -106,5 +134,6 @@
     (when (and unit
                (= :computer (:owner unit))
                (= ship-type (:type unit)))
-      (dispatch-ship-action pos ship-type unit)))
+      (when-not (maybe-handle-lake-ship pos unit)
+        (dispatch-ship-action pos ship-type unit))))
   nil)

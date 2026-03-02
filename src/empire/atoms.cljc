@@ -227,6 +227,8 @@
 (def action-log runtime/action-log)
 (def player-movement-log runtime/player-movement-log)
 (def distant-city-pairs runtime/distant-city-pairs)
+(def lake-max-cells runtime/lake-max-cells)
+(def known-lake-cells runtime/known-lake-cells)
 (def load-menu-open runtime/load-menu-open)
 (def load-menu-files runtime/load-menu-files)
 (def load-menu-hovered runtime/load-menu-hovered)

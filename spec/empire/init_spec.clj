@@ -84,6 +84,10 @@
           (should= :army (:item prod))
           (should= (config/item-cost :army) (:remaining-rounds prod))))))
 
+  (it "computes lake-max-cells as 10% of map area at game start"
+    @initial-map
+    (should= 10 @atoms/lake-max-cells))
+
   (it "places cities with minimum distance"
     (let [city-positions (for [i (range (count @initial-map))
                                j (range (count (first @initial-map)))

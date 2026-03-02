@@ -122,13 +122,20 @@
 (defn- transition-to-loading-inline
   "Inline loading transition — avoids circular dep with facade."
   [pos]
-  (tc/set-transport-mission pos :loading)
-  (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
-  (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
-                            (land-objectives/flood-fill-continent lp))
-        next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-    (update-game-map! assoc-in
-                      (conj pos :contents :pickup-continent-pos) next-pickup)))
+  (let [transport (get-in (current-world) (conj pos :contents))]
+    (if (:never-reload? transport)
+      (do
+        (tc/set-transport-mission pos :sailing)
+        (update-game-map! update-in (conj pos :contents)
+                          dissoc :unload-target-city :pickup-continent-pos))
+      (do
+        (tc/set-transport-mission pos :loading)
+        (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
+        (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
+                                  (land-objectives/flood-fill-continent lp))
+              next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
+          (update-game-map! assoc-in
+                            (conj pos :contents :pickup-continent-pos) next-pickup))))))
 
 (defn try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,
@@ -164,6 +171,37 @@
         ;; Update army count
         (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
         ;; If fully unloaded, transition to loading
+        (when (<= (- army-count to-unload) 0)
+          (transition-to-loading-inline pos))
+        true))))
+
+(defn try-opportunistic-unload-any-land
+  "Lake-locked transport unload: drop armies on any adjacent empty land/city.
+   Ignores major-invasion target filtering and pickup exclusions."
+  [pos]
+  (let [game-map (current-world)
+        transport (get-in game-map (conj pos :contents))
+        army-count (:army-count transport 0)
+        targets (when (pos? army-count)
+                  (filter (fn [neighbor]
+                            (let [cell (get-in game-map neighbor)]
+                              (and cell
+                                   (#{:land :city} (:type cell))
+                                   (nil? (:contents cell)))))
+                          (core/get-neighbors pos)))
+        to-unload (min army-count (count targets))]
+    (when (pos? to-unload)
+      (let [unload-eid (:unload-event-id transport)
+            unload-cid (or (:unload-country-id transport) (:country-id transport))
+            army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
+                   unload-eid (assoc :unload-event-id unload-eid)
+                   unload-cid (assoc :country-id unload-cid))]
+        (doseq [land-pos (take to-unload targets)]
+          (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
+          (update-game-map! assoc-in (conj land-pos :contents) army)
+          (core/stamp-territory land-pos army)
+          (visibility/update-cell-visibility land-pos :computer))
+        (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
         (when (<= (- army-count to-unload) 0)
           (transition-to-loading-inline pos))
         true))))
@@ -207,16 +245,22 @@
           (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
           ;; If fully unloaded, change mission to loading and update pickup continent
           (when (<= (- army-count to-unload) 0)
-            (update-game-map! assoc-in (conj pos :contents :transport-mission) :loading)
-            (update-game-map! assoc-in (conj pos :contents :loading-since)
-                              (or (read-runtime-state :round-number) 0))
-            (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
-            (let [current-continent (when-let [land-pos (tc/find-adjacent-land-pos pos)]
-                                     (land-objectives/flood-fill-continent land-pos))
-                  next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-              (update-game-map! assoc-in
-                                (conj pos :contents :pickup-continent-pos) next-pickup)))
-          true)))))
+            (if (:never-reload? transport)
+              (do
+                (update-game-map! assoc-in (conj pos :contents :transport-mission) :sailing)
+                (update-game-map! update-in (conj pos :contents)
+                                  dissoc :unload-target-city :pickup-continent-pos))
+              (do
+                (update-game-map! assoc-in (conj pos :contents :transport-mission) :loading)
+                (update-game-map! assoc-in (conj pos :contents :loading-since)
+                                  (or (read-runtime-state :round-number) 0))
+                (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
+                (let [current-continent (when-let [land-pos (tc/find-adjacent-land-pos pos)]
+                                         (land-objectives/flood-fill-continent land-pos))
+                      next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
+                  (update-game-map! assoc-in
+                                    (conj pos :contents :pickup-continent-pos) next-pickup))))
+            true))))))
 
 (defn unloading-crawl-move
   "Moves unloading transport to adjacent coastal sea cell to find empty land.

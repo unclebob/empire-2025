@@ -35,7 +35,9 @@
    :transport-fully-loaded? true
    :early-patrol-boat-produced? true
    :early-satellite-produced? true
-   :distant-city-pairs true})
+   :distant-city-pairs true
+   :lake-max-cells true
+   :known-lake-cells true})
 
 (defonce ^:private persistence
   (delay (persistence-files/persistence-adapter)))
