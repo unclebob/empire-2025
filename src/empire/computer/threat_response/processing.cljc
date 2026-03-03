@@ -215,6 +215,33 @@
   [nearest-major-target pos center]
   (or center (nearest-major-target pos)))
 
+(defn- occupied-position? [ctx pos]
+  (some? (get-in ((:current-world ctx)) (conj pos :contents))))
+
+(defn- patrol-major-invasion-step
+  [ctx nearest-major-target current center]
+  (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship current)]
+        (ship-core/attack-enemy current enemy-pos))
+      (patrol-stand-off-step ctx current
+                             (major-invasion-target nearest-major-target current center))))
+
+(defn- run-patrol-major-invasion
+  [ctx nearest-major-target pos center]
+  ;; Keep patrol boats cheap in crowded invasion theaters, but preserve patrol speed.
+  ;; Do not run expensive BFS explore fallback while invasion is active.
+  (loop [current pos
+         steps-left 4]
+    (cond
+      (zero? steps-left) current
+      (not (occupied-position? ctx current)) current
+      :else
+      (if-let [yield-pos (patrol-yield-to-transport ctx current center)]
+        ;; Yield once to clear transport lanes, then stop this patrol boat for the round.
+        yield-pos
+        (recur (or (patrol-major-invasion-step ctx nearest-major-target current center)
+                   current)
+               (dec steps-left))))))
+
 (defn- handle-sea-scout-ship-threat
   [pos ship-type center radius]
   (ship-threat-action pos ship-type (sea-scout-target pos center radius))
@@ -223,25 +250,7 @@
 (defn- handle-major-invasion-ship-threat
   [ctx nearest-major-target pos ship-type center]
   (if (= :patrol-boat ship-type)
-    ;; Keep patrol boats cheap in crowded invasion theaters, but preserve patrol speed.
-    ;; Do not run expensive BFS explore fallback while invasion is active.
-    (loop [current pos
-           steps-left 4]
-      (if (zero? steps-left)
-        current
-        (let [world ((:current-world ctx))]
-          (if (nil? (get-in world (conj current :contents)))
-            current
-            (if-let [yield-pos (patrol-yield-to-transport ctx current center)]
-              ;; Yield once to clear transport lanes, then stop this patrol boat for the round.
-              yield-pos
-              (if-let [next-pos
-                       (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship current)]
-                             (ship-core/attack-enemy current enemy-pos))
-                           (patrol-stand-off-step ctx current
-                                                  (major-invasion-target nearest-major-target current center)))]
-                (recur next-pos (dec steps-left))
-                (recur current (dec steps-left))))))))
+    (run-patrol-major-invasion ctx nearest-major-target pos center)
     (ship-threat-action pos ship-type (major-invasion-target nearest-major-target pos center)))
   true)
 

@@ -579,7 +579,21 @@
         (should-not-be-nil moved)
         (should= 3 (:army-count moved))
         (should= :land-locked (:transport-mission moved))
-        (should= true (:never-reload? moved))))))
+        (should= true (:never-reload? moved)))))
+
+  (it "prefers ocean sea over lake sea when both are adjacent"
+    (let [world [[{:type :sea}
+                  {:type :city :city-status :computer
+                   :contents {:type :patrol-boat :owner :computer :hits 1}}
+                  {:type :sea}]]
+          computer-map world]
+      (set-test-world! world)
+      (set-test-computer-map! computer-map)
+      (with-redefs [empire.movement.lakes/lake-cells (fn [_ _] #{[0 0]})
+                    visibility/update-cell-visibility (fn [_ _] nil)]
+        (setup/evacuate-lake-patrol-boats))
+      (should-be-nil (get-in @atoms/game-map [0 1 :contents]))
+      (should= :patrol-boat (get-in @atoms/game-map [0 2 :contents :type])))))
 
 (describe "lake discovery army retask"
   (before (reset-all-atoms!))
@@ -619,6 +633,28 @@
       (update-test-world! assoc-in [0 0 :contents]
                          {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
       (setup/mark-lake-locked-ships)
-      (should= :sentry (get-in @atoms/game-map [0 0 :contents :mode])))))
+      (should= :sentry (get-in @atoms/game-map [0 0 :contents :mode]))))
+
+  (it "removes :lake-locked? from ships no longer in a lake"
+    (let [world (build-test-map ["d~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (reset! atoms/lake-max-cells 1)
+      (reset! atoms/known-lake-cells #{})
+      (update-test-world! assoc-in [0 0 :contents :lake-locked?] true)
+      (setup/mark-lake-locked-ships)
+      (should= false (contains? (get-in @atoms/game-map [0 0 :contents]) :lake-locked?))))
+
+  (it "marks empty transport in lake as never-reload without forcing mission"
+    (let [world (build-test-map ["~t~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (reset! atoms/lake-max-cells 10)
+      (reset! atoms/known-lake-cells #{})
+      (update-test-world! assoc-in [1 0 :contents :army-count] 0)
+      (setup/mark-lake-locked-ships)
+      (should= true (get-in @atoms/game-map [1 0 :contents :lake-locked?]))
+      (should= true (get-in @atoms/game-map [1 0 :contents :never-reload?]))
+      (should-not= :land-locked (get-in @atoms/game-map [1 0 :contents :transport-mission])))))
 
 (run-specs)

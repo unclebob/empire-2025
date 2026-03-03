@@ -94,6 +94,25 @@
     (and (>= r 0) (< r height)
          (>= c 0) (< c width))))
 
+(defn- scan-friendly-hop-chain
+  [start direction]
+  (let [[dr dc] direction
+        [br bc] start]
+    (loop [sr br sc bc hops 1]
+      (let [next-pos [(+ sr dr) (+ sc dc)]]
+        (when (in-bounds? next-pos)
+          (if-not (occupied? next-pos)
+            {:dest next-pos :hops (inc hops)}
+            (if (friendly-occupied? next-pos)
+              (recur (+ sr dr) (+ sc dc) (inc hops))
+              {:dest next-pos :hops (inc hops) :attack true})))))))
+
+(defn- hop-or-sidestep
+  [pos target best passable]
+  (let [direction (direction-from pos best)]
+    (or (scan-friendly-hop-chain best direction)
+        (sidestep-around-blocker pos target best passable))))
+
 (defn hop-over-friendly
   "When the best neighbor toward target is occupied by a computer unit, scan
    forward along the direction of travel, skipping all consecutive
@@ -102,22 +121,12 @@
    Returns {:dest pos :hops n} or {:dest pos :hops n :attack true} or nil."
   [pos target]
   (let [passable (get-passable-neighbors pos)
-        [br bc :as best] (best-neighbor-toward pos target passable)]
+        best (best-neighbor-toward pos target passable)]
     (when best
       (if-not (occupied? best)
         {:dest best :hops 1}
         (when (friendly-occupied? best)
-          (let [[dr dc] (direction-from pos best)]
-            (or
-             (loop [sr br sc bc hops 1]
-               (let [next-pos [(+ sr dr) (+ sc dc)]]
-                 (when (in-bounds? next-pos)
-                   (if-not (occupied? next-pos)
-                     {:dest next-pos :hops (inc hops)}
-                     (if (friendly-occupied? next-pos)
-                       (recur (+ sr dr) (+ sc dc) (inc hops))
-                       {:dest next-pos :hops (inc hops) :attack true})))))
-             (sidestep-around-blocker pos target best passable))))))))
+          (hop-or-sidestep pos target best passable))))))
 
 (defn find-adjacent-enemy
   "Finds an adjacent enemy unit to attack (not cities - fighters can't conquer)."

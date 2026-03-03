@@ -262,32 +262,4 @@
 (defn process-move-to-coast-for-invasion
   "Move an army toward its cached coast target for pickup."
   [pos country-id]
-  (if (should-sentry-on-coast? pos country-id)
-    (do
-      (update-game-map! update-in (conj pos :contents)
-                        #(-> %
-                             (assoc :mode :sentry)
-                             (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
-      pos)
-    (let [unit (get-in (current-world) (conj pos :contents))
-          target (or (:coast-target unit) (find-coast-target-once pos country-id))]
-      (when target
-        (update-game-map! assoc-in (conj pos :contents :coast-target) target)
-        (cond
-          (= pos target)
-          (do (settle-at-coast-target! pos) pos)
-
-          (:lake-retask? unit)
-          (or (step-toward-target-cheap pos target country-id)
-              (do (settle-at-coast-target! pos) pos))
-
-          :else
-          (or (movement/move-toward-objective pos target country-id)
-              (let [now (or (read-runtime-state :round-number) 0)
-                    retry-at (:coast-repath-after-round unit)]
-                (when (or (nil? retry-at) (<= retry-at now))
-                  (update-game-map! assoc-in (conj pos :contents :coast-repath-after-round)
-                                    (+ now local-coast-repath-interval-rounds))
-                  (when-let [local-target (local-empty-coast-target pos country-id)]
-                    (update-game-map! assoc-in (conj pos :contents :coast-target) local-target)
-                    (movement/move-toward-objective pos local-target country-id))))))))))
+  (invasion/process-move-to-coast-for-invasion (invasion-ctx) pos country-id))

@@ -73,7 +73,7 @@
              (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) nexts)
                     (into visited nexts))))))))
 
- (def ^:private local-coast-repath-interval-rounds 3)
+(def ^:private local-coast-repath-interval-rounds 3)
 
  (defn- settle-at-coast-target!
    [update-game-map! pos]
@@ -91,35 +91,57 @@
      (when-let [best (first candidates)]
        (movement/try-move pos best))))
 
- (defn process-move-to-coast-for-invasion
-   "Move an army toward its cached coast target for pickup."
-   [ctx pos country-id]
-   (if ((:should-sentry-on-coast? ctx) pos country-id)
-     (do
-       ((:update-game-map! ctx) update-in (conj pos :contents)
-        #(-> %
-             (assoc :mode :sentry)
-             (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
-       pos)
-     (let [unit (get-in ((:current-world ctx)) (conj pos :contents))
-           target (or (:coast-target unit) ((:find-coast-target-once ctx) pos country-id))]
-       (when target
-         ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target)
-         (cond
-           (= pos target)
-           (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos)
+(defn- set-coast-target! [ctx pos target]
+  ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target))
 
-           (:lake-retask? unit)
-           (or (step-toward-target-cheap pos target country-id)
-               (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos))
+(defn- resolve-coast-target [ctx unit pos country-id]
+  (or (:coast-target unit)
+      ((:find-coast-target-once ctx) pos country-id)))
 
-           :else
-           (or (movement/move-toward-objective pos target country-id)
-               (let [now (or ((:read-runtime-state ctx) :round-number) 0)
-                     retry-at (:coast-repath-after-round unit)]
-                 (when (or (nil? retry-at) (<= retry-at now))
-                   ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-repath-after-round)
-                    (+ now local-coast-repath-interval-rounds))
-                   (when-let [local-target (local-empty-coast-target ctx pos country-id)]
-                     ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) local-target)
-                     (movement/move-toward-objective pos local-target country-id))))))))))
+(defn- retry-repath-now? [ctx unit]
+  (let [now (or ((:read-runtime-state ctx) :round-number) 0)
+        retry-at (:coast-repath-after-round unit)]
+    (when (or (nil? retry-at) (<= retry-at now))
+      ((:update-game-map! ctx) assoc-in (conj (:pos unit) :contents :coast-repath-after-round)
+       (+ now local-coast-repath-interval-rounds))
+      now)))
+
+(defn- maybe-repath-local-target
+  [ctx pos country-id unit]
+  (when (retry-repath-now? ctx (assoc unit :pos pos))
+    (when-let [local-target (local-empty-coast-target ctx pos country-id)]
+      (set-coast-target! ctx pos local-target)
+      (movement/move-toward-objective pos local-target country-id))))
+
+(defn- move-toward-coast-target
+  [ctx pos country-id unit target]
+  (or (movement/move-toward-objective pos target country-id)
+      (maybe-repath-local-target ctx pos country-id unit)))
+
+(defn- execute-coast-target-step
+  [ctx pos country-id unit target]
+  (cond
+    (= pos target)
+    (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos)
+
+    (:lake-retask? unit)
+    (or (step-toward-target-cheap pos target country-id)
+        (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos))
+
+    :else
+    (move-toward-coast-target ctx pos country-id unit target)))
+
+(defn process-move-to-coast-for-invasion
+  "Move an army toward its cached coast target for pickup."
+  [ctx pos country-id]
+  (if ((:should-sentry-on-coast? ctx) pos country-id)
+    (do
+      ((:update-game-map! ctx) update-in (conj pos :contents)
+       #(-> %
+            (assoc :mode :sentry)
+            (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
+      pos)
+    (let [unit (get-in ((:current-world ctx)) (conj pos :contents))]
+      (when-let [target (resolve-coast-target ctx unit pos country-id)]
+        (set-coast-target! ctx pos target)
+        (execute-coast-target-step ctx pos country-id unit target)))))

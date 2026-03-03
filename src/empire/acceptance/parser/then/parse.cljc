@@ -110,6 +110,17 @@
             (swap! i inc)))))
     {:remaining-lines @remaining :map-thens @map-thens}))
 
+(defn- append-parsed-result! [thens parsed]
+  (if (vector? parsed)
+    (doseq [p parsed]
+      (when p (swap! thens conj p)))
+    (when parsed
+      (swap! thens conj parsed))))
+
+(defn- append-parsed-clause! [thens clause]
+  (doseq [part (split-compound-then clause)]
+    (append-parsed-result! thens (parse-single-then-clause part))))
+
 (defn parse-then
   "Parse THEN lines into IR. Returns {:thens [...]}"
   [lines _context]
@@ -117,11 +128,5 @@
         clauses (split-then-continuations remaining-lines)
         thens (atom (vec map-thens))]
     (doseq [clause clauses]
-      (let [parts (split-compound-then clause)]
-        (doseq [part parts]
-          (let [parsed (parse-single-then-clause part)]
-            (if (vector? parsed)
-              (doseq [p parsed]
-                (when p (swap! thens conj p)))
-              (when parsed (swap! thens conj parsed)))))))
+      (append-parsed-clause! thens clause))
     {:thens @thens}))

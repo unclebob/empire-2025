@@ -185,23 +185,35 @@
                          (get-in (current-world) (conj pos :contents)))]
           (follow-explore-path pos new-path))))))
 
+(defn- patrol-mode-step
+  "Execute one mode-based movement step. Returns new position or nil."
+  [pos]
+  (let [unit (get-in (current-world) (conj pos :contents))]
+    (case (or (:patrol-mode unit) :crawling)
+      :crawling (patrol-crawl-step pos)
+      :exploring (patrol-explore-step pos))))
+
+(defn- major-invasion-step
+  [pos]
+  (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
+        (ship-core/attack-enemy pos enemy-pos))
+      (patrol-mode-step pos)))
+
+(defn- non-invasion-step
+  [pos]
+  (or (when-let [transport-pos (find-adjacent-player-transport pos)]
+        (ship-core/attack-enemy pos transport-pos))
+      (when-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
+        (flee-from pos enemy-pos))
+      (patrol-mode-step pos)))
+
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
   [pos]
   (let [unit (get-in (current-world) (conj pos :contents))]
     (if (:major-invasion unit)
-      (if-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
-        (ship-core/attack-enemy pos enemy-pos)
-        (case (or (:patrol-mode unit) :crawling)
-          :crawling (patrol-crawl-step pos)
-          :exploring (patrol-explore-step pos)))
-      (if-let [transport-pos (find-adjacent-player-transport pos)]
-        (ship-core/attack-enemy pos transport-pos)
-        (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
-          (flee-from pos enemy-pos)
-          (case (or (:patrol-mode unit) :crawling)
-            :crawling (patrol-crawl-step pos)
-            :exploring (patrol-explore-step pos)))))))
+      (major-invasion-step pos)
+      (non-invasion-step pos))))
 
 (defn process-patrol-boat
   "Processes a computer patrol boat. Moves up to speed 4 steps per round.

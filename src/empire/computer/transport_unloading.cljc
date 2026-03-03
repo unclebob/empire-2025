@@ -131,6 +131,15 @@
                          (not (contains? pickup-continent neighbor))))))
             (core/get-neighbors pos))))
 
+(defn- adjacent-empty-land-any
+  [game-map pos]
+  (filter (fn [neighbor]
+            (let [cell (get-in game-map neighbor)]
+              (and cell
+                   (#{:land :city} (:type cell))
+                   (nil? (:contents cell)))))
+          (core/get-neighbors pos)))
+
 (defn try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,
    unload all possible armies onto targets. Returns true if any unloaded."
@@ -166,27 +175,14 @@
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
         targets (when (pos? army-count)
-                  (filter (fn [neighbor]
-                            (let [cell (get-in game-map neighbor)]
-                              (and cell
-                                   (#{:land :city} (:type cell))
-                                   (nil? (:contents cell)))))
-                          (core/get-neighbors pos)))
+                  (adjacent-empty-land-any game-map pos))
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [unload-eid (:unload-event-id transport)
-            unload-cid (or (:unload-country-id transport) (:country-id transport))
-            army (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
-                   unload-eid (assoc :unload-event-id unload-eid)
-                   unload-cid (assoc :country-id unload-cid))]
-        (doseq [land-pos (take to-unload targets)]
-          (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-          (update-game-map! assoc-in (conj land-pos :contents) army)
-          (core/stamp-territory land-pos army)
-          (visibility/update-cell-visibility land-pos :computer))
-        (update-game-map! update-in (conj pos :contents :army-count) - to-unload)
-        (when (<= (- army-count to-unload) 0)
-          (transition-to-loading-inline pos))
+            army (unload-army-template transport)
+            selected-targets (take to-unload targets)]
+        (place-unloaded-armies! pos selected-targets army unload-eid)
+        (finish-unload! pos army-count to-unload)
         true))))
 
 (defn unload-armies

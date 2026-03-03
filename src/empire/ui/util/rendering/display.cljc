@@ -74,6 +74,39 @@
          :remaining remaining
          :dark-color dark-color}))))
 
+(defn- lake-cells-for-display [the-map map-to-display]
+  (let [lake-limit @atoms/lake-max-cells]
+    (if (and (= :computer-map map-to-display) (pos? lake-limit))
+      (let [{:keys [map limit cells]} @lake-cache*]
+        (if (and (identical? map the-map) (= limit lake-limit))
+          cells
+          (let [computed (lakes/lake-cells the-map lake-limit)]
+            (reset! lake-cache* {:map the-map :limit lake-limit :cells computed})
+            computed)))
+      #{})))
+
+(defn- completed-production-city? [cell production current]
+  (and (= (:type cell) :city)
+       (= :player (:city-status cell))
+       (let [prod (production current)]
+         (and (map? prod) (zero? (:remaining-rounds prod))))))
+
+(defn- cell-base-color [cell current lake-cells]
+  (if (and (= :sea (:type cell))
+           (contains? lake-cells current))
+    lake-cell-color
+    (safe-color cell)))
+
+(defn- final-cell-color
+  [cell attention-cell production blink-attention? blink-completed? current lake-cells]
+  (let [base-color (cell-base-color cell current lake-cells)
+        flash-attention? (and (= current attention-cell) blink-attention?)
+        flash-completed? (and (completed-production-city? cell production current) blink-completed?)]
+    (cond
+      flash-attention? [0 0 0]
+      flash-completed? [255 255 255]
+      :else base-color)))
+
 (defn group-cells-by-color
   "Groups map cells by their display color for batched rendering.
    Returns a map of [r g b] color to seq of {:col :row :cell} maps.
@@ -82,37 +115,18 @@
    (group-cells-by-color the-map attention-coords production blink-attention? blink-completed? :player-map))
   ([the-map attention-coords production blink-attention? blink-completed? map-to-display]
    (let [cols (count the-map)
-        rows (count (first the-map))
-        attention-cell (first attention-coords)
-        lake-limit @atoms/lake-max-cells
-        lake-cells (if (and (= :computer-map map-to-display) (pos? lake-limit))
-                     (let [{:keys [map limit cells]} @lake-cache*]
-                       (if (and (identical? map the-map) (= limit lake-limit))
-                         cells
-                         (let [computed (lakes/lake-cells the-map lake-limit)]
-                           (reset! lake-cache* {:map the-map :limit lake-limit :cells computed})
-                           computed)))
-                     #{})]
+         rows (count (first the-map))
+         attention-cell (first attention-coords)
+         lake-cells (lake-cells-for-display the-map map-to-display)]
     (reduce
      (fn [acc [col row]]
        (let [cell (get-in the-map [col row])]
          (if (= :unexplored (:type cell))
            acc
-           (let [base-color (if (and (= :sea (:type cell))
-                                     (contains? lake-cells [col row]))
-                              lake-cell-color
-                              (safe-color cell))
-                 current [col row]
-                 should-flash-black (= current attention-cell)
-                 completed? (and (= (:type cell) :city)
-                                 (= :player (:city-status cell))
-                                 (let [prod (production [col row])]
-                                   (and (map? prod) (= (:remaining-rounds prod) 0))))
-                 blink-white? (and completed? blink-completed?)
-                 blink-black? (and should-flash-black blink-attention?)
-                 final-color (cond blink-black? [0 0 0]
-                                   blink-white? [255 255 255]
-                                   :else base-color)]
+           (let [current [col row]
+                 final-color (final-cell-color cell attention-cell production
+                                               blink-attention? blink-completed?
+                                               current lake-cells)]
              (update acc final-color conj {:col col :row row :cell cell})))))
      {}
      (for [col (range cols) row (range rows)] [col row])))))

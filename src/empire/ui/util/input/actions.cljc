@@ -112,26 +112,31 @@
          (= :player (:city-status target-cell))
          (= (:hits active-unit) max-hits))))
 
+(defn- hostile-city-action [unit-type adjacent-target extended?]
+  (when (and (not extended?) (combat/hostile-city? adjacent-target))
+    ({:army :army-conquest
+      :fighter :fighter-overfly} unit-type)))
+
+(defn- standard-movement-action [active-unit adjacent-target extended?]
+  (or (hostile-city-action (:type active-unit) adjacent-target extended?)
+      (when (and (not extended?)
+                 (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
+        :reject-undamaged-ship)
+      :normal-move))
+
+(defn- perform-standard-movement! [action coords adjacent-target target extended?]
+  (case action
+    :army-conquest (combat/attempt-conquest coords adjacent-target)
+    :fighter-overfly (combat/attempt-fighter-overfly coords adjacent-target)
+    :reject-undamaged-ship (set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
+    :normal-move (movement/set-unit-movement coords target extended?))
+  (when (not= :reject-undamaged-ship action)
+    (game-loop/item-processed))
+  true)
+
 (defn- handle-standard-unit-movement [coords adjacent-target target extended? active-unit]
-  (cond
-    (and (= :army (:type active-unit)) (not extended?) (combat/hostile-city? adjacent-target))
-    (do (combat/attempt-conquest coords adjacent-target)
-        (game-loop/item-processed)
-        true)
-
-    (and (= :fighter (:type active-unit)) (not extended?) (combat/hostile-city? adjacent-target))
-    (do (combat/attempt-fighter-overfly coords adjacent-target)
-        (game-loop/item-processed)
-        true)
-
-    (and (not extended?) (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
-    (do (set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
-        true)
-
-    :else
-    (do (movement/set-unit-movement coords target extended?)
-        (game-loop/item-processed)
-        true)))
+  (-> (standard-movement-action active-unit adjacent-target extended?)
+      (perform-standard-movement! coords adjacent-target target extended?)))
 
 (defn- execute-unit-movement [coords direction extended? active-unit cell]
   (let [[x y] coords

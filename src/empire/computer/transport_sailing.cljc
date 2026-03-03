@@ -144,39 +144,54 @@
       (maybe-unload-or-sail! sea-pos transport'))
     (maybe-unload-or-sail! pos transport)))
 
+(defn- sailing-state
+  [sail-path army-count never-reload?]
+  (or ({[true true false] :empty-reload
+        [true true true] :empty-never-reload
+        [true false false] :loaded-no-path
+        [true false true] :loaded-no-path}
+       [(empty? sail-path) (zero? army-count) (boolean never-reload?)])
+      (when (seq sail-path) :follow-path)))
+
+(defn- loaded-no-path-action
+  [pos transport]
+  (let [city-cell? (= :city (:type (get-in (current-world) pos)))
+        adjacent-land? (some (fn [n]
+                               (let [cell (get-in (current-world) n)]
+                                 (and cell (#{:land :city} (:type cell)))))
+                             (core/get-neighbors pos))]
+    (cond
+      city-cell? (handle-loaded-transport-without-path! pos transport)
+      adjacent-land? (maybe-unload-or-sail! pos transport)
+      :else (set-unloading-and-try! pos))))
+
+(defn- follow-path-action
+  [pos sail-path]
+  (sail-follow-path pos sail-path))
+
+(defn- empty-never-reload-action
+  [pos]
+  (when-let [new-path (seq (compute-sail-path pos))]
+    (update-game-map! assoc-in (conj pos :contents :sail-path) (vec new-path))
+    (sail-follow-path pos (vec new-path))))
+
+(defn- mission-handler
+  [state pos transport sail-path]
+  ({:empty-reload (fn [] (tc/set-transport-mission pos :loading))
+    :empty-never-reload (fn [] (empty-never-reload-action pos))
+    :loaded-no-path (fn [] (loaded-no-path-action pos transport))
+    :follow-path (fn [] (follow-path-action pos sail-path))}
+   state))
+
 (defn process-sailing-mission
   [pos]
   (let [transport (get-in (current-world) (conj pos :contents))
         sail-path (:sail-path transport)
         army-count (:army-count transport 0)
         never-reload? (:never-reload? transport)
-        city-cell? (= :city (:type (get-in (current-world) pos)))
-        adjacent-land? (some (fn [n]
-                               (let [cell (get-in (current-world) n)]
-                                 (and cell (#{:land :city} (:type cell)))))
-                             (core/get-neighbors pos))]
-    (cond
-      (and (empty? sail-path) (zero? army-count) (not never-reload?))
-      (tc/set-transport-mission pos :loading)
-
-      (and (empty? sail-path) (zero? army-count) never-reload?)
-      (when-let [new-path (seq (compute-sail-path pos))]
-        (update-game-map! assoc-in (conj pos :contents :sail-path) (vec new-path))
-        (sail-follow-path pos (vec new-path)))
-
-      (and (empty? sail-path) (pos? army-count))
-      (cond
-        city-cell?
-        (handle-loaded-transport-without-path! pos transport)
-
-        adjacent-land?
-        (maybe-unload-or-sail! pos transport)
-
-        :else
-        (set-unloading-and-try! pos))
-
-      (seq sail-path)
-      (sail-follow-path pos sail-path))))
+        state (sailing-state sail-path army-count never-reload?)]
+    (when-let [handler (mission-handler state pos transport sail-path)]
+      (handler))))
 
 (defn- clear-invasion-path!
   [pos]

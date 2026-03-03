@@ -317,6 +317,25 @@
                            (assoc :transport-mission :land-locked)
                            (dissoc :sail-path :invasion-path :invasion-path-origin)))))
 
+(defn- evacuable-lake-shore-city-unit
+  [computer-map lake-cells pos]
+  (let [cell (get-in (current-world) pos)
+        unit (:contents cell)]
+    (when (and (= :city (:type cell))
+               (#{:player :computer} (:city-status cell))
+               (evacuable-ship-types (:type unit))
+               (lake-shore-city? computer-map lake-cells pos))
+      unit)))
+
+(defn- evacuate-city-ship!
+  [pos unit lake-cells]
+  (when-let [target (find-adjacent-empty-sea-preferring-ocean pos lake-cells)]
+    (when (update-game-map! assoc-in (conj target :contents) unit)
+      (update-game-map! assoc-in (conj pos :contents) nil)
+      (mark-evacuated-transport-for-unload! target unit)
+      (visibility/update-cell-visibility pos (:owner unit))
+      (visibility/update-cell-visibility target (:owner unit)))))
+
 (defn evacuate-lake-patrol-boats
   "Moves ships out of lake-shore city cells before production.
    Preserves full unit state by moving unit directly to adjacent empty sea.
@@ -331,20 +350,27 @@
     (when (seq lake-cells)
       (doseq [r (range rows)
               c (range cols)
-              :let [pos [r c]
-                    cell (get-in (current-world) pos)
-                    unit (:contents cell)]
-              :when (and (= :city (:type cell))
-                         (#{:player :computer} (:city-status cell))
-                         (evacuable-ship-types (:type unit))
-                         (lake-shore-city? computer-map lake-cells pos))]
-        (if-let [target (find-adjacent-empty-sea-preferring-ocean pos lake-cells)]
-          (when (update-game-map! assoc-in (conj target :contents) unit)
-            (update-game-map! assoc-in (conj pos :contents) nil)
-            (mark-evacuated-transport-for-unload! target unit)
-            (visibility/update-cell-visibility pos (:owner unit))
-            (visibility/update-cell-visibility target (:owner unit)))
-          nil)))))
+              :let [pos [r c]]]
+        (when-let [unit (evacuable-lake-shore-city-unit computer-map lake-cells pos)]
+          (evacuate-city-ship! pos unit lake-cells))))))
+
+(defn- lake-locked-ship?
+  [unit]
+  (and unit
+       (= :computer (:owner unit))
+       (lake-lockable-ship-types (:type unit))))
+
+(defn- lock-ship-for-lake!
+  [pos unit]
+  (update-game-map! assoc-in (conj pos :contents :lake-locked?) true)
+  (when (= :transport (:type unit))
+    (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
+    (when (pos? (:army-count unit 0))
+      (update-game-map! assoc-in (conj pos :contents :transport-mission) :land-locked))))
+
+(defn- clear-ship-lake-lock!
+  [pos]
+  (update-game-map! update-in (conj pos :contents) dissoc :lake-locked?))
 
 (defn mark-lake-locked-ships
   "Marks computer ships located in known lakes as :lake-locked?.
@@ -359,17 +385,10 @@
             c (range (count (first world)))
             :let [pos [r c]
                   unit (get-in (current-world) (conj pos :contents))]
-            :when (and unit
-                       (= :computer (:owner unit))
-                       (lake-lockable-ship-types (:type unit)))]
+            :when (lake-locked-ship? unit)]
       (if (contains? lake-cells pos)
-        (do
-          (update-game-map! assoc-in (conj pos :contents :lake-locked?) true)
-          (when (= :transport (:type unit))
-            (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
-            (when (pos? (:army-count unit 0))
-              (update-game-map! assoc-in (conj pos :contents :transport-mission) :land-locked))))
-        (update-game-map! update-in (conj pos :contents) dissoc :lake-locked?)))))
+        (lock-ship-for-lake! pos unit)
+        (clear-ship-lake-lock! pos)))))
 
 (defn- repair-city-ships
   "Repairs all ships in a city's shipyard by 1 hit each.

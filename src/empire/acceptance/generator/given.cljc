@@ -34,34 +34,52 @@
            first
            :target))))
 
+(defn- waiting-for-input-context [{:keys [unit] :as given} givens]
+  (let [is-city (utils/city-spec? unit)
+        map-given (first (filter #(= :map (:type %)) givens))
+        unit-on-map? (or is-city
+                         (nil? map-given)
+                         (some #(str/includes? % unit) (:rows map-given)))
+        container-city (when (not unit-on-map?) (find-container-city givens))
+        effective-unit (or container-city unit)
+        effective-is-city (or (some? container-city) is-city)
+        pos-lookup (if effective-is-city
+                     (str "(:pos (h/get-city \"" effective-unit "\"))")
+                     (str "(:pos (h/get-unit \"" effective-unit "\"))"))]
+    {:given given
+     :is-city is-city
+     :unit-on-map? unit-on-map?
+     :container-city container-city
+     :pos-lookup pos-lookup}))
+
+(defn- maybe-set-awake-line [{:keys [given unit-on-map? is-city]}]
+  (let [{:keys [set-mode unit]} given]
+    (when (and set-mode unit-on-map? (not is-city))
+      (str "    (h/set-unit! \"" unit "\" :mode :awake)"))))
+
+(defn- maybe-clear-production-line [{:keys [container-city pos-lookup]}]
+  (when container-city
+    (str "    (h/update-state! :production assoc " pos-lookup " :none)")))
+
+(defn- waiting-for-input-map-lines [{:keys [pos-lookup]}]
+  [(str "    (let [gm (h/read-state :game-map)\n"
+        "          cols (count gm)\n"
+        "          rows (count (first gm))\n"
+        "          pos " pos-lookup "]\n"
+        "      (h/set-state! :player-map (make-initial-test-map rows cols nil))\n"
+        "      (h/set-state! :player-items [pos])\n"
+        "      (h/process-player-items-batch!))")])
+
 (defn- generate-waiting-for-input-given
   ([given] (generate-waiting-for-input-given given []))
-  ([{:keys [unit set-mode]} givens]
-   (let [lines (atom [])
-         is-city (utils/city-spec? unit)
-         map-given (first (filter #(= :map (:type %)) givens))
-         unit-on-map? (or is-city
-                          (nil? map-given)
-                          (some #(str/includes? % unit) (:rows map-given)))
-         container-city (when (not unit-on-map?) (find-container-city givens))
-         effective-unit (or container-city unit)
-         effective-is-city (or (some? container-city) is-city)
-         pos-lookup (if effective-is-city
-                      (str "(:pos (h/get-city \"" effective-unit "\"))")
-                      (str "(:pos (h/get-unit \"" effective-unit "\"))"))]
-     (when (and set-mode unit-on-map? (not is-city))
-       (swap! lines conj (str "    (h/set-unit! \"" unit "\" :mode :awake)")))
-     (when container-city
-       (swap! lines conj (str "    (h/update-state! :production assoc " pos-lookup " :none)")))
-     (swap! lines conj
-            (str "    (let [gm (h/read-state :game-map)\n"
-                 "          cols (count gm)\n"
-                 "          rows (count (first gm))\n"
-                 "          pos " pos-lookup "]\n"
-                 "      (h/set-state! :player-map (make-initial-test-map rows cols nil))\n"
-                 "      (h/set-state! :player-items [pos])\n"
-                 "      (h/process-player-items-batch!))"))
-     (str/join "\n" @lines))))
+  ([given givens]
+   (let [ctx (waiting-for-input-context given givens)
+         lines (concat [(maybe-set-awake-line ctx)
+                        (maybe-clear-production-line ctx)]
+                       (waiting-for-input-map-lines ctx))]
+     (->> lines
+          (remove nil?)
+          (str/join "\n")))))
 
 (defn- infer-container-counts
   "When awake-fighters or awake-armies are set but the corresponding
