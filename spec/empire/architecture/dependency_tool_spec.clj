@@ -61,6 +61,19 @@
             by-component (into {} (map (juxt :component identity) (:component-rules cfg)))]
         (should= "empire.application*" (:match (get by-component :application)))
         (should= "empire.adapters*" (:match (get by-component :adapters)))
-        (should= "empire.acceptance.parser*" (:match (get by-component :acceptance-parser)))
-        (should= "empire.acceptance.generator*" (:match (get by-component :acceptance-generator)))
-        (should (some #{[:application :acceptance-parser]} (:forbidden-dependencies cfg)))))))
+        (should= "empire.acceptance*" (:match (get by-component :acceptance)))))
+
+  (it "infers abstract and concrete component roots from module abstractness"
+    (let [root (temp-dir)]
+      (write-file! root "empire/api/protocols.cljc"
+                   "(ns empire.api.protocols)\n(defprotocol Port (go [this]))\n")
+      (write-file! root "empire/api/events.cljc"
+                   "(ns empire.api.events)\n(defmulti handle-event :type)\n")
+      (write-file! root "empire/impl/service_a.cljc"
+                   "(ns empire.impl.service-a (:require [empire.api.protocols :as p]))\n(defn run [] :ok)\n")
+      (write-file! root "empire/impl/service_b.cljc"
+                   "(ns empire.impl.service-b (:require [empire.api.events :as e]))\n(defn execute [] :ok)\n")
+      (let [cfg (#'tool/generate-starter-config [(.getPath root)])
+            by-component (into {} (map (juxt :component identity) (:component-rules cfg)))]
+        (should= "empire.api*" (:match (get by-component :api)))
+        (should= "empire.impl*" (:match (get by-component :impl))))))))

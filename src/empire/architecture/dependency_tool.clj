@@ -10,14 +10,8 @@
    :component-rules []
    :forbidden-dependencies []
    :allowed-exceptions []
-   :abstract-patterns []
    :fail-on-cycles true
    :fail-on-violations true})
-
-(def ^:private preferred-component-order
-  ["application" "domain" "adapters" "atoms" "ui" "game-loop" "computer" "player"
-   "movement" "units" "containers" "combat" "acceptance-parser" "acceptance-generator"
-   "debug" "test-utils"])
 
 (defn- glob->regex
   [pattern]
@@ -145,18 +139,12 @@
       (:private (meta sym))
       (str/starts-with? (name sym) "-")))
 
-(defn- compile-abstract-matchers
-  [patterns]
-  (mapv pattern->matcher patterns))
-
 (defn- abstract-var?
-  [op-name sym ns-name abstract-matchers]
-  (or (#{"defprotocol" "defmulti"} op-name)
-      (:abstract (meta sym))
-      (some #(% (str ns-name "/" (name sym))) abstract-matchers)))
+  [op-name]
+  (#{"defprotocol" "defmulti"} op-name))
 
 (defn- var-stats
-  [forms ns-name abstract-matchers]
+  [forms]
   (reduce
    (fn [{:keys [public-count abstract-count] :as acc} form]
      (if (seq? form)
@@ -166,7 +154,7 @@
          (if (and op-name (def-ops op-name) sym (not (private-var? op-name sym)))
            (-> acc
                (assoc :public-count (inc public-count))
-               (update :abstract-count + (if (abstract-var? op-name sym ns-name abstract-matchers) 1 0)))
+               (update :abstract-count + (if (abstract-var? op-name) 1 0)))
            acc))
        acc))
    {:public-count 0 :abstract-count 0}
@@ -236,7 +224,6 @@
   [config]
   (let [cfg (merge default-config config)
         component-rules (compile-component-rules (:component-rules cfg))
-        abstract-matchers (compile-abstract-matchers (:abstract-patterns cfg))
         files (source-files (:source-paths cfg) (:include-exts cfg))
         parsed (->> files
                     (map (fn [f]
@@ -246,7 +233,7 @@
                                (let [ns-name (second ns-decl)
                                      component (component-for-ns component-rules ns-name)
                                      requires (extract-requires ns-decl)
-                                     stats (var-stats forms (str ns-name) abstract-matchers)]
+                                     stats (var-stats forms)]
                                  {:file (.getPath f)
                                   :namespace ns-name
                                   :component component
@@ -319,41 +306,133 @@
      :violations violations
      :cycles cycles}))
 
-(defn- file-namespaces
+(defn- source-ns-records
   [source-paths include-exts]
   (->> (source-files source-paths include-exts)
        (map (fn [f]
               (let [forms (read-forms f)
                     ns-decl (first (filter ns-form? forms))]
-                (when ns-decl (second ns-decl)))))
-       (filter symbol?)
-       set))
+                (when ns-decl
+                  (let [ns-name (second ns-decl)
+                        stats (var-stats forms)]
+                    {:namespace (str ns-name)
+                     :requires (set (map str (extract-requires ns-decl)))
+                     :public-count (:public-count stats)
+                     :abstract-count (:abstract-count stats)})))))
+       (filter some?)
+       vec))
 
-(defn- infer-component-rule
-  [root ns-sym]
-  (let [parts (str/split (str ns-sym) #"\.")
-        seg1 (second parts)
-        seg2 (nth parts 2 nil)]
-    (cond
-      (nil? seg1) nil
-      (and (= "acceptance" seg1) (#{"parser" "generator"} seg2))
-      {:component (keyword (str "acceptance-" seg2))
-       :match (str root ".acceptance." seg2 "*")}
-      (= "test-utils" seg1)
-      {:component :test-utils :match (str root ".test-utils")}
-      :else
-      {:component (keyword seg1)
-       :match (str root "." seg1 "*")})))
+(defn- ns-prefixes
+  [ns-name]
+  (let [parts (str/split ns-name #"\.")]
+    (map #(str/join "." (take % parts))
+         (range 1 (inc (count parts))))))
 
-(defn- compare-component-name
-  [a b]
-  (let [ia (.indexOf preferred-component-order a)
-        ib (.indexOf preferred-component-order b)
-        ra (if (neg? ia) 999 ia)
-        rb (if (neg? ib) 999 ib)]
-    (if (= ra rb)
-      (compare a b)
-      (compare ra rb))))
+(defn- parent-prefix
+  [prefix]
+  (let [parts (str/split prefix #"\.")]
+    (when (> (count parts) 1)
+      (str/join "." (butlast parts)))))
+
+(defn- in-prefix?
+  [prefix ns-name]
+  (or (= prefix ns-name)
+      (str/starts-with? ns-name (str prefix "."))))
+
+(defn- module-abstract?
+  [{:keys [public-count abstract-count]}]
+  (and (pos? public-count) (= public-count abstract-count)))
+
+(defn- infer-abstract-prefixes
+  [records]
+  (let [module-abstract (into {} (map (juxt :namespace module-abstract?) records))
+        all-ns (set (keys module-abstract))
+        prefixes (->> all-ns (mapcat ns-prefixes) set)
+        prefix-abstract? (fn [prefix]
+                           (let [desc (filter #(in-prefix? prefix %) all-ns)]
+                             (and (seq desc)
+                                  (every? #(true? (get module-abstract %)) desc))))
+        abstract-prefixes (set (filter prefix-abstract? prefixes))]
+    (->> abstract-prefixes
+         (filter (fn [prefix]
+                   (let [p (parent-prefix prefix)]
+                     (or (nil? p) (not (contains? abstract-prefixes p))))))
+         set)))
+
+(defn- best-abstract-prefix
+  [abstract-prefixes ns-name]
+  (->> abstract-prefixes
+       (filter #(in-prefix? % ns-name))
+       (sort-by count >)
+       first))
+
+(defn- infer-concrete-prefixes
+  [records abstract-prefixes]
+  (let [all-ns (set (map :namespace records))
+        deps-by-ns (into {} (map (juxt :namespace :requires) records))
+        module-abstract (into {} (map (juxt :namespace module-abstract?) records))
+        abs-for-dep (fn [dep] (best-abstract-prefix abstract-prefixes dep))
+        candidate-target (fn [ns-name]
+                           (when-not (get module-abstract ns-name)
+                             (let [deps (filter all-ns (get deps-by-ns ns-name))
+                                   abs-deps (set (keep abs-for-dep deps))]
+                               (when (= 1 (count abs-deps))
+                                 (first abs-deps)))))
+        candidates-by-abs (reduce (fn [acc ns-name]
+                                    (if-let [target (candidate-target ns-name)]
+                                      (update acc target (fnil conj #{}) ns-name)
+                                      acc))
+                                  {}
+                                  all-ns)
+        qualified-prefixes (fn [target nss]
+                             (let [prefixes (->> nss (mapcat ns-prefixes) set)
+                                   qualifies? (fn [prefix]
+                                                (let [desc (filter #(in-prefix? prefix %) all-ns)
+                                                      desc-candidates (filter nss desc)]
+                                                  (and (seq desc)
+                                                       (= (set desc) (set desc-candidates))
+                                                       (every?
+                                                        (fn [ns-name]
+                                                          (let [deps (filter all-ns (get deps-by-ns ns-name))]
+                                                            (every? #(in-prefix? target %) deps)))
+                                                        desc))))]
+                               (->> prefixes
+                                    (filter qualifies?)
+                                    (remove #(= % target))
+                                    set)))]
+    (->> candidates-by-abs
+         (mapcat (fn [[target nss]]
+                   (let [prefixes (qualified-prefixes target nss)]
+                     (->> prefixes
+                          (filter (fn [prefix]
+                                    (let [p (parent-prefix prefix)]
+                                      (or (nil? p) (not (contains? prefixes p))))))
+                          vec))))
+         set)))
+
+(defn- prefix->component
+  [root prefix]
+  (let [suffix (if (str/starts-with? prefix (str root "."))
+                 (subs prefix (inc (count root)))
+                 prefix)]
+    (keyword (str/replace suffix "." "-"))))
+
+(defn- prefix->rule
+  [root prefix]
+  {:component (prefix->component root prefix)
+   :match (if (re-find #"\." prefix)
+            (str prefix "*")
+            (str prefix ".*"))})
+
+(defn- fallback-prefixes
+  [root nss covered]
+  (let [remaining (remove covered nss)]
+    (->> remaining
+         (keep (fn [ns-name]
+                 (let [parts (str/split ns-name #"\.")
+                       seg1 (second parts)]
+                   (when seg1 (str root "." seg1)))))
+         set)))
 
 (defn- default-forbidden-deps
   [components]
@@ -381,15 +460,25 @@
   ([]
    (generate-starter-config (:source-paths default-config)))
   ([source-paths]
-   (let [nss (file-namespaces source-paths (:include-exts default-config))
-         roots (->> nss (map #(first (str/split (str %) #"\."))) frequencies)
+   (let [records (source-ns-records source-paths (:include-exts default-config))
+         nss (set (map :namespace records))
+         roots (->> nss (map #(first (str/split % #"\."))) frequencies)
          root (or (first (first (sort-by (comp - val) roots))) "app")
-         rules (->> nss
-                    (map #(infer-component-rule root %))
-                    (filter some?)
-                    (sort-by (fn [{:keys [component]}] (name component)) (fn [a b] (compare-component-name a b)))
+         abstract-prefixes (infer-abstract-prefixes records)
+         concrete-prefixes (infer-concrete-prefixes records abstract-prefixes)
+         covered (fn [ns-name]
+                   (or (some #(in-prefix? % ns-name) abstract-prefixes)
+                       (some #(in-prefix? % ns-name) concrete-prefixes)))
+         fallback (fallback-prefixes root nss covered)
+         prefixes (->> (concat abstract-prefixes concrete-prefixes fallback)
+                       set)
+         rules (->> prefixes
+                    (sort-by count >)
+                    (map #(prefix->rule root %))
                     (reduce (fn [acc {:keys [component] :as rule}]
-                              (if (contains? acc component) acc (assoc acc component rule)))
+                              (if (contains? acc component)
+                                acc
+                                (assoc acc component rule)))
                             {})
                     vals
                     vec)
@@ -408,7 +497,8 @@
   (format "%.3f" (double d)))
 
 (defn- report-text
-  [{:keys [component-stats component-edges violations cycles]}]
+  [{:keys [component-stats component-edges violations cycles]}
+   {:keys [max-distance distance-violations]}]
   (let [components (keys component-stats)]
     (println "Dependency Analysis")
     (println "===================")
@@ -417,6 +507,8 @@
     (println (format "Component edges: %d" (count component-edges)))
     (println (format "Violations: %d" (count violations)))
     (println (format "Cycles: %d" (count cycles)))
+    (println (format "Distance limit: %.3f" (double max-distance)))
+    (println (format "Distance violations: %d" (count distance-violations)))
     (println)
     (println "Component Metrics")
     (println "-----------------")
@@ -447,7 +539,16 @@
       (println "Cycles")
       (println "------")
       (doseq [cycle cycles]
-        (println (str/join " -> " (map str cycle)))))))
+        (println (str/join " -> " (map str cycle)))))
+    (when (seq distance-violations)
+      (println)
+      (println "Distance Violations")
+      (println "-------------------")
+      (doseq [[component distance] distance-violations]
+        (println (format "%s distance=%s exceeds limit=%s"
+                         component
+                         (fmt-double distance)
+                         (fmt-double max-distance)))))))
 
 (defn- load-config
   [path]
@@ -458,7 +559,7 @@
 (defn- usage!
   []
   (binding [*out* *err*]
-    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--init|--force-init]"))
+    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--max-distance N] [--init|--force-init]"))
   2)
 
 (defn -main
@@ -469,7 +570,8 @@
     (loop [remaining args*
            fmt :text
            init? false
-           force-init? false]
+           force-init? false
+           max-distance 0.0]
       (if (empty? remaining)
         (let [config-file (io/file config-path)]
           (cond
@@ -494,13 +596,21 @@
 
             :else
             (let [result (analyze-project (load-config config-path))
+                  distance-violations (->> (:component-stats result)
+                                           (filter (fn [[_ {:keys [distance]}]]
+                                                     (> (double distance) (double max-distance))))
+                                           (mapv (fn [[component {:keys [distance]}]]
+                                                   [component distance])))
                   has-violations (seq (:violations result))
                   has-cycles (seq (:cycles result))
+                  has-distance-violations (seq distance-violations)
                   fail? (or (and has-violations (get-in result [:config :fail-on-violations] true))
-                            (and has-cycles (get-in result [:config :fail-on-cycles] true)))]
+                            (and has-cycles (get-in result [:config :fail-on-cycles] true))
+                            has-distance-violations)]
               (case fmt
                 :edn (prn result)
-                :text (report-text result)
+                :text (report-text result {:max-distance max-distance
+                                           :distance-violations distance-violations})
                 (do
                   (binding [*out* *err*]
                     (println "Unsupported format:" fmt))
@@ -510,14 +620,28 @@
         (let [[arg & more] remaining]
           (cond
             (= arg "--init")
-            (recur more fmt true force-init?)
+            (recur more fmt true force-init? max-distance)
 
             (= arg "--force-init")
-            (recur more fmt init? true)
+            (recur more fmt init? true max-distance)
 
             (= arg "--format")
             (if-let [format-arg (first more)]
-              (recur (rest more) (keyword format-arg) init? force-init?)
+              (recur (rest more) (keyword format-arg) init? force-init? max-distance)
+              (System/exit (usage!)))
+
+            (= arg "--max-distance")
+            (if-let [raw (first more)]
+              (let [parsed (try
+                             (Double/parseDouble raw)
+                             (catch Exception _
+                               ::invalid-max-distance))]
+                (if (= ::invalid-max-distance parsed)
+                  (do
+                    (binding [*out* *err*]
+                      (println "Invalid value for --max-distance:" raw))
+                    (System/exit 2))
+                  (recur (rest more) fmt init? force-init? parsed)))
               (System/exit (usage!)))
 
             :else
