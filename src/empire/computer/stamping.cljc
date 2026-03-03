@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-25
+;; mutation-tested: 2026-03-02
 (ns empire.computer.stamping
   (:require [empire.application.runtime :as app-runtime]))
 

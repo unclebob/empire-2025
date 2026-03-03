@@ -1,4 +1,4 @@
-;; mutation-tested: no
+;; mutation-tested: 2026-03-02
 (ns empire.computer.threat-response.invasion-state
   (:require [empire.computer.core :as core]))
 

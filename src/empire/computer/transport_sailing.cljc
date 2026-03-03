@@ -1,14 +1,12 @@
-;; mutation-tested: 2026-02-28
+;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
+            [empire.computer.transport-sailing.path :as sailing-path]
             [empire.computer.transport-unloading :as unloading]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
 
 (def ^:private state-ctx
@@ -21,35 +19,13 @@
 (defn- current-world
   []
   ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
-
-(defn- passable-sea?
-  "Returns true if pos is a passable sea cell for a transport."
-  [pos]
-  (let [cell (get-in (current-world) pos)]
-    (and cell
-         (= :sea (:type cell))
-         (or (nil? (:contents cell))
-             (= :computer (:owner (:contents cell)))))))
-
-(defn- continue-pos
-  "Returns pos + direction vector, or nil if out of bounds or not passable sea."
-  [from to]
-  (let [dr (- (first to) (first from))
-        dc (- (second to) (second from))
-        candidate [(+ (first to) dr) (+ (second to) dc)]]
-    (when (passable-sea? candidate) candidate)))
-
 (defn compute-sail-path
   "Compute BFS path from transport position to best coastal target.
    Looks 4 levels past first hit; prefers unowned coast over unexplored."
   [pos]
-  (pathfinding-bfs/bfs-to-coast-target
-    pos (read-runtime-state :computer-map)))
+  (sailing-path/compute-sail-path
+    pos
+    ((:read-runtime-state @state-ctx) :computer-map)))
 
 (defn- launch-from-city-to-sea
   [pos transport]
@@ -87,7 +63,8 @@
 
 (defn- sail-take-second-step
   [from-pos next-pos remaining]
-  (let [step2 (or (first remaining) (continue-pos from-pos next-pos))
+  (let [step2 (or (first remaining)
+                  (sailing-path/continue-pos (current-world) from-pos next-pos))
         remaining2 (if (seq remaining) (vec (rest remaining)) [])
         moved2 (when step2 (core/move-unit-to next-pos step2))]
     (if moved2

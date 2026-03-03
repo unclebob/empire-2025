@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-02
 (ns empire.computer.land-ho
   "Round-start assignment of land-ho invasion targets to transports.
    Checks the FIFO queue of discovered free cities and assigns the nearest

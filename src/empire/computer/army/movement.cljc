@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-02
 (ns empire.computer.army.movement
   "Shared movement and passability helpers for computer armies."
   (:require [empire.adapters.state.runtime :as runtime-state]

@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-27
+;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-carrier-group
   "Carrier group escort - battleship and submarine orbiting behavior."
   (:require [empire.application.runtime :as app-runtime]

@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-28
+;; mutation-tested: 2026-03-02
 (ns empire.computer.production
   "Computer production module - priority-based production."
   (:require [empire.computer.production.decisions :as decisions]

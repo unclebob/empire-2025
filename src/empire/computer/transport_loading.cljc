@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-28
+;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
   (:require [empire.adapters.state.runtime :as runtime-state]

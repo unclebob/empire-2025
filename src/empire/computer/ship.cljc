@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-27
+;; mutation-tested: 2026-03-02
 (ns empire.computer.ship
   "Computer ship module - facade delegating to sub-modules."
   (:require [empire.application.runtime :as app-runtime]

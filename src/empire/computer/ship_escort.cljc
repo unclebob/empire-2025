@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-27
+;; mutation-tested: 2026-03-02
 ;; mutation-tested: 2026-02-27
 (ns empire.computer.ship-escort
   "Computer destroyer escort and shared pursuit logic."

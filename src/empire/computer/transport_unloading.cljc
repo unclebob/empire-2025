@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-28
+;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-unloading
   "Transport unloading — opportunistic and targeted army unloading."
   (:require [empire.adapters.state.runtime :as runtime-state]
@@ -9,6 +9,7 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
+            [empire.computer.transport-unloading.filtering :as filtering]
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
             [empire.movement.visibility :as visibility]))
@@ -29,56 +30,6 @@
   (let [store (runtime-state/runtime-state-store)]
     (ports/read-runtime-state store k)))
 
-(defn- adjacent-empty-land
-  "Returns adjacent land/city positions that are empty (no unit).
-   Excludes positions on the pickup continent and land belonging to
-  any country-id in exclude-ids set."
-  [pos exclude-ids pickup-continent major-invasion?]
-  (let [game-map (current-world)]
-    (filter (fn [neighbor]
-              (let [cell (get-in game-map neighbor)]
-                (and cell
-                     (#{:land :city} (:type cell))
-                     (nil? (:contents cell))
-                     (or (not major-invasion?)
-                         (threat-response/major-invasion-target-land? neighbor))
-                     (or (empty? exclude-ids)
-                         (not (contains? exclude-ids (:country-id cell))))
-                     (or (nil? pickup-continent)
-                         (not (contains? pickup-continent neighbor))))))
-            (core/get-neighbors pos))))
-
-(defn- pickup-exclude-ids
-  "Returns set of country-ids to exclude: transport's own country-id,
-   pickup-country-id, and the country-id at pickup-continent-pos."
-  [transport]
-  (disj (set [(:country-id transport)
-              (:pickup-country-id transport)
-              (when-let [pcp (:pickup-continent-pos transport)]
-                (:country-id (get-in (current-world) pcp)))])
-        nil))
-
-(defn- pickup-continent-if-needed
-  "Returns the pickup continent set for pickup-continent-pos using cached flood-fill.
-   Always prefer geography-based exclusion to avoid load/unload loops when
-   country-id stamping changes on the same landmass."
-  [transport]
-  (when-let [pcp (:pickup-continent-pos transport)]
-    (land-objectives/flood-fill-continent pcp)))
-
-(defn- unloadable-land-cell?
-  "Returns true if cell is empty land/city not excluded by country-id or pickup continent."
-  [cell neighbor-pos exclude-ids pickup-continent major-invasion?]
-  (and cell
-       (#{:land :city} (:type cell))
-       (nil? (:contents cell))
-       (or (not major-invasion?)
-           (threat-response/major-invasion-target-land? neighbor-pos))
-       (or (empty? exclude-ids)
-           (not (contains? exclude-ids (:country-id cell))))
-       (or (nil? pickup-continent)
-           (not (contains? pickup-continent neighbor-pos)))))
-
 (defn- passable-coastal-sea?
   "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
   [pos visited game-map]
@@ -96,12 +47,12 @@
    not excluded by country-id or pickup continent."
   [pos transport max-depth]
   (let [game-map (current-world)
-        exclude-ids (pickup-exclude-ids transport)
-        pickup-continent (pickup-continent-if-needed transport)
+        exclude-ids (filtering/pickup-exclude-ids game-map transport)
+        pickup-continent (filtering/pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
         has-unloadable-neighbor? (fn [p]
                                    (some (fn [n]
-                                           (unloadable-land-cell?
+                                           (filtering/unloadable-land-cell?
                                              (get-in game-map n) n exclude-ids pickup-continent major-invasion?))
                                          (core/get-neighbors p)))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
@@ -187,11 +138,16 @@
   (let [game-map (current-world)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
-        exclude-ids (pickup-exclude-ids transport)
-        pickup-continent (pickup-continent-if-needed transport)
+        exclude-ids (filtering/pickup-exclude-ids game-map transport)
+        pickup-continent (filtering/pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
         targets (when (pos? army-count)
-                  (adjacent-empty-land pos exclude-ids pickup-continent major-invasion?))
+                  (filtering/adjacent-empty-land game-map
+                                                 core/get-neighbors
+                                                 pos
+                                                 exclude-ids
+                                                 pickup-continent
+                                                 major-invasion?))
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [selected-targets (take to-unload targets)

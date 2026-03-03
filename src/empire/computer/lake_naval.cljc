@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-02
 (ns empire.computer.lake-naval
   "Lake-specific naval behavior: retreat from shore and park as sentry."
   (:require [empire.movement.lakes :as lakes]

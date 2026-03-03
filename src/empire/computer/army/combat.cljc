@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-02
 (ns empire.computer.army.combat
   "Army combat helpers."
   (:require [empire.adapters.state.runtime :as runtime-state]

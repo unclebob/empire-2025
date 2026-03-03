@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-28
+;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-targeting
   "Transport target selection — finding unload targets and pickup continents."
   (:require [empire.adapters.state.runtime :as runtime-state]

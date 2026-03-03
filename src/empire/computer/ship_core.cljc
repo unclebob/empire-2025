@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-27
+;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
   (:require [empire.application.runtime :as app-runtime]

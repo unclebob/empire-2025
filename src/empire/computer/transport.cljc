@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-28
+;; mutation-tested: 2026-03-02
 (ns empire.computer.transport
   "Computer transport module — facade delegating to sub-modules.
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
@@ -13,12 +13,12 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-loading :as loading]
+            [empire.computer.transport.mission-handlers :as mission-handlers]
             [empire.computer.transport-sailing :as sailing]
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.visibility :as visibility]))
 
 (def ^:private state-ctx
@@ -41,13 +41,8 @@
   [k v]
   (let [store (runtime-state/runtime-state-store)]
     (ports/write-runtime-state! store k v)))
-
-;; --- Re-exports for backward compatibility ---
-
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
-
-;; --- Facade functions (cross-cutting, depend on multiple sub-modules) ---
 
 (defn- move-toward-position
   "Move transport one step toward target using greedy neighbor selection."
@@ -93,112 +88,17 @@
 
 (defn- load-for-invasion-start!
   [pos]
-  (update-game-map! update-in (conj pos :contents)
-                    #(assoc % :transport-mission :load-for-invasion
-                              :invasion-load-since (or (read-runtime-state :round-number) 0))))
-
-(defn- loadable-army-neighbor?
-  [transport-pos]
-  (let [world (current-world)]
-    (some (fn [n]
-            (let [unit (get-in world (conj n :contents))]
-              (and unit
-                   (= :computer (:owner unit))
-                   (= :army (:type unit)))))
-          (core/get-neighbors transport-pos))))
+  (mission-handlers/load-for-invasion-start! update-game-map! read-runtime-state pos))
 
 (defn- passable-sea-cell?
   [cell]
-  (and (= :sea (:type cell))
-       (or (nil? (:contents cell))
-           (= :computer (:owner (:contents cell))))))
-
+  (mission-handlers/passable-sea-cell? cell))
 (defn- sea-load-points
   "All passable sea cells adjacent to at least one computer army."
   []
-  (let [world (current-world)]
-    (for [i (range (count world))
-          j (range (count (first world)))
-          :let [cell (get-in world [i j])]
-          :when (and cell
-                     (passable-sea-cell? cell)
-                     (loadable-army-neighbor? [i j]))]
-      [i j])))
+  (mission-handlers/sea-load-points (current-world) core/get-neighbors))
 
-(def ^:private invasion-army-search-max-distance 6)
-
-(defn- coastal-army?
-  [pos computer-map]
-  (some (fn [n]
-          (= :sea (:type (get-in computer-map n))))
-        (core/get-neighbors pos)))
-
-(defn- candidate-coastal-armies
-  [transport-pos]
-  (let [world (current-world)
-        computer-map (read-runtime-state :computer-map)]
-    (for [i (range (count world))
-          j (range (count (first world)))
-          :let [unit (get-in world [i j :contents])
-                army-pos [i j]]
-          :when (and unit
-                     (= :army (:type unit))
-                     (= :computer (:owner unit))
-                     (<= (core/chebyshev-distance transport-pos army-pos)
-                         invasion-army-search-max-distance)
-                     (coastal-army? army-pos computer-map))]
-      army-pos)))
-
-(defn- nearest-reachable-coastal-army
-  [transport-pos]
-  (let [computer-map (read-runtime-state :computer-map)
-        candidates (candidate-coastal-armies transport-pos)
-        scored (keep (fn [army-pos]
-                       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target
-                                        transport-pos army-pos computer-map)]
-                         {:army-pos army-pos
-                          :path path
-                          :score [(count path)
-                                  (core/chebyshev-distance transport-pos army-pos)
-                                  army-pos]}))
-                     candidates)]
-    (first (sort-by :score scored))))
-
-(defn- move-to-sea-step
-  [pos step]
-  (when (and step (core/move-unit-to pos step))
-    (visibility/update-cell-visibility pos :computer)
-    (visibility/update-cell-visibility step :computer)
-    (loading/load-adjacent-armies step)
-    step))
-
-(defn- process-find-armies-for-invasion
-  [pos]
-  (loading/load-adjacent-armies pos)
-  (let [transport (get-in (current-world) (conj pos :contents))
-        army-count (:army-count transport 0)]
-    (cond
-      (pos? army-count)
-      (load-for-invasion-start! pos)
-
-      (loadable-army-neighbor? pos)
-      (load-for-invasion-start! pos)
-
-      :else
-      (if-let [{:keys [path]} (nearest-reachable-coastal-army pos)]
-        (if (seq path)
-          (or (move-to-sea-step pos (first path))
-              (loading/coastal-crawl-move pos))
-          (load-for-invasion-start! pos))
-        ;; No coastal army within 6 sea-chebyshev that is sea-reachable:
-        ;; leave this transport out of the current invasion revision.
-        (update-game-map! update-in (conj pos :contents)
-                          #(assoc %
-                                  :transport-mission :loading
-                                  :major-invasion-skip-revision
-                                  (threat-response/major-invasion-target-revision)))))))
-
-(def ^:private invasion-load-timeout-rounds 5)
+(declare loading-crawl-move handle-stale-loading)
 
 (defn- transition-load-for-invasion-to-sailing!
   [pos]
@@ -212,43 +112,48 @@
                               :invasion-target (or (:invasion-target %)
                                                    major-target))))
 
+(defn- mission-handler-deps
+  []
+  {:current-world current-world
+   :read-runtime-state read-runtime-state
+   :update-game-map! update-game-map!
+   :get-neighbors core/get-neighbors
+   :load-adjacent-armies loading/load-adjacent-armies
+   :coastal-crawl-move loading/coastal-crawl-move
+   :move-unit-to core/move-unit-to
+   :set-transport-mission tc/set-transport-mission
+   :transition-to-sailing transition-load-for-invasion-to-sailing!
+   :transition-to-unloading transition-load-for-invasion-to-unloading!
+   :has-nearby-unloadable-land? unloading/has-nearby-unloadable-land?
+   :clear-pickup-continent-if-arrived loading/clear-pickup-continent-if-arrived
+   :should-start-sailing? loading/should-start-sailing?
+   :loading-stale? loading/loading-stale?
+   :start-sailing start-sailing
+   :handle-stale-loading handle-stale-loading
+   :loading-crawl-move loading-crawl-move
+   :process-unloading-crawl unloading/unloading-crawl-move
+   :try-opportunistic-unload unloading/try-opportunistic-unload
+   :try-opportunistic-unload-any-land unloading/try-opportunistic-unload-any-land
+   :retreat-step-from-shore lake-naval/retreat-step-from-shore
+   :deep-water? lake-naval/deep-water?
+   :lake-cells lake-naval/lake-cells
+   :transition-to-loading transition-to-loading})
+
+(defn- process-find-armies-for-invasion
+  [pos]
+  (mission-handlers/process-find-armies-for-invasion (mission-handler-deps) pos))
 (defn- process-load-for-invasion-with-armies
   [pos transport major-target in-unload-zone? timed-out?]
-  (cond
-    in-unload-zone?
-    (transition-load-for-invasion-to-unloading! pos major-target)
-
-    timed-out?
-    (transition-load-for-invasion-to-sailing! pos)
-
-    (unloading/has-nearby-unloadable-land? pos transport 5)
-    (transition-load-for-invasion-to-sailing! pos)
-
-    :else nil))
+  (mission-handlers/process-load-for-invasion-with-armies
+   (mission-handler-deps) pos transport major-target in-unload-zone? timed-out?))
 
 (defn- process-load-for-invasion-empty
   [pos timed-out?]
-  (when timed-out?
-    (transition-to-loading pos)
-    (update-game-map! update-in (conj pos :contents)
-                      dissoc :invasion-load-since)))
-
+  (mission-handlers/process-load-for-invasion-empty update-game-map! transition-to-loading pos timed-out?))
 (defn- process-load-for-invasion
   [pos]
-  (loading/load-adjacent-armies pos)
-  (let [transport (get-in (current-world) (conj pos :contents))
-        army-count (:army-count transport 0)
-        major-target (:major-invasion-target transport)
-        in-unload-zone? (and major-target
-                             (<= (core/chebyshev-distance pos major-target) 2))
-        now (or (read-runtime-state :round-number) 0)
-        started (or (:invasion-load-since transport) now)
-        elapsed (- now started)
-        timed-out? (>= elapsed invasion-load-timeout-rounds)
-        has-armies? (pos? army-count)]
-    (if has-armies?
-      (process-load-for-invasion-with-armies pos transport major-target in-unload-zone? timed-out?)
-      (process-load-for-invasion-empty pos timed-out?))))
+  (mission-handlers/process-load-for-invasion
+   (mission-handler-deps) update-game-map! transition-to-loading pos))
 
 (defn- loading-crawl-move
   [pos]
@@ -272,93 +177,24 @@
       (update-game-map! assoc-in (conj pos :contents :loading-since)
                         (or (read-runtime-state :round-number) 0))
       (loading-crawl-move pos))))
-
 (defn- process-loading-mission
   [pos]
-  (loading/load-adjacent-armies pos)
-  (loading/clear-pickup-continent-if-arrived pos)
-  (let [transport' (get-in (current-world) (conj pos :contents))
-        army-count' (:army-count transport' 0)]
-    (cond
-      (loading/should-start-sailing? pos transport' army-count')
-      (start-sailing pos transport')
-
-      (loading/loading-stale? transport')
-      (handle-stale-loading pos transport' army-count')
-
-      :else
-      (loading-crawl-move pos))))
-
-(defn- take-second-unloading-step
-  [pos1 after-first]
-  (let [unit1 (get-in (current-world) (conj pos1 :contents))
-        can-second? (and unit1
-                         (= :unloading (:transport-mission unit1))
-                         (not after-first))]
-    (if can-second?
-      (if-let [pos2 (unloading/unloading-crawl-move pos1)]
-        (do
-          (when (= :unloading
-                   (:transport-mission (get-in (current-world) (conj pos2 :contents))))
-            (unloading/try-opportunistic-unload pos2))
-          pos2)
-        pos1)
-      pos1)))
-
-(defn- process-unloading-with-armies
-  [pos transport]
-  (if (unloading/has-nearby-unloadable-land? pos transport 5)
-    (if-let [pos1 (unloading/unloading-crawl-move pos)]
-      (let [after-first (or (when (= :unloading
-                                   (:transport-mission (get-in (current-world) (conj pos1 :contents))))
-                              (unloading/try-opportunistic-unload pos1))
-                            false)]
-        (take-second-unloading-step pos1 after-first))
-      (start-sailing pos transport))
-    (start-sailing pos transport)))
+  (mission-handlers/process-loading-mission (mission-handler-deps) pos))
 
 (defn- process-unloading-mission
   [pos army-count]
-  (if (zero? army-count)
-    (transition-to-loading pos)
-    (let [transport (get-in (current-world) (conj pos :contents))]
-      (process-unloading-with-armies pos transport))))
-
+  (mission-handlers/process-unloading-mission (mission-handler-deps) pos army-count))
 (defn- park-lake-transport-if-empty
   [pos lake-cells-set]
-  (let [unit (get-in (current-world) (conj pos :contents))]
-    (if (zero? (:army-count unit 0))
-      (if-let [step (lake-naval/retreat-step-from-shore (current-world) lake-cells-set pos)]
-        (if (core/move-unit-to pos step)
-          (when (lake-naval/deep-water? (current-world) step)
-            (update-game-map! update-in (conj step :contents)
-                              #(assoc % :mode :sentry
-                                      :transport-mission :land-locked)))
-          (update-game-map! update-in (conj pos :contents)
-                            #(assoc % :mode :sentry
-                                    :transport-mission :land-locked)))
-        (update-game-map! update-in (conj pos :contents)
-                          #(assoc % :mode :sentry
-                                  :transport-mission :land-locked)))
-      false)))
+  (mission-handlers/park-lake-transport-if-empty (mission-handler-deps) pos lake-cells-set))
 
 (defn- process-land-locked-mission
   [pos lake-cells-set]
-  (let [unloaded-now? (boolean (unloading/try-opportunistic-unload-any-land pos))]
-    (or (park-lake-transport-if-empty pos lake-cells-set)
-        (let [unit (get-in (current-world) (conj pos :contents))
-              army-count (:army-count unit 0)]
-          (when (pos? army-count)
-            (if-let [next-pos (unloading/unloading-crawl-move pos)]
-              (do
-                (unloading/try-opportunistic-unload-any-land next-pos)
-                (park-lake-transport-if-empty next-pos lake-cells-set))
-              unloaded-now?)))))) 
+  (mission-handlers/process-land-locked-mission (mission-handler-deps) pos lake-cells-set))
 
 (defn- fix-idle-mission
   [pos mission]
-  (when (or (nil? mission) (= :idle mission))
-    (tc/set-transport-mission pos :loading)))
+  (mission-handlers/fix-idle-mission tc/set-transport-mission pos mission))
 
 (defn- run-transport-mission
   [pos current-mission army-count]
@@ -397,21 +233,7 @@
 
 (defn- maybe-handle-lake-transport
   [pos transport]
-  (if (= :sentry (:mode transport))
-    true
-    (when (:lake-locked? transport)
-      (let [lake-cells-set (lake-naval/lake-cells (read-runtime-state :computer-map)
-                                                   (read-runtime-state :lake-max-cells))]
-        ;; Lake transports are one-way: unload what they have, then park.
-        (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
-        (let [unit (get-in (current-world) (conj pos :contents))
-              army-count (:army-count unit 0)]
-          (if (pos? army-count)
-            (do
-              (update-game-map! assoc-in (conj pos :contents :transport-mission) :land-locked)
-              (process-land-locked-mission pos lake-cells-set))
-            (park-lake-transport-if-empty pos lake-cells-set)))
-        true))))
+  (mission-handlers/maybe-handle-lake-transport (mission-handler-deps) pos transport))
 
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.

@@ -1,13 +1,13 @@
-;; mutation-tested: 2026-02-27
+;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
-            [empire.computer.ship :as ship]
             [empire.movement.visibility :as visibility]
             [empire.config :as config]
+            [empire.computer.fighter.flight-plan :as flight-plan]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]))
 
@@ -31,123 +31,21 @@
 
 ;; --- Leg-based coverage ---
 
-(defn- current-refueling-site
-  "Returns the refueling site position the fighter at pos is at, or nil.
-   A fighter is 'at' a city if on it, or 'at' a carrier if adjacent to it."
-  [pos]
-  (let [cell (get-in (current-world) pos)]
-    (cond
-      (and (= :city (:type cell)) (= :computer (:city-status cell)))
-      pos
-
-      :else
-      (first (filter (fn [n]
-                       (let [ncell (get-in (current-world) n)]
-                         (and (= :carrier (get-in ncell [:contents :type]))
-                              (= :computer (get-in ncell [:contents :owner]))
-                              (= :holding (get-in ncell [:contents :carrier-mode])))))
-                     (core/get-neighbors pos))))))
-
-(defn- choose-leg
-  "Choose the best leg from current-site. Returns target site position or nil.
-   Prefers unflown legs (absent from records), then oldest (lowest :last-flown)."
-  [current-site]
-  (let [sites (ship/find-refueling-sites)
-        reachable (filter #(and (not= % current-site)
-                                (<= (fm/distance-to current-site %) config/fighter-fuel))
-                          sites)
-        leg-records (or (read-runtime-state :fighter-leg-records) {})
-        scored (map (fn [target]
-                      (let [leg-key #{current-site target}
-                            record (get leg-records leg-key)
-                            last-flown (:last-flown record -1)]
-                        [target last-flown]))
-                    reachable)]
-    (when (seq scored)
-      (first (first (sort-by second scored))))))
-
-(defn- assign-regular-leg
-  "Assign a regular leg flight: choose-leg, set target, origin, and :flight-mode :regular."
-  [pos site-pos]
-  (when-let [target (choose-leg site-pos)]
-    (update-game-map! update-in (conj pos :contents)
-                      assoc :flight-target-site target
-                      :flight-origin-site site-pos
-                      :flight-mode :regular)))
-
-(def ^:private sortie-half-steps 16)
-
-(defn- clamp-to-map-bounds
-  "Clamps [r c] to the current game-map bounds."
-  [[r c]]
-  (let [game-map (current-world)
-        height (count game-map)
-        width (count (first game-map))
-        max-r (dec height)
-        max-c (dec width)]
-    [(-> r (max 0) (min max-r))
-     (-> c (max 0) (min max-c))]))
-
-(defn- assign-exploration-flight
-  "Assign exploration sortie or drone. Roll 1/20 for drone.
-   Pick heading, set exploration fields, project endpoint."
-  [pos site-pos]
-  (let [heading (fe/best-exploration-heading pos sortie-half-steps)
-        drone? (< (rand) 0.05)
-        mode (if drone? :drone :explore)
-        [dr dc] heading
-        endpoint (clamp-to-map-bounds
-                  [(+ (first pos) (* sortie-half-steps dr))
-                   (+ (second pos) (* sortie-half-steps dc))])]
-    (update-game-map! update-in (conj pos :contents)
-                      assoc :flight-mode mode
-                      :explore-origin site-pos
-                      :explore-heading heading
-                      :explore-steps-remaining sortie-half-steps
-                      :flight-target-site endpoint
-                      :flight-origin-site site-pos)))
-
 (defn- ensure-flight-target
-  "If fighter at pos is at a refueling site with no flight-mode or target,
-   refuel and assign either a regular leg or exploration flight."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))]
-    (when (and unit (nil? (:flight-mode unit)) (nil? (:flight-target-site unit)))
-      (when-let [site-pos (current-refueling-site pos)]
-        (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-        (if (>= (rand) 0.5)
-          (assign-regular-leg pos site-pos)
-          (assign-exploration-flight pos site-pos))))))
+  (flight-plan/ensure-flight-target! current-world update-game-map! read-runtime-state pos))
 
 (defn- at-flight-target?
-  "True if pos has reached the flight target. City: at position. Carrier: adjacent."
   [pos target]
-  (let [target-cell (get-in (current-world) target)]
-    (or (= pos target)
-        (and (= :carrier (get-in target-cell [:contents :type]))
-             (<= (fm/distance-to pos target) 1)))))
+  (flight-plan/at-flight-target? current-world pos target))
+
+(defn- assign-exploration-flight
+  [pos site-pos]
+  (flight-plan/assign-exploration-flight! update-game-map! (current-world) pos site-pos))
 
 (defn- handle-arrival
-  "Process arrival at target refueling site. Record leg, refuel, pick new leg.
-   Returns current pos (no movement this step)."
   [pos unit]
-  (let [target (:flight-target-site unit)
-        origin (:flight-origin-site unit)]
-    ;; Record completed leg (skip degenerate self-loops from returning sorties)
-    (when (and origin (not= origin target))
-      (write-runtime-state! :fighter-leg-records
-                            (assoc (or (read-runtime-state :fighter-leg-records) {})
-                                   #{origin target}
-                                   {:last-flown (or (read-runtime-state :round-number) 0)})))
-    ;; Refuel
-    (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-    ;; Clear exploration fields and pick new leg from target site
-    (let [new-target (choose-leg target)]
-      (update-game-map! update-in (conj pos :contents)
-                        #(-> %
-                             (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)
-                             (assoc :flight-target-site new-target :flight-origin-site target))))
-    {:pos pos :hops 1}))
+  (flight-plan/handle-arrival! update-game-map! read-runtime-state write-runtime-state! pos unit))
 
 (defn- select-best-navigation-target
   "Score passable unoccupied neighbors by unexplored count, break ties by proximity."

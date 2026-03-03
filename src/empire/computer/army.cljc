@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-23
+;; mutation-tested: 2026-03-02
 (ns empire.computer.army
   "Computer army orchestrator.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"

@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-02-27
+;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
   (:require [empire.application.runtime :as app-runtime]

@@ -1,9 +1,10 @@
-;; mutation-tested: 2026-02-26
+;; mutation-tested: 2026-03-02
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
   (:require [empire.adapters.state.runtime :as runtime-state]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
+            [empire.computer.core.transport-search :as transport-search]
             [empire.config :as config]
             [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
@@ -227,33 +228,13 @@
       [i j])))
 
 ;; Army-Transport Coordination (used by army module)
-
-(defn- transport-compatible?
-  "Returns true if the transport doesn't have a matching unload-event-id as the army.
-   An army should not board the same transport that unloaded it."
-  [transport-unit army-unload-event-id]
-  (or (nil? army-unload-event-id)
-      (nil? (:unload-event-id transport-unit))
-      (not= (:unload-event-id transport-unit) army-unload-event-id)))
-
 (defn find-loading-transport
   "Finds a transport in loading state that has room.
    When army-unload-event-id is provided, excludes transports with matching ID."
   ([]
    (find-loading-transport nil))
   ([army-unload-event-id]
-   (let [game-map (current-world)]
-     (first (for [i (range (count game-map))
-                  j (range (count (first game-map)))
-                  :let [cell (get-in game-map [i j])
-                      unit (:contents cell)]
-                  :when (and unit
-                             (= :computer (:owner unit))
-                             (= :transport (:type unit))
-                             (= :loading (:transport-mission unit))
-                             (< (:army-count unit 0) 6)
-                             (transport-compatible? unit army-unload-event-id))]
-              [i j])))))
+   (transport-search/find-loading-transport (current-world) army-unload-event-id)))
 
 (defn find-adjacent-loading-transport
   "Finds an adjacent loading transport with room.
@@ -261,13 +242,7 @@
   ([pos]
    (find-adjacent-loading-transport pos nil))
   ([pos army-unload-event-id]
-   (first (filter (fn [neighbor]
-                    (let [cell (get-in (current-world) neighbor)
-                          unit (:contents cell)]
-                      (and unit
-                           (= :computer (:owner unit))
-                           (= :transport (:type unit))
-                           (= :loading (:transport-mission unit))
-                           (< (:army-count unit 0) 6)
-                           (transport-compatible? unit army-unload-event-id))))
-                  (get-neighbors pos)))))
+   (transport-search/find-adjacent-loading-transport (current-world)
+                                                     get-neighbors
+                                                     pos
+                                                     army-unload-event-id)))
