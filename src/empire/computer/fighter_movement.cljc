@@ -67,6 +67,24 @@
   [[r1 c1] [r2 c2]]
   [(Integer/signum (- r2 r1)) (Integer/signum (- c2 c1))])
 
+(defn- sidestep-around-blocker
+  "Fallback when forward hop chain is blocked: take one unoccupied side step
+   that does not increase distance to target."
+  [pos target blocked-pos passable]
+  (let [current-dist (core/distance pos target)
+        candidates (->> passable
+                        (remove #(= % blocked-pos))
+                        (remove occupied?)
+                        (map (fn [n]
+                               {:pos n
+                                :dist (core/distance n target)
+                                :diag? (diagonal-move? pos n)}))
+                        (filter #(<= (:dist %) current-dist)))]
+    (when-let [best (:pos (first (sort-by (fn [{:keys [dist diag? pos]}]
+                                            [dist (if diag? 0 1) pos])
+                                          candidates)))]
+      {:dest best :hops 1})))
+
 (defn in-bounds?
   "Returns true if pos is within game-map bounds."
   [[r c]]
@@ -90,14 +108,16 @@
         {:dest best :hops 1}
         (when (friendly-occupied? best)
           (let [[dr dc] (direction-from pos best)]
-            (loop [sr br sc bc hops 1]
-              (let [next-pos [(+ sr dr) (+ sc dc)]]
-                (when (in-bounds? next-pos)
-                  (if-not (occupied? next-pos)
-                    {:dest next-pos :hops (inc hops)}
-                    (if (friendly-occupied? next-pos)
-                      (recur (+ sr dr) (+ sc dc) (inc hops))
-                      {:dest next-pos :hops (inc hops) :attack true})))))))))))
+            (or
+             (loop [sr br sc bc hops 1]
+               (let [next-pos [(+ sr dr) (+ sc dc)]]
+                 (when (in-bounds? next-pos)
+                   (if-not (occupied? next-pos)
+                     {:dest next-pos :hops (inc hops)}
+                     (if (friendly-occupied? next-pos)
+                       (recur (+ sr dr) (+ sc dc) (inc hops))
+                       {:dest next-pos :hops (inc hops) :attack true})))))
+             (sidestep-around-blocker pos target best passable))))))))
 
 (defn find-adjacent-enemy
   "Finds an adjacent enemy unit to attack (not cities - fighters can't conquer)."
