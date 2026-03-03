@@ -1,0 +1,27 @@
+{:source-paths ["src"]
+ :component-rules [{:component :application :match "empire.application*"}
+                   {:component :domain :match "empire.domain*"}
+                   {:component :adapters :match "empire.adapters*"}
+                   {:component :atoms :match "empire.atoms*"}
+                   {:component :ui :match "empire.ui*"}
+                   {:component :game-loop :match "empire.game-loop*"}
+                   {:component :test-utils :match "empire.test-utils"}
+                   {:component :acceptance-parser :match "empire.acceptance.parser*"}
+                   {:component :acceptance-generator :match "empire.acceptance.generator*"}]
+ :forbidden-dependencies [[:application :atoms]
+                          [:application :ui]
+                          [:application :game-loop]
+                          [:application :test-utils]
+                          [:application :acceptance-parser]
+                          [:application :acceptance-generator]
+                          [:domain :atoms]
+                          [:domain :ui]
+                          [:domain :game-loop]
+                          [:domain :test-utils]
+                          [:domain :application]
+                          [:domain :acceptance-parser]
+                          [:domain :acceptance-generator]
+                          [:adapters :acceptance-parser]
+                          [:adapters :acceptance-generator]]
+ :fail-on-cycles false
+ :fail-on-violations true}
