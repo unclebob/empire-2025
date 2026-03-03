@@ -155,6 +155,14 @@ The message area below the map has two sections, each 3 lines high:
 - Use multimethods only when open-ended value/type dispatch is actually required.
 - Keep boundary namespaces abstract-only when practical (contracts only); place concrete implementations in implementation namespaces.
 - Wire protocol implementations in initialization/composition code; wire multimethod implementations by requiring concrete namespaces during initialization.
+- When a contract namespace exists (for example `*.movement`), define it as a distinct dependency component (for example `:movement-contract`) in `dependency-tool.edn`.
+- Contract components must remain abstraction-only; no concrete logic or runtime wiring in contract namespaces.
+- Concrete implementation namespaces must not be required directly by feature modules; only adapters/bootstrap/composition code may wire implementations.
+- Every boundary refactor must add or update an automated guard in `scripts/check-architecture-boundaries.sh`.
+- Boundary checks must run in all pipelines (`all-tests`, `all-tests-fast`, and acceptance pipeline), not only manually.
+- When introducing a new port/protocol, migrate at least one real consumer in the same slice and add a no-regression guard for that migrated consumer.
+- Preserve API arity compatibility during boundary migrations unless an explicit breaking change is requested.
+- Any abstraction assertion in `dependency-tool.edn` must map to real indirection in source, never config-only pattern declarations.
 
 ### Quil Isolation
 

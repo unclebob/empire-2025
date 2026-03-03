@@ -8,8 +8,16 @@
     (movement/move-unit coords target cell current-map))
   (movement-get-active-unit [_ cell]
     (movement/get-active-unit cell))
+  (movement-is-army-aboard-transport? [_ active-unit]
+    (movement/is-army-aboard-transport? active-unit))
+  (movement-is-fighter-from-airport? [_ active-unit]
+    (movement/is-fighter-from-airport? active-unit))
+  (movement-is-fighter-from-carrier? [_ active-unit]
+    (movement/is-fighter-from-carrier? active-unit))
   (movement-context [_ cell active-unit]
     (movement/movement-context cell active-unit))
+  (movement-set-unit-mode [_ coords mode]
+    (movement/set-unit-mode coords mode))
   (movement-set-unit-movement [_ coords target extended?]
     (if extended?
       (movement/set-unit-movement coords target true)

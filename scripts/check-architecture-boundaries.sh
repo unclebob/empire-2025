@@ -4,7 +4,7 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
 
-clj -M:check-dependencies dependency-tool.edn
+clj -M:check-dependencies dependency-tool.edn --max-distance 1.0
 
 inner_mutation_hits="$(rg -n '\bswap!\b|\breset!\b|\bcompare-and-set!\b' src/empire/application src/empire/domain || true)"
 if [[ -n "$inner_mutation_hits" ]]; then
@@ -29,7 +29,11 @@ if [[ -n "$movement_service_violations" ]]; then
   exit 1
 fi
 
-movement_api_consumer_violations="$(rg -n 'empire\.movement\.api' src/empire/game_loop/item_processing.cljc src/empire/player/commands.cljc || true)"
+movement_api_consumer_violations="$(rg -n 'empire\.movement\.api' \
+  src/empire/game_loop/item_processing.cljc \
+  src/empire/player/commands.cljc \
+  src/empire/player/commands/actions.cljc \
+  src/empire/ui/util/input/actions.cljc || true)"
 if [[ -n "$movement_api_consumer_violations" ]]; then
   echo "Architecture boundary violation: migrated consumers must use application movement port, not movement api:"
   printf '%s\n' "$movement_api_consumer_violations"

@@ -110,6 +110,7 @@
    :read-runtime-state read-runtime-state
    :write-runtime-state! write-runtime-state!
    :update-runtime-state! update-runtime-state!
+   :movement-port (movement-port)
    :launch-fighter-and-update launch-fighter-and-update})
 
 (defn army-aboard-action

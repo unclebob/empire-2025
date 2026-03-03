@@ -1,14 +1,14 @@
 ;; mutation-tested: no
 (ns empire.player.commands.actions
   "Extracted unit action handlers for player command processing."
-  (:require [empire.player.attention :as attention]
+  (:require [empire.application.ports :as ports]
+            [empire.player.attention :as attention]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.api :as movement]
             [empire.config :as config]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -26,6 +26,10 @@
 
 (defn- update-runtime-state! [ctx k f & args]
   (apply (:update-runtime-state! ctx) k f args))
+
+(defn- movement-port [ctx]
+  (or (:movement-port ctx)
+      (throw (ex-info "Movement port missing from commands actions ctx" {}))))
 
 (defn- item-processed! [ctx]
   (write-runtime-state! ctx :waiting-for-input false)
@@ -67,9 +71,9 @@
       :else nil)))
 
 (defn handle-sentry-key [ctx coords cell active-unit]
-  (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
-        is-carrier-fighter? (movement/is-fighter-from-carrier? active-unit)
-        is-airport-fighter? (movement/is-fighter-from-airport? active-unit)]
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port ctx) active-unit)
+        is-carrier-fighter? (ports/movement-is-fighter-from-carrier? (movement-port ctx) active-unit)
+        is-airport-fighter? (ports/movement-is-fighter-from-airport? (movement-port ctx) active-unit)]
     (cond
       is-army-aboard?
       (do (container-ops/sleep-armies-on-transport coords)
@@ -82,7 +86,7 @@
           true)
 
       (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
-      (do (movement/set-unit-mode coords :sentry)
+      (do (ports/movement-set-unit-mode (movement-port ctx) coords :sentry)
           (item-processed! ctx)
           true)
 
@@ -101,7 +105,7 @@
   (and (= :army (:type active-unit)) (not is-army-aboard?)))
 
 (defn handle-look-around-key [ctx coords _cell active-unit]
-  (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port ctx) active-unit)
         near-coast? (map-utils/any-neighbor-matches? coords (current-world ctx) map-utils/neighbor-offsets
                                                    #(= :land (:type %)))
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
@@ -139,28 +143,28 @@
     (container-ops/disembark-army-from-transport attn-coords clicked-coords)
     (item-processed! ctx)))
 
-(defn- click-standard-unit [attn-coords clicked-coords unit-type]
+(defn- click-standard-unit [ctx attn-coords clicked-coords unit-type]
   (if (and (adjacent-coords? attn-coords clicked-coords)
            (combat/hostile-city? clicked-coords))
     (case unit-type
       :army (combat/attempt-conquest attn-coords clicked-coords)
       :fighter (combat/attempt-fighter-overfly attn-coords clicked-coords)
-      (movement/set-unit-movement attn-coords clicked-coords))
-    (movement/set-unit-movement attn-coords clicked-coords)))
+      (ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false))
+    (ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false)))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
   [ctx clicked-coords attention-coords]
   (let [attn-coords (first attention-coords)
         attn-cell (get-in (current-world ctx) attn-coords)
-        active-unit (movement/get-active-unit attn-cell)
+        active-unit (ports/movement-get-active-unit (movement-port ctx) attn-cell)
         target-cell (get-in (current-world ctx) clicked-coords)
-        context (movement/movement-context attn-cell active-unit)]
+        context (ports/movement-context (movement-port ctx) attn-cell active-unit)]
     (case context
       :airport-fighter ((:launch-fighter-and-update ctx)
                         container-ops/launch-fighter-from-airport attn-coords clicked-coords)
       :army-aboard (click-army-aboard ctx attn-coords clicked-coords target-cell)
-      (click-standard-unit attn-coords clicked-coords (:type active-unit)))
+      (click-standard-unit ctx attn-coords clicked-coords (:type active-unit)))
     (item-processed! ctx)))
 
 (defn handle-cell-click

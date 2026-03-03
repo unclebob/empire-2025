@@ -9,6 +9,7 @@
                    {:component :ui :match "empire.ui*"}
                    {:component :game-loop :match "empire.game-loop*"}
                    {:component :computer :match ["empire.computer" "empire.computer*"]}
+                   {:component :movement-contract :match "empire.movement.movement"}
                    {:component :movement :match ["empire.movement" "empire.movement*"]}
                    {:component :player :match ["empire.player" "empire.player*"]}
                    {:component :units :match ["empire.units" "empire.units*"]}

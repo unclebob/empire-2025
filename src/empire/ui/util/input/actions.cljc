@@ -1,5 +1,6 @@
 (ns empire.ui.util.input.actions
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.ports :as ports]
+            [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.combat :as combat]
@@ -9,7 +10,6 @@
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.api :as movement]
             [empire.player.attention :as attention]
             [empire.player.production :as production]
             [empire.player.commands :as commands]
@@ -39,6 +39,10 @@
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
 
+(defn- movement-port []
+  (or (:movement-port @state-ctx)
+      (throw (ex-info "Movement port not configured in runtime state context" {}))))
+
 (defn- set-error-message!
   [msg ms]
   (write-runtime-state! :error-message msg)
@@ -58,7 +62,7 @@
 (defn- handle-city-production-key [k coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
-             (not (movement/get-active-unit cell)))
+             (not (ports/movement-get-active-unit (movement-port) cell)))
     (cond
       (= k :space) (do (update-runtime-state! :player-items rest)
                        (game-loop/item-processed)
@@ -129,7 +133,7 @@
     :army-conquest (combat/attempt-conquest coords adjacent-target)
     :fighter-overfly (combat/attempt-fighter-overfly coords adjacent-target)
     :reject-undamaged-ship (set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
-    :normal-move (movement/set-unit-movement coords target extended?))
+    :normal-move (ports/movement-set-unit-movement (movement-port) coords target extended?))
   (when (not= :reject-undamaged-ship action)
     (game-loop/item-processed))
   true)
@@ -146,7 +150,7 @@
         target (if extended?
                  (calculate-extended-target coords direction)
                  adjacent-target)
-        context (movement/movement-context cell active-unit)]
+        context (ports/movement-context (movement-port) cell active-unit)]
     (case context
       :airport-fighter (launch-fighter-and-update container-ops/launch-fighter-from-airport coords target)
       :carrier-fighter (launch-fighter-and-update container-ops/launch-fighter-from-carrier coords target)
@@ -158,7 +162,7 @@
                       (config/key->extended-direction k))
         extended? (boolean (config/key->extended-direction k))]
     (when direction
-      (let [active-unit (movement/get-active-unit cell)]
+      (let [active-unit (ports/movement-get-active-unit (movement-port) cell)]
         (when (and active-unit (= (:owner active-unit) :player))
           (execute-unit-movement coords direction extended? active-unit cell))))))
 
@@ -198,9 +202,9 @@
       :else nil)))
 
 (defn- handle-sentry-key [coords cell active-unit]
-  (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
-        is-carrier-fighter? (movement/is-fighter-from-carrier? active-unit)
-        is-airport-fighter? (movement/is-fighter-from-airport? active-unit)]
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port) active-unit)
+        is-carrier-fighter? (ports/movement-is-fighter-from-carrier? (movement-port) active-unit)
+        is-airport-fighter? (ports/movement-is-fighter-from-airport? (movement-port) active-unit)]
     (cond
       is-army-aboard?
       (do (container-ops/sleep-armies-on-transport coords)
@@ -213,7 +217,7 @@
           true)
 
       (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
-      (do (movement/set-unit-mode coords :sentry)
+      (do (ports/movement-set-unit-mode (movement-port) coords :sentry)
           (game-loop/item-processed)
           true)
 
@@ -249,7 +253,7 @@
   true)
 
 (defn- handle-look-around-key [coords cell active-unit]
-  (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port) active-unit)
         near-coast? (map-utils/any-neighbor-matches? coords (current-world) map-utils/neighbor-offsets
                                                    #(= :land (:type %)))
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
@@ -275,7 +279,7 @@
 (defn handle-key [k]
   (when-let [coords (first (read-runtime-state :cells-needing-attention))]
     (let [cell (get-in (current-world) coords)
-          active-unit (movement/get-active-unit cell)]
+          active-unit (ports/movement-get-active-unit (movement-port) cell)]
       (if active-unit
         (case k
           :space (handle-space-key coords)
