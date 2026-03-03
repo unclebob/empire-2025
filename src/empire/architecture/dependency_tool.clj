@@ -10,7 +10,6 @@
    :component-rules []
    :forbidden-dependencies []
    :allowed-exceptions []
-   :abstract-patterns []
    :fail-on-cycles true
    :fail-on-violations true})
 
@@ -145,18 +144,12 @@
       (:private (meta sym))
       (str/starts-with? (name sym) "-")))
 
-(defn- compile-abstract-matchers
-  [patterns]
-  (mapv pattern->matcher patterns))
-
 (defn- abstract-var?
-  [op-name sym ns-name abstract-matchers]
-  (or (#{"defprotocol" "defmulti"} op-name)
-      (:abstract (meta sym))
-      (some #(% (str ns-name "/" (name sym))) abstract-matchers)))
+  [op-name]
+  (#{"defprotocol" "defmulti"} op-name))
 
 (defn- var-stats
-  [forms ns-name abstract-matchers]
+  [forms]
   (reduce
    (fn [{:keys [public-count abstract-count] :as acc} form]
      (if (seq? form)
@@ -166,7 +159,7 @@
          (if (and op-name (def-ops op-name) sym (not (private-var? op-name sym)))
            (-> acc
                (assoc :public-count (inc public-count))
-               (update :abstract-count + (if (abstract-var? op-name sym ns-name abstract-matchers) 1 0)))
+               (update :abstract-count + (if (abstract-var? op-name) 1 0)))
            acc))
        acc))
    {:public-count 0 :abstract-count 0}
@@ -236,7 +229,6 @@
   [config]
   (let [cfg (merge default-config config)
         component-rules (compile-component-rules (:component-rules cfg))
-        abstract-matchers (compile-abstract-matchers (:abstract-patterns cfg))
         files (source-files (:source-paths cfg) (:include-exts cfg))
         parsed (->> files
                     (map (fn [f]
@@ -246,7 +238,7 @@
                                (let [ns-name (second ns-decl)
                                      component (component-for-ns component-rules ns-name)
                                      requires (extract-requires ns-decl)
-                                     stats (var-stats forms (str ns-name) abstract-matchers)]
+                                     stats (var-stats forms)]
                                  {:file (.getPath f)
                                   :namespace ns-name
                                   :component component
