@@ -283,7 +283,8 @@
       (reset! atoms/attention-message "")
       (attention/set-attention-message unit-coords)
       (should-contain "Damaged" @atoms/attention-message)
-      (should-contain "carrier" @atoms/attention-message)))
+      (should-contain "carrier" @atoms/attention-message)
+      (should-contain "hits:5/8" @atoms/attention-message)))
 
   (it "includes Damaged for damaged destroyer"
     (set-test-world! (build-test-map ["D"]))
@@ -292,7 +293,8 @@
       (reset! atoms/attention-message "")
       (attention/set-attention-message unit-coords)
       (should-contain "Damaged" @atoms/attention-message)
-      (should-contain "destroyer" @atoms/attention-message)))
+      (should-contain "destroyer" @atoms/attention-message)
+      (should-contain "hits:2/3" @atoms/attention-message)))
 
   (it "does not include Damaged for undamaged carrier"
     (set-test-world! (build-test-map ["C"]))
@@ -301,7 +303,8 @@
       (reset! atoms/attention-message "")
       (attention/set-attention-message unit-coords)
       (should-not-contain "Damaged" @atoms/attention-message)
-      (should-contain "carrier" @atoms/attention-message)))
+      (should-contain "carrier" @atoms/attention-message)
+      (should-contain "hits:8/8" @atoms/attention-message)))
 
   (it "does not include Damaged for army (1 hit max)"
     (set-test-world! (build-test-map ["A"]))

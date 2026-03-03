@@ -4,6 +4,7 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.combat :as combat]
+            [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.movement.movement-execution :as execution]
             [empire.movement.movement-pathing :as pathing]
@@ -128,6 +129,8 @@
   [from-coords city-coords cell]
   (let [unit (:contents cell)
         unit-type (:type unit)
+        current-hits (:hits unit)
+        max-hits (dispatcher/hits unit-type)
         city-cell (get-in (current-world) city-coords)
         updated-city (uc/add-ship-to-shipyard city-cell unit-type (:hits unit))
         updated-origin (dissoc cell :contents)
@@ -135,7 +138,10 @@
     (update-game-map! assoc-in from-coords updated-origin)
     (update-game-map! assoc-in city-coords updated-city)
     (visibility/update-cell-visibility city-coords (:owner unit))
-    (write-runtime-state! :turn-message (str type-name " docked for repair."))
+    (write-runtime-state! :turn-message (format (:docked-for-repair config/messages)
+                                                type-name
+                                                current-hits
+                                                max-hits))
     {:result :docked :pos city-coords}))
 
 (defn- woke-and-blocked? [woke? woken-unit]

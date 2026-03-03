@@ -4,7 +4,8 @@
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement :as movement]
-            [empire.containers.helpers :as uc]))
+            [empire.containers.helpers :as uc]
+            [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -127,6 +128,13 @@
   (when (= :fighter (:type active-unit))
     (str " (fuel:" (:fuel active-unit) ")")))
 
+(defn- ship-hits-string [active-unit]
+  (let [unit-type (:type active-unit)]
+    (when (dispatcher/naval-unit? unit-type)
+      (let [max-hits (config/item-hits unit-type)
+            current-hits (:hits active-unit max-hits)]
+        (str " (hits:" current-hits "/" max-hits ")")))))
+
 ;; Builds the attention message for a standard active unit (not special cases
 ;; like airport fighters or armies aboard transports).
 (defn- active-unit-attention-message [coords active-unit]
@@ -141,6 +149,7 @@
         reason-str (reason-string reason-key)]
     (str damage-prefix unit-name (:unit-needs-attention config/messages)
          (or cargo-str "")
+         (or (ship-hits-string active-unit) "")
          (if reason-str (str " - " reason-str) "")
          (or (fuel-string active-unit) ""))))
 

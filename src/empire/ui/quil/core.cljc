@@ -114,24 +114,23 @@
                  (println (format "Maximum map size for this monitor: [%d %d]"
                                   max-cols max-rows))
                  (System/exit 1))))]
-    (when seed (reset! atoms/random-seed seed))
+    (let [effective-seed (or seed (System/currentTimeMillis))]
+      (reset! atoms/random-seed effective-seed)
     (reset! atoms/map-size [cols rows])
     (reset! atoms/map-size-constants (config/compute-size-constants cols rows))
-    (if seed
-      (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows seed))
-      (println (format "empire has begun. Map size: [%d %d]" cols rows)))
-    (q/defsketch empire
-                 :title "Empire: Global Conquest"
-                 :size [window-w window-h]
-                 :setup setup
-                 :update update-state
-                 :draw draw-state
-                 :key-pressed key-pressed
-                 :key-released util-core/key-released
-                 :mouse-pressed mouse-pressed
-                 :mouse-dragged mouse-dragged
-                 :mouse-released mouse-released
-                 :features []
-                 :middleware [m/fun-mode]
-                 :on-close on-close
-                 :host "empire")))
+      (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows effective-seed))
+      (q/defsketch empire
+                   :title "Empire: Global Conquest"
+                   :size [window-w window-h]
+                   :setup setup
+                   :update update-state
+                   :draw draw-state
+                   :key-pressed key-pressed
+                   :key-released util-core/key-released
+                   :mouse-pressed mouse-pressed
+                   :mouse-dragged mouse-dragged
+                   :mouse-released mouse-released
+                   :features []
+                   :middleware [m/fun-mode]
+                   :on-close on-close
+                   :host "empire"))))

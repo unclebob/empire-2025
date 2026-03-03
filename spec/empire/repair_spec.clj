@@ -181,7 +181,7 @@
       (movement/move-unit [1 0] [1 1]
                           (get-in @atoms/game-map [1 0])
                           atoms/game-map)
-      (should= "Destroyer docked for repair." @atoms/turn-message)))
+      (should= "Destroyer docked for repair. 2/3 hits remain." @atoms/turn-message)))
 
   (it "displays dock message for battleship"
     (let [game-map (tu/build-test-map ["~B~"
@@ -193,7 +193,7 @@
       (movement/move-unit [1 0] [1 1]
                           (get-in @atoms/game-map [1 0])
                           atoms/game-map)
-      (should= "Battleship docked for repair." @atoms/turn-message))))
+      (should= "Battleship docked for repair. 5/10 hits remain." @atoms/turn-message))))
 
 (describe "repair-damaged-ships"
   (before

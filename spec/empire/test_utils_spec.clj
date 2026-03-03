@@ -391,7 +391,8 @@
     (should-not (message-matches? "Dest: %d,%d" "Dest: abc,def")))
 
   (it "matches template with mixed %s and %d"
-    (should (message-matches? "%s docked for repair." "Destroyer docked for repair.")))
+    (should (message-matches? "%s docked for repair. %d/%d hits remain."
+                              "Destroyer docked for repair. 2/3 hits remain.")))
 
   (it "matches template with multiple %s placeholders"
     (should (message-matches? "Damaged %s needs attention%s%s%s" "Damaged Battleship needs attention - hits:5")))

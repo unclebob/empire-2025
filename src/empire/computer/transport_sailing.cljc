@@ -210,20 +210,27 @@
 
 (defn- choose-invading-step
   [from target]
-  (let [neighbors (->> (tc/get-passable-sea-neighbors from)
-                       (filter #(nil? (get-in (current-world) (conj % :contents)))))
+  (let [world (current-world)
+        transport (get-in world (conj from :contents))
+        last-pos (:invasion-last-pos transport)
+        neighbors (->> (tc/get-passable-sea-neighbors from)
+                       (filter #(nil? (get-in world (conj % :contents)))))
+        candidates (if (and last-pos (> (count neighbors) 1))
+                     (remove #(= % last-pos) neighbors)
+                     neighbors)
         current-distance (if target
                            (core/chebyshev-distance from target)
                            ##Inf)
         better (if target
-                 (filter #(< (core/chebyshev-distance % target) current-distance) neighbors)
-                 neighbors)]
+                 (filter #(< (core/chebyshev-distance % target) current-distance) candidates)
+                 candidates)
+        pool (if (seq better) better candidates)]
     (first (sort-by (fn [p]
                       [(if target
                          (core/chebyshev-distance p target)
                          0)
                        p])
-                    better))))
+                    pool))))
 
 (defn- invading-step
   [from target]
@@ -233,6 +240,7 @@
       (visibility/update-cell-visibility chosen :computer)
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
+      (update-game-map! assoc-in (conj chosen :contents :invasion-last-pos) from)
       chosen)))
 
 (defn process-invading-mission

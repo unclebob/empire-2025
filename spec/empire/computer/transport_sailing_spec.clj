@@ -570,6 +570,26 @@
       (should= :transport (get-in @atoms/game-map [2 0 :contents :type]))
       (should= :invading (get-in @atoms/game-map [2 0 :contents :transport-mission])))
 
+    (it "invading transport without a strictly closer step still moves instead of stalling"
+      ;; ~#~   equal-distance sea cells at [0,0] and [0,2]
+      ;; t##   direct and diagonal closer cells are blocked
+      ;; ~#~
+      ;; Target is off-map far east so current pos is not in unload radius.
+      (set-test-world! (build-test-map ["~#~"
+                                        "t##"
+                                        "~#~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [0 1 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :invading
+                          :invasion-path []
+                          :invasion-target [4 1]
+                          :army-count 3})
+      (transport/process-transport [0 1])
+      ;; It may end the round back at origin after two steps, but it should
+      ;; not stall; a move stamps invasion-last-pos.
+      (should-not-be-nil (get-in @atoms/game-map [0 1 :contents :invasion-last-pos])))
+
     (it "transitions to unloading after exhausting 2-step path (L112)"
       ;; Path has exactly 2 steps — after taking both, remaining is empty,
       ;; so transport transitions to unloading at step2.

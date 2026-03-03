@@ -60,6 +60,7 @@
   "Returns production indicator rendering data for a cell, or nil if none needed."
   [row col cell production]
   (when-let [prod (and (= :city (:type cell))
+                       (= :player (:city-status cell))
                        (get production [col row]))]
     (when (and (map? prod) (:item prod))
       (let [item (:item prod)
@@ -104,7 +105,7 @@
                  current [col row]
                  should-flash-black (= current attention-cell)
                  completed? (and (= (:type cell) :city)
-                                 (not= :free (:city-status cell))
+                                 (= :player (:city-status cell))
                                  (let [prod (production [col row])]
                                    (and (map? prod) (= (:remaining-rounds prod) 0))))
                  blink-white? (and completed? blink-completed?)

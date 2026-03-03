@@ -139,6 +139,9 @@
         (update-runtime-state! :computer-city-positions (fnil conj #{}) city-pos)
         (combat/conquer-city-contents city-pos :computer)
         (stamp-territory city-pos army)
+        ;; Player always knows when their city is lost; keep player-map in sync.
+        (when (read-runtime-state :player-map)
+          (update-runtime-state! :player-map assoc-in city-pos (get-in (current-world) city-pos)))
         (let [city-country-id (:country-id (get-in (current-world) city-pos))
               country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)]
           (when-not (and city-country-id

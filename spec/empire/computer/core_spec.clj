@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.core :as core]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]))
 
 (describe "distance"
   (it "returns 0 for same position"
@@ -199,7 +199,15 @@
       (let [result (core/attempt-conquest-computer [0 0] [1 0])]
         (should-be-nil result)
         (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-        (should= :free (:city-status (get-in @atoms/game-map [1 0])))))))
+        (should= :free (:city-status (get-in @atoms/game-map [1 0]))))))
+
+  (it "updates player-map city status when computer conquers a player city"
+    (set-test-world! (build-test-map ["aO"]))
+    (set-test-computer-map! (build-test-map ["aO"]))
+    (set-test-player-map! (build-test-map ["aO"]))
+    (with-redefs [rand (constantly 0.1)]
+      (core/attempt-conquest-computer [0 0] [1 0])
+      (should= :computer (get-in @atoms/player-map [1 0 :city-status])))))
 
 (describe "wake-nearby-sentries"
   (before (reset-all-atoms!))

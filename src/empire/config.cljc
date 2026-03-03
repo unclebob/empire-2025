@@ -163,7 +163,7 @@
    :waypoint-placed "Waypoint placed at %d,%d"
    :waypoint-removed "Waypoint removed from %d,%d"
    :waypoint-orders-set "Waypoint orders set to %d,%d"
-   :docked-for-repair "%s docked for repair."
+   :docked-for-repair "%s docked for repair. %d/%d hits remain."
    :combat-result "%s. %s destroyed."
    :destination "Dest: %d,%d"
    ;; Error messages (displayed in Error line via set-error-message)
@@ -255,5 +255,4 @@
 
     :else
     (mode->color (:mode unit))))
-
 

@@ -63,6 +63,10 @@
   (it "returns nil for city with no production"
     (should-not (display/production-indicator-data 0 0 {:type :city :city-status :player} {})))
 
+  (it "returns nil for computer city production"
+    (should-not (display/production-indicator-data 0 0 {:type :city :city-status :computer}
+                  {[0 0] {:item :army :remaining-rounds 3}})))
+
   (it "returns nil for city with non-map production"
     (should-not (display/production-indicator-data 0 0 {:type :city :city-status :player} {[0 0] :none})))
 
@@ -139,6 +143,13 @@
           production {[0 0] {:item :army :remaining-rounds 0}}
           result (display/group-cells-by-color the-map nil production false false)]
       (should= 1 (count (get result [0 255 0])))))
+
+  (it "does not flash completed computer city white"
+    (let [the-map [[{:type :city :city-status :computer}]]
+          production {[0 0] {:item :army :remaining-rounds 0}}
+          result (display/group-cells-by-color the-map nil production false true)]
+      (should-not (get result [255 255 255]))
+      (should= 1 (count (get result [255 0 0])))))
 
   (it "attention blink takes priority over completed blink"
     (let [the-map [[{:type :city :city-status :player}]]
