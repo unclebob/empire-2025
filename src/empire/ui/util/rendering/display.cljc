@@ -62,12 +62,20 @@
       :else
       (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
 
+(defn- show-city-production?
+  [cell map-to-display]
+  (and (= :city (:type cell))
+       (or (= :player (:city-status cell))
+           (and (= :computer (:city-status cell))
+                (= :computer-map map-to-display)))))
+
 (defn production-indicator-data
   "Returns production indicator rendering data for a cell, or nil if none needed."
-  [row col cell production]
-  (when-let [prod (and (= :city (:type cell))
-                       (= :player (:city-status cell))
-                       (get production [col row]))]
+  ([row col cell production]
+   (production-indicator-data row col cell production :player-map))
+  ([row col cell production map-to-display]
+   (when-let [prod (and (show-city-production? cell map-to-display)
+                        (get production [col row]))]
     (when (and (map? prod) (:item prod))
       (let [item (:item prod)
             total (config/item-cost item)
@@ -78,7 +86,7 @@
         {:prod-char (config/item-chars item)
          :progress progress
          :remaining remaining
-         :dark-color dark-color}))))
+         :dark-color dark-color})))))
 
 (defn- lake-cells-for-display [the-map map-to-display]
   (let [lake-limit (read-runtime-state :lake-max-cells)]

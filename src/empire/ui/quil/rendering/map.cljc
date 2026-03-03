@@ -15,9 +15,9 @@
 
 (defn draw-production-indicators
   "Draws production indicator for a city cell. Assumes font is already set."
-  [row col cell cell-w cell-h production]
+  [row col cell cell-w cell-h production map-to-display]
   (when-let [{:keys [prod-char progress remaining dark-color]}
-             (display/production-indicator-data row col cell production)]
+             (display/production-indicator-data row col cell production map-to-display)]
     (when (and (> progress 0) (> remaining 0))
       (let [[r g b] dark-color]
         (q/fill r g b 128))
@@ -101,6 +101,6 @@
     (q/text-font (read-runtime-state :production-char-font))
     (doseq [[_ cells] cells-by-color]
       (doseq [{:keys [col row cell]} cells]
-        (draw-production-indicators row col cell cell-w cell-h production)
+        (draw-production-indicators row col cell cell-w cell-h production map-to-display)
         (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)
         (draw-waypoint col row cell cell-w cell-h)))))
