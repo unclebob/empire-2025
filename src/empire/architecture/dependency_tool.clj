@@ -408,7 +408,8 @@
   (format "%.3f" (double d)))
 
 (defn- report-text
-  [{:keys [component-stats component-edges violations cycles]}]
+  [{:keys [component-stats component-edges violations cycles]}
+   {:keys [max-distance distance-violations]}]
   (let [components (keys component-stats)]
     (println "Dependency Analysis")
     (println "===================")
@@ -417,6 +418,8 @@
     (println (format "Component edges: %d" (count component-edges)))
     (println (format "Violations: %d" (count violations)))
     (println (format "Cycles: %d" (count cycles)))
+    (println (format "Distance limit: %.3f" (double max-distance)))
+    (println (format "Distance violations: %d" (count distance-violations)))
     (println)
     (println "Component Metrics")
     (println "-----------------")
@@ -447,7 +450,16 @@
       (println "Cycles")
       (println "------")
       (doseq [cycle cycles]
-        (println (str/join " -> " (map str cycle)))))))
+        (println (str/join " -> " (map str cycle)))))
+    (when (seq distance-violations)
+      (println)
+      (println "Distance Violations")
+      (println "-------------------")
+      (doseq [[component distance] distance-violations]
+        (println (format "%s distance=%s exceeds limit=%s"
+                         component
+                         (fmt-double distance)
+                         (fmt-double max-distance)))))))
 
 (defn- load-config
   [path]
@@ -458,7 +470,7 @@
 (defn- usage!
   []
   (binding [*out* *err*]
-    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--init|--force-init]"))
+    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--max-distance N] [--init|--force-init]"))
   2)
 
 (defn -main
@@ -469,7 +481,8 @@
     (loop [remaining args*
            fmt :text
            init? false
-           force-init? false]
+           force-init? false
+           max-distance 0.0]
       (if (empty? remaining)
         (let [config-file (io/file config-path)]
           (cond
@@ -494,13 +507,21 @@
 
             :else
             (let [result (analyze-project (load-config config-path))
+                  distance-violations (->> (:component-stats result)
+                                           (filter (fn [[_ {:keys [distance]}]]
+                                                     (> (double distance) (double max-distance))))
+                                           (mapv (fn [[component {:keys [distance]}]]
+                                                   [component distance])))
                   has-violations (seq (:violations result))
                   has-cycles (seq (:cycles result))
+                  has-distance-violations (seq distance-violations)
                   fail? (or (and has-violations (get-in result [:config :fail-on-violations] true))
-                            (and has-cycles (get-in result [:config :fail-on-cycles] true)))]
+                            (and has-cycles (get-in result [:config :fail-on-cycles] true))
+                            has-distance-violations)]
               (case fmt
                 :edn (prn result)
-                :text (report-text result)
+                :text (report-text result {:max-distance max-distance
+                                           :distance-violations distance-violations})
                 (do
                   (binding [*out* *err*]
                     (println "Unsupported format:" fmt))
@@ -510,14 +531,28 @@
         (let [[arg & more] remaining]
           (cond
             (= arg "--init")
-            (recur more fmt true force-init?)
+            (recur more fmt true force-init? max-distance)
 
             (= arg "--force-init")
-            (recur more fmt init? true)
+            (recur more fmt init? true max-distance)
 
             (= arg "--format")
             (if-let [format-arg (first more)]
-              (recur (rest more) (keyword format-arg) init? force-init?)
+              (recur (rest more) (keyword format-arg) init? force-init? max-distance)
+              (System/exit (usage!)))
+
+            (= arg "--max-distance")
+            (if-let [raw (first more)]
+              (let [parsed (try
+                             (Double/parseDouble raw)
+                             (catch Exception _
+                               ::invalid-max-distance))]
+                (if (= ::invalid-max-distance parsed)
+                  (do
+                    (binding [*out* *err*]
+                      (println "Invalid value for --max-distance:" raw))
+                    (System/exit 2))
+                  (recur (rest more) fmt init? force-init? parsed)))
               (System/exit (usage!)))
 
             :else
