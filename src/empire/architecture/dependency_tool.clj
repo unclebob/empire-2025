@@ -1,7 +1,7 @@
 (ns empire.architecture.dependency-tool
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.set :as set]
+            [clojure.pprint]
             [clojure.string :as str]))
 
 (def default-config
@@ -13,6 +13,11 @@
    :abstract-patterns []
    :fail-on-cycles true
    :fail-on-violations true})
+
+(def ^:private preferred-component-order
+  ["application" "domain" "adapters" "atoms" "ui" "game-loop" "computer" "player"
+   "movement" "units" "containers" "combat" "acceptance-parser" "acceptance-generator"
+   "debug" "test-utils"])
 
 (defn- glob->regex
   [pattern]
@@ -314,6 +319,91 @@
      :violations violations
      :cycles cycles}))
 
+(defn- file-namespaces
+  [source-paths include-exts]
+  (->> (source-files source-paths include-exts)
+       (map (fn [f]
+              (let [forms (read-forms f)
+                    ns-decl (first (filter ns-form? forms))]
+                (when ns-decl (second ns-decl)))))
+       (filter symbol?)
+       set))
+
+(defn- infer-component-rule
+  [root ns-sym]
+  (let [parts (str/split (str ns-sym) #"\.")
+        seg1 (second parts)
+        seg2 (nth parts 2 nil)]
+    (cond
+      (nil? seg1) nil
+      (and (= "acceptance" seg1) (#{"parser" "generator"} seg2))
+      {:component (keyword (str "acceptance-" seg2))
+       :match (str root ".acceptance." seg2 "*")}
+      (= "test-utils" seg1)
+      {:component :test-utils :match (str root ".test-utils")}
+      :else
+      {:component (keyword seg1)
+       :match (str root "." seg1 "*")})))
+
+(defn- compare-component-name
+  [a b]
+  (let [ia (.indexOf preferred-component-order a)
+        ib (.indexOf preferred-component-order b)
+        ra (if (neg? ia) 999 ia)
+        rb (if (neg? ib) 999 ib)]
+    (if (= ra rb)
+      (compare a b)
+      (compare ra rb))))
+
+(defn- default-forbidden-deps
+  [components]
+  (let [present? (set components)
+        pairs [[:application :atoms]
+               [:application :ui]
+               [:application :game-loop]
+               [:application :test-utils]
+               [:application :acceptance-parser]
+               [:application :acceptance-generator]
+               [:domain :atoms]
+               [:domain :ui]
+               [:domain :game-loop]
+               [:domain :test-utils]
+               [:domain :application]
+               [:domain :acceptance-parser]
+               [:domain :acceptance-generator]
+               [:adapters :acceptance-parser]
+               [:adapters :acceptance-generator]]]
+    (->> pairs
+         (filter (fn [[a b]] (and (present? a) (present? b))))
+         vec)))
+
+(defn- generate-starter-config
+  ([]
+   (generate-starter-config (:source-paths default-config)))
+  ([source-paths]
+   (let [nss (file-namespaces source-paths (:include-exts default-config))
+         roots (->> nss (map #(first (str/split (str %) #"\."))) frequencies)
+         root (or (first (first (sort-by (comp - val) roots))) "app")
+         rules (->> nss
+                    (map #(infer-component-rule root %))
+                    (filter some?)
+                    (sort-by (fn [{:keys [component]}] (name component)) (fn [a b] (compare-component-name a b)))
+                    (reduce (fn [acc {:keys [component] :as rule}]
+                              (if (contains? acc component) acc (assoc acc component rule)))
+                            {})
+                    vals
+                    vec)
+         components (map :component rules)]
+     {:source-paths (vec source-paths)
+      :component-rules rules
+      :forbidden-dependencies (default-forbidden-deps components)
+      :fail-on-cycles false
+      :fail-on-violations true})))
+
+(defn- write-config!
+  [path cfg]
+  (spit path (str (with-out-str (clojure.pprint/pprint cfg)))))
+
 (defn- fmt-double [d]
   (format "%.3f" (double d)))
 
@@ -368,30 +458,67 @@
 (defn- usage!
   []
   (binding [*out* *err*]
-    (println "Usage: clj -M:dependency-tool [config.edn] [--format text|edn]"))
+    (println "Usage: clj -M:dependency-tool [config.edn] [--format text|edn] [--init|--force-init]"))
   2)
 
 (defn -main
   [& args]
   (let [[config-path args*] (if (and (seq args) (not (str/starts-with? (first args) "--")))
                               [(first args) (rest args)]
-                              ["dependency-tool.edn" args])
-        [fmt rest-args] (if (and (= "--format" (first args*)) (second args*))
-                          [(keyword (second args*)) (nnext args*)]
-                          [:text args*])]
-    (if (seq rest-args)
-      (System/exit (usage!))
-      (let [result (analyze-project (load-config config-path))
-            has-violations (seq (:violations result))
-            has-cycles (seq (:cycles result))
-            fail? (or (and has-violations (get-in result [:config :fail-on-violations] true))
-                      (and has-cycles (get-in result [:config :fail-on-cycles] true)))]
-        (case fmt
-          :edn (prn result)
-          :text (report-text result)
-          (do
-            (binding [*out* *err*]
-              (println "Unsupported format:" fmt))
-            (System/exit 2)))
-        (when fail?
-          (System/exit 1))))))
+                              ["dependency-tool.edn" args])]
+    (loop [remaining args*
+           fmt :text
+           init? false
+           force-init? false]
+      (if (empty? remaining)
+        (let [config-file (io/file config-path)]
+          (cond
+            (and init? force-init?)
+            (System/exit (usage!))
+
+            (or force-init? (and init? (not (.exists config-file))) (not (.exists config-file)))
+            (let [cfg (generate-starter-config)
+                  reason (cond
+                           force-init? "Recreated"
+                           init? "Created"
+                           :else "Created")]
+              (write-config! config-path cfg)
+              (println (format "%s starter dependency config at %s" reason config-path))
+              (println "Review the generated component rules and boundary restrictions, then rerun.")
+              (System/exit 0))
+
+            init?
+            (do
+              (println (format "Config already exists at %s (not overwritten)." config-path))
+              (System/exit 0))
+
+            :else
+            (let [result (analyze-project (load-config config-path))
+                  has-violations (seq (:violations result))
+                  has-cycles (seq (:cycles result))
+                  fail? (or (and has-violations (get-in result [:config :fail-on-violations] true))
+                            (and has-cycles (get-in result [:config :fail-on-cycles] true)))]
+              (case fmt
+                :edn (prn result)
+                :text (report-text result)
+                (do
+                  (binding [*out* *err*]
+                    (println "Unsupported format:" fmt))
+                  (System/exit 2)))
+              (when fail?
+                (System/exit 1)))))
+        (let [[arg & more] remaining]
+          (cond
+            (= arg "--init")
+            (recur more fmt true force-init?)
+
+            (= arg "--force-init")
+            (recur more fmt init? true)
+
+            (= arg "--format")
+            (if-let [format-arg (first more)]
+              (recur (rest more) (keyword format-arg) init? force-init?)
+              (System/exit (usage!)))
+
+            :else
+            (System/exit (usage!))))))))

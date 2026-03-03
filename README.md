@@ -42,6 +42,11 @@ Run component dependency analysis (boundaries, cycles, fan-in/fan-out, instabili
 
     clj -M:dependency-tool dependency-tool.edn
 
+Create a starter dependency config if it does not exist (or overwrite it):
+
+    clj -M:dependency-tool dependency-tool.edn --init
+    clj -M:dependency-tool dependency-tool.edn --force-init
+
 Run acceptance pipeline (parse scenarios, generate specs, enforce acceptance boundaries, run generated acceptance specs):
 
     scripts/run-acceptance-tests.sh

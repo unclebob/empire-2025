@@ -49,4 +49,18 @@
                                        {:component :right :match "demo.b"}]
                      :forbidden-dependencies [[:left :right]]
                      :allowed-exceptions [{:from-ns "demo.a" :to-ns "demo.b"}]})]
-        (should= [] (:violations result))))))
+        (should= [] (:violations result)))))
+
+  (it "generates a starter config with inferred component rules"
+    (let [root (temp-dir)]
+      (write-file! root "empire/application/runtime.cljc" "(ns empire.application.runtime)\n")
+      (write-file! root "empire/adapters/state.cljc" "(ns empire.adapters.state)\n")
+      (write-file! root "empire/acceptance/parser.cljc" "(ns empire.acceptance.parser)\n")
+      (write-file! root "empire/acceptance/generator.cljc" "(ns empire.acceptance.generator)\n")
+      (let [cfg (#'tool/generate-starter-config [(.getPath root)])
+            by-component (into {} (map (juxt :component identity) (:component-rules cfg)))]
+        (should= "empire.application*" (:match (get by-component :application)))
+        (should= "empire.adapters*" (:match (get by-component :adapters)))
+        (should= "empire.acceptance.parser*" (:match (get by-component :acceptance-parser)))
+        (should= "empire.acceptance.generator*" (:match (get by-component :acceptance-generator)))
+        (should (some #{[:application :acceptance-parser]} (:forbidden-dependencies cfg)))))))
