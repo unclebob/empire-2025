@@ -56,6 +56,10 @@ Create a starter dependency config if it does not exist (or overwrite it):
 
 By default, dependency checks fail if any component distance metric exceeds `0`.
 Abstractness in these metrics is derived only from `defprotocol` and `defmulti`.
+Starter config generation infers abstract components from the highest namespace
+subtrees containing only abstract modules, then infers concrete components from
+implementing namespace subtrees that stay dependency-closed within those
+abstract roots.
 
 Run acceptance pipeline (parse scenarios, generate specs, enforce acceptance boundaries, run generated acceptance specs):
 
