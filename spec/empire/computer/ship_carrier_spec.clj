@@ -361,7 +361,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
       (should= :computer (get-in @atoms/game-map [0 1 :contents :owner])))
 
-    (it "losing attacker does not replace defender"
+    (it "losing attacker updates defender to combat survivor"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                                 {:type :sea :contents {:type :battleship :owner :player :hits 8}}]])
       (set-test-computer-map! @atoms/game-map)

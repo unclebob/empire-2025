@@ -1,8 +1,9 @@
 (ns empire.computer.ship-core-spec
   (:require [speclj.core :refer :all]
             [empire.computer.ship-core :as ship-core]
+            [empire.computer.threat :as threat]
             [empire.atoms :as atoms]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map!]]
             [empire.combat :as combat]))
 
 (describe "ship-core"
@@ -66,4 +67,36 @@
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
       (should= "Battle: p-1. Patrol-boat destroyed. Damage: Destroyer lost 0, Patrol-boat lost 1."
-               @atoms/turn-message))))
+               @atoms/turn-message)))
+
+  (context "retreat-if-damaged (L129)"
+    (it "retreats with passable sea neighbors when ship should retreat"
+      (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 2}}
+                         {:type :sea}]
+                        [{:type :sea}
+                         {:type :land}]])
+      (set-test-computer-map! @atoms/game-map)
+      (let [seen (atom nil)
+            unit {:type :destroyer :owner :computer :hits 2}]
+        (with-redefs [threat/should-retreat? (fn [pos u comp-map]
+                                               (reset! seen {:pos pos :unit u :computer-map comp-map})
+                                               true)
+                      threat/retreat-move (fn [_ _ _ passable]
+                                            (vec passable))]
+          (should= [[0 1] [1 0]]
+                   (ship-core/retreat-if-damaged [0 0] unit))
+          (should= [0 0] (:pos @seen))
+          (should= unit (:unit @seen))
+          (should= @atoms/game-map (:computer-map @seen)))))
+
+    (it "does not call retreat move when ship should not retreat"
+      (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
+                         {:type :sea}]])
+      (set-test-computer-map! @atoms/game-map)
+      (let [retreat-called? (atom false)]
+        (with-redefs [threat/should-retreat? (constantly false)
+                      threat/retreat-move (fn [& _]
+                                            (reset! retreat-called? true)
+                                            [0 1])]
+          (should-be-nil (ship-core/retreat-if-damaged [0 0] {:type :destroyer :owner :computer :hits 3}))
+          (should= false @retreat-called?))))))

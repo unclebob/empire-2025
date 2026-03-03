@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-03-02
+;; mutation-tested: 2026-03-03
 (ns empire.computer.fighter
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
