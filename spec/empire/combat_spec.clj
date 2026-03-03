@@ -299,7 +299,8 @@
       (reset! atoms/turn-message "")
       (with-redefs [rand (constantly 0.4)]
         (combat/attempt-attack [0 0] [1 0])
-        (should= "a-1. Army destroyed." @atoms/turn-message)))
+        (should= "Battle: a-1. Army destroyed. Damage: Destroyer lost 0, Army lost 1."
+                 @atoms/turn-message)))
 
     (it "displays combat log when attacker loses"
       (set-test-world! (build-test-map ["Ad"]))
@@ -308,7 +309,8 @@
       (reset! atoms/turn-message "")
       (with-redefs [rand (constantly 0.6)]
         (combat/attempt-attack [0 0] [1 0])
-        (should= "A-1. Army destroyed." @atoms/turn-message)))
+        (should= "Battle: A-1. Army destroyed. Damage: Army lost 1, Destroyer lost 0."
+                 @atoms/turn-message)))
 
     (it "displays combat log with multiple exchanges"
       (set-test-world! (build-test-map ["Dd"]))
@@ -319,7 +321,8 @@
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
-          (should= "d-1,D-1,d-1,d-1. Destroyer destroyed." @atoms/turn-message))))
+          (should= "Battle: d-1,D-1,d-1,d-1. Destroyer destroyed. Damage: Destroyer lost 1, Destroyer lost 3."
+                   @atoms/turn-message))))
 
     (it "displays combat log for submarine vs carrier"
       (set-test-world! (build-test-map ["Sc"]))
@@ -330,7 +333,8 @@
       (let [rolls (atom [0.6 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
-          (should= "S-1,S-1. Submarine destroyed." @atoms/turn-message))))
+          (should= "Battle: S-1,S-1. Submarine destroyed. Damage: Submarine lost 2, Carrier lost 0."
+                   @atoms/turn-message))))
 
     (it "displays combat log for submarine defeating carrier"
       (set-test-world! (build-test-map ["Sc"]))
@@ -341,7 +345,8 @@
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
-          (should= "c-3,S-1,c-3,c-3. Carrier destroyed." @atoms/turn-message)))))
+          (should= "Battle: c-3,S-1,c-3,c-3. Carrier destroyed. Damage: Submarine lost 1, Carrier lost 9."
+                   @atoms/turn-message)))))
 
   (context "attempt-conquest"
     (it "removes army from original cell on success"

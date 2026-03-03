@@ -148,6 +148,11 @@
   [log attacker-type defender-type winner]
   (domain-combat/format-combat-log log attacker-type defender-type winner))
 
+(defn format-combat-status
+  "Formats combat status for the game status line."
+  [log attacker-type defender-type winner]
+  (domain-combat/format-combat-status log attacker-type defender-type winner))
+
 (defn fight-round
   "Executes one round of combat. 50% chance attacker hits, 50% chance defender hits.
    Returns [updated-attacker updated-defender log-entry]."
@@ -214,10 +219,10 @@
             (not (hostile-unit? defender (:owner attacker))))
       false
       (let [result (resolve-combat attacker defender)
-            message (format-combat-log (:log result)
-                                       (:type attacker)
-                                       (:type defender)
-                                       (:winner result))
+            message (format-combat-status (:log result)
+                                          (:type attacker)
+                                          (:type defender)
+                                          (:winner result))
             dead-unit (if (= :attacker (:winner result)) defender attacker)]
         (set-game-map! (apply-attack-world world attacker-coords target-coords (:survivor result)))
         ;; Drown excess cargo if surviving container took damage

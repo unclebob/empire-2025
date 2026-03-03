@@ -189,6 +189,20 @@
       ;; Patrol boat should have fled to [0 0] (away from destroyer at [0 2])
       (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type])))
 
+    (it "major-invasion patrol boat attacks adjacent non-transport enemy ship"
+      (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
+                                                :patrol-mode :crawling :major-invasion true}}
+                         {:type :sea :contents {:type :destroyer :owner :player :hits 3}}]])
+      (set-test-computer-map! @atoms/game-map)
+      (with-redefs [combat/resolve-combat
+                    (fn [attacker _defender]
+                      {:winner :attacker :survivor attacker})]
+        (ship/process-ship [0 0] :patrol-boat)
+        ;; Enemy ship should be destroyed and patrol boat should survive.
+        (should-not= :player (get-in @atoms/game-map [0 1 :contents :owner]))
+        (should (some #(= :patrol-boat (get-in @atoms/game-map [% 0 :contents :type]))
+                      [0 1]))))
+
 )
 
   (context "destroyer escort behavior"

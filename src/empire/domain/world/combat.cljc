@@ -27,6 +27,30 @@
         loser-name (unit-name loser-type)]
     (str exchange-str ". " loser-name " destroyed.")))
 
+(defn- summarize-damage
+  "Returns total hit loss for attacker/defender from combat log entries."
+  [log]
+  (reduce (fn [{:keys [attacker defender]} entry]
+            (if (= :attacker (:hit entry))
+              {:attacker (+ attacker (:damage entry))
+               :defender defender}
+              {:attacker attacker
+               :defender (+ defender (:damage entry))}))
+          {:attacker 0 :defender 0}
+          log))
+
+(defn format-combat-status
+  "Formats status-line combat text including battle fact and damage totals."
+  [log attacker-type defender-type winner]
+  (let [attacker-name (unit-name attacker-type)
+        defender-name (unit-name defender-type)
+        {:keys [attacker defender]} (summarize-damage log)]
+    (str "Battle: "
+         (format-combat-log log attacker-type defender-type winner)
+         " Damage: "
+         attacker-name " lost " attacker ", "
+         defender-name " lost " defender ".")))
+
 (defn fight-round
   "Executes one round of combat. 50% chance attacker hits, 50% chance defender hits.
    Returns [updated-attacker updated-defender log-entry]."

@@ -188,14 +188,20 @@
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
   [pos]
-  (if-let [transport-pos (find-adjacent-player-transport pos)]
-    (ship-core/attack-enemy pos transport-pos)
-    (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
-      (flee-from pos enemy-pos)
-      (let [unit (get-in (current-world) (conj pos :contents))]
+  (let [unit (get-in (current-world) (conj pos :contents))]
+    (if (:major-invasion unit)
+      (if-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
+        (ship-core/attack-enemy pos enemy-pos)
         (case (or (:patrol-mode unit) :crawling)
           :crawling (patrol-crawl-step pos)
-          :exploring (patrol-explore-step pos))))))
+          :exploring (patrol-explore-step pos)))
+      (if-let [transport-pos (find-adjacent-player-transport pos)]
+        (ship-core/attack-enemy pos transport-pos)
+        (if-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
+          (flee-from pos enemy-pos)
+          (case (or (:patrol-mode unit) :crawling)
+            :crawling (patrol-crawl-step pos)
+            :exploring (patrol-explore-step pos)))))))
 
 (defn process-patrol-boat
   "Processes a computer patrol boat. Moves up to speed 4 steps per round.

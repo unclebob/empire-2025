@@ -31,6 +31,17 @@
         next-state (apply f current args)]
     ((:write-runtime-state! @state-ctx) k next-state)))
 
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- set-turn-message!
+  [msg ms]
+  (write-runtime-state! :turn-message msg)
+  (write-runtime-state! :turn-message-until (if (= ms Long/MAX_VALUE)
+                                               Long/MAX_VALUE
+                                               (+ (System/currentTimeMillis) ms))))
+
 (defn get-passable-sea-neighbors
   "Returns passable sea neighbors for a ship."
   [pos]
@@ -62,7 +73,12 @@
   (let [attacker (get-in (current-world) (conj ship-pos :contents))
         defender (get-in (current-world) (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)
+        message (combat/format-combat-status (:log result)
+                                             (:type attacker)
+                                             (:type defender)
+                                             (:winner result))
         dead-unit (if (= :attacker (:winner result)) defender attacker)]
+    (set-turn-message! message Long/MAX_VALUE)
     (update-game-map! update-in ship-pos dissoc :contents)
     (if (= :attacker (:winner result))
       (do
@@ -75,6 +91,7 @@
         (combat/clear-escort-on-death dead-unit)
         enemy-pos)
       (do
+        (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
         (when (= :carrier (:type attacker))
           (update-runtime-state! :computer-carrier-positions disj ship-pos))
         (visibility/update-cell-visibility ship-pos :computer)

@@ -215,7 +215,16 @@
     (set-test-player-map! (build-test-map ["a."]))
     (with-redefs [rand (constantly 0.1)]
       (core/attempt-conquest-computer [0 0] [1 0])
-      (should-be-nil (get-in @atoms/player-map [1 0])))))
+      (should-be-nil (get-in @atoms/player-map [1 0]))))
+
+  (it "does not change discovered free city on player-map when computer conquers it"
+    (set-test-world! (build-test-map ["a+"]))
+    (set-test-computer-map! (build-test-map ["a+"]))
+    ;; Player already discovered the free city.
+    (set-test-player-map! (build-test-map ["a+"]))
+    (with-redefs [rand (constantly 0.1)]
+      (core/attempt-conquest-computer [0 0] [1 0])
+      (should= :free (get-in @atoms/player-map [1 0 :city-status])))))
 
 (describe "wake-nearby-sentries"
   (before (reset-all-atoms!))
