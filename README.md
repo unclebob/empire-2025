@@ -49,6 +49,7 @@ Create a starter dependency config if it does not exist (or overwrite it):
     clj -M:check-dependencies dependency-tool.edn --force-init
 
 By default, dependency checks fail if any component distance metric exceeds `0`.
+Abstractness in these metrics is derived only from `defprotocol` and `defmulti`.
 
 Run acceptance pipeline (parse scenarios, generate specs, enforce acceptance boundaries, run generated acceptance specs):
 
