@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.domain.world.continents)
+(ns empire.domain.core.continents)
 
 (defn on-same-continent?
   "Returns true if two country-ids are on the same landmass."
@@ -22,4 +22,3 @@
                      (if (= v g2) (assoc m k g1) m))
                    (assoc groups cid1 g1 cid2 g1)
                    groups)))))
-

@@ -1,9 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.assignment
   "Attack-target assignment for computer armies."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]))
@@ -21,8 +19,7 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- find-assignable-armies
   "Finds all computer armies eligible for city attack assignment (not coast-walking)."

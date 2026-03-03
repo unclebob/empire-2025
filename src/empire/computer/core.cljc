@@ -1,8 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core.transport-search :as transport-search]
             [empire.config :as config]
@@ -29,6 +28,10 @@
 (defn- write-runtime-state!
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
+
+(defn- on-same-continent?
+  [country-a country-b]
+  ((:on-same-continent? @state-ctx) country-a country-b))
 
 (defn- update-runtime-state!
   [k f & args]
@@ -102,7 +105,7 @@
        (:country-id unit)
        (= :land (:type to-cell))
        (:country-id to-cell)
-       (not (runtime-state/on-same-continent? (:country-id unit) (:country-id to-cell)))))
+       (not (on-same-continent? (:country-id unit) (:country-id to-cell)))))
 
 (defn move-unit-to
   "Moves a unit from from-pos to to-pos. Returns to-pos if moved, nil if target

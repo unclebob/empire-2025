@@ -3,7 +3,7 @@
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports :as ports]
+            [empire.application.ports.movement :as ports]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.movement.waypoint :as waypoint]))

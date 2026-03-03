@@ -1,9 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.movement
   "Shared movement and passability helpers for computer armies."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.debug :as debug]
@@ -23,13 +21,19 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn on-same-continent?
+  [country-a country-b]
+  ((:on-same-continent? @state-ctx) country-a country-b))
+
+(defn merge-continents!
+  [stamp-id existing-cid]
+  ((:merge-continents! @state-ctx) stamp-id existing-cid))
 
 (defn adjacent-to-sea?
   "Returns true if position has at least one adjacent sea cell."
@@ -64,7 +68,7 @@
   (doseq [p all-pos]
     (let [cid (:country-id (get-in game-map p))]
       (when (and cid (not= cid country-id))
-        (runtime-state/merge-continents! country-id cid)))))
+        (merge-continents! country-id cid)))))
 
 (defn- local-coastal-cells
   [all-pos country-id game-map]
@@ -73,7 +77,7 @@
               (and cell
                    (= :land (:type cell))
                    (or (nil? (:country-id cell))
-                       (runtime-state/on-same-continent? country-id (:country-id cell)))
+                       (on-same-continent? country-id (:country-id cell)))
                    (adjacent-to-sea? p))))
           all-pos))
 
@@ -108,7 +112,7 @@
        (or (nil? country-id)
            (= :city (:type cell))
            (nil? (:country-id cell))
-           (runtime-state/on-same-continent? country-id (:country-id cell)))))
+           (on-same-continent? country-id (:country-id cell)))))
 
 (defn get-passable-neighbors
   "Returns passable land neighbors for an army, respecting sovereignty."

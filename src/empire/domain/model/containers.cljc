@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.domain.world.containers
+(ns empire.domain.model.containers
   (:require [empire.config :as config]))
 
 (defn- wake-all

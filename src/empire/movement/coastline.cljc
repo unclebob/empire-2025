@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.coastline
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.world-store :as world-ports]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.debug :as debug]
@@ -19,6 +19,12 @@
 (defn- current-world
   []
   ((:load-world @state-ctx)))
+
+(defn- world-store []
+  (:world-store @state-ctx))
+
+(defn- world-atom []
+  (world-ports/world-atom (world-store)))
 
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."
@@ -123,7 +129,7 @@
 (defn- post-move-wake-reason
   "Returns wake reason after moving, or nil if unit should continue."
   [unit next-pos remaining-steps start-pos]
-  (let [world-atom (runtime-state/game-map-atom)
+  (let [world-atom (world-atom)
         started-at-edge? (map-utils/at-map-edge? start-pos world-atom)
         now-at-edge? (map-utils/at-map-edge? next-pos world-atom)]
     (cond
@@ -197,7 +203,7 @@
       (do (log-coastline-step player? (:type unit) coords coords pre-wake)
           (wake-coastline-unit coords pre-wake)
           nil)
-      (if-let [next-pos (pick-coastline-move coords (runtime-state/game-map-atom) visited (:prev-pos unit))]
+      (if-let [next-pos (pick-coastline-move coords (world-atom) visited (:prev-pos unit))]
         (let [next-cell (get-in (current-world) next-pos)]
           (if (:contents next-cell)
             (handle-coastline-collision coords unit next-pos next-cell player?)

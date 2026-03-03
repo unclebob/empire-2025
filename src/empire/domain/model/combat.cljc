@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.domain.world.combat
+(ns empire.domain.model.combat
   (:require [clojure.string]
             [empire.units.dispatcher :as dispatcher]))
 

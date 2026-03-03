@@ -1,9 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-targeting
   "Transport target selection — finding unload targets and pickup continents."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]))
 
@@ -16,13 +14,11 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn adjacent-to-pickup-continent?
   "Returns true if any adjacent land cell shares a country-id with the cell

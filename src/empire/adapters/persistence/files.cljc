@@ -1,7 +1,7 @@
 ;; mutation-tested: no
 (ns empire.adapters.persistence.files
   (:require [clojure.edn :as edn]
-            [empire.application.ports :as ports]))
+            [empire.application.ports.persistence :as ports]))
 
 (defn- timestamp []
   (let [now (java.time.LocalDateTime/now)

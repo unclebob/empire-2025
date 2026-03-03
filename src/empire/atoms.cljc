@@ -1,9 +1,9 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.atoms
   (:require [empire.atoms.runtime :as runtime]
-            [empire.domain.world.continents :as continents]
-            [empire.domain.world.messages :as messages]
-            [empire.domain.world.refueling :as refueling]))
+            [empire.domain.core.continents :as continents]
+            [empire.domain.core.messages :as messages]
+            [empire.domain.core.refueling :as refueling]))
 
 (def random-seed
   "Random seed for reproducible map generation, or nil for random."

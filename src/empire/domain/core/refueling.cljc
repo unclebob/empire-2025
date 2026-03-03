@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.domain.world.refueling)
+(ns empire.domain.core.refueling)
 
 (defn computer-city-cell?
   [cell]
@@ -25,4 +25,3 @@
         (conj! carriers [i j])))
     {:cities (persistent! cities)
      :carriers (persistent! carriers)}))
-

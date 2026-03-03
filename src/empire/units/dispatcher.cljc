@@ -2,7 +2,8 @@
 (ns empire.units.dispatcher
   "Dispatches to the appropriate unit module based on unit type.
    Provides a unified interface for accessing unit configuration and behavior."
-  (:require [empire.units.army :as army]
+  (:require [empire.domain.core.unit-metrics :as unit-metrics]
+            [empire.units.army :as army]
             [empire.units.fighter :as fighter]
             [empire.units.satellite :as satellite]
             [empire.units.transport :as transport]
@@ -83,7 +84,7 @@
   [unit-type current-hits]
   (let [base-speed (speed unit-type)
         max-hits (hits unit-type)]
-    (quot (+ (* base-speed current-hits) (dec max-hits)) max-hits)))
+    (unit-metrics/effective-speed base-speed current-hits max-hits)))
 
 (defn capacity
   "Returns the base cargo capacity for container unit types."
@@ -100,10 +101,10 @@
   (let [base-cap (capacity unit-type)
         max-h (hits unit-type)
         cur-h (or current-hits max-h)]
-    (quot (+ (* base-cap cur-h) (dec max-h)) max-h)))
+    (unit-metrics/effective-capacity base-cap cur-h max-h)))
 
 ;; Naval unit check
-(def naval-units #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
+(def naval-units unit-metrics/naval-units)
 
 (defn naval-unit? [unit-type]
-  (contains? naval-units unit-type))
+  (unit-metrics/naval-unit? unit-type))

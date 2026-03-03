@@ -1,9 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.coastal
   "Coastal movement, coast-walk, and coastal positioning behaviors."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.army.coastal.invasion :as invasion]
             [empire.computer.core :as core]
@@ -23,8 +21,7 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."

@@ -2,9 +2,7 @@
 (ns empire.computer.army
   "Computer army orchestrator.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.computer.army.assignment :as assignment]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.combat :as army-combat]
@@ -24,13 +22,11 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- find-city-objective
   "Find a city objective not already claimed by another army.

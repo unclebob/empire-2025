@@ -1,18 +1,29 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.combat
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.runtime-state :as runtime-ports]
+            [empire.application.ports.world-store :as world-ports]
             [empire.combat.escorts :as escorts]
             [empire.config :as config]
-            [empire.domain.world.combat :as domain-combat]
+            [empire.domain.model.combat :as domain-combat]
             [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private flippable-types
   "Unit types that flip ownership on city conquest (ships and fighters)."
   #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
+(def ^:private world-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.atoms/world-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private runtime-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
 (def ^:private update-cell-visibility-fn
   (delay
@@ -23,23 +34,30 @@
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (if-let [f @world-store-fn]
+    (world-ports/load-world (f))
+    []))
 
 (defn- set-game-map!
   [world]
-  (app-state/set-world! @state-ctx world))
+  (when-let [f @world-store-fn]
+    (world-ports/save-world! (f) world)))
 
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (let [world (current-world)]
+    (set-game-map! (apply f world args))))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (if-let [f @runtime-store-fn]
+    (runtime-ports/read-runtime-state (f) k)
+    nil))
 
 (defn- write-runtime-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (when-let [f @runtime-store-fn]
+    (runtime-ports/write-runtime-state! (f) k v)))
 
 (defn- update-runtime-state!
   [k f & args]

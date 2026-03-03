@@ -1,11 +1,11 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
   (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports :as ports]
+            [empire.application.ports.movement :as ports]
             [empire.config :as config]
+            [empire.domain.core.unit-metrics :as unit-metrics]
             [empire.movement.map-utils :as map-utils]
-            [empire.containers.helpers :as uc]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.containers.helpers :as uc]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -134,7 +134,7 @@
 
 (defn- ship-hits-string [active-unit]
   (let [unit-type (:type active-unit)]
-    (when (dispatcher/naval-unit? unit-type)
+    (when (unit-metrics/naval-unit? unit-type)
       (let [max-hits (config/item-hits unit-type)
             current-hits (:hits active-unit max-hits)]
         (str " (hits:" current-hits "/" max-hits ")")))))

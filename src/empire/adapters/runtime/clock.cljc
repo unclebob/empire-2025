@@ -1,7 +1,7 @@
 ;; mutation-tested: no
 (ns empire.adapters.runtime.clock
   "Clock adapter for application boundary."
-  (:require [empire.application.ports :as ports]))
+  (:require [empire.application.ports.clock :as ports]))
 
 (defrecord SystemClock []
   ports/ClockPort

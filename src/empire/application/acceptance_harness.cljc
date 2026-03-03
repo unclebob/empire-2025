@@ -4,7 +4,7 @@
    Generated acceptance specs can target this boundary API while application
    internals evolve."
   (:require [empire.adapters.runtime.acceptance-engine :as acceptance-engine]
-            [empire.application.ports :as ports]
+            [empire.application.ports.acceptance-harness :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]))
 

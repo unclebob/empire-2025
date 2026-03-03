@@ -1,18 +1,26 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.satellite
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]))
+  (:require [empire.application.ports.world-store :as world-ports]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
+(def ^:private world-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.atoms/world-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (when-let [resolver @world-store-fn]
+    (let [store (resolver)
+          world (world-ports/load-world store)]
+      (world-ports/save-world! store (apply f world args)))))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (if-let [resolver @world-store-fn]
+    (world-ports/load-world (resolver))
+    []))
 
 ;; Configuration
 (def speed 10)

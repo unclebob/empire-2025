@@ -2,7 +2,7 @@
 (ns empire.save-load
   (:require [empire.adapters.persistence.files :as persistence-files]
             [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
+            [empire.application.ports.persistence :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.computer.production :as computer-production]))
 

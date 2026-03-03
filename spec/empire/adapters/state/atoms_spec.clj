@@ -2,7 +2,7 @@
   (:require [empire.test-utils :as test-utils]
             [speclj.core :refer :all]
             [empire.adapters.state.atoms :as adapter]
-            [empire.application.ports :as ports]
+            [empire.application.ports.world-store :as ports]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "atom world store adapter"

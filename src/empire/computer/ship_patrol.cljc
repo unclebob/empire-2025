@@ -1,9 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
@@ -23,13 +21,11 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."

@@ -1,8 +1,6 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.waypoint
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]))
 
 (def ^:private state-ctx
@@ -18,13 +16,19 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- set-turn-message!
+  [msg ms]
+  (write-runtime-state! :turn-message msg)
+  (write-runtime-state! :turn-message-until
+                        (if (= ms Long/MAX_VALUE)
+                          Long/MAX_VALUE
+                          (+ (System/currentTimeMillis) ms))))
 
 (defn create-waypoint
   "Creates a waypoint at the given coordinates if it's an empty land cell.
@@ -55,7 +59,7 @@
       (when (:waypoint cell)
         (update-game-map! assoc-in [cx cy :waypoint :marching-orders] dest)
         (write-runtime-state! :destination nil)
-        (runtime-state/set-turn-message! (str "Waypoint orders set to " (first dest) "," (second dest)) 2000)
+        (set-turn-message! (str "Waypoint orders set to " (first dest) "," (second dest)) 2000)
         true))))
 
 (defn set-waypoint-orders-by-direction
@@ -74,5 +78,5 @@
                          (recur nx ny)
                          [tx ty])))]
         (update-game-map! assoc-in [cx cy :waypoint :marching-orders] target)
-        (runtime-state/set-turn-message! (str "Waypoint orders set to " (first target) "," (second target)) 2000)
+        (set-turn-message! (str "Waypoint orders set to " (first target) "," (second target)) 2000)
         true))))

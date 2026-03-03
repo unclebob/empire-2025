@@ -3,7 +3,6 @@
 (ns empire.computer.ship-carrier
   "Computer carrier positioning - finding and navigating to holding positions."
   (:require [clojure.set :as set]
-            [empire.adapters.state.runtime :as runtime-state]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
@@ -35,6 +34,10 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
+
+(defn- rebuild-refueling-caches!
+  []
+  ((:rebuild-refueling-caches! @state-ctx)))
 
 (defn- find-computer-cities
   "Returns positions of all computer cities."
@@ -117,7 +120,7 @@
   (when (and (empty? (or (read-runtime-state :computer-city-positions) #{}))
              (empty? (or (read-runtime-state :computer-carrier-positions) #{}))
              (current-world))
-    (runtime-state/rebuild-refueling-caches!))
+    (rebuild-refueling-caches!))
   (concat (or (read-runtime-state :computer-city-positions) #{})
           (or (read-runtime-state :computer-carrier-positions) #{})))
 

@@ -1,12 +1,9 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.transport-core
   "Shared transport helpers — no dependencies on other transport sub-modules."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
-            [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]))
 
 (def ^:private state-ctx
@@ -22,13 +19,11 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn get-passable-sea-neighbors
   "Returns passable sea neighbors for a transport."
@@ -51,7 +46,10 @@
 (defn adjacent-to-land?
   "Returns true if position has adjacent land cell."
   [pos]
-  (map-utils/adjacent-to-land? pos (runtime-state/game-map-atom)))
+  (let [game-map (current-world)]
+    (some (fn [n]
+            (= :land (:type (get-in game-map n))))
+          (core/get-neighbors pos))))
 
 (defn find-adjacent-land-pos
   "Returns the first adjacent land or city position, or nil."

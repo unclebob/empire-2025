@@ -1,5 +1,5 @@
 (ns empire.movement.adapter
-  (:require [empire.application.ports :as ports]
+  (:require [empire.application.ports.movement :as ports]
             [empire.movement.api :as movement]))
 
 (defrecord MovementAdapter []

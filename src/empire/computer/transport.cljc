@@ -4,9 +4,7 @@
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
@@ -34,13 +32,11 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/write-runtime-state! store k v)))
+  ((:write-runtime-state! @state-ctx) k v))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
 

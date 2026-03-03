@@ -1,5 +1,5 @@
 (ns empire.ui.util.input.actions
-  (:require [empire.application.ports :as ports]
+  (:require [empire.application.ports.movement :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]

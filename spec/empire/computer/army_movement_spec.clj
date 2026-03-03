@@ -1,8 +1,7 @@
 (ns empire.computer.army-movement-spec
   (:require [speclj.core :refer :all]
             [empire.computer.army.movement :as movement]
-            [empire.computer.core :as core]
-            [empire.adapters.state.runtime :as runtime-state]))
+            [empire.computer.core :as core]))
 
 (describe "register-coastal-cells"
   (it "does nothing when country-id is nil"
@@ -19,7 +18,7 @@
                     movement/write-runtime-state! (fn [& _])
                     movement/adjacent-to-sea? (fn [_] false)
                     core/get-neighbors (fn [_] [[1 0]])
-                    runtime-state/merge-continents! (fn [a b] (swap! merged conj [a b]))]
+                    movement/merge-continents! (fn [a b] (swap! merged conj [a b]))]
         (movement/register-coastal-cells [0 0] 1)
         (should-contain [1 2] @merged))))
 
@@ -34,8 +33,8 @@
                                                     nil))
                     movement/write-runtime-state! (fn [k v] (reset! written [k v]))
                     movement/adjacent-to-sea? (fn [p] (contains? #{[0 0] [1 0]} p))
-                    runtime-state/merge-continents! (fn [& _])
-                    runtime-state/on-same-continent? (fn [a b] (= a b))]
+                    movement/merge-continents! (fn [& _])
+                    movement/on-same-continent? (fn [a b] (= a b))]
         (movement/register-coastal-cells [0 0] 1)
         (should= :coastal-cells-by-country (first @written))
         (should (contains? (get-in (second @written) [1]) [9 9]))
@@ -47,7 +46,7 @@
                     movement/read-runtime-state (fn [_] {})
                     movement/write-runtime-state! (fn [& _] (swap! writes inc))
                     movement/adjacent-to-sea? (fn [_] false)
-                    runtime-state/merge-continents! (fn [& _])
-                    runtime-state/on-same-continent? (fn [& _] true)]
+                    movement/merge-continents! (fn [& _])
+                    movement/on-same-continent? (fn [& _] true)]
         (movement/register-coastal-cells [0 0] 1)
         (should= 0 @writes)))))

@@ -1,7 +1,7 @@
 ;; mutation-tested: no
 (ns empire.adapters.runtime.rng
   "Random adapter for application boundary."
-  (:require [empire.application.ports :as ports]))
+  (:require [empire.application.ports.random :as ports]))
 
 (defrecord CoreRandom []
   ports/RandomPort

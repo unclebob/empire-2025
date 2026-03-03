@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.domain.world.round-setup
+(ns empire.domain.services.round-setup
   (:require [empire.config :as config]))
 
 (defn dead-unit?

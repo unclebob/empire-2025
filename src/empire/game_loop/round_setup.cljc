@@ -8,7 +8,7 @@
             [empire.config :as config]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.domain.world.round-setup :as domain-round-setup]
+            [empire.domain.services.round-setup :as domain-round-setup]
             [empire.game-loop.round-setup.satellites :as satellites]
             [empire.movement.lakes :as lakes]
             [empire.movement.map-utils :as map-utils]

@@ -1,7 +1,7 @@
 ;; mutation-tested: no
 (ns empire.player.commands.actions
   "Extracted unit action handlers for player command processing."
-  (:require [empire.application.ports :as ports]
+  (:require [empire.application.ports.movement :as ports]
             [empire.player.attention :as attention]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]

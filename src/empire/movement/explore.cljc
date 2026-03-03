@@ -1,8 +1,8 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.explore
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.world-store :as world-ports]
             [empire.application.state :as app-state]
-            [empire.adapters.state.runtime :as runtime-state]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
@@ -22,6 +22,12 @@
 (defn- read-runtime-state
   [k]
   ((:read-runtime-state @state-ctx) k))
+
+(defn- world-store []
+  (:world-store @state-ctx))
+
+(defn- world-atom []
+  (world-ports/world-atom (world-store)))
 
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."
@@ -94,9 +100,9 @@
                                                     (dissoc :explore-steps :visited))))
         nil)
       ;; Try to move (return nil to limit to one step per round)
-      (if-let [next-pos (pick-explore-move coords (runtime-state/game-map-atom) visited)]
+      (if-let [next-pos (pick-explore-move coords (world-atom) visited)]
         (let [next-cell (get-in (current-world) next-pos)
-              found-city? (wake/near-hostile-city? next-pos (runtime-state/game-map-atom))
+              found-city? (wake/near-hostile-city? next-pos (world-atom))
               moved-unit (if found-city?
                            (-> unit
                                (assoc :mode :awake :reason :army-found-city)

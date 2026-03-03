@@ -1,11 +1,11 @@
 ;; mutation-tested: no
 (ns empire.adapters.state.runtime
   "Atom-backed runtime state adapter for non-world state."
-  (:require [empire.application.ports :as ports]
+  (:require [empire.application.ports.runtime-state :as ports]
             [empire.atoms :as atoms]
-            [empire.domain.world.continents :as continents]
-            [empire.domain.world.messages :as messages]
-            [empire.domain.world.refueling :as refueling]))
+            [empire.domain.core.continents :as continents]
+            [empire.domain.core.messages :as messages]
+            [empire.domain.core.refueling :as refueling]))
 
 (def ^:private runtime-key->atom
   {:random-seed atoms/random-seed
@@ -120,6 +120,15 @@
     (read-key k))
   (write-runtime-state! [_ k v]
     (write-key! k v))
+  (on-same-continent? [_ country-a country-b]
+    (continents/on-same-continent? @atoms/continent-groups country-a country-b))
+  (merge-continents! [_ stamp-id existing-cid]
+    (swap! atoms/continent-groups continents/merge-continents stamp-id existing-cid))
+  (rebuild-refueling-caches! [_]
+    (let [{:keys [cities carriers]}
+          (refueling/scan-refueling-positions @atoms/game-map)]
+      (reset! atoms/computer-city-positions cities)
+      (reset! atoms/computer-carrier-positions carriers)))
   ports/MajorInvasionStorePort
   (load-major-invasion-state [_]
     (read-key :major-invasion-state))

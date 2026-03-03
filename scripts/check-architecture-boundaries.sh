@@ -37,4 +37,11 @@ if [[ -n "$movement_api_consumer_violations" ]]; then
   exit 1
 fi
 
+legacy_app_ports_hits="$(rg -nP 'empire\.application\.ports(?!\.)' src spec generated-acceptance-specs || true)"
+if [[ -n "$legacy_app_ports_hits" ]]; then
+  echo "Architecture boundary violation: legacy aggregate namespace empire.application.ports is forbidden; use split port namespaces."
+  printf '%s\n' "$legacy_app_ports_hits"
+  exit 1
+fi
+
 echo "Architecture boundary check passed"

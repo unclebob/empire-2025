@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.domain.ai.threat-policy)
+(ns empire.domain.services.threat-policy)
 
 (def fighter-response-count 4)
 (def ship-response-count 2)

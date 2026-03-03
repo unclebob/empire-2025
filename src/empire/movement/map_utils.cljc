@@ -1,8 +1,6 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.map-utils
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private state-ctx
@@ -14,8 +12,7 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (def neighbor-offsets
   "Offsets for the 8 adjacent cells (excludes center)."

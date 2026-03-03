@@ -1,8 +1,6 @@
 (ns empire.movement.pathfinding-bfs.exploration
   "BFS exploration and unseen-coast target selection."
-  (:require [empire.adapters.state.runtime :as runtime-state]
-            [empire.application.ports :as ports]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
@@ -16,8 +14,7 @@
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-state/runtime-state-store)]
-    (ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn adjacent-to-unexplored?
   "Returns true if any neighbor of pos on the computer-map is unexplored.

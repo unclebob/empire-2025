@@ -1,10 +1,22 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
-  (:require [empire.adapters.state.runtime :as runtime-state]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- set-error-message!
+  [msg ms]
+  (write-runtime-state! :error-message msg)
+  (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
 
 (defn near-hostile-city?
   "Returns true if position is adjacent to a hostile city."
@@ -217,8 +229,8 @@
 
 (defn- apply-wake-action [unit final-result waypoint-orders wake-up?]
   (when (:shot-down? final-result)
-    (runtime-state/set-error-message! (:fighter-destroyed-by-city config/messages)
-                                      config/error-message-duration))
+    (set-error-message! (:fighter-destroyed-by-city config/messages)
+                        config/error-message-duration))
   (cond
     waypoint-orders
     (-> unit
