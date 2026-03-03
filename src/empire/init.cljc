@@ -2,9 +2,9 @@
 (ns empire.init
   (:require [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
-            [empire.atoms :as atoms]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
+            [empire.adapters.state.runtime :as runtime-state]
             [empire.movement.visibility :as visibility]
             [empire.player.production :as production]))
 
@@ -168,19 +168,26 @@
         visibility-map (vec (for [_ (range width)]
                               (vec (for [_ (range height)]
                                      {:type :unexplored}))))
-        state-ctx (app-runtime/default-state-ctx)]
+        state-ctx (app-runtime/default-state-ctx)
+        read-runtime-state (:read-runtime-state state-ctx)
+        write-runtime-state! (:write-runtime-state! state-ctx)]
     (app-state/set-world! state-ctx map-with-computer-city)
     ;; Assign country-id 1 to computer's starting city and begin army production
-    (when-let [computer-city-pos (find-city-position @atoms/game-map :computer)]
+    (when-let [computer-city-pos (find-city-position map-with-computer-city :computer)]
       (app-state/update-world! state-ctx assoc-in (conj computer-city-pos :country-id) 1)
-      (reset! atoms/next-country-id 2)
+      (write-runtime-state! :next-country-id 2)
       (production/set-city-production computer-city-pos :army))
-    (reset! atoms/lake-max-cells (compute-lake-max-cells width height))
-    (reset! atoms/known-lake-cells #{})
-    (reset! atoms/player-map visibility-map)
-    (reset! atoms/computer-map visibility-map)
+    (write-runtime-state! :lake-max-cells (compute-lake-max-cells width height))
+    (write-runtime-state! :known-lake-cells #{})
+    (write-runtime-state! :player-map visibility-map)
+    (write-runtime-state! :computer-map visibility-map)
     ;; Initialize visibility around starting positions
-    (visibility/update-combatant-map atoms/player-map :player)
-    (visibility/update-combatant-map atoms/computer-map :computer)
-    (atoms/rebuild-refueling-caches!)
+    (let [world ((:load-world state-ctx))]
+      (when-let [updated (visibility/update-combatant-map-state
+                          (read-runtime-state :player-map) :player world)]
+        (write-runtime-state! :player-map updated))
+      (when-let [updated (visibility/update-combatant-map-state
+                          (read-runtime-state :computer-map) :computer world)]
+        (write-runtime-state! :computer-map updated)))
+    (runtime-state/rebuild-refueling-caches!)
     map-with-computer-city))

@@ -25,8 +25,9 @@
 (defn- draw-attention
   "Draws the attention message (row 1) left-justified in the Game Info region."
   [left-x text-y]
-  (when-let [attention-message (seq (read-runtime-state :attention-message))]
-    (q/text attention-message (+ left-x config/msg-left-padding) (+ text-y config/msg-line-1-y))))
+  (let [attention-message (read-runtime-state :attention-message)]
+    (when (seq attention-message)
+      (q/text attention-message (+ left-x config/msg-left-padding) (+ text-y config/msg-line-1-y)))))
 
 (defn- draw-turn
   "Draws the turn message (row 2) left-justified in the Game Info region.
@@ -58,16 +59,17 @@
 (defn- draw-debug
   "Draws the debug message centered in the Debug region."
   [debug-x debug-w text-y]
-  (when-let [debug-message (seq (read-runtime-state :debug-message))]
-    (let [center-x (+ debug-x (/ debug-w 2))
-          lines (str/split debug-message #"\n")
-          y-offsets [config/msg-line-1-y config/msg-line-2-y config/msg-line-3-y]]
-      (q/fill 0 255 255)
-      (doseq [[line y-off] (map vector (take 3 lines) y-offsets)]
-        (let [msg-width (q/text-width line)
-              msg-x (- center-x (/ msg-width 2))]
-          (q/text line msg-x (+ text-y y-off))))
-      (q/fill 255))))
+  (let [debug-message (read-runtime-state :debug-message)]
+    (when (seq debug-message)
+      (let [center-x (+ debug-x (/ debug-w 2))
+            lines (str/split debug-message #"\n")
+            y-offsets [config/msg-line-1-y config/msg-line-2-y config/msg-line-3-y]]
+        (q/fill 0 255 255)
+        (doseq [[line y-off] (map vector (take 3 lines) y-offsets)]
+          (let [msg-width (q/text-width line)
+                msg-x (- center-x (/ msg-width 2))]
+            (q/text line msg-x (+ text-y y-off))))
+        (q/fill 255)))))
 
 ;; --- Game Status region (right-justified, 37.5%) ---
 
@@ -91,14 +93,16 @@
 (defn- draw-hover-info
   "Draws hover info (row 2) right-justified in the Game Status region."
   [right-edge text-y]
-  (when-let [hover-message (seq (read-runtime-state :hover-message))]
-    (draw-text-right-justified hover-message right-edge (+ text-y config/msg-line-2-y))))
+  (let [hover-message (read-runtime-state :hover-message)]
+    (when (seq hover-message)
+      (draw-text-right-justified hover-message right-edge (+ text-y config/msg-line-2-y)))))
 
 (defn- draw-production-status
   "Draws production status (row 3) right-justified in the Game Status region."
   [right-edge text-y]
-  (when-let [production-status (seq (read-runtime-state :production-status))]
-    (draw-text-right-justified production-status right-edge (+ text-y config/msg-line-3-y))))
+  (let [production-status (read-runtime-state :production-status)]
+    (when (seq production-status)
+      (draw-text-right-justified production-status right-edge (+ text-y config/msg-line-3-y)))))
 
 (defn- draw-game-status
   "Draws the Game Status region (right): round status, hover info, production."

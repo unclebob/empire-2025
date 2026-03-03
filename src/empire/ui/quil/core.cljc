@@ -1,5 +1,5 @@
 (ns empire.ui.quil.core
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.init :as init]
@@ -13,18 +13,29 @@
             [quil.core :as q]
             [quil.middleware :as m]))
 
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
 (defn create-fonts
   "Creates and caches font objects."
   []
-  (reset! atoms/text-font (q/create-font config/text-font-name config/text-font-size))
-  (reset! atoms/production-char-font (q/create-font config/cell-char-font-name config/cell-char-font-size)))
+  (write-runtime-state! :text-font (q/create-font config/text-font-name config/text-font-size))
+  (write-runtime-state! :production-char-font (q/create-font config/cell-char-font-name config/cell-char-font-size)))
 
 (defn setup
   "Initial setup for the game state."
   []
   (create-fonts)
   (util-core/calculate-screen-dimensions)
-  (when-let [seed @atoms/random-seed]
+  (when-let [seed (read-runtime-state :random-seed)]
     (let [rng (java.util.Random. seed)]
       (alter-var-root #'clojure.core/rand
                       (constantly (fn
@@ -32,8 +43,8 @@
                                    ([n] (* n (.nextDouble rng))))))
       (alter-var-root #'clojure.core/rand-int
                       (constantly (fn [n] (.nextInt rng (int n)))))))
-  (let [num-cities (:number-of-cities @atoms/map-size-constants config/number-of-cities)]
-    (init/make-initial-map @atoms/map-size config/smooth-count config/land-fraction num-cities config/min-city-distance))
+  (let [num-cities (:number-of-cities (read-runtime-state :map-size-constants) config/number-of-cities)]
+    (init/make-initial-map (read-runtime-state :map-size) config/smooth-count config/land-fraction num-cities config/min-city-distance))
   (q/frame-rate 30)
   {})
 
@@ -50,8 +61,10 @@
   "Draw the current game state."
   [_state]
   (q/background 0)
-  (let [the-map (display/resolve-display-map @atoms/map-to-display
-                  @atoms/player-map @atoms/computer-map @atoms/game-map)]
+  (let [the-map (display/resolve-display-map (read-runtime-state :map-to-display)
+                  (read-runtime-state :player-map)
+                  (read-runtime-state :computer-map)
+                  (read-runtime-state :game-map))]
     (render-map/draw-map the-map)
     (render-map/draw-debug-selection-rectangle)
     (render-messages/draw-message-area)
@@ -60,9 +73,9 @@
 (defn key-pressed [state _]
   (let [k (q/key-as-keyword)]
     (when (not= k :shift)
-      (when (nil? @atoms/last-key)
+      (when (nil? (read-runtime-state :last-key))
         (quil-input/key-down k))
-      (reset! atoms/last-key k)))
+      (write-runtime-state! :last-key k)))
   state)
 
 (defn- get-modifiers
@@ -115,9 +128,9 @@
                                   max-cols max-rows))
                  (System/exit 1))))]
     (let [effective-seed (or seed (System/currentTimeMillis))]
-      (reset! atoms/random-seed effective-seed)
-    (reset! atoms/map-size [cols rows])
-    (reset! atoms/map-size-constants (config/compute-size-constants cols rows))
+      (write-runtime-state! :random-seed effective-seed)
+      (write-runtime-state! :map-size [cols rows])
+      (write-runtime-state! :map-size-constants (config/compute-size-constants cols rows))
       (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows effective-seed))
       (q/defsketch empire
                    :title "Empire: Global Conquest"

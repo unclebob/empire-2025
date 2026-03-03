@@ -5,7 +5,11 @@
             [empire.atoms :as atoms]))
 
 (def ^:private runtime-key->atom
-  {:production atoms/production
+  {:random-seed atoms/random-seed
+   :map-size atoms/map-size
+   :map-size-constants atoms/map-size-constants
+   :last-key atoms/last-key
+   :production atoms/production
    :round-number atoms/round-number
    :backtick-pressed atoms/backtick-pressed
    :last-clicked-cell atoms/last-clicked-cell
@@ -32,6 +36,7 @@
    :destination atoms/destination
    :text-font atoms/text-font
    :production-char-font atoms/production-char-font
+   :game-map atoms/game-map
    :load-menu-open atoms/load-menu-open
    :load-menu-files atoms/load-menu-files
    :load-menu-hovered atoms/load-menu-hovered
