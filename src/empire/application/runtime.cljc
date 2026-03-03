@@ -1,16 +1,28 @@
 ;; mutation-tested: no
 (ns empire.application.runtime
   "Runtime wiring for application boundary contexts."
-  (:require [empire.adapters.state.atoms :as atom-store]
-            [empire.adapters.state.runtime :as runtime-store]
-            [empire.application.ports :as ports]))
+  (:require [empire.application.ports :as ports]))
+
+(def ^:private world-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.atoms/world-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private runtime-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
 (defn default-state-ctx
   "Returns default runtime context for the application state boundary.
    Invariants are warn-only in this phase."
   []
-  (let [store (atom-store/world-store)
-        rt-store (runtime-store/runtime-state-store)]
+  (let [store (when-let [f @world-store-fn] (f))
+        rt-store (when-let [f @runtime-store-fn] (f))]
     {:load-world #(ports/load-world store)
      :save-world! #(ports/save-world! store %)
      :load-major-invasion-state #(ports/load-major-invasion-state rt-store)

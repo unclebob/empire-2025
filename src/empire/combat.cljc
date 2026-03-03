@@ -5,7 +5,6 @@
             [empire.combat.escorts :as escorts]
             [empire.config :as config]
             [empire.domain.world.combat :as domain-combat]
-            [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private flippable-types
@@ -14,6 +13,13 @@
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
+
+(def ^:private update-cell-visibility-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.movement.visibility/update-cell-visibility)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
 (defn- current-world
   []
@@ -52,6 +58,11 @@
   (write-runtime-state! :turn-message-until (if (= ms Long/MAX_VALUE)
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
+
+(defn- update-cell-visibility!
+  [pos owner]
+  (when-let [f @update-cell-visibility-fn]
+    (f pos owner)))
 
 (defn- conquer-city-contents-world
   [game-map city-coords new-owner]
@@ -106,7 +117,7 @@
         (update-game-map! assoc-in city-coords (assoc city-cell :city-status :player))
         (conquer-city-contents city-coords :player)
         (update-runtime-state! :computer-carrier-positions disj city-coords)
-        (visibility/update-cell-visibility city-coords :player)
+        (update-cell-visibility! city-coords :player)
         (update-runtime-state! :computer-map assoc-in (conj city-coords :city-status) :player))
       (set-error-message! (:conquest-failed config/messages) config/error-message-duration))
     true))
@@ -116,7 +127,7 @@
   [army-coords city-coords]
   (let [army-cell (get-in (current-world) army-coords)]
     (update-game-map! assoc-in army-coords (dissoc army-cell :contents))
-    (visibility/update-cell-visibility army-coords :player)
+    (update-cell-visibility! army-coords :player)
     (attempt-city-conquest city-coords)))
 
 (defn- apply-fighter-overfly-world

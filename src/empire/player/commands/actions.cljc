@@ -5,7 +5,6 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.game-loop :as game-loop]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
@@ -28,6 +27,10 @@
 (defn- update-runtime-state! [ctx k f & args]
   (apply (:update-runtime-state! ctx) k f args))
 
+(defn- item-processed! [ctx]
+  (write-runtime-state! ctx :waiting-for-input false)
+  (write-runtime-state! ctx :cells-needing-attention []))
+
 (defn handle-space-key [ctx coords]
   (let [cell (get-in (current-world ctx) coords)
         unit (:contents cell)]
@@ -45,7 +48,7 @@
               (update-game-map! ctx assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
         (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round))))
   (update-runtime-state! ctx :player-items rest)
-  (game-loop/item-processed)
+  (item-processed! ctx)
   true)
 
 (defn handle-unload-key [ctx coords cell]
@@ -53,12 +56,12 @@
     (cond
       (uc/transport-with-armies? contents)
       (do (container-ops/wake-armies-on-transport coords)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       (uc/carrier-with-fighters? contents)
       (do (container-ops/wake-fighters-on-carrier coords)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       :else nil)))
@@ -70,17 +73,17 @@
     (cond
       is-army-aboard?
       (do (container-ops/sleep-armies-on-transport coords)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       is-carrier-fighter?
       (do (container-ops/sleep-fighters-on-carrier coords)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
       (do (movement/set-unit-mode coords :sentry)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       :else nil)))
@@ -105,18 +108,18 @@
     (cond
       (free-army? active-unit is-army-aboard?)
       (do (explore/set-explore-mode coords)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       is-army-aboard?
       (do (when-let [valid-target (find-adjacent-land ctx coords)]
             (container-ops/disembark-army-to-explore coords valid-target)
-            (game-loop/item-processed))
+            (item-processed! ctx))
           true)
 
       (coastline/coastline-follow-eligible? active-unit near-coast?)
       (do (coastline/set-coastline-follow-mode coords)
-          (game-loop/item-processed)
+          (item-processed! ctx)
           true)
 
       rejection-reason
@@ -129,12 +132,12 @@
   (let [[ax ay] c1 [cx cy] c2]
     (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))))
 
-(defn- click-army-aboard [attn-coords clicked-coords target-cell]
+(defn- click-army-aboard [ctx attn-coords clicked-coords target-cell]
   (when (and (adjacent-coords? attn-coords clicked-coords)
              (= (:type target-cell) :land)
              (not (:contents target-cell)))
     (container-ops/disembark-army-from-transport attn-coords clicked-coords)
-    (game-loop/item-processed)))
+    (item-processed! ctx)))
 
 (defn- click-standard-unit [attn-coords clicked-coords unit-type]
   (if (and (adjacent-coords? attn-coords clicked-coords)
@@ -156,9 +159,9 @@
     (case context
       :airport-fighter ((:launch-fighter-and-update ctx)
                         container-ops/launch-fighter-from-airport attn-coords clicked-coords)
-      :army-aboard (click-army-aboard attn-coords clicked-coords target-cell)
+      :army-aboard (click-army-aboard ctx attn-coords clicked-coords target-cell)
       (click-standard-unit attn-coords clicked-coords (:type active-unit)))
-    (game-loop/item-processed)))
+    (item-processed! ctx)))
 
 (defn handle-cell-click
   "Handles clicking on a map cell, prioritizing attention-needing items."

@@ -10,7 +10,6 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.game-loop :as game-loop]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
@@ -48,6 +47,11 @@
   (write-runtime-state! :error-message msg)
   (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
 
+(defn- item-processed!
+  []
+  (write-runtime-state! :waiting-for-input false)
+  (write-runtime-state! :cells-needing-attention []))
+
 (defn- coastal-cell?
   [coords]
   (map-utils/any-neighbor-matches? coords (current-world) map-utils/neighbor-offsets
@@ -60,7 +64,7 @@
       (set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
       (do
         (production/set-city-production coords item)
-        (game-loop/item-processed)))
+        (item-processed!)))
     true))
 
 (defn- handle-city-production-key [k coords cell]
@@ -69,10 +73,10 @@
              (not (movement/get-active-unit cell)))
     (cond
       (= k :space) (do (update-runtime-state! :player-items rest)
-                       (game-loop/item-processed)
+                       (item-processed!)
                        true)
       (= k :x) (do (update-runtime-state! :production assoc coords :none)
-                   (game-loop/item-processed)
+                   (item-processed!)
                    true)
       (config/key->production-item k) (try-set-production coords (config/key->production-item k)))))
 
@@ -117,16 +121,16 @@
     :disembark
     (do
       (container-ops/disembark-army-from-transport coords adjacent-target)
-      (game-loop/item-processed))
+      (item-processed!))
     :disembark-with-target
     (do
       (container-ops/disembark-army-with-target coords adjacent-target target)
-      (game-loop/item-processed))
+      (item-processed!))
     :conquest
     (do
       (container-ops/remove-army-from-transport coords)
       (combat/attempt-city-conquest adjacent-target)
-      (game-loop/item-processed))
+      (item-processed!))
     nil)
   true)
 
@@ -147,12 +151,12 @@
     (cond
       (and hostile? (= :army (:type active-unit)))
       (do (combat/attempt-conquest coords adjacent-target)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       (and hostile? (= :fighter (:type active-unit)))
       (do (combat/attempt-fighter-overfly coords adjacent-target)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       (and (not extended?) (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
@@ -161,7 +165,7 @@
 
       :else
       (do (movement/set-unit-movement coords target)
-          (game-loop/item-processed)
+          (item-processed!)
           true))))
 
 (defn- resolve-direction [k]

@@ -2,7 +2,8 @@
 (ns empire.game-loop
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.production-status :as production-status]
+            [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.computer.army :as army]
             [empire.computer.land-ho :as land-ho]
@@ -14,8 +15,7 @@
             [empire.movement.visibility :as visibility]
             [empire.player.production :as production]
             [empire.game-loop.round-setup :as round-setup]
-            [empire.game-loop.item-processing :as item-processing]
-            [empire.ui.util.rendering.format :as ru]))
+            [empire.game-loop.item-processing :as item-processing]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -145,8 +145,8 @@
   (write-runtime-state! :attention-message "")
   (write-runtime-state! :cells-needing-attention [])
   (write-runtime-state! :production-status
-                        (ru/format-production-status (current-world)
-                                                     (read-runtime-state :player-map))))
+                        (production-status/format-production-status (current-world)
+                                                                    (read-runtime-state :player-map))))
 
 (defn- both-lists-empty? []
   (and (empty? (read-runtime-state :player-items))

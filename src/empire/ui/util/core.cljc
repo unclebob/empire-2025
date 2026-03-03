@@ -1,5 +1,6 @@
 (ns empire.ui.util.core
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.coords :as app-coords]
+            [empire.application.runtime :as app-runtime]
             [empire.config :as config]))
 
 (defonce ^:private state-ctx
@@ -15,13 +16,9 @@
 
 (defn screen->cell
   "Converts screen pixel coordinates to map cell coordinates [row col].
-   Pure function - takes dimensions as parameters.
-   Note: Uses legacy formula where width is divided by rows and height by cols."
+   Pure function - takes dimensions as parameters."
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]
-  (let [cell-w (/ map-pixel-width map-rows)
-        cell-h (/ map-pixel-height map-cols)]
-    [(int (Math/floor (/ pixel-x cell-w)))
-     (int (Math/floor (/ pixel-y cell-h)))]))
+  (app-coords/screen->cell pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols))
 
 (defn compute-screen-dimensions
   "Computes pixel rendering dimensions from known map-size and fixed cell-size.

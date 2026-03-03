@@ -1,26 +1,43 @@
 ;; mutation-tested: no
 (ns empire.domain.world.containers
-  (:require [empire.config :as config]
-            [empire.containers.helpers :as uc]))
+  (:require [empire.config :as config]))
+
+(defn- wake-all
+  [entity count-key awake-key]
+  (assoc entity awake-key (get entity count-key 0)))
+
+(defn- sleep-all
+  [entity awake-key]
+  (assoc entity awake-key 0))
+
+(defn- remove-awake-unit
+  [entity count-key awake-key]
+  (-> entity
+      (update count-key (fnil dec 0))
+      (update awake-key (fnil dec 0))))
+
+(defn- has-awake?
+  [entity awake-key]
+  (pos? (get entity awake-key 0)))
 
 (defn wake-transport-armies
   [transport]
   (-> transport
-      (uc/wake-all :army-count :awake-armies)
+      (wake-all :army-count :awake-armies)
       (assoc :mode :sentry :steps-remaining 0)
       (dissoc :reason)))
 
 (defn sleep-transport-armies
   [transport]
   (-> transport
-      (uc/sleep-all :awake-armies)
+      (sleep-all :awake-armies)
       (assoc :mode :awake)
       (dissoc :reason)))
 
 (defn remove-awake-transport-army
   [transport]
-  (let [after-remove (uc/remove-awake-unit transport :army-count :awake-armies)
-        no-more-awake? (not (uc/has-awake? after-remove :awake-armies))]
+  (let [after-remove (remove-awake-unit transport :army-count :awake-armies)
+        no-more-awake? (not (has-awake? after-remove :awake-armies))]
     (cond-> after-remove
       no-more-awake? (assoc :mode :awake)
       no-more-awake? (dissoc :reason))))
@@ -55,14 +72,14 @@
 (defn wake-carrier-fighters
   [carrier]
   (-> carrier
-      (uc/wake-all :fighter-count :awake-fighters)
+      (wake-all :fighter-count :awake-fighters)
       (assoc :mode :sentry)
       (dissoc :reason)))
 
 (defn sleep-carrier-fighters
   [carrier]
   (-> carrier
-      (uc/sleep-all :awake-fighters)
+      (sleep-all :awake-fighters)
       (assoc :mode :awake)
       (dissoc :reason)))
 

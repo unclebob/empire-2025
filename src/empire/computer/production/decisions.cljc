@@ -3,7 +3,6 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.computer.production.stats :as stats]
-            [empire.player.production :as player-production]
             [empire.computer.ship :as ship]))
 
 (def ^:private state-ctx
@@ -153,4 +152,4 @@
   (let [current-production (get (read-runtime-state :production) pos)]
     (when (nil? current-production)
       (when-let [unit-type (decide-production pos)]
-        (player-production/set-city-production pos unit-type)))))
+        ((requiring-resolve 'empire.player.production/set-city-production) pos unit-type)))))

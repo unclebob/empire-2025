@@ -3,15 +3,47 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
-            [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
             [empire.domain.world.containers :as domain-containers]
-            [empire.movement.visibility :as visibility]
-            [empire.units.dispatcher :as dispatcher]
-            [empire.player.production :as production]))
+            [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
+
+(def ^:private map-neighbor-offsets-var
+  (delay
+    (try
+      (requiring-resolve 'empire.movement.map-utils/neighbor-offsets)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private map-any-neighbor-matches-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.movement.map-utils/any-neighbor-matches?)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private map-get-matching-neighbors-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.movement.map-utils/get-matching-neighbors)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private update-cell-visibility-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.movement.visibility/update-cell-visibility)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private stamp-unit-fields-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.player.production/stamp-unit-fields)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
 (defn- current-world
   []
@@ -20,6 +52,33 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- neighbor-offsets
+  []
+  (if-let [v @map-neighbor-offsets-var] @v []))
+
+(defn- any-neighbor-matches?
+  [coords world offsets pred]
+  (if-let [f @map-any-neighbor-matches-fn]
+    (f coords world offsets pred)
+    false))
+
+(defn- get-matching-neighbors
+  [coords world offsets pred]
+  (if-let [f @map-get-matching-neighbors-fn]
+    (f coords world offsets pred)
+    []))
+
+(defn- update-cell-visibility!
+  [coords owner]
+  (when-let [f @update-cell-visibility-fn]
+    (f coords owner)))
+
+(defn- stamp-unit-fields
+  [city unit]
+  (if-let [f @stamp-unit-fields-fn]
+    (f city unit)
+    unit))
 
 ;; Transport operations
 
@@ -40,8 +99,8 @@
   (let [world (current-world)
         transport (get-in world (conj transport-coords :contents))
         has-armies? (pos? (uc/get-count transport :army-count))
-        at-beach? (map-utils/any-neighbor-matches? transport-coords world map-utils/neighbor-offsets
-                                                   #(= :land (:type %)))]
+        at-beach? (any-neighbor-matches? transport-coords world (neighbor-offsets)
+                                         #(= :land (:type %)))]
     (when (and has-armies? at-beach? (= (:mode transport) :sentry))
       (update-game-map! update-in (conj transport-coords :contents)
                         #(assoc % :mode :awake :reason :transport-at-beach)))))
@@ -65,9 +124,10 @@
   [transport-coords]
   (let [unit (:contents (get-in (current-world) transport-coords))]
     (when (non-full-transport? unit)
-      (let [neighbors (map-utils/get-matching-neighbors
-                        transport-coords (current-world)
-                        map-utils/neighbor-offsets (constantly true))]
+      (let [neighbors (get-matching-neighbors transport-coords
+                                              (current-world)
+                                              (neighbor-offsets)
+                                              (constantly true))]
         (doseq [n neighbors]
           (try-load-from-neighbor transport-coords n))
         (wake-transport-if-needed transport-coords)))))
@@ -115,7 +175,7 @@
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)
     (update-game-map! assoc-in (conj target-coords :contents) disembarked-army)
-    (visibility/update-cell-visibility target-coords (:owner transport))
+    (update-cell-visibility! target-coords (:owner transport))
     target-coords))
 
 (defn disembark-army-with-target
@@ -130,7 +190,7 @@
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)
     (update-game-map! assoc-in (conj adjacent-coords :contents) moving-army)
-    (visibility/update-cell-visibility adjacent-coords (:owner transport))))
+    (update-cell-visibility! adjacent-coords (:owner transport))))
 
 (defn disembark-army-to-explore
   "Removes first awake army from transport and places it on target land cell in explore mode.
@@ -143,7 +203,7 @@
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)
     (update-game-map! assoc-in (conj target-coords :contents) exploring-army)
-    (visibility/update-cell-visibility target-coords (:owner transport))
+    (update-cell-visibility! target-coords (:owner transport))
     target-coords))
 
 ;; Carrier operations
@@ -188,7 +248,7 @@
     (update-game-map! assoc-in carrier-coords updated-cell)
     ;; Place fighter at first step position
     (update-game-map! assoc-in first-step (assoc target-cell :contents moving-fighter))
-    (visibility/update-cell-visibility first-step (:owner carrier))
+    (update-cell-visibility! first-step (:owner carrier))
     first-step))
 
 ;; Airport operations
@@ -227,10 +287,10 @@
                    :hits (:hits ship-data)
                    :mode :awake
                    :steps-remaining (dispatcher/effective-speed (:type ship-data) (:hits ship-data))}
-                  (production/stamp-unit-fields cell))
+                  (stamp-unit-fields cell))
          updated-city (uc/remove-ship-from-shipyard cell ship-index)]
      (update-game-map! assoc-in city-coords updated-city)
      (if (= launch-pos city-coords)
        (update-game-map! assoc-in city-coords (assoc updated-city :contents ship))
        (update-game-map! assoc-in (conj launch-pos :contents) ship))
-     (visibility/update-cell-visibility launch-pos owner))))
+     (update-cell-visibility! launch-pos owner))))

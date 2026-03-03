@@ -9,8 +9,7 @@
             [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
-            [empire.combat :as combat]
-            [empire.player.production :as production]))
+            [empire.combat :as combat]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -144,10 +143,11 @@
         (when (= :player (:city-status city-cell))
           (update-runtime-state! :player-map assoc-in city-pos (get-in (current-world) city-pos)))
         (let [city-country-id (:country-id (get-in (current-world) city-pos))
-              country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)]
+              country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)
+              set-city-production (requiring-resolve 'empire.player.production/set-city-production)]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
-            (production/set-city-production city-pos :army)))
+            (set-city-production city-pos :army)))
         (visibility/update-cell-visibility army-pos :computer)
         (visibility/update-cell-visibility city-pos :computer)
         nil)

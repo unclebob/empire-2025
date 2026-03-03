@@ -4,7 +4,6 @@
    Provides efficient pathfinding that respects terrain constraints."
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
-            [empire.computer.core :as core]
             [empire.movement.map-utils :as map-utils]))
 
 (def path-cache
@@ -23,9 +22,11 @@
   []
   (reset! path-cache {}))
 
-(def heuristic
+(defn heuristic
   "Manhattan distance heuristic for A*."
-  core/distance)
+  [[x1 y1] [x2 y2]]
+  (+ (Math/abs (- x2 x1))
+     (Math/abs (- y2 y1))))
 
 (defn- try-improve-neighbor
   "If new-g improves n's best known g, records the improvement in acc."

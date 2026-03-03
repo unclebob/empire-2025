@@ -1,9 +1,9 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.dump.output
   "Filename generation, dump writing, and drag-range conversion."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.debug.dump :as dump]
-            [empire.ui.util.core :as coords])
+  (:require [empire.application.coords :as coords]
+            [empire.application.runtime :as app-runtime]
+            [empire.debug.dump :as dump])
   #?(:clj (:import [java.time LocalDateTime]
                    [java.time.format DateTimeFormatter])))
 
