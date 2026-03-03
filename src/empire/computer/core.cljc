@@ -1,4 +1,4 @@
-;; mutation-tested: 2026-03-02
+;; mutation-tested: 2026-03-03
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
   (:require [empire.adapters.state.runtime :as runtime-state]

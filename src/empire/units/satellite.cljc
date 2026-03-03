@@ -1,7 +1,6 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.satellite
-  (:require [empire.atoms :as atoms]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]))
 
 (def ^:private state-ctx
@@ -10,6 +9,10 @@
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
 
 ;; Configuration
 (def speed 10)
@@ -83,15 +86,16 @@
   "Moves a satellite one step toward its target.
    When at target (on boundary), calculates new target on opposite boundary.
    Satellites without a target don't move - they wait for user input.
-   Returns new position."
+  Returns new position."
   [[x y]]
-  (let [cell (get-in @atoms/game-map [x y])
+  (let [world (current-world)
+        cell (get-in world [x y])
         satellite (:contents cell)
         target (:target satellite)]
     (if-not target
       [x y]
-      (let [map-height (count @atoms/game-map)
-            map-width (count (first @atoms/game-map))
+      (let [map-height (count world)
+            map-width (count (first world))
             [tx ty] target
             at-target? (and (= x tx) (= y ty))]
         (if at-target?
