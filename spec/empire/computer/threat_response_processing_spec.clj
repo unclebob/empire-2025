@@ -46,4 +46,34 @@
     (let [ctx {:current-world fighter-world}]
       (with-redefs [processing/fighter-step-threat (fn [& _] nil)
                     fm/fighter-speed 2]
-        (should (processing/process-fighter-threat ctx [0 0] {:threat-mission :fighter-sweep}))))))
+        (should (processing/process-fighter-threat ctx [0 0] {:threat-mission :fighter-sweep})))))
+
+  (it "returns true when major invasion mission is active"
+    (let [calls (atom 0)
+          ctx {:current-world fighter-world
+               :nearest-major-target (fn [_] [3 3])}]
+      (with-redefs [processing/fighter-step-threat (fn [& _] (swap! calls inc) nil)
+                    fm/fighter-speed 2]
+        (should (processing/process-fighter-threat
+                 ctx [0 0] {:major-invasion true :major-invasion-target [3 3]}))
+        (should= 1 @calls)))))
+
+(describe "move-hop-consume refuel range guard"
+  (it "blocks hop when resulting position would be out of refueling range"
+    (let [executed? (atom false)]
+      (with-redefs [fm/hop-over-friendly (constantly {:dest [3 0] :hops 2})
+                    fm/find-nearest-refueling-site (constantly [0 0])
+                    fm/execute-hop (fn [& _] (reset! executed? true) {:pos [3 0] :hops 2})
+                    fm/consume-fighter-fuel (constantly true)]
+        (should-be-nil (@#'processing/move-hop-consume [0 0] [4 0] 3))
+        (should-not @executed?))))
+
+  (it "allows hop when resulting position stays in refueling range"
+    (let [executed? (atom false)]
+      (with-redefs [fm/hop-over-friendly (constantly {:dest [2 0] :hops 2})
+                    fm/find-nearest-refueling-site (constantly [0 0])
+                    fm/execute-hop (fn [& _] (reset! executed? true) {:pos [2 0] :hops 2})
+                    fm/consume-fighter-fuel (constantly true)]
+        (should= {:pos [2 0] :steps-used 2}
+                 (@#'processing/move-hop-consume [0 0] [4 0] 5))
+        (should @executed?)))))

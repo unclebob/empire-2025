@@ -8,13 +8,28 @@
 
 (def ^:private patrol-yield-radius 4)
 (def ^:private patrol-max-invasion-distance 10)
+;; Keep at least one-turn margin after reaching nearest refueling site.
+(def ^:private fighter-refuel-safety-buffer 1)
+
+(defn- fighter-threat-active?
+  [unit]
+  (or (= :fighter-sweep (:threat-mission unit))
+      (:major-invasion unit)))
+
+(defn- can-stay-in-refuel-range?
+  [pos remaining-fuel]
+  (when (pos? remaining-fuel)
+    (when-let [site (fm/find-nearest-refueling-site pos)]
+      (>= remaining-fuel (+ (fm/distance-to pos site) fighter-refuel-safety-buffer)))))
 
 (defn- move-hop-consume
-  [pos target]
+  [pos target fuel]
   (when-let [hop (fm/hop-over-friendly pos target)]
-    (when-let [{:keys [pos hops]} (fm/execute-hop pos hop)]
-      (when (fm/consume-fighter-fuel pos)
-        {:pos pos :steps-used hops}))))
+    (let [remaining-fuel (- fuel (:hops hop))]
+      (when (can-stay-in-refuel-range? (:dest hop) remaining-fuel)
+        (when-let [{:keys [pos hops]} (fm/execute-hop pos hop)]
+          (when (fm/consume-fighter-fuel pos)
+            {:pos pos :steps-used hops}))))))
 
 (defn- attack-threat-step
   [pos enemy]
@@ -31,26 +46,32 @@
 
 (defn- refuel-threat-step
   [ctx pos]
-  (when-let [site (fm/find-nearest-refueling-site pos)]
+  (let [fuel (:fuel (get-in ((:current-world ctx)) (conj pos :contents)) config/fighter-fuel)]
+    (when-let [site (fm/find-nearest-refueling-site pos)]
     (if (<= (fm/distance-to pos site) 1)
       (refuel-at-adjacent-site ctx pos site)
-      (move-hop-consume pos site))))
+      (move-hop-consume pos site fuel)))))
 
 (defn- out-of-threat-radius?
   [pos center radius]
   (and center (> (core/distance pos center) radius)))
 
 (defn- patrol-threat-step
-  [pos center radius]
+  [pos center radius fuel]
   (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
-    (when (fm/consume-fighter-fuel pos)
-      (if (out-of-threat-radius? pos center radius)
-        (move-hop-consume pos center)
-        {:pos pos :steps-used hops}))))
+    (let [remaining-fuel (- fuel hops)]
+      (when (can-stay-in-refuel-range? pos remaining-fuel)
+        (when (fm/consume-fighter-fuel pos)
+          (if (out-of-threat-radius? pos center radius)
+            (move-hop-consume pos center remaining-fuel)
+            {:pos pos :steps-used hops}))))))
 
 (defn fighter-step-threat
   [ctx pos unit]
-  (let [center (:threat-center unit)
+  (let [center (or (:threat-center unit)
+                   (:major-invasion-target unit)
+                   (when-let [nearest-major-target (:nearest-major-target ctx)]
+                     (nearest-major-target pos)))
         radius (:threat-radius unit (:threat-radius ctx))
         fuel (:fuel unit config/fighter-fuel)
         enemy (fm/find-adjacent-enemy pos)]
@@ -62,16 +83,16 @@
       (refuel-threat-step ctx pos)
 
       (out-of-threat-radius? pos center radius)
-      (move-hop-consume pos center)
+      (move-hop-consume pos center fuel)
 
       :else
-      (patrol-threat-step pos center radius))))
+      (patrol-threat-step pos center radius fuel))))
 
 (defn process-fighter-threat
   "Overrides regular fighter logic while fighter-sweep threat mission is active.
    Returns true when handled."
   [ctx pos unit]
-  (when (= :fighter-sweep (:threat-mission unit))
+  (when (fighter-threat-active? unit)
     (loop [current pos
            remaining fm/fighter-speed]
       (when (pos? remaining)

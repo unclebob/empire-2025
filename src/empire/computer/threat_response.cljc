@@ -279,15 +279,17 @@
   (processing/fighter-step-threat
    {:current-world current-world
     :update-game-map! update-game-map!
+    :nearest-major-target nearest-major-target
     :threat-radius threat-radius}
    pos
    unit))
 
 (defn process-fighter-threat
-  "Overrides regular fighter logic while fighter-sweep threat mission is active.
+  "Overrides regular fighter logic while fighter-sweep or major-invasion mission is active.
    Returns true when handled."
   [pos unit]
-  (when (= :fighter-sweep (:threat-mission unit))
+  (when (or (= :fighter-sweep (:threat-mission unit))
+            (:major-invasion unit))
     (loop [current pos
            remaining fighter-movement/fighter-speed]
       (when (pos? remaining)

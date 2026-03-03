@@ -174,7 +174,9 @@
   (it "moves back toward threat center when outside radius"
     (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
                   empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] false)
-                  empire.computer.fighter-movement/hop-over-friendly (fn [_ _] [2 2])
+                  empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [0 0])
+                  empire.computer.fighter-movement/distance-to (fn [_ _] 1)
+                  empire.computer.fighter-movement/hop-over-friendly (fn [_ _] {:dest [2 2] :hops 2})
                   empire.computer.fighter-movement/execute-hop (fn [_ _] {:pos [2 2] :hops 2})
                   empire.computer.fighter-movement/consume-fighter-fuel (fn [_] true)]
       (should= {:pos [2 2] :steps-used 2}
@@ -184,10 +186,13 @@
   (it "patrols when in-radius and no higher-priority action applies"
     (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
                   empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] false)
+                  empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [0 0])
+                  empire.computer.fighter-movement/distance-to (fn [_ _] 1)
                   empire.computer.fighter-movement/do-patrol (fn [_] {:pos [0 1] :hops 1})
                   empire.computer.fighter-movement/consume-fighter-fuel (fn [_] true)]
       (should= {:pos [0 1] :steps-used 1}
-               (@#'threat-response/fighter-step-threat [0 0] {:threat-center [0 0]
+               (@#'threat-response/fighter-step-threat [0 0] {:fuel 10
+                                                               :threat-center [0 0]
                                                                :threat-radius 5})))))
 
 (describe "process-ship-threat"
@@ -322,7 +327,7 @@
 (describe "process-fighter-threat"
   (before (reset-all-atoms!))
 
-  (it "returns nil when unit is not on fighter-sweep mission"
+  (it "returns nil when unit is not on fighter-sweep or major-invasion mission"
     (should-be-nil (threat-response/process-fighter-threat [0 0] {:threat-mission :none})))
 
   (it "returns true and iterates while fighter-step-threat yields moves"
@@ -335,7 +340,18 @@
                         {:pos [0 0] :steps-used 2}
                         nil))]
         (should (threat-response/process-fighter-threat [0 0] {:threat-mission :fighter-sweep}))
-        (should= 2 @calls)))))
+        (should= 2 @calls))))
+
+  (it "returns true for major-invasion fighters"
+    (set-test-world! (build-test-map ["f"]))
+    (let [calls (atom 0)]
+      (with-redefs [empire.computer.threat-response/fighter-step-threat
+                    (fn [_ _]
+                      (swap! calls inc)
+                      nil)]
+        (should (threat-response/process-fighter-threat
+                 [0 0] {:major-invasion true :major-invasion-target [3 3]}))
+        (should= 1 @calls)))))
 
 (describe "prepare-transport!"
   (before (reset-all-atoms!))
