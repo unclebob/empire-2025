@@ -1,7 +1,7 @@
 (ns empire.computer.transport-invading-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.transport :as transport]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (defn make-map [height width cell-fn]
@@ -24,8 +24,8 @@
                              :army-count 4})
         (transport/process-transport [0 0])
         ;; Should have moved 2 steps to [0 2]
-        (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-        (let [transport (get-in @atoms/game-map [0 2 :contents])]
+        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (let [transport (get-in (test-utils/read-test-state :game-map) [0 2 :contents])]
           (should= :invading (:transport-mission transport))
           (should= [[0 3]] (:invasion-path transport))
           (should= [0 2] (:invasion-path-origin transport))))))
@@ -49,6 +49,6 @@
                              :army-count 4})
         (transport/process-transport [0 0])
         ;; Should have moved to [0 1] and transitioned to unloading
-        (let [transport (get-in @atoms/game-map [0 1 :contents])]
+        (let [transport (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
           (should= :unloading (:transport-mission transport))
           (should-be-nil (:invasion-path-origin transport)))))))

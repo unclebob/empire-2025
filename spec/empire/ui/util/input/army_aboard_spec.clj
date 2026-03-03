@@ -1,7 +1,7 @@
 (ns empire.ui.util.input.army-aboard-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.ui.util.input.actions :as actions]
-            [empire.atoms :as atoms]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.game-loop :as game-loop]
@@ -19,7 +19,7 @@
                       (fn [from to] (reset! disembarked {:from from :to to}))
                       game-loop/item-processed (fn [] (reset! processed true))]
           (#'actions/handle-army-aboard-movement [0 0] [1 0] [1 0] false
-                                                (get-in @atoms/game-map [1 0])))
+                                                (get-in (test-utils/read-test-state :game-map) [1 0])))
         (should= {:from [0 0] :to [1 0]} @disembarked)
         (should= true @processed))))
 
@@ -32,7 +32,7 @@
                       (fn [from adj tgt] (reset! disembarked {:from from :adj adj :tgt tgt}))
                       game-loop/item-processed (fn [] (reset! processed true))]
           (#'actions/handle-army-aboard-movement [0 0] [1 0] [5 0] true
-                                                (get-in @atoms/game-map [1 0])))
+                                                (get-in (test-utils/read-test-state :game-map) [1 0])))
         (should= {:from [0 0] :adj [1 0] :tgt [5 0]} @disembarked)
         (should= true @processed))))
 
@@ -48,7 +48,7 @@
                       (fn [coords] (reset! conquered coords))
                       game-loop/item-processed (fn [] (reset! processed true))]
           (#'actions/handle-army-aboard-movement [0 0] [1 0] [1 0] false
-                                                (get-in @atoms/game-map [1 0])))
+                                                (get-in (test-utils/read-test-state :game-map) [1 0])))
         (should= true @removed)
         (should= [1 0] @conquered)
         (should= true @processed))))
@@ -59,7 +59,7 @@
       (let [processed (atom false)]
         (with-redefs [game-loop/item-processed (fn [] (reset! processed true))]
           (let [result (#'actions/handle-army-aboard-movement [0 0] [1 0] [1 0] false
-                                                             (get-in @atoms/game-map [1 0]))]
+                                                             (get-in (test-utils/read-test-state :game-map) [1 0]))]
             (should= true result)
             (should= false @processed)))))))
 

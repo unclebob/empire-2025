@@ -2,7 +2,9 @@
 (ns empire.acceptance.harness
   "Acceptance harness adapter used by generated acceptance specs.
    Keeps scenario execution paths behind a stable API."
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
+            [empire.application.state :as app-state]
+            [empire.adapters.state.runtime :as runtime-state]
             [empire.computer.fighter :as computer-fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]
@@ -15,32 +17,52 @@
             [empire.ui.util.input.dispatch :as input]
             [quil.core :as q]))
 
-(def ^:private read-state-atoms
-  {:round-number atoms/round-number
-   :waiting-for-input atoms/waiting-for-input
-   :paused atoms/paused
-   :player-items atoms/player-items
-   :computer-items atoms/computer-items
-   :cells-needing-attention atoms/cells-needing-attention
-   :game-map atoms/game-map
-   :player-map atoms/player-map
-   :computer-map atoms/computer-map
-   :last-key atoms/last-key
-   :production atoms/production
-   :attention-message atoms/attention-message
-   :turn-message atoms/turn-message
-   :error-message atoms/error-message
-   :map-to-display atoms/map-to-display
-   :load-menu-open atoms/load-menu-open
-   :destination atoms/destination})
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
+
+(def ^:private readable-keys
+  #{:round-number
+    :waiting-for-input
+    :paused
+    :player-items
+    :computer-items
+    :cells-needing-attention
+    :game-map
+    :player-map
+    :computer-map
+    :last-key
+    :production
+    :attention-message
+    :turn-message
+    :error-message
+    :map-to-display
+    :load-menu-open
+    :destination})
 
 (defn read-state
   [k]
-  (some-> (get read-state-atoms k) deref))
+  (when (contains? readable-keys k)
+    (if (= k :game-map)
+      ((:load-world @state-ctx))
+      (read-runtime-state k))))
 
 (defn set-last-key!
   [v]
-  (reset! atoms/last-key v))
+  (write-runtime-state! :last-key v))
 
 (defn build-test-map
   [rows]
@@ -80,7 +102,7 @@
 
 (defn set-unit!
   [unit-spec & kvs]
-  (apply test-utils/set-test-unit atoms/game-map unit-spec kvs))
+  (apply test-utils/set-test-unit (runtime-state/game-map-atom) unit-spec kvs))
 
 (defn get-unit
   [unit-spec & {:as filters}]
@@ -115,40 +137,39 @@
                             (= :computer (:owner (:contents cell))))]
              true))))
 
-(def ^:private set-state-atoms
-  {:round-number atoms/round-number
-   :waiting-for-input atoms/waiting-for-input
-   :paused atoms/paused
-   :player-items atoms/player-items
-   :computer-items atoms/computer-items
-   :cells-needing-attention atoms/cells-needing-attention
-   :game-map atoms/game-map
-   :player-map atoms/player-map
-   :computer-map atoms/computer-map
-   :last-key atoms/last-key
-   :map-screen-dimensions atoms/map-screen-dimensions
-   :production atoms/production
-   :destination atoms/destination
-   :game-over-check-enabled atoms/game-over-check-enabled
-   :pause-requested atoms/pause-requested
-   :map-to-display atoms/map-to-display
-   :load-menu-open atoms/load-menu-open})
+(def ^:private writable-keys
+  #{:round-number
+    :waiting-for-input
+    :paused
+    :player-items
+    :computer-items
+    :cells-needing-attention
+    :game-map
+    :player-map
+    :computer-map
+    :last-key
+    :map-screen-dimensions
+    :production
+    :destination
+    :game-over-check-enabled
+    :pause-requested
+    :map-to-display
+    :load-menu-open})
 
 (defn set-state!
   [k v]
-  (if-let [target-atom (get set-state-atoms k)]
-    (reset! target-atom v)
+  (if (contains? writable-keys k)
+    (if (= k :game-map)
+      (app-state/set-world! @state-ctx v)
+      (write-runtime-state! k v))
     (throw (ex-info (str "Unsupported harness set-state! key: " k) {:key k}))))
 
 (defn update-state!
   [k f & args]
-  (if-let [target-atom (get {:production atoms/production
-                             :player-map atoms/player-map
-                             :computer-map atoms/computer-map
-                             :player-items atoms/player-items
-                             :game-map atoms/game-map}
-                            k)]
-    (apply swap! target-atom f args)
+  (if (contains? #{:production :player-map :computer-map :player-items :game-map} k)
+    (if (= k :game-map)
+      (apply app-state/update-world! @state-ctx f args)
+      (apply update-runtime-state! k f args))
     (throw (ex-info (str "Unsupported harness update-state! key: " k) {:key k}))))
 
 (defn handle-key!

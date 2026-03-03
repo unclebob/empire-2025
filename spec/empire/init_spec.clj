@@ -1,6 +1,5 @@
 (ns empire.init-spec
-  (:require
-    [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
     [empire.init :refer :all]
     [empire.test-utils :refer [reset-all-atoms!]]
     [empire.config :as config]
@@ -29,7 +28,7 @@
   (with min-distance 4)
   (with initial-map (do
                       (make-initial-map @map-size @smooth-count @land-fraction @num-cities @min-distance)
-                      @atoms/game-map))
+                      (test-utils/read-test-state :game-map)))
 
   (it "creates a map with correct dimensions"
     (should= 10 (count @initial-map))
@@ -73,20 +72,20 @@
     (let [game-map @initial-map
           computer-city-pos (find-city-position game-map :computer)]
       (when computer-city-pos
-        (should= 2 @atoms/next-country-id))))
+        (should= 2 (test-utils/read-test-state :next-country-id)))))
 
   (it "sets army production on computer starting city"
     (let [game-map @initial-map
           computer-city-pos (find-city-position game-map :computer)]
       (when computer-city-pos
-        (let [prod (get @atoms/production computer-city-pos)]
+        (let [prod (get (test-utils/read-test-state :production) computer-city-pos)]
           (should-not-be-nil prod)
           (should= :army (:item prod))
           (should= (config/item-cost :army) (:remaining-rounds prod))))))
 
   (it "computes lake-max-cells as 10% of map area at game start"
     @initial-map
-    (should= 10 @atoms/lake-max-cells))
+    (should= 10 (test-utils/read-test-state :lake-max-cells)))
 
   (it "places cities with minimum distance"
     (let [city-positions (for [i (range (count @initial-map))

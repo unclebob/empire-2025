@@ -1,6 +1,9 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.atoms
-  (:require [empire.atoms.runtime :as runtime]))
+  (:require [empire.atoms.runtime :as runtime]
+            [empire.domain.world.continents :as continents]
+            [empire.domain.world.messages :as messages]
+            [empire.domain.world.refueling :as refueling]))
 
 (def random-seed
   "Random seed for reproducible map generation, or nil for random."
@@ -86,7 +89,7 @@
   "Sets a flashing error message (row 3) that displays for the specified milliseconds."
   [msg ms]
   (reset! error-message msg)
-  (reset! error-until (+ (System/currentTimeMillis) ms)))
+  (reset! error-until (messages/expires-at (System/currentTimeMillis) ms)))
 
 (defn set-turn-message
   "Sets a turn message (row 2) that persists for the specified milliseconds.
@@ -95,7 +98,7 @@
   (reset! turn-message msg)
   (reset! turn-message-until (if (= ms Long/MAX_VALUE)
                                Long/MAX_VALUE
-                               (+ (System/currentTimeMillis) ms))))
+                               (messages/expires-at (System/currentTimeMillis) ms))))
 
 (def production-status
   "Formatted string showing player unit counts and exploration %."
@@ -145,25 +148,12 @@
 (defn on-same-continent?
   "Returns true if two country-ids are on the same landmass."
   [cid1 cid2]
-  (or (= cid1 cid2)
-      (and cid1 cid2
-           (let [groups @continent-groups]
-             (= (get groups cid1 cid1) (get groups cid2 cid2))))))
+  (continents/on-same-continent? @continent-groups cid1 cid2))
 
 (defn merge-continents!
   "Records that two country-ids share a landmass."
   [cid1 cid2]
-  (when (and cid1 cid2 (not= cid1 cid2))
-    (swap! continent-groups
-           (fn [groups]
-             (let [g1 (get groups cid1 cid1)
-                   g2 (get groups cid2 cid2)]
-               (if (= g1 g2)
-                 groups
-                 (reduce-kv (fn [m k v]
-                              (if (= v g2) (assoc m k g1) m))
-                            (assoc groups cid1 g1 cid2 g1)
-                            groups)))))))
+  (swap! continent-groups continents/merge-continents cid1 cid2))
 
 (def next-unload-event-id
   "An atom containing the next unique ID for transport unload cycles."
@@ -193,25 +183,18 @@
 (def computer-carrier-positions runtime/computer-carrier-positions)
 
 (defn computer-city-cell? [cell]
-  (and (= :city (:type cell)) (= :computer (:city-status cell))))
+  (refueling/computer-city-cell? cell))
 
 (defn computer-carrier-cell? [cell]
-  (and (= :carrier (get-in cell [:contents :type]))
-       (= :computer (get-in cell [:contents :owner]))))
+  (refueling/computer-carrier-cell? cell))
 
 (defn rebuild-refueling-caches!
   "Scans game-map once to populate computer-city-positions and computer-carrier-positions."
   []
-  (let [gm @game-map
-        cities (transient #{})
-        carriers (transient #{})]
-    (doseq [i (range (count gm))
-            j (range (count (first gm)))
-            :let [cell (get-in gm [i j])]]
-      (when (computer-city-cell? cell) (conj! cities [i j]))
-      (when (computer-carrier-cell? cell) (conj! carriers [i j])))
-    (reset! computer-city-positions (persistent! cities))
-    (reset! computer-carrier-positions (persistent! carriers))))
+  (let [{:keys [cities carriers]}
+        (refueling/scan-refueling-positions @game-map)]
+    (reset! computer-city-positions cities)
+    (reset! computer-carrier-positions carriers)))
 
 (def country-stats runtime/country-stats)
 (def coastal-cells-by-country runtime/coastal-cells-by-country)

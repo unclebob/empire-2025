@@ -1,8 +1,8 @@
 (ns empire.computer.land-ho-integration-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.movement.visibility :as visibility]
             [empire.computer.land-ho :as land-ho]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (defn make-map [height width cell-fn]
@@ -42,13 +42,13 @@
       (visibility/update-cell-visibility [1 1] :computer)
 
       ;; City should be in land-ho-targets
-      (should-contain [2 1] @atoms/land-ho-targets)
+      (should-contain [2 1] (test-utils/read-test-state :land-ho-targets))
 
       ;; Step 2: Round-start assignment
       (land-ho/assign-land-ho-invasion)
 
       ;; Target consumed, transport assigned
-      (should= [] @atoms/land-ho-targets)
-      (let [t (get-in @atoms/game-map [0 3 :contents])]
+      (should= [] (test-utils/read-test-state :land-ho-targets))
+      (let [t (get-in (test-utils/read-test-state :game-map) [0 3 :contents])]
         (should= :invading (:transport-mission t))
         (should= [2 1] (:invasion-target t))))))

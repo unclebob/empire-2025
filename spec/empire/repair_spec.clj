@@ -1,8 +1,8 @@
 (ns empire.repair-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]
-            [empire.atoms :as atoms]
             [empire.test-utils :as tu]
             [empire.movement.movement :as movement]
             [empire.game-loop :as game-loop]
@@ -131,12 +131,12 @@
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (tu/set-test-unit atoms/game-map "D" :hits 2 :mode :moving :target [1 1])
+      (tu/set-test-unit (test-utils/game-map-atom) "D" :hits 2 :mode :moving :target [1 1])
       (let [result (movement/move-unit [1 0] [1 1]
-                                       (get-in @atoms/game-map [1 0])
-                                       atoms/game-map)
-            city (get-in @atoms/game-map [1 1])
-            origin (get-in @atoms/game-map [1 0])]
+                                       (get-in (test-utils/read-test-state :game-map) [1 0])
+                                       (test-utils/game-map-atom))
+            city (get-in (test-utils/read-test-state :game-map) [1 1])
+            origin (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= :docked (:result result))
         (should= [1 1] (:pos result))
         (should= [{:type :destroyer :hits 2}] (:shipyard city))
@@ -148,13 +148,13 @@
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (tu/set-test-unit atoms/game-map "D" :hits 2 :mode :moving :target [1 1])
+      (tu/set-test-unit (test-utils/game-map-atom) "D" :hits 2 :mode :moving :target [1 1])
       (tu/update-test-world! assoc-in [1 1 :contents]
              {:type :army :mode :moving :target [2 1] :hits 1 :owner :player})
       (let [result (movement/move-unit [1 0] [1 1]
-                                       (get-in @atoms/game-map [1 0])
-                                       atoms/game-map)
-            city (get-in @atoms/game-map [1 1])]
+                                       (get-in (test-utils/read-test-state :game-map) [1 0])
+                                       (test-utils/game-map-atom))
+            city (get-in (test-utils/read-test-state :game-map) [1 1])]
         (should= :docked (:result result))
         (should= [{:type :destroyer :hits 2}] (:shipyard city))
         (should= :army (:type (:contents city))))))
@@ -164,10 +164,10 @@
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (tu/set-test-unit atoms/game-map "D" :hits 3 :mode :moving :target [1 1])
+      (tu/set-test-unit (test-utils/game-map-atom) "D" :hits 3 :mode :moving :target [1 1])
       (let [result (movement/move-unit [1 0] [1 1]
-                                       (get-in @atoms/game-map [1 0])
-                                       atoms/game-map)]
+                                       (get-in (test-utils/read-test-state :game-map) [1 0])
+                                       (test-utils/game-map-atom))]
         ;; Should wake up, not dock
         (should= :woke (:result result)))))
 
@@ -176,24 +176,24 @@
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (reset! atoms/turn-message "")
-      (tu/set-test-unit atoms/game-map "D" :hits 2 :mode :moving :target [1 1])
+      (test-utils/set-test-state! :turn-message "")
+      (tu/set-test-unit (test-utils/game-map-atom) "D" :hits 2 :mode :moving :target [1 1])
       (movement/move-unit [1 0] [1 1]
-                          (get-in @atoms/game-map [1 0])
-                          atoms/game-map)
-      (should= "Destroyer docked for repair. 2/3 hits remain." @atoms/turn-message)))
+                          (get-in (test-utils/read-test-state :game-map) [1 0])
+                          (test-utils/game-map-atom))
+      (should= "Destroyer docked for repair. 2/3 hits remain." (test-utils/read-test-state :turn-message))))
 
   (it "displays dock message for battleship"
     (let [game-map (tu/build-test-map ["~B~"
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (reset! atoms/turn-message "")
-      (tu/set-test-unit atoms/game-map "B" :hits 5 :mode :moving :target [1 1])
+      (test-utils/set-test-state! :turn-message "")
+      (tu/set-test-unit (test-utils/game-map-atom) "B" :hits 5 :mode :moving :target [1 1])
       (movement/move-unit [1 0] [1 1]
-                          (get-in @atoms/game-map [1 0])
-                          atoms/game-map)
-      (should= "Battleship docked for repair. 5/10 hits remain." @atoms/turn-message))))
+                          (get-in (test-utils/read-test-state :game-map) [1 0])
+                          (test-utils/game-map-atom))
+      (should= "Battleship docked for repair. 5/10 hits remain." (test-utils/read-test-state :turn-message)))))
 
 (describe "repair-damaged-ships"
   (before
@@ -204,7 +204,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 1}])
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= [{:type :destroyer :hits 2}] (:shipyard city)))))
 
   (it "caps repair at max hits"
@@ -212,7 +212,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 3}])
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         ;; Ship should be launched when fully repaired
         (should= [] (:shipyard city)))))
 
@@ -221,7 +221,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 3}])
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])
             ship (:contents city)]
         (should= [] (:shipyard city))
         (should= :destroyer (:type ship))
@@ -236,7 +236,7 @@
              [{:type :destroyer :hits 1}
               {:type :battleship :hits 5}])
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= [{:type :destroyer :hits 2}
                   {:type :battleship :hits 6}]
                  (:shipyard city)))))
@@ -246,7 +246,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 1}])
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         ;; Should not repair in free city
         (should= [{:type :destroyer :hits 1}] (:shipyard city)))))
 
@@ -255,7 +255,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 1}])
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         ;; Computer ships should be repaired at computer cities
         (should= [{:type :destroyer :hits 2}] (:shipyard city)))))
 
@@ -269,15 +269,15 @@
       (tu/update-test-world! assoc-in [1 0 :contents]
              {:type :submarine :owner :player :hits 2 :mode :sentry})
       (game-loop/repair-damaged-ships)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         ;; Destroyer should launch to adjacent sea since city is occupied
         (should= [{:type :battleship :hits 6}]
                  (:shipyard city))
         ;; Original ship still on city
         (should= :submarine (:type (:contents city)))
         ;; Destroyer should be on adjacent sea cell
-        (let [sea0 (get-in @atoms/game-map [0 0])
-              sea2 (get-in @atoms/game-map [2 0])]
+        (let [sea0 (get-in (test-utils/read-test-state :game-map) [0 0])
+              sea2 (get-in (test-utils/read-test-state :game-map) [2 0])]
           (should (or (= :destroyer (:type (:contents sea0)))
                       (= :destroyer (:type (:contents sea2))))))))))
 
@@ -290,7 +290,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 3}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [city (get-in @atoms/game-map [1 0])
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])
             ship (:contents city)]
         (should= [] (:shipyard city))
         (should= :destroyer (:type ship))
@@ -304,7 +304,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :battleship :hits 10}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :computer (:owner ship)))))
 
   (it "sets scaled speed for partially repaired ship"
@@ -313,7 +313,7 @@
       ;; Battleship at 5/10 hits, speed=2 -> effective speed 1
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :battleship :hits 5}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= 1 (:steps-remaining ship)))))
 
   (it "stamps carrier fields on computer carrier"
@@ -321,7 +321,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :carrier :hits 8}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :carrier (:type ship))
         (should= :computer (:owner ship))
         (should= :positioning (:carrier-mode ship))
@@ -334,7 +334,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 3}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :destroyer (:type ship))
         (should= :computer (:owner ship))
         (should (integer? (:destroyer-id ship)))
@@ -345,7 +345,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :battleship :hits 10}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :battleship (:type ship))
         (should= :computer (:owner ship))
         (should (integer? (:escort-id ship)))
@@ -356,7 +356,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :transport :hits 3}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :transport (:type ship))
         (should= :computer (:owner ship))
         (should= :loading (:transport-mission ship))
@@ -368,7 +368,7 @@
       (tu/update-test-world! assoc-in [1 0 :country-id] 5)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :patrol-boat :hits 2}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :patrol-boat (:type ship))
         (should= :computer (:owner ship))
         (should= :crawling (:patrol-mode ship)))))
@@ -378,7 +378,7 @@
       (tu/set-test-world! game-map)
       (tu/update-test-world! assoc-in [1 0 :shipyard] [{:type :carrier :hits 8}])
       (container-ops/launch-ship-from-shipyard [1 0] 0)
-      (let [ship (get-in @atoms/game-map [1 0 :contents])]
+      (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :carrier (:type ship))
         (should= :player (:owner ship))
         (should-be-nil (:carrier-mode ship))

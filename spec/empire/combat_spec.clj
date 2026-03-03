@@ -1,7 +1,7 @@
 (ns empire.combat-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.combat :as combat]
-            [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-computer-map!
                                        set-test-world! update-test-world!]]
@@ -17,17 +17,17 @@
   (context "hostile-city?"
     (it "returns true for free city"
       (set-test-world! (build-test-map ["+"]))
-      (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
+      (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
         (should (combat/hostile-city? city-coords))))
 
     (it "returns true for computer city"
       (set-test-world! (build-test-map ["X"]))
-      (let [city-coords (:pos (get-test-city atoms/game-map "X"))]
+      (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "X"))]
         (should (combat/hostile-city? city-coords))))
 
     (it "returns false for player city"
       (set-test-world! (build-test-map ["O"]))
-      (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+      (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
         (should-not (combat/hostile-city? city-coords))))
 
     (it "returns false for non-city cells"
@@ -223,240 +223,240 @@
   (context "attempt-attack"
     (it "returns false when target has no unit"
       (set-test-world! (build-test-map ["A#"]))
-      (set-test-unit atoms/game-map "A" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
       (should= false (combat/attempt-attack [0 0] [1 0])))
 
     (it "returns false when target unit is friendly"
       (set-test-world! (build-test-map ["AA"]))
-      (set-test-unit atoms/game-map "A1" :hits 1)
-      (set-test-unit atoms/game-map "A2" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "A1" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "A2" :hits 1)
       (should= false (combat/attempt-attack [0 0] [1 0])))
 
     (it "returns false when defender is a satellite"
       (set-test-world! (build-test-map ["Av"]))
-      (set-test-unit atoms/game-map "A" :hits 1)
-      (set-test-unit atoms/game-map "v" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "v" :hits 1)
       (should= false (combat/attempt-attack [0 0] [1 0])))
 
     (it "returns false when attacker is a satellite"
       (set-test-world! (build-test-map ["Va"]))
-      (set-test-unit atoms/game-map "V" :hits 1)
-      (set-test-unit atoms/game-map "a" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "V" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       (should= false (combat/attempt-attack [0 0] [1 0])))
 
     (it "returns true when attacking enemy unit"
       (set-test-world! (build-test-map ["Aa"]))
-      (set-test-unit atoms/game-map "A" :hits 1)
-      (set-test-unit atoms/game-map "a" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       (with-redefs [rand (constantly 0.4)]
         (should= true (combat/attempt-attack [0 0] [1 0]))))
 
     (it "attacker wins and occupies cell when victorious"
       (set-test-world! (build-test-map ["Da"]))
-      (set-test-unit atoms/game-map "D" :hits 3)
-      (set-test-unit atoms/game-map "a" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       (with-redefs [rand (constantly 0.4)]
         (combat/attempt-attack [0 0] [1 0])
-        (should= nil (:contents (get-in @atoms/game-map [0 0])))
-        (should= :destroyer (:type (:contents (get-in @atoms/game-map [1 0]))))
-        (should= :player (:owner (:contents (get-in @atoms/game-map [1 0]))))))
+        (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should= :destroyer (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))
+        (should= :player (:owner (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
     (it "attacker loses and defender remains"
       (set-test-world! (build-test-map ["aD"]))
-      (set-test-unit atoms/game-map "a" :hits 1)
-      (set-test-unit atoms/game-map "D" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
       (with-redefs [rand (constantly 0.6)]
         (combat/attempt-attack [0 0] [1 0])
-        (should= nil (:contents (get-in @atoms/game-map [0 0])))
-        (should= :destroyer (:type (:contents (get-in @atoms/game-map [1 0]))))
-        (should= :player (:owner (:contents (get-in @atoms/game-map [1 0]))))))
+        (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should= :destroyer (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))
+        (should= :player (:owner (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
     (it "removes attacker from original cell even when losing"
       (set-test-world! (build-test-map ["Tb"]))
-      (set-test-unit atoms/game-map "T" :hits 1)
-      (set-test-unit atoms/game-map "b" :hits 10)
+      (set-test-unit (test-utils/game-map-atom) "T" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "b" :hits 10)
       (with-redefs [rand (constantly 0.6)]
         (combat/attempt-attack [0 0] [1 0])
-        (should= nil (:contents (get-in @atoms/game-map [0 0])))))
+        (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))))
 
     (it "survivor has reduced hits after combat"
       (set-test-world! (build-test-map ["Dd"]))
-      (set-test-unit atoms/game-map "D" :hits 3)
-      (set-test-unit atoms/game-map "d" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
       ;; Rolls: 0.4 (D hits d:2), 0.6 (d hits D:2), 0.4 (D hits d:1), 0.4 (D hits d:0)
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
-          (let [survivor (:contents (get-in @atoms/game-map [1 0]))]
+          (let [survivor (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
             (should= :destroyer (:type survivor))
             (should= :player (:owner survivor))
             (should= 2 (:hits survivor))))))
 
     (it "displays combat log when attacker wins"
       (set-test-world! (build-test-map ["Da"]))
-      (set-test-unit atoms/game-map "D" :hits 3)
-      (set-test-unit atoms/game-map "a" :hits 1)
-      (reset! atoms/turn-message "")
+      (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
+      (test-utils/set-test-state! :turn-message "")
       (with-redefs [rand (constantly 0.4)]
         (combat/attempt-attack [0 0] [1 0])
         (should= "Battle: a-1. Army destroyed. Damage: Destroyer lost 0, Army lost 1."
-                 @atoms/turn-message)))
+                 (test-utils/read-test-state :turn-message))))
 
     (it "displays combat log when attacker loses"
       (set-test-world! (build-test-map ["Ad"]))
-      (set-test-unit atoms/game-map "A" :hits 1)
-      (set-test-unit atoms/game-map "d" :hits 3)
-      (reset! atoms/turn-message "")
+      (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
+      (test-utils/set-test-state! :turn-message "")
       (with-redefs [rand (constantly 0.6)]
         (combat/attempt-attack [0 0] [1 0])
         (should= "Battle: A-1. Army destroyed. Damage: Army lost 1, Destroyer lost 0."
-                 @atoms/turn-message)))
+                 (test-utils/read-test-state :turn-message))))
 
     (it "displays combat log with multiple exchanges"
       (set-test-world! (build-test-map ["Dd"]))
-      (set-test-unit atoms/game-map "D" :hits 3)
-      (set-test-unit atoms/game-map "d" :hits 3)
-      (reset! atoms/turn-message "")
+      (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
+      (test-utils/set-test-state! :turn-message "")
       ;; Rolls: 0.4 (D hits d:2), 0.6 (d hits D:2), 0.4 (D hits d:1), 0.4 (D hits d:0)
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
           (should= "Battle: d-1,D-1,d-1,d-1. Destroyer destroyed. Damage: Destroyer lost 1, Destroyer lost 3."
-                   @atoms/turn-message))))
+                   (test-utils/read-test-state :turn-message)))))
 
     (it "displays combat log for submarine vs carrier"
       (set-test-world! (build-test-map ["Sc"]))
-      (set-test-unit atoms/game-map "S" :hits 2)
-      (set-test-unit atoms/game-map "c" :hits 8)
-      (reset! atoms/turn-message "")
+      (set-test-unit (test-utils/game-map-atom) "S" :hits 2)
+      (set-test-unit (test-utils/game-map-atom) "c" :hits 8)
+      (test-utils/set-test-state! :turn-message "")
       ;; Rolls: 0.6 (c hits S:1), 0.6 (c hits S:0)
       (let [rolls (atom [0.6 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
           (should= "Battle: S-1,S-1. Submarine destroyed. Damage: Submarine lost 2, Carrier lost 0."
-                   @atoms/turn-message))))
+                   (test-utils/read-test-state :turn-message)))))
 
     (it "displays combat log for submarine defeating carrier"
       (set-test-world! (build-test-map ["Sc"]))
-      (set-test-unit atoms/game-map "S" :hits 2)
-      (set-test-unit atoms/game-map "c" :hits 8)
-      (reset! atoms/turn-message "")
+      (set-test-unit (test-utils/game-map-atom) "S" :hits 2)
+      (set-test-unit (test-utils/game-map-atom) "c" :hits 8)
+      (test-utils/set-test-state! :turn-message "")
       ;; Rolls: 0.4 (S hits c:5), 0.6 (c hits S:1), 0.4 (S hits c:2), 0.4 (S hits c:0)
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
           (should= "Battle: c-3,S-1,c-3,c-3. Carrier destroyed. Damage: Submarine lost 1, Carrier lost 9."
-                   @atoms/turn-message)))))
+                   (test-utils/read-test-state :turn-message))))))
 
   (context "attempt-conquest"
     (it "removes army from original cell on success"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["A+"]))
-        (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
-              city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
+              city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-conquest army-coords city-coords)
-          (should= nil (:contents (get-in @atoms/game-map army-coords))))))
+          (should= nil (:contents (get-in (test-utils/read-test-state :game-map) army-coords))))))
 
     (it "converts city to player on success"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["A+"]))
-        (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
-              city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
+              city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-conquest army-coords city-coords)
-          (should= :player (:city-status (get-in @atoms/game-map city-coords))))))
+          (should= :player (:city-status (get-in (test-utils/read-test-state :game-map) city-coords))))))
 
     (it "removes army from original cell on failure"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["A+"]))
-        (reset! atoms/error-message "")
-        (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
-              city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (test-utils/set-test-state! :error-message "")
+        (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
+              city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-conquest army-coords city-coords)
-          (should= nil (:contents (get-in @atoms/game-map army-coords))))))
+          (should= nil (:contents (get-in (test-utils/read-test-state :game-map) army-coords))))))
 
     (it "keeps city status on failure"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["A+"]))
-        (reset! atoms/error-message "")
-        (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
-              city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (test-utils/set-test-state! :error-message "")
+        (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
+              city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-conquest army-coords city-coords)
-          (should= :free (:city-status (get-in @atoms/game-map city-coords))))))
+          (should= :free (:city-status (get-in (test-utils/read-test-state :game-map) city-coords))))))
 
     (it "sets failure message on failed conquest"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["A+"]))
-        (reset! atoms/error-message "")
-        (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
-              city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (test-utils/set-test-state! :error-message "")
+        (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
+              city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-conquest army-coords city-coords)
-          (should= (:conquest-failed config/messages) @atoms/error-message))))
+          (should= (:conquest-failed config/messages) (test-utils/read-test-state :error-message)))))
 
     (it "returns true regardless of outcome"
       (with-redefs [rand (constantly 0.5)]
         (set-test-world! (build-test-map ["A+"]))
-        (let [army-coords (:pos (get-test-unit atoms/game-map "A"))
-              city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
+              city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (should (combat/attempt-conquest army-coords city-coords))))))
 
   (context "attempt-city-conquest"
     (it "converts city to player on successful roll"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["+"]))
-        (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-city-conquest city-coords)
-          (should= :player (:city-status (get-in @atoms/game-map city-coords))))))
+          (should= :player (:city-status (get-in (test-utils/read-test-state :game-map) city-coords))))))
 
     (it "returns true on successful roll"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["+"]))
-        (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (should (combat/attempt-city-conquest city-coords)))))
 
     (it "does not convert city on failed roll"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["+"]))
-        (reset! atoms/error-message "")
-        (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (test-utils/set-test-state! :error-message "")
+        (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-city-conquest city-coords)
-          (should= :free (:city-status (get-in @atoms/game-map city-coords))))))
+          (should= :free (:city-status (get-in (test-utils/read-test-state :game-map) city-coords))))))
 
     (it "sets failure message on failed roll"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["+"]))
-        (reset! atoms/error-message "")
-        (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (test-utils/set-test-state! :error-message "")
+        (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/attempt-city-conquest city-coords)
-          (should= (:conquest-failed config/messages) @atoms/error-message))))
+          (should= (:conquest-failed config/messages) (test-utils/read-test-state :error-message)))))
 
     (it "returns true on failed roll"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["+"]))
-        (reset! atoms/error-message "")
-        (let [city-coords (:pos (get-test-city atoms/game-map "+"))]
+        (test-utils/set-test-state! :error-message "")
+        (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (should (combat/attempt-city-conquest city-coords)))))
 
     (it "calls conquer-city-contents on success"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["X"]))
-        (swap! atoms/production assoc [0 0] {:item :fighter :remaining-rounds 5})
+        (test-utils/update-test-state! :production assoc [0 0] {:item :fighter :remaining-rounds 5})
         (combat/attempt-city-conquest [0 0])
-        (should= :player (get-in @atoms/game-map [0 0 :city-status]))
-        (should-be-nil (get @atoms/production [0 0]))))
+        (should= :player (get-in (test-utils/read-test-state :game-map) [0 0 :city-status]))
+        (should-be-nil (get (test-utils/read-test-state :production) [0 0]))))
 
     (it "updates computer-map city-status on successful conquest"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["X"]))
         (set-test-computer-map! (build-test-map ["X"]))
         (combat/attempt-city-conquest [0 0])
-        (should= :player (get-in @atoms/computer-map [0 0 :city-status])))))
+        (should= :player (get-in (test-utils/read-test-state :computer-map) [0 0 :city-status])))))
 
   (context "attempt-fighter-overfly"
     (it "returns true"
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
-      (reset! atoms/error-message "")
+      (test-utils/set-test-state! :error-message "")
       (should (combat/attempt-fighter-overfly [0 0] [1 0])))
 
     (it "places shot-down fighter on city with 0 hits and 0 steps-remaining"
@@ -464,9 +464,9 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (reset! atoms/error-message "")
+      (test-utils/set-test-state! :error-message "")
       (combat/attempt-fighter-overfly [0 0] [1 0])
-      (let [shot-down (:contents (get-in @atoms/game-map [1 0]))]
+      (let [shot-down (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
         (should= :fighter (:type shot-down))
         (should= 0 (:hits shot-down))
         (should= 0 (:steps-remaining shot-down))
@@ -477,35 +477,35 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (reset! atoms/error-message "")
+      (test-utils/set-test-state! :error-message "")
       (combat/attempt-fighter-overfly [0 0] [1 0])
-      (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
     (it "sets :reason to :fighter-shot-down on shot-down fighter"
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (reset! atoms/error-message "")
+      (test-utils/set-test-state! :error-message "")
       (combat/attempt-fighter-overfly [0 0] [1 0])
-      (should= :fighter-shot-down (:reason (:contents (get-in @atoms/game-map [1 0])))))
+      (should= :fighter-shot-down (:reason (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
     (it "sets error message to fighter-destroyed-by-city"
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
-      (reset! atoms/error-message "")
+      (test-utils/set-test-state! :error-message "")
       (combat/attempt-fighter-overfly [0 0] [1 0])
-      (should= (:fighter-destroyed-by-city config/messages) @atoms/error-message))
+      (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :error-message)))
 
     (it "preserves fighter owner on shot-down fighter"
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (reset! atoms/error-message "")
+      (test-utils/set-test-state! :error-message "")
       (combat/attempt-fighter-overfly [0 0] [1 0])
-      (should= :player (:owner (:contents (get-in @atoms/game-map [1 0])))))))
+      (should= :player (:owner (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
 (describe "conquer-city-contents"
   (before (reset-all-atoms!))
@@ -515,14 +515,14 @@
     (update-test-world! assoc-in [0 0 :contents]
            {:type :army :owner :computer :mode :sentry :hits 1})
     (combat/conquer-city-contents [0 0] :player)
-    (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+    (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "leaves satellite unchanged (L31)"
     (set-test-world! (build-test-map ["X"]))
     (update-test-world! assoc-in [0 0 :contents]
            {:type :satellite :owner :computer :mode :sentry :hits 1})
     (combat/conquer-city-contents [0 0] :player)
-    (should= :satellite (:type (:contents (get-in @atoms/game-map [0 0])))))
+    (should= :satellite (:type (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))))
 
   (it "flips fighter ownership and wakes it (L24)"
     (set-test-world! (build-test-map ["X"]))
@@ -530,7 +530,7 @@
            {:type :fighter :owner :computer :mode :moving :hits 1
             :target [5 5] :reason :patrol})
     (combat/conquer-city-contents [0 0] :player)
-    (let [f (:contents (get-in @atoms/game-map [0 0]))]
+    (let [f (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
       (should= :player (:owner f))
       (should= :awake (:mode f))
       (should-be-nil (:target f))
@@ -542,7 +542,7 @@
            {:type :transport :owner :computer :mode :moving :hits 1
             :army-count 3 :awake-armies 2})
     (combat/conquer-city-contents [0 0] :player)
-    (let [t (:contents (get-in @atoms/game-map [0 0]))]
+    (let [t (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
       (should= :player (:owner t))
       (should= 0 (:army-count t))
       (should= 0 (:awake-armies t))))
@@ -553,7 +553,7 @@
            {:type :carrier :owner :computer :mode :moving :hits 8
             :fighter-count 4 :awake-fighters 2})
     (combat/conquer-city-contents [0 0] :player)
-    (let [c (:contents (get-in @atoms/game-map [0 0]))]
+    (let [c (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
       (should= :player (:owner c))
       (should= 0 (:fighter-count c))
       (should= 0 (:awake-fighters c))))
@@ -563,8 +563,8 @@
     (update-test-world! assoc-in [0 0 :marching-orders] [1 1])
     (update-test-world! assoc-in [0 0 :flight-path] [[1 0] [2 0]])
     (combat/conquer-city-contents [0 0] :player)
-    (should-be-nil (:marching-orders (get-in @atoms/game-map [0 0])))
-    (should-be-nil (:flight-path (get-in @atoms/game-map [0 0])))))
+    (should-be-nil (:marching-orders (get-in (test-utils/read-test-state :game-map) [0 0])))
+    (should-be-nil (:flight-path (get-in (test-utils/read-test-state :game-map) [0 0])))))
 
 (describe "dead-escort-destroyer?"
   (it "true for destroyer with escort-transport-id"
@@ -592,7 +592,7 @@
              {:type :transport :owner :computer :mode :moving :hits 1
               :transport-id 42 :escort-destroyer-id 7})
       (combat/clear-escort-on-death {:type :destroyer :escort-transport-id 42})
-      (should-be-nil (get-in @atoms/game-map [0 0 :contents :escort-destroyer-id])))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents :escort-destroyer-id])))
 
     (it "sets destroyer to seeking when transport dies (L202)"
       (set-test-world! (build-test-map ["~"]))
@@ -600,7 +600,7 @@
              {:type :destroyer :owner :computer :mode :moving :hits 3
               :destroyer-id 7 :escort-transport-id 42 :escort-mode :escorting})
       (combat/clear-escort-on-death {:type :transport :escort-destroyer-id 7})
-      (let [d (get-in @atoms/game-map [0 0 :contents])]
+      (let [d (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
         (should= :seeking (:escort-mode d))
         (should-be-nil (:escort-transport-id d))))
 
@@ -610,7 +610,7 @@
              {:type :carrier :owner :computer :mode :moving :hits 8
               :carrier-id 10 :group-battleship-id 5})
       (combat/clear-escort-on-death {:type :battleship :escort-carrier-id 10 :escort-id 5})
-      (should-be-nil (get-in @atoms/game-map [0 0 :contents :group-battleship-id])))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents :group-battleship-id])))
 
     (it "removes submarine from carrier group-submarine-ids (L156)"
       (set-test-world! (build-test-map ["~"]))
@@ -618,7 +618,7 @@
              {:type :carrier :owner :computer :mode :moving :hits 8
               :carrier-id 10 :group-submarine-ids [5 7]})
       (combat/clear-escort-on-death {:type :submarine :escort-carrier-id 10 :escort-id 5})
-      (should= [7] (get-in @atoms/game-map [0 0 :contents :group-submarine-ids])))
+      (should= [7] (get-in (test-utils/read-test-state :game-map) [0 0 :contents :group-submarine-ids])))
 
     (it "releases all carrier escorts to seeking when carrier dies (L170, L184)"
       (set-test-world! (build-test-map ["~~"]))
@@ -629,10 +629,10 @@
              {:type :submarine :owner :computer :mode :moving :hits 2
               :escort-carrier-id 10 :escort-mode :escorting :orbit-angle 90})
       (combat/clear-escort-on-death {:type :carrier :carrier-id 10})
-      (let [b (get-in @atoms/game-map [0 0 :contents])]
+      (let [b (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
         (should= :seeking (:escort-mode b))
         (should-be-nil (:escort-carrier-id b)))
-      (let [s (get-in @atoms/game-map [1 0 :contents])]
+      (let [s (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :seeking (:escort-mode s))
         (should-be-nil (:escort-carrier-id s))))))
 
@@ -651,7 +651,7 @@
       (let [rolls (atom [0.6 0.4 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
-          (let [survivor (get-in @atoms/game-map [1 0 :contents])]
+          (let [survivor (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
             (should= 5 (:hits survivor))
             (should= 5 (:fighter-count survivor))
             (should= 3 (:awake-fighters survivor))))))
@@ -667,7 +667,7 @@
       (let [rolls (atom [0.6 0.4 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/attempt-attack [0 0] [1 0])
-          (let [survivor (get-in @atoms/game-map [1 0 :contents])]
+          (let [survivor (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
             (should= 3 (:fighter-count survivor))
             (should= 2 (:awake-fighters survivor)))))))
 
@@ -684,7 +684,7 @@
               :transport-id 42 :escort-destroyer-id 7})
       (with-redefs [rand (constantly 0.6)]
         (combat/attempt-attack [0 0] [1 0])
-        (should-be-nil (get-in @atoms/game-map [2 0 :contents :escort-destroyer-id]))))
+        (should-be-nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents :escort-destroyer-id]))))
 
     (it "clears dead defender escort when attacker wins"
       (set-test-world! (build-test-map ["~~~"]))
@@ -698,6 +698,6 @@
               :transport-id 42 :escort-destroyer-id 7})
       (with-redefs [rand (constantly 0.4)]
         (combat/attempt-attack [0 0] [1 0])
-        (should-be-nil (get-in @atoms/game-map [2 0 :contents :escort-destroyer-id]))))))
+        (should-be-nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents :escort-destroyer-id]))))))
 
 (run-specs)

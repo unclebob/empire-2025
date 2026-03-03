@@ -76,7 +76,7 @@
     (let [result (gen/generate-given {:type :map :target :player-map :rows ["..." ".."]})]
       (should-contain "h/set-state! :player-map" result)
       (should-contain "build-test-map" result)
-      (should-not-contain "atoms/game-map" result)))
+      (should-not-contain "(test-utils/game-map-atom)" result)))
 
   (it "generates unit-props given"
     (let [result (gen/generate-given {:type :unit-props :unit "F" :props {:fuel 32}})]

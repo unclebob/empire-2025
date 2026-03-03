@@ -1,7 +1,7 @@
 (ns empire.movement.pathfinding-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.movement.pathfinding :as pathfinding]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "heuristic"
@@ -19,12 +19,12 @@
 
   (it "finds direct path on clear terrain"
     (set-test-world! (build-test-map ["a##"]))
-    (let [path (pathfinding/a-star [0 0] [2 0] :army @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 0] [2 0] :army (test-utils/read-test-state :game-map))]
       (should= [[0 0] [1 0] [2 0]] path)))
 
   (it "returns just start position when already at goal"
     (set-test-world! (build-test-map ["a"]))
-    (let [path (pathfinding/a-star [0 0] [0 0] :army @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 0] [0 0] :army (test-utils/read-test-state :game-map))]
       (should= [[0 0]] path)))
 
   (it "navigates around obstacles"
@@ -32,7 +32,7 @@
                                              "###"
                                              "#a#"]))
     ;; Army at [1 2] wants to reach [0 0], must go around the sea
-    (let [path (pathfinding/a-star [1 2] [0 0] :army @atoms/game-map)]
+    (let [path (pathfinding/a-star [1 2] [0 0] :army (test-utils/read-test-state :game-map))]
       (should-not-be-nil path)
       (should= [1 2] (first path))
       (should= [0 0] (last path))
@@ -42,18 +42,18 @@
   (it "keeps armies on land"
     (set-test-world! (build-test-map ["a~~#"]))
     ;; Army cannot cross water
-    (let [path (pathfinding/a-star [0 0] [3 0] :army @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 0] [3 0] :army (test-utils/read-test-state :game-map))]
       (should-be-nil path)))
 
   (it "keeps ships on sea"
     (set-test-world! (build-test-map ["d##~"]))
     ;; Ship cannot cross land
-    (let [path (pathfinding/a-star [0 0] [3 0] :destroyer @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 0] [3 0] :destroyer (test-utils/read-test-state :game-map))]
       (should-be-nil path)))
 
   (it "allows fighters to fly over any terrain"
     (set-test-world! (build-test-map ["f~~#"]))
-    (let [path (pathfinding/a-star [0 0] [3 0] :fighter @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 0] [3 0] :fighter (test-utils/read-test-state :game-map))]
       (should-not-be-nil path)
       (should= [0 0] (first path))
       (should= [3 0] (last path))))
@@ -63,7 +63,7 @@
                                              "~~~"
                                              "~~#"]))
     ;; Army on island, land at [2 2] unreachable
-    (let [path (pathfinding/a-star [0 0] [2 2] :army @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 0] [2 2] :army (test-utils/read-test-state :game-map))]
       (should-be-nil path)))
 
   (it "finds optimal diagonal path on open grid"
@@ -72,7 +72,7 @@
           grid (vec (repeat size row))]
       (set-test-world! grid)
       (let [path (pathfinding/a-star [0 0] [(dec size) (dec size)]
-                                      :army @atoms/game-map)]
+                                      :army (test-utils/read-test-state :game-map))]
         (should-not-be-nil path)
         (should= [0 0] (first path))
         (should= [(dec size) (dec size)] (last path))
@@ -85,7 +85,7 @@
                                              "###"]))
     ;; Filter excludes [1 0] — path must detour through row 1
     (let [filter-fn (fn [pos] (not= pos [1 0]))
-          path (pathfinding/a-star [0 0] [2 0] :army @atoms/game-map nil filter-fn)]
+          path (pathfinding/a-star [0 0] [2 0] :army (test-utils/read-test-state :game-map) nil filter-fn)]
       (should-not-be-nil path)
       (should= [0 0] (first path))
       (should= [2 0] (last path))
@@ -98,7 +98,7 @@
                                              "#~~~#"
                                              "a####"]))
     ;; Army at [0 4] needs to reach [4 0]
-    (let [path (pathfinding/a-star [0 4] [4 0] :army @atoms/game-map)]
+    (let [path (pathfinding/a-star [0 4] [4 0] :army (test-utils/read-test-state :game-map))]
       (should-not-be-nil path)
       (should= [0 4] (first path))
       (should= [4 0] (last path)))))
@@ -170,7 +170,7 @@
                                 (or (= :city (:type cell))
                                     (nil? (:country-id cell))
                                     (= 1 (:country-id cell)))))
-          path (pathfinding/a-star [0 0] [0 3] :army @atoms/game-map passability-fn)]
+          path (pathfinding/a-star [0 0] [0 3] :army (test-utils/read-test-state :game-map) passability-fn)]
       (should-not-be-nil path)
       (should= [0 0] (first path))
       (should= [0 3] (last path))
@@ -214,7 +214,7 @@
     (let [passability-fn (fn [cell]
                            (and cell (#{:land :city} (:type cell))
                                 (or (nil? (:country-id cell)) (= 1 (:country-id cell)))))
-          path (pathfinding/a-star [0 0] [0 2] :army @atoms/game-map passability-fn)]
+          path (pathfinding/a-star [0 0] [0 2] :army (test-utils/read-test-state :game-map) passability-fn)]
       (should-be-nil path))))
 
 (describe "mutation-killing tests"

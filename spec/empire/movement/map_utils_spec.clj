@@ -1,7 +1,7 @@
 (ns empire.movement.map-utils-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.movement.map-utils :as map-utils]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! make-initial-test-map set-test-world!]]))
 
 (describe "process-map"
@@ -94,13 +94,13 @@
 (describe "on-map?"
   (before (reset-all-atoms!))
   (it "returns true for valid coordinates"
-    (reset! atoms/map-screen-dimensions [800 600])
+    (test-utils/set-test-state! :map-screen-dimensions [800 600])
     (should (map-utils/on-map? 0 0))
     (should (map-utils/on-map? 400 300))
     (should (map-utils/on-map? 799 599)))
 
   (it "returns false for coordinates outside map"
-    (reset! atoms/map-screen-dimensions [800 600])
+    (test-utils/set-test-state! :map-screen-dimensions [800 600])
     (should-not (map-utils/on-map? -1 0))
     (should-not (map-utils/on-map? 0 -1))
     (should-not (map-utils/on-map? 800 0))
@@ -109,7 +109,7 @@
 (describe "determine-cell-coordinates"
   (before (reset-all-atoms!))
   (it "converts pixel coordinates to cell coordinates"
-    (reset! atoms/map-screen-dimensions [800 600])
+    (test-utils/set-test-state! :map-screen-dimensions [800 600])
     (set-test-world! (make-initial-test-map 6 8 nil))
     ;; 800/8 = 100 pixels per cell width, 600/6 = 100 pixels per cell height
     (should= [0 0] (map-utils/determine-cell-coordinates 0 0))
@@ -367,7 +367,7 @@
     (set-test-world! (build-test-map ["###"
                                              "#a#"
                                              "~~~"]))
-    (let [neighbors (map-utils/get-passable-neighbors [1 1] :army @atoms/game-map)]
+    (let [neighbors (map-utils/get-passable-neighbors [1 1] :army (test-utils/read-test-state :game-map))]
       (should= 5 (count neighbors))
       (should-contain [0 0] neighbors)
       (should-contain [1 0] neighbors)
@@ -379,7 +379,7 @@
     (set-test-world! (build-test-map ["~~~"
                                              "~d~"
                                              "###"]))
-    (let [neighbors (map-utils/get-passable-neighbors [1 1] :destroyer @atoms/game-map)]
+    (let [neighbors (map-utils/get-passable-neighbors [1 1] :destroyer (test-utils/read-test-state :game-map))]
       (should= 5 (count neighbors))
       (should-contain [0 0] neighbors)
       (should-contain [1 0] neighbors)
@@ -391,5 +391,5 @@
     (set-test-world! (build-test-map ["#~#"
                                              "~f~"
                                              "#~#"]))
-    (let [neighbors (map-utils/get-passable-neighbors [1 1] :fighter @atoms/game-map)]
+    (let [neighbors (map-utils/get-passable-neighbors [1 1] :fighter (test-utils/read-test-state :game-map))]
       (should= 8 (count neighbors)))))

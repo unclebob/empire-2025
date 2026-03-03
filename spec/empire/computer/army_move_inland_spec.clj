@@ -1,7 +1,7 @@
 (ns empire.computer.army-move-inland-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.army :as army]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "process-move-inland"
@@ -12,21 +12,21 @@
       (set-test-world! (build-test-map ["###"
                                         "#a#"
                                         "###"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
       (with-redefs [rand-nth (constantly [1 0])]
         (army/process-army [1 1]))
-      (should= :random-explore (get-in @atoms/game-map [1 1 :contents :mode])))
+      (should= :random-explore (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
 
     (it "sets a random-explore-direction"
       (set-test-world! (build-test-map ["###"
                                         "#a#"
                                         "###"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
       (with-redefs [rand-nth (constantly [-1 1])]
         (army/process-army [1 1]))
-      (should= [-1 1] (get-in @atoms/game-map [1 1 :contents :random-explore-direction]))))
+      (should= [-1 1] (get-in (test-utils/read-test-state :game-map) [1 1 :contents :random-explore-direction]))))
 
   (context "when adjacent to sea with valid inland neighbor"
     (it "moves army to an empty inland cell"
@@ -38,12 +38,12 @@
       (set-test-world! (build-test-map ["~####"
                                         "~a###"
                                         "~####"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
       (with-redefs [rand-nth (fn [v] (first v))]
         (army/process-army [1 1]))
-      (should-be-nil (get-in @atoms/game-map [1 1 :contents]))
-      (should= :army (get-in @atoms/game-map [2 0 :contents :type]))))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))))
 
   (context "when adjacent to sea with no valid inland neighbor"
     (it "stays put when all land neighbors are also adjacent to sea"
@@ -55,11 +55,11 @@
       (set-test-world! (build-test-map ["~~~"
                                         "#a#"
                                         "~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
       (army/process-army [1 1])
-      (should= :army (get-in @atoms/game-map [1 1 :contents :type]))
-      (should= :move-inland (get-in @atoms/game-map [1 1 :contents :mode])))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
+      (should= :move-inland (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
 
     (it "stays put when all inland neighbors are occupied"
       ;; col:  0     1     2     3
@@ -69,10 +69,10 @@
       (set-test-world! (build-test-map ["~aaa"
                                         "~aaa"
                                         "~aaa"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
       (army/process-army [1 1])
-      (should= :army (get-in @atoms/game-map [1 1 :contents :type]))
-      (should= :move-inland (get-in @atoms/game-map [1 1 :contents :mode])))))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
+      (should= :move-inland (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))))
 
 (run-specs)

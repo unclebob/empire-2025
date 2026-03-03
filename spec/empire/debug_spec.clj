@@ -1,7 +1,7 @@
 (ns empire.debug-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.debug :as debug]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
             [clojure.string :as str]))
 
@@ -49,56 +49,56 @@
 
   (it "appends movement entry to log"
     (debug/log-player-movement! :army [1 2] [1 3] :moving :move nil)
-    (should= 1 (count @atoms/player-movement-log))
-    (let [entry (first @atoms/player-movement-log)]
+    (should= 1 (count (test-utils/read-test-state :player-movement-log)))
+    (let [entry (first (test-utils/read-test-state :player-movement-log))]
       (should= :army (:unit-type entry))
       (should= [1 2] (:from entry))
       (should= [1 3] (:to entry))
       (should= :move (:event entry))))
 
   (it "includes round number"
-    (reset! atoms/round-number 5)
+    (test-utils/set-test-state! :round-number 5)
     (debug/log-player-movement! :army [0 0] [0 1] :explore :move nil)
-    (should= 5 (:round (first @atoms/player-movement-log))))
+    (should= 5 (:round (first (test-utils/read-test-state :player-movement-log)))))
 
   (it "keeps exactly 500 entries without truncating"
     (dotimes [_ 500]
       (debug/log-player-movement! :army [0 0] [0 1] :moving :move nil))
-    (should= 500 (count @atoms/player-movement-log)))
+    (should= 500 (count (test-utils/read-test-state :player-movement-log))))
 
   (it "truncates to 500 when exceeding limit"
     (dotimes [_ 501]
       (debug/log-player-movement! :army [0 0] [0 1] :moving :move nil))
-    (should= 500 (count @atoms/player-movement-log)))
+    (should= 500 (count (test-utils/read-test-state :player-movement-log))))
 
   (it "includes wake reason"
     (debug/log-player-movement! :army [0 0] [0 1] :explore :wake :steps-exhausted)
-    (should= :steps-exhausted (:reason (first @atoms/player-movement-log)))))
+    (should= :steps-exhausted (:reason (first (test-utils/read-test-state :player-movement-log))))))
 
 (describe "log-action!"
   (before (reset-all-atoms!))
 
   (it "appends action to log"
     (debug/log-action! [:move :army [4 6] [4 7]])
-    (should= 1 (count @atoms/action-log))
-    (should= [:move :army [4 6] [4 7]] (:action (first @atoms/action-log))))
+    (should= 1 (count (test-utils/read-test-state :action-log)))
+    (should= [:move :army [4 6] [4 7]] (:action (first (test-utils/read-test-state :action-log)))))
 
   (it "includes timestamp"
     (debug/log-action! [:test])
-    (should (number? (:timestamp (first @atoms/action-log)))))
+    (should (number? (:timestamp (first (test-utils/read-test-state :action-log))))))
 
   (it "caps log at 100 entries"
     (dotimes [i 110]
       (debug/log-action! [:action i]))
-    (should= 100 (count @atoms/action-log))))
+    (should= 100 (count (test-utils/read-test-state :action-log)))))
 
 (describe "log-computer-event!"
   (before (reset-all-atoms!))
 
   (it "appends computer event entry"
     (debug/log-computer-event! :army-move [1 2] {:to [1 3]})
-    (should= 1 (count @atoms/computer-event-log))
-    (let [entry (first @atoms/computer-event-log)]
+    (should= 1 (count (test-utils/read-test-state :computer-event-log)))
+    (let [entry (first (test-utils/read-test-state :computer-event-log))]
       (should= :army-move (:event entry))
       (should= [1 2] (:pos entry))
       (should= [1 3] (:to entry))))
@@ -106,7 +106,7 @@
   (it "caps computer event log at 2000 entries"
     (dotimes [i 2001]
       (debug/log-computer-event! :tick [0 i] {:n i}))
-    (should= 2000 (count @atoms/computer-event-log))))
+    (should= 2000 (count (test-utils/read-test-state :computer-event-log)))))
 
 (describe "dump-region"
   (before (reset-all-atoms!))
@@ -139,7 +139,7 @@
   (before (reset-all-atoms!))
 
   (it "converts screen coords to cell range"
-    (reset! atoms/map-screen-dimensions [100 100])
+    (test-utils/set-test-state! :map-screen-dimensions [100 100])
     (set-test-world! (build-test-map ["#####"
                                       "#####"
                                       "#####"
@@ -152,7 +152,7 @@
       (should= 4 ec)))
 
   (it "normalizes reversed coordinates"
-    (reset! atoms/map-screen-dimensions [100 100])
+    (test-utils/set-test-state! :map-screen-dimensions [100 100])
     (set-test-world! (build-test-map ["#####"
                                       "#####"
                                       "#####"
@@ -165,7 +165,7 @@
       (should= 4 ec)))
 
   (it "clamps to map bounds"
-    (reset! atoms/map-screen-dimensions [100 100])
+    (test-utils/set-test-state! :map-screen-dimensions [100 100])
     (set-test-world! (build-test-map ["###"
                                       "###"
                                       "###"]))
@@ -212,7 +212,7 @@
   (before (reset-all-atoms!))
 
   (it "contains header section with round number"
-    (reset! atoms/round-number 5)
+    (test-utils/set-test-state! :round-number 5)
     (set-test-world! (build-test-map ["##" "##"]))
     (set-test-player-map! (build-test-map ["##" "##"]))
     (set-test-computer-map! (build-test-map ["##" "##"]))
@@ -221,8 +221,8 @@
       (should-contain "Round: 5" result)))
 
   (it "contains global state section"
-    (reset! atoms/round-number 3)
-    (reset! atoms/waiting-for-input true)
+    (test-utils/set-test-state! :round-number 3)
+    (test-utils/set-test-state! :waiting-for-input true)
     (set-test-world! (build-test-map ["##" "##"]))
     (set-test-player-map! (build-test-map ["##" "##"]))
     (set-test-computer-map! (build-test-map ["##" "##"]))
@@ -260,8 +260,8 @@
     (set-test-world! (build-test-map ["##" "##"]))
     (set-test-player-map! (build-test-map ["##" "##"]))
     (set-test-computer-map! (build-test-map ["##" "##"]))
-    (reset! atoms/round-number 10)
-    (reset! atoms/computer-event-log [{:round 10 :event :army-move :pos [1 1] :to [1 2]}])
+    (test-utils/set-test-state! :round-number 10)
+    (test-utils/set-test-state! :computer-event-log [{:round 10 :event :army-move :pos [1 1] :to [1 2]}])
     (let [result (debug/format-dump [0 0] [1 1])]
       (should-contain "army-move" result)
       (should-contain ":to [1 2]" result))))

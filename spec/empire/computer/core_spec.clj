@@ -1,7 +1,7 @@
 (ns empire.computer.core-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.core :as core]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]))
 
 (describe "distance"
@@ -114,32 +114,32 @@
   (it "stamps land cell with army's country-id"
     (set-test-world! (build-test-map ["#"]))
     (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
-    (should= 3 (:country-id (get-in @atoms/game-map [0 0]))))
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "stamps city cell with army's country-id"
     (set-test-world! (build-test-map ["X"]))
     (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 5})
-    (should= 5 (:country-id (get-in @atoms/game-map [0 0]))))
+    (should= 5 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp sea cell"
     (set-test-world! (build-test-map ["~"]))
     (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
-    (should-be-nil (:country-id (get-in @atoms/game-map [0 0]))))
+    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp for player army"
     (set-test-world! (build-test-map ["#"]))
     (core/stamp-territory [0 0] {:type :army :owner :player :country-id 3})
-    (should-be-nil (:country-id (get-in @atoms/game-map [0 0]))))
+    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp for non-army unit"
     (set-test-world! (build-test-map ["#"]))
     (core/stamp-territory [0 0] {:type :transport :owner :computer :country-id 3})
-    (should-be-nil (:country-id (get-in @atoms/game-map [0 0]))))
+    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp when army has no country-id"
     (set-test-world! (build-test-map ["#"]))
     (core/stamp-territory [0 0] {:type :army :owner :computer})
-    (should-be-nil (:country-id (get-in @atoms/game-map [0 0])))))
+    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))))
 
 (describe "move-unit-to"
   (before (reset-all-atoms!))
@@ -147,22 +147,22 @@
   (it "moves unit from source to destination"
     (set-test-world! (build-test-map ["a~"]))
     (set-test-computer-map! (build-test-map ["a~"]))
-    (let [unit (:contents (get-in @atoms/game-map [0 0]))]
+    (let [unit (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
       (should= [1 0] (core/move-unit-to [0 0] [1 0]))
-      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-      (should= unit (:contents (get-in @atoms/game-map [1 0])))))
+      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+      (should= unit (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
   (it "returns nil when destination is occupied"
     (set-test-world! (build-test-map ["ad"]))
     (should-be-nil (core/move-unit-to [0 0] [1 0]))
-    (should (:contents (get-in @atoms/game-map [0 0]))))
+    (should (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "returns nil when blocked by foreign territory"
     (set-test-world! (build-test-map ["a#"]))
     (update-test-world! assoc-in [0 0 :contents :country-id] 1)
     (update-test-world! assoc-in [1 0 :country-id] 2)
     (should-be-nil (core/move-unit-to [0 0] [1 0]))
-    (should (:contents (get-in @atoms/game-map [0 0]))))
+    (should (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "allows movement to land with same country-id"
     (set-test-world! (build-test-map ["a#"]))
@@ -173,10 +173,10 @@
 
   (it "clears old fighter position on computer-map for long move"
     (set-test-world! (build-test-map ["f######"]))
-    (set-test-computer-map! @atoms/game-map)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should= [6 0] (core/move-unit-to [0 0] [6 0]))
-    (should-be-nil (get-in @atoms/computer-map [0 0 :contents]))
-    (should= :fighter (get-in @atoms/computer-map [6 0 :contents :type]))))
+    (should-be-nil (get-in (test-utils/read-test-state :computer-map) [0 0 :contents]))
+    (should= :fighter (get-in (test-utils/read-test-state :computer-map) [6 0 :contents :type]))))
 
 (describe "attempt-conquest-computer"
   (before (reset-all-atoms!))
@@ -184,13 +184,13 @@
   (it "conquers city on success (rand < 0.5)"
     (set-test-world! (build-test-map ["a+"]))
     (set-test-computer-map! (build-test-map ["a+"]))
-    (reset! atoms/production {})
+    (test-utils/set-test-state! :production {})
     (with-redefs [rand (constantly 0.1)]
       (let [result (core/attempt-conquest-computer [0 0] [1 0])]
         (should-be-nil result)
-        (should= :computer (:city-status (get-in @atoms/game-map [1 0])))
-        (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-        (should= :army (:item (get @atoms/production [1 0]))))))
+        (should= :computer (:city-status (get-in (test-utils/read-test-state :game-map) [1 0])))
+        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should= :army (:item (get (test-utils/read-test-state :production) [1 0]))))))
 
   (it "army dies on failure (rand >= 0.5)"
     (set-test-world! (build-test-map ["a+"]))
@@ -198,8 +198,8 @@
     (with-redefs [rand (constantly 0.9)]
       (let [result (core/attempt-conquest-computer [0 0] [1 0])]
         (should-be-nil result)
-        (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-        (should= :free (:city-status (get-in @atoms/game-map [1 0]))))))
+        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should= :free (:city-status (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
   (it "updates player-map city status when computer conquers a player city"
     (set-test-world! (build-test-map ["aO"]))
@@ -207,7 +207,7 @@
     (set-test-player-map! (build-test-map ["aO"]))
     (with-redefs [rand (constantly 0.1)]
       (core/attempt-conquest-computer [0 0] [1 0])
-      (should= :computer (get-in @atoms/player-map [1 0 :city-status]))))
+      (should= :computer (get-in (test-utils/read-test-state :player-map) [1 0 :city-status]))))
 
   (it "does not reveal undiscovered city on player-map when computer conquers free city"
     (set-test-world! (build-test-map ["a+"]))
@@ -215,7 +215,7 @@
     (set-test-player-map! (build-test-map ["a."]))
     (with-redefs [rand (constantly 0.1)]
       (core/attempt-conquest-computer [0 0] [1 0])
-      (should-be-nil (get-in @atoms/player-map [1 0]))))
+      (should-be-nil (get-in (test-utils/read-test-state :player-map) [1 0]))))
 
   (it "does not change discovered free city on player-map when computer conquers it"
     (set-test-world! (build-test-map ["a+"]))
@@ -224,7 +224,7 @@
     (set-test-player-map! (build-test-map ["a+"]))
     (with-redefs [rand (constantly 0.1)]
       (core/attempt-conquest-computer [0 0] [1 0])
-      (should= :free (get-in @atoms/player-map [1 0 :city-status])))))
+      (should= :free (get-in (test-utils/read-test-state :player-map) [1 0 :city-status])))))
 
 (describe "wake-nearby-sentries"
   (before (reset-all-atoms!))
@@ -235,7 +235,7 @@
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 2)]
         (should= 1 woken)
-        (should= :awake (:mode (:contents (get-in @atoms/game-map [1 0])))))))
+        (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
   (it "does not wake armies beyond radius"
     (set-test-world! (build-test-map ["~..a"]))
@@ -243,7 +243,7 @@
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 1)]
         (should= 0 woken)
-        (should= :sentry (:mode (:contents (get-in @atoms/game-map [3 0])))))))
+        (should= :sentry (:mode (:contents (get-in (test-utils/read-test-state :game-map) [3 0])))))))
 
   (it "does not wake player armies"
     (set-test-world! (build-test-map ["~A~"]))
@@ -251,7 +251,7 @@
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 2)]
         (should= 0 woken)
-        (should= :sentry (:mode (:contents (get-in @atoms/game-map [1 0])))))))
+        (should= :sentry (:mode (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
   (it "does not wake non-sentry armies"
     (set-test-world! (build-test-map ["~a~"]))
@@ -272,7 +272,7 @@
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [2 2] 2)]
         (should= 1 woken)
-        (should= :awake (:mode (:contents (get-in @atoms/game-map [0 2])))))))
+        (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))))))
 
   (it "wakes sentries at row 0 and last row boundaries"
     ;; 5x3 map; sentries at [2,0] and [2,2], pos at [2,1], radius 1
@@ -285,8 +285,8 @@
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [2 1] 1)]
         (should= 2 woken)
-        (should= :awake (:mode (:contents (get-in @atoms/game-map [2 0]))))
-        (should= :awake (:mode (:contents (get-in @atoms/game-map [2 2])))))))
+        (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))))
+        (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))))))
 
   (it "sets direction pointing away from trigger with negative dc"
     ;; Sentry at [0,2], pos at [2,2]: dc = signum(0-2) = -1
@@ -299,7 +299,7 @@
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
-      (let [dir (:interior-explore-direction (:contents (get-in @atoms/game-map [0 2])))]
+      (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))]
         (should= -1 (first dir)))))
 
   (it "sets direction pointing away from trigger with negative dr"
@@ -313,7 +313,7 @@
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
-      (let [dir (:interior-explore-direction (:contents (get-in @atoms/game-map [2 0])))]
+      (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
         (should= -1 (second dir)))))
 
   (it "uses random direction when dc is zero"
@@ -328,7 +328,7 @@
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
-      (let [dir (:interior-explore-direction (:contents (get-in @atoms/game-map [2 0])))]
+      (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
         (should= -1 (first dir)))))
 
   (it "uses random direction when dr is zero"
@@ -343,7 +343,7 @@
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
-      (let [dir (:interior-explore-direction (:contents (get-in @atoms/game-map [0 2])))]
+      (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))]
         (should= -1 (second dir)))))
 
   (it "random direction picks 1 when rand >= 0.5"
@@ -357,7 +357,7 @@
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.7)]
       (core/wake-nearby-sentries [2 2] 2)
-      (let [dir (:interior-explore-direction (:contents (get-in @atoms/game-map [2 0])))]
+      (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
         (should= 1 (first dir)))))
 
   (it "wakes sentry at c range upper boundary"
@@ -372,7 +372,7 @@
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [1 1] 2)]
         (should= 1 woken)
-        (should= :awake (:mode (:contents (get-in @atoms/game-map [3 1]))))))))
+        (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [3 1]))))))))
 
 (describe "board-transport"
   (before (reset-all-atoms!))
@@ -382,8 +382,8 @@
     (update-test-world! assoc-in [1 0 :contents :transport-mission] :loading)
     (update-test-world! assoc-in [1 0 :contents :army-count] 0)
     (core/board-transport [0 0] [1 0])
-    (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-    (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 0])))))
+    (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+    (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
   (it "throws when not adjacent"
     (set-test-world! (build-test-map ["a.t"]))
@@ -401,15 +401,15 @@
     (update-test-world! assoc-in [3 3 :contents :transport-mission] :loading)
     (update-test-world! assoc-in [3 3 :contents :army-count] 0)
     (core/board-transport [2 3] [3 3])
-    (should-be-nil (:contents (get-in @atoms/game-map [2 3])))
-    (should= 1 (:army-count (:contents (get-in @atoms/game-map [3 3])))))
+    (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [2 3])))
+    (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [3 3])))))
 
   (it "increments from 0 when army-count is nil (kills fnil 0 -> 1)"
     (set-test-world! (build-test-map ["at"]))
     (update-test-world! assoc-in [1 0 :contents :transport-mission] :loading)
     (update-test-world! update-in [1 0 :contents] dissoc :army-count)
     (core/board-transport [0 0] [1 0])
-    (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 0])))))
+    (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
   (it "loads army diagonally adjacent (kills <= -> < on dc in adjacent?)"
     ;; Army at [2,2], transport at [3,3]: dr=1, dc=1 (diagonal)
@@ -421,8 +421,8 @@
     (update-test-world! assoc-in [3 3 :contents :transport-mission] :loading)
     (update-test-world! assoc-in [3 3 :contents :army-count] 0)
     (core/board-transport [2 2] [3 3])
-    (should-be-nil (:contents (get-in @atoms/game-map [2 2])))
-    (should= 1 (:army-count (:contents (get-in @atoms/game-map [3 3]))))))
+    (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))
+    (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [3 3]))))))
 
 (describe "find-visible-player-units"
   (before (reset-all-atoms!))

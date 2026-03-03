@@ -1,9 +1,9 @@
 (ns empire.movement.coastline-spec
   (:require [speclj.core :refer :all]
-            [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.coastline :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
+            [empire.test-utils :as test-utils
+             :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "coastline-follow-eligible?"
   (before (reset-all-atoms!))
@@ -225,7 +225,7 @@
       ;; And [1 1] is adjacent to unexplored [0 0] in player-map
       ;; From [2 2], [1 1] should be picked as unvisited-coastal-unexplored
       (dotimes [_ 10]
-        (let [move (pick-coastline-move [2 2] atoms/game-map #{} nil)]
+        (let [move (pick-coastline-move [2 2] (test-utils/game-map-atom) #{} nil)]
           ;; Should pick [1 1] - diagonal coastal and adjacent to unexplored
           (should= [1 1] move)))))
 

@@ -1,9 +1,9 @@
 (ns empire.computer.production-naval-spec
   "Tests for VMS Empire style computer production."
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.production :as production]
             [empire.computer.ship :as ship]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! update-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn- rebuild! [] (production/rebuild-country-stats!))
@@ -11,7 +11,7 @@
 (defn- add-sea-column
   "Adds a column of sea cells to make column 0 cells coastal."
   []
-  (let [rows (count (first @atoms/game-map))
+  (let [rows (count (first (test-utils/read-test-state :game-map)))
         sea-col (vec (repeat rows {:type :sea}))]
     (update-test-world! conj sea-col)
     (update-test-computer-map! conj sea-col)))
@@ -19,9 +19,9 @@
 (defn- count-test-computer-cities
   "Counts computer cities in the test map."
   []
-  (count (for [i (range (count @atoms/game-map))
-               j (range (count (first @atoms/game-map)))
-               :let [cell (get-in @atoms/game-map [i j])]
+  (count (for [i (range (count (test-utils/read-test-state :game-map)))
+               j (range (count (first (test-utils/read-test-state :game-map))))
+               :let [cell (get-in (test-utils/read-test-state :game-map) [i j])]
                :when (and (= :city (:type cell))
                           (= :computer (:city-status cell)))]
            true)))
@@ -30,16 +30,16 @@
   "Places enough fighters on empty sea cells to satisfy total fighters >= total cities."
   []
   (let [city-count (count-test-computer-cities)
-        existing-fighters (count (for [i (range (count @atoms/game-map))
-                                       j (range (count (first @atoms/game-map)))
-                                       :let [unit (get-in @atoms/game-map [i j :contents])]
+        existing-fighters (count (for [i (range (count (test-utils/read-test-state :game-map)))
+                                       j (range (count (first (test-utils/read-test-state :game-map))))
+                                       :let [unit (get-in (test-utils/read-test-state :game-map) [i j :contents])]
                                        :when (and unit (= :fighter (:type unit))
                                                   (= :computer (:owner unit)))]
                                   true))
         needed (- city-count existing-fighters)
-        empty-sea (for [i (range (count @atoms/game-map))
-                        j (range (count (first @atoms/game-map)))
-                        :let [cell (get-in @atoms/game-map [i j])]
+        empty-sea (for [i (range (count (test-utils/read-test-state :game-map)))
+                        j (range (count (first (test-utils/read-test-state :game-map))))
+                        :let [cell (get-in (test-utils/read-test-state :game-map) [i j])]
                         :when (and (= :sea (:type cell)) (nil? (:contents cell)))]
                     [i j])]
     (doseq [pos (take needed empty-sea)]
@@ -61,7 +61,7 @@
     (update-test-world! assoc-in [0 j :contents]
            {:type :patrol-boat :owner :computer :country-id 1 :hits 1}))
   ;; Fill any coastal land cells with armies to satisfy coastal-fill guard
-  (let [game-map @atoms/game-map
+  (let [game-map (test-utils/read-test-state :game-map)
         col0 (first game-map)]
     (doseq [j (range (count col0))
             :let [cell (nth col0 j)]
@@ -85,7 +85,7 @@
       ;; 2-row: armies fill coastal cells, unadopted transport, 4 patrol boats
       (set-test-world! (build-test-map ["~Xaat~pppp"
                                                "~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -101,7 +101,7 @@
       ;; 2-row: same but 1 destroyer already → destroyers >= transports
       (set-test-world! (build-test-map ["~Xaat~ppppd"
                                                "~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -151,7 +151,7 @@
         (set-test-world! [cells])
         (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
-        (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
         (should-not= :carrier (production/decide-production [0 22]))))
 
@@ -193,7 +193,7 @@
         (set-test-world! [cells])
         (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
-        (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
         (should= :battleship (production/decide-production [0 22]))))
 
@@ -208,7 +208,7 @@
         (set-test-world! [cells])
         (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
-        (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
         (should-not= :battleship (production/decide-production [0 22])))))
 
@@ -225,7 +225,7 @@
         (set-test-world! [cells])
         (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
-        (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
         (should= :submarine (production/decide-production [0 22]))))
 
@@ -242,7 +242,7 @@
         (set-test-world! [cells])
         (set-test-computer-map! [cells])
         (satisfy-coastal-per-country 22)
-        (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                   [0 2] {:item :carrier :remaining-rounds 10}})
         (should-not= :submarine (production/decide-production [0 22])))))
 
@@ -253,7 +253,7 @@
       ;; Coastal city at [1,0], other per-country priorities met.
       ;; Two extra computer cities at [30,0] and [31,0].
       (set-test-world! (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppff"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 3 23)]
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
@@ -274,7 +274,7 @@
       ;; 1 computer city, 1 fighter — 1 >= 1 so should NOT produce fighter.
       ;; Coastal city at [1,0], other per-country priorities met.
       (set-test-world! (build-test-map ["~X#aaaaaaaaaaaaaaaaaaaatd~ppppf"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 3 23)]
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
@@ -323,7 +323,7 @@
                               {:type :land :country-id 1
                                :contents {:type :army :owner :player :hits 1}})))]
         (set-test-world! [city-row (vec (repeat 34 {:type :sea}))])
-        (set-test-computer-map! @atoms/game-map)
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (update-test-world! assoc-in [1 0 :contents]
                {:type :satellite :owner :computer :direction [1 0] :turns-remaining 50})
         (saturate-fighter-limit)
@@ -350,7 +350,7 @@
       ;; when no transports exist, allowing destroyer production inappropriately
       (set-test-world! (build-test-map ["~Xaa~pppp"
                                                "~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -365,12 +365,12 @@
 
     (it "counts cities producing carriers"
       ;; L312: = -> not= would count non-carrier producers instead
-      (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+      (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                 [0 2] {:item :army :remaining-rounds 5}})
       (should= 1 (#'production/count-carrier-producers)))
 
     (it "counts zero when no cities producing carriers"
-      (reset! atoms/production {[0 0] {:item :army :remaining-rounds 5}})
+      (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 5}})
       (should= 0 (#'production/count-carrier-producers))))
 
   (context "carrier threshold boundary (L322-L324)"
@@ -434,7 +434,7 @@
           (set-test-world! [cells])
           (set-test-computer-map! [cells])
           (satisfy-coastal-per-country 22)
-          (reset! atoms/production {[0 0] {:item :carrier :remaining-rounds 10}
+          (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
                                     [0 2] {:item :carrier :remaining-rounds 10}})
           (production/rebuild-country-stats!)
           ;; 12 cities, 0 live carriers, but 2 producing = max → should not produce another

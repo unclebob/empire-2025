@@ -1,7 +1,7 @@
 (ns empire.computer.transport-unloading-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.transport-unloading :as unloading]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-world!]]))
 
 (describe "transport-unloading"
@@ -74,9 +74,9 @@
                                                 :army-count 2}}
                          {:type :land}]])
       (should (unloading/unload-armies [0 1] nil))
-      (should= :army (get-in @atoms/game-map [0 0 :contents :type]))
-      (should= :army (get-in @atoms/game-map [0 2 :contents :type]))
-      (should= 0 (get-in @atoms/game-map [0 1 :contents :army-count])))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [0 2 :contents :type]))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
 
     (it "returns nil when no adjacent empty land"
       (set-test-world! [[{:type :sea}
@@ -93,9 +93,9 @@
                                                 :never-reload? true}}
                          {:type :sea}]])
       (should (unloading/unload-armies [0 1] nil))
-      (should= 0 (get-in @atoms/game-map [0 1 :contents :army-count]))
-      (should= :sailing (get-in @atoms/game-map [0 1 :contents :transport-mission]))
-      (should= true (get-in @atoms/game-map [0 1 :contents :never-reload?]))))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))
+      (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 1 :contents :transport-mission]))
+      (should= true (get-in (test-utils/read-test-state :game-map) [0 1 :contents :never-reload?]))))
 
   (context "pickup-continent exclusion"
     (it "does not unload onto the same pickup landmass even when country-ids differ"
@@ -114,4 +114,4 @@
       (doseq [p [[0 1] [1 0] [1 2] [2 1]]]
         (update-test-world! assoc-in (conj p :country-id) 15))
       (should-be-nil (unloading/try-opportunistic-unload [1 1]))
-      (should= 3 (get-in @atoms/game-map [1 1 :contents :army-count])))))
+      (should= 3 (get-in (test-utils/read-test-state :game-map) [1 1 :contents :army-count])))))

@@ -25,7 +25,11 @@ else
   range_label="working-tree+index"
 fi
 
-blocked="$(printf '%s\n' "$changed" | rg '^(acceptanceTests/|src/empire/acceptance/parser/)' || true)"
+# Lock acceptance scenarios and parser sources, but allow documentation updates.
+blocked="$(printf '%s\n' "$changed" \
+  | rg '^(acceptanceTests/|src/empire/acceptance/parser/)' \
+  | rg -v '^acceptanceTests/README\.md$' \
+  || true)"
 
 if [[ -n "${blocked}" ]]; then
   echo "Acceptance boundary violation: locked files changed:"

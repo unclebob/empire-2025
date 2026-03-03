@@ -1,5 +1,5 @@
 (ns empire.movement.movement-execution-spec
-  (:require [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
             [empire.movement.movement-execution :as execution]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]
             [speclj.core :refer :all]))
@@ -18,6 +18,6 @@
                 :contents {:type :fighter :owner :player :fuel 10 :mode :moving :target [1 0]}}
           final-unit (:contents cell)]
       (execution/do-move [0 0] [1 0] cell final-unit)
-      (let [city (get-in @atoms/game-map [1 0])]
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= :fighter (get-in city [:contents :type]))
         (should= :player (get-in city [:contents :owner]))))))

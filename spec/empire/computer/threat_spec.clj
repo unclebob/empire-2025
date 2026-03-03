@@ -1,7 +1,7 @@
 (ns empire.computer.threat-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.threat :as threat]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [reset-all-atoms! set-test-computer-map!]]))
 
 (describe "unit-threat"
@@ -286,7 +286,7 @@
     (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea}]])
-    (let [computer-map @atoms/computer-map
+    (let [computer-map (test-utils/read-test-state :computer-map)
           unit {:type :destroyer :hits 1}
           moves [[0 0] [1 0]]]
       ;; Base at [2,0]; [1,0] is closer to base
@@ -296,14 +296,14 @@
     (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :city :city-status :computer} {:type :sea}]])
     (let [unit {:type :destroyer :hits 1}]
-      (should-be-nil (threat/retreat-move [0 0] unit @atoms/computer-map []))))
+      (should-be-nil (threat/retreat-move [0 0] unit (test-utils/read-test-state :computer-map) []))))
 
   (it "returns nil when no friendly base exists"
     (set-test-computer-map! [[{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]])
     (let [unit {:type :destroyer :hits 1}
           moves [[0 0] [1 0]]]
-      (should-be-nil (threat/retreat-move [0 0] unit @atoms/computer-map moves))))
+      (should-be-nil (threat/retreat-move [0 0] unit (test-utils/read-test-state :computer-map) moves))))
 
   (it "prefers safe move farther from base over dangerous move near base"
     ;; Base at [0,0]. Move A=[1,0] near base but near player battleship.
@@ -315,7 +315,7 @@
                                  [{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]
                                  [{:type :sea} {:type :sea}]])
-    (let [computer-map @atoms/computer-map
+    (let [computer-map (test-utils/read-test-state :computer-map)
           unit {:type :destroyer :hits 1}
           moves [[1 0] [4 0]]]
       (should= [4 0] (threat/retreat-move [2 0] unit computer-map moves)))))

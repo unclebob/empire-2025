@@ -1,5 +1,5 @@
 (ns empire.ui.util.core-spec
-  (:require [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
             [empire.ui.util.core :as util-core]
             [empire.test-utils :refer [reset-all-atoms!]]
             [speclj.core :refer :all]))
@@ -7,14 +7,14 @@
 (describe "key-released"
   (before (reset-all-atoms!))
   (it "resets last-key atom to nil"
-    (reset! atoms/last-key :a)
+    (test-utils/set-test-state! :last-key :a)
     (util-core/key-released nil nil)
-    (should-be-nil @atoms/last-key))
+    (should-be-nil (test-utils/read-test-state :last-key)))
 
   (it "returns nil when last-key was already nil"
-    (reset! atoms/last-key nil)
+    (test-utils/set-test-state! :last-key nil)
     (util-core/key-released nil nil)
-    (should-be-nil @atoms/last-key)))
+    (should-be-nil (test-utils/read-test-state :last-key))))
 
 (describe "compute-screen-dimensions"
   (before (reset-all-atoms!))

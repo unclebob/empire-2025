@@ -1,8 +1,8 @@
 (ns empire.computer.stamping-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.stamping :as stamping]
             [empire.computer.production :as computer-production]
-            [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
@@ -28,24 +28,24 @@
 
   (context "transport fields"
     (it "assigns transport-mission and transport-id to computer transports"
-      (reset! atoms/next-transport-id 5)
+      (test-utils/set-test-state! :next-transport-id 5)
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= :loading (:transport-mission stamped))
         (should= 5 (:transport-id stamped))
         (should= 0 (:army-count stamped))
-        (should= 6 @atoms/next-transport-id)))
+        (should= 6 (test-utils/read-test-state :next-transport-id))))
 
     (it "does not assign transport fields to player transports"
-      (reset! atoms/next-transport-id 5)
+      (test-utils/set-test-state! :next-transport-id 5)
       (let [unit {:type :transport :owner :player :hits 3 :mode :awake}
             cell {:type :city :city-status :player}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :transport-mission stamped)
         (should-not-contain :stuck-since-round stamped)
         (should-not-contain :transport-id stamped)
-        (should= 5 @atoms/next-transport-id))))
+        (should= 5 (test-utils/read-test-state :next-transport-id)))))
 
   (context "country-id"
     (it "assigns city country-id to computer armies"
@@ -105,7 +105,7 @@
 
   (context "carrier fields"
     (it "stamps carrier fields on computer carriers"
-      (reset! atoms/next-carrier-id 3)
+      (test-utils/set-test-state! :next-carrier-id 3)
       (let [unit {:type :carrier :owner :computer :hits 8 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
@@ -113,60 +113,60 @@
         (should= 3 (:carrier-id stamped))
         (should-be-nil (:group-battleship-id stamped))
         (should= [] (:group-submarine-ids stamped))
-        (should= 4 @atoms/next-carrier-id)))
+        (should= 4 (test-utils/read-test-state :next-carrier-id))))
 
     (it "does not stamp carrier fields on player carriers"
-      (reset! atoms/next-carrier-id 3)
+      (test-utils/set-test-state! :next-carrier-id 3)
       (let [unit {:type :carrier :owner :player :hits 8 :mode :awake}
             cell {:type :city :city-status :player}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :carrier-mode stamped)
-        (should= 3 @atoms/next-carrier-id))))
+        (should= 3 (test-utils/read-test-state :next-carrier-id)))))
 
   (context "escort fields"
     (it "stamps escort fields on computer battleships"
-      (reset! atoms/next-escort-id 10)
+      (test-utils/set-test-state! :next-escort-id 10)
       (let [unit {:type :battleship :owner :computer :hits 12 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= 10 (:escort-id stamped))
         (should= :seeking (:escort-mode stamped))
-        (should= 11 @atoms/next-escort-id)))
+        (should= 11 (test-utils/read-test-state :next-escort-id))))
 
     (it "stamps escort fields on computer submarines"
-      (reset! atoms/next-escort-id 7)
+      (test-utils/set-test-state! :next-escort-id 7)
       (let [unit {:type :submarine :owner :computer :hits 2 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= 7 (:escort-id stamped))
         (should= :seeking (:escort-mode stamped))
-        (should= 8 @atoms/next-escort-id)))
+        (should= 8 (test-utils/read-test-state :next-escort-id))))
 
     (it "does not stamp escort fields on player battleships"
-      (reset! atoms/next-escort-id 10)
+      (test-utils/set-test-state! :next-escort-id 10)
       (let [unit {:type :battleship :owner :player :hits 12 :mode :awake}
             cell {:type :city :city-status :player}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :escort-id stamped)
-        (should= 10 @atoms/next-escort-id))))
+        (should= 10 (test-utils/read-test-state :next-escort-id)))))
 
   (context "destroyer fields"
     (it "stamps destroyer-id and escort-mode on computer destroyers"
-      (reset! atoms/next-destroyer-id 4)
+      (test-utils/set-test-state! :next-destroyer-id 4)
       (let [unit {:type :destroyer :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= 4 (:destroyer-id stamped))
         (should= :seeking (:escort-mode stamped))
-        (should= 5 @atoms/next-destroyer-id)))
+        (should= 5 (test-utils/read-test-state :next-destroyer-id))))
 
     (it "does not stamp destroyer fields on player destroyers"
-      (reset! atoms/next-destroyer-id 4)
+      (test-utils/set-test-state! :next-destroyer-id 4)
       (let [unit {:type :destroyer :owner :player :hits 3 :mode :awake}
             cell {:type :city :city-status :player}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should-not-contain :destroyer-id stamped)
-        (should= 4 @atoms/next-destroyer-id))))
+        (should= 4 (test-utils/read-test-state :next-destroyer-id)))))
 
   (context "no-op for player units"
     (it "returns unit unchanged for player army"

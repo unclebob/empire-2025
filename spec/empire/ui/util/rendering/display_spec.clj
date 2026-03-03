@@ -1,6 +1,6 @@
 (ns empire.ui.util.rendering.display-spec
-  (:require [speclj.core :refer :all]
-            [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.test-utils :refer [reset-all-atoms!]]
             [empire.ui.util.rendering.display :as display]))
 
@@ -160,7 +160,7 @@
   (it "renders lake cells as deeper blue on computer-map display"
     (let [the-map [[{:type :sea} {:type :sea}]
                    [{:type :sea} {:type :land}]]]
-      (reset! atoms/lake-max-cells 3)
+      (test-utils/set-test-state! :lake-max-cells 3)
       (let [result (display/group-cells-by-color the-map nil {} false false :computer-map)]
         (should= 3 (count (get result [0 120 220])))))))
 

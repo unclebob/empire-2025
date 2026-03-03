@@ -1,7 +1,7 @@
 (ns empire.player.attention-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.player.attention :as attention]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]))
 
 (describe "is-city-needing-attention?"
@@ -63,114 +63,114 @@
   (before (reset-all-atoms!))
   (it "returns true for awake player unit"
     (set-test-player-map! (build-test-map ["A"]))
-    (set-test-unit atoms/player-map "A" :mode :awake)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "A" :mode :awake)
+    (test-utils/set-test-state! :production {})
     (should (attention/needs-attention? 0 0)))
 
   (it "returns false for sleeping player unit"
     (set-test-player-map! (build-test-map ["A"]))
-    (set-test-unit atoms/player-map "A" :mode :sentry)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "A" :mode :sentry)
+    (test-utils/set-test-state! :production {})
     (should-not (attention/needs-attention? 0 0)))
 
   (it "returns true for player city without production"
     (set-test-player-map! (build-test-map ["O"]))
-    (reset! atoms/production {})
+    (test-utils/set-test-state! :production {})
     (should (attention/needs-attention? 0 0)))
 
   (it "returns false for player city with production"
     (set-test-player-map! (build-test-map ["O"]))
-    (reset! atoms/production {[0 0] {:item :army :remaining 5}})
+    (test-utils/set-test-state! :production {[0 0] {:item :army :remaining 5}})
     (should-not (attention/needs-attention? 0 0)))
 
   (it "returns true for city with awake airport fighter"
     (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0 :awake-fighters] 1))
-    (reset! atoms/production {[0 0] :army})
+    (test-utils/set-test-state! :production {[0 0] :army})
     (should (attention/needs-attention? 0 0)))
 
   (it "returns false for computer city"
     (set-test-player-map! (build-test-map ["X"]))
-    (reset! atoms/production {})
+    (test-utils/set-test-state! :production {})
     (should-not (attention/needs-attention? 0 0)))
 
   (it "returns true for carrier with awake fighters"
     (set-test-player-map! (build-test-map ["C"]))
-    (set-test-unit atoms/player-map "C" :mode :sentry :awake-fighters 1)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "C" :mode :sentry :awake-fighters 1)
+    (test-utils/set-test-state! :production {})
     (should (attention/needs-attention? 0 0)))
 
   (it "returns true for transport with awake armies"
     (set-test-player-map! (build-test-map ["T"]))
-    (set-test-unit atoms/player-map "T" :mode :sentry :awake-armies 1)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "T" :mode :sentry :awake-armies 1)
+    (test-utils/set-test-state! :production {})
     (should (attention/needs-attention? 0 0)))
 
   (it "returns true for satellite without target"
     (set-test-player-map! (build-test-map ["V"]))
-    (set-test-unit atoms/player-map "V" :mode :awake :turns-remaining 50)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "V" :mode :awake :turns-remaining 50)
+    (test-utils/set-test-state! :production {})
     (should (attention/needs-attention? 0 0)))
 
   (it "returns false for satellite with target"
     (set-test-player-map! (build-test-map ["V"]))
-    (set-test-unit atoms/player-map "V" :mode :awake :target [5 5] :turns-remaining 50)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "V" :mode :awake :target [5 5] :turns-remaining 50)
+    (test-utils/set-test-state! :production {})
     (should-not (attention/needs-attention? 0 0))))
 
 (describe "item-needs-attention?"
   (before (reset-all-atoms!))
   (it "returns true for awake unit"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :awake)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (should (attention/item-needs-attention? unit-coords))))
 
   (it "returns false for sleeping unit"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :sentry)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :sentry)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (should-not (attention/item-needs-attention? unit-coords))))
 
   (it "returns false for moving unit"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :moving)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :moving)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (should-not (attention/item-needs-attention? unit-coords))))
 
   (it "returns true for player city without production"
     (set-test-world! (build-test-map ["O"]))
-    (reset! atoms/production {})
-    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+    (test-utils/set-test-state! :production {})
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (should (attention/item-needs-attention? city-coords))))
 
   (it "returns false for player city with production"
     (set-test-world! (build-test-map ["O"]))
-    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (reset! atoms/production {city-coords :army})
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (test-utils/set-test-state! :production {city-coords :army})
       (should-not (attention/item-needs-attention? city-coords))))
 
   (it "returns true for carrier with awake fighters"
     (set-test-world! (build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :mode :sentry :awake-fighters 1)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
+    (set-test-unit (test-utils/game-map-atom) "C" :mode :sentry :awake-fighters 1)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
       (should (attention/item-needs-attention? unit-coords))))
 
   (it "returns true for transport with awake armies"
     (set-test-world! (build-test-map ["T"]))
-    (set-test-unit atoms/game-map "T" :mode :sentry :awake-armies 1)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "T"))]
+    (set-test-unit (test-utils/game-map-atom) "T" :mode :sentry :awake-armies 1)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "T"))]
       (should (attention/item-needs-attention? unit-coords))))
 
   (it "returns true for satellite without target"
     (set-test-world! (build-test-map ["V"]))
-    (set-test-unit atoms/game-map "V" :mode :awake :turns-remaining 50)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "V"))]
+    (set-test-unit (test-utils/game-map-atom) "V" :mode :awake :turns-remaining 50)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "V"))]
       (should (attention/item-needs-attention? unit-coords))))
 
   (it "returns false for satellite with target"
     (set-test-world! (build-test-map ["V"]))
-    (set-test-unit atoms/game-map "V" :mode :awake :target [5 5] :turns-remaining 50)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "V"))]
+    (set-test-unit (test-utils/game-map-atom) "V" :mode :awake :target [5 5] :turns-remaining 50)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "V"))]
       (should-not (attention/item-needs-attention? unit-coords)))))
 
 (describe "cells-needing-attention"
@@ -178,8 +178,8 @@
   (it "returns coordinates of cells needing attention"
     (set-test-player-map! (build-test-map ["AO"
                                                "#X"]))
-    (set-test-unit atoms/player-map "A" :mode :awake)
-    (reset! atoms/production {})
+    (set-test-unit (test-utils/player-map-atom) "A" :mode :awake)
+    (test-utils/set-test-state! :production {})
     (let [cells (attention/cells-needing-attention)]
       (should-contain [0 0] cells)
       (should-contain [1 0] cells)
@@ -188,169 +188,169 @@
 
   (it "excludes player cities with production"
     (set-test-player-map! (build-test-map ["O"]))
-    (reset! atoms/production {[0 0] {:item :army}})
+    (test-utils/set-test-state! :production {[0 0] {:item :army}})
     (should= [] (attention/cells-needing-attention))))
 
 (describe "set-attention-message"
   (before (reset-all-atoms!))
   (it "sets message for airport fighter"
     (set-test-world! (build-test-map ["O"]))
-    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (update-test-world! assoc-in (conj city-coords :awake-fighters) 1)
       (update-test-world! assoc-in (conj city-coords :fighter-count) 1)
-      (reset! atoms/attention-message "")
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
-      (should-contain "Fighter" @atoms/attention-message)
-      (should-contain "needs attention" @atoms/attention-message)))
+      (should-contain "Fighter" (test-utils/read-test-state :attention-message))
+      (should-contain "needs attention" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for carrier fighter"
     (set-test-world! (build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :mode :sentry :awake-fighters 1 :fighter-count 2)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "C" :mode :sentry :awake-fighters 1 :fighter-count 2)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "Fighter" @atoms/attention-message)
-      (should-contain "carrier" @atoms/attention-message)
-      (should-contain "2 fighters" @atoms/attention-message)))
+      (should-contain "Fighter" (test-utils/read-test-state :attention-message))
+      (should-contain "carrier" (test-utils/read-test-state :attention-message))
+      (should-contain "2 fighters" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for army aboard transport"
     (set-test-world! (build-test-map ["T"]))
-    (set-test-unit atoms/game-map "T" :mode :sentry :awake-armies 1 :army-count 3)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "T"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "T" :mode :sentry :awake-armies 1 :army-count 3)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "T"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "Army" @atoms/attention-message)
-      (should-contain "transport" @atoms/attention-message)
-      (should-contain "3 armies" @atoms/attention-message)))
+      (should-contain "Army" (test-utils/read-test-state :attention-message))
+      (should-contain "transport" (test-utils/read-test-state :attention-message))
+      (should-contain "3 armies" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for regular awake army"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "army" @atoms/attention-message)
-      (should-contain "needs attention" @atoms/attention-message)))
+      (should-contain "army" (test-utils/read-test-state :attention-message))
+      (should-contain "needs attention" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for transport with cargo count"
     (set-test-world! (build-test-map ["T"]))
-    (set-test-unit atoms/game-map "T" :mode :awake :hits 1 :army-count 4)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "T"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "T" :mode :awake :hits 1 :army-count 4)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "T"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "transport" @atoms/attention-message)
-      (should-contain "4 armies" @atoms/attention-message)))
+      (should-contain "transport" (test-utils/read-test-state :attention-message))
+      (should-contain "4 armies" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for carrier with cargo count"
     (set-test-world! (build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :mode :awake :hits 8 :fighter-count 3)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "C" :mode :awake :hits 8 :fighter-count 3)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "carrier" @atoms/attention-message)
-      (should-contain "3 fighters" @atoms/attention-message)))
+      (should-contain "carrier" (test-utils/read-test-state :attention-message))
+      (should-contain "3 fighters" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for unit with reason"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :awake :hits 1 :reason :somethings-in-the-way)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1 :reason :somethings-in-the-way)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "army" @atoms/attention-message)
-      (should-contain "Something's in the way" @atoms/attention-message)))
+      (should-contain "army" (test-utils/read-test-state :attention-message))
+      (should-contain "Something's in the way" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for army adjacent to enemy city"
     (set-test-world! (build-test-map ["AX"]))
-    (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "army" @atoms/attention-message)
-      (should-contain "Army found a city!" @atoms/attention-message)))
+      (should-contain "army" (test-utils/read-test-state :attention-message))
+      (should-contain "Army found a city!" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for player city without production"
     (set-test-world! (build-test-map ["O"]))
-    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
-      (reset! atoms/attention-message "")
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
-      (should-contain "City" @atoms/attention-message)
-      (should-contain "needs" @atoms/attention-message)))
+      (should-contain "City" (test-utils/read-test-state :attention-message))
+      (should-contain "needs" (test-utils/read-test-state :attention-message))))
 
   (it "includes Damaged for damaged carrier"
     (set-test-world! (build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :mode :awake :hits 5)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "C" :mode :awake :hits 5)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "Damaged" @atoms/attention-message)
-      (should-contain "carrier" @atoms/attention-message)
-      (should-contain "hits:5/8" @atoms/attention-message)))
+      (should-contain "Damaged" (test-utils/read-test-state :attention-message))
+      (should-contain "carrier" (test-utils/read-test-state :attention-message))
+      (should-contain "hits:5/8" (test-utils/read-test-state :attention-message))))
 
   (it "includes Damaged for damaged destroyer"
     (set-test-world! (build-test-map ["D"]))
-    (set-test-unit atoms/game-map "D" :mode :awake :hits 2)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "D"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "D" :mode :awake :hits 2)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "D"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "Damaged" @atoms/attention-message)
-      (should-contain "destroyer" @atoms/attention-message)
-      (should-contain "hits:2/3" @atoms/attention-message)))
+      (should-contain "Damaged" (test-utils/read-test-state :attention-message))
+      (should-contain "destroyer" (test-utils/read-test-state :attention-message))
+      (should-contain "hits:2/3" (test-utils/read-test-state :attention-message))))
 
   (it "does not include Damaged for undamaged carrier"
     (set-test-world! (build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :mode :awake :hits 8)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "C" :mode :awake :hits 8)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-not-contain "Damaged" @atoms/attention-message)
-      (should-contain "carrier" @atoms/attention-message)
-      (should-contain "hits:8/8" @atoms/attention-message)))
+      (should-not-contain "Damaged" (test-utils/read-test-state :attention-message))
+      (should-contain "carrier" (test-utils/read-test-state :attention-message))
+      (should-contain "hits:8/8" (test-utils/read-test-state :attention-message))))
 
   (it "does not include Damaged for army (1 hit max)"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-not-contain "Damaged" @atoms/attention-message)))
+      (should-not-contain "Damaged" (test-utils/read-test-state :attention-message))))
 
   (it "includes fuel in regular fighter message"
     (set-test-world! (build-test-map ["F"]))
-    (set-test-unit atoms/game-map "F" :mode :awake :fuel 20)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "F"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "F" :mode :awake :fuel 20)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "F"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "fuel:20" @atoms/attention-message)))
+      (should-contain "fuel:20" (test-utils/read-test-state :attention-message))))
 
   (it "includes fuel in airport fighter message"
     (set-test-world! (build-test-map ["O"]))
-    (let [city-coords (:pos (get-test-city atoms/game-map "O"))]
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (update-test-world! assoc-in (conj city-coords :awake-fighters) 1)
       (update-test-world! assoc-in (conj city-coords :fighter-count) 1)
-      (reset! atoms/attention-message "")
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
-      (should-contain "fuel:32" @atoms/attention-message)))
+      (should-contain "fuel:32" (test-utils/read-test-state :attention-message))))
 
   (it "includes fuel in carrier fighter message"
     (set-test-world! (build-test-map ["C"]))
-    (set-test-unit atoms/game-map "C" :mode :sentry :awake-fighters 1 :fighter-count 2)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "C"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "C" :mode :sentry :awake-fighters 1 :fighter-count 2)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "fuel:32" @atoms/attention-message)))
+      (should-contain "fuel:32" (test-utils/read-test-state :attention-message))))
 
   (it "does not include fuel in army message"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :mode :awake :hits 1)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-not-contain "fuel:" @atoms/attention-message)))
+      (should-not-contain "fuel:" (test-utils/read-test-state :attention-message))))
 
   (it "does not include reason suffix when no reason"
     (set-test-world! (build-test-map ["D"]))
-    (set-test-unit atoms/game-map "D" :mode :awake :hits 3)
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "D"))]
-      (reset! atoms/attention-message "")
+    (set-test-unit (test-utils/game-map-atom) "D" :mode :awake :hits 3)
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "D"))]
+      (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-not-contain " - " @atoms/attention-message))))
+      (should-not-contain " - " (test-utils/read-test-state :attention-message)))))

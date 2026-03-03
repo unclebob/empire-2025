@@ -1,7 +1,7 @@
 (ns empire.computer.land-ho-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.land-ho :as land-ho]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn make-map [height width cell-fn]
@@ -28,15 +28,15 @@
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
         ;; Add target city
-        (reset! atoms/land-ho-targets [[2 1]])
+        (test-utils/set-test-state! :land-ho-targets [[2 1]])
         (land-ho/assign-land-ho-invasion)
         ;; Transport should be in invading mode
-        (let [transport (get-in @atoms/game-map [0 0 :contents])]
+        (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (should= :invading (:transport-mission transport))
           (should= [2 1] (:invasion-target transport))
           (should-not-be-nil (:invasion-path transport)))
         ;; Target should be consumed
-        (should= [] @atoms/land-ho-targets))))
+        (should= [] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "with no qualifying transports"
     (it "leaves the target at the front of the queue"
@@ -47,9 +47,9 @@
                            {:type :sea})))]
         (set-test-world! game-map)
         (set-test-computer-map! game-map)
-        (reset! atoms/land-ho-targets [[2 1]])
+        (test-utils/set-test-state! :land-ho-targets [[2 1]])
         (land-ho/assign-land-ho-invasion)
-        (should= [[2 1]] @atoms/land-ho-targets))))
+        (should= [[2 1]] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "with an unreachable target"
     (it "moves the target to the end of the queue"
@@ -67,16 +67,16 @@
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
         ;; Unreachable target first, reachable target second
-        (reset! atoms/land-ho-targets [[2 4] [1 0]])
+        (test-utils/set-test-state! :land-ho-targets [[2 4] [1 0]])
         (land-ho/assign-land-ho-invasion)
         ;; Unreachable target moves to end
-        (should= [[1 0] [2 4]] @atoms/land-ho-targets))))
+        (should= [[1 0] [2 4]] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "with empty target list"
     (it "does nothing"
-      (reset! atoms/land-ho-targets [])
+      (test-utils/set-test-state! :land-ho-targets [])
       (land-ho/assign-land-ho-invasion)
-      (should= [] @atoms/land-ho-targets)))
+      (should= [] (test-utils/read-test-state :land-ho-targets))))
 
   (context "with multiple transports"
     (it "picks the nearest transport to the first target"
@@ -96,10 +96,10 @@
         (update-test-world! assoc-in [3 2 :contents]
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
-        (reset! atoms/land-ho-targets [[4 2]])
+        (test-utils/set-test-state! :land-ho-targets [[4 2]])
         (land-ho/assign-land-ho-invasion)
         ;; Near transport should be assigned
-        (let [near (get-in @atoms/game-map [3 2 :contents])
-              far (get-in @atoms/game-map [0 0 :contents])]
+        (let [near (get-in (test-utils/read-test-state :game-map) [3 2 :contents])
+              far (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (should= :invading (:transport-mission near))
           (should= :sailing (:transport-mission far)))))))

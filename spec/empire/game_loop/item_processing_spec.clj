@@ -1,7 +1,7 @@
 (ns empire.game-loop.item-processing-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.game-loop.item-processing :as ip]
-            [empire.atoms :as atoms]
             [empire.config :as config]
             [empire.movement.movement :as movement]
             [empire.movement.explore :as explore]
@@ -44,38 +44,38 @@
   (before (reset-all-atoms!))
 
   (it "declares victory when no computer items on map (L39)"
-    (reset! atoms/game-over-check-enabled true)
+    (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land}]])
     (ip/check-player-victory!)
-    (should= true @atoms/paused)
-    (should-contain "YOU WIN" @atoms/error-message))
+    (should= true (test-utils/read-test-state :paused))
+    (should-contain "YOU WIN" (test-utils/read-test-state :error-message)))
 
   (it "does not declare victory when computer city exists (L21)"
-    (reset! atoms/game-over-check-enabled true)
+    (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :city :city-status :computer}]])
     (ip/check-player-victory!)
-    (should= false @atoms/paused))
+    (should= false (test-utils/read-test-state :paused)))
 
   (it "does not declare victory when computer unit exists (L22)"
-    (reset! atoms/game-over-check-enabled true)
+    (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land :contents {:type :army :owner :computer}}]])
     (ip/check-player-victory!)
-    (should= false @atoms/paused))
+    (should= false (test-utils/read-test-state :paused)))
 
   (it "flushes both item lists on victory (L29, L32, L33)"
-    (reset! atoms/game-over-check-enabled true)
+    (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land}]])
-    (reset! atoms/player-items [[0 0]])
-    (reset! atoms/computer-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (test-utils/set-test-state! :computer-items [[1 1]])
     (ip/check-player-victory!)
-    (should= [] @atoms/player-items)
-    (should= [] @atoms/computer-items))
+    (should= [] (test-utils/read-test-state :player-items))
+    (should= [] (test-utils/read-test-state :computer-items)))
 
   (it "does not declare victory when check disabled"
-    (reset! atoms/game-over-check-enabled false)
+    (test-utils/set-test-state! :game-over-check-enabled false)
     (set-test-world! [[{:type :land}]])
     (ip/check-player-victory!)
-    (should= false @atoms/paused)))
+    (should= false (test-utils/read-test-state :paused))))
 
 ;; ===== move-current-unit: guard clause (L50, L51) =====
 
@@ -138,7 +138,7 @@
                               (land-cell) (land-cell)]])
     (with-redefs [movement/move-unit (mock-move :normal)]
       (ip/move-current-unit [0 0])
-      (should= 2 (get-in @atoms/game-map [1 0 :contents :steps-remaining]))))
+      (should= 2 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :steps-remaining]))))
 
   (it "returns pos when exactly 1 step remains after move (L75 0→1 boundary)"
     ;; steps-remaining=2, dec→1, (> 1 0)=true → returns pos
@@ -158,7 +158,7 @@
     (with-redefs [movement/move-unit (mock-move :normal)]
       (ip/move-current-unit [0 0])
       ;; With default 1: dec→0. With mutant default 0: dec→-1.
-      (should= 0 (get-in @atoms/game-map [1 0 :contents :steps-remaining])))))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :steps-remaining])))))
 
 ;; ===== move-current-unit: sidestep branch (L56-64) =====
 
@@ -173,7 +173,7 @@
     ;; Use max-sidesteps=0 so no recur after sidestep
     (with-redefs [movement/move-unit (mock-move :sidestep)]
       (ip/move-current-unit [0 0] 0)
-      (should= 2 (get-in @atoms/game-map [1 0 :contents :steps-remaining]))))
+      (should= 2 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :steps-remaining]))))
 
   (it "returns pos when steps remain but max-sidesteps exhausted (L62, L63)"
     (set-test-world! [[{:type :land :contents {:type :army :owner :player
@@ -222,7 +222,7 @@
                               (land-cell)]])
     (with-redefs [movement/move-unit (mock-move :sidestep)]
       (ip/move-current-unit [0 0] 0)
-      (should= 0 (get-in @atoms/game-map [1 0 :contents :steps-remaining])))))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :steps-remaining])))))
 
 ;; ===== move-current-unit: combat branch (L78-84) =====
 
@@ -244,7 +244,7 @@
                       {:result :combat :pos [1 0]}))]
       (let [result (ip/move-current-unit [0 0])]
         (should-be-nil result)
-        (should= 0 (get-in @atoms/game-map [1 0 :contents :steps-remaining])))))
+        (should= 0 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :steps-remaining])))))
 
   (it "returns nil when attacker loses combat (L82 owner check)"
     (set-test-world! [[{:type :land :contents {:type :army :owner :player
@@ -297,7 +297,7 @@
                                :flight-path [1 0]
                                :awake-fighters 1 :fighter-count 1}
                               (land-cell)]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (let [launched? (atom false)]
       (with-redefs [container-ops/launch-fighter-from-airport
                     (fn [coords fp]
@@ -314,7 +314,7 @@
                                                      :flight-path [1 0]
                                                      :awake-fighters 1 :fighter-count 1}}
                               (sea-cell)]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (let [launched? (atom false)]
       (with-redefs [container-ops/launch-fighter-from-carrier
                     (fn [coords fp]
@@ -328,7 +328,7 @@
   (it "does not launch fighter without flight-path (L113 when→when-not)"
     (set-test-world! [[{:type :city :city-status :player
                                :awake-fighters 1 :fighter-count 1}]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (let [launched? (atom false)]
       (with-redefs [container-ops/launch-fighter-from-airport
                     (fn [_ _] (reset! launched? true) [0 0])
@@ -352,7 +352,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [(sea-cell) (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [disembarked? (atom false)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [tc vc mo]
@@ -373,7 +373,7 @@
                                                      :mode :sentry :hits 3
                                                      :marching-orders [0 0]
                                                      :army-count 0}}]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [disembarked? (atom false)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_ _ _] (reset! disembarked? true) [0 0])
@@ -388,7 +388,7 @@
                                                      :mode :sentry :hits 3
                                                      :marching-orders [0 0]
                                                      :awake-armies 1}}]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (let [disembarked? (atom false)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_ _ _] (reset! disembarked? true) [0 0])
@@ -403,7 +403,7 @@
                               {:type :sea :contents {:type :transport :owner :player
                                                      :mode :sentry :hits 3
                                                      :awake-armies 1 :army-count 1}}]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [disembarked? (atom false)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_ _ _] (reset! disembarked? true) [0 0])
@@ -422,7 +422,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [(sea-cell) (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [disembarked? (atom false)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_ _ _] (reset! disembarked? true) [0 0])
@@ -442,7 +442,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [(sea-cell) (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [disembarked? (atom false)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_ _ _] (reset! disembarked? true) [0 0])
@@ -461,7 +461,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [(sea-cell) (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [target-pos (atom nil)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_tc vc _mo] (reset! target-pos vc) vc)
@@ -480,7 +480,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [{:type :land} (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [target-pos (atom nil)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_tc vc _mo] (reset! target-pos vc) vc)
@@ -499,7 +499,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [(sea-cell) (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [target-pos (atom nil)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_tc vc _mo] (reset! target-pos vc) vc)
@@ -518,7 +518,7 @@
                                                      :awake-armies 1 :army-count 1}}
                               (sea-cell)]
                              [(sea-cell) (sea-cell) (sea-cell)]])
-    (reset! atoms/player-items [[1 1]])
+    (test-utils/set-test-state! :player-items [[1 1]])
     (let [target-pos (atom nil)]
       (with-redefs [container-ops/disembark-army-with-target
                     (fn [_tc vc _mo] (reset! target-pos vc) vc)
@@ -538,25 +538,25 @@
                                                       :mode :moving :target [2 0]
                                                       :steps-remaining 3}}
                               (land-cell) (land-cell)]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (with-redefs [movement/move-unit (mock-move :normal)
                   attention/item-needs-attention? (fn [_] false)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
       ;; Item should be consumed (moved then continued), not waiting
-      (should-not @atoms/waiting-for-input)))
+      (should-not (test-utils/read-test-state :waiting-for-input))))
 
   (it "removes item when movement returns nil (L150)"
     (set-test-world! [[{:type :land :contents {:type :army :owner :player
                                                       :mode :moving :target [1 0]
                                                       :steps-remaining 1}}
                               (land-cell)]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (with-redefs [movement/move-unit (mock-move :normal)
                   attention/item-needs-attention? (fn [_] false)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
-      (should (empty? @atoms/player-items)))))
+      (should (empty? (test-utils/read-test-state :player-items))))))
 
 ;; ===== process-player-items-batch: process-one-item satellite (L161, L163) =====
 
@@ -567,11 +567,11 @@
     (set-test-world! [[{:type :land :contents {:type :satellite :owner :player
                                                       :mode :moving :target [5 0]
                                                       :steps-remaining 10}}]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (with-redefs [attention/item-needs-attention? (fn [_] false)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
-      (should (empty? @atoms/player-items))))
+      (should (empty? (test-utils/read-test-state :player-items)))))
 
   (it "does not skip non-satellite unit with target (L161 =→not=)"
     ;; Army with :target key should NOT be treated as satellite
@@ -579,12 +579,12 @@
     (set-test-world! [[{:type :land :contents {:type :army :owner :player
                                                       :mode :awake :target [1 0]
                                                       :steps-remaining 1}}]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (with-redefs [attention/item-needs-attention? (fn [_] true)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
       ;; Army should ask for attention, not be skipped
-      (should @atoms/waiting-for-input)))
+      (should (test-utils/read-test-state :waiting-for-input))))
 
   (it "checks auto-launch for non-satellite (L163 when-not→when)"
     ;; Non-satellite unit: auto-launch should be checked
@@ -593,7 +593,7 @@
                                :flight-path [1 0]
                                :awake-fighters 1 :fighter-count 1}
                               (land-cell)]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (let [launched? (atom false)]
       (with-redefs [container-ops/launch-fighter-from-airport
                     (fn [_ _] (reset! launched? true) [1 0])
@@ -610,12 +610,12 @@
   (it "sets waiting-for-input when item needs attention (L180)"
     (set-test-world! [[{:type :land :contents {:type :army :owner :player
                                                       :mode :awake :steps-remaining 1}}]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (with-redefs [attention/item-needs-attention? (fn [_] true)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
-      (should @atoms/waiting-for-input)
-      (should= [[0 0]] @atoms/cells-needing-attention))))
+      (should (test-utils/read-test-state :waiting-for-input))
+      (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention)))))
 
 ;; ===== process-computer-items (L191, L192, L194, L197, L199, L208-211) =====
 
@@ -623,29 +623,29 @@
   (before (reset-all-atoms!))
 
   (it "does nothing when computer-items is empty"
-    (reset! atoms/computer-items [])
+    (test-utils/set-test-state! :computer-items [])
     (set-test-world! (make-land-map 5))
     (ip/process-computer-items)
-    (should= [] @atoms/computer-items))
+    (should= [] (test-utils/read-test-state :computer-items)))
 
   (it "processes all items when fewer than 100"
     (set-test-world! (make-land-map 5))
-    (reset! atoms/computer-items [[0 0] [1 1] [2 2] [3 3] [4 4]])
+    (test-utils/set-test-state! :computer-items [[0 0] [1 1] [2 2] [3 3] [4 4]])
     (ip/process-computer-items)
-    (should= [] @atoms/computer-items))
+    (should= [] (test-utils/read-test-state :computer-items)))
 
   (it "stops after 100 items (L208, L209)"
     (let [n 5
           coords (for [c (range n) r (range n)] [c r])]
       (set-test-world! (make-land-map n))
-      (reset! atoms/computer-items (vec (apply concat (repeat 10 coords))))
-      (should= 250 (count @atoms/computer-items))
+      (test-utils/set-test-state! :computer-items (vec (apply concat (repeat 10 coords))))
+      (should= 250 (count (test-utils/read-test-state :computer-items)))
       (ip/process-computer-items)
-      (should= 150 (count @atoms/computer-items))))
+      (should= 150 (count (test-utils/read-test-state :computer-items)))))
 
   (it "processes computer city production (L191 city-status, L194)"
     (set-test-world! [[{:type :city :city-status :computer}]])
-    (reset! atoms/computer-items [[0 0]])
+    (test-utils/set-test-state! :computer-items [[0 0]])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
                     (fn [_] (reset! produced? true))]
@@ -654,7 +654,7 @@
 
   (it "does not process non-computer city (L191 =→not=)"
     (set-test-world! [[{:type :city :city-status :player}]])
-    (reset! atoms/computer-items [[0 0]])
+    (test-utils/set-test-state! :computer-items [[0 0]])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
                     (fn [_] (reset! produced? true))]
@@ -663,7 +663,7 @@
 
   (it "does not process non-city as city (L191 type =→not=)"
     (set-test-world! [[{:type :land}]])
-    (reset! atoms/computer-items [[0 0]])
+    (test-utils/set-test-state! :computer-items [[0 0]])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
                     (fn [_] (reset! produced? true))]
@@ -674,7 +674,7 @@
     (set-test-world! [[{:type :land :contents {:type :army :owner :computer
                                                       :mode :awake}}
                               (land-cell)]])
-    (reset! atoms/computer-items [[0 0]])
+    (test-utils/set-test-state! :computer-items [[0 0]])
     (let [moved? (atom false)]
       (with-redefs [computer/process-computer-unit
                     (fn [_] (reset! moved? true) nil)]
@@ -686,7 +686,7 @@
                                                       :mode :moving}}
                               {:type :land :contents {:type :army :owner :computer
                                                       :mode :awake}}]])
-    (reset! atoms/computer-items [[0 0] [1 0]])
+    (test-utils/set-test-state! :computer-items [[0 0] [1 0]])
     (let [call-count (atom 0)]
       (with-redefs [computer/process-computer-unit
                     (fn [coords]
@@ -704,10 +704,10 @@
           coords (for [c (range n) r (range n)] [c r])]
       (set-test-world! (make-land-map n))
       ;; 125 items = 5 repetitions of 25
-      (reset! atoms/computer-items (vec (apply concat (repeat 5 coords))))
-      (should= 125 (count @atoms/computer-items))
+      (test-utils/set-test-state! :computer-items (vec (apply concat (repeat 5 coords))))
+      (should= 125 (count (test-utils/read-test-state :computer-items)))
       (ip/process-computer-items)
-      (should= 25 (count @atoms/computer-items)))))
+      (should= 25 (count (test-utils/read-test-state :computer-items))))))
 
 ;; ===== process-player-items-batch =====
 
@@ -715,51 +715,51 @@
   (before (reset-all-atoms!))
 
   (it "stops when player-items is empty"
-    (reset! atoms/player-items '())
+    (test-utils/set-test-state! :player-items '())
     (set-test-world! (make-land-map 3))
     (ip/process-player-items-batch)
-    (should= '() @atoms/player-items))
+    (should= '() (test-utils/read-test-state :player-items)))
 
   (it "stops when paused (victory declared)"
     (set-test-world! (make-land-map 3))
-    (reset! atoms/player-items (list [0 0] [1 1]))
-    (reset! atoms/paused true)
+    (test-utils/set-test-state! :player-items (list [0 0] [1 1]))
+    (test-utils/set-test-state! :paused true)
     (ip/process-player-items-batch)
-    (should= 2 (count @atoms/player-items)))
+    (should= 2 (count (test-utils/read-test-state :player-items))))
 
   (it "stops when waiting-for-input is set"
     (set-test-world! (make-land-map 3))
-    (reset! atoms/player-items (list [0 0] [1 1]))
-    (reset! atoms/waiting-for-input true)
+    (test-utils/set-test-state! :player-items (list [0 0] [1 1]))
+    (test-utils/set-test-state! :waiting-for-input true)
     (ip/process-player-items-batch)
-    (should= 2 (count @atoms/player-items)))
+    (should= 2 (count (test-utils/read-test-state :player-items))))
 
   (it "stops after processing 100 items"
     (set-test-world! (make-land-map 5))
     (let [coords (for [c (range 5) r (range 5)] [c r])]
-      (reset! atoms/player-items (apply list (apply concat (repeat 6 coords)))))
-    (should= 150 (count @atoms/player-items))
+      (test-utils/set-test-state! :player-items (apply list (apply concat (repeat 6 coords)))))
+    (should= 150 (count (test-utils/read-test-state :player-items)))
     (ip/process-player-items-batch)
-    (should= 50 (count @atoms/player-items)))
+    (should= 50 (count (test-utils/read-test-state :player-items))))
 
   (it "stops when process-one-item returns :waiting (awake unit needs attention)"
     (let [game-map (make-land-map 3)
           unit {:type :army :owner :player :mode :awake :hits 1}
           game-map (assoc-in game-map [1 1 :contents] unit)]
       (set-test-world! game-map)
-      (reset! atoms/player-items (list [1 1] [0 0]))
+      (test-utils/set-test-state! :player-items (list [1 1] [0 0]))
       (ip/process-player-items-batch)
-      (should @atoms/waiting-for-input)
-      (should= [[1 1]] @atoms/cells-needing-attention)))
+      (should (test-utils/read-test-state :waiting-for-input))
+      (should= [[1 1]] (test-utils/read-test-state :cells-needing-attention))))
 
   (it "declares victory when computer has no items left"
     (let [game-map (make-land-map 3)]
       (set-test-world! game-map)
-      (reset! atoms/game-over-check-enabled true)
-      (reset! atoms/player-items (list [0 0] [1 1]))
+      (test-utils/set-test-state! :game-over-check-enabled true)
+      (test-utils/set-test-state! :player-items (list [0 0] [1 1]))
       (ip/process-player-items-batch)
-      (should @atoms/paused)
-      (should= "****YOU WIN!*****" @atoms/error-message))))
+      (should (test-utils/read-test-state :paused))
+      (should= "****YOU WIN!*****" (test-utils/read-test-state :error-message)))))
 
 (describe "satellite-with-target?"
   (it "returns truthy for satellite with target"
@@ -783,13 +783,13 @@
   (it "unit with nil mode falls through to else (process-auto-movement)"
     (set-test-world! [[{:type :land :contents {:type :army :owner :player
                                                       :mode nil :hits 1}}]])
-    (reset! atoms/player-items [[0 0]])
+    (test-utils/set-test-state! :player-items [[0 0]])
     (with-redefs [attention/item-needs-attention? (fn [_] false)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
       ;; nil mode → not in auto-mode set, not needing attention → else branch
       ;; process-auto-movement with nil mode → case returns nil → item removed
-      (should (empty? @atoms/player-items)))))
+      (should (empty? (test-utils/read-test-state :player-items))))))
 
 (describe "process-player-items-batch loop (mutation coverage)"
   (before (reset-all-atoms!))
@@ -797,29 +797,28 @@
   (it "processes items counting from 0 (L219 0→1)"
     (let [processed (atom 0)]
       (set-test-world! (make-land-map 15))
-      (reset! atoms/player-items (vec (for [c (range 10) r (range 10)] [c r])))
+      (test-utils/set-test-state! :player-items (vec (for [c (range 10) r (range 10)] [c r])))
       (with-redefs [attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
         (ip/process-player-items-batch)
-        (should (empty? @atoms/player-items)))))
+        (should (empty? (test-utils/read-test-state :player-items))))))
 
   (it "stops at batch limit of 100 (L224 >=→>)"
     (let [n 5]
       (set-test-world! (make-land-map n))
-      (reset! atoms/player-items
-              (vec (for [_ (range 6) c (range n) r (range n)] [c r])))
-      (should= 150 (count @atoms/player-items))
+      (test-utils/set-test-state! :player-items (vec (for [_ (range 6) c (range n) r (range n)] [c r])))
+      (should= 150 (count (test-utils/read-test-state :player-items)))
       (with-redefs [attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
         (ip/process-player-items-batch)
-        (should= 50 (count @atoms/player-items)))))
+        (should= 50 (count (test-utils/read-test-state :player-items))))))
 
   (it "increments processed counter on :done (L230 inc→dec)"
     (let [call-count (atom 0)]
       (set-test-world! (vec (repeat 110 [(land-cell)])))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :player :mode :moving :target [109 0] :steps-remaining 200})
-      (reset! atoms/player-items [[0 0]])
+      (test-utils/set-test-state! :player-items [[0 0]])
       (with-redefs [movement/move-unit
                     (fn [from _t cell gm]
                       (swap! call-count inc)
@@ -835,12 +834,12 @@
         (should (<= @call-count 100)))))
 
   (it "stops when paused (victory declared mid-batch)"
-    (reset! atoms/game-over-check-enabled true)
+    (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land} {:type :land}]])
-    (reset! atoms/player-items [[0 0] [1 0]])
+    (test-utils/set-test-state! :player-items [[0 0] [1 0]])
     (with-redefs [attention/item-needs-attention? (fn [_] false)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
-      (should @atoms/paused))))
+      (should (test-utils/read-test-state :paused)))))
 
 (run-specs)

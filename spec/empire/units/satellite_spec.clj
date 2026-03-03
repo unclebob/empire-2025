@@ -1,7 +1,6 @@
 (ns empire.units.satellite-spec
   (:require [speclj.core :refer :all]
             [empire.units.satellite :as satellite]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world!]]))
 
 (describe "satellite unit module"

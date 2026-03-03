@@ -1,9 +1,9 @@
 (ns empire.computer.production-army-spec
   "Tests for VMS Empire style computer production."
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.production :as production]
             [empire.computer.ship :as ship]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 ;; ===== 3. army production =====
@@ -34,7 +34,7 @@
       ;; Coastal city with country-id 1, 2 coastal cells, 0 armies on them
       ;; Transport priority not met (< 6 armies), so army comes first
       (set-test-world! (build-test-map ["~X#~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (doseq [col [1 2]]
         (update-test-world! assoc-in [col 0 :country-id] 1))
       (production/rebuild-country-stats!)
@@ -46,7 +46,7 @@
       ;; Army at [2,0] fills the only coastal cell
       ;; Transport also needs >=6 armies, so no transport either
       (set-test-world! (build-test-map ["~Xa~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (doseq [col [1 2]]
         (update-test-world! assoc-in [col 0 :country-id] 1))
       (update-test-world! assoc-in [2 0 :contents :country-id] 1)
@@ -56,7 +56,7 @@
     (it "does not produce army when all coastal cells occupied by non-army units"
       ;; Coastal cell [2,0] has a fighter — still considered occupied
       (set-test-world! (build-test-map ["~Xf~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (doseq [col [1 2]]
         (update-test-world! assoc-in [col 0 :country-id] 1))
       (update-test-world! assoc-in [2 0 :contents :country-id] 1)
@@ -123,7 +123,7 @@
       ;; Coastal land cells: [2,0] and [3,0] (adjacent to sea at row 1)
       (set-test-world! (build-test-map ["~Xaatd~ppppff"
                                                "~~~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -148,7 +148,7 @@
       ;; 2/3 limit: 2/3 * 4 = 2.67, 2 armies < 2.67 → limit not reached
       (set-test-world! (build-test-map ["~Xaa##td~ppppff"
                                                "~~~~~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3 4 5]]
         (update-test-world! assoc-in [col 0 :country-id] 1))
@@ -173,7 +173,7 @@
       ;; Row 1: ~ ~ ~ ~ ~ ~
       (set-test-world! (build-test-map ["~X##~t"
                                                "~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1))
@@ -281,7 +281,7 @@
     (it "produces transport when armies await pickup and existing transport is full"
       ;; Coastal city, country-id 1, 6+ armies, 1 full transport
       (set-test-world! (build-test-map ["~X#aaaaaaa~t"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 3 10)]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -296,7 +296,7 @@
     (it "does not produce transport when existing transport has room"
       ;; Coastal city, country-id 1, 6+ armies, 1 non-full transport
       (set-test-world! (build-test-map ["~X#aaaaaaa~t"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 3 10)]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -314,7 +314,7 @@
       ;; 2-row: coastal city, armies fill coastal cells, transport+escort, 0 patrol boats
       (set-test-world! (build-test-map ["~Xaatd"
                                                "~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -329,7 +329,7 @@
       ;; 2-row: armies fill coastal cells, 4 patrol boats
       (set-test-world! (build-test-map ["~Xaatd~pppp"
                                                "~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -348,7 +348,7 @@
       ;; 2-row: coastal armies fill all coastal cells, transport+escort, 0 patrol boats
       (set-test-world! (build-test-map ["~Xaatd"
                                                "~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -363,7 +363,7 @@
       ;; 2-row: same but with 4 patrol boats
       (set-test-world! (build-test-map ["~Xaatd~pppp"
                                                "~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col [2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -382,7 +382,7 @@
       ;; L164: >= -> > would miss the boundary case of exactly 6
       (set-test-world! (build-test-map ["~Xaaaaaaa~t"
                                                "~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 2 9)]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -397,7 +397,7 @@
       ;; L164: 0 -> 1 default would make transport with no army-count appear to have 1
       (set-test-world! (build-test-map ["~Xaaaaaaa~t"
                                                "~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (doseq [col (range 2 9)]
         (update-test-world! assoc-in [col 0 :country-id] 1)
@@ -415,13 +415,13 @@
       ;; Place enough armies for transport priority
       (set-test-world! (build-test-map ["~X~Xaaaaaaa"
                                                "~~~~~~~~~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (update-test-world! assoc-in [3 0 :country-id] 1)
       (doseq [col (range 4 11)]
         (update-test-world! assoc-in [col 0 :country-id] 1)
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
-      (reset! atoms/last-transport-city {1 [1 0]})
+      (test-utils/set-test-state! :last-transport-city {1 [1 0]})
       (production/rebuild-country-stats!)
       ;; Should NOT produce transport at [1,0] because rotation says skip
       (should-not= :transport (production/decide-production [1 0])))))

@@ -1,5 +1,5 @@
 (ns empire.computer.production.stats-spec
-  (:require [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
             [empire.computer.production.stats :as stats]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map!]]
             [speclj.core :refer :all]))
@@ -19,15 +19,14 @@
     (should (stats/country-has-other-coastal-city? [1 0] 7)))
 
   (it "returns defaults for missing country stats"
-    (reset! atoms/country-stats {})
+    (test-utils/set-test-state! :country-stats {})
     (should= 0 (stats/count-country-armies 99))
     (should= 0 (stats/count-country-coastal-cells 99))
     (should= 0 (stats/count-country-patrol-boats 99))
     (should (stats/country-coastal-cells-explored? 99)))
 
   (it "reads populated country stats getters"
-    (reset! atoms/country-stats
-            {7 {:army-count 3
+    (test-utils/set-test-state! :country-stats {7 {:army-count 3
                 :coastal-cell-count 4
                 :coastal-explored? false
                 :patrol-boat-count 2

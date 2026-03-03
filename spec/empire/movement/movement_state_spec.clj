@@ -1,5 +1,5 @@
 (ns empire.movement.movement-state-spec
-  (:require [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
             [empire.movement.movement-state :as state]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -8,7 +8,7 @@
   (before
     (reset-all-atoms!)
     (set-test-world! (build-test-map ["###" "###" "###"]))
-    (reset! atoms/production {}))
+    (test-utils/set-test-state! :production {}))
 
   (it "builds synthetic active units with expected flags"
     (should= true
@@ -23,9 +23,9 @@
 
   (it "wakes player city and removes production"
     (update-test-world! assoc-in [1 1] {:type :city :city-status :player})
-    (reset! atoms/production {[1 1] {:item :army :remaining-rounds 3}})
+    (test-utils/set-test-state! :production {[1 1] {:item :army :remaining-rounds 3}})
     (should (state/wake-at [1 1]))
-    (should-be-nil (get @atoms/production [1 1])))
+    (should-be-nil (get (test-utils/read-test-state :production) [1 1])))
 
   (it "does not wake enemy transports or empty player transports"
     (update-test-world! assoc-in [1 1 :contents]

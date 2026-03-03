@@ -1,8 +1,8 @@
 (ns empire.computer.ship-patrol-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.ship-patrol :as patrol]
             [empire.computer.ship-core :as ship-core]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (describe "ship-patrol"
@@ -30,7 +30,7 @@
                          {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
                                                 :patrol-mode :crawling}}
                          {:type :sea :contents {:type :destroyer :owner :computer :hits 3}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       ;; No land adjacent, so crawl finds no coastal cells -> returns nil
       ;; patrol-boat-step returns nil, so process-patrol-boat decrements and loops
       (let [result (patrol/process-patrol-boat [0 1])]
@@ -42,7 +42,7 @@
       (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
                                                  :major-invasion true}}
                          {:type :sea :contents {:type :destroyer :owner :player :hits 2}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [ship-core/attack-enemy (fn [_pos enemy-pos] enemy-pos)]
         (should= [0 1] (@#'patrol/patrol-boat-step [0 0]))))
 
@@ -51,6 +51,6 @@
                                                  :major-invasion true
                                                  :patrol-mode :crawling}}
                          {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [patrol/patrol-crawl-step (fn [_] [0 1])]
         (should= [0 1] (@#'patrol/patrol-boat-step [0 0]))))))

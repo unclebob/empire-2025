@@ -1,9 +1,9 @@
 (ns empire.computer.fighter-hop-spec
   "Tests for VMS Empire style computer fighter movement."
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
             [empire.computer.fighter-movement :as fm]
-            [empire.atoms :as atoms]
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.test-utils :refer [build-test-map build-sparse-test-map
@@ -105,11 +105,11 @@
   (it "returns map with :pos and :steps-used 1 for normal movement"
     ;; Fighter at [0 0] with target, neighbor [1 0] is empty land
     (set-test-world! (build-test-map ["X#f####X"]))
-    (set-test-unit atoms/game-map "f" :fuel 20
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                    :flight-target-site [7 0]
                    :flight-origin-site [0 0]
                    :flight-mode :regular)
-    (set-test-computer-map! @atoms/game-map)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (#'fighter/step-fighter [2 0])]
       (should (map? result))
       (should= 1 (:steps-used result))
@@ -118,8 +118,8 @@
   (it "returns nil when fighter lands at city"
     ;; Fighter adjacent to city with low fuel should land and return nil
     (set-test-world! (build-test-map ["Xf"]))
-    (set-test-unit atoms/game-map "f" :fuel 2)
-    (set-test-computer-map! @atoms/game-map)
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 2)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should-be-nil (#'fighter/step-fighter [1 0])))
 
   (it "returns map with :pos for stuck fighter burning fuel"
@@ -127,8 +127,8 @@
     (set-test-world! (build-test-map ["aaa"
                                              "afa"
                                              "aaa"]))
-    (set-test-unit atoms/game-map "f" :fuel 10)
-    (set-test-computer-map! @atoms/game-map)
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 10)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (#'fighter/step-fighter [1 1])]
       (should (map? result))
       (should= [1 1] (:pos result))
@@ -143,23 +143,23 @@
     (set-test-world! (build-test-map ["aaa"
                                              "afa"
                                              "aaa"]))
-    (set-test-unit atoms/game-map "f" :fuel 10)
-    (set-test-computer-map! @atoms/game-map)
-    (let [unit (get-in @atoms/game-map [1 1 :contents])]
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 10)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
       (fighter/process-fighter [1 1] unit)
-      (let [result (get-test-unit atoms/game-map "f")]
+      (let [result (get-test-unit (test-utils/game-map-atom) "f")]
         (should-not-be-nil result)
         (should= 2 (:fuel (:unit result))))))
 
   (it "process-fighter still returns nil"
     ;; process-fighter always returns nil (side-effect based)
     (set-test-world! (build-test-map ["X#f####X"]))
-    (set-test-unit atoms/game-map "f" :fuel 20
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                    :flight-target-site [7 0]
                    :flight-origin-site [0 0]
                    :flight-mode :regular)
-    (set-test-computer-map! @atoms/game-map)
-    (let [unit (get-in @atoms/game-map [2 0 :contents])]
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (let [unit (get-in (test-utils/read-test-state :game-map) [2 0 :contents])]
       (should-be-nil (fighter/process-fighter [2 0] unit)))))
 
 (describe "consume-hop-fuel"
@@ -169,29 +169,29 @@
     ;; Fighter at [3 0] with fuel 20, simulate hopping from [0 0] through [1 0] [2 0] to [3 0]
     ;; intermediate cells are [1 0] and [2 0] (2 cells), so 2 fuel burned
     (set-test-world! (build-test-map ["#f##"]))
-    (set-test-unit atoms/game-map "f" :fuel 20)
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 20)
     (let [result (fm/consume-hop-fuel [1 0] 3)]
       (should= true result)
       ;; 3 hops means 2 intermediate fuel burns (hops-1 since final cell was already burned by move)
       ;; Actually: consume-hop-fuel burns fuel for hops-1 intermediate cells
-      (should= 18 (:fuel (get-in @atoms/game-map [1 0 :contents])))))
+      (should= 18 (:fuel (get-in (test-utils/read-test-state :game-map) [1 0 :contents])))))
 
   (it "returns false and removes fighter when fuel runs out during hop"
     ;; Fighter with fuel 2, trying to hop 3 cells (2 intermediate burns)
     ;; First burn: fuel 2->1. Second burn: fuel 1->0, fighter dies.
     (set-test-world! (build-test-map ["#f##"]))
-    (set-test-unit atoms/game-map "f" :fuel 2)
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 2)
     (let [result (fm/consume-hop-fuel [1 0] 3)]
       (should= false result)
-      (should-be-nil (get-in @atoms/game-map [1 0 :contents]))))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))))
 
   (it "does nothing for hops of 1 (no intermediate cells)"
     ;; A single hop has no intermediate cells to burn fuel for
     (set-test-world! (build-test-map ["#f##"]))
-    (set-test-unit atoms/game-map "f" :fuel 5)
+    (set-test-unit (test-utils/game-map-atom) "f" :fuel 5)
     (let [result (fm/consume-hop-fuel [1 0] 1)]
       (should= true result)
-      (should= 5 (:fuel (get-in @atoms/game-map [1 0 :contents]))))))
+      (should= 5 (:fuel (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))))))
 
 (describe "hop-over integration through process-fighter"
   (before (reset-all-atoms!))
@@ -201,18 +201,18 @@
       ;; Fighter at [0 0], friendly army at [1 0], player army at [5 0] (patrol target).
       ;; Fighter should hop over the friendly army rather than getting stuck.
       (set-test-world! (build-test-map ["fa###A"]))
-      (set-test-unit atoms/game-map "f" :fuel 20)
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [combat/resolve-combat
                     (fn [atk _def] {:winner :attacker :survivor atk})]
-        (let [unit (get-in @atoms/game-map [0 0 :contents])]
+        (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (fighter/process-fighter [0 0] unit)
           ;; Fighter should have moved past [1 0] (where the army is)
           ;; The army should still be at [1 0]
-          (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
-          (should= :computer (get-in @atoms/game-map [1 0 :contents :owner]))
+          (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))
+          (should= :computer (get-in (test-utils/read-test-state :game-map) [1 0 :contents :owner]))
           ;; Fighter should be somewhere past the army
-          (let [result (get-test-unit atoms/game-map "f")]
+          (let [result (get-test-unit (test-utils/game-map-atom) "f")]
             ;; Fighter may have attacked the player army or be somewhere
             ;; beyond the friendly army
             (when result
@@ -223,17 +223,17 @@
       ;; Fighter at [0 0] with flight-target at [5 0], friendly army at [1 0].
       ;; Fighter should hop over the army and continue toward target.
       (set-test-world! (build-test-map ["Xfa###X"]))
-      (set-test-unit atoms/game-map "f" :fuel 20
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-target-site [6 0]
                      :flight-origin-site [0 0]
                      :flight-mode :regular)
-      (set-test-computer-map! @atoms/game-map)
-      (let [unit (get-in @atoms/game-map [1 0 :contents])]
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         ;; Army should still be at [2 0]
-        (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
+        (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
         ;; Fighter should be past the army, closer to target
-        (let [result (get-test-unit atoms/game-map "f")]
+        (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
           (should (> (first (:pos result)) 2))))))
 
@@ -242,14 +242,14 @@
       ;; Fighter at [4 0] with low fuel, city at [0 0], friendly army at [3 0].
       ;; Fighter should hop over the army toward the city.
       (set-test-world! (build-test-map ["X##af"]))
-      (set-test-unit atoms/game-map "f" :fuel 5)
-      (set-test-computer-map! @atoms/game-map)
-      (let [unit (get-in @atoms/game-map [4 0 :contents])]
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 5)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [unit (get-in (test-utils/read-test-state :game-map) [4 0 :contents])]
         (fighter/process-fighter [4 0] unit)
         ;; Army should still be at [3 0]
-        (should= :army (get-in @atoms/game-map [3 0 :contents :type]))
+        (should= :army (get-in (test-utils/read-test-state :game-map) [3 0 :contents :type]))
         ;; Fighter should have landed at city
-        (should= 1 (:fighter-count (get-in @atoms/game-map [0 0]))))))
+        (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0]))))))
 
   (context "hop consumes extra fuel"
     (it "hopping over friendly units burns fuel for intermediate cells"
@@ -258,18 +258,18 @@
       ;; With 8 steps total: 1 hop (3 steps, 3 fuel) + 5 normal steps (5 fuel) = 8 fuel.
       ;; Fighter passes over the armies and ends up at [4 0]+5 = ~[9 0].
       (set-test-world! (build-test-map ["Xfaa######X"]))
-      (set-test-unit atoms/game-map "f" :fuel 20
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-target-site [10 0]
                      :flight-origin-site [0 0]
                      :flight-mode :regular)
-      (set-test-computer-map! @atoms/game-map)
-      (let [unit (get-in @atoms/game-map [1 0 :contents])]
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         ;; Friendly armies should still be in place (not displaced)
-        (should= :army (get-in @atoms/game-map [2 0 :contents :type]))
-        (should= :army (get-in @atoms/game-map [3 0 :contents :type]))
+        (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
+        (should= :army (get-in (test-utils/read-test-state :game-map) [3 0 :contents :type]))
         ;; Fighter should have hopped past the armies and be far toward target
-        (let [result (get-test-unit atoms/game-map "f")]
+        (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
           ;; Fighter should be well past the army blockade at [3 0]
           (should (> (first (:pos result)) 3))
@@ -281,17 +281,17 @@
       ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0].
       ;; Fighter should hop over friendly and attack the player army.
       (set-test-world! (build-test-map ["faA###"]))
-      (set-test-unit atoms/game-map "f" :fuel 20)
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [combat/resolve-combat
                     (fn [atk _def] {:winner :attacker :survivor atk})]
-        (let [unit (get-in @atoms/game-map [0 0 :contents])]
+        (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (fighter/process-fighter [0 0] unit)
           ;; Friendly army should still be at [1 0]
-          (should= :army (get-in @atoms/game-map [1 0 :contents :type]))
-          (should= :computer (get-in @atoms/game-map [1 0 :contents :owner]))
+          (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))
+          (should= :computer (get-in (test-utils/read-test-state :game-map) [1 0 :contents :owner]))
           ;; Fighter should be at [2 0] (won combat, took position)
-          (let [result (get-test-unit atoms/game-map "f")]
+          (let [result (get-test-unit (test-utils/game-map-atom) "f")]
             (should-not-be-nil result)
             ;; Fighter should be at or past [2 0]
             (should (>= (first (:pos result)) 2)))))))
@@ -301,11 +301,11 @@
       ;; Fighter at [0 0], friendly army at [1 0], target at [5 0].
       ;; step-fighter should return {:pos [2 0] :steps-used 2}
       (set-test-world! (build-test-map ["Xfa###X"]))
-      (set-test-unit atoms/game-map "f" :fuel 20
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-target-site [6 0]
                      :flight-origin-site [0 0]
                      :flight-mode :regular)
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (#'fighter/step-fighter [1 0])]
         (should (map? result))
         (should= 2 (:steps-used result))

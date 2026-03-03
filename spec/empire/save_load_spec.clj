@@ -1,6 +1,6 @@
 (ns empire.save-load-spec
-  (:require [speclj.core :refer :all]
-            [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.save-load :as save-load]
             [empire.test-utils :refer [reset-all-atoms! set-test-world!]]))
 
@@ -8,13 +8,13 @@
   (before (reset-all-atoms!))
 
   (it "load-menu-open defaults to false"
-    (should= false @atoms/load-menu-open))
+    (should= false (test-utils/read-test-state :load-menu-open)))
 
   (it "load-menu-files defaults to empty vector"
-    (should= [] @atoms/load-menu-files))
+    (should= [] (test-utils/read-test-state :load-menu-files)))
 
   (it "load-menu-hovered defaults to nil"
-    (should-be-nil @atoms/load-menu-hovered)))
+    (should-be-nil (test-utils/read-test-state :load-menu-hovered))))
 
 (describe "list-save-files"
   (it "returns empty vector when saves directory doesn't exist"
@@ -110,30 +110,30 @@
         (let [filename (save-load/save-game! dir)]
           (set-test-world! nil)
           (save-load/load-game! dir filename)
-          (should= test-map @atoms/game-map))
+          (should= test-map (test-utils/read-test-state :game-map)))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir))))))
 
   (it "restores round-number from saved file"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
-      (reset! atoms/round-number 42)
+      (test-utils/set-test-state! :round-number 42)
       (try
         (let [filename (save-load/save-game! dir)]
-          (reset! atoms/round-number 0)
+          (test-utils/set-test-state! :round-number 0)
           (save-load/load-game! dir filename)
-          (should= 42 @atoms/round-number))
+          (should= 42 (test-utils/read-test-state :round-number)))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir))))))
 
   (it "closes the load menu after loading"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
-      (reset! atoms/load-menu-open true)
+      (test-utils/set-test-state! :load-menu-open true)
       (try
         (let [filename (save-load/save-game! dir)]
           (save-load/load-game! dir filename)
-          (should= false @atoms/load-menu-open))
+          (should= false (test-utils/read-test-state :load-menu-open)))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir)))))))
@@ -143,7 +143,7 @@
 
   (it "sets load-menu-open to true"
     (save-load/open-load-menu!)
-    (should= true @atoms/load-menu-open))
+    (should= true (test-utils/read-test-state :load-menu-open)))
 
   (it "populates load-menu-files from saves directory"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
@@ -151,7 +151,7 @@
         (.mkdirs (java.io.File. dir))
         (spit (str dir "/save-test.edn") "{}")
         (save-load/open-load-menu! dir)
-        (should= ["save-test.edn"] @atoms/load-menu-files)
+        (should= ["save-test.edn"] (test-utils/read-test-state :load-menu-files))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir)))))))
@@ -160,19 +160,19 @@
   (before (reset-all-atoms!))
 
   (it "sets load-menu-open to false"
-    (reset! atoms/load-menu-open true)
+    (test-utils/set-test-state! :load-menu-open true)
     (save-load/close-load-menu!)
-    (should= false @atoms/load-menu-open))
+    (should= false (test-utils/read-test-state :load-menu-open)))
 
   (it "clears load-menu-files"
-    (reset! atoms/load-menu-files ["file.edn"])
+    (test-utils/set-test-state! :load-menu-files ["file.edn"])
     (save-load/close-load-menu!)
-    (should= [] @atoms/load-menu-files))
+    (should= [] (test-utils/read-test-state :load-menu-files)))
 
   (it "clears load-menu-hovered"
-    (reset! atoms/load-menu-hovered 2)
+    (test-utils/set-test-state! :load-menu-hovered 2)
     (save-load/close-load-menu!)
-    (should-be-nil @atoms/load-menu-hovered)))
+    (should-be-nil (test-utils/read-test-state :load-menu-hovered))))
 
 (describe "menu-geometry"
   (it "calculates exact values for 3 files"

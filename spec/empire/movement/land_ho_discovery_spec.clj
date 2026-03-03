@@ -1,7 +1,7 @@
 (ns empire.movement.land-ho-discovery-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.movement.visibility :as visibility]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn make-game-map [height width cell-fn]
@@ -25,7 +25,7 @@
                             {:type :patrol-boat :owner :computer})
         ;; Update visibility for the computer ship at [2 2]
         (visibility/update-cell-visibility [2 2] :computer)
-        (should-contain [2 3] @atoms/land-ho-targets))))
+        (should-contain [2 3] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "when player unit reveals a free city"
     (it "does not add to land-ho-targets"
@@ -39,7 +39,7 @@
         (update-test-world! assoc-in [2 2 :contents]
                             {:type :patrol-boat :owner :player})
         (visibility/update-cell-visibility [2 2] :player)
-        (should= [] @atoms/land-ho-targets))))
+        (should= [] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "when computer unit reveals a computer-owned city"
     (it "does not add to land-ho-targets"
@@ -53,7 +53,7 @@
         (update-test-world! assoc-in [2 2 :contents]
                             {:type :patrol-boat :owner :computer})
         (visibility/update-cell-visibility [2 2] :computer)
-        (should= [] @atoms/land-ho-targets))))
+        (should= [] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "when free city is already revealed on computer-map"
     (it "does not add duplicate"
@@ -68,7 +68,7 @@
         (update-test-world! assoc-in [2 2 :contents]
                             {:type :patrol-boat :owner :computer})
         (visibility/update-cell-visibility [2 2] :computer)
-        (should= [] @atoms/land-ho-targets))))
+        (should= [] (test-utils/read-test-state :land-ho-targets)))))
 
   (context "when computer army reveals a free city"
     (it "does not add to land-ho-targets"
@@ -84,4 +84,4 @@
                             {:type :army :owner :computer :hits 1})
         (visibility/update-cell-visibility [2 2] :computer
                                            {:type :army :owner :computer :hits 1})
-        (should= [] @atoms/land-ho-targets)))))
+        (should= [] (test-utils/read-test-state :land-ho-targets))))))

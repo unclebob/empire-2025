@@ -46,6 +46,15 @@ Equivalent Clojure alias:
 
     clj -M:acceptance-tests
 
+### Test Boundaries
+
+- Specs in `spec/**` must not manipulate `empire.atoms` directly.
+- Use `empire.test-utils` and runtime/test helper APIs instead of `@atoms/...`, `reset! atoms/...`, or `swap! atoms/...`.
+- Boundary enforcement runs in `clj -M:all-tests` via:
+  - `scripts/check-spec-boundary.sh`
+  - `scripts/check-acceptance-boundary.sh`
+  - `scripts/check-generated-acceptance-boundary.sh`
+
 ## The World
 
 The world is a rectangle 100 columns by 60 rows (by default). The geography is randomly generated for each game by creating a height map, smoothing it to form natural terrain features, then setting a sea level to achieve approximately 30% land and 70% water. This produces a world of continents, islands, and ocean passages that varies from game to game.

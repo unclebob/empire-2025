@@ -1,8 +1,8 @@
 (ns empire.computer.ship-core-spec
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.threat :as threat]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map!]]
             [empire.combat :as combat]))
 
@@ -26,25 +26,25 @@
     (it "updates carrier-positions when carrier wins"
       (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer :hits 8}}
                          {:type :sea :contents {:type :patrol-boat :owner :player :hits 1}}]])
-      (reset! atoms/computer-carrier-positions #{[0 0]})
+      (test-utils/set-test-state! :computer-carrier-positions #{[0 0]})
       (with-redefs [combat/resolve-combat (fn [_ _] {:winner :attacker
                                                       :survivor {:type :carrier :owner :computer :hits 7}
                                                       :log [{:hit :defender :damage 1}]})
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
-      (should-not (contains? @atoms/computer-carrier-positions [0 0]))
-      (should (contains? @atoms/computer-carrier-positions [0 1])))
+      (should-not (contains? (test-utils/read-test-state :computer-carrier-positions) [0 0]))
+      (should (contains? (test-utils/read-test-state :computer-carrier-positions) [0 1])))
 
     (it "removes carrier from positions when carrier loses"
       (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer :hits 1}}
                          {:type :sea :contents {:type :battleship :owner :player :hits 8}}]])
-      (reset! atoms/computer-carrier-positions #{[0 0]})
+      (test-utils/set-test-state! :computer-carrier-positions #{[0 0]})
       (with-redefs [combat/resolve-combat (fn [_ _] {:winner :defender
                                                       :survivor {:type :battleship :owner :player :hits 7}
                                                       :log [{:hit :attacker :damage 2}]})
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
-      (should-not (contains? @atoms/computer-carrier-positions [0 0])))
+      (should-not (contains? (test-utils/read-test-state :computer-carrier-positions) [0 0])))
 
     (it "updates surviving defender hits when attacker loses"
       (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
@@ -54,20 +54,20 @@
                                                       :log [{:hit :attacker :damage 2}]})
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
-      (should= nil (get-in @atoms/game-map [0 0 :contents]))
-      (should= 8 (get-in @atoms/game-map [0 1 :contents :hits])))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+      (should= 8 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :hits])))
 
     (it "sets turn message describing battle and damage"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                          {:type :sea :contents {:type :patrol-boat :owner :player :hits 1}}]])
-      (reset! atoms/turn-message "")
+      (test-utils/set-test-state! :turn-message "")
       (with-redefs [combat/resolve-combat (fn [_ _] {:winner :attacker
                                                       :survivor {:type :destroyer :owner :computer :hits 3}
                                                       :log [{:hit :defender :damage 1}]})
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
       (should= "Battle: p-1. Patrol-boat destroyed. Damage: Destroyer lost 0, Patrol-boat lost 1."
-               @atoms/turn-message)))
+               (test-utils/read-test-state :turn-message))))
 
   (context "retreat-if-damaged (L129)"
     (it "retreats with passable sea neighbors when ship should retreat"
@@ -75,7 +75,7 @@
                          {:type :sea}]
                         [{:type :sea}
                          {:type :land}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [seen (atom nil)
             unit {:type :destroyer :owner :computer :hits 2}]
         (with-redefs [threat/should-retreat? (fn [pos u comp-map]
@@ -87,12 +87,12 @@
                    (ship-core/retreat-if-damaged [0 0] unit))
           (should= [0 0] (:pos @seen))
           (should= unit (:unit @seen))
-          (should= @atoms/game-map (:computer-map @seen)))))
+          (should= (test-utils/read-test-state :game-map) (:computer-map @seen)))))
 
     (it "does not call retreat move when ship should not retreat"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                          {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [retreat-called? (atom false)]
         (with-redefs [threat/should-retreat? (constantly false)
                       threat/retreat-move (fn [& _]

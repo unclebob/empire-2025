@@ -1,6 +1,6 @@
 (ns empire.movement.explore-spec
-  (:require [speclj.core :refer :all]
-            [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.config :as config]
             [empire.movement.explore :refer :all]
             [empire.movement.map-utils :as map-utils]
@@ -124,19 +124,19 @@
   (before (reset-all-atoms!))
   (it "sets unit to explore mode with initial state"
     (set-test-world! (build-test-map ["A"]))
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (set-explore-mode unit-coords)
-      (let [unit (get-in @atoms/game-map (conj unit-coords :contents))]
+      (let [unit (get-in (test-utils/read-test-state :game-map) (conj unit-coords :contents))]
         (should= :explore (:mode unit))
         (should= config/explore-steps (:explore-steps unit))
         (should= #{unit-coords} (:visited unit)))))
 
   (it "removes reason and target when setting explore mode"
     (set-test-world! (build-test-map ["A"]))
-    (set-test-unit atoms/game-map "A" :reason :some-reason :target [5 5])
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (set-test-unit (test-utils/game-map-atom) "A" :reason :some-reason :target [5 5])
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (set-explore-mode unit-coords)
-      (let [unit (get-in @atoms/game-map (conj unit-coords :contents))]
+      (let [unit (get-in (test-utils/read-test-state :game-map) (conj unit-coords :contents))]
         (should= :explore (:mode unit))
         (should-be-nil (:reason unit))
         (should-be-nil (:target unit))))))
@@ -145,11 +145,11 @@
   (before (reset-all-atoms!))
   (it "wakes up after explore-steps exhausted"
     (set-test-world! (build-test-map ["A#"]))
-    (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 1 :visited #{})
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 1 :visited #{})
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (set-test-player-map! (build-test-map ["##"]))
       (move-explore-unit unit-coords)
-      (let [unit (get-in @atoms/game-map (conj unit-coords :contents))]
+      (let [unit (get-in (test-utils/read-test-state :game-map) (conj unit-coords :contents))]
         (should= :awake (:mode unit))
         (should-be-nil (:explore-steps unit))
         (should-be-nil (:visited unit)))))
@@ -158,23 +158,23 @@
     (set-test-world! (build-test-map ["~~~"
                                       "~A~"
                                       "~~~"]))
-    (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 10 :visited #{})
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))]
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 10 :visited #{})
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (set-test-player-map! (build-test-map ["~~~"
                                                  "~#~"
                                                  "~~~"]))
       (move-explore-unit unit-coords)
-      (let [unit (get-in @atoms/game-map (conj unit-coords :contents))]
+      (let [unit (get-in (test-utils/read-test-state :game-map) (conj unit-coords :contents))]
         (should= :awake (:mode unit)))))
 
   (it "wakes up when finding hostile city"
     (set-test-world! (build-test-map ["A#X"]))
-    (set-test-unit atoms/game-map "A" :mode :explore :explore-steps 10 :visited #{})
-    (let [unit-coords (:pos (get-test-unit atoms/game-map "A"))
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 10 :visited #{})
+    (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
           dest-coords [(inc (first unit-coords)) (second unit-coords)]]
       (set-test-player-map! (build-test-map ["##X"]))
       (move-explore-unit unit-coords)
       ;; After moving to dest-coords which is adjacent to hostile city, unit should wake
-      (let [unit (get-in @atoms/game-map (conj dest-coords :contents))]
+      (let [unit (get-in (test-utils/read-test-state :game-map) (conj dest-coords :contents))]
         (should= :awake (:mode unit))
         (should= :army-found-city (:reason unit))))))

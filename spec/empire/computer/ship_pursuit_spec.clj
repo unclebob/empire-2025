@@ -1,10 +1,10 @@
 (ns empire.computer.ship-pursuit-spec
   "Tests for VMS Empire style computer ship movement - pursue-and-kill, carrier positioning, find-carrier-position."
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.ship :as ship]
             [empire.computer.core :as core]
             [empire.config :as config]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.containers.helpers :as uc]
             [empire.combat :as combat]
@@ -27,10 +27,10 @@
                                                        :transport-mission :loading :army-count 0}}
                                 {:type :sea :contents {:type :submarine :owner :player :hits 2}}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :destroyer)
       ;; Destroyer should move toward enemy and enter pursuing mode
-      (let [destroyer (get-in @atoms/game-map [0 1 :contents])]
+      (let [destroyer (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
         (should= :destroyer (:type destroyer))
         (should= :pursuing (:escort-mode destroyer))
         (should= [0 3] (:pursuit-target destroyer))
@@ -58,11 +58,11 @@
                 :pursuit-target [3 2] :pursuit-steps-remaining 5})
         (ship/process-ship [2 2] :destroyer)
         ;; Destroyer should have moved and decremented steps
-        (should-be-nil (:contents (get-in @atoms/game-map [2 2])))
+        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))
         (let [new-pos (first (for [c (range 5) r (range 5)
-                                   :when (= :destroyer (get-in @atoms/game-map [c r :contents :type]))]
+                                   :when (= :destroyer (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
                                [c r]))
-              destroyer (get-in @atoms/game-map (conj new-pos :contents))]
+              destroyer (get-in (test-utils/read-test-state :game-map) (conj new-pos :contents))]
           (should-not-be-nil new-pos)
           (should= :pursuing (:escort-mode destroyer))
           (should= 4 (:pursuit-steps-remaining destroyer)))))
@@ -79,9 +79,9 @@
                                                        :transport-id 1 :transport-mission :loading
                                                        :army-count 0}}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :destroyer)
-      (let [destroyer (get-in @atoms/game-map [0 0 :contents])]
+      (let [destroyer (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
         (should= :escorting (:escort-mode destroyer))
         (should-be-nil (:pursuit-target destroyer))
         (should-be-nil (:pursuit-steps-remaining destroyer))))
@@ -93,7 +93,7 @@
       (set-test-world! (build-test-map ["~~~"
                                               "~~~"
                                               "~~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :contents]
              {:type :destroyer :owner :computer :hits 3
               :destroyer-id 1 :escort-mode :pursuing
@@ -105,7 +105,7 @@
       (ship/process-ship [1 0] :destroyer)
       ;; All neighbors of [1 1] visible to group — pursuit ends
       (let [destroyer (first (for [c (range 3) r (range 3)
-                                   :let [unit (get-in @atoms/game-map [c r :contents])]
+                                   :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                                    :when (= :destroyer (:type unit))]
                                unit))]
         (should= :escorting (:escort-mode destroyer))
@@ -121,11 +121,11 @@
                                 {:type :sea :contents {:type :submarine :owner :player :hits 2}}
                                 {:type :sea}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :destroyer)
       ;; Combat should have occurred (priority 1 attack)
-      (let [cell0 (get-in @atoms/game-map [0 0])
-            cell1 (get-in @atoms/game-map [0 1])]
+      (let [cell0 (get-in (test-utils/read-test-state :game-map) [0 0])
+            cell1 (get-in (test-utils/read-test-state :game-map) [0 1])]
         (should (or (nil? (:contents cell0))
                     (= :computer (:owner (:contents cell1))))))))
 
@@ -147,7 +147,7 @@
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 5] :carrier)
         ;; Carrier should have moved from [0,5] to [0,6]
-        (should= :carrier (get-in @atoms/game-map [0 6 :contents :type]))))
+        (should= :carrier (get-in (test-utils/read-test-state :game-map) [0 6 :contents :type]))))
 
     (it "carrier transitions to holding when at target"
       ;; Two distant cities, carrier already at target position
@@ -163,17 +163,17 @@
         (set-test-computer-map! [cells])
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 30] :carrier)
-        (should= :holding (get-in @atoms/game-map [0 30 :contents :carrier-mode]))
-        (should-be-nil (get-in @atoms/game-map [0 30 :contents :carrier-target]))))
+        (should= :holding (get-in (test-utils/read-test-state :game-map) [0 30 :contents :carrier-mode]))
+        (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 30 :contents :carrier-target]))))
 
     (it "carrier in holding mode stays put"
       (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer :hits 8
                                                        :carrier-mode :holding}}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :carrier)
-      (should= :carrier (get-in @atoms/game-map [0 0 :contents :type]))
-      (should= :holding (get-in @atoms/game-map [0 0 :contents :carrier-mode])))
+      (should= :carrier (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
+      (should= :holding (get-in (test-utils/read-test-state :game-map) [0 0 :contents :carrier-mode])))
 
     (it "positioning carrier without target finds position when distant cities exist"
       ;; Two distant cities (60 apart), carrier without target
@@ -190,9 +190,9 @@
         (ship/process-ship [0 5] :carrier)
         ;; Carrier should have moved and gotten a target
         (let [carrier-pos (first (for [c (range 60)
-                                       :when (= :carrier (get-in @atoms/game-map [0 c :contents :type]))]
+                                       :when (= :carrier (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
                                    [0 c]))
-              unit (get-in @atoms/game-map (conj carrier-pos :contents))]
+              unit (get-in (test-utils/read-test-state :game-map) (conj carrier-pos :contents))]
           (should-not-be-nil carrier-pos)
           (should-not= [0 5] carrier-pos)  ; Should have moved
           (should-not-be-nil (:carrier-target unit))
@@ -209,7 +209,7 @@
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 1] :carrier)
         ;; Carrier should have switched to holding (no distant pairs)
-        (should= :holding (get-in @atoms/game-map [0 1 :contents :carrier-mode]))))
+        (should= :holding (get-in (test-utils/read-test-state :game-map) [0 1 :contents :carrier-mode]))))
 
     (it "carrier navigates around land using pathfinding"
       ;; Two distant cities, carrier at [0,10] with target [0,30], land at [0,11]
@@ -223,13 +223,13 @@
                            (= j 59) {:type :city :city-status :computer}
                            :else {:type :sea})))]
         (set-test-world! [(vec cells) (vec (repeat 60 {:type :sea}))])
-        (set-test-computer-map! @atoms/game-map)
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 10] :carrier)
         ;; Carrier should have moved from [0,10] (navigating around land)
-        (should-be-nil (:contents (get-in @atoms/game-map [0 10])))
+        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 10])))
         (let [new-pos (first (for [r (range 2) c (range 60)
-                                   :when (= :carrier (get-in @atoms/game-map [r c :contents :type]))]
+                                   :when (= :carrier (get-in (test-utils/read-test-state :game-map) [r c :contents :type]))]
                                [r c]))]
           (should-not-be-nil new-pos))))
 
@@ -251,9 +251,9 @@
         ;; Target [0,30] was invalid (occupied), carrier should go to holding
         ;; (no other unreserved pairs since this carrier's pair is still assigned)
         (let [carrier-pos (first (for [c (range 60)
-                                       :when (= :carrier (get-in @atoms/game-map [0 c :contents :type]))]
+                                       :when (= :carrier (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
                                    [0 c]))
-              unit (get-in @atoms/game-map (conj carrier-pos :contents))]
+              unit (get-in (test-utils/read-test-state :game-map) (conj carrier-pos :contents))]
           (should= :holding (:carrier-mode unit)))))
 
     (it "holding carrier repositions when pair city is lost"
@@ -271,7 +271,7 @@
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 30] :carrier)
         ;; Carrier's pair is invalid (city [0 0] is now player's), should reposition
-        (let [unit (get-in @atoms/game-map [0 30 :contents])]
+        (let [unit (get-in (test-utils/read-test-state :game-map) [0 30 :contents])]
           (should= :repositioning (:carrier-mode unit))
           (should-be-nil (:carrier-pair unit))))))
 
@@ -312,7 +312,7 @@
       ;; Distant pair exists but carrier already assigned
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Xc"
                                               "######################################"]))
-      (set-test-unit atoms/game-map "c" :carrier-mode :holding
+      (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
                      :carrier-pair #{[0 0] [36 0]})
       (ship/update-distant-city-pairs!)
       (should-be-nil (ship/find-carrier-position))))

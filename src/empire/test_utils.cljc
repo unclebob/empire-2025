@@ -1,8 +1,8 @@
 (ns empire.test-utils
   (:require [clojure.string :as str]
-            [empire.atoms :as atoms]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
+            [empire.adapters.state.runtime :as runtime-state]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -10,9 +10,33 @@
 
 (defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
 
-(defn- world-atom?
-  [map-atom]
-  (identical? map-atom atoms/game-map))
+(defn read-test-state
+  [k]
+  (runtime-state/read-runtime-state @state-ctx k))
+
+(defn set-test-state!
+  [k v]
+  (runtime-state/write-runtime-state! @state-ctx k v))
+
+(defn update-test-state!
+  [k f & args]
+  (set-test-state! k (apply f (read-test-state k) args)))
+
+(defn read-test-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn game-map-atom
+  []
+  (runtime-state/game-map-atom))
+
+(defn player-map-atom
+  []
+  (runtime-state/player-map-atom))
+
+(defn computer-map-atom
+  []
+  (runtime-state/computer-map-atom))
 
 (defn set-test-world!
   [world]
@@ -24,31 +48,40 @@
 
 (defn set-test-player-map!
   [player-map]
-  (reset! atoms/player-map player-map))
+  (set-test-state! :player-map player-map))
 
 (defn update-test-player-map!
   [f & args]
-  (apply swap! atoms/player-map f args))
+  (apply update-test-state! :player-map f args))
 
 (defn set-test-computer-map!
   [computer-map]
-  (reset! atoms/computer-map computer-map))
+  (set-test-state! :computer-map computer-map))
 
 (defn update-test-computer-map!
   [f & args]
-  (apply swap! atoms/computer-map f args))
+  (apply update-test-state! :computer-map f args))
 
 (defn- update-map-atom!
-  [map-atom f & args]
-  (if (world-atom? map-atom)
-    (apply update-test-world! f args)
-    (apply swap! map-atom f args)))
+  [map-source f & args]
+  (cond
+    (= map-source :game-map) (apply update-test-world! f args)
+    (= map-source :player-map) (apply update-test-player-map! f args)
+    (= map-source :computer-map) (apply update-test-computer-map! f args)
+    (identical? map-source (game-map-atom)) (apply update-test-world! f args)
+    (identical? map-source (player-map-atom)) (apply update-test-player-map! f args)
+    (identical? map-source (computer-map-atom)) (apply update-test-computer-map! f args)
+    :else (apply swap! map-source f args)))
 
 (defn- map-value
   [game-map-source]
-  (if (vector? game-map-source)
+  (cond
+    (= game-map-source :game-map) (read-test-state :game-map)
+    (= game-map-source :player-map) (read-test-state :player-map)
+    (= game-map-source :computer-map) (read-test-state :computer-map)
+    (vector? game-map-source)
     game-map-source
-    @game-map-source))
+    :else @game-map-source))
 
 (defn- make-unit [unit-type owner]
   (merge {:type unit-type :owner owner :hits (dispatcher/hits unit-type)}
@@ -151,7 +184,8 @@
     (nth positions (dec n) nil)))
 
 (defn set-test-unit [game-map-atom unit-spec & kvs]
-  (let [pos (find-unit-pos @game-map-atom unit-spec)]
+  (let [game-map (map-value game-map-atom)
+        pos (find-unit-pos game-map unit-spec)]
     (when (nil? pos)
       (throw (ex-info (str "Unit not found: " unit-spec) {:unit-spec unit-spec})))
     (update-map-atom! game-map-atom update-in (conj pos :contents) merge (apply hash-map kvs))))
@@ -218,74 +252,74 @@
   (vec (repeat cols (vec (repeat rows value)))))
 
 (defn reset-all-atoms! []
-  (reset! atoms/random-seed nil)
-  (reset! atoms/map-size [0 0])
-  (reset! atoms/map-size-constants {})
-  (reset! atoms/last-key nil)
-  (reset! atoms/backtick-pressed false)
-  (reset! atoms/map-screen-dimensions [0 0])
-  (reset! atoms/text-area-dimensions [0 0 0 0])
-  (reset! atoms/map-to-display :player-map)
-  (reset! atoms/round-number 0)
-  (reset! atoms/last-clicked-cell nil)
-  (reset! atoms/text-font nil)
-  (reset! atoms/production-char-font nil)
-  (reset! atoms/production {})
+  (set-test-state! :random-seed nil)
+  (set-test-state! :map-size [0 0])
+  (set-test-state! :map-size-constants {})
+  (set-test-state! :last-key nil)
+  (set-test-state! :backtick-pressed false)
+  (set-test-state! :map-screen-dimensions [0 0])
+  (set-test-state! :text-area-dimensions [0 0 0 0])
+  (set-test-state! :map-to-display :player-map)
+  (set-test-state! :round-number 0)
+  (set-test-state! :last-clicked-cell nil)
+  (set-test-state! :text-font nil)
+  (set-test-state! :production-char-font nil)
+  (set-test-state! :production {})
   (set-test-world! nil)
-  (reset! atoms/player-map {})
-  (reset! atoms/cells-needing-attention [])
-  (reset! atoms/player-items [])
-  (reset! atoms/waiting-for-input false)
-  (reset! atoms/attention-message "")
-  (reset! atoms/turn-message "")
-  (reset! atoms/turn-message-until 0)
-  (reset! atoms/hover-message "")
-  (reset! atoms/error-message "")
-  (reset! atoms/error-until 0)
-  (reset! atoms/production-status "")
-  (reset! atoms/computer-map {})
-  (reset! atoms/destination nil)
-  (reset! atoms/paused false)
-  (reset! atoms/game-over-check-enabled false)
-  (reset! atoms/pause-requested false)
-  (reset! atoms/computer-items [])
-  (reset! atoms/computer-turn false)
-  (reset! atoms/next-transport-id 1)
-  (reset! atoms/next-country-id 1)
-  (reset! atoms/continent-groups {})
-  (reset! atoms/next-unload-event-id 1)
-  (reset! atoms/next-destroyer-id 1)
-  (reset! atoms/next-carrier-id 1)
-  (reset! atoms/next-escort-id 1)
-  (reset! atoms/claimed-objectives #{})
-  (reset! atoms/claimed-transport-targets #{})
-  (reset! atoms/claimed-patrol-targets #{})
-  (reset! atoms/last-transport-city {})
-  (reset! atoms/fighter-leg-records {})
-  (reset! atoms/computer-city-positions #{})
-  (reset! atoms/computer-carrier-positions #{})
-  (reset! atoms/country-stats {})
-  (reset! atoms/coastal-cells-by-country {})
-  (reset! atoms/coast-walkers-produced {})
-  (reset! atoms/patrol-boats-produced {})
-  (reset! atoms/seen-coast #{})
-  (reset! atoms/land-ho-targets [])
-  (reset! atoms/major-invasion-state {:active? false
-                                      :detection-points #{}
-                                      :target-land-set #{}
-                                      :started-round nil})
-  (reset! atoms/transport-fully-loaded? false)
-  (reset! atoms/early-patrol-boat-produced? false)
-  (reset! atoms/early-satellite-produced? false)
-  (reset! atoms/distant-city-pairs nil)
-  (reset! atoms/lake-max-cells 0)
-  (reset! atoms/known-lake-cells #{})
-  (reset! atoms/computer-event-log [])
-  (reset! atoms/action-log [])
-  (reset! atoms/player-movement-log [])
-  (reset! atoms/load-menu-open false)
-  (reset! atoms/load-menu-files [])
-  (reset! atoms/load-menu-hovered nil)
+  (set-test-state! :player-map {})
+  (set-test-state! :cells-needing-attention [])
+  (set-test-state! :player-items [])
+  (set-test-state! :waiting-for-input false)
+  (set-test-state! :attention-message "")
+  (set-test-state! :turn-message "")
+  (set-test-state! :turn-message-until 0)
+  (set-test-state! :hover-message "")
+  (set-test-state! :error-message "")
+  (set-test-state! :error-until 0)
+  (set-test-state! :production-status "")
+  (set-test-state! :computer-map {})
+  (set-test-state! :destination nil)
+  (set-test-state! :paused false)
+  (set-test-state! :game-over-check-enabled false)
+  (set-test-state! :pause-requested false)
+  (set-test-state! :computer-items [])
+  (set-test-state! :computer-turn false)
+  (set-test-state! :next-transport-id 1)
+  (set-test-state! :next-country-id 1)
+  (set-test-state! :continent-groups {})
+  (set-test-state! :next-unload-event-id 1)
+  (set-test-state! :next-destroyer-id 1)
+  (set-test-state! :next-carrier-id 1)
+  (set-test-state! :next-escort-id 1)
+  (set-test-state! :claimed-objectives #{})
+  (set-test-state! :claimed-transport-targets #{})
+  (set-test-state! :claimed-patrol-targets #{})
+  (set-test-state! :last-transport-city {})
+  (set-test-state! :fighter-leg-records {})
+  (set-test-state! :computer-city-positions #{})
+  (set-test-state! :computer-carrier-positions #{})
+  (set-test-state! :country-stats {})
+  (set-test-state! :coastal-cells-by-country {})
+  (set-test-state! :coast-walkers-produced {})
+  (set-test-state! :patrol-boats-produced {})
+  (set-test-state! :seen-coast #{})
+  (set-test-state! :land-ho-targets [])
+  (set-test-state! :major-invasion-state {:active? false
+                                          :detection-points #{}
+                                          :target-land-set #{}
+                                          :started-round nil})
+  (set-test-state! :transport-fully-loaded? false)
+  (set-test-state! :early-patrol-boat-produced? false)
+  (set-test-state! :early-satellite-produced? false)
+  (set-test-state! :distant-city-pairs nil)
+  (set-test-state! :lake-max-cells 0)
+  (set-test-state! :known-lake-cells #{})
+  (set-test-state! :computer-event-log [])
+  (set-test-state! :action-log [])
+  (set-test-state! :player-movement-log [])
+  (set-test-state! :load-menu-open false)
+  (set-test-state! :load-menu-files [])
+  (set-test-state! :load-menu-hovered nil)
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!))

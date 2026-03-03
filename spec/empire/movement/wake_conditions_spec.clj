@@ -1,5 +1,5 @@
 (ns empire.movement.wake-conditions-spec
-  (:require [empire.atoms :as atoms]
+  (:require [empire.test-utils :as test-utils]
             [empire.config :as config]
             [empire.movement.wake-conditions :refer :all]
             [empire.test-utils :refer [build-test-map make-initial-test-map reset-all-atoms! set-test-player-map! set-test-world!]]
@@ -266,7 +266,7 @@
       (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [1 0] :fuel 10}]
         (wake-after-move unit [0 0] [1 0] game-map)
-        (should= (:fighter-destroyed-by-city config/messages) @atoms/error-message))))
+        (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :error-message)))))
 
   (it "wakes fighter at bingo fuel near friendly city"
     (let [game-map (atom (build-test-map ["O####"]))]

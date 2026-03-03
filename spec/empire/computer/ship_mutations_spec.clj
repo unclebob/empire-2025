@@ -1,10 +1,10 @@
 (ns empire.computer.ship-mutations-spec
   "Tests for VMS Empire style computer ship movement - mutation: patrol boat navigation + carrier and escort operations."
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.computer.ship :as ship]
             [empire.computer.core :as core]
             [empire.config :as config]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.containers.helpers :as uc]
             [empire.combat :as combat]
@@ -28,7 +28,7 @@
     (it "initializes distant-city-pairs when nil"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
-      (reset! atoms/distant-city-pairs nil)
+      (test-utils/set-test-state! :distant-city-pairs nil)
       (let [pair (ship/find-unreserved-pair)]
         (should-not-be-nil pair))))
 
@@ -109,7 +109,7 @@
         (set-test-computer-map! [cells])
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 30] :carrier)
-        (should= :holding (get-in @atoms/game-map [0 30 :contents :carrier-mode])))))
+        (should= :holding (get-in (test-utils/read-test-state :game-map) [0 30 :contents :carrier-mode])))))
 
   (context "carrier submarine slot cap (L689)"
     (it "submarine does not adopt carrier with 2 existing subs"
@@ -121,10 +121,10 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids [1 2]}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :submarine)
       (let [sub (first (for [c (range 4)
-                             :let [unit (get-in @atoms/game-map [0 c :contents])]
+                             :let [unit (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                              :when (= :submarine (:type unit))]
                          unit))]
         (should= :seeking (:escort-mode sub)))))
@@ -139,10 +139,10 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids []}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :battleship)
       (let [bb (first (for [c (range 4)
-                            :let [unit (get-in @atoms/game-map [0 c :contents])]
+                            :let [unit (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                             :when (= :battleship (:type unit))]
                         unit))]
         (should= 0 (:orbit-angle bb))))
@@ -156,10 +156,10 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids []}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :submarine)
       (let [sub (first (for [c (range 4)
-                             :let [unit (get-in @atoms/game-map [0 c :contents])]
+                             :let [unit (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                              :when (= :submarine (:type unit))]
                          unit))]
         (should= 5 (:orbit-angle sub))))
@@ -173,10 +173,10 @@
                                                        :carrier-id 1 :carrier-mode :holding
                                                        :group-battleship-id nil
                                                        :group-submarine-ids [2]}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [0 0] :submarine)
       (let [sub (first (for [c (range 4)
-                             :let [unit (get-in @atoms/game-map [0 c :contents])]
+                             :let [unit (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                              :when (= :submarine (:type unit))]
                          unit))]
         (should= 11 (:orbit-angle sub)))))
@@ -205,7 +205,7 @@
                 :escort-carrier-id 1 :orbit-angle 2})
         (ship/process-ship [1 3] :battleship)
         (let [bb (first (for [c (range 7) r (range 7)
-                              :let [unit (get-in @atoms/game-map [c r :contents])]
+                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                               :when (= :battleship (:type unit))]
                           unit))]
           (should= 4 (:orbit-angle bb)))))))

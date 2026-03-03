@@ -2,7 +2,10 @@
 (ns empire.adapters.state.runtime
   "Atom-backed runtime state adapter for non-world state."
   (:require [empire.application.ports :as ports]
-            [empire.atoms :as atoms]))
+            [empire.atoms :as atoms]
+            [empire.domain.world.continents :as continents]
+            [empire.domain.world.messages :as messages]
+            [empire.domain.world.refueling :as refueling]))
 
 (def ^:private runtime-key->atom
   {:random-seed atoms/random-seed
@@ -50,6 +53,7 @@
    :computer-turn atoms/computer-turn
    :next-transport-id atoms/next-transport-id
    :next-country-id atoms/next-country-id
+   :continent-groups atoms/continent-groups
    :next-unload-event-id atoms/next-unload-event-id
    :next-destroyer-id atoms/next-destroyer-id
    :next-carrier-id atoms/next-carrier-id
@@ -57,6 +61,7 @@
    :fighter-leg-records atoms/fighter-leg-records
    :last-transport-city atoms/last-transport-city
    :country-stats atoms/country-stats
+   :patrol-boats-produced atoms/patrol-boats-produced
    :seen-coast atoms/seen-coast
    :coast-walkers-produced atoms/coast-walkers-produced
    :coastal-cells-by-country atoms/coastal-cells-by-country
@@ -125,25 +130,44 @@
   []
   (->AtomRuntimeStateStore))
 
+(defn read-runtime-state
+  [ctx k]
+  ((:read-runtime-state ctx) k))
+
+(defn write-runtime-state!
+  [ctx k v]
+  ((:write-runtime-state! ctx) k v))
+
+(defn update-runtime-state!
+  [ctx k f & args]
+  (write-runtime-state! ctx k (apply f (read-runtime-state ctx k) args)))
+
 (defn rebuild-refueling-caches!
   []
-  (atoms/rebuild-refueling-caches!))
+  (let [{:keys [cities carriers]}
+        (refueling/scan-refueling-positions @atoms/game-map)]
+    (reset! atoms/computer-city-positions cities)
+    (reset! atoms/computer-carrier-positions carriers)))
 
 (defn set-turn-message!
   [msg ms]
-  (atoms/set-turn-message msg ms))
+  (reset! atoms/turn-message msg)
+  (reset! atoms/turn-message-until (if (= ms Long/MAX_VALUE)
+                                     Long/MAX_VALUE
+                                     (messages/expires-at (System/currentTimeMillis) ms))))
 
 (defn set-error-message!
   [msg ms]
-  (atoms/set-error-message msg ms))
+  (reset! atoms/error-message msg)
+  (reset! atoms/error-until (messages/expires-at (System/currentTimeMillis) ms)))
 
 (defn merge-continents!
   [stamp-id existing-cid]
-  (atoms/merge-continents! stamp-id existing-cid))
+  (swap! atoms/continent-groups continents/merge-continents stamp-id existing-cid))
 
 (defn on-same-continent?
   [country-a country-b]
-  (atoms/on-same-continent? country-a country-b))
+  (continents/on-same-continent? @atoms/continent-groups country-a country-b))
 
 (defn game-map-atom
   []

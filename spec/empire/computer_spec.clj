@@ -1,7 +1,8 @@
 (ns empire.computer-spec
   "Tests for computer AI modules - post CommandingGeneral refactor.
    Decision logic has been gutted; these tests cover preserved utilities."
-  (:require [speclj.core :refer :all]
+  (:require [empire.test-utils :as test-utils]
+            [speclj.core :refer :all]
             [empire.game-loop :as game-loop]
             [empire.computer :as computer]
             [empire.computer.army :as army]
@@ -11,7 +12,6 @@
             [empire.computer.ship :as ship]
             [empire.computer.threat :as threat]
             [empire.computer.transport :as transport]
-            [empire.atoms :as atoms]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-player-map! set-test-computer-map!]]))
 
 ;; ============================================================================
@@ -89,8 +89,8 @@
     (it "moves unit from one position to another"
       (set-test-world! (build-test-map ["a#"]))
       (computer-core/move-unit-to [0 0] [1 0])
-      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-      (should= :army (:type (:contents (get-in @atoms/game-map [1 0]))))))
+      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+      (should= :army (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
   (context "computer-core/find-visible-player-units"
     (it "finds player units on computer-map"
@@ -101,8 +101,8 @@
     (it "loads army onto adjacent transport"
       (set-test-world! (build-test-map ["at"]))
       (computer-core/board-transport [0 0] [1 0])
-      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
-      (should= 1 (:army-count (:contents (get-in @atoms/game-map [1 0])))))
+      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
+      (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
     (it "throws when positions are not adjacent"
       (set-test-world! (build-test-map ["a#t"]))
@@ -132,20 +132,20 @@
       (set-test-computer-map! (build-test-map ["~~~"
                                                    "~d~"
                                                    "~~~"]))
-      (should= 0 (threat/threat-level @atoms/computer-map [1 1])))
+      (should= 0 (threat/threat-level (test-utils/read-test-state :computer-map) [1 1])))
 
     (it "sums threat of adjacent enemies"
       (set-test-computer-map! (build-test-map ["~B~"
                                                    "~d~"
                                                    "~D~"]))
       ;; Battleship = 10, Destroyer = 6
-      (should= 16 (threat/threat-level @atoms/computer-map [1 1])))
+      (should= 16 (threat/threat-level (test-utils/read-test-state :computer-map) [1 1])))
 
     (it "ignores friendly units"
       (set-test-computer-map! (build-test-map ["~b~"
                                                    "~d~"
                                                    "~b~"]))
-      (should= 0 (threat/threat-level @atoms/computer-map [1 1]))))
+      (should= 0 (threat/threat-level (test-utils/read-test-state :computer-map) [1 1]))))
 
   (context "threat/safe-moves"
     (it "returns all moves unchanged when unit at full health"
@@ -154,7 +154,7 @@
                                                    "~~~"]))
       (let [unit {:type :destroyer :hits 3}
             moves [[1 0] [0 1] [2 1] [1 2]]]
-        (should= moves (threat/safe-moves @atoms/computer-map [1 1] unit moves)))))
+        (should= moves (threat/safe-moves (test-utils/read-test-state :computer-map) [1 1] unit moves)))))
 
   (context "threat/should-retreat?"
     (it "returns true when damaged and under threat"
@@ -162,24 +162,24 @@
                                                    "~d~"
                                                    "~~~"]))
       (let [unit {:type :destroyer :hits 2}]
-        (should (threat/should-retreat? [1 1] unit @atoms/computer-map))))
+        (should (threat/should-retreat? [1 1] unit (test-utils/read-test-state :computer-map)))))
 
     (it "returns false for healthy unit under threat"
       (set-test-computer-map! (build-test-map ["~B~"
                                                    "~d~"
                                                    "~~~"]))
       (let [unit {:type :destroyer :hits 3}]
-        (should-not (threat/should-retreat? [1 1] unit @atoms/computer-map)))))
+        (should-not (threat/should-retreat? [1 1] unit (test-utils/read-test-state :computer-map))))))
 
   (context "threat/retreat-move"
     (it "moves toward nearest friendly city"
       (set-test-world! (build-test-map ["X~~~B"
                                                "~~~~~"
                                                "~~d~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [unit {:type :destroyer :hits 1}
             passable [[2 1] [3 1] [1 2] [3 2]]]
-        (let [retreat (threat/retreat-move [2 2] unit @atoms/computer-map passable)]
+        (let [retreat (threat/retreat-move [2 2] unit (test-utils/read-test-state :computer-map) passable)]
           (should-not-be-nil retreat)
           (should (#{[2 1] [1 2] [3 1]} retreat)))))
 
@@ -187,10 +187,10 @@
       (set-test-world! (build-test-map ["~~~~B"
                                                "~~~~~"
                                                "~~d~~"]))
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [unit {:type :destroyer :hits 1}
             passable [[2 1] [3 1] [1 2] [3 2]]]
-        (should-be-nil (threat/retreat-move [2 2] unit @atoms/computer-map passable))))))
+        (should-be-nil (threat/retreat-move [2 2] unit (test-utils/read-test-state :computer-map) passable))))))
 
 ;; ============================================================================
 ;; Preserved Utilities: computer/production.cljc
@@ -237,7 +237,7 @@
               :mode :random-explore :random-explore-direction [1 0]})
       (army/process-army [0 0])
       ;; Army should have moved to [1 0]
-      (should= :army (get-in @atoms/game-map [1 0 :contents :type]))))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))))
 
   (context "VMS fighter module"
     (it "process-fighter patrols when fuel allows"
@@ -251,10 +251,10 @@
                                                    {:type :land :contents {:type :fighter :owner :computer
                                                                             :fuel 20 :hits 1}}]
                                                   (repeat 10 nil)))])
-        (let [unit (get-in @atoms/game-map [0 1 :contents])]
+        (let [unit (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
           (fighter/process-fighter [0 1] unit)
           ;; Fighter should have moved from [0 1] toward unexplored territory
-          (should-be-nil (get-in @atoms/game-map [0 1 :contents]))))))
+          (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))))))
 
   (context "VMS ship module"
     (it "process-ship stays put when all sea explored"
@@ -262,7 +262,7 @@
       (set-test-computer-map! (build-test-map ["d~"]))
       (ship/process-ship [0 0] :destroyer)
       ;; Destroyer stays put - no unexplored territory
-      (should= :destroyer (get-in @atoms/game-map [0 0 :contents :type]))))
+      (should= :destroyer (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
   (context "VMS transport module"
     (it "process-transport stays put when loading in open sea with no unexplored"
@@ -270,20 +270,20 @@
                                                        :transport-mission :loading
                                                        :army-count 0}}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       ;; Transport stays put - open sea, no coastal targets, no unexplored territory
-      (should= :transport (get-in @atoms/game-map [0 0 :contents :type]))))
+      (should= :transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
   (context "VMS production module"
     (it "process-computer-city sets production"
       (set-test-world! (build-test-map ["X+#"]))
       (set-test-computer-map! (build-test-map ["X+#"]))
       (update-test-world! assoc-in [0 0 :country-id] 1)
-      (reset! atoms/production {})
+      (test-utils/set-test-state! :production {})
       (computer-production/process-computer-city [0 0])
       ;; Per-country production fires (0 armies < 10)
-      (should-not-be-nil (get @atoms/production [0 0])))))
+      (should-not-be-nil (get (test-utils/read-test-state :production) [0 0])))))
 
 ;; ============================================================================
 ;; Main Dispatcher and Game Loop Integration
@@ -303,13 +303,13 @@
         ;; Army module returns nil (units processed once per round)
         (should-be-nil result)
         ;; But army should have moved
-        (should= :army (get-in @atoms/game-map [1 0 :contents :type]))))
+        (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))))
 
     (it "dispatches to fighter module"
       (set-test-world! [[{:type :city :city-status :computer}
                                 {:type :land :contents {:type :fighter :owner :computer
                                                          :fuel 20 :hits 1}}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (computer/process-computer-unit [0 1])]
         ;; Fighter module returns nil (units processed once per round)
         (should-be-nil result)))
@@ -321,19 +321,19 @@
         ;; Ship module returns nil (units processed once per round)
         (should-be-nil result)
         ;; No unexplored territory, no enemies - ship stays put
-        (should= :destroyer (get-in @atoms/game-map [0 0 :contents :type]))))
+        (should= :destroyer (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
     (it "dispatches to transport module"
       (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
                                                        :transport-mission :loading
                                                        :army-count 0}}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (computer/process-computer-unit [0 0])]
         ;; Transport module returns nil (units processed once per round)
         (should-be-nil result)
         ;; Transport stays put - open sea, no coastal targets, no unexplored territory
-        (should= :transport (get-in @atoms/game-map [0 0 :contents :type]))))
+        (should= :transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
     (it "returns nil for non-computer unit"
       (set-test-world! (build-test-map ["A#"]))
@@ -348,26 +348,26 @@
                                                        :hits 1 :mode :awake
                                                        :direction [0 1]}}
                                 {:type :sea}]])
-      (set-test-computer-map! @atoms/game-map)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (computer/process-computer-unit [0 0])))
 
     (it "dispatches patrol-boat to ship module"
       (set-test-world! (build-test-map ["p~"]))
       (set-test-computer-map! (build-test-map ["p~"]))
       (should-be-nil (computer/process-computer-unit [0 0]))
-      (should= :patrol-boat (get-in @atoms/game-map [0 0 :contents :type])))
+      (should= :patrol-boat (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type])))
 
     (it "dispatches submarine to ship module"
       (set-test-world! (build-test-map ["s~"]))
       (set-test-computer-map! (build-test-map ["s~"]))
       (should-be-nil (computer/process-computer-unit [0 0]))
-      (should= :submarine (get-in @atoms/game-map [0 0 :contents :type])))
+      (should= :submarine (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type])))
 
     (it "dispatches battleship to ship module"
       (set-test-world! (build-test-map ["b~"]))
       (set-test-computer-map! (build-test-map ["b~"]))
       (should-be-nil (computer/process-computer-unit [0 0]))
-      (should= :battleship (get-in @atoms/game-map [0 0 :contents :type]))))
+      (should= :battleship (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
   (context "game loop with VMS AI"
     (it "build-computer-items returns computer city coordinates"
@@ -383,19 +383,19 @@
     (it "game runs with VMS AI moving units"
       ;; Map: X##a# - computer city, land, land, computer army, land
       (set-test-world! (build-test-map ["X##a#"]))
-      (set-test-player-map! @atoms/game-map)
-      (set-test-computer-map! @atoms/game-map)
-      (reset! atoms/production {})
-      (reset! atoms/player-items [])
-      (reset! atoms/computer-items [[3 0] [0 0]])  ;; army at [3 0], city at [0 0]
+      (set-test-player-map! (test-utils/read-test-state :game-map))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (test-utils/set-test-state! :production {})
+      (test-utils/set-test-state! :player-items [])
+      (test-utils/set-test-state! :computer-items [[3 0] [0 0]])  ;; army at [3 0], city at [0 0]
       ;; Process computer items - should complete without error
-      (doseq [item @atoms/computer-items]
+      (doseq [item (test-utils/read-test-state :computer-items)]
         (computer/process-computer-unit item))
       ;; Army should have moved (VMS AI takes actions) - toward unexplored or exploring
       ;; Since all is explored, army stays or moves to adjacent
-      (let [army-at-3 (:contents (get-in @atoms/game-map [3 0]))
-            army-at-4 (:contents (get-in @atoms/game-map [4 0]))
-            army-at-2 (:contents (get-in @atoms/game-map [2 0]))]
+      (let [army-at-3 (:contents (get-in (test-utils/read-test-state :game-map) [3 0]))
+            army-at-4 (:contents (get-in (test-utils/read-test-state :game-map) [4 0]))
+            army-at-2 (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
         (should (or (= :army (:type army-at-4))
                     (= :army (:type army-at-2))
                     (= :army (:type army-at-3))))))))
