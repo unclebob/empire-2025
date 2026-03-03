@@ -183,17 +183,27 @@
       (ship-core/move-toward pos transport-pos))
     (revert-destroyer-to-seeking pos)))
 
+(defn- escorting-enemy-pos
+  "Returns an enemy position only when the destroyer is escorting."
+  [pos mode]
+  (when (= :escorting mode)
+    (find-enemy-near-destroyer-group pos)))
+
+(defn- dispatch-destroyer-mode
+  "Executes mode-specific destroyer escort behavior."
+  [pos unit mode]
+  (case mode
+    :seeking (process-destroyer-seeking pos)
+    :intercepting (process-destroyer-intercepting pos unit)
+    :escorting (process-destroyer-escorting pos unit)
+    :pursuing (process-pursuit pos)
+    nil))
+
 (defn process-escort-destroyer
   "Processes a destroyer in escort mode."
   [pos]
   (let [unit (get-in (current-world) (conj pos :contents))
         mode (:escort-mode unit)]
-    (if-let [enemy-pos (when (= :escorting mode)
-                         (find-enemy-near-destroyer-group pos))]
+    (if-let [enemy-pos (escorting-enemy-pos pos mode)]
       (begin-pursuit pos enemy-pos)
-      (case mode
-        :seeking (process-destroyer-seeking pos)
-        :intercepting (process-destroyer-intercepting pos unit)
-        :escorting (process-destroyer-escorting pos unit)
-        :pursuing (process-pursuit pos)
-        nil))))
+      (dispatch-destroyer-mode pos unit mode))))
