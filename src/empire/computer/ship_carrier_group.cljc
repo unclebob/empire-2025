@@ -162,17 +162,27 @@
                       (escort/find-carrier-by-id (:escort-carrier-id unit)))]
     (escort/find-enemy-near-positions (filter some? [pos carrier-pos]))))
 
+(defn- orbiting-enemy-pos
+  "Returns an enemy position only when the escort is orbiting."
+  [pos mode]
+  (when (= :orbiting mode)
+    (find-enemy-near-carrier-group pos)))
+
+(defn- dispatch-escort-mode
+  "Executes the behavior for the current escort mode."
+  [pos unit-type mode]
+  (case mode
+    :seeking (process-escort-seeking pos unit-type)
+    :intercepting (process-escort-intercepting pos)
+    :orbiting (process-escort-orbiting pos)
+    :pursuing (escort/process-pursuit pos)
+    nil))
+
 (defn process-carrier-group-escort
   "Processes a battleship or submarine in carrier group escort mode."
   [pos unit-type]
   (let [unit (get-in (current-world) (conj pos :contents))
         mode (:escort-mode unit)]
-    (if-let [enemy-pos (when (= :orbiting mode)
-                         (find-enemy-near-carrier-group pos))]
+    (if-let [enemy-pos (orbiting-enemy-pos pos mode)]
       (escort/begin-pursuit pos enemy-pos)
-      (case mode
-        :seeking (process-escort-seeking pos unit-type)
-        :intercepting (process-escort-intercepting pos)
-        :orbiting (process-escort-orbiting pos)
-        :pursuing (escort/process-pursuit pos)
-        nil))))
+      (dispatch-escort-mode pos unit-type mode))))
