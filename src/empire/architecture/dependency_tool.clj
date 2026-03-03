@@ -458,7 +458,7 @@
 (defn- usage!
   []
   (binding [*out* *err*]
-    (println "Usage: clj -M:dependency-tool [config.edn] [--format text|edn] [--init|--force-init]"))
+    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--init|--force-init]"))
   2)
 
 (defn -main
