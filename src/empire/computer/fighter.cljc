@@ -196,21 +196,33 @@
         :else (when-let [p (burn-stuck-fuel current-pos)]
                 {:pos p :steps-used 1})))))
 
+(defn- computer-fighter?
+  [unit]
+  (and unit
+       (= :computer (:owner unit))
+       (= :fighter (:type unit))))
+
+(defn- process-threat-fighter?
+  [pos unit]
+  (when-let [process-threat (requiring-resolve 'empire.computer.threat-response/process-fighter-threat)]
+    (process-threat pos unit)))
+
+(defn- run-fighter-steps!
+  [pos]
+  (ensure-flight-target pos)
+  (loop [current-pos pos
+         steps-remaining fm/fighter-speed]
+    (when (pos? steps-remaining)
+      (when-let [{:keys [pos steps-used]} (step-fighter current-pos)]
+        (recur pos (- steps-remaining steps-used))))))
+
 (defn process-fighter
   "Processes a computer fighter using VMS Empire style logic.
    Moves up to fighter-speed (8) cells per round, consuming fuel each step.
    Priority each step: Attack > Arrive at target > Return if low fuel > Navigate/Patrol
    Returns nil."
   [pos unit]
-  (when (and unit (= :computer (:owner unit)) (= :fighter (:type unit)))
-    (if (when-let [process-threat (requiring-resolve 'empire.computer.threat-response/process-fighter-threat)]
-          (process-threat pos unit))
-      nil
-      (do
-        (ensure-flight-target pos)
-        (loop [current-pos pos
-               steps-remaining fm/fighter-speed]
-          (when (pos? steps-remaining)
-            (when-let [{:keys [pos steps-used]} (step-fighter current-pos)]
-              (recur pos (- steps-remaining steps-used))))))))
+  (when (computer-fighter? unit)
+    (when-not (process-threat-fighter? pos unit)
+      (run-fighter-steps! pos)))
   nil)

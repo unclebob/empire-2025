@@ -112,6 +112,35 @@
     (when (seq valid)
       (rand-nth (vec valid)))))
 
+(defn- move-satellite-to!
+  [from dest satellite]
+  (update-game-map! assoc-in (conj from :contents) nil)
+  (update-game-map! assoc-in (conj dest :contents) satellite)
+  (visibility/update-cell-visibility from (:owner satellite))
+  (visibility/update-cell-visibility dest (:owner satellite))
+  dest)
+
+(defn- bounce-move
+  [pos satellite world map-height map-width]
+  (when-let [new-dir (bounce-direction pos map-height map-width)]
+    (let [[x y] pos
+          [bx by] new-dir
+          dest [(+ x bx) (+ y by)]
+          updated (assoc satellite :direction new-dir)]
+      (when (and (in-bounds? dest map-height map-width)
+                 (not (blocked-cell? (get-in world dest))))
+        {:dest dest :satellite updated}))))
+
+(defn- straight-move-action
+  [nx ny direction map-height map-width]
+  (if (in-bounds? [nx ny] map-height map-width)
+    (let [{:keys [dest hit-edge]} (find-open-cell [nx ny] direction map-height map-width)]
+      (cond
+        dest {:kind :move :dest dest}
+        hit-edge {:kind :bounce}
+        :else {:kind :stay}))
+    {:kind :bounce}))
+
 (defn- move-satellite-straight
   "Moves a computer satellite one step in its fixed direction.
    Bounces off map edges by picking a new random direction away from the edge."
@@ -124,31 +153,17 @@
         ny (+ y dy)
         map-height (count world)
         map-width (count (first world))]
-    (letfn [(bounce []
-              (if-let [new-dir (bounce-direction [x y] map-height map-width)]
-                (let [[bx by] new-dir
-                      dest [(+ x bx) (+ y by)]
-                      updated (assoc satellite :direction new-dir)]
-                  (if (or (not (in-bounds? dest map-height map-width))
-                          (blocked-cell? (get-in world dest)))
-                    [x y]
-                    (do (update-game-map! assoc-in [x y :contents] nil)
-                        (update-game-map! assoc-in (conj dest :contents) updated)
-                        (visibility/update-cell-visibility [x y] (:owner satellite))
-                        (visibility/update-cell-visibility dest (:owner satellite))
-                        dest)))
-                [x y]))]
-      (if (in-bounds? [nx ny] map-height map-width)
-        (let [{:keys [dest hit-edge]} (find-open-cell [nx ny] [dx dy] map-height map-width)]
-          (cond
-            dest (do (update-game-map! assoc-in [x y :contents] nil)
-                     (update-game-map! assoc-in (conj dest :contents) satellite)
-                     (visibility/update-cell-visibility [x y] (:owner satellite))
-                     (visibility/update-cell-visibility dest (:owner satellite))
-                     dest)
-            hit-edge (bounce)
-            :else [x y]))
-        (bounce)))))
+    (let [{:keys [kind dest]} (straight-move-action nx ny [dx dy] map-height map-width)]
+      (case kind
+        :move
+        (move-satellite-to! [x y] dest satellite)
+
+        :bounce
+        (if-let [{:keys [dest satellite]} (bounce-move [x y] satellite world map-height map-width)]
+          (move-satellite-to! [x y] dest satellite)
+          [x y])
+
+        [x y]))))
 
 (defn move-satellite
   "Moves a satellite one step toward its target.
