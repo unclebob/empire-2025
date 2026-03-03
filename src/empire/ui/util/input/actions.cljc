@@ -228,6 +228,26 @@
                  :when (and tcell (= :land (:type tcell)) (not (:contents tcell)))]
              target))))
 
+(defn- begin-army-explore! [coords]
+  (explore/set-explore-mode coords)
+  (game-loop/item-processed)
+  true)
+
+(defn- disembark-army-to-explore! [coords]
+  (when-let [valid-target (find-adjacent-land coords)]
+    (container-ops/disembark-army-to-explore coords valid-target)
+    (game-loop/item-processed))
+  true)
+
+(defn- begin-coastline-follow! [coords]
+  (coastline/set-coastline-follow-mode coords)
+  (game-loop/item-processed)
+  true)
+
+(defn- show-coastline-rejection! [rejection-reason]
+  (write-runtime-state! :attention-message (rejection-reason config/messages))
+  true)
+
 (defn- handle-look-around-key [coords cell active-unit]
   (let [is-army-aboard? (movement/is-army-aboard-transport? active-unit)
         near-coast? (map-utils/any-neighbor-matches? coords (current-world) map-utils/neighbor-offsets
@@ -236,27 +256,19 @@
     (cond
       ;; Army (not aboard) - explore mode
       (and (= :army (:type active-unit)) (not is-army-aboard?))
-      (do (explore/set-explore-mode coords)
-          (game-loop/item-processed)
-          true)
+      (begin-army-explore! coords)
 
       ;; Army aboard transport - disembark to explore
       is-army-aboard?
-      (do (when-let [valid-target (find-adjacent-land coords)]
-            (container-ops/disembark-army-to-explore coords valid-target)
-            (game-loop/item-processed))
-          true)
+      (disembark-army-to-explore! coords)
 
       ;; Transport or patrol-boat near coast - coastline follow
       (coastline/coastline-follow-eligible? active-unit near-coast?)
-      (do (coastline/set-coastline-follow-mode coords)
-          (game-loop/item-processed)
-          true)
+      (begin-coastline-follow! coords)
 
       ;; Transport or patrol-boat not near coast - show reason
       rejection-reason
-      (do (write-runtime-state! :attention-message (rejection-reason config/messages))
-          true)
+      (show-coastline-rejection! rejection-reason)
 
       :else nil)))
 
