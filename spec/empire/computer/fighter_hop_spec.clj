@@ -70,12 +70,13 @@
       (let [result (fm/hop-over-friendly [0 0] [3 3])]
         (should= {:dest [2 2] :hops 2} result)))
 
-    (it "returns nil when diagonal hop goes off map edge"
+    (it "sidesteps when diagonal hop goes off map edge"
       ;; 2x2 map: fighter at [0 0], friendly army at [1 1], target at [2 2]
       ;; Diagonal direction from [0 0] -> [1 1] is [1 1]. Next hop [2 2] is off-map.
       (set-test-world! (build-test-map ["f#"
                                                "#a"]))
-      (should-be-nil (fm/hop-over-friendly [0 0] [2 2])))
+      (should= {:dest [0 1] :hops 1}
+               (fm/hop-over-friendly [0 0] [2 2])))
 
     (it "returns attack result when chain of friendly units ends at enemy"
       ;; Fighter at [0 0], two friendly armies, then player army at [3 0]

@@ -361,7 +361,7 @@
       (should-be-nil (:contents (get-in @atoms/game-map [0 0])))
       (should= :computer (get-in @atoms/game-map [0 1 :contents :owner])))
 
-    (it "losing attacker does not replace defender"
+    (it "losing attacker updates defender to combat survivor"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                                 {:type :sea :contents {:type :battleship :owner :player :hits 8}}]])
       (set-test-computer-map! @atoms/game-map)
@@ -369,7 +369,7 @@
                     (fn [_a _d] {:winner :defender :survivor {:type :battleship :owner :player :hits 7}})
                     combat/clear-escort-on-death (fn [_] nil)]
         (ship/process-ship [0 0] :destroyer))
-      (should= 8 (get-in @atoms/game-map [0 1 :contents :hits])))
+      (should= 7 (get-in @atoms/game-map [0 1 :contents :hits])))
 
     (it "dead-unit is defender when attacker wins (L49)"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
