@@ -1,7 +1,24 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.logging
   "Debug log appenders with bounded history."
-  (:require [empire.atoms :as atoms]))
+  (:require [empire.application.runtime :as app-runtime]))
+
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- update-runtime-state!
+  [k f & args]
+  (let [current (read-runtime-state k)
+        next-state (apply f current args)]
+    (write-runtime-state! k next-state)))
 
 (def ^:private max-action-log-size 100)
 (def ^:private max-movement-log-size 500)
@@ -12,32 +29,32 @@
    event is :move, :wake, or :blocked.
    reason is the wake/block reason (e.g., :steps-exhausted, :blocked) or nil for normal moves."
   [unit-type from-pos to-pos mode event reason]
-  (let [entry {:round @atoms/round-number
+  (let [entry {:round (read-runtime-state :round-number)
                :unit-type unit-type
                :from from-pos
                :to to-pos
                :mode mode
                :event event
                :reason reason}]
-    (swap! atoms/player-movement-log
-           (fn [log]
-             (let [new-log (conj log entry)]
-               (if (> (count new-log) max-movement-log-size)
-                 (vec (drop (- (count new-log) max-movement-log-size) new-log))
-                 new-log))))))
+    (update-runtime-state! :player-movement-log
+                           (fn [log]
+                             (let [new-log (conj (or log []) entry)]
+                               (if (> (count new-log) max-movement-log-size)
+                                 (vec (drop (- (count new-log) max-movement-log-size) new-log))
+                                 new-log))))))
 
 (defn log-computer-event!
   "Log a computer unit event. event is a keyword like :army-move, :army-die, etc.
    pos is the unit's position. details is an optional map of extra info."
   [event pos details]
-  (let [entry (cond-> {:round @atoms/round-number :event event :pos pos}
+  (let [entry (cond-> {:round (read-runtime-state :round-number) :event event :pos pos}
                 details (merge details))]
-    (swap! atoms/computer-event-log
-           (fn [log]
-             (let [new-log (conj log entry)]
-               (if (> (count new-log) max-computer-event-log-size)
-                 (vec (drop (- (count new-log) max-computer-event-log-size) new-log))
-                 new-log))))))
+    (update-runtime-state! :computer-event-log
+                           (fn [log]
+                             (let [new-log (conj (or log []) entry)]
+                               (if (> (count new-log) max-computer-event-log-size)
+                                 (vec (drop (- (count new-log) max-computer-event-log-size) new-log))
+                                 new-log))))))
 
 (defn log-action!
   "Append action to circular buffer with timestamp. Cap at 100 entries.
@@ -47,9 +64,9 @@
   [action]
   (let [entry {:timestamp (System/currentTimeMillis)
                :action action}]
-    (swap! atoms/action-log
-           (fn [log]
-             (let [new-log (conj log entry)]
-               (if (> (count new-log) max-action-log-size)
-                 (vec (drop (- (count new-log) max-action-log-size) new-log))
-                 new-log))))))
+    (update-runtime-state! :action-log
+                           (fn [log]
+                             (let [new-log (conj (or log []) entry)]
+                               (if (> (count new-log) max-action-log-size)
+                                 (vec (drop (- (count new-log) max-action-log-size) new-log))
+                                 new-log))))))

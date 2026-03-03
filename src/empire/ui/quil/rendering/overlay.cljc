@@ -1,9 +1,24 @@
 (ns empire.ui.quil.rendering.overlay
-  (:require [empire.atoms :as atoms]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]
             [empire.save-load :as save-load]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
+
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- current-world
+  []
+  ((:load-world @state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn update-hover-status
   "Updates hover-message based on mouse position.
@@ -12,29 +27,31 @@
   []
   (let [x (q/mouse-x)
         y (q/mouse-y)]
-    (when @atoms/load-menu-open
-      (let [files @atoms/load-menu-files
+    (when (read-runtime-state :load-menu-open)
+      (let [files (read-runtime-state :load-menu-files)
             geom (save-load/menu-geometry (q/width) (q/height) (count files))
             idx (save-load/hovered-file-index x y geom (count files))]
-        (reset! atoms/load-menu-hovered idx)))
-    (reset! atoms/hover-message
-            (if (map-utils/on-map? x y)
-              (let [coords (vec (map-utils/determine-cell-coordinates x y))
-                    the-map (display/resolve-display-map @atoms/map-to-display
-                              @atoms/player-map @atoms/computer-map @atoms/game-map)]
-                (display/compute-hover-message the-map @atoms/production coords))
-              ""))))
+        (write-runtime-state! :load-menu-hovered idx)))
+    (write-runtime-state! :hover-message
+                          (if (map-utils/on-map? x y)
+                            (let [coords (vec (map-utils/determine-cell-coordinates x y))
+                                  the-map (display/resolve-display-map (read-runtime-state :map-to-display)
+                                                                       (read-runtime-state :player-map)
+                                                                       (read-runtime-state :computer-map)
+                                                                       (current-world))]
+                              (display/compute-hover-message the-map (read-runtime-state :production) coords))
+                            ""))))
 
 (defn draw-load-menu
   "Draws the load game menu overlay when open."
   []
-  (when @atoms/load-menu-open
+  (when (read-runtime-state :load-menu-open)
     (let [screen-w (q/width)
           screen-h (q/height)
-          files @atoms/load-menu-files
+          files (read-runtime-state :load-menu-files)
           file-count (count files)
           geom (save-load/menu-geometry screen-w screen-h file-count)
-          hovered @atoms/load-menu-hovered]
+          hovered (read-runtime-state :load-menu-hovered)]
       ;; Semi-transparent overlay
       (q/fill 0 0 0 128)
       (q/rect 0 0 screen-w screen-h)
@@ -45,7 +62,7 @@
       (q/rect (:left geom) (:top geom) (:width geom) (:height geom))
       (q/stroke-weight 1)
       ;; Title
-      (q/text-font @atoms/text-font)
+      (q/text-font (read-runtime-state :text-font))
       (q/fill 255)
       (q/text "Load Game" (+ (:left geom) save-load/menu-padding) (+ (:top geom) save-load/menu-padding 15))
       ;; File list

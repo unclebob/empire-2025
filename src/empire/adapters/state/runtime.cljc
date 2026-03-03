@@ -7,6 +7,8 @@
 (def ^:private runtime-key->atom
   {:production atoms/production
    :round-number atoms/round-number
+   :backtick-pressed atoms/backtick-pressed
+   :last-clicked-cell atoms/last-clicked-cell
    :waiting-for-input atoms/waiting-for-input
    :cells-needing-attention atoms/cells-needing-attention
    :claimed-objectives atoms/claimed-objectives
@@ -19,16 +21,23 @@
    :error-message atoms/error-message
    :error-until atoms/error-until
    :map-screen-dimensions atoms/map-screen-dimensions
+   :text-area-dimensions atoms/text-area-dimensions
    :map-to-display atoms/map-to-display
    :attention-message atoms/attention-message
    :turn-message atoms/turn-message
    :turn-message-until atoms/turn-message-until
+   :hover-message atoms/hover-message
    :production-status atoms/production-status
    :pause-requested atoms/pause-requested
    :destination atoms/destination
+   :text-font atoms/text-font
+   :production-char-font atoms/production-char-font
    :load-menu-open atoms/load-menu-open
    :load-menu-files atoms/load-menu-files
    :load-menu-hovered atoms/load-menu-hovered
+   :debug-drag-start atoms/debug-drag-start
+   :debug-drag-current atoms/debug-drag-current
+   :debug-message atoms/debug-message
    :player-map atoms/player-map
    :computer-city-positions atoms/computer-city-positions
    :computer-carrier-positions atoms/computer-carrier-positions
@@ -51,6 +60,9 @@
    :transport-fully-loaded? atoms/transport-fully-loaded?
    :early-patrol-boat-produced? atoms/early-patrol-boat-produced?
    :early-satellite-produced? atoms/early-satellite-produced?
+   :computer-event-log atoms/computer-event-log
+   :action-log atoms/action-log
+   :player-movement-log atoms/player-movement-log
    :distant-city-pairs atoms/distant-city-pairs
    :lake-max-cells atoms/lake-max-cells
    :known-lake-cells atoms/known-lake-cells})
