@@ -29,13 +29,10 @@ if [[ -n "$movement_service_violations" ]]; then
   exit 1
 fi
 
-movement_api_consumer_violations="$(rg -n 'empire\.movement\.api' \
-  src/empire/game_loop/item_processing.cljc \
-  src/empire/player/commands.cljc \
-  src/empire/player/commands/actions.cljc \
-  src/empire/ui/util/input/actions.cljc || true)"
+movement_api_hits="$(rg -n 'empire\.movement\.api' src/empire || true)"
+movement_api_consumer_violations="$(printf '%s\n' "$movement_api_hits" | rg -v '^src/empire/movement/api\.cljc:|^src/empire/movement/adapter\.cljc:' || true)"
 if [[ -n "$movement_api_consumer_violations" ]]; then
-  echo "Architecture boundary violation: migrated consumers must use application movement port, not movement api:"
+  echo "Architecture boundary violation: movement api must only be referenced by movement adapter/api:"
   printf '%s\n' "$movement_api_consumer_violations"
   exit 1
 fi

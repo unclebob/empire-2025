@@ -42,4 +42,6 @@
   (movement-is-fighter-from-carrier? [movement active-unit] "True if active unit is carrier fighter.")
   (movement-context [movement cell active-unit] "Determine movement context for active unit.")
   (movement-set-unit-mode [movement coords mode] "Set unit mode at coords.")
+  (movement-add-unit-at [movement coords unit-type owner] "Add a unit at coords for owner.")
+  (movement-wake-at [movement coords] "Wake city/unit at coords.")
   (movement-set-unit-movement [movement coords target extended?] "Queue movement target for unit."))

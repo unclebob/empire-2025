@@ -18,6 +18,10 @@
     (movement/movement-context cell active-unit))
   (movement-set-unit-mode [_ coords mode]
     (movement/set-unit-mode coords mode))
+  (movement-add-unit-at [_ coords unit-type owner]
+    (movement/add-unit-at coords unit-type owner))
+  (movement-wake-at [_ coords]
+    (movement/wake-at coords))
   (movement-set-unit-movement [_ coords target extended?]
     (if extended?
       (movement/set-unit-movement coords target true)

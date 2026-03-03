@@ -1,9 +1,9 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports :as ports]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.api :as movement]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -21,6 +21,10 @@
 (defn- write-runtime-state!
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
+
+(defn- movement-port []
+  (or (:movement-port @state-ctx)
+      (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."
@@ -158,16 +162,16 @@
   [coords]
   (let [cell (get-in (current-world) coords)
         unit (:contents cell)
-        active-unit (movement/get-active-unit cell)]
+        active-unit (ports/movement-get-active-unit (movement-port) cell)]
     (write-runtime-state! :attention-message
                           (cond
-                            (movement/is-fighter-from-airport? active-unit)
+                            (ports/movement-is-fighter-from-airport? (movement-port) active-unit)
                             (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages) (fuel-string active-unit))
 
-                            (movement/is-fighter-from-carrier? active-unit)
+                            (ports/movement-is-fighter-from-carrier? (movement-port) active-unit)
                             (str "Fighter" (:unit-needs-attention config/messages) " - aboard carrier (" (:fighter-count unit 0) " fighters)" (fuel-string active-unit))
 
-                            (movement/is-army-aboard-transport? active-unit)
+                            (ports/movement-is-army-aboard-transport? (movement-port) active-unit)
                             (str "Army" (:unit-needs-attention config/messages) " - aboard transport (" (:army-count unit 0) " armies) - " (:transport-at-beach config/messages))
 
                             active-unit

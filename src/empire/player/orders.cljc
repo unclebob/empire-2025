@@ -3,9 +3,9 @@
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports :as ports]
             [empire.application.state :as app-state]
             [empire.config :as config]
-            [empire.movement.api :as movement]
             [empire.movement.waypoint :as waypoint]))
 
 (def ^:private state-ctx
@@ -34,6 +34,10 @@
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
 
+(defn- movement-port []
+  (or (:movement-port @state-ctx)
+      (throw (ex-info "Movement port not configured in runtime state context" {}))))
+
 (defn- clamp-to-map-bounds
   [[x y]]
   (let [world (current-world)
@@ -45,10 +49,10 @@
      (-> y (max 0) (min max-y))]))
 
 (defn add-unit-at [coords unit-type owner]
-  (movement/add-unit-at coords unit-type owner))
+  (ports/movement-add-unit-at (movement-port) coords unit-type owner))
 
 (defn wake-at [coords]
-  (movement/wake-at coords))
+  (ports/movement-wake-at (movement-port) coords))
 
 (defn own-city-at
   "Claims a city at the given coordinates for the player."
