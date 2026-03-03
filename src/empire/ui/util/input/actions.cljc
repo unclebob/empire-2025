@@ -9,7 +9,7 @@
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.player.attention :as attention]
             [empire.player.production :as production]
             [empire.player.commands :as commands]

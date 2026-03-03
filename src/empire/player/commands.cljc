@@ -3,6 +3,7 @@
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports :as ports]
             [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.player.attention :as attention]
@@ -13,7 +14,6 @@
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.movement :as movement]
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -41,6 +41,10 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
+
+(defn- movement-port []
+  (or (:movement-port @state-ctx)
+      (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
 (defn- set-error-message!
   [msg ms]
@@ -70,7 +74,7 @@
 (defn- handle-city-production-key [k coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
-             (not (movement/get-active-unit cell)))
+             (not (ports/movement-get-active-unit (movement-port) cell)))
     (cond
       (= k :space) (do (update-runtime-state! :player-items rest)
                        (item-processed!)
@@ -164,7 +168,7 @@
           true)
 
       :else
-      (do (movement/set-unit-movement coords target)
+      (do (ports/movement-set-unit-movement (movement-port) coords target false)
           (item-processed!)
           true))))
 
@@ -186,7 +190,7 @@
 
 (defn- handle-unit-movement-key [k coords cell]
   (when-let [{:keys [direction extended?]} (resolve-direction k)]
-    (let [active-unit (movement/get-active-unit cell)]
+    (let [active-unit (ports/movement-get-active-unit (movement-port) cell)]
       (when (player-unit? active-unit)
         (let [[x y] coords
               [dx dy] direction
@@ -195,7 +199,7 @@
               target (if extended?
                        (calculate-extended-target coords direction)
                        adjacent-target)]
-          (dispatch-movement (movement/movement-context cell active-unit)
+          (dispatch-movement (ports/movement-context (movement-port) cell active-unit)
                              coords adjacent-target target extended? target-cell active-unit cell))))))
 
 (defn handle-unit-click
@@ -211,7 +215,7 @@
 (defn handle-key [k]
   (when-let [coords (first (read-runtime-state :cells-needing-attention))]
     (let [cell (get-in (current-world) coords)
-          active-unit (movement/get-active-unit cell)]
+          active-unit (ports/movement-get-active-unit (movement-port) cell)]
       (if active-unit
         (case k
           :space (actions/handle-space-key (actions-ctx) coords)

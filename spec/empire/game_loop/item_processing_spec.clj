@@ -3,7 +3,7 @@
             [speclj.core :refer :all]
             [empire.game-loop.item-processing :as ip]
             [empire.config :as config]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.movement.explore :as explore]
             [empire.movement.coastline :as coastline]
             [empire.player.attention :as attention]

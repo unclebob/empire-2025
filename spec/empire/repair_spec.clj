@@ -4,7 +4,7 @@
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]
             [empire.test-utils :as tu]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.game-loop :as game-loop]
             [empire.containers.ops :as container-ops]
             [empire.player.production :as production]))

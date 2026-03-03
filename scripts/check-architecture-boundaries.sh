@@ -13,4 +13,27 @@ if [[ -n "$inner_mutation_hits" ]]; then
   exit 1
 fi
 
+movement_methods_hits="$(rg -n 'empire\.movement\.methods' src/empire || true)"
+movement_methods_violations="$(printf '%s\n' "$movement_methods_hits" | rg -v '^src/empire/movement/methods\.cljc:|^src/empire/movement/bootstrap\.cljc:' || true)"
+if [[ -n "$movement_methods_violations" ]]; then
+  echo "Architecture boundary violation: movement methods must only be referenced by movement bootstrap:"
+  printf '%s\n' "$movement_methods_violations"
+  exit 1
+fi
+
+movement_service_hits="$(rg -n 'empire\.movement\.service' src/empire || true)"
+movement_service_violations="$(printf '%s\n' "$movement_service_hits" | rg -v '^src/empire/movement/service\.cljc:|^src/empire/movement/api\.cljc:|^src/empire/movement/bootstrap\.cljc:' || true)"
+if [[ -n "$movement_service_violations" ]]; then
+  echo "Architecture boundary violation: movement service must only be referenced by movement api/bootstrap:"
+  printf '%s\n' "$movement_service_violations"
+  exit 1
+fi
+
+movement_api_consumer_violations="$(rg -n 'empire\.movement\.api' src/empire/game_loop/item_processing.cljc src/empire/player/commands.cljc || true)"
+if [[ -n "$movement_api_consumer_violations" ]]; then
+  echo "Architecture boundary violation: migrated consumers must use application movement port, not movement api:"
+  printf '%s\n' "$movement_api_consumer_violations"
+  exit 1
+fi
+
 echo "Architecture boundary check passed"

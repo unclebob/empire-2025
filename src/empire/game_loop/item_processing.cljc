@@ -2,6 +2,7 @@
 (ns empire.game-loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports :as ports]
             [empire.application.state :as app-state]
             [empire.adapters.state.runtime :as runtime-state]
             [empire.config :as config]
@@ -11,8 +12,7 @@
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.movement.coastline :as coastline]
-            [empire.movement.explore :as explore]
-            [empire.movement.movement :as movement]))
+            [empire.movement.explore :as explore]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -38,6 +38,10 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
+
+(defn- movement-port []
+  (or (:movement-port @state-ctx)
+      (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
 (defn- computer-has-items?
   "Returns true if computer has any cities or units on the map."
@@ -101,7 +105,7 @@
          unit (:contents cell)]
     (when (and (= (:mode unit) :moving)
                (pos? (:steps-remaining unit 1)))
-      (let [{:keys [result pos]} (movement/move-unit coords (:target unit) cell (runtime-state/game-map-atom))
+      (let [{:keys [result pos]} (ports/movement-move-unit (movement-port) coords (:target unit) cell (runtime-state/game-map-atom))
             next-pos (resolve-move-result result pos (:owner unit))]
         (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
           (recur pos (dec max-sidesteps))

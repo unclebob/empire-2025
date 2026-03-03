@@ -3,7 +3,7 @@
     [empire.config :as config]
     [empire.game-loop :as game-loop]
     [empire.movement.explore :as explore]
-    [empire.movement.movement :refer :all]
+    [empire.movement.api :refer :all]
     [empire.movement.visibility :as visibility]
     [empire.movement.wake-conditions :as wake]
     [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]

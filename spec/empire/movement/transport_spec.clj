@@ -3,7 +3,7 @@
     [empire.containers.ops :as container-ops]
     [empire.game-loop :as game-loop]
     [empire.movement.map-utils :as map-utils]
-    [empire.movement.movement :refer :all]
+    [empire.movement.api :refer :all]
     [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! make-initial-test-map set-test-world!]]
     [speclj.core :refer :all]))
 

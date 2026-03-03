@@ -42,6 +42,12 @@ Run component dependency analysis (boundaries, cycles, fan-in/fan-out, instabili
 
     clj -M:check-dependencies dependency-tool.edn
 
+Abstraction rule for dependency metrics:
+
+- Never mark abstraction arbitrarily.
+- A symbol should count as abstract only when it represents real indirection (for example: `defprotocol`, `defmulti`, or explicit function-argument injection of behavior).
+- Do not use config-only pattern marking to inflate abstractness when no indirection exists in code.
+
 Create a starter dependency config if it does not exist (or overwrite it):
 
     clj -M:check-dependencies dependency-tool.edn --init
@@ -60,6 +66,7 @@ Equivalent Clojure alias:
 - Specs in `spec/**` must not manipulate `empire.atoms` directly.
 - Use `empire.test-utils` and runtime/test helper APIs instead of `@atoms/...`, `reset! atoms/...`, or `swap! atoms/...`.
 - Boundary enforcement runs in `clj -M:all-tests` via:
+  - `scripts/check-architecture-boundaries.sh`
   - `scripts/check-spec-boundary.sh`
   - `scripts/check-acceptance-boundary.sh`
   - `scripts/check-generated-acceptance-boundary.sh`

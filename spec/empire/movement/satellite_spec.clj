@@ -1,7 +1,7 @@
 (ns empire.movement.satellite-spec
   (:require [empire.test-utils :as test-utils]
     [empire.game-loop :as game-loop]
-    [empire.movement.movement :refer [set-unit-movement]]
+    [empire.movement.api :refer [set-unit-movement]]
     [empire.movement.visibility :refer [update-cell-visibility]]
     [empire.movement.satellite :as sat :refer [move-satellite calculate-satellite-target]]
     [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map

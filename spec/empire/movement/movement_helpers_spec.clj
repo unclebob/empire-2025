@@ -3,7 +3,10 @@
     [empire.config :as config]
     [empire.game-loop :as game-loop]
     [empire.movement.explore :as explore]
-    [empire.movement.movement :refer :all]
+    [empire.movement.api :refer :all]
+    [empire.movement.movement-execution :as movement-execution]
+    [empire.movement.movement-pathing :as pathing]
+    [empire.movement.movement-state :as movement-state]
     [empire.movement.visibility :as visibility]
     [empire.movement.wake-conditions :as wake]
     [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]
@@ -11,35 +14,35 @@
 
 (describe "diagonal?"
   (it "returns true for diagonal direction"
-    (should (@#'empire.movement.movement/diagonal? 1 1)))
+    (should (pathing/diagonal? 1 1)))
   (it "returns true for negative diagonal"
-    (should (@#'empire.movement.movement/diagonal? -1 -1)))
+    (should (pathing/diagonal? -1 -1)))
   (it "returns false when dx is zero"
-    (should-not (@#'empire.movement.movement/diagonal? 0 1)))
+    (should-not (pathing/diagonal? 0 1)))
   (it "returns false when dy is zero"
-    (should-not (@#'empire.movement.movement/diagonal? 1 0)))
+    (should-not (pathing/diagonal? 1 0)))
   (it "returns false when both zero"
-    (should-not (@#'empire.movement.movement/diagonal? 0 0))))
+    (should-not (pathing/diagonal? 0 0))))
 
 (describe "get-sidestep-directions"
   (it "returns diagonal-first for diagonal direction [1 1]"
     (should= [[1 0] [0 1] [-1 1] [1 -1]]
-             (@#'empire.movement.movement/get-sidestep-directions [1 1])))
+             (pathing/get-sidestep-directions [1 1])))
   (it "returns diagonal-first for diagonal direction [-1 -1]"
     (should= [[-1 0] [0 -1] [1 -1] [-1 1]]
-             (@#'empire.movement.movement/get-sidestep-directions [-1 -1])))
+             (pathing/get-sidestep-directions [-1 -1])))
   (it "returns horizontal-adjacent for east [1 0]"
     (should= [[1 1] [1 -1] [0 1] [0 -1]]
-             (@#'empire.movement.movement/get-sidestep-directions [1 0])))
+             (pathing/get-sidestep-directions [1 0])))
   (it "returns horizontal-adjacent for west [-1 0]"
     (should= [[-1 1] [-1 -1] [0 1] [0 -1]]
-             (@#'empire.movement.movement/get-sidestep-directions [-1 0])))
+             (pathing/get-sidestep-directions [-1 0])))
   (it "returns vertical-adjacent for south [0 1]"
     (should= [[1 1] [-1 1] [1 0] [-1 0]]
-             (@#'empire.movement.movement/get-sidestep-directions [0 1])))
+             (pathing/get-sidestep-directions [0 1])))
   (it "returns vertical-adjacent for north [0 -1]"
     (should= [[1 -1] [-1 -1] [1 0] [-1 0]]
-             (@#'empire.movement.movement/get-sidestep-directions [0 -1]))))
+             (pathing/get-sidestep-directions [0 -1]))))
 
 (describe "wake-at"
   (before
@@ -239,34 +242,34 @@
 
 (describe "transport-with-awake-armies?"
   (it "returns true for transport with awake armies"
-    (should (@#'empire.movement.movement/transport-with-awake-armies?
+    (should (movement-state/transport-with-awake-armies?
               {:type :transport :awake-armies 1})))
   (it "returns false for non-transport"
-    (should-not (@#'empire.movement.movement/transport-with-awake-armies?
+    (should-not (movement-state/transport-with-awake-armies?
                   {:type :carrier :awake-armies 1})))
   (it "returns false for transport without awake armies"
-    (should-not (@#'empire.movement.movement/transport-with-awake-armies?
+    (should-not (movement-state/transport-with-awake-armies?
                   {:type :transport :awake-armies 0}))))
 
 (describe "carrier-with-awake-fighters?"
   (it "returns true for carrier with awake fighters"
-    (should (@#'empire.movement.movement/carrier-with-awake-fighters?
+    (should (movement-state/carrier-with-awake-fighters?
               {:type :carrier :awake-fighters 1})))
   (it "returns false for non-carrier"
-    (should-not (@#'empire.movement.movement/carrier-with-awake-fighters?
+    (should-not (movement-state/carrier-with-awake-fighters?
                   {:type :transport :awake-fighters 1})))
   (it "returns false for carrier without awake fighters"
-    (should-not (@#'empire.movement.movement/carrier-with-awake-fighters?
+    (should-not (movement-state/carrier-with-awake-fighters?
                   {:type :carrier :awake-fighters 0}))))
 
 (describe "awake-unit?"
   (it "returns true for awake unit"
-    (should (@#'empire.movement.movement/awake-unit?
+    (should (movement-state/awake-unit?
               {:type :army :mode :awake})))
   (it "returns false for nil"
-    (should-not (@#'empire.movement.movement/awake-unit? nil)))
+    (should-not (movement-state/awake-unit? nil)))
   (it "returns false for non-awake unit"
-    (should-not (@#'empire.movement.movement/awake-unit?
+    (should-not (movement-state/awake-unit?
                   {:type :army :mode :sentry}))))
 
 (describe "get-active-unit"
@@ -556,7 +559,7 @@
     (should-be-nil (:fuel (get-in (test-utils/read-test-state :game-map) [1 1 :contents])))))
 
 (describe "update-destination-cell"
-  (let [update-dest @#'empire.movement.movement/update-destination-cell]
+  (let [update-dest movement-execution/update-destination-cell]
     (it "returns unchanged cell for :unit-destroyed"
       (let [to-cell {:type :sea}]
         (should= to-cell (update-dest :unit-destroyed to-cell nil))))

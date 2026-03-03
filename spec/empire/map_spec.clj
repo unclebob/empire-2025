@@ -8,7 +8,7 @@
             [empire.ui.util.input.actions :as input]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map
                                        set-test-world! set-test-player-map!]]))
 

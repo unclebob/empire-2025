@@ -9,7 +9,7 @@
             [empire.game-loop :as game-loop]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]
             [empire.test-utils :refer [build-test-map set-test-world! update-test-world! reset-all-atoms! set-test-unit]]))

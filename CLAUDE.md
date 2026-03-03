@@ -144,6 +144,18 @@ The message area below the map has two sections, each 3 lines high:
 
 ## Coding Guidelines
 
+### Architecture Policy
+
+- Abstraction is never arbitrary. Only count or claim abstraction when there is real indirection in code:
+  - `defprotocol`
+  - `defmulti`/`defmethod`
+  - explicit function-argument injection of behavior
+- Do not use config-only or naming-only mechanisms to assert abstraction when no indirection exists.
+- For component boundaries, prefer `defprotocol` ports over multimethods by default.
+- Use multimethods only when open-ended value/type dispatch is actually required.
+- Keep boundary namespaces abstract-only when practical (contracts only); place concrete implementations in implementation namespaces.
+- Wire protocol implementations in initialization/composition code; wire multimethod implementations by requiring concrete namespaces during initialization.
+
 ### Quil Isolation
 
 Functions in `input.cljc` and `rendering.cljc` that do not depend on Quil should be moved to appropriate non-Quil modules. Keep Quil dependencies (e.g., `q/mouse-x`, `q/mouse-y`, drawing functions) isolated to thin wrapper functions, with core logic extracted into testable, Quil-independent functions in modules like `movement.cljc`, `config.cljc`, or `unit-container.cljc`.

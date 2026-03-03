@@ -5,7 +5,7 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.movement.waypoint :as waypoint]))
 
 (def ^:private state-ctx

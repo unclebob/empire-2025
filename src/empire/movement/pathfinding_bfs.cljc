@@ -6,36 +6,47 @@
             [empire.movement.pathfinding-bfs.exploration :as exploration]
             [empire.movement.pathfinding-bfs.transport :as transport]))
 
-(defn clear-bfs-caches
+(defmulti clear-bfs-caches
   "Clears all BFS caches. Called at start of each round."
+  (fn [& _] :default))
+(defmethod clear-bfs-caches :default
   []
   (cache/clear-bfs-caches))
 
-(defn sea-reaches-edge? [pos]
+(defmulti sea-reaches-edge? (fn [& _] :default))
+(defmethod sea-reaches-edge? :default [pos]
   (coast-targeting/sea-reaches-edge? pos))
 
-(defn find-nearest-unexplored [start unit-type]
+(defmulti find-nearest-unexplored (fn [& _] :default))
+(defmethod find-nearest-unexplored :default [start unit-type]
   (exploration/find-nearest-unexplored start unit-type))
 
-(defn find-nearest-unexplored-coastline [start unit-type]
+(defmulti find-nearest-unexplored-coastline (fn [& _] :default))
+(defmethod find-nearest-unexplored-coastline :default [start unit-type]
   (exploration/find-nearest-unexplored-coastline start unit-type))
 
-(defn bfs-to-unexplored-coast [start computer-map]
+(defmulti bfs-to-unexplored-coast (fn [& _] :default))
+(defmethod bfs-to-unexplored-coast :default [start computer-map]
   (exploration/bfs-to-unexplored-coast start computer-map))
 
-(defn bfs-to-unowned-coast [start computer-map game-map]
+(defmulti bfs-to-unowned-coast (fn [& _] :default))
+(defmethod bfs-to-unowned-coast :default [start computer-map game-map]
   (coast-targeting/bfs-to-unowned-coast start computer-map game-map))
 
-(defn bfs-to-coast-target [start computer-map]
+(defmulti bfs-to-coast-target (fn [& _] :default))
+(defmethod bfs-to-coast-target :default [start computer-map]
   (coast-targeting/bfs-to-coast-target start computer-map))
 
-(defn bfs-to-unseen-coast [start computer-map excluded]
+(defmulti bfs-to-unseen-coast (fn [& _] :default))
+(defmethod bfs-to-unseen-coast :default [start computer-map excluded]
   (exploration/bfs-to-unseen-coast start computer-map excluded))
 
-(defn find-nearest-unload-position [start target-continent]
+(defmulti find-nearest-unload-position (fn [& _] :default))
+(defmethod find-nearest-unload-position :default [start target-continent]
   (transport/find-nearest-unload-position start target-continent))
 
-(defn bfs-to-land-ho-target [start target-city computer-map]
+(defmulti bfs-to-land-ho-target (fn [& _] :default))
+(defmethod bfs-to-land-ho-target :default [start target-city computer-map]
   (transport/bfs-to-land-ho-target start target-city computer-map))
 
 ;; Compatibility wrappers for specs that exercise private internals via var-quote.

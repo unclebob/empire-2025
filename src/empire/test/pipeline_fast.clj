@@ -20,5 +20,6 @@
 (defn -main
   [& _]
   (run-step! "Running unit specs..." ["clj" "-M:spec"])
+  (run-step! "Checking architecture boundaries..." ["bash" "scripts/check-architecture-boundaries.sh"])
   (run-step! "Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"])
   (println "Fast all-tests passed."))

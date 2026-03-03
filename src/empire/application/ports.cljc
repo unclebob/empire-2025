@@ -33,3 +33,9 @@
   (when-input! [harness input] "Apply an acceptance input action.")
   (advance-rounds! [harness rounds] "Advance simulation by rounds.")
   (query-world [harness query] "Read world/query data for assertions."))
+
+(defprotocol MovementPort
+  (movement-move-unit [movement coords target cell current-map] "Resolve one movement step.")
+  (movement-get-active-unit [movement cell] "Get active unit in a cell for attention/input.")
+  (movement-context [movement cell active-unit] "Determine movement context for active unit.")
+  (movement-set-unit-movement [movement coords target extended?] "Queue movement target for unit."))

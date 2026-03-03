@@ -3,7 +3,7 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
-            [empire.movement.movement :as movement]
+            [empire.movement.api :as movement]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))
 
