@@ -87,29 +87,6 @@
         at-best (filter #(= best-unexplored (second %)) scored)]
     (first (first (sort-by #(nth % 2) at-best)))))
 
-(defn- land-after-hop
-  "Executes hop landing at dest from pos. Returns {:pos dest :hops hops} or nil."
-  [pos dest hops]
-  (when (core/move-unit-to pos dest)
-    (visibility/update-cell-visibility pos :computer)
-    (visibility/update-cell-visibility dest :computer)
-    (when (fm/consume-hop-fuel dest hops)
-      (when (fm/consume-fighter-fuel dest)
-        {:pos dest :hops hops}))))
-
-(defn- explore-hop-over
-  "Hops over friendly units in the direction from pos toward best-pos.
-   Returns {:pos p :hops n} or nil."
-  [pos best-pos]
-  (let [[dr dc] (fm/direction-from pos best-pos)]
-    (loop [sr (first best-pos) sc (second best-pos) hops 1]
-      (let [next-pos [(+ sr dr) (+ sc dc)]]
-        (when (fm/in-bounds? next-pos)
-          (if-not (fm/occupied? next-pos)
-            (land-after-hop pos next-pos (inc hops))
-            (when (fm/friendly-occupied? next-pos)
-              (recur (+ sr dr) (+ sc dc) (inc hops)))))))))
-
 (defn- simple-explore-move
   "Direct move to best-pos. Returns {:pos best-pos :hops 1} or nil."
   [pos best-pos]
@@ -128,7 +105,8 @@
   (let [passable (fm/get-passable-neighbors pos)]
     (when-let [best-pos (and (seq passable) (select-best-explore-target passable endpoint))]
       (if (fm/friendly-occupied? best-pos)
-        (explore-hop-over pos best-pos)
+        (when-let [hop (fm/hop-over-friendly pos endpoint)]
+          (fm/execute-hop pos hop))
         (simple-explore-move pos best-pos)))))
 
 (defn explore-step

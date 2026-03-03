@@ -1,6 +1,7 @@
 (ns empire.computer.transport-sailing-spec
   "Tests for VMS Empire style computer transport movement."
   (:require [speclj.core :refer :all]
+            [empire.computer.core :as core]
             [empire.computer.transport :as transport]
             [empire.computer.transport-core :as tc]
 
@@ -618,4 +619,26 @@
       (transport/process-transport [0 0])
       ;; Should have moved to [0 1], then continued to [0 2] (computer-occupied passable)
       ;; or stopped at [0 1] if computer unit blocks move. Either way, moved past [0 0].
-      (should-be-nil (:contents (get-in @atoms/game-map [0 0])))))
+      (should-be-nil (:contents (get-in @atoms/game-map [0 0]))))
+
+    (it "backs away and switches to unloading when enemy ships are near invasion destination"
+      ;; Target at [4 0] has a nearby player ship. Transport at [2 0] should
+      ;; retreat away from target and switch to unloading.
+      (set-test-world! (build-test-map ["~~t~P~~"
+                                        "~~~~~~~"]))
+      (set-test-computer-map! @atoms/game-map)
+      (update-test-world! assoc-in [2 0 :contents]
+                         {:type :transport :owner :computer
+                          :transport-mission :invading
+                          :invasion-path []
+                          :invasion-target [4 0]
+                          :army-count 4})
+      (transport/process-transport [2 0])
+      (let [transport-pos (first (for [c (range 7)
+                                       r (range 2)
+                                       :let [u (get-in @atoms/game-map [c r :contents])]
+                                       :when (= :transport (:type u))]
+                                   [c r]))
+            transport-unit (get-in @atoms/game-map (conj transport-pos :contents))]
+        (should= :unloading (:transport-mission transport-unit))
+        (should (> (core/chebyshev-distance transport-pos [4 0]) 2)))))

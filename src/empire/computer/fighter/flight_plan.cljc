@@ -28,24 +28,34 @@
                      (neighbors world pos))))))
 
 (defn- choose-leg
-  [read-runtime-state current-site]
+  [world read-runtime-state current-site]
   (let [sites (ship/find-refueling-sites)
         reachable (filter #(and (not= % current-site)
                                 (<= (fm/distance-to current-site %) config/fighter-fuel))
                           sites)
+        active-targets (set (for [c (range (count world))
+                                  r (range (count (first world)))
+                                  :let [u (get-in world [c r :contents])
+                                        target (:flight-target-site u)]
+                                  :when (and (= :fighter (:type u))
+                                             (= :computer (:owner u))
+                                             target)]
+                              target))
+        candidate-targets (let [unclaimed (remove active-targets reachable)]
+                            (if (seq unclaimed) unclaimed reachable))
         leg-records (or (read-runtime-state :fighter-leg-records) {})
         scored (map (fn [target]
                       (let [leg-key #{current-site target}
                             record (get leg-records leg-key)
                             last-flown (:last-flown record -1)]
                         [target last-flown]))
-                    reachable)]
+                    candidate-targets)]
     (when (seq scored)
       (first (first (sort-by second scored))))))
 
 (defn- assign-regular-leg!
-  [update-game-map! pos site-pos read-runtime-state]
-  (when-let [target (choose-leg read-runtime-state site-pos)]
+  [update-game-map! world pos site-pos read-runtime-state]
+  (when-let [target (choose-leg world read-runtime-state site-pos)]
     (update-game-map! update-in (conj pos :contents)
                       assoc :flight-target-site target
                       :flight-origin-site site-pos
@@ -86,7 +96,7 @@
       (when-let [site-pos (current-refueling-site world pos)]
         (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
         (if (>= (rand) 0.5)
-          (assign-regular-leg! update-game-map! pos site-pos read-runtime-state)
+          (assign-regular-leg! update-game-map! world pos site-pos read-runtime-state)
           (assign-exploration-flight! update-game-map! world pos site-pos))))))
 
 (defn at-flight-target?
@@ -97,7 +107,7 @@
              (<= (fm/distance-to pos target) 1)))))
 
 (defn handle-arrival!
-  [update-game-map! read-runtime-state write-runtime-state! pos unit]
+  [current-world update-game-map! read-runtime-state write-runtime-state! pos unit]
   (let [target (:flight-target-site unit)
         origin (:flight-origin-site unit)]
     (when (and origin (not= origin target))
@@ -106,7 +116,7 @@
                                    #{origin target}
                                    {:last-flown (or (read-runtime-state :round-number) 0)})))
     (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-    (let [new-target (choose-leg read-runtime-state target)]
+    (let [new-target (choose-leg (current-world) read-runtime-state target)]
       (update-game-map! update-in (conj pos :contents)
                         #(-> %
                              (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)

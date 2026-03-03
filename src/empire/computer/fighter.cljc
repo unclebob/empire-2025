@@ -45,7 +45,7 @@
 
 (defn- handle-arrival
   [pos unit]
-  (flight-plan/handle-arrival! update-game-map! read-runtime-state write-runtime-state! pos unit))
+  (flight-plan/handle-arrival! current-world update-game-map! read-runtime-state write-runtime-state! pos unit))
 
 (defn- select-best-navigation-target
   "Score passable unoccupied neighbors by unexplored count, break ties by proximity."

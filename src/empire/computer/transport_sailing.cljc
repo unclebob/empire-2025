@@ -12,6 +12,13 @@
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
 
+(def ^:private invasion-unload-radius 2)
+(def ^:private invasion-threat-unload-radius 3)
+(def ^:private invasion-threat-scan-radius 2)
+
+(def ^:private player-ship-types
+  #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
+
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
@@ -19,6 +26,23 @@
 (defn- current-world
   []
   ((:load-world @state-ctx)))
+
+(defn- enemy-ship-near-target?
+  [target radius]
+  (let [world (current-world)
+        [tx ty] target
+        min-x (max 0 (- tx radius))
+        max-x (min (dec (count world)) (+ tx radius))
+        min-y (max 0 (- ty radius))
+        max-y (min (dec (count (first world))) (+ ty radius))]
+    (boolean
+     (some true?
+           (for [x (range min-x (inc max-x))
+                 y (range min-y (inc max-y))]
+             (let [u (get-in world [x y :contents])]
+               (and u
+                    (= :player (:owner u))
+                    (contains? player-ship-types (:type u)))))))))
 (defn compute-sail-path
   "Compute BFS path from transport position to best coastal target.
    Looks 4 levels past first hit; prefers unowned coast over unexplored."
@@ -195,8 +219,36 @@
 
 (defn- unload-zone?
   [pos target transport]
-  (or (<= (core/chebyshev-distance pos target) 2)
-      (and transport (unloading/has-nearby-unloadable-land? pos transport 5))))
+  (let [radius (if (enemy-ship-near-target? target invasion-threat-scan-radius)
+                 invasion-threat-unload-radius
+                 invasion-unload-radius)]
+    (or (<= (core/chebyshev-distance pos target) radius)
+        (and transport (unloading/has-nearby-unloadable-land? pos transport 5)))))
+
+(defn- retreat-away-from-target!
+  [pos target]
+  (let [world (current-world)
+        current-distance (core/chebyshev-distance pos target)
+        candidates (->> (tc/get-passable-sea-neighbors pos)
+                        (filter #(nil? (get-in world (conj % :contents))))
+                        (filter #(< current-distance (core/chebyshev-distance % target))))
+        chosen (first (sort-by (fn [p]
+                                 [(- (core/chebyshev-distance p target)) p])
+                               candidates))]
+    (when (and chosen (core/move-unit-to pos chosen))
+      (visibility/update-cell-visibility pos :computer)
+      (visibility/update-cell-visibility chosen :computer)
+      chosen)))
+
+(defn- handle-invasion-threat-near-target!
+  [pos target]
+  (when (and target
+             (<= (core/chebyshev-distance pos target) invasion-threat-unload-radius)
+             (enemy-ship-near-target? target invasion-threat-scan-radius))
+    (if-let [retreated (retreat-away-from-target! pos target)]
+      (tc/set-transport-mission retreated :unloading)
+      (tc/set-transport-mission pos :unloading))
+    true))
 
 (defn- continue-invading-without-path!
   [pos target invading-step]
@@ -250,8 +302,10 @@
   (let [transport (get-in (current-world) (conj pos :contents))
         path (:invasion-path transport)
         target (or (:invasion-target transport) (:major-invasion-target transport))]
-    (if (empty? path)
-      (continue-invading-without-path! pos target #(invading-step % target))
-      (when (= :blocked (continue-invading-via-path! pos path))
-        ;; Blocked — sidestep toward target when possible, otherwise retry next round.
-        (invading-step pos target)))))
+    (if (handle-invasion-threat-near-target! pos target)
+      nil
+      (if (empty? path)
+        (continue-invading-without-path! pos target #(invading-step % target))
+        (when (= :blocked (continue-invading-via-path! pos path))
+          ;; Blocked — sidestep toward target when possible, otherwise retry next round.
+          (invading-step pos target))))))
