@@ -28,6 +28,10 @@
      :handle-detection! (fn [_coords _cell] nil)
      :country-coastal-explored? (fn [country-id]
                                   (computer-production/country-coastal-cells-explored? country-id))
+     :country-city-producing-armies? (fn [city-pos country-id]
+                                       (computer-production/country-city-producing-armies?
+                                         city-pos
+                                         country-id))
      :set-city-production! (fn [coords item]
                              (let [current (or (runtime-ports/read-runtime-state rt-store :production) {})]
                                (runtime-ports/write-runtime-state! rt-store :production

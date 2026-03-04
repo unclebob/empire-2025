@@ -199,9 +199,9 @@
 
 (defn- major-invasion-step
   [pos]
-  (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
-        (ship-core/attack-enemy pos enemy-pos))
-      (patrol-mode-step pos)))
+  (if-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
+    (ship-core/attack-enemy pos enemy-pos)
+    (patrol-mode-step pos)))
 
 (defn- non-invasion-step
   [pos]
@@ -228,6 +228,9 @@
     (if (or (zero? steps-left)
             (nil? (get-in (current-world) (conj current-pos :contents))))
       current-pos
-      (if-let [new-pos (patrol-boat-step current-pos)]
-        (recur new-pos (dec steps-left))
-        (recur current-pos (dec steps-left))))))
+      (if (and (:major-invasion (get-in (current-world) (conj current-pos :contents)))
+               (ship-core/find-adjacent-enemy-ship current-pos))
+        (or (major-invasion-step current-pos) current-pos)
+        (if-let [new-pos (patrol-boat-step current-pos)]
+          (recur new-pos (dec steps-left))
+          (recur current-pos (dec steps-left)))))))

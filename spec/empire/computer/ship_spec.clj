@@ -200,8 +200,8 @@
         (ship/process-ship [0 0] :patrol-boat)
         ;; Enemy ship should be destroyed and patrol boat should survive.
         (should-not= :player (get-in (test-utils/read-test-state :game-map) [0 1 :contents :owner]))
-        (should (some #(= :patrol-boat (get-in (test-utils/read-test-state :game-map) [% 0 :contents :type]))
-                      [0 1]))))
+        (should (some #(= :patrol-boat (get-in (test-utils/read-test-state :game-map) (conj % :contents :type)))
+                      [[0 0] [0 1] [1 0]]))))
 
 )
 
