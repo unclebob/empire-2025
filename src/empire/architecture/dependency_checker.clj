@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-04
 (ns empire.architecture.dependency-checker
   (:require [clojure.java.io :as io]
             [empire.architecture.dependency-checker.cli :as cli]
@@ -65,11 +66,16 @@
 
 (defn- distance-violations
   [result max-distance]
-  (->> (:component-stats result)
+  (let [utility-components (->> (get-in result [:config :utility-components] [])
+                                (keep #(when (keyword? %) %))
+                                set)]
+    (->> (:component-stats result)
+       (remove (fn [[component _]]
+                 (contains? utility-components component)))
        (filter (fn [[_ {:keys [distance]}]]
                  (> distance max-distance)))
        (mapv (fn [[component {:keys [distance]}]]
-               [component distance]))))
+               [component distance])))))
 
 (defn- failure?
   [result dist-violations]

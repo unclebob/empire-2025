@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-04
 (ns empire.architecture.dependency-checker.core-base-config
   (:require [clojure.java.io :as io]
             [clojure.string :as str]))
@@ -6,6 +7,7 @@
   {:source-paths ["src"]
    :include-exts #{".clj" ".cljc" ".cljs"}
    :component-rules []
+   :utility-components []
    :forbidden-dependencies []
    :allowed-exceptions []
    :fail-on-cycles true

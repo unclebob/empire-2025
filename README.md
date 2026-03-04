@@ -38,33 +38,13 @@ Run a faster all-tests pass (unit specs + already-generated acceptance specs):
 
     clj -M:all-tests-fast
 
-Run component dependency analysis (boundaries, cycles, fan-in/fan-out, instability, distance):
+Run component dependency analysis:
 
     clj -M:check-dependencies dependency-checker.edn
-    clj -M:check-dependencies dependency-checker.edn --max-distance 0.35
 
-Fan-in/fan-out dependency edges are derived from namespace clauses and runtime dependency forms:
-`ns :require`, `ns :use`, `ns :import`, direct `(require ...)`, and dynamic lookup forms
-`requiring-resolve`, `resolve`, `ns-resolve`, `find-ns`, `the-ns`.
-Dynamic namespace lookup usage is reported as warnings in dependency check output.
+Dependency checker usage, metrics, config, and policy notes are documented in:
 
-Abstraction rule for dependency metrics:
-
-- Never mark abstraction arbitrarily.
-- A symbol should count as abstract only when it represents real indirection (for example: `defprotocol`, `defmulti`, or explicit function-argument injection of behavior).
-- Do not use config-only pattern marking to inflate abstractness when no indirection exists in code.
-
-Create a starter dependency config if it does not exist (or overwrite it):
-
-    clj -M:check-dependencies dependency-checker.edn --init
-    clj -M:check-dependencies dependency-checker.edn --force-init
-
-By default, dependency checks fail if any component distance metric exceeds `0`.
-Abstractness in these metrics is derived only from `defprotocol` and `defmulti`.
-Starter config generation infers abstract components from the highest namespace
-subtrees containing only abstract modules, then infers concrete components from
-implementing namespace subtrees that stay dependency-closed within those
-abstract roots.
+- `src/empire/architecture/dependency_checker/README.md`
 
 Run acceptance pipeline (parse scenarios, generate specs, enforce acceptance boundaries, run generated acceptance specs):
 

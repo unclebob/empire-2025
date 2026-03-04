@@ -3,6 +3,11 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [empire.architecture.dependency-checker.core-base-config :as cfg-base]
+            [empire.architecture.dependency-checker.core-base-dependencies :as dep-base]
+            [empire.architecture.dependency-checker.core-base-reader :as reader-base]
+            [empire.architecture.dependency-checker.core-base-stats :as stats-base]
+            [empire.architecture.dependency-checker.core-infer :as infer]
             [empire.architecture.dependency-checker :as tool]))
 
 (defn- temp-dir []
@@ -295,6 +300,23 @@
                     tool/report-text (fn [& _] nil)]
         (should= 0 (#'tool/run-cli [cfg-path "--max-distance" "1.0"])))))
 
+  (it "run-cli ignores max-distance violations for utility components"
+    (let [root (temp-dir)
+          cfg-path (.getPath (io/file root "dep.edn"))]
+      (spit cfg-path "{}")
+      (with-redefs [tool/analyze-project (fn [_]
+                                           {:config {:fail-on-violations true
+                                                     :fail-on-cycles true
+                                                     :utility-components [:util]}
+                                            :component-stats {:util {:distance 1.2}
+                                                              :alpha {:distance 0.0}}
+                                            :violations []
+                                            :cycles []
+                                            :component-edges []
+                                            :warnings []})
+                    tool/report-text (fn [& _] nil)]
+        (should= 0 (#'tool/run-cli [cfg-path "--max-distance" "1.0"])))))
+
   (it "run-cli supports edn output format"
     (let [root (temp-dir)
           cfg-path (.getPath (io/file root "dep.edn"))
@@ -343,6 +365,15 @@
       (should= nil (#'tool/parent-prefix "empire"))
       (should= "empire.api" (#'tool/best-abstract-prefix abstract-prefixes "empire.api.port")))))
 
+  (it "covers infer helpers for prefixes, abstractness, and component naming"
+    (should= ["empire"] (vec (infer/ns-prefixes "empire")))
+    (should= ["empire" "empire.api" "empire.api.port"]
+             (vec (infer/ns-prefixes "empire.api.port")))
+    (should-not (infer/module-abstract? {:public-count 1 :abstract-count 0}))
+    (should (infer/module-abstract? {:public-count 2 :abstract-count 2}))
+    (should= :api-port (infer/prefix->component "empire" "empire.api.port"))
+    (should= :demo-core (infer/prefix->component "empire" "demo.core")))
+
 (describe "dependency-tool decrap targets"
   (it "handles ns-target for symbol, string, quoted symbol, and unsupported types"
     (should= 'demo.ns (#'tool/ns-target 'demo.ns))
@@ -359,6 +390,25 @@
     (should= ['demo.zeta] (#'tool/dynamic-lookup-targets '(the-ns 'demo.zeta)))
     (should= [] (#'tool/dynamic-lookup-targets '(println "x"))))
 
+  (it "covers dependency helper branches for require targets, call detection, and warnings"
+    (should= nil (dep-base/require-target [:as :not-a-target]))
+    (should (dep-base/called? '(require 'demo.a) "require"))
+    (should-not (dep-base/called? '(println :x) "require"))
+    (should= [{:kind :dynamic-namespace-lookup
+               :callee "requiring-resolve"
+               :targets ["demo.alpha"]}]
+             (dep-base/extract-dynamic-lookup-warnings
+             ['(println :x)
+               '(requiring-resolve 'demo.alpha/run)])))
+
+  (it "covers stats helper branch when var name is not a symbol"
+    (should= nil (stats-base/var-symbol '(def 42 :x)))
+    (should= 'ok (stats-base/var-symbol '(def ok :x))))
+
+  (it "covers reader ns-form predicate true and false cases"
+    (should (reader-base/ns-form? '(ns demo.core)))
+    (should-not (reader-base/ns-form? '(defn x [] 1))))
+
   (it "matches dependency exceptions by component and namespace rules"
     (let [ex (#'tool/compile-exception {:from-component :a
                                         :to-component :b
@@ -371,6 +421,20 @@
       (should-not (#'tool/exception-matches? ex wrong-comp))
       (should-not (#'tool/exception-matches? ex wrong-ns))
       (should (#'tool/exception-matches? (#'tool/compile-exception {}) edge))))
+
+  (it "covers config helper branches for matchers, abs-num, forbidden rules, and exceptions"
+    (let [kw-matcher (#'tool/pattern->matcher :demo.ns)
+          bad-matcher (#'tool/pattern->matcher 1234)]
+      (should (kw-matcher "demo.ns"))
+      (should-not (kw-matcher "demo.other"))
+      (should-not (bad-matcher "anything")))
+    (should= 3 (cfg-base/abs-num -3))
+    (should= 3 (cfg-base/abs-num 3))
+    (should= {:from :a :to :b} (cfg-base/normalize-forbidden-rule [:a :b]))
+    (should-throw clojure.lang.ExceptionInfo (cfg-base/normalize-forbidden-rule [:a :b :c]))
+    (should (#'tool/exception-matches?
+             (#'tool/compile-exception {:from-component :a})
+             {:from-component :a :to-component :z :from-ns "x" :to-ns "y"})))
 
   (it "infers abstract prefixes from fully abstract namespace trees"
     (let [records [{:namespace "demo.api.port" :public-count 1 :abstract-count 1}
@@ -397,6 +461,15 @@
             components (set (map :component (:component-rules cfg)))]
         (should (contains? components :a))
         (should (contains? components :b)))))
+
+  (it "prefers the first matching prefix when component names collide"
+    (let [root (temp-dir)]
+      (write-file! root "demo/ab/c.clj" "(ns demo.ab.c)\n(defprotocol P (x [this]))\n")
+      (write-file! root "demo/ab/d.clj" "(ns demo.ab.d)\n(defn d [] :ok)\n")
+      (write-file! root "demo/ab_c/core.clj" "(ns demo.ab-c.core)\n(defn c [] :ok)\n")
+      (let [cfg (#'tool/generate-starter-config [(.getPath root)])
+            by-component (into {} (map (juxt :component identity) (:component-rules cfg)))]
+        (should= "demo.ab-c*" (:match (get by-component :ab-c))))))
 
   (it "computes strongly connected components for cyclic and acyclic graphs"
     (let [nodes #{:a :b :c :d}

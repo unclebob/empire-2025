@@ -143,5 +143,8 @@
                           [:acceptance-pipeline :player-policy]
                           [:acceptance-pipeline :movement-engine]
                           [:acceptance-pipeline :orchestration]]
+ ;; Components listed here are treated as utilities (A=0, I=0 target allowed)
+ ;; and are excluded from --max-distance violations.
+ :utility-components [:architecture-tools]
  :fail-on-cycles true
  :fail-on-violations true}
