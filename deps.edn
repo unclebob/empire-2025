@@ -24,7 +24,7 @@
            :acceptance-tests {:main-opts ["-m" "empire.acceptance.pipeline"]}
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
            :all-tests-fast {:main-opts ["-m" "empire.test.pipeline-fast"]}
-           :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-tool"]}
+           :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"
 					                         :git/sha "426045ea9d738facea204357b1243bc93070d3f6"}}
@@ -36,7 +36,7 @@
 					                        :main-opts ["-m" "speclj-structure-check.core"]}
 						 :crap {:extra-deps {io.github.unclebob/crap4clj
 						                      {:git/url "https://github.com/unclebob/crap4clj"
-						                       :git/sha "d3c01b09a931a91955e8fb38a1efb8ba2c2a7bf3"}}
+						                       :git/sha "db9327689c781499f39bc115b30ad40039d26ce6"}}
 						        :extra-paths ["spec"]
 						        :main-opts ["-m" "crap4clj.core"]}
 				 }

@@ -1,9 +1,9 @@
-(ns empire.architecture.dependency-tool-spec
+(ns empire.architecture.dependency-checker-spec
   (:require [speclj.core :refer :all]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [empire.architecture.dependency-tool :as tool]))
+            [empire.architecture.dependency-checker :as tool]))
 
 (defn- temp-dir []
   (.toFile (java.nio.file.Files/createTempDirectory "dependency-tool-spec" (make-array java.nio.file.attribute.FileAttribute 0))))
@@ -199,7 +199,7 @@
 (describe "dependency-tool CLI flow"
   (it "parses args with defaults"
     (let [defaults (#'tool/parse-args [])]
-      (should= "dependency-tool.edn" (:config-path defaults))
+      (should= "dependency-checker.edn" (:config-path defaults))
       (should= :text (:fmt defaults))
       (should= false (:init? defaults))
       (should= false (:force-init? defaults))
@@ -294,6 +294,22 @@
                                             :warnings []})
                     tool/report-text (fn [& _] nil)]
         (should= 0 (#'tool/run-cli [cfg-path "--max-distance" "1.0"])))))
+
+  (it "run-cli supports edn output format"
+    (let [root (temp-dir)
+          cfg-path (.getPath (io/file root "dep.edn"))
+          result {:config {:fail-on-violations true :fail-on-cycles true}
+                  :component-stats {:alpha {:distance 0.0}}
+                  :violations []
+                  :cycles []
+                  :component-edges []
+                  :warnings []}
+          out (java.io.StringWriter.)]
+      (spit cfg-path "{}")
+      (with-redefs [tool/analyze-project (fn [_] result)]
+        (binding [*out* out]
+          (should= 0 (#'tool/run-cli [cfg-path "--format" "edn" "--max-distance" "1.0"]))))
+      (should (str/includes? (str out) ":component-stats"))))
 
   (it "run-cli returns 2 for invalid max-distance value"
     (let [root (temp-dir)
