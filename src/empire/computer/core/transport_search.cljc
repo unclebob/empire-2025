@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.core.transport-search)
 
-(defn transport-compatible?
+(defn- transport-compatible?
   "Returns true if the transport doesn't have a matching unload-event-id as the army.
    An army should not board the same transport that unloaded it."
   [transport-unit army-unload-event-id]

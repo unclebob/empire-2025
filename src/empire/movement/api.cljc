@@ -2,7 +2,8 @@
   (:require [empire.movement.movement :as movement]
             [empire.movement.service :as service]))
 
-(defn next-step-pos [pos target]
+(defn next-step-pos
+  [pos target]
   (movement/path-next-step-pos (service/current-services) pos target))
 
 (defn chebyshev-distance
@@ -10,16 +11,20 @@
   [from-pos to-pos]
   (movement/path-chebyshev-distance (service/current-services) from-pos to-pos))
 
-(defn find-best-sidestep [from-pos target unit-type blocked-dir current-map]
+(defn find-best-sidestep
+  [from-pos target unit-type blocked-dir current-map]
   (movement/path-find-best-sidestep (service/current-services) from-pos target unit-type blocked-dir current-map))
 
-(defn process-consumables [unit to-cell]
+(defn process-consumables
+  [unit to-cell]
   (movement/exec-process-consumables (service/current-services) unit to-cell))
 
-(defn do-move [from-coords final-pos cell final-unit]
+(defn do-move
+  [from-coords final-pos cell final-unit]
   (movement/exec-do-move (service/current-services) from-coords final-pos cell final-unit))
 
-(defn move-unit [from-coords target-coords cell current-map]
+(defn move-unit
+  [from-coords target-coords cell current-map]
   (movement/resolve-move-unit (service/current-services) from-coords target-coords cell current-map))
 
 (defn set-unit-movement
@@ -28,7 +33,8 @@
   ([unit-coords target-coords extended?]
    (movement/resolve-set-unit-movement (service/current-services) unit-coords target-coords extended?)))
 
-(defn get-active-unit [cell]
+(defn get-active-unit
+  [cell]
   (movement/state-get-active-unit (service/current-services) cell))
 
 (defn is-army-aboard-transport?
@@ -52,7 +58,8 @@
   [cell active-unit]
   (movement/state-movement-context (service/current-services) cell active-unit))
 
-(defn set-unit-mode [coords mode]
+(defn set-unit-mode
+  [coords mode]
   (movement/state-set-unit-mode (service/current-services) coords mode))
 
 (defn add-unit-at

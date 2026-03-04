@@ -1,7 +1,6 @@
 (ns empire.ui.quil.rendering.overlay
   (:require [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]
-            [empire.save-load :as save-load]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
 
@@ -20,6 +19,26 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
+(defn- save-load-call
+  [sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol "empire.save-load" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve save-load function: " (name sym))
+                              {:symbol sym})))]
+    (apply f args)))
+
+(defn- save-load-value
+  [sym]
+  (or (some-> (try
+                (requiring-resolve (symbol "empire.save-load" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              var-get)
+      (throw (ex-info (str "Unable to resolve save-load var: " (name sym))
+                      {:symbol sym}))))
+
 (defn update-hover-status
   "Updates hover-message based on mouse position.
    Shows contents from the currently displayed map.
@@ -29,8 +48,8 @@
         y (q/mouse-y)]
     (when (read-runtime-state :load-menu-open)
       (let [files (read-runtime-state :load-menu-files)
-            geom (save-load/menu-geometry (q/width) (q/height) (count files))
-            idx (save-load/hovered-file-index x y geom (count files))]
+            geom (save-load-call 'menu-geometry (q/width) (q/height) (count files))
+            idx (save-load-call 'hovered-file-index x y geom (count files))]
         (write-runtime-state! :load-menu-hovered idx)))
     (write-runtime-state! :hover-message
                           (if (map-utils/on-map? x y)
@@ -50,8 +69,10 @@
           screen-h (q/height)
           files (read-runtime-state :load-menu-files)
           file-count (count files)
-          geom (save-load/menu-geometry screen-w screen-h file-count)
-          hovered (read-runtime-state :load-menu-hovered)]
+          geom (save-load-call 'menu-geometry screen-w screen-h file-count)
+          hovered (read-runtime-state :load-menu-hovered)
+          menu-padding (save-load-value 'menu-padding)
+          menu-item-height (save-load-value 'menu-item-height)]
       ;; Semi-transparent overlay
       (q/fill 0 0 0 128)
       (q/rect 0 0 screen-w screen-h)
@@ -64,23 +85,23 @@
       ;; Title
       (q/text-font (read-runtime-state :text-font))
       (q/fill 255)
-      (q/text "Load Game" (+ (:left geom) save-load/menu-padding) (+ (:top geom) save-load/menu-padding 15))
+      (q/text "Load Game" (+ (:left geom) menu-padding) (+ (:top geom) menu-padding 15))
       ;; File list
       (if (empty? files)
         (do
           (q/fill 180 180 180)
-          (q/text "No saved games found" (+ (:left geom) save-load/menu-padding) (+ (:content-top geom) 15)))
+          (q/text "No saved games found" (+ (:left geom) menu-padding) (+ (:content-top geom) 15)))
         (doseq [[idx filename] (map-indexed vector files)]
-          (let [y (+ (:content-top geom) (* idx save-load/menu-item-height))]
+          (let [y (+ (:content-top geom) (* idx menu-item-height))]
             (if (= idx hovered)
               ;; Inverse colors for hover
               (do
                 (q/fill 255)
                 (q/no-stroke)
-                (q/rect (:left geom) y (:width geom) save-load/menu-item-height)
+                (q/rect (:left geom) y (:width geom) menu-item-height)
                 (q/fill 0)
-                (q/text filename (+ (:left geom) save-load/menu-padding) (+ y 17)))
+                (q/text filename (+ (:left geom) menu-padding) (+ y 17)))
               ;; Normal colors
               (do
                 (q/fill 255)
-                (q/text filename (+ (:left geom) save-load/menu-padding) (+ y 17))))))))))
+                (q/text filename (+ (:left geom) menu-padding) (+ y 17))))))))))

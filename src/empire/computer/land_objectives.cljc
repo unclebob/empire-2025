@@ -3,8 +3,12 @@
   "Land objective detection using flood-fill on fog-of-war map.
    Implements VMS Empire style continent recognition that respects unexplored territory."
   (:require [empire.application.runtime :as app-runtime]
-            [empire.computer.core :as core]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.computer.core :as core]))
+
+(def ^:private neighbor-offsets
+  [[-1 -1] [-1 0] [-1 1]
+   [0 -1]          [0 1]
+   [1 -1]  [1 0]  [1 1]])
 
 ;; Cache for continent flood-fill results.
 ;; Maps position -> continent-set. Cleared each round.
@@ -17,8 +21,9 @@
   [k]
   ((:read-runtime-state @state-ctx) k))
 
-(defn clear-continent-cache!
-  "Clears the continent cache. Called at the start of each round."
+(defmulti clear-continent-cache! (fn [& _] :default))
+
+(defmethod clear-continent-cache! :default
   []
   (reset! continent-cache {}))
 
@@ -51,7 +56,7 @@
 
         :else
         (let [[r c] pos
-              neighbors (for [[dr dc] map-utils/neighbor-offsets]
+              neighbors (for [[dr dc] neighbor-offsets]
                           [(+ r dr) (+ c dc)])]
           [(into rest-frontier (remove visited neighbors))
            (conj visited pos)
@@ -80,10 +85,9 @@
                                  rest-frontier visited continent)]
                 (recur nf nv nc))))))))))
 
-(defn flood-fill-continent
-  "Cached flood-fill from start-pos. Returns a set of positions.
-   Caches the result for all positions in the continent so subsequent
-   lookups from any position on the same continent are O(1)."
+(defmulti flood-fill-continent (fn [& _] :default))
+
+(defmethod flood-fill-continent :default
   [start-pos]
   (if-let [cached (get @continent-cache start-pos)]
     cached
@@ -102,19 +106,22 @@
   {:computer :computer-units
    :player :player-units})
 
-(defn city-status-key
-  "Returns the counts key for a city cell, or nil if not a city."
+(defmulti city-status-key (fn [& _] :default))
+
+(defmethod city-status-key :default
   [cell]
   (when (= :city (:type cell))
     (city-status->key (:city-status cell))))
 
-(defn unit-owner-key
-  "Returns the counts key for a cell's unit owner, or nil if no unit."
+(defmulti unit-owner-key (fn [& _] :default))
+
+(defmethod unit-owner-key :default
   [cell]
   (owner->key (:owner (:contents cell))))
 
-(defn scan-continent
-  "Scan a continent (set of positions) and return counts of items of interest."
+(defmulti scan-continent (fn [& _] :default))
+
+(defmethod scan-continent :default
   [continent-positions]
   (let [comp-map (read-runtime-state :computer-map)]
     (reduce
@@ -131,15 +138,17 @@
       :computer-units 0 :player-units 0}
      continent-positions)))
 
-(defn has-land-objective?
-  "Returns true if continent has unexplored territory or attackable cities."
+(defmulti has-land-objective? (fn [& _] :default))
+
+(defmethod has-land-objective? :default
   [continent-counts]
   (or (pos? (:unexplored continent-counts 0))
       (pos? (:free-cities continent-counts 0))
       (pos? (:player-cities continent-counts 0))))
 
-(defn find-all-objectives-on-continent
-  "Returns all attackable cities and unexplored cells on the continent."
+(defmulti find-all-objectives-on-continent (fn [& _] :default))
+
+(defmethod find-all-objectives-on-continent :default
   [continent-positions]
   (let [comp-map (read-runtime-state :computer-map)]
     (filter (fn [pos]
@@ -149,8 +158,9 @@
                          (#{:free :player} (:city-status cell))))))
             continent-positions)))
 
-(defn find-nearest-on-continent
-  "Find the nearest position on the continent matching the predicate."
+(defmulti find-nearest-on-continent (fn [& _] :default))
+
+(defmethod find-nearest-on-continent :default
   [start-pos continent-positions pred]
   (let [comp-map (read-runtime-state :computer-map)
         candidates (filter (fn [pos]
@@ -160,22 +170,25 @@
     (when (seq candidates)
       (apply min-key #(core/distance start-pos %) candidates))))
 
-(defn find-unexplored-on-continent
-  "Find nearest unexplored cell on the continent."
+(defmulti find-unexplored-on-continent (fn [& _] :default))
+
+(defmethod find-unexplored-on-continent :default
   [start-pos continent-positions]
   (find-nearest-on-continent start-pos continent-positions
                              (fn [cell _pos] (nil? cell))))
 
-(defn find-free-city-on-continent
-  "Find nearest free city on the continent."
+(defmulti find-free-city-on-continent (fn [& _] :default))
+
+(defmethod find-free-city-on-continent :default
   [start-pos continent-positions]
   (find-nearest-on-continent start-pos continent-positions
                              (fn [cell _pos]
                                (and (= :city (:type cell))
                                     (= :free (:city-status cell))))))
 
-(defn find-player-city-on-continent
-  "Find nearest player city on the continent."
+(defmulti find-player-city-on-continent (fn [& _] :default))
+
+(defmethod find-player-city-on-continent :default
   [start-pos continent-positions]
   (find-nearest-on-continent start-pos continent-positions
                              (fn [cell _pos]

@@ -6,13 +6,9 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.game-loop :as game-loop]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
-            [empire.player.attention :as attention]
-            [empire.player.production :as production]
-            [empire.player.commands :as commands]
             [empire.units.dispatcher :as dispatcher]))
 
 (defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
@@ -43,10 +39,35 @@
   (or (:movement-port @state-ctx)
       (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
+(defn- game-loop-call
+  [sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol "empire.game-loop" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve game-loop function: " (name sym))
+                              {:symbol sym})))]
+    (apply f args)))
+
+(defn- player-call
+  [ns-name sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol ns-name (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
+                              {:namespace ns-name
+                               :symbol sym})))]
+    (apply f args)))
+
 (defn- set-error-message!
   [msg ms]
   (write-runtime-state! :error-message msg)
   (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
+
+(defn- item-processed!
+  []
+  (game-loop-call 'item-processed))
 
 (defn- try-set-production [coords item]
   (let [[x y] coords
@@ -55,8 +76,8 @@
     (if (and naval? (not coastal?))
       (set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
       (do
-        (production/set-city-production coords item)
-        (game-loop/item-processed)))
+        (player-call "empire.player.production" 'set-city-production coords item)
+        (item-processed!)))
     true))
 
 (defn- handle-city-production-key [k coords cell]
@@ -65,10 +86,10 @@
              (not (ports/movement-get-active-unit (movement-port) cell)))
     (cond
       (= k :space) (do (update-runtime-state! :player-items rest)
-                       (game-loop/item-processed)
+                       (item-processed!)
                        true)
       (= k :x) (do (update-runtime-state! :production assoc coords :none)
-                   (game-loop/item-processed)
+                   (item-processed!)
                    true)
       (config/key->production-item k) (try-set-production coords (config/key->production-item k)))))
 
@@ -93,17 +114,17 @@
     true))
 
 (defn army-aboard-action [extended? target-cell hostile-city?]
-  (commands/army-aboard-action extended? target-cell hostile-city?))
+  (player-call "empire.player.commands" 'army-aboard-action extended? target-cell hostile-city?))
 
 (defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
   (case (army-aboard-action extended? target-cell (combat/hostile-city? adjacent-target))
     :disembark (do (container-ops/disembark-army-from-transport coords adjacent-target)
-                   (game-loop/item-processed))
+                   (item-processed!))
     :disembark-with-target (do (container-ops/disembark-army-with-target coords adjacent-target target)
-                               (game-loop/item-processed))
+                               (item-processed!))
     :conquest (do (container-ops/remove-army-from-transport coords)
                   (combat/attempt-city-conquest adjacent-target)
-                  (game-loop/item-processed))
+                  (item-processed!))
     nil)
   true)
 
@@ -135,7 +156,7 @@
     :reject-undamaged-ship (set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
     :normal-move (ports/movement-set-unit-movement (movement-port) coords target extended?))
   (when (not= :reject-undamaged-ship action)
-    (game-loop/item-processed))
+    (item-processed!))
   true)
 
 (defn- handle-standard-unit-movement [coords adjacent-target target extended? active-unit]
@@ -183,7 +204,7 @@
               (update-game-map! assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
         (update-game-map! assoc-in (conj coords :contents :reason) :skipping-this-round))))
   (update-runtime-state! :player-items rest)
-  (game-loop/item-processed)
+  (item-processed!)
   true)
 
 (defn- handle-unload-key [coords cell]
@@ -191,12 +212,12 @@
     (cond
       (uc/transport-with-armies? contents)
       (do (container-ops/wake-armies-on-transport coords)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       (uc/carrier-with-fighters? contents)
       (do (container-ops/wake-fighters-on-carrier coords)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       :else nil)))
@@ -208,17 +229,17 @@
     (cond
       is-army-aboard?
       (do (container-ops/sleep-armies-on-transport coords)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       is-carrier-fighter?
       (do (container-ops/sleep-fighters-on-carrier coords)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
       (do (ports/movement-set-unit-mode (movement-port) coords :sentry)
-          (game-loop/item-processed)
+          (item-processed!)
           true)
 
       :else nil)))
@@ -234,18 +255,18 @@
 
 (defn- begin-army-explore! [coords]
   (explore/set-explore-mode coords)
-  (game-loop/item-processed)
+  (item-processed!)
   true)
 
 (defn- disembark-army-to-explore! [coords]
   (when-let [valid-target (find-adjacent-land coords)]
     (container-ops/disembark-army-to-explore coords valid-target)
-    (game-loop/item-processed))
+    (item-processed!))
   true)
 
 (defn- begin-coastline-follow! [coords]
   (coastline/set-coastline-follow-mode coords)
-  (game-loop/item-processed)
+  (item-processed!)
   true)
 
 (defn- show-coastline-rejection! [rejection-reason]

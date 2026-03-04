@@ -6,7 +6,7 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -61,7 +61,7 @@
       (if (empty? transports)
         nil ;; No qualifying transports -- leave target at front
         (let [[tpos _] (nearest-transport transports target)
-              path (pathfinding-bfs/bfs-to-land-ho-target
+              path (computer-movement/bfs-to-land-ho-target
                      tpos target (read-runtime-state :computer-map))]
           (if path
             (do

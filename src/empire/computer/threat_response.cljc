@@ -10,9 +10,10 @@
             [empire.computer.threat-response.major-invasion :as major-invasion]
             [empire.computer.threat-response.processing :as processing]
             [empire.domain.services.threat-policy :as threat-policy]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
+            [empire.computer.movement :as computer-movement]))
 
-(def ^:private threat-radius threat-policy/threat-radius)
+(defn- threat-radius []
+  (threat-policy/threat-radius))
 
 (def ^:private major-invasion-ship-types
   #{:patrol-boat :destroyer :submarine :carrier :battleship})
@@ -51,11 +52,11 @@
         next-state (apply f current args)]
     (save-major-invasion-state! next-state)))
 
-(defn major-invasion-active?
+(defn- major-invasion-active?
   []
   (:active? (load-major-invasion-state)))
 
-(defn major-invasion-detection-points
+(defn- major-invasion-detection-points
   []
   (:detection-points (load-major-invasion-state)))
 
@@ -155,7 +156,7 @@
                                     candidate]))
                         (take max-invasion-coastal-candidates))
         scored (keep (fn [candidate]
-                       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target pos candidate computer-map)]
+                       (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
                          {:target candidate
                           :path (vec path)
                           :score [(core/chebyshev-distance candidate target)
@@ -215,7 +216,7 @@
 (defn- handle-fighter-detection!
   [pos]
   (let [fighters (find-computer-unit-positions #(= :fighter (:type %)))
-        selected (closest-positions pos fighters threat-policy/fighter-response-count)]
+        selected (closest-positions pos fighters (threat-policy/fighter-response-count))]
     (assign-threat-mission!
      selected (threat-policy/fighter-sweep-mission pos))))
 
@@ -223,8 +224,8 @@
   [pos]
   (let [patrols (find-computer-unit-positions #(= :patrol-boat (:type %)))
         battleships (find-computer-unit-positions #(= :battleship (:type %)))
-        psel (closest-positions pos patrols threat-policy/ship-response-count)
-        bsel (closest-positions pos battleships threat-policy/ship-response-count)
+        psel (closest-positions pos patrols (threat-policy/ship-response-count))
+        bsel (closest-positions pos battleships (threat-policy/ship-response-count))
         selected (concat psel bsel)]
     (assign-threat-mission! selected (threat-policy/sea-scout-mission pos))))
 
@@ -280,7 +281,7 @@
    {:current-world current-world
     :update-game-map! update-game-map!
     :nearest-major-target nearest-major-target
-    :threat-radius threat-radius}
+    :threat-radius (threat-radius)}
    pos
    unit))
 
@@ -305,7 +306,7 @@
   (processing/process-ship-threat
    {:current-world current-world
     :nearest-major-target nearest-major-ship-target
-    :threat-radius threat-radius}
+    :threat-radius (threat-radius)}
    pos
    ship-type
    unit))

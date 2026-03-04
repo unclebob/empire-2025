@@ -3,6 +3,7 @@
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.movement-services :as movement-services]
             [empire.application.state :as app-state]
             [clojure.set :as set]
             [empire.config :as config]
@@ -10,11 +11,6 @@
             [empire.containers.helpers :as uc]
             [empire.domain.services.round-setup :as domain-round-setup]
             [empire.game-loop.round-setup.satellites :as satellites]
-            [empire.movement.lakes :as lakes]
-            [empire.movement.map-utils :as map-utils]
-            [empire.movement.satellite :as satellite]
-            [empire.movement.visibility :as visibility]
-            [empire.movement.wake-conditions :as wake]
             [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private state-ctx
@@ -69,7 +65,7 @@
       (when (computer-carrier? contents)
         (update-runtime-state! :computer-carrier-positions disj [i j]))
       (update-game-map! assoc-in [i j] (dissoc cell :contents))
-      (visibility/update-cell-visibility [i j] (:owner contents)))))
+      (movement-services/update-cell-visibility [i j] (:owner contents)))))
 
 (defn reset-steps-remaining
   "Resets steps-remaining for all player units at start of round."
@@ -119,7 +115,7 @@
   (let [world (current-world)]
     (domain-round-setup/bingo-fuel?
      new-fuel
-     (wake/friendly-city-in-range? pos new-fuel (world-ref world)))))
+     (movement-services/friendly-city-in-range? pos new-fuel (world-ref world)))))
 
 (defn- fuel-action [new-fuel pos]
   (domain-round-setup/fuel-action new-fuel (bingo-fuel? pos new-fuel)))
@@ -160,7 +156,7 @@
             :when (and unit
                        (= :player (:owner unit))
                        (= :sentry (:mode unit))
-                       (wake/enemy-unit-visible? unit [i j] world-atom))]
+                       (movement-services/enemy-unit-visible? unit [i j] world-atom))]
       (update-game-map! update-in [i j :contents]
                         #(assoc % :mode :awake :reason :enemy-spotted)))))
 
@@ -171,29 +167,29 @@
   (satellites/move-satellites!
    {:current-world current-world
     :update-game-map! update-game-map!
-    :update-visibility! visibility/update-cell-visibility
-    :move-satellite satellite/move-satellite
+    :update-visibility! movement-services/update-cell-visibility
+    :move-satellite movement-services/move-satellite
     :satellite-speed (config/unit-speed :satellite)}))
 
 (defn- find-adjacent-empty-sea
   "Returns the first adjacent empty sea cell, or nil if none."
   [pos]
-  (first (map-utils/get-matching-neighbors
-          pos (current-world) map-utils/neighbor-offsets
+  (first (movement-services/get-matching-neighbors
+          pos (current-world) movement-services/neighbor-offsets
           #(and (= :sea (:type %)) (nil? (:contents %))))))
 
 (defn- lake-shore-city?
   [computer-map lake-cells pos]
   (and (= :city (get-in computer-map (conj pos :type)))
        (some (fn [n]
-               (and (= :sea (get-in computer-map (conj n :type)))
+             (and (= :sea (get-in computer-map (conj n :type)))
                     (contains? lake-cells n)))
-             (map-utils/get-matching-neighbors pos computer-map map-utils/neighbor-offsets some?))))
+             (movement-services/get-matching-neighbors pos computer-map movement-services/neighbor-offsets some?))))
 
 (defn- find-adjacent-empty-sea-preferring-ocean
   [pos lake-cells]
-  (let [candidates (map-utils/get-matching-neighbors
-                    pos (current-world) map-utils/neighbor-offsets
+  (let [candidates (movement-services/get-matching-neighbors
+                    pos (current-world) movement-services/neighbor-offsets
                     #(and (= :sea (:type %)) (nil? (:contents %))))
         ocean (remove lake-cells candidates)]
     (or (first ocean) (first candidates))))
@@ -221,8 +217,8 @@
     (if (empty? queue)
       visited
       (let [current (peek queue)
-            next-candidates (for [n (map-utils/get-matching-neighbors
-                                     current computer-map map-utils/neighbor-offsets some?)
+              next-candidates (for [n (movement-services/get-matching-neighbors
+                                     current computer-map movement-services/neighbor-offsets some?)
                                   :when (and (not (contains? visited n))
                                              (land-or-city? computer-map n))]
                               n)]
@@ -232,8 +228,8 @@
 (defn- landmasses-adjacent-to-lake-cells
   [computer-map lake-cells]
   (let [adjacent-land-seeds (set (for [lake-pos lake-cells
-                                       n (map-utils/get-matching-neighbors
-                                          lake-pos computer-map map-utils/neighbor-offsets some?)
+                                       n (movement-services/get-matching-neighbors
+                                          lake-pos computer-map movement-services/neighbor-offsets some?)
                                        :when (land-or-city? computer-map n)]
                                    n))]
     (loop [remaining adjacent-land-seeds
@@ -249,8 +245,8 @@
   (set (filter (fn [pos]
                  (and (land-or-city? computer-map pos)
                       (some (fn [n] (ocean-sea-cell? computer-map lake-cells n))
-                            (map-utils/get-matching-neighbors
-                             pos computer-map map-utils/neighbor-offsets some?))))
+                            (movement-services/get-matching-neighbors
+                             pos computer-map movement-services/neighbor-offsets some?))))
                landmass)))
 
 (defn- nearest-ocean-coast-targets
@@ -262,8 +258,8 @@
       (if (empty? queue)
         assigned
         (let [[current seed] (peek queue)
-              neighbors (for [n (map-utils/get-matching-neighbors
-                                 current computer-map map-utils/neighbor-offsets some?)
+              neighbors (for [n (movement-services/get-matching-neighbors
+                                 current computer-map movement-services/neighbor-offsets some?)
                               :when (and (contains? landmass-set n)
                                          (land-or-city? computer-map n)
                                          (not (contains? assigned n)))]
@@ -333,8 +329,8 @@
     (when (update-game-map! assoc-in (conj target :contents) unit)
       (update-game-map! assoc-in (conj pos :contents) nil)
       (mark-evacuated-transport-for-unload! target unit)
-      (visibility/update-cell-visibility pos (:owner unit))
-      (visibility/update-cell-visibility target (:owner unit)))))
+      (movement-services/update-cell-visibility pos (:owner unit))
+      (movement-services/update-cell-visibility target (:owner unit)))))
 
 (defn evacuate-lake-patrol-boats
   "Moves ships out of lake-shore city cells before production.
@@ -343,7 +339,7 @@
   []
   (let [computer-map (read-runtime-state :computer-map)
         lake-max-cells (read-runtime-state :lake-max-cells)
-        lake-cells (lakes/lake-cells computer-map lake-max-cells)
+        lake-cells (movement-services/lake-cells computer-map lake-max-cells)
         world (current-world)
         rows (count world)
         cols (count (first world))]
@@ -378,7 +374,7 @@
   []
   (let [computer-map (read-runtime-state :computer-map)
         lake-max-cells (read-runtime-state :lake-max-cells)
-        lake-cells (lakes/lake-cells computer-map lake-max-cells)
+        lake-cells (movement-services/lake-cells computer-map lake-max-cells)
         world (current-world)]
     (retask-armies-for-new-lakes! computer-map lake-cells)
     (doseq [r (range (count world))

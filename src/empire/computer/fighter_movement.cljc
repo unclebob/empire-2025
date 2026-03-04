@@ -2,12 +2,11 @@
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
             [empire.combat :as combat]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
             [empire.config :as config]))
 
 (def ^:private state-ctx
@@ -21,8 +20,18 @@
   []
   ((:load-world @state-ctx)))
 
-(defn get-passable-neighbors
-  "Returns passable neighbors for a fighter (can fly over anything except off-map)."
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
+
+(defn- update-cell-visibility!
+  ([pos owner]
+   (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+  ([pos owner unit]
+   (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
+
+(defmulti get-passable-neighbors (fn [& _] :default))
+(defmethod get-passable-neighbors :default
   [pos]
   (let [game-map (current-world)
         height (count game-map)
@@ -32,8 +41,8 @@
                    (>= c 0) (< c width)))
             (core/get-neighbors pos))))
 
-(defn occupied?
-  "Returns true if the cell at pos has contents."
+(defmulti occupied? (fn [& _] :default))
+(defmethod occupied? :default
   [pos]
   (some? (get-in (current-world) (conj pos :contents))))
 
@@ -42,8 +51,8 @@
   [[r1 c1] [r2 c2]]
   (and (not= r1 r2) (not= c1 c2)))
 
-(defn friendly-occupied?
-  "Returns true if the cell at pos has a computer-owned unit."
+(defmulti friendly-occupied? (fn [& _] :default))
+(defmethod friendly-occupied? :default
   [pos]
   (let [contents (get-in (current-world) (conj pos :contents))]
     (and (some? contents) (= :computer (:owner contents)))))
@@ -62,8 +71,8 @@
           candidates (filter #(= best-diag (nth % 2)) at-best-dist)]
       (first (last candidates)))))
 
-(defn direction-from
-  "Returns the unit direction vector [dr dc] from pos to neighbor."
+(defmulti direction-from (fn [& _] :default))
+(defmethod direction-from :default
   [[r1 c1] [r2 c2]]
   [(Integer/signum (- r2 r1)) (Integer/signum (- c2 c1))])
 
@@ -85,8 +94,8 @@
                                           candidates)))]
       {:dest best :hops 1})))
 
-(defn in-bounds?
-  "Returns true if pos is within game-map bounds."
+(defmulti in-bounds? (fn [& _] :default))
+(defmethod in-bounds? :default
   [[r c]]
   (let [game-map (current-world)
         height (count game-map)
@@ -113,12 +122,8 @@
     (or (scan-friendly-hop-chain best direction)
         (sidestep-around-blocker pos target best passable))))
 
-(defn hop-over-friendly
-  "When the best neighbor toward target is occupied by a computer unit, scan
-   forward along the direction of travel, skipping all consecutive
-   friendly-occupied cells. Land on the first empty passable cell, or
-   attack an enemy at the end of the chain.
-   Returns {:dest pos :hops n} or {:dest pos :hops n :attack true} or nil."
+(defmulti hop-over-friendly (fn [& _] :default))
+(defmethod hop-over-friendly :default
   [pos target]
   (let [passable (get-passable-neighbors pos)
         best (best-neighbor-toward pos target passable)]
@@ -128,8 +133,8 @@
         (when (friendly-occupied? best)
           (hop-or-sidestep pos target best passable))))))
 
-(defn find-adjacent-enemy
-  "Finds an adjacent enemy unit to attack (not cities - fighters can't conquer)."
+(defmulti find-adjacent-enemy (fn [& _] :default))
+(defmethod find-adjacent-enemy :default
   [pos]
   (let [game-map (current-world)]
     (first (filter (fn [neighbor]
@@ -140,8 +145,8 @@
                             (not= :satellite (:type unit)))))
                    (core/get-neighbors pos)))))
 
-(defn attack-enemy
-  "Attack an adjacent enemy. Returns new position or nil if fighter died."
+(defmulti attack-enemy (fn [& _] :default))
+(defmethod attack-enemy :default
   [fighter-pos enemy-pos]
   (let [attacker (get-in (current-world) (conj fighter-pos :contents))
         defender (get-in (current-world) (conj enemy-pos :contents))
@@ -152,23 +157,23 @@
       ;; Attacker won - move to enemy position
       (do
         (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
-        (visibility/update-cell-visibility fighter-pos :computer)
-        (visibility/update-cell-visibility enemy-pos :computer)
+        (update-cell-visibility! fighter-pos :computer)
+        (update-cell-visibility! enemy-pos :computer)
         enemy-pos)
       ;; Attacker lost
       (do
-        (visibility/update-cell-visibility fighter-pos :computer)
+        (update-cell-visibility! fighter-pos :computer)
         nil))))
 
-(defn find-nearest-refueling-site
-  "Find the nearest refueling site (computer city or holding carrier)."
+(defmulti find-nearest-refueling-site (fn [& _] :default))
+(defmethod find-nearest-refueling-site :default
   [pos]
   (let [sites (ship/find-refueling-sites)]
     (when (seq sites)
       (apply min-key (partial core/distance pos) sites))))
 
-(defn distance-to
-  "Manhattan distance between two positions."
+(defmulti distance-to (fn [& _] :default))
+(defmethod distance-to :default
   [[r1 c1] [r2 c2]]
   (+ (Math/abs (- r1 r2)) (Math/abs (- c1 c2))))
 
@@ -179,8 +184,8 @@
     (distance-to pos site)
     999))
 
-(defn should-return-to-refuel?
-  "Returns true if fighter should head back to refuel."
+(defmulti should-return-to-refuel? (fn [& _] :default))
+(defmethod should-return-to-refuel? :default
   [pos fuel]
   (let [return-distance (fuel-to-return pos)]
     (<= fuel (+ return-distance 2))))
@@ -192,38 +197,35 @@
   (let [player-units (core/find-visible-player-units)]
     (if (seq player-units)
       (apply min-key (partial distance-to pos) player-units)
-      (pathfinding-bfs/find-nearest-unexplored pos :fighter))))
+      (movement-port/movement-find-nearest-unexplored (movement-services) pos :fighter))))
 
 (def fighter-speed 8)
 
-(defn land-at-city
-  "Land fighter at city to refuel."
+(defmulti land-at-city (fn [& _] :default))
+(defmethod land-at-city :default
   [pos city-pos]
   (let [_fighter (get-in (current-world) (conj pos :contents))]
     ;; Remove from current position
     (update-game-map! update-in pos dissoc :contents)
     ;; Add to city's airport
     (update-game-map! update-in (conj city-pos :fighter-count) (fnil inc 0))
-    (visibility/update-cell-visibility pos :computer)
+    (update-cell-visibility! pos :computer)
     :landed))
 
-(defn consume-fighter-fuel
-  "Decrement fuel on the fighter at pos. Returns false if fighter died."
+(defmulti consume-fighter-fuel (fn [& _] :default))
+(defmethod consume-fighter-fuel :default
   [pos]
   (let [unit (get-in (current-world) (conj pos :contents))
         new-fuel (dec (:fuel unit config/fighter-fuel))]
     (if (<= new-fuel 0)
       (do (update-game-map! update-in pos dissoc :contents)
-          (visibility/update-cell-visibility pos :computer)
+          (update-cell-visibility! pos :computer)
           false)
       (do (update-game-map! assoc-in (conj pos :contents :fuel) new-fuel)
           true))))
 
-(defn consume-hop-fuel
-  "Burns fuel for intermediate cells in a multi-cell hop.
-   For a hop of n cells, the first cell was already handled by the move,
-   so we burn fuel for (n-1) intermediate cells.
-   Returns true if fighter survived, false if it died."
+(defmulti consume-hop-fuel (fn [& _] :default))
+(defmethod consume-hop-fuel :default
   [pos hops]
   (loop [remaining (dec hops)]
     (if (<= remaining 0)
@@ -232,23 +234,21 @@
         (recur (dec remaining))
         false))))
 
-(defn execute-hop
-  "Execute a hop result: move to dest or attack. Consume hop fuel.
-   Returns {:pos p :hops n} or nil (fighter died)."
+(defmulti execute-hop (fn [& _] :default))
+(defmethod execute-hop :default
   [from-pos {:keys [dest hops attack]}]
   (let [new-pos (if attack
                   (attack-enemy from-pos dest)
                   (when (core/move-unit-to from-pos dest)
-                    (visibility/update-cell-visibility from-pos :computer)
-                    (visibility/update-cell-visibility dest :computer)
+                    (update-cell-visibility! from-pos :computer)
+                    (update-cell-visibility! dest :computer)
                     dest))]
     (when new-pos
       (when (consume-hop-fuel new-pos hops)
         {:pos new-pos :hops hops}))))
 
-(defn do-patrol
-  "Execute one patrol step toward a target or unexplored area.
-   Returns {:pos p :hops n} or nil."
+(defmulti do-patrol (fn [& _] :default))
+(defmethod do-patrol :default
   [pos]
   (when-let [target (find-patrol-target pos)]
     (when-let [hop (hop-over-friendly pos target)]

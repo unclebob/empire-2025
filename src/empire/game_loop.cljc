@@ -3,6 +3,7 @@
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.application.production-status :as production-status]
+            [empire.application.movement-services :as movement-services]
             [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.computer.army :as army]
@@ -10,10 +11,6 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.production :as computer-production]
             [empire.computer.threat-response :as threat-response]
-            [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
-            [empire.player.production :as production]
             [empire.game-loop.round-setup :as round-setup]
             [empire.game-loop.item-processing :as item-processing]))
 
@@ -38,10 +35,21 @@
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
 
+(defn- player-call
+  [ns-name sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol ns-name (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
+                              {:namespace ns-name
+                               :symbol sym})))]
+    (apply f args)))
+
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (when-let [updated (visibility/update-combatant-map-state
+  (when-let [updated (movement-services/update-combatant-map-state
                       (read-runtime-state :player-map)
                       :player
                       (current-world))]
@@ -50,7 +58,7 @@
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (when-let [updated (visibility/update-combatant-map-state
+  (when-let [updated (movement-services/update-combatant-map-state
                       (read-runtime-state :computer-map)
                       :computer
                       (current-world))]
@@ -104,8 +112,8 @@
   "Starts a new round by building player and computer items lists and updating game state."
   []
   (update-runtime-state! :round-number inc)
-  (pathfinding/clear-path-cache)
-  (pathfinding-bfs/clear-bfs-caches)
+  (movement-services/clear-path-cache!)
+  (movement-services/clear-bfs-caches!)
   (land-objectives/clear-continent-cache!)
   (round-setup/move-satellites)
   (round-setup/consume-sentry-fighter-fuel)
@@ -113,7 +121,7 @@
   (round-setup/remove-dead-units)
   (round-setup/mark-lake-locked-ships)
   (round-setup/evacuate-lake-patrol-boats)
-  (production/update-production)
+  (player-call "empire.player.production" 'update-production)
   (round-setup/repair-damaged-ships)
   (round-setup/reset-steps-remaining)
   (round-setup/wake-airport-fighters)

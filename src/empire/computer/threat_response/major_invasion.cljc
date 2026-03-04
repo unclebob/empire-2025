@@ -4,7 +4,7 @@
   (:require [empire.computer.army.coastal :as army-coastal]
             [empire.computer.core :as core]
             [empire.computer.threat-response.invasion-state :as invasion-state]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private major-invasion-unload-radius 2)
 (def ^:private max-invasion-coastal-candidates 24)
@@ -123,7 +123,7 @@
                                     candidate]))
                         (take max-invasion-coastal-candidates))
         scored (keep (fn [candidate]
-                       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target pos candidate computer-map)]
+                       (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
                          {:target candidate
                           :path (vec path)
                           :score [(core/chebyshev-distance candidate target)
@@ -134,7 +134,7 @@
       (let [{:keys [target path]} (first (sort-by :score scored))]
         {:target target :path path}))))
 
-(defn current-target-land-revision
+(defn- current-target-land-revision
   [ctx]
   (or (:target-land-revision ((:load-major-invasion-state ctx))) 0))
 

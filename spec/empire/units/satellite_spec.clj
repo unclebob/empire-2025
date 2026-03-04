@@ -1,5 +1,6 @@
 (ns empire.units.satellite-spec
   (:require [speclj.core :refer :all]
+            [empire.units.config :as units-config]
             [empire.units.satellite :as satellite]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world!]]))
 
@@ -7,25 +8,25 @@
   (before (reset-all-atoms!))
   (context "configuration"
     (it "has speed of 10"
-      (should= 10 satellite/speed))
+      (should= 10 units-config/satellite-speed))
 
     (it "has cost of 50"
-      (should= 50 satellite/cost))
+      (should= 50 units-config/satellite-cost))
 
     (it "has 1 hit point"
-      (should= 1 satellite/hits))
+      (should= 1 units-config/satellite-hits))
 
     (it "displays as Z"
-      (should= "Z" satellite/display-char))
+      (should= "Z" units-config/satellite-display-char))
 
     (it "has 50 turns lifespan"
-      (should= 50 satellite/turns))
+      (should= 50 units-config/satellite-turns))
 
     (it "has visibility radius of 2"
-      (should= 2 satellite/visibility-radius))
+      (should= 2 units-config/satellite-visibility-radius))
 
     (it "has strength of 1"
-      (should= 1 satellite/strength)))
+      (should= 1 units-config/satellite-strength)))
 
   (context "initial-state"
     (it "includes turns-remaining"

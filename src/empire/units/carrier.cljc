@@ -1,71 +1,67 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.carrier)
 
-;; Configuration
-(def speed 2)
-(def cost 30)
-(def hits 8)
-(def strength 1)
-(def display-char "C")
-(def capacity 8)
-(def visibility-radius 1)
+#?(:clj
+   (defonce ^:private methods-loaded? (atom false)))
 
-(defn initial-state
-  "Returns initial state fields for a new carrier."
-  []
-  {:fighter-count 0
-   :awake-fighters 0})
+#?(:clj
+   (defn- ensure-methods-loaded!
+     []
+     (when-not @methods-loaded?
+       (requiring-resolve 'empire.units.impl.carrier/load-methods!)
+       (reset! methods-loaded? true))))
 
-(defn can-move-to?
-  "Carriers can only move on sea."
-  [cell]
-  (and cell
-       (= (:type cell) :sea)))
+(defmulti initial-state
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn needs-attention?
-  "Carriers need attention when awake or when they have awake fighters aboard."
-  [unit]
-  (or (= (:mode unit) :awake)
-      (pos? (:awake-fighters unit 0))))
+(defmulti can-move-to?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn full?
-  "Returns true if carrier is at fighter capacity."
-  [unit]
-  (>= (:fighter-count unit 0) capacity))
+(defmulti needs-attention?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn has-fighters?
-  "Returns true if carrier has any fighters aboard."
-  [unit]
-  (pos? (:fighter-count unit 0)))
+(defmulti full?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn has-awake-fighters?
-  "Returns true if carrier has awake fighters aboard."
-  [unit]
-  (pos? (:awake-fighters unit 0)))
+(defmulti has-fighters?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn add-fighter
-  "Adds a fighter to the carrier. Returns updated carrier."
-  [unit]
-  (update unit :fighter-count (fnil inc 0)))
+(defmulti has-awake-fighters?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn remove-fighter
-  "Removes a fighter from the carrier. Returns updated carrier."
-  [unit]
-  (update unit :fighter-count (fnil dec 0)))
+(defmulti add-fighter
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn wake-fighters
-  "Wakes all sleeping fighters aboard the carrier."
-  [unit]
-  (assoc unit :awake-fighters (:fighter-count unit 0)))
+(defmulti remove-fighter
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn sleep-fighters
-  "Puts all fighters aboard back to sleep."
-  [unit]
-  (assoc unit :awake-fighters 0))
+(defmulti wake-fighters
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn remove-awake-fighter
-  "Removes one awake fighter from the carrier. Returns updated carrier."
-  [unit]
-  (-> unit
-      (update :fighter-count (fnil dec 0))
-      (update :awake-fighters (fnil dec 0))))
+(defmulti sleep-fighters
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
+
+(defmulti remove-awake-fighter
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))

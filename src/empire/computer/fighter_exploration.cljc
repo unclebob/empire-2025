@@ -4,7 +4,7 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
-            [empire.movement.visibility :as visibility]
+            [empire.computer.movement :as computer-movement]
             [empire.computer.fighter-movement :as fm]))
 
 (def ^:private state-ctx
@@ -91,8 +91,8 @@
   "Direct move to best-pos. Returns {:pos best-pos :hops 1} or nil."
   [pos best-pos]
   (when (core/move-unit-to pos best-pos)
-    (visibility/update-cell-visibility pos :computer)
-    (visibility/update-cell-visibility best-pos :computer)
+    (computer-movement/update-cell-visibility! pos :computer)
+    (computer-movement/update-cell-visibility! best-pos :computer)
     (when (fm/consume-fighter-fuel best-pos)
       {:pos best-pos :hops 1})))
 

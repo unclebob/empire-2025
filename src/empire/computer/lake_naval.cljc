@@ -1,8 +1,25 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.lake-naval
   "Lake-specific naval behavior: retreat from shore and park as sentry."
-  (:require [empire.movement.lakes :as lakes]
-            [empire.movement.map-utils :as map-utils]))
+  (:require [empire.computer.movement :as computer-movement]))
+
+(def ^:private neighbor-offsets
+  [[-1 -1] [-1 0] [-1 1]
+   [0 -1]          [0 1]
+   [1 -1]  [1 0]  [1 1]])
+
+(defn- in-bounds?
+  [world [r c]]
+  (and (<= 0 r) (< r (count world))
+       (<= 0 c) (< c (count (first world)))))
+
+(defn- matching-neighbors
+  [pos world pred]
+  (for [[dr dc] neighbor-offsets
+        :let [n [(+ (first pos) dr) (+ (second pos) dc)]]
+        :when (and (in-bounds? world n)
+                   (pred (get-in world n)))]
+    n))
 
 (defonce ^:private lake-cache* (atom {:computer-map nil :limit nil :cells #{}}))
 
@@ -12,14 +29,14 @@
     #{}
     (let [{:keys [previous-map limit cells]}
           (assoc @lake-cache* :previous-map (:computer-map @lake-cache*))]
-      (if (and (identical? previous-map computer-map)
+        (if (and (identical? previous-map computer-map)
                (= limit lake-max-cells))
         cells
-        (let [computed (lakes/lake-cells computer-map lake-max-cells)]
+        (let [computed (computer-movement/lake-cells computer-map lake-max-cells)]
           (reset! lake-cache* {:computer-map computer-map :limit lake-max-cells :cells computed})
           computed)))))
 
-(defn in-lake?
+(defn- in-lake?
   [lake-cells-set pos]
   (contains? lake-cells-set pos))
 
@@ -27,7 +44,7 @@
   [world pos]
   (some (fn [n]
           (#{:land :city} (get-in world (conj n :type))))
-        (map-utils/get-matching-neighbors pos world map-utils/neighbor-offsets some?)))
+        (matching-neighbors pos world some?)))
 
 (defn deep-water?
   [world pos]
@@ -45,7 +62,7 @@
 
 (defn- neighbors*
   [world lake-cells-set start pos]
-  (for [[dr dc] map-utils/neighbor-offsets
+  (for [[dr dc] neighbor-offsets
         :let [n [(+ (first pos) dr) (+ (second pos) dc)]]
         :when (sea-passable? world lake-cells-set start n)]
     n))

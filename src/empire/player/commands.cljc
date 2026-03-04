@@ -3,6 +3,7 @@
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.movement-services :as movement-services]
             [empire.application.ports.movement :as ports]
             [empire.application.state :as app-state]
             [empire.config :as config]
@@ -11,9 +12,6 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.movement.coastline :as coastline]
-            [empire.movement.explore :as explore]
-            [empire.movement.map-utils :as map-utils]
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -58,8 +56,8 @@
 
 (defn- coastal-cell?
   [coords]
-  (map-utils/any-neighbor-matches? coords (current-world) map-utils/neighbor-offsets
-                                  #(= :sea (:type %))))
+  (movement-services/any-neighbor-matches? coords (current-world) movement-services/neighbor-offsets
+                                           #(= :sea (:type %))))
 
 (defn- try-set-production [coords item]
   (let [coastal? (coastal-cell? coords)

@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.production.stats
   (:require [empire.application.runtime :as app-runtime]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.computer.core :as core]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -19,7 +19,8 @@
   ((:write-runtime-state! @state-ctx) k v))
 
 (defn- get-neighbors [pos]
-  (map-utils/get-matching-neighbors pos (current-world) map-utils/neighbor-offsets some?))
+  (filter #(some? (get-in (current-world) %))
+          (core/get-neighbors pos)))
 
 (defn city-is-coastal? [city-pos]
   (some (fn [neighbor]
@@ -28,7 +29,8 @@
 
 (defn- coastal? [game-map pos]
   (some (fn [n] (= :sea (:type (get-in game-map n))))
-        (map-utils/get-matching-neighbors pos game-map map-utils/neighbor-offsets some?)))
+        (filter #(some? (get-in game-map %))
+                (core/get-neighbors pos))))
 
 (defn- update-country [acc cid k f]
   (update-in acc [cid k] (fnil f 0)))
@@ -146,8 +148,8 @@
     (count (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [cell (get-in game-map [i j])]
-               :when (and (= :city (:type cell))
-                          (= :computer (:city-status cell)))]
+                 :when (and (= :city (:type cell))
+                            (= :computer (:city-status cell)))]
              [i j]))))
 
 (defn count-country-armies [country-id]
@@ -168,9 +170,9 @@
     (count (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [unit (:contents (get-in game-map [i j]))]
-               :when (and unit
-                          (= :computer (:owner unit))
-                          (= :fighter (:type unit)))]
+                 :when (and unit
+                            (= :computer (:owner unit))
+                            (= :fighter (:type unit)))]
              true))))
 
 (defn count-country-patrol-boats [country-id]

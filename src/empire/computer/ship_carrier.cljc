@@ -7,8 +7,8 @@
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.config :as config]
-            [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -154,12 +154,12 @@
         (position-carrier-without-target pos))
 
     :else
-    (when-let [next-pos (pathfinding/next-step pos target :carrier)]
+    (when-let [next-pos (computer-movement/next-step pos target :carrier)]
       (core/move-unit-to pos next-pos)
       (update-runtime-state! :computer-carrier-positions disj pos)
       (update-runtime-state! :computer-carrier-positions (fnil conj #{}) next-pos)
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility next-pos :computer)
+      (computer-movement/update-cell-visibility! pos :computer)
+      (computer-movement/update-cell-visibility! next-pos :computer)
       next-pos)))
 
 (defn- position-carrier-without-target
@@ -168,12 +168,12 @@
   (if-let [{:keys [position pair]} (find-carrier-position)]
     (do (update-game-map! update-in (conj pos :contents)
                           assoc :carrier-target position :carrier-pair pair :refueling :position)
-        (when-let [next-pos (pathfinding/next-step pos position :carrier)]
+        (when-let [next-pos (computer-movement/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
           (update-runtime-state! :computer-carrier-positions disj pos)
           (update-runtime-state! :computer-carrier-positions (fnil conj #{}) next-pos)
-          (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility next-pos :computer)
+          (computer-movement/update-cell-visibility! pos :computer)
+          (computer-movement/update-cell-visibility! next-pos :computer)
           next-pos))
     (update-game-map! update-in (conj pos :contents)
                       assoc :carrier-mode :holding)))
@@ -184,12 +184,12 @@
   (if-let [{:keys [position pair]} (find-carrier-position)]
     (do (update-game-map! update-in (conj pos :contents)
                           assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
-        (when-let [next-pos (pathfinding/next-step pos position :carrier)]
+        (when-let [next-pos (computer-movement/next-step pos position :carrier)]
           (core/move-unit-to pos next-pos)
           (update-runtime-state! :computer-carrier-positions disj pos)
           (update-runtime-state! :computer-carrier-positions (fnil conj #{}) next-pos)
-          (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility next-pos :computer)
+          (computer-movement/update-cell-visibility! pos :computer)
+          (computer-movement/update-cell-visibility! next-pos :computer)
           next-pos))
     (update-game-map! update-in (conj pos :contents)
                       assoc :carrier-mode :holding)))

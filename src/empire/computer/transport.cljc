@@ -5,6 +5,7 @@
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
@@ -16,8 +17,7 @@
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
-            [empire.debug :as debug]
-            [empire.movement.visibility :as visibility]))
+            [empire.debug :as debug]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -37,6 +37,10 @@
 (defn- write-runtime-state!
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
+
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
 
@@ -46,8 +50,8 @@
   (let [passable (tc/get-passable-sea-neighbors pos)
         closest (core/move-toward pos target passable)]
     (when (and closest (core/move-unit-to pos closest))
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility closest :computer)
+      (movement-port/movement-update-cell-visibility (movement-services) pos :computer)
+      (movement-port/movement-update-cell-visibility (movement-services) closest :computer)
       (loading/load-adjacent-armies closest)
       closest)))
 
@@ -113,6 +117,7 @@
   {:current-world current-world
    :read-runtime-state read-runtime-state
    :update-game-map! update-game-map!
+   :movement-services (movement-services)
    :get-neighbors core/get-neighbors
    :load-adjacent-armies loading/load-adjacent-armies
    :coastal-crawl-move loading/coastal-crawl-move

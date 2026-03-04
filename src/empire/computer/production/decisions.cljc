@@ -70,7 +70,7 @@
   (when (< (stats/count-all-computer-fighters) (stats/count-computer-cities))
     :fighter))
 
-(defn decide-country-production
+(defn- decide-country-production
   [city-pos country-id coastal? unit-counts]
   (or (should-produce-transport? city-pos country-id coastal?)
       (when (should-produce-army? country-id) :army)
@@ -78,7 +78,7 @@
       (when (should-produce-destroyer? city-pos country-id coastal? unit-counts) :destroyer)
       (should-produce-fighter?)))
 
-(defn count-carrier-producers []
+(defn- count-carrier-producers []
   (count (filter (fn [[_coords prod]]
                    (and (map? prod)
                         (= :carrier (:item prod))))
@@ -101,7 +101,7 @@
   (and (> (stats/count-computer-cities) config/satellite-city-threshold)
        (< (get unit-counts :satellite 0) config/max-satellites)))
 
-(defn decide-global-production [coastal? unit-counts]
+(defn- decide-global-production [coastal? unit-counts]
   (or (when (carrier-producible? coastal? unit-counts) :carrier)
       (capital-ship-needed? coastal? unit-counts)
       (when (satellite-needed? unit-counts) :satellite)))
@@ -125,7 +125,7 @@
        (not (read-runtime-state :early-satellite-produced?))
        (or (not coastal?) (not (has-inland-computer-city?)))))
 
-(defn decide-early-production [city-pos coastal?]
+(defn- decide-early-production [city-pos coastal?]
   (when (read-runtime-state :transport-fully-loaded?)
     (cond
       (early-patrol-boat-needed? coastal?)

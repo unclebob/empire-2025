@@ -1,32 +1,33 @@
 (ns empire.units.fighter-spec
   (:require [speclj.core :refer :all]
-            [empire.units.fighter :as fighter]))
+            [empire.units.fighter :as fighter]
+            [empire.units.config :as units-config]))
 
 (describe "fighter unit module"
   (context "configuration"
     (it "has speed of 8"
-      (should= 8 fighter/speed))
+      (should= 8 units-config/fighter-speed))
 
     (it "has cost of 10"
-      (should= 10 fighter/cost))
+      (should= 10 units-config/fighter-cost))
 
     (it "has 1 hit point"
-      (should= 1 fighter/hits))
+      (should= 1 units-config/fighter-hits))
 
     (it "has strength of 1"
-      (should= 1 fighter/strength))
+      (should= 1 units-config/fighter-strength))
 
     (it "displays as F"
-      (should= "F" fighter/display-char))
+      (should= "F" units-config/fighter-display-char))
 
     (it "has fuel of 32"
-      (should= 32 fighter/fuel))
+      (should= 32 units-config/fighter-fuel))
 
     (it "has visibility radius of 1"
-      (should= 1 fighter/visibility-radius))
+      (should= 1 units-config/fighter-visibility-radius))
 
     (it "has bingo threshold of 8 (quarter of fuel)"
-      (should= 8 fighter/bingo-threshold)))
+      (should= 8 units-config/fighter-bingo-threshold)))
 
   (context "initial-state"
     (it "includes full fuel"

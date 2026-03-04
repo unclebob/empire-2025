@@ -5,7 +5,7 @@
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
             [empire.debug :as debug]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -25,7 +25,7 @@
       (do
         (debug/log-computer-event! :army-board pos {:transport transport-pos})
         (core/board-transport pos transport-pos)
-        (visibility/update-cell-visibility pos :computer)
+        (computer-movement/update-cell-visibility! pos :computer)
         nil)
       (when-let [transport-pos (core/find-loading-transport army-unload-id)]
         (movement/move-toward-objective pos transport-pos country-id)))))

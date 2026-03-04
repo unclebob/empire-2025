@@ -9,6 +9,9 @@
    :include-exts #{".clj" ".cljc" ".cljs"}
    :component-rules []
    :forbidden-dependencies []
+   :distance-exempt-components #{}
+   :enforce-kind-boundaries true
+   :enforce-kind-purity false
    :allowed-exceptions []
    :fail-on-cycles true
    :fail-on-violations true})
@@ -55,6 +58,7 @@
                      :else [raw-matches])
           matchers (mapv pattern->matcher patterns)]
       {:component (:component rule)
+       :kind (:kind rule)
        :matches? (fn [ns-name]
                    (boolean (some #(% ns-name) matchers)))})
 
@@ -125,7 +129,7 @@
        set))
 
 (def ^:private def-ops
-  #{"def" "defonce" "defmacro" "defn" "defn-" "defmulti" "defprotocol"})
+  #{"def" "defonce" "defmacro" "defn" "defn-" "defmulti" "defprotocol" "defmethod"})
 
 (defn- var-symbol
   [form]
@@ -224,6 +228,10 @@
   [config]
   (let [cfg (merge default-config config)
         component-rules (compile-component-rules (:component-rules cfg))
+        component->kind (->> component-rules
+                             (map (juxt :component :kind))
+                             (remove (comp nil? second))
+                             (into {}))
         files (source-files (:source-paths cfg) (:include-exts cfg))
         parsed (->> files
                     (map (fn [f]
@@ -287,6 +295,36 @@
                                                   :abstract-vars abstract-count}])))
                              (sort-by (comp str first))
                              (into {}))
+        kind-edge-violations (if (get cfg :enforce-kind-boundaries true)
+                               (->> ns-edges
+                                    (filter (fn [{:keys [from-component to-component]}]
+                                              (and (= :abstract (get component->kind from-component))
+                                                   (= :concrete (get component->kind to-component)))))
+                                    (mapv (fn [edge]
+                                            (assoc edge :rule {:type :kind
+                                                               :from-kind :abstract
+                                                               :to-kind :concrete}))))
+                               [])
+        kind-purity-violations (if (get cfg :enforce-kind-purity false)
+        (->> component-stats
+             (mapcat (fn [[component {:keys [abstractness]}]]
+                       (let [kind (get component->kind component)]
+                         (cond
+                           (and (= :abstract kind) (< abstractness 1.0))
+                           [{:component component
+                             :kind kind
+                             :abstractness abstractness
+                             :rule {:type :kind-purity :expected :abstract :actual :mixed}}]
+
+                           (and (= :concrete kind) (> abstractness 0.0))
+                           [{:component component
+                             :kind kind
+                             :abstractness abstractness
+                             :rule {:type :kind-purity :expected :concrete :actual :mixed}}]
+
+                           :else []))))
+             vec)
+        [])
         exceptions (mapv compile-exception (:allowed-exceptions cfg))
         forbidden-rules (mapv normalize-forbidden-rule (:forbidden-dependencies cfg))
         violations (->> ns-edges
@@ -304,6 +342,7 @@
      :component-edges (sort component-edges)
      :component-stats component-stats
      :violations violations
+     :kind-violations (vec (concat kind-edge-violations kind-purity-violations))
      :cycles cycles}))
 
 (defn- source-ns-records
@@ -497,7 +536,7 @@
   (format "%.3f" (double d)))
 
 (defn- report-text
-  [{:keys [component-stats component-edges violations cycles]}
+  [{:keys [component-stats component-edges violations kind-violations cycles]}
    {:keys [max-distance distance-violations]}]
   (let [components (keys component-stats)]
     (println "Dependency Analysis")
@@ -505,7 +544,8 @@
     (println)
     (println (format "Components: %d" (count components)))
     (println (format "Component edges: %d" (count component-edges)))
-    (println (format "Violations: %d" (count violations)))
+    (println (format "Boundary violations: %d" (count violations)))
+    (println (format "Kind violations: %d" (count kind-violations)))
     (println (format "Cycles: %d" (count cycles)))
     (println (format "Distance limit: %.3f" (double max-distance)))
     (println (format "Distance violations: %d" (count distance-violations)))
@@ -534,6 +574,23 @@
       (doseq [{:keys [from-component to-component from-ns to-ns]} violations]
         (println (format "%s -> %s  (%s -> %s)"
                          from-component to-component from-ns to-ns))))
+    (when (seq kind-violations)
+      (println)
+      (println "Kind Violations")
+      (println "---------------")
+      (doseq [v kind-violations]
+        (if (:from-component v)
+          (println (format "%s (%s) -> %s (%s)  (%s -> %s)"
+                           (:from-component v)
+                           (get-in v [:rule :from-kind])
+                           (:to-component v)
+                           (get-in v [:rule :to-kind])
+                           (:from-ns v)
+                           (:to-ns v)))
+          (println (format "%s expected %s but abstractness=%s"
+                           (:component v)
+                           (get-in v [:rule :expected])
+                           (fmt-double (:abstractness v)))))))
     (when (seq cycles)
       (println)
       (println "Cycles")
@@ -596,15 +653,20 @@
 
             :else
             (let [result (analyze-project (load-config config-path))
+                  exempt-components (set (get-in result [:config :distance-exempt-components] #{}))
                   distance-violations (->> (:component-stats result)
                                            (filter (fn [[_ {:keys [distance]}]]
                                                      (> (double distance) (double max-distance))))
+                                           (remove (fn [[component _]]
+                                                     (contains? exempt-components component)))
                                            (mapv (fn [[component {:keys [distance]}]]
                                                    [component distance])))
                   has-violations (seq (:violations result))
+                  has-kind-violations (seq (:kind-violations result))
                   has-cycles (seq (:cycles result))
                   has-distance-violations (seq distance-violations)
                   fail? (or (and has-violations (get-in result [:config :fail-on-violations] true))
+                            (and has-kind-violations (get-in result [:config :fail-on-violations] true))
                             (and has-cycles (get-in result [:config :fail-on-cycles] true))
                             has-distance-violations)]
               (case fmt

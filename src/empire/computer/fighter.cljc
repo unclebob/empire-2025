@@ -5,7 +5,7 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
-            [empire.movement.visibility :as visibility]
+            [empire.computer.movement :as computer-movement]
             [empire.config :as config]
             [empire.computer.fighter.flight-plan :as flight-plan]
             [empire.computer.fighter-movement :as fm]
@@ -68,8 +68,8 @@
                       (select-best-navigation-target passable target))]
     (if explore-pos
       (when (core/move-unit-to pos explore-pos)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility explore-pos :computer)
+        (computer-movement/update-cell-visibility! pos :computer)
+        (computer-movement/update-cell-visibility! explore-pos :computer)
         (when (fm/consume-fighter-fuel explore-pos)
           {:pos explore-pos :hops 1}))
       (when-let [hop (fm/hop-over-friendly pos target)]

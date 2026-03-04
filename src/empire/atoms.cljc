@@ -86,14 +86,11 @@
   (atom 0))
 
 (defn set-error-message
-  "Sets a flashing error message (row 3) that displays for the specified milliseconds."
   [msg ms]
   (reset! error-message msg)
   (reset! error-until (messages/expires-at (System/currentTimeMillis) ms)))
 
 (defn set-turn-message
-  "Sets a turn message (row 2) that persists for the specified milliseconds.
-   Use Long/MAX_VALUE for a permanent message."
   [msg ms]
   (reset! turn-message msg)
   (reset! turn-message-until (if (= ms Long/MAX_VALUE)
@@ -146,12 +143,10 @@
   (atom {}))
 
 (defn on-same-continent?
-  "Returns true if two country-ids are on the same landmass."
   [cid1 cid2]
   (continents/on-same-continent? @continent-groups cid1 cid2))
 
 (defn merge-continents!
-  "Records that two country-ids share a landmass."
   [cid1 cid2]
   (swap! continent-groups continents/merge-continents cid1 cid2))
 
@@ -182,14 +177,15 @@
 (def computer-city-positions runtime/computer-city-positions)
 (def computer-carrier-positions runtime/computer-carrier-positions)
 
-(defn computer-city-cell? [cell]
+(defn computer-city-cell?
+  [cell]
   (refueling/computer-city-cell? cell))
 
-(defn computer-carrier-cell? [cell]
+(defn computer-carrier-cell?
+  [cell]
   (refueling/computer-carrier-cell? cell))
 
 (defn rebuild-refueling-caches!
-  "Scans game-map once to populate computer-city-positions and computer-carrier-positions."
   []
   (let [{:keys [cities carriers]}
         (refueling/scan-refueling-positions @game-map)]

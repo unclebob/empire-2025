@@ -23,14 +23,12 @@
   [[-1 0] [1 0] [0 -1] [0 1]])
 
 (defn process-map
-  "Processes the map by applying f to each cell, where f takes i j and the-map."
   [the-map f]
   (vec (for [i (range (count the-map))]
          (vec (for [j (range (count (first the-map)))]
                 (f i j the-map))))))
 
 (defn filter-map
-  "Scans the map and returns positions [i j] where the predicate is true."
   [the-map pred]
   (for [i (range (count the-map))
         j (range (count (first the-map)))
@@ -39,7 +37,6 @@
     [i j]))
 
 (defn any-neighbor-matches?
-  "Returns true if any neighbor (using given offsets) satisfies the predicate."
   [pos the-map offsets pred]
   (let [[x y] pos
         height (count the-map)
@@ -67,7 +64,6 @@
                    offsets))))
 
 (defn get-matching-neighbors
-  "Returns positions of neighbors (using given offsets) that satisfy the predicate."
   [pos the-map offsets pred]
   (let [[x y] pos
         height (count the-map)
@@ -82,20 +78,17 @@
       [nx ny])))
 
 (defn on-coast?
-  "Checks if a cell is adjacent to sea."
   [cell-x cell-y]
   (any-neighbor-matches? [cell-x cell-y] (current-world) neighbor-offsets
                          #(= :sea (:type %))))
 
 (defn on-map?
-  "Returns true if the pixel coordinates are within the map display area."
   [x y]
   (let [[map-w map-h] (read-runtime-state :map-screen-dimensions)]
     (and (>= x 0) (< x map-w)
          (>= y 0) (< y map-h))))
 
 (defn determine-cell-coordinates
-  "Converts mouse coordinates to map cell coordinates."
   [x y]
   (let [[map-w map-h] (read-runtime-state :map-screen-dimensions)
         world (current-world)
@@ -106,49 +99,41 @@
     [(int (Math/floor (/ x cell-w))) (int (Math/floor (/ y cell-h)))]))
 
 (defn city?
-  "Returns true if the cell at coords is a city."
   [[x y]]
   (= :city (:type (get-in (current-world) [x y]))))
 
 (defn blink?
-  "Returns true during the 'on' phase of a blink cycle with the given period in milliseconds."
   [period-ms]
   (even? (quot (System/currentTimeMillis) period-ms)))
 
 ;; Terrain geometry helpers
 
 (defn adjacent-to-land?
-  "Returns true if the position is adjacent to a land cell."
   [pos current-map]
   (any-neighbor-matches? pos @current-map neighbor-offsets
                          #(= :land (:type %))))
 
 (defn orthogonally-adjacent-to-land?
-  "Returns true if the position is orthogonally adjacent to a land cell (N/S/E/W only)."
   [pos current-map]
   (any-neighbor-matches? pos @current-map orthogonal-offsets
                          #(= :land (:type %))))
 
 (defn completely-surrounded-by-sea?
-  "Returns true if the position has no adjacent land cells (completely in open sea)."
   [pos current-map]
   (not (adjacent-to-land? pos current-map)))
 
 (defn in-bay?
-  "Returns true if the position is in a bay - surrounded by 4 or more land cells."
   [pos current-map]
   (>= (count-matching-neighbors pos @current-map neighbor-offsets
                                 #(= :land (:type %)))
       4))
 
 (defn adjacent-to-sea?
-  "Returns true if the position has an adjacent sea cell."
   [pos current-map]
   (any-neighbor-matches? pos @current-map neighbor-offsets
                          #(= :sea (:type %))))
 
 (defn at-map-edge?
-  "Returns true if position is at the edge of the map."
   [pos current-map]
   (let [[x y] pos
         height (count @current-map)
@@ -158,7 +143,6 @@
         (= y (dec width)))))
 
 (defn reconstruct-path
-  "Walks came-from map from goal back to start, returns path vector [start ... goal]."
   [came-from start goal]
   (loop [pos goal
          path (list goal)]
@@ -168,15 +152,12 @@
         (recur prev (cons prev path))))))
 
 (defn passable?
-  "Returns true if unit-type can move through the cell."
   [unit-type cell]
   (and cell
        (not= (:type cell) :unexplored)
        (dispatcher/can-move-to? unit-type cell)))
 
 (defn get-passable-neighbors
-  "Returns neighbors that the unit type can traverse.
-   When passability-fn is provided, uses it instead of the default passable? check."
   ([pos unit-type game-map]
    (get-passable-neighbors pos unit-type game-map nil))
   ([pos unit-type game-map passability-fn]

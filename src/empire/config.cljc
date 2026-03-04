@@ -98,12 +98,12 @@
 (def explore-unit-color [144 238 144])
 
 ;; Unit-specific constants - import from unit modules via dispatcher
-(def fighter-fuel 32)       ; empire.units.fighter/fuel
-(def transport-capacity 6)  ; empire.units.transport/capacity
-(def carrier-capacity 8)    ; empire.units.carrier/capacity
+(def fighter-fuel 32)       ; empire.units.config/fighter-fuel
+(def transport-capacity 6)  ; empire.units.config/transport-capacity
+(def carrier-capacity 8)    ; empire.units.config/carrier-capacity
 (def explore-steps 50)
 (def coastline-steps 100)
-(def satellite-turns 50)    ; empire.units.satellite/turns
+(def satellite-turns 50)    ; empire.units.config/satellite-turns
 (def max-sidesteps 10)
 
 (def carrier-spacing 22)  ;; 70% of fighter-fuel (0.7 * 32 = 22.4, rounded down)
@@ -255,4 +255,3 @@
 
     :else
     (mode->color (:mode unit))))
-

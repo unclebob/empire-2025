@@ -6,13 +6,11 @@
             [empire.application.ports.world-store :as world-ports]
             [empire.application.state :as app-state]
             [empire.config :as config]
-            [empire.player.attention :as attention]
             [empire.computer :as computer]
             [empire.computer.production :as computer-production]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.movement.coastline :as coastline]
-            [empire.movement.explore :as explore]))
+            [empire.application.player-movement-services :as player-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -38,6 +36,17 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
+
+(defn- player-call
+  [ns-name sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol ns-name (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
+                              {:namespace ns-name
+                               :symbol sym})))]
+    (apply f args)))
 
 (defn- movement-port []
   (or (:movement-port @state-ctx)
@@ -121,12 +130,12 @@
 (defn move-explore-unit
   "Moves an exploring unit. Returns new coords if still exploring, nil if done."
   [coords]
-  (explore/move-explore-unit coords))
+  (player-movement/move-explore-unit coords))
 
 (defn move-coastline-unit
   "Moves a coastline-following unit. Returns nil when done."
   [coords]
-  (coastline/move-coastline-unit coords))
+  (player-movement/move-coastline-unit coords))
 
 (defn- airport-flight-path [cell]
   (or (:flight-path cell) (:flight-path (:contents cell))))
@@ -206,9 +215,9 @@
       unit-in-auto-mode?
       (process-auto-movement coords unit)
 
-      (attention/item-needs-attention? coords)
+      (player-call "empire.player.attention" 'item-needs-attention? coords)
       (do (write-runtime-state! :cells-needing-attention [coords])
-          (attention/set-attention-message coords)
+          (player-call "empire.player.attention" 'set-attention-message coords)
           (write-runtime-state! :waiting-for-input true)
           :waiting)
 

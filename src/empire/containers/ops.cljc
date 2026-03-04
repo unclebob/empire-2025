@@ -113,7 +113,8 @@
       (update-game-map! update-in (conj transport-coords :contents)
                         #(assoc % :mode :awake :reason :transport-at-beach)))))
 
-(defn non-full-transport? [unit]
+(defmulti non-full-transport? (fn [& _] :default))
+(defmethod non-full-transport? :default [unit]
   (and (= (:type unit) :transport)
        (not (uc/full? unit :army-count (dispatcher/effective-capacity :transport (:hits unit))))))
 
@@ -126,9 +127,8 @@
       (update-game-map! assoc-in [nx ny] (dissoc adj-cell :contents))
       (update-game-map! update-in (conj transport-coords :contents) uc/add-unit :army-count))))
 
-(defn load-adjacent-sentry-armies
-  "Loads adjacent sentry armies onto a transport at the given coords.
-   Wakes up the transport if it has armies and is at a beach."
+(defmulti load-adjacent-sentry-armies (fn [& _] :default))
+(defmethod load-adjacent-sentry-armies :default
   [transport-coords]
   (let [unit (:contents (get-in (current-world) transport-coords))]
     (when (non-full-transport? unit)
@@ -140,9 +140,8 @@
           (try-load-from-neighbor transport-coords n))
         (wake-transport-if-needed transport-coords)))))
 
-(defn wake-armies-on-transport
-  "Wakes up all armies aboard the transport at the given coords.
-   Sets steps-remaining to 0 to end the transport's turn."
+(defmulti wake-armies-on-transport (fn [& _] :default))
+(defmethod wake-armies-on-transport :default
   [transport-coords]
   (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
@@ -150,9 +149,8 @@
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)))
 
-(defn sleep-armies-on-transport
-  "Puts all armies aboard the transport back to sleep (sentry mode).
-   Wakes up the transport so it can receive orders."
+(defmulti sleep-armies-on-transport (fn [& _] :default))
+(defmethod sleep-armies-on-transport :default
   [transport-coords]
   (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
@@ -160,9 +158,8 @@
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)))
 
-(defn remove-army-from-transport
-  "Removes one awake army from transport without placing it anywhere.
-   Wakes the transport when no more awake armies remain."
+(defmulti remove-army-from-transport (fn [& _] :default))
+(defmethod remove-army-from-transport :default
   [transport-coords]
   (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
@@ -170,11 +167,8 @@
         updated-cell (assoc cell :contents updated-transport)]
     (update-game-map! assoc-in transport-coords updated-cell)))
 
-(defn disembark-army-from-transport
-  "Removes first awake army from transport and places it on target land cell.
-   Army remains awake and ready for orders. Other armies remain on transport.
-   Wakes the transport when no more awake armies remain.
-  Returns the coordinates where the army was placed."
+(defmulti disembark-army-from-transport (fn [& _] :default))
+(defmethod disembark-army-from-transport :default
   [transport-coords target-coords]
   (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
@@ -186,10 +180,8 @@
     (update-cell-visibility! target-coords (:owner transport))
     target-coords))
 
-(defn disembark-army-with-target
-  "Removes first awake army from transport and places it on adjacent cell in moving mode.
-   Army will continue moving toward the extended target on subsequent turns.
-  Steps-remaining is 0 because the disembark used the army's one step."
+(defmulti disembark-army-with-target (fn [& _] :default))
+(defmethod disembark-army-with-target :default
   [transport-coords adjacent-coords extended-target]
   (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
@@ -200,9 +192,8 @@
     (update-game-map! assoc-in (conj adjacent-coords :contents) moving-army)
     (update-cell-visibility! adjacent-coords (:owner transport))))
 
-(defn disembark-army-to-explore
-  "Removes first awake army from transport and places it on target land cell in explore mode.
-   Returns the coordinates where the army was placed."
+(defmulti disembark-army-to-explore (fn [& _] :default))
+(defmethod disembark-army-to-explore :default
   [transport-coords target-coords]
   (let [cell (get-in (current-world) transport-coords)
         transport (:contents cell)
@@ -216,8 +207,8 @@
 
 ;; Carrier operations
 
-(defn wake-fighters-on-carrier
-  "Wakes up all fighters aboard the carrier at the given coords."
+(defmulti wake-fighters-on-carrier (fn [& _] :default))
+(defmethod wake-fighters-on-carrier :default
   [carrier-coords]
   (let [cell (get-in (current-world) carrier-coords)
         carrier (:contents cell)
@@ -225,9 +216,8 @@
         updated-cell (assoc cell :contents updated-carrier)]
     (update-game-map! assoc-in carrier-coords updated-cell)))
 
-(defn sleep-fighters-on-carrier
-  "Puts all fighters aboard the carrier back to sleep.
-   Wakes up the carrier so it can receive orders."
+(defmulti sleep-fighters-on-carrier (fn [& _] :default))
+(defmethod sleep-fighters-on-carrier :default
   [carrier-coords]
   (let [cell (get-in (current-world) carrier-coords)
         carrier (:contents cell)
@@ -235,11 +225,8 @@
         updated-cell (assoc cell :contents updated-carrier)]
     (update-game-map! assoc-in carrier-coords updated-cell)))
 
-(defn launch-fighter-from-carrier
-  "Removes first awake fighter from carrier and sets it moving to target.
-   Fighter is placed at the adjacent cell toward target.
-  Carrier stays in its current mode (sentry carriers remain sentry).
-   Returns the coordinates where the fighter was placed."
+(defmulti launch-fighter-from-carrier (fn [& _] :default))
+(defmethod launch-fighter-from-carrier :default
   [carrier-coords target-coords]
   (let [world (current-world)
         cell (get-in world carrier-coords)
@@ -261,9 +248,8 @@
 
 ;; Airport operations
 
-(defn launch-fighter-from-airport
-  "Removes first awake fighter from airport and sets it moving to target.
-   Returns the coordinates where the fighter was placed."
+(defmulti launch-fighter-from-airport (fn [& _] :default))
+(defmethod launch-fighter-from-airport :default
   [city-coords target-coords]
   (let [cell (get-in (current-world) city-coords)
         after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
@@ -277,10 +263,8 @@
 
 ;; Shipyard operations
 
-(defn launch-ship-from-shipyard
-  "Removes ship at given index from city's shipyard and places on map.
-   Reconstructs full unit from minimal shipyard data.
-   When launch-pos is provided, places ship there instead of at city."
+(defmulti launch-ship-from-shipyard (fn [& _] :default))
+(defmethod launch-ship-from-shipyard :default
   ([city-coords ship-index]
    (launch-ship-from-shipyard city-coords ship-index city-coords))
   ([city-coords ship-index launch-pos]

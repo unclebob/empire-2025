@@ -1,28 +1,27 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.army)
 
-;; Configuration
-(def speed 1)
-(def cost 5)
-(def hits 1)
-(def strength 1)
-(def display-char "A")
-(def visibility-radius 1)
+#?(:clj
+   (defonce ^:private methods-loaded? (atom false)))
 
-(defn initial-state
-  "Returns initial state fields for a new army."
-  []
-  {})
+#?(:clj
+   (defn- ensure-methods-loaded!
+     []
+     (when-not @methods-loaded?
+       (requiring-resolve 'empire.units.impl.army/load-methods!)
+       (reset! methods-loaded? true))))
 
-(defn can-move-to?
-  "Armies can move on land and into non-player cities."
-  [cell]
-  (and cell
-       (or (= (:type cell) :land)
-           (and (= (:type cell) :city)
-                (not= (:city-status cell) :player)))))
+(defmulti initial-state
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn needs-attention?
-  "Armies need attention when awake."
-  [unit]
-  (= (:mode unit) :awake))
+(defmulti can-move-to?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
+
+(defmulti needs-attention?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))

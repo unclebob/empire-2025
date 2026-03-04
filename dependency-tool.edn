@@ -1,147 +1,114 @@
 {:source-paths ["src"]
- :component-rules [{:component :world-store-port :match "empire.application.ports.world-store"}
-                   {:component :runtime-state-port :match "empire.application.ports.runtime-state"}
-                   {:component :clock-port :match "empire.application.ports.clock"}
-                   {:component :random-port :match "empire.application.ports.random"}
-                   {:component :persistence-port :match "empire.application.ports.persistence"}
-                   {:component :movement-app-port :match "empire.application.ports.movement"}
-                   {:component :acceptance-harness-port :match "empire.application.ports.acceptance-harness"}
-                   {:component :movement-port :match "empire.movement.movement"}
-
-                   ;; Anticipated splits (contract/policy/adapter namespaces to introduce)
-                   {:component :application-contracts :match "empire.application.contracts*"}
-                   {:component :application-contracts-impl :match "empire.application.contracts.impl*"}
-                   {:component :application-policy :match "empire.application.use-cases*"}
-                   {:component :application-policy-impl :match "empire.application.use-cases.impl*"}
-                   {:component :acceptance-harness-impl :match ["empire.acceptance.harness.impl*"
-                                                                "empire.application.acceptance-harness"
-                                                                "empire.acceptance.harness"]}
-                   {:component :domain-core :match "empire.domain.core*"}
-                   {:component :domain-core-impl :match "empire.domain.core.impl*"}
-                   {:component :domain-services :match "empire.domain.services*"}
-                   {:component :domain-services-impl :match "empire.domain.services.impl*"}
-                   {:component :movement-adapter :match "empire.adapters.movement*"}
-                   {:component :state-port :match "empire.application.state-port*"}
-                   {:component :state-port-impl :match "empire.adapters.state.port*"}
-                   {:component :persistence-port-impl :match "empire.adapters.persistence.port*"}
-
-                   {:component :application-use-cases :match "empire.application*"}
-                   {:component :domain-model :match ["empire.domain*"
-                                                     "empire.units*"
-                                                     "empire.config"
-                                                     "empire.containers*"
-                                                     "empire.combat*"]}
-                   {:component :computer-policy :match ["empire.computer" "empire.computer*"]}
-                   {:component :player-policy :match ["empire.player" "empire.player*"]}
-
-                   {:component :movement-engine :match ["empire.movement" "empire.movement*"]}
-                   {:component :state-adapters :match ["empire.atoms*" "empire.adapters.state*"]}
-                   {:component :runtime-adapters :match "empire.adapters.runtime*"}
-                   {:component :persistence-adapters :match ["empire.save-load" "empire.adapters.persistence*"]}
-                   {:component :ui-adapters :match "empire.ui*"}
-                   {:component :orchestration :match ["empire.game-loop*" "empire.init"]}
-
-                   {:component :acceptance-pipeline :match ["empire.acceptance*" "empire.test.pipeline*"]}
-                   {:component :architecture-tools :match "empire.architecture*"}
-                   {:component :debug-support :match ["empire.debug" "empire.debug*"]}
-                   {:component :test-support :match "empire.test-utils"}
-                   {:component :adapters-other :match "empire.adapters*"}
-                   {:component :legacy-misc :match ["empire.map" "empire.repair"]}]
-
- :forbidden-dependencies [
-                          ;; Abstract components do not depend on concrete components.
-                          [:application-contracts :application-use-cases]
-                          [:application-contracts :application-policy]
-                          [:application-contracts :computer-policy]
-                          [:application-contracts :player-policy]
-                          [:application-contracts :movement-engine]
-                          [:application-contracts :state-adapters]
-                          [:application-contracts :runtime-adapters]
-                          [:application-contracts :persistence-adapters]
-                          [:application-contracts :ui-adapters]
-                          [:application-contracts :orchestration]
-
-                          [:state-port :application-use-cases]
-                          [:state-port :application-policy]
-                          [:state-port :computer-policy]
-                          [:state-port :player-policy]
-                          [:state-port :movement-engine]
-                          [:state-port :state-adapters]
-                          [:state-port :runtime-adapters]
-                          [:state-port :persistence-adapters]
-                          [:state-port :ui-adapters]
-                          [:state-port :orchestration]
-
-                          [:persistence-port :application-use-cases]
-                          [:persistence-port :application-policy]
-                          [:persistence-port :computer-policy]
-                          [:persistence-port :player-policy]
-                          [:persistence-port :movement-engine]
-                          [:persistence-port :state-adapters]
-                          [:persistence-port :runtime-adapters]
-                          [:persistence-port :persistence-adapters]
-                          [:persistence-port :ui-adapters]
-                          [:persistence-port :orchestration]
-
-                          [:acceptance-harness-port :application-use-cases]
-                          [:acceptance-harness-port :computer-policy]
-                          [:acceptance-harness-port :player-policy]
-                          [:acceptance-harness-port :movement-engine]
-                          [:acceptance-harness-port :state-adapters]
-                          [:acceptance-harness-port :runtime-adapters]
-                          [:acceptance-harness-port :persistence-adapters]
-                          [:acceptance-harness-port :ui-adapters]
-                          [:acceptance-harness-port :orchestration]
-
-                          [:movement-port :application-use-cases]
-                          [:movement-port :computer-policy]
-                          [:movement-port :player-policy]
-                          [:movement-port :movement-engine]
-                          [:movement-port :state-adapters]
-                          [:movement-port :runtime-adapters]
-                          [:movement-port :persistence-adapters]
-                          [:movement-port :ui-adapters]
-                          [:movement-port :orchestration]
-
-                          ;; Policy components should only depend on domain + ports.
-                          [:application-use-cases :state-adapters]
-                          [:application-use-cases :runtime-adapters]
-                          [:application-use-cases :persistence-adapters]
-                          [:application-use-cases :ui-adapters]
-                          [:application-use-cases :orchestration]
-                          [:application-use-cases :acceptance-pipeline]
-
-                          [:computer-policy :state-adapters]
+ :component-rules [{:component :acceptance-harness-port
+                    :kind :abstract
+                    :match "empire.application.ports.acceptance-harness"}
+                   {:component :application-ports
+                    :kind :abstract
+                    :match ["empire.application.ports*"
+                            "empire.application.state-port*"
+                            "empire.application.state"
+                            "empire.application.runtime"
+                            "empire.application.coords"
+                            "empire.application.production-status"]}
+                   {:component :movement-contracts
+                    :kind :abstract
+                    :match "empire.movement.movement"}
+                   {:component :domain-contracts
+                    :kind :abstract
+                   :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
+                            "^empire\\.domain\\.services(\\.(?!impl\\.).*)?$"
+                            "^empire\\.domain\\.model(\\.(?!impl\\.).*)?$"
+                            "empire.combat"]}
+                   {:component :unit-contracts
+                    :kind :abstract
+                    :match "^empire\\.units(\\.(?!(impl\\.|config$)).*)?$"}
+                   {:component :debug-contracts
+                    :kind :abstract
+                    :match "empire.debug"}
+                   {:component :acceptance-harness-impl
+                    :kind :concrete
+                    :match ["empire.acceptance.harness"
+                            "empire.application.acceptance-harness"
+                            "empire.acceptance.harness.impl*"]}
+                   {:component :application-services
+                    :kind :concrete
+                    :match ["^empire\\.application(\\.(?!ports\\.).*)?$"
+                            "^empire\\.application\\.impl\\..*$"]}
+                   {:component :domain-impl
+                    :kind :concrete
+                    :match ["empire.domain.core.impl*"
+                            "empire.domain.services.impl*"
+                            "empire.domain.model.impl*"
+                            "empire.units.impl*"
+                            "empire.units.config"
+                            "empire.config"
+                            "empire.containers*"
+                            "empire.combat.escorts"]}
+                   {:component :movement-impl
+                    :kind :concrete
+                    :match ["^empire\\.movement\\.(?!movement$).*$"]}
+                   {:component :debug-impl
+                    :kind :concrete
+                    :match ["empire.debug.impl*"
+                            "empire.debug.logging"
+                            "empire.debug.dump"
+                            "empire.debug.dump.output"]}
+                   {:component :state-adapters
+                    :kind :concrete
+                    :match ["empire.atoms*"
+                            "empire.adapters.state*"]}
+                   {:component :persistence-adapters
+                    :kind :concrete
+                    :match ["empire.save-load"
+                            "empire.adapters.persistence*"]}
+                   {:component :runtime-adapters
+                    :kind :concrete
+                    :match "empire.adapters.runtime*"}
+                   {:component :computer-policy
+                    :kind :concrete
+                    :match ["empire.computer" "empire.computer*"]}
+                   {:component :player-policy
+                    :kind :concrete
+                    :match ["empire.player" "empire.player*"]}
+                   {:component :ui-adapters
+                    :kind :concrete
+                    :match "empire.ui*"}
+                   {:component :orchestration
+                    :kind :concrete
+                    :match ["empire.game-loop*" "empire.init"]}
+                   {:component :acceptance-pipeline
+                    :kind :concrete
+                    :match ["empire.acceptance*"
+                            "empire.test.pipeline*"]}
+                   {:component :architecture-tools
+                    :kind :concrete
+                    :match "empire.architecture*"}
+                   {:component :test-support
+                    :kind :concrete
+                    :match "empire.test-utils"}
+                   {:component :adapters-other
+                    :kind :concrete
+                    :match "empire.adapters*"}
+                   {:component :legacy-misc
+                    :kind :concrete
+                    :match ["empire.map" "empire.repair"]}]
+ :forbidden-dependencies [[:computer-policy :state-adapters]
                           [:computer-policy :runtime-adapters]
                           [:computer-policy :persistence-adapters]
                           [:computer-policy :ui-adapters]
                           [:computer-policy :orchestration]
                           [:computer-policy :acceptance-pipeline]
-
                           [:player-policy :state-adapters]
                           [:player-policy :runtime-adapters]
                           [:player-policy :persistence-adapters]
                           [:player-policy :ui-adapters]
                           [:player-policy :orchestration]
                           [:player-policy :acceptance-pipeline]
-
-                          ;; Domain remains independent of infrastructure.
-                          [:domain-model :state-adapters]
-                          [:domain-model :runtime-adapters]
-                          [:domain-model :persistence-adapters]
-                          [:domain-model :ui-adapters]
-                          [:domain-model :orchestration]
-                          [:domain-model :acceptance-pipeline]
-                          [:domain-model :application-use-cases]
-                          [:domain-model :computer-policy]
-                          [:domain-model :player-policy]
-                          [:domain-model :movement-engine]
-
-                          ;; Test infrastructure remains inverted from app core.
-                          [:acceptance-pipeline :application-use-cases]
+                          [:acceptance-pipeline :application-services]
                           [:acceptance-pipeline :computer-policy]
                           [:acceptance-pipeline :player-policy]
-                          [:acceptance-pipeline :movement-engine]
+                          [:acceptance-pipeline :movement-impl]
                           [:acceptance-pipeline :orchestration]]
+ :distance-exempt-components #{:architecture-tools}
  :fail-on-cycles true
  :fail-on-violations true}

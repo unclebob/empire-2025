@@ -2,12 +2,10 @@
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.computer.core.transport-search :as transport-search]
-            [empire.config :as config]
             [empire.debug :as debug]
-            [empire.movement.map-utils :as map-utils]
-            [empire.movement.visibility :as visibility]
             [empire.combat :as combat]))
 
 (def ^:private state-ctx
@@ -29,6 +27,34 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
+
+(defn- update-cell-visibility!
+  ([pos owner]
+   (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+  ([pos owner unit]
+   (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
+
+(def ^:private neighbor-offsets
+  [[-1 -1] [-1 0] [-1 1]
+   [0 -1]          [0 1]
+   [1 -1]  [1 0]  [1 1]])
+
+(defn- neighbors-in-map
+  [the-map [r c]]
+  (if (and (sequential? the-map) (seq the-map) (sequential? (first the-map)))
+    (let [height (count the-map)
+          width (count (first the-map))]
+      (for [[dr dc] neighbor-offsets
+            :let [nr (+ r dr)
+                  nc (+ c dc)]
+            :when (and (<= 0 nr) (< nr height)
+                       (<= 0 nc) (< nc width))]
+        [nr nc]))
+    []))
+
 (defn- on-same-continent?
   [country-a country-b]
   ((:on-same-continent? @state-ctx) country-a country-b))
@@ -39,24 +65,23 @@
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
 
-(defn get-neighbors
-  "Returns valid neighbor coordinates for a position."
+(defmulti get-neighbors (fn [& _] :default))
+(defmethod get-neighbors :default
   [pos]
-  (map-utils/get-matching-neighbors pos (current-world) map-utils/neighbor-offsets
-                                    some?))
+  (neighbors-in-map (current-world) pos))
 
-(defn distance
-  "Manhattan distance between two positions."
+(defmulti distance (fn [& _] :default))
+(defmethod distance :default
   [[x1 y1] [x2 y2]]
   (+ (Math/abs (- x2 x1)) (Math/abs (- y2 y1))))
 
-(defn chebyshev-distance
-  "Chebyshev distance between two positions."
+(defmulti chebyshev-distance (fn [& _] :default))
+(defmethod chebyshev-distance :default
   [[r1 c1] [r2 c2]]
   (max (Math/abs (- r2 r1)) (Math/abs (- c2 c1))))
 
-(defn attackable-target?
-  "Returns true if the cell contains an attackable target for the computer."
+(defmulti attackable-target? (fn [& _] :default))
+(defmethod attackable-target? :default
   [cell]
   (or (and (= (:type cell) :city)
            (#{:player :free} (:city-status cell)))
@@ -64,31 +89,32 @@
            (= (:owner (:contents cell)) :player)
            (not= :satellite (:type (:contents cell))))))
 
-(defn find-visible-cities
-  "Finds cities visible on computer-map matching the status predicate."
+(defmulti find-visible-cities (fn [& _] :default))
+(defmethod find-visible-cities :default
   [status-pred]
   (let [comp-map (read-runtime-state :computer-map)]
     (for [i (range (count comp-map))
           j (range (count (first comp-map)))
           :let [cell (get-in comp-map [i j])]
-        :when (and (= (:type cell) :city)
-                   (status-pred (:city-status cell)))]
+          :when (and (= (:type cell) :city)
+                     (status-pred (:city-status cell)))]
       [i j])))
 
-(defn move-toward
-  "Returns the neighbor that moves closest to target."
+(defmulti move-toward (fn [& _] :default))
+(defmethod move-toward :default
   [pos target passable-neighbors]
   (when (seq passable-neighbors)
     (apply min-key #(distance % target) passable-neighbors)))
 
-(defn adjacent-to-computer-unexplored?
-  "Returns true if the position has an adjacent unexplored cell on computer-map."
+(defmulti adjacent-to-computer-unexplored? (fn [& _] :default))
+(defmethod adjacent-to-computer-unexplored? :default
   [pos]
-  (map-utils/any-neighbor-matches? pos (read-runtime-state :computer-map) map-utils/neighbor-offsets
-                                   nil?))
+  (let [comp-map (read-runtime-state :computer-map)]
+    (boolean (some #(nil? (get-in comp-map %))
+                   (neighbors-in-map comp-map pos)))))
 
-(defn stamp-territory
-  "Stamps a land cell with the army's country-id as it moves through."
+(defmulti stamp-territory (fn [& _] :default))
+(defmethod stamp-territory :default
   [pos unit]
   (when (and (= :army (:type unit))
              (= :computer (:owner unit))
@@ -107,9 +133,8 @@
        (:country-id to-cell)
        (not (on-same-continent? (:country-id unit) (:country-id to-cell)))))
 
-(defn move-unit-to
-  "Moves a unit from from-pos to to-pos. Returns to-pos if moved, nil if target
-   occupied or blocked by sovereignty."
+(defmulti move-unit-to (fn [& _] :default))
+(defmethod move-unit-to :default
   [from-pos to-pos]
   (let [from-cell (get-in (current-world) from-pos)
         to-cell (get-in (current-world) to-pos)
@@ -122,12 +147,12 @@
         (update-game-map! assoc-in from-pos (dissoc from-cell :contents))
         (update-game-map! assoc-in (conj to-pos :contents) unit)
         (stamp-territory to-pos unit)
-        (visibility/update-cell-visibility from-pos (:owner unit))
-        (visibility/update-cell-visibility to-pos (:owner unit) unit)
+        (update-cell-visibility! from-pos (:owner unit))
+        (update-cell-visibility! to-pos (:owner unit) unit)
         to-pos))))
 
-(defn attempt-conquest-computer
-  "Computer army attempts to conquer a city. Returns new position or nil if army died."
+(defmulti attempt-conquest-computer (fn [& _] :default))
+(defmethod attempt-conquest-computer :default
   [army-pos city-pos]
   (let [army-cell (get-in (current-world) army-pos)
         army (:contents army-cell)
@@ -151,14 +176,14 @@
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
             (set-city-production city-pos :army)))
-        (visibility/update-cell-visibility army-pos :computer)
-        (visibility/update-cell-visibility city-pos :computer)
+        (update-cell-visibility! army-pos :computer)
+        (update-cell-visibility! city-pos :computer)
         nil)
       ;; Failure - army dies
       (do
         (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
         (update-game-map! assoc-in army-pos (dissoc army-cell :contents))
-        (visibility/update-cell-visibility army-pos :computer)
+        (update-cell-visibility! army-pos :computer)
         nil))))
 
 (defn- adjacent?
@@ -170,9 +195,8 @@
         dc (Math/abs (- c2 c1))]
     (and (<= dr 1) (<= dc 1) (not (and (zero? dr) (zero? dc))))))
 
-(defn random-away-direction
-  "Computes a direction vector pointing away from origin toward target.
-   When aligned on an axis (delta=0), randomly picks -1 or 1."
+(defmulti random-away-direction (fn [& _] :default))
+(defmethod random-away-direction :default
   [origin target]
   (let [[oc or'] origin
         [tc tr] target
@@ -181,9 +205,8 @@
     [(if (zero? dc) (if (< (rand) 0.5) -1 1) dc)
      (if (zero? dr) (if (< (rand) 0.5) -1 1) dr)]))
 
-(defn find-wakeable-sentries
-  "Returns seq of [row col] coords of computer sentry armies within
-   Chebyshev distance of pos. Pure — takes game-map value, not atom."
+(defmulti find-wakeable-sentries (fn [& _] :default))
+(defmethod find-wakeable-sentries :default
   [game-map pos radius]
   (let [[pc pr] pos]
     (for [c (range (max 0 (- pc radius)) (min (count game-map) (+ pc radius 1)))
@@ -198,23 +221,20 @@
                      (<= (chebyshev-distance pos [c r]) radius))]
       [c r])))
 
-(defn wake-nearby-sentries
-  "Wakes sentry armies within radius Chebyshev distance of pos.
-   Each woken army gets interior-explore-direction pointing away from pos.
-   Returns count of armies woken."
+(defmulti wake-nearby-sentries (fn [& _] :default))
+(defmethod wake-nearby-sentries :default
   [pos radius]
   (let [candidates (find-wakeable-sentries (current-world) pos radius)]
     (doseq [coord candidates
             :let [direction (random-away-direction pos coord)]]
       (update-game-map! update-in (conj coord :contents)
-             #(-> % (assoc :mode :awake
-                            :interior-explore-direction direction)
-                  (dissoc :move-history))))
+                        #(-> % (assoc :mode :awake
+                                      :interior-explore-direction direction)
+                             (dissoc :move-history))))
     (count candidates)))
 
-(defn board-transport
-  "Loads army onto transport. Removes army from pos, increments transport army count.
-   Verifies adjacency before loading. Wakes nearby sentries to advance the queue."
+(defmulti board-transport (fn [& _] :default))
+(defmethod board-transport :default
   [army-pos transport-pos]
   (when-not (adjacent? army-pos transport-pos)
     (throw (ex-info "Cannot board transport from non-adjacent cell"
@@ -223,29 +243,26 @@
   (update-game-map! update-in (conj transport-pos :contents :army-count) (fnil inc 0))
   (wake-nearby-sentries army-pos 3))
 
-(defn find-visible-player-units
-  "Finds player units visible on computer-map."
+(defmulti find-visible-player-units (fn [& _] :default))
+(defmethod find-visible-player-units :default
   []
   (let [comp-map (read-runtime-state :computer-map)]
     (for [i (range (count comp-map))
           j (range (count (first comp-map)))
           :let [cell (get-in comp-map [i j])
-              contents (:contents cell)]
+                contents (:contents cell)]
           :when (and contents (= (:owner contents) :player))]
       [i j])))
 
 ;; Army-Transport Coordination (used by army module)
-(defn find-loading-transport
-  "Finds a transport in loading state that has room.
-   When army-unload-event-id is provided, excludes transports with matching ID."
-  ([]
-   (find-loading-transport nil))
+(defmulti find-loading-transport (fn [& _] :default))
+(defmethod find-loading-transport :default
+  ([] (find-loading-transport nil))
   ([army-unload-event-id]
    (transport-search/find-loading-transport (current-world) army-unload-event-id)))
 
-(defn find-adjacent-loading-transport
-  "Finds an adjacent loading transport with room.
-   When army-unload-event-id is provided, excludes transports with matching ID."
+(defmulti find-adjacent-loading-transport (fn [& _] :default))
+(defmethod find-adjacent-loading-transport :default
   ([pos]
    (find-adjacent-loading-transport pos nil))
   ([pos army-unload-event-id]

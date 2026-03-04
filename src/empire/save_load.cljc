@@ -1,10 +1,9 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.save-load
   (:require [empire.adapters.persistence.files :as persistence-files]
-            [empire.adapters.state.runtime :as runtime-state]
             [empire.application.ports.persistence :as ports]
             [empire.application.runtime :as app-runtime]
-            [empire.computer.production :as computer-production]))
+            [empire.domain.core.messages :as messages]))
 
 (def saveable-atoms
   "Stable keys that should be persisted."
@@ -69,6 +68,16 @@
   [state]
   ((:save-major-invasion-state! @state-ctx) state))
 
+(defn- computer-call
+  [sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol "empire.computer.production" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve computer production function: " (name sym))
+                              {:symbol sym})))]
+    (apply f args)))
+
 (defn- read-save-key
   [k]
   (case k
@@ -112,9 +121,11 @@
      (write-runtime-state! :load-menu-open false)
      (write-runtime-state! :load-menu-files [])
      (write-runtime-state! :load-menu-hovered nil)
-     (runtime-state/rebuild-refueling-caches!)
-     (computer-production/rebuild-country-stats!)
-     (runtime-state/set-turn-message! (str "Loaded " filename) 3000))))
+     ((:rebuild-refueling-caches! @state-ctx))
+     (computer-call 'rebuild-country-stats!)
+     (write-runtime-state! :turn-message (str "Loaded " filename))
+     (write-runtime-state! :turn-message-until
+                           (messages/expires-at (System/currentTimeMillis) 3000)))))
 
 (defn open-load-menu!
   "Opens the load menu, populating it with available save files."

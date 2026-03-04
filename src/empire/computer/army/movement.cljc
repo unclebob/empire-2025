@@ -5,8 +5,8 @@
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.debug :as debug]
-            [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -27,16 +27,21 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
-(defn on-same-continent?
+(defmulti on-same-continent? (fn [& _] :default))
+
+(defmethod on-same-continent? :default
   [country-a country-b]
   ((:on-same-continent? @state-ctx) country-a country-b))
 
-(defn merge-continents!
+(defmulti merge-continents! (fn [& _] :default))
+
+(defmethod merge-continents! :default
   [stamp-id existing-cid]
   ((:merge-continents! @state-ctx) stamp-id existing-cid))
 
-(defn adjacent-to-sea?
-  "Returns true if position has at least one adjacent sea cell."
+(defmulti adjacent-to-sea? (fn [& _] :default))
+
+(defmethod adjacent-to-sea? :default
   [pos]
   (some (fn [neighbor]
           (= :sea (:type (get-in (current-world) neighbor))))
@@ -59,7 +64,10 @@
       (write-runtime-state! :coastal-cells-by-country
                             (assoc registry country-id (set coastal))))))
 
-(defn ensure-coastal-registry [country-id]
+(defmulti ensure-coastal-registry (fn [& _] :default))
+
+(defmethod ensure-coastal-registry :default
+  [country-id]
   (when (empty? (get (read-runtime-state :coastal-cells-by-country) country-id))
     (seed-coastal-registry country-id)))
 
@@ -88,10 +96,9 @@
                           (update registry country-id
                                   (fn [s] (into (or s #{}) coastal))))))
 
-(defn register-coastal-cells
-  "Registers coastal land cells near pos for the given country-id.
-   Checks pos + neighbors; adds any land cell adjacent to sea with matching country.
-  Also detects continent bumps when adjacent land has a different country-id."
+(defmulti register-coastal-cells (fn [& _] :default))
+
+(defmethod register-coastal-cells :default
   [pos country-id]
   (when country-id
     (let [game-map (current-world)
@@ -101,10 +108,9 @@
         (when (seq coastal)
           (update-coastal-registry! country-id coastal))))))
 
-(defn sovereign-passable?
-  "Returns true if a computer army with country-id can enter the cell.
-   Foreign land (different non-nil country-id) is blocked.
-   Computer cities are blocked; free and player cities are passable."
+(defmulti sovereign-passable? (fn [& _] :default))
+
+(defmethod sovereign-passable? :default
   [country-id cell]
   (and cell
        (#{:land :city} (:type cell))
@@ -114,16 +120,18 @@
            (nil? (:country-id cell))
            (on-same-continent? country-id (:country-id cell)))))
 
-(defn get-passable-neighbors
-  "Returns passable land neighbors for an army, respecting sovereignty."
+(defmulti get-passable-neighbors (fn [& _] :default))
+
+(defmethod get-passable-neighbors :default
   [pos country-id]
   (let [game-map (current-world)]
     (filter (fn [neighbor]
               (sovereign-passable? country-id (get-in game-map neighbor)))
             (core/get-neighbors pos))))
 
-(defn get-empty-passable-neighbors
-  "Returns passable land neighbors with no unit occupying them."
+(defmulti get-empty-passable-neighbors (fn [& _] :default))
+
+(defmethod get-empty-passable-neighbors :default
   [pos country-id]
   (let [game-map (current-world)]
     (filter (fn [neighbor]
@@ -131,8 +139,9 @@
                 (nil? (:contents cell))))
             (get-passable-neighbors pos country-id))))
 
-(defn find-nearest-unclaimed
-  "Find nearest position from candidates not in claimed-objectives."
+(defmulti find-nearest-unclaimed (fn [& _] :default))
+
+(defmethod find-nearest-unclaimed :default
   [candidates pos]
   (let [unclaimed (remove (or (read-runtime-state :claimed-objectives) #{}) candidates)]
     (when (seq unclaimed)
@@ -146,15 +155,16 @@
       (subvec v (- (count v) 4))
       v)))
 
-(defn try-move
-  "Attempt to move army from pos to target. Returns target if moved, nil if blocked."
+(defmulti try-move (fn [& _] :default))
+
+(defmethod try-move :default
   [pos target]
   (when (core/move-unit-to pos target)
     (debug/log-computer-event! :army-move pos {:to target})
     (update-game-map! update-in (conj target :contents :move-history)
                       update-move-history pos)
-    (visibility/update-cell-visibility pos :computer)
-    (visibility/update-cell-visibility target :computer)
+    (computer-movement/update-cell-visibility! pos :computer)
+    (computer-movement/update-cell-visibility! target :computer)
     (register-coastal-cells target
                             (:country-id (get-in (current-world) (conj target :contents))))
     target))
@@ -164,15 +174,14 @@
   [country-id]
   (fn [cell] (sovereign-passable? country-id cell)))
 
-(defn move-toward-objective
-  "Move army one step toward objective. If preferred step is occupied,
-   try other empty neighbors sorted by distance to objective.
-   Filters out cells in move-history to prevent oscillation."
+(defmulti move-toward-objective (fn [& _] :default))
+
+(defmethod move-toward-objective :default
   [pos objective country-id]
   (let [unit (get-in (current-world) (conj pos :contents))
         history (set (:move-history unit))
         pass-fn (when country-id (sovereignty-passability-fn country-id))
-        preferred (pathfinding/next-step pos objective :army pass-fn country-id)]
+        preferred (computer-movement/next-step pos objective :army pass-fn country-id)]
     (or (when (and preferred (not (history preferred)))
           (try-move pos preferred))
         (let [empty-neighbors (get-empty-passable-neighbors pos country-id)
@@ -181,7 +190,10 @@
             (let [sorted (sort-by #(core/distance % objective) filtered)]
               (try-move pos (first sorted))))))))
 
-(defn in-bounds? [pos]
+(defmulti in-bounds? (fn [& _] :default))
+
+(defmethod in-bounds? :default
+  [pos]
   (let [[c r] pos
         game-map (current-world)]
     (and (>= c 0) (>= r 0)

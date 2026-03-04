@@ -3,14 +3,23 @@
   (:require [empire.computer.ship :as ship]
             [empire.config :as config]
             [empire.computer.fighter-movement :as fm]
-            [empire.computer.fighter-exploration :as fe]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.computer.fighter-exploration :as fe]))
 
 (def ^:private sortie-half-steps 16)
 
+(def ^:private neighbor-offsets
+  [[-1 -1] [-1 0] [-1 1]
+   [0 -1]          [0 1]
+   [1 -1]  [1 0]  [1 1]])
+
 (defn- neighbors
   [world pos]
-  (map-utils/get-matching-neighbors pos world map-utils/neighbor-offsets some?))
+  (for [[dr dc] neighbor-offsets
+        :let [n [(+ (first pos) dr) (+ (second pos) dc)]]
+        :when (and (<= 0 (first n)) (< (first n) (count world))
+                   (<= 0 (second n)) (< (second n) (count (first world)))
+                   (some? (get-in world n)))]
+    n))
 
 (defn- current-refueling-site
   [world pos]

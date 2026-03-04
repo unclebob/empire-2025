@@ -1,22 +1,42 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.dump.output
   "Filename generation, dump writing, and drag-range conversion."
-  (:require [empire.application.coords :as coords]
-            [empire.application.runtime :as app-runtime]
+  (:require [empire.application.ports.runtime-state :as runtime-ports]
+            [empire.application.ports.world-store :as world-ports]
             [empire.debug.dump :as dump])
   #?(:clj (:import [java.time LocalDateTime]
                    [java.time.format DateTimeFormatter])))
 
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
+(def ^:private world-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.atoms/world-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private runtime-store-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (let [store (when-let [f @world-store-fn] (f))]
+    (world-ports/load-world store)))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (let [store (when-let [f @runtime-store-fn] (f))]
+    (runtime-ports/read-runtime-state store k)))
+
+(defn- screen->cell
+  [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]
+  (let [cell-w (/ map-pixel-width map-rows)
+        cell-h (/ map-pixel-height map-cols)]
+    [(int (Math/floor (/ pixel-x cell-w)))
+     (int (Math/floor (/ pixel-y cell-h)))]))
 
 (defn generate-dump-filename
   "Generate a timestamped filename for the dump file.
@@ -60,8 +80,8 @@
         game-map (current-world)
         map-rows (count game-map)
         map-cols (count (first game-map))
-        [row1 col1] (coords/screen->cell x1 y1 map-w map-h map-rows map-cols)
-        [row2 col2] (coords/screen->cell x2 y2 map-w map-h map-rows map-cols)
+        [row1 col1] (screen->cell x1 y1 map-w map-h map-rows map-cols)
+        [row2 col2] (screen->cell x2 y2 map-w map-h map-rows map-cols)
         start-row (min row1 row2)
         end-row (max row1 row2)
         start-col (min col1 col2)

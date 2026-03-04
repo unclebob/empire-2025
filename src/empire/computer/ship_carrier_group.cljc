@@ -6,7 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -147,8 +147,8 @@
                                 assoc :orbit-angle next-angle)
               (when (valid-orbit-pos? target)
                 (core/move-unit-to pos target)
-                (visibility/update-cell-visibility pos :computer)
-                (visibility/update-cell-visibility target :computer)
+                (computer-movement/update-cell-visibility! pos :computer)
+                (computer-movement/update-cell-visibility! target :computer)
                 (update-game-map! update-in (conj target :contents)
                                   assoc :orbit-angle next-angle))))
           nil))

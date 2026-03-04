@@ -1,12 +1,20 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.init
   (:require [empire.config :as config]
-            [empire.movement.map-utils :as map-utils]
+            [empire.application.movement-services :as movement-services]
             [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
-            [empire.adapters.state.runtime :as runtime-state]
-            [empire.movement.visibility :as visibility]
-            [empire.player.production :as production]))
+            [empire.application.state :as app-state]))
+
+(defn- player-call
+  [ns-name sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol ns-name (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
+                              {:namespace ns-name
+                               :symbol sym})))]
+    (apply f args)))
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."
@@ -23,7 +31,7 @@
   "Takes a map and returns a smoothed version where each cell is the rounded average
    of itself and its 8 surrounding cells. Edge cells use their own value for missing neighbors."
   [input-map]
-  (map-utils/process-map input-map smooth-cell))
+  (movement-services/process-map input-map smooth-cell))
 
 (defn make-map
   "Creates and initializes the game map with random integers, then applies smoothing."
@@ -40,10 +48,10 @@
 (defn finalize-map
   "Converts a height map to a terrain map with land/sea types."
   [the-map sea-level]
-  (map-utils/process-map the-map (fn [i j the-map]
-                             (let [height (get-in the-map [i j])
-                                   terrain-type (if (> height sea-level) :land :sea)]
-                               {:type terrain-type}))))
+  (movement-services/process-map the-map (fn [i j the-map]
+                                           (let [height (get-in the-map [i j])
+                                                 terrain-type (if (> height sea-level) :land :sea)]
+                                             {:type terrain-type}))))
 
 (defn find-sea-level
   "Finds the sea-level threshold for a given land fraction."
@@ -68,7 +76,7 @@
               (and (>= ni 0) (< ni height)
                    (>= nj 0) (< nj width)
                    (= :sea (:type (get-in the-map [ni nj]))))))
-          map-utils/neighbor-offsets)))
+          movement-services/neighbor-offsets)))
 
 (defn count-surrounding-land
   "Counts land cells in a 5x5 area centered on [i j], excluding the center."
@@ -96,7 +104,7 @@
   ([the-map owner min-distance-from]
    (occupy-random-free-city the-map owner min-distance-from 0))
   ([the-map owner min-distance-from min-surrounding-land]
-   (let [free-city-positions (map-utils/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= :free (:city-status cell)))))
+   (let [free-city-positions (movement-services/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= :free (:city-status cell)))))
          coastal-cities (filter #(coastal? % the-map) free-city-positions)
          with-enough-land (filter #(>= (count-surrounding-land % the-map) min-surrounding-land) coastal-cities)
          filtered-cities (if min-distance-from
@@ -126,7 +134,7 @@
 (defn generate-cities
   "Places free cities on land cells with minimum distance constraints."
   [the-map number-of-cities min-city-distance]
-  (let [land-positions (map-utils/filter-map the-map (fn [cell] (= :land (:type cell))))
+  (let [land-positions (movement-services/filter-map the-map (fn [cell] (= :land (:type cell))))
         land-positions-vec (vec land-positions)
         num-land (count land-positions-vec)]
     (loop [placed-cities []
@@ -147,7 +155,7 @@
 (defn find-city-position
   "Finds the position of a city with the given owner."
   [the-map owner]
-  (first (map-utils/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= owner (:city-status cell)))))))
+  (first (movement-services/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= owner (:city-status cell)))))))
 
 (defn- compute-lake-max-cells
   [width height]
@@ -176,18 +184,18 @@
     (when-let [computer-city-pos (find-city-position map-with-computer-city :computer)]
       (app-state/update-world! state-ctx assoc-in (conj computer-city-pos :country-id) 1)
       (write-runtime-state! :next-country-id 2)
-      (production/set-city-production computer-city-pos :army))
+      (player-call "empire.player.production" 'set-city-production computer-city-pos :army))
     (write-runtime-state! :lake-max-cells (compute-lake-max-cells width height))
     (write-runtime-state! :known-lake-cells #{})
     (write-runtime-state! :player-map visibility-map)
     (write-runtime-state! :computer-map visibility-map)
     ;; Initialize visibility around starting positions
     (let [world ((:load-world state-ctx))]
-      (when-let [updated (visibility/update-combatant-map-state
+      (when-let [updated (movement-services/update-combatant-map-state
                           (read-runtime-state :player-map) :player world)]
         (write-runtime-state! :player-map updated))
-      (when-let [updated (visibility/update-combatant-map-state
+      (when-let [updated (movement-services/update-combatant-map-state
                           (read-runtime-state :computer-map) :computer world)]
         (write-runtime-state! :computer-map updated)))
-    (runtime-state/rebuild-refueling-caches!)
+    ((:rebuild-refueling-caches! state-ctx))
     map-with-computer-city))

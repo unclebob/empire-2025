@@ -1,8 +1,16 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.production
   "Computer production module - priority-based production."
-  (:require [empire.computer.production.decisions :as decisions]
+  (:require [empire.application.runtime :as app-runtime]
+            [empire.computer.production.decisions :as decisions]
             [empire.computer.production.stats :as stats]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
 
 (defn city-is-coastal? [city-pos]
   (stats/city-is-coastal? city-pos))
@@ -39,7 +47,11 @@
 
 (def ^:private country-army-limit-reached? stats/country-army-limit-reached?)
 (def ^:private country-has-other-coastal-city? stats/country-has-other-coastal-city?)
-(def ^:private count-carrier-producers decisions/count-carrier-producers)
+(defn- count-carrier-producers []
+  (count (filter (fn [[_coords prod]]
+                   (and (map? prod)
+                        (= :carrier (:item prod))))
+                 (read-runtime-state :production))))
 
 (defn decide-production [city-pos]
   (decisions/decide-production city-pos))

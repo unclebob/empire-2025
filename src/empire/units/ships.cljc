@@ -1,23 +1,33 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.ships
-  "Data-driven configuration for simple naval units.
-   All four ship types share identical behavior (sea-only movement, awake attention)
-   and differ only in their numeric stats.")
+  "Dispatch contracts for simple naval units.")
 
-(def configs
-  {:patrol-boat {:speed 4 :cost 15 :hits 1 :strength 1 :display-char "P" :visibility-radius 1}
-   :destroyer   {:speed 2 :cost 20 :hits 3 :strength 1 :display-char "D" :visibility-radius 1}
-   :submarine   {:speed 2 :cost 20 :hits 2 :strength 3 :display-char "S" :visibility-radius 1}
-   :battleship  {:speed 2 :cost 40 :hits 10 :strength 2 :display-char "B" :visibility-radius 1}})
+#?(:clj
+   (defonce ^:private methods-loaded? (atom false)))
 
-(defn config [ship-type key]
-  (get-in configs [ship-type key]))
+#?(:clj
+   (defn- ensure-methods-loaded!
+     []
+     (when-not @methods-loaded?
+       (requiring-resolve 'empire.units.impl.ships/load-methods!)
+       (reset! methods-loaded? true))))
 
-(defn initial-state []
-  {})
+(defmulti config
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn can-move-to? [cell]
-  (and cell (= (:type cell) :sea)))
+(defmulti initial-state
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn needs-attention? [unit]
-  (= (:mode unit) :awake))
+(defmulti can-move-to?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
+
+(defmulti needs-attention?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))

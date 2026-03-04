@@ -2,11 +2,10 @@
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
-            [empire.computer.ship-core :as ship-core]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.ship-core :as ship-core]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -26,6 +25,14 @@
 (defn- write-runtime-state!
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
+
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
+
+(defn- update-cell-visibility!
+  [pos owner]
+  (movement-port/movement-update-cell-visibility (movement-services) pos owner))
 
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
@@ -70,8 +77,8 @@
     (when (seq empty-passable)
       (let [farthest (apply max-key (partial core/distance enemy-pos) empty-passable)]
         (core/move-unit-to pos farthest)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility farthest :computer)
+        (update-cell-visibility! pos :computer)
+        (update-cell-visibility! farthest :computer)
         farthest))))
 
 (defn patrol-crawl-step
@@ -91,8 +98,8 @@
     (when (seq targets)
       (let [target (rand-nth targets)]
         (core/move-unit-to pos target)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility target :computer)
+        (update-cell-visibility! pos :computer)
+        (update-cell-visibility! target :computer)
         (when switch?
           (update-game-map! assoc-in
                             (conj target :contents :patrol-mode) :exploring))
@@ -111,7 +118,8 @@
   "Run BFS to find unseen coast, store full path on unit. Returns path or nil.
    Excludes targets already claimed by other patrol boats this round."
   [pos]
-  (when-let [path (pathfinding-bfs/bfs-to-unseen-coast
+  (when-let [path (movement-port/movement-bfs-to-unseen-coast
+                    (movement-services)
                     pos
                     (read-runtime-state :computer-map)
                     (read-runtime-state :claimed-patrol-targets))]
@@ -133,8 +141,8 @@
   (let [next-pos (first path)
         rest-path (vec (rest path))]
     (if (core/move-unit-to pos next-pos)
-      (do (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility next-pos :computer)
+      (do (update-cell-visibility! pos :computer)
+          (update-cell-visibility! next-pos :computer)
           (if (arrived-at-unseen-coast? next-pos)
             (switch-to-crawling next-pos)
             (update-game-map! assoc-in

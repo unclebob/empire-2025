@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-sailing.path
-  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
+  (:require [empire.computer.movement :as computer-movement]))
 
 (defn passable-sea?
   "Returns true if pos is a passable sea cell for a transport."
@@ -23,4 +23,4 @@
   "Compute BFS path from transport position to best coastal target.
    Looks 4 levels past first hit; prefers unowned coast over unexplored."
   [pos computer-map]
-  (pathfinding-bfs/bfs-to-coast-target pos computer-map))
+  (computer-movement/bfs-to-coast-target pos computer-map))

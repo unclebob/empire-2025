@@ -1,10 +1,10 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.movement-services :as movement-services]
+            [empire.application.runtime :as app-runtime]
             [empire.application.ports.movement :as ports]
             [empire.config :as config]
             [empire.domain.core.unit-metrics :as unit-metrics]
-            [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]))
 
 (def ^:private state-ctx
@@ -104,12 +104,12 @@
 (defn- army-adjacent-to-enemy-city? [coords active-unit]
   (and (= :army (:type active-unit))
        (let [[ax ay] coords]
-         (some (fn [[di dj]]
+               (some (fn [[di dj]]
                  (let [adj-cell (get-in (current-world) [(+ ax di) (+ ay dj)])]
                    (and adj-cell
                         (= (:type adj-cell) :city)
                         (config/hostile-city? (:city-status adj-cell)))))
-               map-utils/neighbor-offsets))))
+               movement-services/neighbor-offsets))))
 
 ;; Returns cargo description for units that carry other units.
 ;; e.g., " (3 armies)" for transports, " (2 fighters)" for carriers.

@@ -2,12 +2,12 @@
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing.path :as sailing-path]
-            [empire.computer.transport-unloading :as unloading]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.transport-unloading :as unloading]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -26,6 +26,14 @@
 (defn- current-world
   []
   ((:load-world @state-ctx)))
+
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
+
+(defn- update-cell-visibility!
+  [pos owner]
+  (movement-port/movement-update-cell-visibility (movement-services) pos owner))
 
 (defn- enemy-ship-near-target?
   [target radius]
@@ -70,16 +78,16 @@
                                     [(core/chebyshev-distance n target-ref) n])))]
         (when-let [sea-pos (first options)]
           (when (core/move-unit-to pos sea-pos)
-            (visibility/update-cell-visibility pos :computer)
-            (visibility/update-cell-visibility sea-pos :computer)
+            (update-cell-visibility! pos :computer)
+            (update-cell-visibility! sea-pos :computer)
             sea-pos))))))
 
 (defn- sail-retreat
   [pos sail-path]
   (let [retreat (first (tc/get-passable-sea-neighbors pos))]
     (when (core/move-unit-to pos retreat)
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility retreat :computer)
+      (update-cell-visibility! pos :computer)
+      (update-cell-visibility! retreat :computer)
       (update-game-map! assoc-in
                         (conj retreat :contents :sail-path)
                         (vec (cons pos sail-path)))
@@ -92,8 +100,8 @@
         remaining2 (if (seq remaining) (vec (rest remaining)) [])
         moved2 (when step2 (core/move-unit-to next-pos step2))]
     (if moved2
-      (do (visibility/update-cell-visibility next-pos :computer)
-          (visibility/update-cell-visibility step2 :computer)
+      (do (update-cell-visibility! next-pos :computer)
+          (update-cell-visibility! step2 :computer)
           (update-game-map! assoc-in
                             (conj step2 :contents :sail-path) remaining2)
           (unloading/try-opportunistic-unload step2)
@@ -108,8 +116,8 @@
   (let [next-pos (first sail-path)
         remaining (vec (rest sail-path))]
     (if (core/move-unit-to pos next-pos)
-      (do (visibility/update-cell-visibility pos :computer)
-          (visibility/update-cell-visibility next-pos :computer)
+      (do (update-cell-visibility! pos :computer)
+          (update-cell-visibility! next-pos :computer)
       (sail-take-second-step pos next-pos remaining))
       (sail-retreat pos sail-path))))
 
@@ -207,8 +215,8 @@
 (defn- move-invasion-step!
   [from to]
   (when (core/move-unit-to from to)
-    (visibility/update-cell-visibility from :computer)
-    (visibility/update-cell-visibility to :computer)
+    (update-cell-visibility! from :computer)
+    (update-cell-visibility! to :computer)
     to))
 
 (defn- finish-invading-at!
@@ -251,8 +259,8 @@
                                  [(- (core/chebyshev-distance p target)) p])
                                candidates))]
     (when (and chosen (core/move-unit-to pos chosen))
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility chosen :computer)
+      (update-cell-visibility! pos :computer)
+      (update-cell-visibility! chosen :computer)
       chosen)))
 
 (defn- handle-invasion-threat-near-target!
@@ -303,8 +311,8 @@
   [from target]
   (when-let [chosen (choose-invading-step from target)]
     (when (core/move-unit-to from chosen)
-      (visibility/update-cell-visibility from :computer)
-      (visibility/update-cell-visibility chosen :computer)
+      (update-cell-visibility! from :computer)
+      (update-cell-visibility! chosen :computer)
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
       (update-game-map! assoc-in (conj chosen :contents :invasion-last-pos) from)

@@ -1,29 +1,30 @@
 (ns empire.units.transport-spec
   (:require [speclj.core :refer :all]
+            [empire.units.config :as units-config]
             [empire.units.transport :as transport]))
 
 (describe "transport unit module"
   (context "configuration"
     (it "has speed of 2"
-      (should= 2 transport/speed))
+      (should= 2 units-config/transport-speed))
 
     (it "has cost of 30"
-      (should= 30 transport/cost))
+      (should= 30 units-config/transport-cost))
 
     (it "has 1 hit point"
-      (should= 1 transport/hits))
+      (should= 1 units-config/transport-hits))
 
     (it "displays as T"
-      (should= "T" transport/display-char))
+      (should= "T" units-config/transport-display-char))
 
     (it "has capacity of 6"
-      (should= 6 transport/capacity))
+      (should= 6 units-config/transport-capacity))
 
     (it "has visibility radius of 1"
-      (should= 1 transport/visibility-radius))
+      (should= 1 units-config/transport-visibility-radius))
 
     (it "has strength of 1"
-      (should= 1 transport/strength)))
+      (should= 1 units-config/transport-strength)))
 
   (context "initial-state"
     (it "starts with no armies and been-to-sea true"

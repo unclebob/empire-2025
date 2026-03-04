@@ -1,10 +1,9 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.movement-services :as movement-services]
+            [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
-            [empire.computer.stamping :as computer-stamping]
-            [empire.config :as config]
-            [empire.movement.map-utils :as map-utils]))
+            [empire.config :as config]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -30,6 +29,28 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
+
+(defn- computer-call
+  [sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol "empire.computer.stamping" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve computer stamping function: " (name sym))
+                              {:symbol sym})))]
+    (apply f args)))
+
+(defn- stamp-computer-fields
+  [unit cell]
+  (computer-call 'stamp-computer-fields unit cell))
+
+(defn- apply-coast-walk-fields
+  [unit item cell coords]
+  (computer-call 'apply-coast-walk-fields unit item cell coords))
+
+(defn- apply-random-explore-fields
+  [unit item cell]
+  (computer-call 'apply-random-explore-fields unit item cell))
 
 (defn set-city-production
   "Sets the production for a city at given coordinates to the specified item."
@@ -83,14 +104,14 @@
   [unit cell]
   (-> unit
       (apply-unit-type-attributes (:type unit))
-      (computer-stamping/stamp-computer-fields cell)))
+      (stamp-computer-fields cell)))
 
 (defn- stamp-adjacent-land
   "Stamps country-id on land cells adjacent to a city when a computer army spawns."
   [coords country-id]
   (let [game-map (current-world)
-        neighbors (map-utils/get-matching-neighbors coords game-map
-                                                    map-utils/neighbor-offsets some?)]
+        neighbors (movement-services/get-matching-neighbors coords game-map
+                                                            movement-services/neighbor-offsets some?)]
     (doseq [n neighbors]
       (let [cell (get-in game-map n)]
         (when (and (= :land (:type cell)) (nil? (:country-id cell)))
@@ -104,8 +125,8 @@
         flight-path (:flight-path cell)
         unit (-> (create-base-unit item owner)
                  (stamp-unit-fields cell)
-                 (computer-stamping/apply-coast-walk-fields item cell coords)
-                 (computer-stamping/apply-random-explore-fields item cell)
+                 (apply-coast-walk-fields item cell coords)
+                 (apply-random-explore-fields item cell)
                  (apply-movement-orders item marching-orders flight-path)
                  (cond-> (= item :transport) (assoc :produced-at coords)))]
     (update-game-map! assoc-in (conj coords :contents) unit)

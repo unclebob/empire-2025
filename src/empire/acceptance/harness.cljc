@@ -4,17 +4,11 @@
    Keeps scenario execution paths behind a stable API."
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
-            [empire.adapters.state.runtime :as runtime-state]
             [empire.computer.fighter :as computer-fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]
             [empire.computer.transport :as computer-transport]
-            [empire.game-loop :as game-loop]
-            [empire.game-loop.item-processing :as item-processing]
             [empire.movement.visibility :as visibility]
-            [empire.test-utils :as test-utils]
-            [empire.ui.quil.input :as quil-input]
-            [empire.ui.util.input.dispatch :as input]
             [quil.core :as q]))
 
 (defonce ^:private state-ctx
@@ -64,57 +58,102 @@
   [v]
   (write-runtime-state! :last-key v))
 
+(defn- test-utils-fn
+  [sym]
+  (or (try
+        (requiring-resolve (symbol "empire.test-utils" (name sym)))
+        (catch #?(:clj Throwable :cljs :default) _
+          nil))
+      (throw (ex-info (str "Unable to resolve empire.test-utils/" (name sym))
+                      {:symbol sym}))))
+
+(defn- ui-input-fn
+  [sym]
+  (or (try
+        (requiring-resolve (symbol "empire.ui.util.input.dispatch" (name sym)))
+        (catch #?(:clj Throwable :cljs :default) _
+          nil))
+      (throw (ex-info (str "Unable to resolve empire.ui.util.input.dispatch/" (name sym))
+                      {:symbol sym}))))
+
+(defn- ui-quil-input-fn
+  [sym]
+  (or (try
+        (requiring-resolve (symbol "empire.ui.quil.input" (name sym)))
+        (catch #?(:clj Throwable :cljs :default) _
+          nil))
+      (throw (ex-info (str "Unable to resolve empire.ui.quil.input/" (name sym))
+                      {:symbol sym}))))
+
+(defn- game-loop-fn
+  [sym]
+  (or (try
+        (requiring-resolve (symbol "empire.game-loop" (name sym)))
+        (catch #?(:clj Throwable :cljs :default) _
+          nil))
+      (throw (ex-info (str "Unable to resolve empire.game-loop/" (name sym))
+                      {:symbol sym}))))
+
+(defn- item-processing-fn
+  [sym]
+  (or (try
+        (requiring-resolve (symbol "empire.game-loop.item-processing" (name sym)))
+        (catch #?(:clj Throwable :cljs :default) _
+          nil))
+      (throw (ex-info (str "Unable to resolve empire.game-loop.item-processing/" (name sym))
+                      {:symbol sym}))))
+
 (defn build-test-map
   [rows]
-  (test-utils/build-test-map rows))
+  ((test-utils-fn 'build-test-map) rows))
 
 (defn set-test-world!
   [m]
-  (test-utils/set-test-world! m))
+  ((test-utils-fn 'set-test-world!) m))
 
 (defn update-test-world!
   [f & args]
-  (apply test-utils/update-test-world! f args))
+  (apply (test-utils-fn 'update-test-world!) f args))
 
 (defn reset-all-atoms!
   []
-  (test-utils/reset-all-atoms!))
+  ((test-utils-fn 'reset-all-atoms!)))
 
 (defn message-matches?
   [message template]
-  (test-utils/message-matches? message template))
+  ((test-utils-fn 'message-matches?) message template))
 
 (defn make-initial-test-map
   [rows cols fill]
-  (test-utils/make-initial-test-map rows cols fill))
+  ((test-utils-fn 'make-initial-test-map) rows cols fill))
 
 (defn visibility-mask
   [m]
-  (test-utils/visibility-mask m))
+  ((test-utils-fn 'visibility-mask) m))
 
 (defn territory-mask
   [m]
-  (test-utils/territory-mask m))
+  ((test-utils-fn 'territory-mask) m))
 
 (defn build-territory-expected
   [rows]
-  (test-utils/build-territory-expected rows))
+  ((test-utils-fn 'build-territory-expected) rows))
 
 (defn set-unit!
   [unit-spec & kvs]
-  (apply test-utils/set-test-unit (runtime-state/game-map-atom) unit-spec kvs))
+  (apply (test-utils-fn 'set-test-unit) :game-map unit-spec kvs))
 
 (defn get-unit
   [unit-spec & {:as filters}]
-  (apply test-utils/get-test-unit (read-state :game-map) unit-spec (mapcat identity filters)))
+  (apply (test-utils-fn 'get-test-unit) (read-state :game-map) unit-spec (mapcat identity filters)))
 
 (defn get-city
   [city-spec]
-  (test-utils/get-test-city (read-state :game-map) city-spec))
+  ((test-utils-fn 'get-test-city) (read-state :game-map) city-spec))
 
 (defn get-cell
   [cell-spec]
-  (test-utils/get-test-cell (read-state :game-map) cell-spec))
+  ((test-utils-fn 'get-test-cell) (read-state :game-map) cell-spec))
 
 (defn cell-at
   ([coords]
@@ -174,37 +213,37 @@
 
 (defn handle-key!
   [k]
-  (input/handle-key k))
+  ((ui-input-fn 'handle-key) k))
 
 (defn key-down!
   [k]
   (with-redefs [q/mouse-x (constantly 0)
                 q/mouse-y (constantly 0)]
     (set-last-key! nil)
-    (quil-input/key-down k)))
+    ((ui-quil-input-fn 'key-down) k)))
 
 (defn key-down-at!
   [k mouse-x mouse-y]
   (with-redefs [q/mouse-x (constantly mouse-x)
                 q/mouse-y (constantly mouse-y)]
     (set-last-key! nil)
-    (quil-input/key-down k)))
+    ((ui-quil-input-fn 'key-down) k)))
 
 (defn start-new-round!
   []
-  (game-loop/start-new-round))
+  ((game-loop-fn 'start-new-round)))
 
 (defn advance-game!
   []
-  (game-loop/advance-game))
+  ((game-loop-fn 'advance-game)))
 
 (defn process-player-items-batch!
   []
-  (item-processing/process-player-items-batch))
+  ((item-processing-fn 'process-player-items-batch)))
 
 (defn update-player-map!
   []
-  (game-loop/update-player-map))
+  ((game-loop-fn 'update-player-map)))
 
 (defn update-cell-visibility!
   [pos owner unit]

@@ -5,8 +5,7 @@
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]))
+            [empire.application.ports.movement :as movement-port]))
 
 (def ^:private invasion-army-search-max-distance 6)
 (def ^:private invasion-load-timeout-rounds 5)
@@ -63,12 +62,12 @@
     army-pos))
 
 (defn- nearest-reachable-coastal-army
-  [world read-runtime-state get-neighbors transport-pos]
+  [world read-runtime-state get-neighbors movement-services transport-pos]
   (let [computer-map (read-runtime-state :computer-map)
         candidates (candidate-coastal-armies world computer-map get-neighbors transport-pos)
         scored (keep (fn [army-pos]
-                       (when-let [path (pathfinding-bfs/bfs-to-land-ho-target
-                                        transport-pos army-pos computer-map)]
+                       (when-let [path (movement-port/movement-bfs-to-land-ho-target
+                                        movement-services transport-pos army-pos computer-map)]
                          {:army-pos army-pos
                           :path path
                           :score [(count path)
@@ -78,10 +77,10 @@
     (first (sort-by :score scored))))
 
 (defn- move-to-sea-step
-  [move-unit-to load-adjacent-armies from step]
+  [move-unit-to movement-services load-adjacent-armies from step]
   (when (and step (move-unit-to from step))
-    (visibility/update-cell-visibility from :computer)
-    (visibility/update-cell-visibility step :computer)
+    (movement-port/movement-update-cell-visibility movement-services from :computer)
+    (movement-port/movement-update-cell-visibility movement-services step :computer)
     (load-adjacent-armies step)
     step))
 
@@ -90,6 +89,7 @@
            read-runtime-state
            update-game-map!
            get-neighbors
+           movement-services
            load-adjacent-armies
            coastal-crawl-move
            move-unit-to]} pos]
@@ -105,9 +105,9 @@
       (load-for-invasion-start! update-game-map! read-runtime-state pos)
 
       :else
-      (if-let [{:keys [path]} (nearest-reachable-coastal-army world read-runtime-state get-neighbors pos)]
+      (if-let [{:keys [path]} (nearest-reachable-coastal-army world read-runtime-state get-neighbors movement-services pos)]
         (if (seq path)
-          (or (move-to-sea-step move-unit-to load-adjacent-armies pos (first path))
+          (or (move-to-sea-step move-unit-to movement-services load-adjacent-armies pos (first path))
               (coastal-crawl-move pos))
           (load-for-invasion-start! update-game-map! read-runtime-state pos))
         (update-game-map! update-in (conj pos :contents)

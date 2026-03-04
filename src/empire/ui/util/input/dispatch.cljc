@@ -2,12 +2,7 @@
   (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.debug :as debug]
-            [empire.game-loop :as game-loop]
             [empire.movement.map-utils :as map-utils]
-            [empire.player.attention :as attention]
-            [empire.player.commands :as commands]
-            [empire.player.orders :as orders]
-            [empire.save-load :as save-load]
             [empire.ui.util.input.actions :as actions]))
 
 (defonce ^:private state-ctx
@@ -27,16 +22,48 @@
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
 
+(defn- save-load-call
+  [sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol "empire.save-load" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve save-load function: " (name sym))
+                              {:symbol sym})))]
+    (apply f args)))
+
+(defn- game-loop-call
+  [sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol "empire.game-loop" (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve game-loop function: " (name sym))
+                              {:symbol sym})))]
+    (apply f args)))
+
+(defn- player-call
+  [ns-name sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol ns-name (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
+                              {:namespace ns-name
+                               :symbol sym})))]
+    (apply f args)))
+
 (defn handle-key [k] (actions/handle-key k))
 
-(def handle-unit-click commands/handle-unit-click)
+(defn handle-unit-click [clicked-coords attention-coords]
+  (player-call "empire.player.commands" 'handle-unit-click clicked-coords attention-coords))
 
 (defn handle-cell-click
   "Handles clicking on a map cell, prioritizing attention-needing items."
   [cell-x cell-y]
   (let [attention-coords (read-runtime-state :cells-needing-attention)
         clicked-coords [cell-x cell-y]]
-    (when (attention/is-unit-needing-attention? attention-coords)
+    (when (player-call "empire.player.attention" 'is-unit-needing-attention? attention-coords)
       (handle-unit-click clicked-coords attention-coords))))
 
 (defn handle-load-menu-click
@@ -46,7 +73,7 @@
   (when-let [idx (read-runtime-state :load-menu-hovered)]
     (let [files (read-runtime-state :load-menu-files)]
       (when (< idx (count files))
-        (save-load/load-game! (nth files idx))))))
+        (save-load-call 'load-game! (nth files idx))))))
 
 (defn mouse-down
   "Handles mouse click events."
@@ -112,22 +139,22 @@
    :s [:submarine :computer] :c [:carrier :computer] :b [:battleship :computer]})
 
 (def ^:private standing-order-handlers
-  {(keyword ".") #'orders/set-destination-at
-   (keyword "*") #'orders/set-waypoint-at
-   :l #'orders/set-city-lookaround
-   :u #'orders/wake-at
-   :m #'orders/set-marching-orders-at
-   :f #'orders/set-flight-path-at})
+  {(keyword ".") ["empire.player.orders" 'set-destination-at]
+   (keyword "*") ["empire.player.orders" 'set-waypoint-at]
+   :l ["empire.player.orders" 'set-city-lookaround]
+   :u ["empire.player.orders" 'wake-at]
+   :m ["empire.player.orders" 'set-marching-orders-at]
+   :f ["empire.player.orders" 'set-flight-path-at]})
 
 (defn- dispatch-load-menu-key [k]
-  (when (= k :escape) (save-load/close-load-menu!)))
+  (when (= k :escape) (save-load-call 'close-load-menu!)))
 
 (defn- dispatch-backtick-key [k cell-coords]
   (write-runtime-state! :backtick-pressed false)
   (when cell-coords
     (if-let [[unit-type owner] (backtick-unit-map k)]
-      (orders/add-unit-at cell-coords unit-type owner)
-      (when (= k :o) (orders/own-city-at cell-coords)))))
+      (player-call "empire.player.orders" 'add-unit-at cell-coords unit-type owner)
+      (when (= k :o) (player-call "empire.player.orders" 'own-city-at cell-coords)))))
 
 (def ^:private backtick-key (keyword "`"))
 (def ^:private bang-key (keyword "!"))
@@ -143,26 +170,26 @@
 (defn- dispatch-game-control-key [k]
   (cond
     (= k backtick-key) (do (write-runtime-state! :backtick-pressed true) true)
-    (= k :P) (do (game-loop/toggle-pause) true)
+    (= k :P) (do (game-loop-call 'toggle-pause) true)
     (= k :+) (do (update-runtime-state! :map-to-display cycle-map-display) true)
-    (and (= k :space) (read-runtime-state :paused)) (do (game-loop/step-one-round) true)))
+    (and (= k :space) (read-runtime-state :paused)) (do (game-loop-call 'step-one-round) true)))
 
 (defn- dispatch-save-load-key [k]
   (cond
     (= k bang-key) (do (write-runtime-state! :turn-message
-                                             (str "Saved to " (save-load/save-game!)))
+                                             (str "Saved to " (save-load-call 'save-game!)))
                        (write-runtime-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
                        true)
-    (= k caret-key) (do (save-load/open-load-menu!) true)))
+    (= k caret-key) (do (save-load-call 'open-load-menu!) true)))
 
 (defn- dispatch-standing-order-key [k cell-coords]
-  (when-let [handler (standing-order-handlers k)]
-    (when cell-coords (handler cell-coords))))
+  (when-let [[ns-name sym] (standing-order-handlers k)]
+    (when cell-coords (player-call ns-name sym cell-coords))))
 
 (defn- dispatch-coord-key [k cell-coords]
   (when cell-coords
     (or (dispatch-standing-order-key k cell-coords)
-        (orders/set-city-marching-orders-by-direction-at cell-coords k))))
+        (player-call "empire.player.orders" 'set-city-marching-orders-by-direction-at cell-coords k))))
 
 (defn- dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)

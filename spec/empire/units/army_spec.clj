@@ -1,26 +1,27 @@
 (ns empire.units.army-spec
   (:require [speclj.core :refer :all]
-            [empire.units.army :as army]))
+            [empire.units.army :as army]
+            [empire.units.config :as units-config]))
 
 (describe "army unit module"
   (context "configuration"
     (it "has speed of 1"
-      (should= 1 army/speed))
+      (should= 1 units-config/army-speed))
 
     (it "has cost of 5"
-      (should= 5 army/cost))
+      (should= 5 units-config/army-cost))
 
     (it "has 1 hit point"
-      (should= 1 army/hits))
+      (should= 1 units-config/army-hits))
 
     (it "has strength of 1"
-      (should= 1 army/strength))
+      (should= 1 units-config/army-strength))
 
     (it "displays as A"
-      (should= "A" army/display-char))
+      (should= "A" units-config/army-display-char))
 
     (it "has visibility radius of 1"
-      (should= 1 army/visibility-radius)))
+      (should= 1 units-config/army-visibility-radius)))
 
   (context "initial-state"
     (it "returns empty map"

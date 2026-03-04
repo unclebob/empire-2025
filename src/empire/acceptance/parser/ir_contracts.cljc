@@ -50,7 +50,7 @@
 (s/def ::at-next-step boolean?)
 
 ;; GIVEN
-(defmulti given-ir-spec :type)
+(defmulti ^:private given-ir-spec :type)
 
 (defmethod given-ir-spec :map [_]
   (s/keys :req-un [::type ::target ::rows]))
@@ -130,7 +130,7 @@
 (s/def ::given-result (s/keys :req-un [::givens]))
 
 ;; WHEN
-(defmulti when-ir-spec :type)
+(defmulti ^:private when-ir-spec :type)
 
 (defmethod when-ir-spec :key-press [_]
   (s/keys :req-un [::type ::key ::input-fn]))
@@ -171,7 +171,7 @@
 (s/def ::when-result (s/keys :req-un [::whens]))
 
 ;; THEN
-(defmulti then-ir-spec :type)
+(defmulti ^:private then-ir-spec :type)
 
 (defmethod then-ir-spec :unit-at [_]
   (s/or :coords (s/keys :req-un [::type ::unit ::coords])

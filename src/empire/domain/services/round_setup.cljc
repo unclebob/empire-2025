@@ -1,24 +1,22 @@
 ;; mutation-tested: no
-(ns empire.domain.services.round-setup
-  (:require [empire.config :as config]))
+(ns empire.domain.services.round-setup)
 
-(defn dead-unit?
-  [contents]
-  (and contents (<= (:hits contents 1) 0)))
+(defonce ^:private methods-loaded?
+  (delay
+    (try
+      (require 'empire.domain.services.impl.round-setup)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
-(defn computer-carrier?
-  [contents]
-  (and (= :carrier (:type contents)) (= :computer (:owner contents))))
+(defn- ensure-methods-loaded!
+  []
+  @methods-loaded?
+  nil)
 
-(defn bingo-fuel?
-  [new-fuel friendly-city-in-range?]
-  (let [threshold (quot config/fighter-fuel config/bingo-fuel-divisor)]
-    (and (<= new-fuel threshold) friendly-city-in-range?)))
+(defmulti dead-unit? (fn [& _] (ensure-methods-loaded!) :default))
 
-(defn fuel-action
-  [new-fuel bingo?]
-  (cond
-    (<= new-fuel 0) :crashed
-    (<= new-fuel 1) :out-of-fuel
-    bingo? :bingo
-    :else :burn))
+(defmulti computer-carrier? (fn [& _] (ensure-methods-loaded!) :default))
+
+(defmulti bingo-fuel? (fn [& _] (ensure-methods-loaded!) :default))
+
+(defmulti fuel-action (fn [& _] (ensure-methods-loaded!) :default))

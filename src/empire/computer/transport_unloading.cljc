@@ -10,7 +10,7 @@
             [empire.computer.transport-unloading.filtering :as filtering]
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -99,7 +99,7 @@
     (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
     (update-game-map! assoc-in (conj land-pos :contents) army)
     (core/stamp-territory land-pos army)
-    (visibility/update-cell-visibility land-pos :computer)))
+    (computer-movement/update-cell-visibility! land-pos :computer)))
 
 (defn- record-unloaded-country!
   [pos targets]
@@ -216,8 +216,8 @@
     (when (seq targets)
       (let [target (rand-nth targets)]
         (core/move-unit-to pos target)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility target :computer)
+        (computer-movement/update-cell-visibility! pos :computer)
+        (computer-movement/update-cell-visibility! target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
           (update-game-map! assoc-in (conj target :contents :crawl-history) new-history))
         target))))

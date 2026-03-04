@@ -1,29 +1,30 @@
 (ns empire.units.carrier-spec
   (:require [speclj.core :refer :all]
+            [empire.units.config :as units-config]
             [empire.units.carrier :as carrier]))
 
 (describe "carrier unit module"
   (context "configuration"
     (it "has speed of 2"
-      (should= 2 carrier/speed))
+      (should= 2 units-config/carrier-speed))
 
     (it "has cost of 30"
-      (should= 30 carrier/cost))
+      (should= 30 units-config/carrier-cost))
 
     (it "has 8 hit points"
-      (should= 8 carrier/hits))
+      (should= 8 units-config/carrier-hits))
 
     (it "displays as C"
-      (should= "C" carrier/display-char))
+      (should= "C" units-config/carrier-display-char))
 
     (it "has capacity of 8"
-      (should= 8 carrier/capacity))
+      (should= 8 units-config/carrier-capacity))
 
     (it "has visibility radius of 1"
-      (should= 1 carrier/visibility-radius))
+      (should= 1 units-config/carrier-visibility-radius))
 
     (it "has strength of 1"
-      (should= 1 carrier/strength)))
+      (should= 1 units-config/carrier-strength)))
 
   (context "initial-state"
     (it "starts with no fighters"

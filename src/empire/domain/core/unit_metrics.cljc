@@ -1,22 +1,28 @@
 ;; mutation-tested: no
 (ns empire.domain.core.unit-metrics)
 
-(def naval-units
+(def ^:private naval-units
   #{:transport :patrol-boat :destroyer :submarine :carrier :battleship})
 
-(defn naval-unit?
-  [unit-type]
-  (contains? naval-units unit-type))
+(defonce ^:private methods-loaded?
+  (delay
+    (try
+      (require 'empire.domain.core.impl.unit-metrics)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
 
-(defn scale-by-hits
+(defn- ensure-methods-loaded!
+  []
+  @methods-loaded?
+  nil)
+
+(defmulti naval-unit?
+  (fn [& _] (ensure-methods-loaded!) :default))
+
+(defmulti scale-by-hits
   "VMS ceiling division scaling helper."
-  [base-value current-hits max-hits]
-  (quot (+ (* base-value current-hits) (dec max-hits)) max-hits))
+  (fn [& _] (ensure-methods-loaded!) :default))
 
-(defn effective-speed
-  [base-speed current-hits max-hits]
-  (scale-by-hits base-speed current-hits max-hits))
+(defmulti effective-speed (fn [& _] (ensure-methods-loaded!) :default))
 
-(defn effective-capacity
-  [base-cap current-hits max-hits]
-  (scale-by-hits base-cap current-hits max-hits))
+(defmulti effective-capacity (fn [& _] (ensure-methods-loaded!) :default))

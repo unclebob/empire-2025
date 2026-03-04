@@ -10,7 +10,7 @@
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
             [empire.computer.ship-patrol :as patrol]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -58,8 +58,8 @@
 (defn- try-retreat [pos unit]
   (when-let [rp (ship-core/retreat-if-damaged pos unit)]
     (core/move-unit-to pos rp)
-    (visibility/update-cell-visibility pos :computer)
-    (visibility/update-cell-visibility rp :computer)))
+    (computer-movement/update-cell-visibility! pos :computer)
+    (computer-movement/update-cell-visibility! rp :computer)))
 
 (defn- try-attack-adjacent [pos]
   (when-let [ep (ship-core/find-adjacent-enemy-ship pos)]

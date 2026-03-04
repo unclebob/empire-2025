@@ -1,72 +1,67 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.transport)
 
-;; Configuration
-(def speed 2)
-(def cost 30)
-(def hits 1)
-(def strength 1)
-(def display-char "T")
-(def capacity 6)
-(def visibility-radius 1)
+#?(:clj
+   (defonce ^:private methods-loaded? (atom false)))
 
-(defn initial-state
-  "Returns initial state fields for a new transport."
-  []
-  {:army-count 0
-   :awake-armies 0
-   :been-to-sea true})
+#?(:clj
+   (defn- ensure-methods-loaded!
+     []
+     (when-not @methods-loaded?
+       (requiring-resolve 'empire.units.impl.transport/load-methods!)
+       (reset! methods-loaded? true))))
 
-(defn can-move-to?
-  "Transports can only move on sea."
-  [cell]
-  (and cell
-       (= (:type cell) :sea)))
+(defmulti initial-state
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn needs-attention?
-  "Transports need attention when awake or when they have awake armies aboard."
-  [unit]
-  (or (= (:mode unit) :awake)
-      (pos? (:awake-armies unit 0))))
+(defmulti can-move-to?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn full?
-  "Returns true if transport is at capacity."
-  [unit]
-  (>= (:army-count unit 0) capacity))
+(defmulti needs-attention?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn has-armies?
-  "Returns true if transport has any armies aboard."
-  [unit]
-  (pos? (:army-count unit 0)))
+(defmulti full?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn has-awake-armies?
-  "Returns true if transport has awake armies aboard."
-  [unit]
-  (pos? (:awake-armies unit 0)))
+(defmulti has-armies?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn add-army
-  "Adds an army to the transport. Returns updated transport."
-  [unit]
-  (update unit :army-count (fnil inc 0)))
+(defmulti has-awake-armies?
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn remove-army
-  "Removes an army from the transport. Returns updated transport."
-  [unit]
-  (update unit :army-count (fnil dec 0)))
+(defmulti add-army
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn wake-armies
-  "Wakes all sleeping armies aboard the transport."
-  [unit]
-  (assoc unit :awake-armies (:army-count unit 0)))
+(defmulti remove-army
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn sleep-armies
-  "Puts all armies aboard back to sleep."
-  [unit]
-  (assoc unit :awake-armies 0))
+(defmulti wake-armies
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
 
-(defn remove-awake-army
-  "Removes one awake army from the transport. Returns updated transport."
-  [unit]
-  (-> unit
-      (update :army-count (fnil dec 0))
-      (update :awake-armies (fnil dec 0))))
+(defmulti sleep-armies
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))
+
+(defmulti remove-awake-army
+  (fn [& _]
+    #?(:clj (ensure-methods-loaded!))
+    :default))

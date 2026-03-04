@@ -2,12 +2,12 @@
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
-            [empire.debug :as debug]
-            [empire.movement.visibility :as visibility]))
+            [empire.debug :as debug]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -23,6 +23,14 @@
 (defn- read-runtime-state
   [k]
   ((:read-runtime-state @state-ctx) k))
+
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
+
+(defn- update-cell-visibility!
+  [pos owner]
+  (movement-port/movement-update-cell-visibility (movement-services) pos owner))
 
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."
@@ -109,7 +117,7 @@
       (doseq [army-pos loaded-positions]
         (debug/log-computer-event! :transport-load-army pos {:from army-pos})
         (update-game-map! update-in army-pos dissoc :contents)
-        (visibility/update-cell-visibility army-pos :computer))
+        (update-cell-visibility! army-pos :computer))
       (when (pos? to-load)
         (update-game-map! update-in (conj pos :contents :army-count) (fnil + 0) to-load))
       ;; Wake nearby sentries to advance the transport queue
@@ -134,8 +142,8 @@
     (when (seq targets)
       (let [target (rand-nth targets)]
         (core/move-unit-to pos target)
-        (visibility/update-cell-visibility pos :computer)
-        (visibility/update-cell-visibility target :computer)
+        (update-cell-visibility! pos :computer)
+        (update-cell-visibility! target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
           (update-game-map! assoc-in (conj target :contents :crawl-history) new-history))
         ;; Auto-load armies from adjacent land at new position

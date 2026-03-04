@@ -2,13 +2,12 @@
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
   (:require [empire.application.runtime :as app-runtime]
+            [empire.application.ports.movement :as movement-port]
             [empire.application.state :as app-state]
             [empire.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.threat :as threat]
-            [empire.containers.helpers :as uc]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]))
+            [empire.containers.helpers :as uc]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -35,6 +34,16 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
+(defn- movement-services
+  []
+  (:movement-port @state-ctx))
+
+(defn- update-cell-visibility!
+  ([pos owner]
+   (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+  ([pos owner unit]
+   (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
+
 (defn- set-turn-message!
   [msg ms]
   (write-runtime-state! :turn-message msg)
@@ -42,8 +51,9 @@
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
 
-(defn get-passable-sea-neighbors
-  "Returns passable sea neighbors for a ship."
+(defmulti get-passable-sea-neighbors (fn [& _] :default))
+
+(defmethod get-passable-sea-neighbors :default
   [pos]
   (let [game-map (current-world)]
     (filter (fn [neighbor]
@@ -54,8 +64,9 @@
                          (= :player (:owner (:contents cell)))))))
             (core/get-neighbors pos))))
 
-(defn find-adjacent-enemy-ship
-  "Finds an adjacent enemy ship to attack."
+(defmulti find-adjacent-enemy-ship (fn [& _] :default))
+
+(defmethod find-adjacent-enemy-ship :default
   [pos]
   (let [game-map (current-world)]
     (first (filter (fn [neighbor]
@@ -67,8 +78,9 @@
                                :carrier :battleship} (:type unit)))))
                    (core/get-neighbors pos)))))
 
-(defn attack-enemy
-  "Attack an adjacent enemy. Returns new position or nil if ship died."
+(defmulti attack-enemy (fn [& _] :default))
+
+(defmethod attack-enemy :default
   [ship-pos enemy-pos]
   (let [attacker (get-in (current-world) (conj ship-pos :contents))
         defender (get-in (current-world) (conj enemy-pos :contents))
@@ -86,52 +98,57 @@
         (when (= :carrier (:type attacker))
           (update-runtime-state! :computer-carrier-positions disj ship-pos)
           (update-runtime-state! :computer-carrier-positions (fnil conj #{}) enemy-pos))
-        (visibility/update-cell-visibility ship-pos :computer)
-        (visibility/update-cell-visibility enemy-pos :computer)
+        (update-cell-visibility! ship-pos :computer)
+        (update-cell-visibility! enemy-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         enemy-pos)
       (do
         (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
         (when (= :carrier (:type attacker))
           (update-runtime-state! :computer-carrier-positions disj ship-pos))
-        (visibility/update-cell-visibility ship-pos :computer)
+        (update-cell-visibility! ship-pos :computer)
         (combat/clear-escort-on-death dead-unit)
         nil))))
 
-(defn move-toward
-  "Move ship one step toward target."
+(defmulti move-toward (fn [& _] :default))
+
+(defmethod move-toward :default
   [pos target]
   (let [passable (get-passable-sea-neighbors pos)
         closest (core/move-toward pos target passable)]
     (when closest
       (core/move-unit-to pos closest)
-      (visibility/update-cell-visibility pos :computer)
-      (visibility/update-cell-visibility closest :computer)
+      (update-cell-visibility! pos :computer)
+      (update-cell-visibility! closest :computer)
       closest)))
 
-(defn explore-sea
-  "Move toward unexplored sea via BFS. Stays put if all sea is explored."
+(defmulti explore-sea (fn [& _] :default))
+
+(defmethod explore-sea :default
   [pos ship-type]
-  (when-let [target (pathfinding-bfs/find-nearest-unexplored pos ship-type)]
+  (when-let [target (movement-port/movement-find-nearest-unexplored (movement-services) pos ship-type)]
     (move-toward pos target)))
 
-(defn find-player-ship-sighting
-  "Find the nearest visible player ship position."
+(defmulti find-player-ship-sighting (fn [& _] :default))
+
+(defmethod find-player-ship-sighting :default
   [pos]
   (let [player-units (core/find-visible-player-units)]
     (when (seq player-units)
       (apply min-key (partial core/distance pos) player-units))))
 
-(defn retreat-if-damaged
-  "If damaged and under threat, retreat toward friendly city."
+(defmulti retreat-if-damaged (fn [& _] :default))
+
+(defmethod retreat-if-damaged :default
   [pos unit]
   (let [comp-map (read-runtime-state :computer-map)]
     (when (threat/should-retreat? pos unit comp-map)
     (let [passable (get-passable-sea-neighbors pos)]
       (threat/retreat-move pos unit comp-map passable)))))
 
-(defn find-computer-transports
-  "Find computer transports to protect."
+(defmulti find-computer-transports (fn [& _] :default))
+
+(defmethod find-computer-transports :default
   []
   (let [game-map (current-world)]
     (for [i (range (count game-map))
@@ -143,22 +160,25 @@
                      (= :transport (:type unit)))]
       [i j])))
 
-(defn find-nearest-transport
-  "Find the nearest computer transport."
+(defmulti find-nearest-transport (fn [& _] :default))
+
+(defmethod find-nearest-transport :default
   [pos]
   (let [transports (find-computer-transports)]
     (when (seq transports)
       (apply min-key (partial core/distance pos) transports))))
 
-(defn find-adjacent-dock-city
-  "Finds an adjacent friendly city where a damaged ship can dock for repair."
+(defmulti find-adjacent-dock-city (fn [& _] :default))
+
+(defmethod find-adjacent-dock-city :default
   [pos unit]
   (first (filter (fn [neighbor]
                    (uc/ship-can-dock? unit (get-in (current-world) neighbor)))
                  (core/get-neighbors pos))))
 
-(defn dock-computer-ship
-  "Docks a damaged computer ship into a friendly city's shipyard."
+(defmulti dock-computer-ship (fn [& _] :default))
+
+(defmethod dock-computer-ship :default
   [ship-pos city-pos]
   (let [cell (get-in (current-world) ship-pos)
         unit (:contents cell)
@@ -166,5 +186,5 @@
         updated-city (uc/add-ship-to-shipyard city-cell (:type unit) (:hits unit))]
     (update-game-map! assoc-in ship-pos (dissoc cell :contents))
     (update-game-map! assoc-in city-pos updated-city)
-    (visibility/update-cell-visibility city-pos :computer)
+    (update-cell-visibility! city-pos :computer)
     city-pos))

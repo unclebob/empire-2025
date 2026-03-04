@@ -6,7 +6,7 @@
             [empire.application.state :as app-state]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.movement :as computer-movement]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -32,7 +32,7 @@
                             (= carrier-id (:carrier-id unit)))]
              [i j]))))
 
-(defn find-transport-by-id
+(defn- find-transport-by-id
   "Finds the position of a transport with the given transport-id."
   [transport-id]
   (let [game-map (current-world)]

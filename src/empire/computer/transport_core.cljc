@@ -3,8 +3,7 @@
   "Shared transport helpers — no dependencies on other transport sub-modules."
   (:require [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
-            [empire.computer.core :as core]
-            [empire.movement.visibility :as visibility]))
+            [empire.computer.core :as core]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -25,8 +24,9 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
-(defn get-passable-sea-neighbors
-  "Returns passable sea neighbors for a transport."
+(defmulti get-passable-sea-neighbors (fn [& _] :default))
+
+(defmethod get-passable-sea-neighbors :default
   [pos]
   (let [game-map (current-world)]
     (filter (fn [neighbor]
@@ -37,22 +37,25 @@
                          (= :computer (:owner (:contents cell)))))))
             (core/get-neighbors pos))))
 
-(defn recently-unloaded-country?
-  "Returns true if the country-id was unloaded to within the last 10 rounds."
+(defmulti recently-unloaded-country? (fn [& _] :default))
+
+(defmethod recently-unloaded-country? :default
   [unloaded-countries country-id]
   (when-let [unload-round (get unloaded-countries country-id)]
     (< (- (or (read-runtime-state :round-number) 0) unload-round) 10)))
 
-(defn adjacent-to-land?
-  "Returns true if position has adjacent land cell."
+(defmulti adjacent-to-land? (fn [& _] :default))
+
+(defmethod adjacent-to-land? :default
   [pos]
   (let [game-map (current-world)]
     (some (fn [n]
             (= :land (:type (get-in game-map n))))
           (core/get-neighbors pos))))
 
-(defn find-adjacent-land-pos
-  "Returns the first adjacent land or city position, or nil."
+(defmulti find-adjacent-land-pos (fn [& _] :default))
+
+(defmethod find-adjacent-land-pos :default
   [pos]
   (let [game-map (current-world)]
     (first (filter (fn [n]
@@ -60,34 +63,36 @@
                        (and cell (#{:land :city} (:type cell)))))
                    (core/get-neighbors pos)))))
 
-(defn set-transport-mission
-  "Set the transport's mission state."
+(defmulti set-transport-mission (fn [& _] :default))
+
+(defmethod set-transport-mission :default
   [pos mission]
   (update-game-map! assoc-in (conj pos :contents :transport-mission) mission)
   (when (= mission :loading)
     (update-game-map! assoc-in (conj pos :contents :loading-since)
                       (or (read-runtime-state :round-number) 0))))
 
-(defn mint-unload-event-id
-  "Mint a new unload-event-id each time transport transitions to unloading.
-   Always mints a fresh ID so armies from previous unload cycles can be loaded."
+(defmulti mint-unload-event-id (fn [& _] :default))
+
+(defmethod mint-unload-event-id :default
   [pos _transport]
   (let [id (or (read-runtime-state :next-unload-event-id) 0)]
     (write-runtime-state! :next-unload-event-id (inc id))
     (update-game-map! assoc-in
            (conj pos :contents :unload-event-id) id)))
 
-(defn mint-unload-country-id
-  "Mint a new country-id for armies unloaded in this sailing cycle."
+(defmulti mint-unload-country-id (fn [& _] :default))
+
+(defmethod mint-unload-country-id :default
   [pos]
   (let [cid (or (read-runtime-state :next-country-id) 0)]
     (write-runtime-state! :next-country-id (inc cid))
     (update-game-map! assoc-in
            (conj pos :contents :unload-country-id) cid)))
 
-(defn record-pickup-continent-pos
-  "When transport becomes full, record the nearest adjacent land position
-   as the pickup continent reference point and its country-id."
+(defmulti record-pickup-continent-pos (fn [& _] :default))
+
+(defmethod record-pickup-continent-pos :default
   [pos transport]
   (when-not (:pickup-continent-pos transport)
     (when-let [land-pos (find-adjacent-land-pos pos)]

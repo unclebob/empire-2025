@@ -1,14 +1,13 @@
 ;; mutation-tested: no
 (ns empire.player.commands.actions
   "Extracted unit action handlers for player command processing."
-  (:require [empire.application.ports.movement :as ports]
+  (:require [empire.application.movement-services :as movement-services]
+            [empire.application.player-movement-services :as player-movement]
+            [empire.application.ports.movement :as ports]
             [empire.player.attention :as attention]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.movement.coastline :as coastline]
-            [empire.movement.explore :as explore]
-            [empire.movement.map-utils :as map-utils]
             [empire.config :as config]
             [empire.units.dispatcher :as dispatcher]))
 
@@ -106,12 +105,13 @@
 
 (defn handle-look-around-key [ctx coords _cell active-unit]
   (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port ctx) active-unit)
-        near-coast? (map-utils/any-neighbor-matches? coords (current-world ctx) map-utils/neighbor-offsets
-                                                   #(= :land (:type %)))
-        rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
+        near-coast? (movement-services/any-neighbor-matches?
+                     coords (current-world ctx) movement-services/neighbor-offsets
+                     #(= :land (:type %)))
+        rejection-reason (player-movement/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond
       (free-army? active-unit is-army-aboard?)
-      (do (explore/set-explore-mode coords)
+      (do (player-movement/set-explore-mode coords)
           (item-processed! ctx)
           true)
 
@@ -121,8 +121,8 @@
             (item-processed! ctx))
           true)
 
-      (coastline/coastline-follow-eligible? active-unit near-coast?)
-      (do (coastline/set-coastline-follow-mode coords)
+      (player-movement/coastline-follow-eligible? active-unit near-coast?)
+      (do (player-movement/set-coastline-follow-mode coords)
           (item-processed! ctx)
           true)
 

@@ -26,24 +26,24 @@
   (it "produces fighter only when fighters are below computer city count"
     (set-test-world! (build-test-map ["X#Xf"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
-    (should= :fighter (decisions/decide-country-production [0 0] 1 false {:transport 0 :destroyer 0}))
+    (should= :fighter (#'decisions/decide-country-production [0 0] 1 false {:transport 0 :destroyer 0}))
     (update-test-world! assoc-in [1 0] {:type :sea :contents {:type :fighter :owner :computer}})
-    (should-not= :fighter (decisions/decide-country-production [0 0] 1 false {:transport 0 :destroyer 0})))
+    (should-not= :fighter (#'decisions/decide-country-production [0 0] 1 false {:transport 0 :destroyer 0})))
 
   (it "chooses submarine in global production when carrier ratio requires it"
-    (should= :submarine (decisions/decide-global-production true {:carrier 2 :battleship 2 :submarine 1 :satellite 1})))
+    (should= :submarine (#'decisions/decide-global-production true {:carrier 2 :battleship 2 :submarine 1 :satellite 1})))
 
   (it "chooses satellite in global production when carrier and capital-ship gates do not apply"
     (with-redefs [empire.computer.production.stats/count-computer-cities (constantly 20)]
-      (should= :satellite (decisions/decide-global-production false {:carrier 0 :battleship 0 :submarine 0 :satellite 0}))))
+      (should= :satellite (#'decisions/decide-global-production false {:carrier 0 :battleship 0 :submarine 0 :satellite 0}))))
 
   (it "executes early production side effects"
     (test-utils/set-test-state! :transport-fully-loaded? true)
     (test-utils/set-test-state! :early-patrol-boat-produced? false)
     (test-utils/set-test-state! :early-satellite-produced? false)
-    (should= :patrol-boat (decisions/decide-early-production [0 0] true))
+    (should= :patrol-boat (#'decisions/decide-early-production [0 0] true))
     (should (test-utils/read-test-state :early-patrol-boat-produced?))
-    (should= :satellite (decisions/decide-early-production [0 0] false))
+    (should= :satellite (#'decisions/decide-early-production [0 0] false))
     (should (test-utils/read-test-state :early-satellite-produced?)))
 
   (it "falls back to army when city has no country and no early production"

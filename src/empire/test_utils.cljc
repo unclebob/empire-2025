@@ -2,8 +2,6 @@
   (:require [clojure.string :as str]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
-            [empire.adapters.state.runtime :as runtime-state]
-            [empire.computer.land-objectives :as land-objectives]
             [empire.movement.bootstrap :as movement-bootstrap]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -11,17 +9,49 @@
 
 (defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
 
+(def ^:private legacy-game-map-atom-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.runtime/game-map-atom)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private legacy-player-map-atom-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.runtime/player-map-atom)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
+(def ^:private legacy-computer-map-atom-fn
+  (delay
+    (try
+      (requiring-resolve 'empire.adapters.state.runtime/computer-map-atom)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil))))
+
 (defn read-test-state
   [k]
-  (runtime-state/read-runtime-state @state-ctx k))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn set-test-state!
   [k v]
-  (runtime-state/write-runtime-state! @state-ctx k v))
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn update-test-state!
   [k f & args]
   (set-test-state! k (apply f (read-test-state k) args)))
+
+(defn- computer-call
+  [ns-name sym & args]
+  (let [f (or (try
+                (requiring-resolve (symbol ns-name (name sym)))
+                (catch #?(:clj Throwable :cljs :default) _
+                  nil))
+              (throw (ex-info (str "Unable to resolve computer function: " ns-name "/" (name sym))
+                              {:namespace ns-name
+                               :symbol sym})))]
+    (apply f args)))
 
 (defn read-test-world
   []
@@ -29,15 +59,21 @@
 
 (defn game-map-atom
   []
-  (runtime-state/game-map-atom))
+  (if-let [f @legacy-game-map-atom-fn]
+    (f)
+    (throw (ex-info "Legacy game-map atom unavailable" {}))))
 
 (defn player-map-atom
   []
-  (runtime-state/player-map-atom))
+  (if-let [f @legacy-player-map-atom-fn]
+    (f)
+    (throw (ex-info "Legacy player-map atom unavailable" {}))))
 
 (defn computer-map-atom
   []
-  (runtime-state/computer-map-atom))
+  (if-let [f @legacy-computer-map-atom-fn]
+    (f)
+    (throw (ex-info "Legacy computer-map atom unavailable" {}))))
 
 (defn set-test-world!
   [world]
@@ -324,7 +360,7 @@
   (set-test-state! :load-menu-hovered nil)
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
-  (land-objectives/clear-continent-cache!))
+  (computer-call "empire.computer.land-objectives" 'clear-continent-cache!))
 
 (defn message-matches?
   "Checks if a message template matches an actual message string.
