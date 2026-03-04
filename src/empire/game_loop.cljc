@@ -12,7 +12,8 @@
             [empire.computer.production :as computer-production]
             [empire.computer.threat-response :as threat-response]
             [empire.game-loop.round-setup :as round-setup]
-            [empire.game-loop.item-processing :as item-processing]))
+            [empire.game-loop.item-processing :as item-processing]
+            [empire.player.production :as player-production]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -34,17 +35,6 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
-
-(defn- player-call
-  [ns-name sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol ns-name (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
-                              {:namespace ns-name
-                               :symbol sym})))]
-    (apply f args)))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -121,7 +111,7 @@
   (round-setup/remove-dead-units)
   (round-setup/mark-lake-locked-ships)
   (round-setup/evacuate-lake-patrol-boats)
-  (player-call "empire.player.production" 'update-production)
+  (player-production/update-production)
   (round-setup/repair-damaged-ships)
   (round-setup/reset-steps-remaining)
   (round-setup/wake-airport-fighters)

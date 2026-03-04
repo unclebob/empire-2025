@@ -3,6 +3,7 @@
   (:require [empire.adapters.persistence.files :as persistence-files]
             [empire.application.ports.persistence :as ports]
             [empire.application.runtime :as app-runtime]
+            [empire.computer.production :as computer-production]
             [empire.domain.core.messages :as messages]))
 
 (def saveable-atoms
@@ -68,16 +69,6 @@
   [state]
   ((:save-major-invasion-state! @state-ctx) state))
 
-(defn- computer-call
-  [sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol "empire.computer.production" (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve computer production function: " (name sym))
-                              {:symbol sym})))]
-    (apply f args)))
-
 (defn- read-save-key
   [k]
   (case k
@@ -122,7 +113,7 @@
      (write-runtime-state! :load-menu-files [])
      (write-runtime-state! :load-menu-hovered nil)
      ((:rebuild-refueling-caches! @state-ctx))
-     (computer-call 'rebuild-country-stats!)
+     (computer-production/rebuild-country-stats!)
      (write-runtime-state! :turn-message (str "Loaded " filename))
      (write-runtime-state! :turn-message-until
                            (messages/expires-at (System/currentTimeMillis) 3000)))))

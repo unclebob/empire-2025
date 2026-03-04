@@ -4,6 +4,7 @@
             [empire.application.movement-services :as movement-services]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
+            [empire.application.unit-stamping :as unit-stamping]
             [empire.config :as config]))
 
 (def ^:private state-ctx
@@ -31,27 +32,17 @@
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
 
-(defn- computer-call
-  [sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol "empire.application.unit-stamping" (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve computer stamping function: " (name sym))
-                              {:symbol sym})))]
-    (apply f args)))
-
 (defn- stamp-computer-fields
   [unit cell]
-  (computer-call 'stamp-computer-fields unit cell))
+  (unit-stamping/stamp-computer-fields unit cell))
 
 (defn- apply-coast-walk-fields
   [unit item cell coords]
-  (computer-call 'apply-coast-walk-fields unit item cell coords))
+  (unit-stamping/apply-coast-walk-fields unit item cell coords))
 
 (defn- apply-random-explore-fields
   [unit item cell]
-  (computer-call 'apply-random-explore-fields unit item cell))
+  (unit-stamping/apply-random-explore-fields unit item cell))
 
 (defn set-city-production
   "Sets the production for a city at given coordinates to the specified item."

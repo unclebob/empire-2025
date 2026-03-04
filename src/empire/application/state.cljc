@@ -2,17 +2,17 @@
 (ns empire.application.state
   "Application-level state mutation boundary.")
 
-(def ^:private impl-loaded?
-  (delay
-    (try
-      (some? (requiring-resolve (symbol (str "empire.application.impl.state")
-                                        (str "apply-command!"))))
-      (catch #?(:clj Throwable :cljs :default) _
-        false))))
+(defonce ^:private impl-loaded?
+  (atom false))
 
 (defn- ensure-impl-loaded!
   []
-  (force impl-loaded?)
+  (when-not @impl-loaded?
+    (try
+      (require 'empire.application.impl.state)
+      (reset! impl-loaded? true)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil)))
   nil)
 
 (defmulti with-invariants!

@@ -8,7 +8,7 @@
    (defn- ensure-methods-loaded!
      []
      (when-not @methods-loaded?
-       (requiring-resolve 'empire.domain.model.impl.combat-runtime/load-methods!)
+       (require 'empire.domain.model.impl.combat-runtime)
        (reset! methods-loaded? true))))
 
 (defmulti conquer-city-contents

@@ -1,6 +1,7 @@
 ;; mutation-tested: no
 (ns empire.application.city-production
-  (:require [empire.application.runtime :as app-runtime]))
+  (:require [empire.application.runtime :as app-runtime]
+            [empire.config :as config]))
 
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
@@ -17,13 +18,7 @@
   [item]
   (if-let [f (:item-cost @state-ctx)]
     (f item)
-    (if-let [resolved (try
-                        (requiring-resolve (symbol (str "empire.config")
-                                                   (str "item-cost")))
-                        (catch #?(:clj Throwable :cljs :default) _
-                          nil))]
-      (resolved item)
-      0)))
+    (config/item-cost item)))
 
 (defn set-city-production
   "Sets production and rounds remaining for a city in runtime state."

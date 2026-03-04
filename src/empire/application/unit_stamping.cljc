@@ -5,14 +5,6 @@
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
 
-(defn- resolve-country-coastal-explored-fn
-  []
-  (try
-    (requiring-resolve (symbol (str "empire.computer.production")
-                               (str "country-coastal-cells-explored?")))
-    (catch #?(:clj Throwable :cljs :default) _
-      nil)))
-
 (defn- read-runtime-state
   [k]
   ((:read-runtime-state @state-ctx) k))
@@ -93,8 +85,7 @@
 
 (defn- country-coastal-cells-explored?
   [country-id]
-  (if-let [f (or (:country-coastal-explored? @state-ctx)
-                 (resolve-country-coastal-explored-fn))]
+  (if-let [f (:country-coastal-explored? @state-ctx)]
     (let [result (f country-id)]
       (if (nil? result)
         (get-in (or (read-runtime-state :country-stats) {})

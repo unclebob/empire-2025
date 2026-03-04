@@ -152,4 +152,10 @@
   (let [current-production (get (read-runtime-state :production) pos)]
     (when (nil? current-production)
       (when-let [unit-type (decide-production pos)]
-        ((requiring-resolve 'empire.application.city-production/set-city-production) pos unit-type)))))
+        (if-let [f (:set-city-production! @state-ctx)]
+          (f pos unit-type)
+          (write-runtime-state! :production
+                                (assoc (or (read-runtime-state :production) {})
+                                       pos
+                                       {:item unit-type
+                                        :remaining-rounds (config/item-cost unit-type)})))))))

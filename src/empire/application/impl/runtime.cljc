@@ -5,8 +5,7 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.ports.runtime-state :as runtime-ports]
             [empire.application.ports.world-store :as world-ports]
-            [empire.computer.production :as computer-production]
-            [empire.computer.threat-response :as threat-response]
+            [empire.config :as config]
             [empire.movement.adapter :as movement-adapter]))
 
 (defmethod app-runtime/default-state-ctx :default
@@ -24,12 +23,17 @@
      :on-same-continent? #(runtime-ports/on-same-continent? rt-store %1 %2)
      :merge-continents! #(runtime-ports/merge-continents! rt-store %1 %2)
      :rebuild-refueling-caches! #(runtime-ports/rebuild-refueling-caches! rt-store)
-     :handle-detection! threat-response/handle-detection!
+     :handle-detection! (fn [_coords _cell] nil)
      :country-coastal-explored? (fn [country-id]
-                                  (let [country-stats (or (runtime-ports/read-runtime-state rt-store :country-stats) {})
-                                        cached (get-in country-stats [country-id :coastal-explored?] ::missing)]
-                                    (if (= cached ::missing)
-                                      (computer-production/country-coastal-cells-explored? country-id)
-                                      cached)))
+                                  (get-in (or (runtime-ports/read-runtime-state rt-store :country-stats) {})
+                                          [country-id :coastal-explored?]
+                                          true))
+     :set-city-production! (fn [coords item]
+                             (let [current (or (runtime-ports/read-runtime-state rt-store :production) {})]
+                               (runtime-ports/write-runtime-state! rt-store :production
+                                                                  (assoc current
+                                                                         coords
+                                                                         {:item item
+                                                                          :remaining-rounds (config/item-cost item)}))))
      :movement-port movement-port
      :check-invariants (fn [_world] nil)}))

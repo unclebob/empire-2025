@@ -65,6 +65,17 @@
   (when-let [ep (ship-core/find-adjacent-enemy-ship pos)]
     (ship-core/attack-enemy pos ep)))
 
+(defn- try-major-invasion-attack [pos]
+  (or (try-attack-adjacent pos)
+      (when-let [ep (first (for [n (core/get-neighbors pos)
+                                 :let [target (:contents (get-in (current-world) n))]
+                                 :when (and target
+                                            (= :player (:owner target))
+                                            (not= :transport (:type target))
+                                            (not= :satellite (:type target)))]
+                             n))]
+        (ship-core/attack-enemy pos ep))))
+
 (defn- try-escort [pos ship-type unit]
   (when (:escort-mode unit)
     (cond
@@ -89,12 +100,15 @@
 
 (defn- dispatch-ship-action [pos ship-type unit]
   (cond
-    (when-let [process-threat (requiring-resolve 'empire.computer.threat-response/process-ship-threat)]
-      (process-threat pos ship-type unit))
+    (when-let [f (:process-ship-threat @state-ctx)]
+      (f pos ship-type unit))
     true
 
     (= :patrol-boat ship-type)
-    (patrol/process-patrol-boat pos)
+    (if (:major-invasion unit)
+      (or (try-major-invasion-attack pos)
+          (patrol/process-patrol-boat pos))
+      (patrol/process-patrol-boat pos))
 
     (and (= :carrier ship-type) (:carrier-mode unit))
     (carrier/process-carrier pos)

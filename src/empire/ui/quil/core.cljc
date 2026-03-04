@@ -1,6 +1,8 @@
 (ns empire.ui.quil.core
   (:require [empire.application.runtime :as app-runtime]
             [empire.config :as config]
+            [empire.game-loop :as game-loop]
+            [empire.init :as init]
             [empire.movement.bootstrap :as movement-bootstrap]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
@@ -23,26 +25,6 @@
   [k v]
   ((:write-runtime-state! @state-ctx) k v))
 
-(defn- game-loop-call
-  [sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol "empire.game-loop" (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve game-loop function: " (name sym))
-                              {:symbol sym})))]
-    (apply f args)))
-
-(defn- init-call
-  [sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol "empire.init" (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve init function: " (name sym))
-                              {:symbol sym})))]
-    (apply f args)))
-
 (defn create-fonts
   "Creates and caches font objects."
   []
@@ -64,16 +46,16 @@
       (alter-var-root #'clojure.core/rand-int
                       (constantly (fn [n] (.nextInt rng (int n)))))))
   (let [num-cities (:number-of-cities (read-runtime-state :map-size-constants) config/number-of-cities)]
-    (init-call 'make-initial-map (read-runtime-state :map-size) config/smooth-count config/land-fraction num-cities config/min-city-distance))
+    (init/make-initial-map (read-runtime-state :map-size) config/smooth-count config/land-fraction num-cities config/min-city-distance))
   (q/frame-rate 30)
   {})
 
 (defn update-state
   "Update the game state."
   [state]
-  (game-loop-call 'update-player-map)
-  (game-loop-call 'update-computer-map)
-  (game-loop-call 'advance-game-batch)
+  (game-loop/update-player-map)
+  (game-loop/update-computer-map)
+  (game-loop/advance-game-batch)
   (render-overlay/update-hover-status)
   state)
 

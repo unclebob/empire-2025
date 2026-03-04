@@ -204,8 +204,9 @@
 
 (defn- process-threat-fighter?
   [pos unit]
-  (when-let [process-threat (requiring-resolve 'empire.computer.threat-response/process-fighter-threat)]
-    (process-threat pos unit)))
+  (if-let [f (:process-fighter-threat @state-ctx)]
+    (f pos unit)
+    false))
 
 (defn- run-fighter-steps!
   [pos]

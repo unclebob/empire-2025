@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug
   "Debug compatibility facade.
-   Implementation is split across logging and dump namespaces.")
+   Implementation is split across logging and dump namespaces."
+  (:require [empire.debug.dump :as debug-dump]))
 
 (defonce ^:private methods-loaded?
   (delay
@@ -29,6 +30,4 @@
 ;; Preserve private var access used by debug_spec.
 (defn- format-movement-entry
   [entry]
-  (if-let [f (resolve 'empire.debug.dump/format-movement-entry)]
-    (f entry)
-    (pr-str entry)))
+  (debug-dump/format-movement-entry entry))

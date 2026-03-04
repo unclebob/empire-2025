@@ -10,6 +10,7 @@
             [empire.computer.production :as computer-production]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
+            [empire.player.attention :as player-attention]
             [empire.application.player-movement-services :as player-movement]))
 
 (def ^:private state-ctx
@@ -36,17 +37,6 @@
   (let [current (read-runtime-state k)
         next-state (apply f current args)]
     (write-runtime-state! k next-state)))
-
-(defn- player-call
-  [ns-name sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol ns-name (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
-                              {:namespace ns-name
-                               :symbol sym})))]
-    (apply f args)))
 
 (defn- movement-port []
   (or (:movement-port @state-ctx)
@@ -215,9 +205,9 @@
       unit-in-auto-mode?
       (process-auto-movement coords unit)
 
-      (player-call "empire.player.attention" 'item-needs-attention? coords)
+      (player-attention/item-needs-attention? coords)
       (do (write-runtime-state! :cells-needing-attention [coords])
-          (player-call "empire.player.attention" 'set-attention-message coords)
+          (player-attention/set-attention-message coords)
           (write-runtime-state! :waiting-for-input true)
           :waiting)
 

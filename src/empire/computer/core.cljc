@@ -31,6 +31,18 @@
   []
   (:movement-port @state-ctx))
 
+(defn- country-city-producing-armies?
+  [city-pos country-id]
+  (if-let [f (:country-city-producing-armies? @state-ctx)]
+    (f city-pos country-id)
+    false))
+
+(defn- set-city-production!
+  [city-pos item]
+  (if-let [f (:set-city-production! @state-ctx)]
+    (f city-pos item)
+    nil))
+
 (defn- update-cell-visibility!
   ([pos owner]
    (movement-port/movement-update-cell-visibility (movement-services) pos owner))
@@ -170,12 +182,10 @@
         ;; Computer conquest of free cities must not update player-map.
         (when (= :player (:city-status city-cell))
           (update-runtime-state! :player-map assoc-in city-pos (get-in (current-world) city-pos)))
-        (let [city-country-id (:country-id (get-in (current-world) city-pos))
-              country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)
-              set-city-production (requiring-resolve 'empire.application.city-production/set-city-production)]
+        (let [city-country-id (:country-id (get-in (current-world) city-pos))]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
-            (set-city-production city-pos :army)))
+            (set-city-production! city-pos :army)))
         (update-cell-visibility! army-pos :computer)
         (update-cell-visibility! city-pos :computer)
         nil)

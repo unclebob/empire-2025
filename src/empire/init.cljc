@@ -3,18 +3,8 @@
   (:require [empire.config :as config]
             [empire.application.movement-services :as movement-services]
             [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]))
-
-(defn- player-call
-  [ns-name sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol ns-name (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
-                              {:namespace ns-name
-                               :symbol sym})))]
-    (apply f args)))
+            [empire.application.state :as app-state]
+            [empire.player.production :as player-production]))
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."
@@ -184,7 +174,7 @@
     (when-let [computer-city-pos (find-city-position map-with-computer-city :computer)]
       (app-state/update-world! state-ctx assoc-in (conj computer-city-pos :country-id) 1)
       (write-runtime-state! :next-country-id 2)
-      (player-call "empire.player.production" 'set-city-production computer-city-pos :army))
+      (player-production/set-city-production computer-city-pos :army))
     (write-runtime-state! :lake-max-cells (compute-lake-max-cells width height))
     (write-runtime-state! :known-lake-cells #{})
     (write-runtime-state! :player-map visibility-map)

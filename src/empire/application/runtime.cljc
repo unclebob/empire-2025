@@ -2,17 +2,17 @@
 (ns empire.application.runtime
   "Runtime wiring contract for application boundary contexts.")
 
-(def ^:private impl-loaded?
-  (delay
-    (try
-      (some? (requiring-resolve (symbol (str "empire.application.impl.runtime")
-                                        (str "default-state-ctx"))))
-      (catch #?(:clj Throwable :cljs :default) _
-        false))))
+(defonce ^:private impl-loaded?
+  (atom false))
 
 (defn- ensure-impl-loaded!
   []
-  (force impl-loaded?)
+  (when-not @impl-loaded?
+    (try
+      (require 'empire.application.impl.runtime)
+      (reset! impl-loaded? true)
+      (catch #?(:clj Throwable :cljs :default) _
+        nil)))
   nil)
 
 (defmulti default-state-ctx

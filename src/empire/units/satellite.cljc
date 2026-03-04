@@ -8,7 +8,7 @@
    (defn- ensure-methods-loaded!
      []
      (when-not @methods-loaded?
-       (requiring-resolve 'empire.units.impl.satellite/load-methods!)
+       (require 'empire.units.impl.satellite)
        (reset! methods-loaded? true))))
 
 (defmulti initial-state

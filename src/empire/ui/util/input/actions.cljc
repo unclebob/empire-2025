@@ -6,9 +6,12 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
+            [empire.game-loop :as game-loop]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
+            [empire.player.commands :as player-commands]
+            [empire.player.production :as player-production]
             [empire.units.dispatcher :as dispatcher]))
 
 (defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
@@ -39,27 +42,6 @@
   (or (:movement-port @state-ctx)
       (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
-(defn- game-loop-call
-  [sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol "empire.game-loop" (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve game-loop function: " (name sym))
-                              {:symbol sym})))]
-    (apply f args)))
-
-(defn- player-call
-  [ns-name sym & args]
-  (let [f (or (try
-                (requiring-resolve (symbol ns-name (name sym)))
-                (catch #?(:clj Throwable :cljs :default) _
-                  nil))
-              (throw (ex-info (str "Unable to resolve player function: " ns-name "/" (name sym))
-                              {:namespace ns-name
-                               :symbol sym})))]
-    (apply f args)))
-
 (defn- set-error-message!
   [msg ms]
   (write-runtime-state! :error-message msg)
@@ -67,16 +49,16 @@
 
 (defn- item-processed!
   []
-  (game-loop-call 'item-processed))
+  (game-loop/item-processed))
 
 (defn- try-set-production [coords item]
   (let [[x y] coords
         coastal? (map-utils/on-coast? x y)
         naval? (dispatcher/naval-units item)]
     (if (and naval? (not coastal?))
-      (set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
+        (set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
       (do
-        (player-call "empire.player.production" 'set-city-production coords item)
+        (player-production/set-city-production coords item)
         (item-processed!)))
     true))
 
@@ -114,7 +96,7 @@
     true))
 
 (defn army-aboard-action [extended? target-cell hostile-city?]
-  (player-call "empire.player.commands" 'army-aboard-action extended? target-cell hostile-city?))
+  (player-commands/army-aboard-action extended? target-cell hostile-city?))
 
 (defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
   (case (army-aboard-action extended? target-cell (combat/hostile-city? adjacent-target))

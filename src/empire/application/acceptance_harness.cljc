@@ -3,25 +3,17 @@
   "Transitional acceptance harness.
    Generated acceptance specs can target this boundary API while application
    internals evolve."
-  (:require [empire.application.ports.acceptance-harness :as ports]
+  (:require [empire.adapters.runtime.acceptance-engine :as acceptance-engine]
+            [empire.application.ports.acceptance-harness :as ports]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]))
-
-(defn- resolve-acceptance-fn
-  [sym]
-  (or (try
-        (requiring-resolve (symbol "empire.adapters.runtime.acceptance-engine" (name sym)))
-        (catch #?(:clj Throwable :cljs :default) _
-          nil))
-      (throw (ex-info (str "Unable to resolve acceptance runtime function: " (name sym))
-                      {:symbol sym}))))
 
 (defonce ^:private state-ctx
   (delay
     (merge (app-runtime/default-state-ctx)
-           {:reset-runtime! (resolve-acceptance-fn 'reset-runtime!)
-            :handle-input! (resolve-acceptance-fn 'handle-input!)
-            :start-round! (resolve-acceptance-fn 'start-round!)})))
+           {:reset-runtime! acceptance-engine/reset-runtime!
+            :handle-input! acceptance-engine/handle-input!
+            :start-round! acceptance-engine/start-round!})))
 
 (defn- current-world []
   ((:load-world @state-ctx)))
