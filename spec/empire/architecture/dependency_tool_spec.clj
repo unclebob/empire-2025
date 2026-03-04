@@ -51,22 +51,32 @@
                      :allowed-exceptions [{:from-ns "demo.a" :to-ns "demo.b"}]})]
         (should= [] (:violations result)))))
 
-  (it "includes require, requiring-resolve, and import in dependency metrics"
+  (it "includes dynamic namespace lookups in dependency metrics and emits warnings"
     (let [root (temp-dir)]
       (write-file! root "demo/a.clj"
-                   "(ns demo.a (:import [demo.imported Thing]))\n(require '[demo.b :as b])\n(defn call []\n  (requiring-resolve 'demo.c/run)\n  (b/id))\n")
+                   "(ns demo.a (:import [demo.imported Thing]))\n(require '[demo.b :as b])\n(defn call []\n  (requiring-resolve 'demo.c/run)\n  (resolve 'demo.d/id)\n  (ns-resolve 'demo.e 'id)\n  (find-ns 'demo.f)\n  (the-ns 'demo.g)\n  (b/id))\n")
       (write-file! root "demo/b.clj" "(ns demo.b)\n(defn id [] :ok)\n")
       (write-file! root "demo/c.clj" "(ns demo.c)\n(defn run [] :ok)\n")
+      (write-file! root "demo/d.clj" "(ns demo.d)\n(defn id [] :ok)\n")
+      (write-file! root "demo/e.clj" "(ns demo.e)\n(defn id [] :ok)\n")
+      (write-file! root "demo/f.clj" "(ns demo.f)\n(defn id [] :ok)\n")
+      (write-file! root "demo/g.clj" "(ns demo.g)\n(defn id [] :ok)\n")
       (let [result (tool/analyze-project
                     {:source-paths [(.getPath root)]
                      :component-rules [{:component :alpha :match "demo.a"}
                                        {:component :beta :match "demo.b"}
                                        {:component :gamma :match "demo.c"}
+                                       {:component :delta :match "demo.d"}
+                                       {:component :epsilon :match "demo.e"}
+                                       {:component :zeta :match "demo.f"}
+                                       {:component :eta :match "demo.g"}
                                        {:component :imports :match "demo.imported"}]})
             stats (:component-stats result)]
-        (should= #{[:alpha :beta] [:alpha :gamma] [:alpha :imports]}
+        (should= #{[:alpha :beta] [:alpha :gamma] [:alpha :delta] [:alpha :epsilon] [:alpha :zeta] [:alpha :eta] [:alpha :imports]}
                  (set (:component-edges result)))
-        (should= 3 (get-in stats [:alpha :fan-out])))))
+        (should= 7 (get-in stats [:alpha :fan-out]))
+        (should= 5 (count (:warnings result)))
+        (should (every? #(= "demo.a" (:namespace %)) (:warnings result))))))
 
   (it "generates a starter config with inferred component rules"
     (let [root (temp-dir)]

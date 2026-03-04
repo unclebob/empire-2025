@@ -44,7 +44,9 @@ Run component dependency analysis (boundaries, cycles, fan-in/fan-out, instabili
     clj -M:check-dependencies dependency-tool.edn --max-distance 0.35
 
 Fan-in/fan-out dependency edges are derived from namespace clauses and runtime dependency forms:
-`ns :require`, `ns :use`, `ns :import`, direct `(require ...)`, and `(requiring-resolve ...)`.
+`ns :require`, `ns :use`, `ns :import`, direct `(require ...)`, and dynamic lookup forms
+`requiring-resolve`, `resolve`, `ns-resolve`, `find-ns`, `the-ns`.
+Dynamic namespace lookup usage is reported as warnings in dependency check output.
 
 Abstraction rule for dependency metrics:
 
