@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-04
 (ns empire.architecture.dependency-checker.core-base-dependencies
   (:require [clojure.set :as set]))
 

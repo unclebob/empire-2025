@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-04
 (ns empire.architecture.dependency-checker.core-base-parse
   (:require [empire.architecture.dependency-checker.core-base-config :as cfg]
             [empire.architecture.dependency-checker.core-base-dependencies :as deps]

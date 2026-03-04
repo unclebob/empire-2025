@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-04
 (ns empire.architecture.dependency-checker.cli
   (:require [clojure.edn :as edn]
             [clojure.string :as str]))

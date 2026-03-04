@@ -1,3 +1,4 @@
+;; mutation-tested: 2026-03-04
 (ns empire.architecture.dependency-checker.core-infer
   (:require [clojure.pprint]
             [clojure.string :as str]
@@ -185,6 +186,7 @@
          components (map :component rules)]
      {:source-paths (vec source-paths)
       :component-rules rules
+      :utility-components []
       :forbidden-dependencies (default-forbidden-deps components)
       :fail-on-cycles false
       :fail-on-violations true})))
