@@ -2,20 +2,18 @@
 (ns empire.debug.dump
   "Region-based debug dump rendering and file output helpers."
   (:require [clojure.string :as str]
-            [empire.adapters.state.atoms :as atoms-adapter]
-            [empire.adapters.state.runtime :as runtime-adapter]
-            [empire.application.ports.runtime-state :as runtime-ports]
-            [empire.application.ports.world-store :as world-ports]))
+            [empire.application.runtime :as app-runtime]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
 
 (defn- current-world
   []
-  (let [store (atoms-adapter/world-store)]
-    (world-ports/load-world store)))
+  ((:load-world @state-ctx)))
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-adapter/runtime-state-store)]
-    (runtime-ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn dump-region
   "Extract cells from all three maps for a coordinate range.

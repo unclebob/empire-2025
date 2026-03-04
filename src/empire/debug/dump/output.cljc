@@ -1,23 +1,21 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.dump.output
   "Filename generation, dump writing, and drag-range conversion."
-  (:require [empire.adapters.state.atoms :as atoms-adapter]
-            [empire.adapters.state.runtime :as runtime-adapter]
-            [empire.application.ports.runtime-state :as runtime-ports]
-            [empire.application.ports.world-store :as world-ports]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.debug.dump :as dump])
   #?(:clj (:import [java.time LocalDateTime]
                    [java.time.format DateTimeFormatter])))
 
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
 (defn- current-world
   []
-  (let [store (atoms-adapter/world-store)]
-    (world-ports/load-world store)))
+  ((:load-world @state-ctx)))
 
 (defn- read-runtime-state
   [k]
-  (let [store (runtime-adapter/runtime-state-store)]
-    (runtime-ports/read-runtime-state store k)))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- screen->cell
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]

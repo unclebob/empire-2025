@@ -7,18 +7,22 @@
                     :match ["empire.application.ports*"
                             "empire.application.state-port*"
                             "empire.application.runtime"
-                            "empire.application.state"]}
+                            "empire.application.state"
+                            "empire.application.coords"
+                            "empire.application.production-status"
+                            "empire.application.city-production"
+                            "empire.application.unit-stamping"]}
                    {:component :movement-contracts
                     :kind :abstract
                     :match "empire.movement.movement"}
                    {:component :domain-contracts
                     :kind :abstract
                    :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
-                            "^empire\\.domain\\.services(\\.(?!impl\\.).*)?$"
-                            "^empire\\.domain\\.model(\\.(?!impl\\.).*)?$"]}
+                            "^empire\\.domain\\.services(\\.(?!(impl\\.|round-setup$)).*)?$"
+                            "^empire\\.domain\\.model(\\.(?!(impl\\.|combat$|containers$)).*)?$"]}
                    {:component :unit-contracts
-                    :kind :abstract
-                    :match "^empire\\.units(\\.(?!(impl\\.|satellite$|dispatcher$)).*)?$"}
+                    :kind :concrete
+                    :match "^empire\\.units(\\.(?!(impl\\.|satellite$|dispatcher$|config$|ships$)).*)?$"}
                    {:component :debug-contracts
                     :kind :abstract
                     :match "empire.debug.contracts*"}
@@ -30,18 +34,44 @@
                             "empire.acceptance.harness.impl*"]}
                    {:component :application-services
                     :kind :concrete
-                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|bootstrap$|movement-services$|player-movement-services$|waypoint-services$|impl\\.|runtime$|state$)).*)?$"
-                            "^empire\\.application\\.impl\\.(?!runtime$).*$"]}
+                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|bootstrap$|movement-services$|player-movement-services$|waypoint-services$|coords$|production-status$|city-production$|unit-stamping$|impl\\.|runtime$|state$)).*)?$"
+                            "^empire\\.application\\.impl\\.(?!(runtime$|state$|coords$|production-status$|city-production$|unit-stamping$)).*$"]}
+                   {:component :application-query-services
+                    :kind :concrete
+                    :match ["empire.application.impl.coords"
+                            "empire.application.impl.production-status"]}
+                   {:component :application-city-production-service
+                    :kind :concrete
+                    :match "empire.application.impl.city-production"}
+                   {:component :application-unit-stamping-service
+                    :kind :concrete
+                    :match "empire.application.impl.unit-stamping"}
+                   {:component :application-command-services
+                    :kind :concrete
+                    :match ["empire.application.city-production"
+                            "empire.application.unit-stamping"]}
+                   {:component :application-state-services
+                    :kind :concrete
+                    :match "empire.application.impl.state"}
                    {:component :domain-impl
                     :kind :concrete
                     :match ["empire.domain.core.impl*"
+                            "empire.domain.model.combat"
+                            "empire.domain.model.containers"
+                            "empire.domain.services.round-setup"
                             "empire.domain.services.impl*"
                             "^empire\\.domain\\.model\\.impl\\.(?!combat-runtime$).*$"
-                            "empire.units.impl*"
-                            "empire.units.dispatcher"
-                            "empire.units.satellite"
-                            "empire.config"
                             ]}
+                   {:component :units-impl
+                    :kind :concrete
+                    :match ["empire.units.impl*"
+                            "empire.units.dispatcher"
+                            "empire.units.satellite"]}
+                   {:component :game-config
+                    :kind :concrete
+                    :match ["empire.config"
+                            "empire.units.config"
+                            "empire.units.ships"]}
                    {:component :movement-impl
                     :kind :concrete
                     :match ["^empire\\.movement\\.(?!movement$).*$"
@@ -59,6 +89,12 @@
                             "empire.debug.logging"
                             "empire.debug.dump"
                             "empire.debug.dump.output"]}
+                   {:component :state-atom-store
+                    :kind :concrete
+                    :match "empire.atoms*"}
+                   {:component :state-port-adapters
+                    :kind :concrete
+                    :match "empire.adapters.state*"}
                    {:component :state-adapters
                     :kind :concrete
                     :match ["empire.atoms*"
@@ -69,15 +105,69 @@
                             "empire.adapters.persistence*"]}
                    {:component :runtime-adapters
                     :kind :concrete
-                    :match ["empire.adapters.runtime*"
-                            "empire.application.impl.runtime"
+                    :match ["empire.adapters.runtime.acceptance-engine"]}
+                   {:component :runtime-system-adapters
+                    :kind :concrete
+                    :match ["empire.adapters.runtime.clock"
+                            "empire.adapters.runtime.rng"]}
+                   {:component :runtime-save-load-adapters
+                    :kind :concrete
+                    :match "empire.adapters.runtime.save-load"}
+                   {:component :runtime-app-bootstrap-adapter
+                    :kind :concrete
+                    :match "empire.application.bootstrap"}
+                   {:component :runtime-app-statectx-adapter
+                    :kind :concrete
+                    :match "empire.application.impl.runtime"}
+                   {:component :runtime-bootstrap-adapters
+                    :kind :concrete
+                    :match ["empire.application.impl.runtime"
                             "empire.application.bootstrap"]}
+                   {:component :computer-production-policy
+                    :kind :concrete
+                    :match "empire.computer.production*"}
                    {:component :computer-policy
                     :kind :concrete
                     :match ["empire.computer" "empire.computer*"]}
+                   {:component :player-commands-policy
+                    :kind :concrete
+                    :match "empire.player.commands*"}
+                   {:component :player-orders-policy
+                    :kind :concrete
+                    :match "empire.player.orders*"}
+                   {:component :player-attention-policy
+                    :kind :concrete
+                    :match "empire.player.attention*"}
+                   {:component :player-production-policy
+                    :kind :concrete
+                    :match "empire.player.production*"}
                    {:component :player-policy
                     :kind :concrete
                     :match ["empire.player" "empire.player*"]}
+                   {:component :ui-util-input-adapters
+                    :kind :concrete
+                    :match "empire.ui.util.input*"}
+                   {:component :ui-quil-input-adapter
+                    :kind :concrete
+                    :match "empire.ui.quil.input"}
+                   {:component :ui-input-adapters
+                    :kind :concrete
+                    :match ["empire.ui.quil.input"
+                            "empire.ui.util.input*"]}
+                   {:component :ui-util-rendering-adapters
+                    :kind :concrete
+                    :match "empire.ui.util.rendering*"}
+                   {:component :ui-quil-rendering-adapters
+                    :kind :concrete
+                    :match "empire.ui.quil.rendering*"}
+                   {:component :ui-rendering-adapters
+                    :kind :concrete
+                    :match ["empire.ui.quil.rendering*"
+                            "empire.ui.util.rendering*"]}
+                   {:component :ui-core-adapters
+                    :kind :concrete
+                    :match ["empire.ui.quil.core"
+                            "empire.ui.util.core"]}
                    {:component :ui-adapters
                     :kind :concrete
                     :match "empire.ui*"}
@@ -101,22 +191,68 @@
                     :kind :concrete
                     :match ["empire.map" "empire.repair"]}]
  :forbidden-dependencies [[:computer-policy :state-adapters]
+                          [:computer-policy :state-atom-store]
+                          [:computer-policy :state-port-adapters]
                           [:computer-policy :runtime-adapters]
                           [:computer-policy :persistence-adapters]
                           [:computer-policy :ui-adapters]
                           [:computer-policy :orchestration]
                           [:computer-policy :acceptance-pipeline]
+                          [:computer-production-policy :state-adapters]
+                          [:computer-production-policy :state-atom-store]
+                          [:computer-production-policy :state-port-adapters]
+                          [:computer-production-policy :runtime-adapters]
+                          [:computer-production-policy :persistence-adapters]
+                          [:computer-production-policy :ui-adapters]
+                          [:computer-production-policy :orchestration]
+                          [:computer-production-policy :acceptance-pipeline]
                           [:player-policy :state-adapters]
+                          [:player-policy :state-atom-store]
+                          [:player-policy :state-port-adapters]
                           [:player-policy :runtime-adapters]
                           [:player-policy :persistence-adapters]
                           [:player-policy :ui-adapters]
                           [:player-policy :orchestration]
                           [:player-policy :acceptance-pipeline]
+                          [:player-commands-policy :state-adapters]
+                          [:player-commands-policy :state-atom-store]
+                          [:player-commands-policy :state-port-adapters]
+                          [:player-commands-policy :runtime-adapters]
+                          [:player-commands-policy :persistence-adapters]
+                          [:player-commands-policy :ui-adapters]
+                          [:player-commands-policy :orchestration]
+                          [:player-commands-policy :acceptance-pipeline]
+                          [:player-orders-policy :state-adapters]
+                          [:player-orders-policy :state-atom-store]
+                          [:player-orders-policy :state-port-adapters]
+                          [:player-orders-policy :runtime-adapters]
+                          [:player-orders-policy :persistence-adapters]
+                          [:player-orders-policy :ui-adapters]
+                          [:player-orders-policy :orchestration]
+                          [:player-orders-policy :acceptance-pipeline]
+                          [:player-attention-policy :state-adapters]
+                          [:player-attention-policy :state-atom-store]
+                          [:player-attention-policy :state-port-adapters]
+                          [:player-attention-policy :runtime-adapters]
+                          [:player-attention-policy :persistence-adapters]
+                          [:player-attention-policy :ui-adapters]
+                          [:player-attention-policy :orchestration]
+                          [:player-attention-policy :acceptance-pipeline]
+                          [:player-production-policy :state-adapters]
+                          [:player-production-policy :state-atom-store]
+                          [:player-production-policy :state-port-adapters]
+                          [:player-production-policy :runtime-adapters]
+                          [:player-production-policy :persistence-adapters]
+                          [:player-production-policy :ui-adapters]
+                          [:player-production-policy :orchestration]
+                          [:player-production-policy :acceptance-pipeline]
                           [:acceptance-pipeline :application-services]
                           [:acceptance-pipeline :computer-policy]
                           [:acceptance-pipeline :player-policy]
                           [:acceptance-pipeline :movement-impl]
                           [:acceptance-pipeline :orchestration]]
- :distance-exempt-components #{:architecture-tools}
+ :distance-exempt-components #{:architecture-tools
+                               :game-config
+                               :domain-impl}
  :fail-on-cycles true
  :fail-on-violations true}

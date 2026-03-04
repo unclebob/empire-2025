@@ -5,6 +5,7 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.ports.runtime-state :as runtime-ports]
             [empire.application.ports.world-store :as world-ports]
+            [empire.computer.production :as computer-production]
             [empire.config :as config]
             [empire.movement.adapter :as movement-adapter]))
 
@@ -26,9 +27,7 @@
      :rebuild-country-stats! (fn [] nil)
      :handle-detection! (fn [_coords _cell] nil)
      :country-coastal-explored? (fn [country-id]
-                                  (get-in (or (runtime-ports/read-runtime-state rt-store :country-stats) {})
-                                          [country-id :coastal-explored?]
-                                          true))
+                                  (computer-production/country-coastal-cells-explored? country-id))
      :set-city-production! (fn [coords item]
                              (let [current (or (runtime-ports/read-runtime-state rt-store :production) {})]
                                (runtime-ports/write-runtime-state! rt-store :production

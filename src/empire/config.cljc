@@ -1,5 +1,6 @@
 (ns empire.config
-  (:require [empire.units.dispatcher :as dispatcher]))
+  (:require [empire.units.config :as units-config]
+            [empire.units.ships :as ships]))
 
 ;; Default map size [cols rows]
 (def default-map-size [100 60])
@@ -59,17 +60,47 @@
 ;; Hostile city status (not player-owned)
 (def hostile-city? #{:free :computer})
 
-;; Production rounds required for each item - delegate to dispatcher
+;; Production rounds required for each item.
 (defn item-cost [unit-type]
-  (dispatcher/cost unit-type))
+  (case unit-type
+    :army units-config/army-cost
+    :fighter units-config/fighter-cost
+    :satellite units-config/satellite-cost
+    :transport units-config/transport-cost
+    :carrier units-config/carrier-cost
+    :patrol-boat (ships/config :patrol-boat :cost)
+    :destroyer (ships/config :destroyer :cost)
+    :submarine (ships/config :submarine :cost)
+    :battleship (ships/config :battleship :cost)
+    nil))
 
-;; Production item display characters - delegate to dispatcher
+;; Production item display characters.
 (defn item-chars [unit-type]
-  (dispatcher/display-char unit-type))
+  (case unit-type
+    :army units-config/army-display-char
+    :fighter units-config/fighter-display-char
+    :satellite units-config/satellite-display-char
+    :transport units-config/transport-display-char
+    :carrier units-config/carrier-display-char
+    :patrol-boat (ships/config :patrol-boat :display-char)
+    :destroyer (ships/config :destroyer :display-char)
+    :submarine (ships/config :submarine :display-char)
+    :battleship (ships/config :battleship :display-char)
+    nil))
 
-;; Item hit points - delegate to dispatcher
+;; Item hit points.
 (defn item-hits [unit-type]
-  (dispatcher/hits unit-type))
+  (case unit-type
+    :army units-config/army-hits
+    :fighter units-config/fighter-hits
+    :satellite units-config/satellite-hits
+    :transport units-config/transport-hits
+    :carrier units-config/carrier-hits
+    :patrol-boat (ships/config :patrol-boat :hits)
+    :destroyer (ships/config :destroyer :hits)
+    :submarine (ships/config :submarine :hits)
+    :battleship (ships/config :battleship :hits)
+    nil))
 
 ;; Cell colors for map rendering
 (def cell-colors
@@ -98,12 +129,12 @@
 (def explore-unit-color [144 238 144])
 
 ;; Unit-specific constants - import from unit modules via dispatcher
-(def fighter-fuel 32)       ; empire.units.config/fighter-fuel
-(def transport-capacity 6)  ; empire.units.config/transport-capacity
-(def carrier-capacity 8)    ; empire.units.config/carrier-capacity
+(def fighter-fuel units-config/fighter-fuel)
+(def transport-capacity units-config/transport-capacity)
+(def carrier-capacity units-config/carrier-capacity)
 (def explore-steps 50)
-(def coastline-steps 100)
-(def satellite-turns 50)    ; empire.units.config/satellite-turns
+(def coastline-steps 100)   ; domain behavior constant
+(def satellite-turns units-config/satellite-turns)
 (def max-sidesteps 10)
 
 (def carrier-spacing 22)  ;; 70% of fighter-fuel (0.7 * 32 = 22.4, rounded down)
@@ -209,9 +240,19 @@
    :c :carrier
    :b :battleship})
 
-;; Unit speeds (cells per turn) - delegate to dispatcher
+;; Unit speeds (cells per turn).
 (defn unit-speed [unit-type]
-  (dispatcher/speed unit-type))
+  (case unit-type
+    :army units-config/army-speed
+    :fighter units-config/fighter-speed
+    :satellite units-config/satellite-speed
+    :transport units-config/transport-speed
+    :carrier units-config/carrier-speed
+    :patrol-boat (ships/config :patrol-boat :speed)
+    :destroyer (ships/config :destroyer :speed)
+    :submarine (ships/config :submarine :speed)
+    :battleship (ships/config :battleship :speed)
+    nil))
 
 (defn city-color-key [city-status]
   (case city-status

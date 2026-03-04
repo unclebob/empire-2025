@@ -11,9 +11,4 @@
 (defmulti format-production-status
   "Formats production status string: unit counts and exploration %.
    Format: A:n F:n T:n D:n S:n P:n C:n B:n Z:n | nn%"
-  (fn [& _]
-    (try
-      (require 'empire.application.impl.production-status)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))
-    :default))
+  (fn [& _] :default))
