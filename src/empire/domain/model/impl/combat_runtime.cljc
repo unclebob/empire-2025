@@ -1,9 +1,6 @@
 ;; mutation-tested: no
 (ns empire.domain.model.impl.combat-runtime
-  (:require [empire.adapters.state.atoms :as atoms-adapter]
-            [empire.adapters.state.runtime :as runtime-adapter]
-            [empire.application.ports.runtime-state :as runtime-ports]
-            [empire.application.ports.world-store :as world-ports]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.combat :as combat]
             [empire.combat.escorts :as escorts]
             [empire.config :as config]
@@ -11,17 +8,20 @@
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
 (def ^:private flippable-types
   "Unit types that flip ownership on city conquest (ships and fighters)."
   #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
 
 (defn- current-world
   []
-  (world-ports/load-world (atoms-adapter/world-store)))
+  ((:load-world @state-ctx)))
 
 (defn- set-game-map!
   [world]
-  (world-ports/save-world! (atoms-adapter/world-store) world))
+  ((:save-world! @state-ctx) world))
 
 (defn- update-game-map!
   [f & args]
@@ -30,11 +30,11 @@
 
 (defn- read-runtime-state
   [k]
-  (runtime-ports/read-runtime-state (runtime-adapter/runtime-state-store) k))
+  ((:read-runtime-state @state-ctx) k))
 
 (defn- write-runtime-state!
   [k v]
-  (runtime-ports/write-runtime-state! (runtime-adapter/runtime-state-store) k v))
+  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- update-runtime-state!
   [k f & args]

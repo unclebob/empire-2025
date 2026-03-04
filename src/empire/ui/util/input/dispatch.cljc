@@ -1,5 +1,5 @@
 (ns empire.ui.util.input.dispatch
-  (:require [empire.adapters.runtime.save-load :as save-load]
+  (:require [empire.save-load :as save-load]
             [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.debug :as debug]

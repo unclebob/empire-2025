@@ -1,7 +1,6 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.containers.ops
-  (:require [empire.adapters.state.atoms :as atoms-adapter]
-            [empire.application.ports.world-store :as world-ports]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.application.unit-stamping :as unit-stamping]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
@@ -10,15 +9,17 @@
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
 (defn- current-world
   []
-  (world-ports/load-world (atoms-adapter/world-store)))
+  ((:load-world @state-ctx)))
 
 (defn- update-game-map!
   [f & args]
-  (let [store (atoms-adapter/world-store)
-        world (world-ports/load-world store)]
-    (world-ports/save-world! store (apply f world args))))
+  (let [world (current-world)]
+    ((:save-world! @state-ctx) (apply f world args))))
 
 (defn- neighbor-offsets
   []

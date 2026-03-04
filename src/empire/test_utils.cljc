@@ -1,6 +1,5 @@
 (ns empire.test-utils
   (:require [clojure.string :as str]
-            [empire.adapters.state.runtime :as runtime-adapter]
             [empire.application.bootstrap :as app-bootstrap]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
@@ -30,15 +29,15 @@
 
 (defn game-map-atom
   []
-  (runtime-adapter/game-map-atom))
+  :game-map)
 
 (defn player-map-atom
   []
-  (runtime-adapter/player-map-atom))
+  :player-map)
 
 (defn computer-map-atom
   []
-  (runtime-adapter/computer-map-atom))
+  :computer-map)
 
 (defn set-test-world!
   [world]

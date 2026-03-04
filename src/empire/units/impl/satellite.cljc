@@ -1,19 +1,20 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.impl.satellite
-  (:require [empire.adapters.state.atoms :as atoms-adapter]
-            [empire.application.ports.world-store :as world-ports]
+  (:require [empire.application.runtime :as app-runtime]
             [empire.units.config :as units-config]
             [empire.units.satellite :as satellite]))
 
+(defonce ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
 (defn- update-game-map!
   [f & args]
-  (let [store (atoms-adapter/world-store)
-        world (world-ports/load-world store)]
-    (world-ports/save-world! store (apply f world args))))
+  (let [world ((:load-world @state-ctx))]
+    ((:save-world! @state-ctx) (apply f world args))))
 
 (defn- current-world
   []
-  (world-ports/load-world (atoms-adapter/world-store)))
+  ((:load-world @state-ctx)))
 
 (defn- extend-to-boundary
   [[x y] [dx dy] map-height map-width]

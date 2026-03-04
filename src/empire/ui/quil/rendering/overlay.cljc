@@ -1,5 +1,5 @@
 (ns empire.ui.quil.rendering.overlay
-  (:require [empire.adapters.runtime.save-load :as save-load]
+  (:require [empire.save-load :as save-load]
             [empire.application.runtime :as app-runtime]
             [empire.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]

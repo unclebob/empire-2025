@@ -6,7 +6,7 @@
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.player.orders :as orders]
-            [empire.adapters.runtime.save-load :as save-load]
+            [empire.save-load :as save-load]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "key-down :P"

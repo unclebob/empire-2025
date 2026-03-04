@@ -22,7 +22,7 @@
                             "^empire\\.domain\\.model(\\.(?!(impl\\.|combat$|containers$)).*)?$"]}
                    {:component :unit-contracts
                     :kind :concrete
-                    :match "^empire\\.units(\\.(?!(impl\\.|satellite$|dispatcher$|config$|ships$)).*)?$"}
+                    :match "empire.units.army"}
                    {:component :debug-contracts
                     :kind :abstract
                     :match "empire.debug.contracts*"}
@@ -34,25 +34,12 @@
                             "empire.acceptance.harness.impl*"]}
                    {:component :application-services
                     :kind :concrete
-                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|bootstrap$|movement-services$|player-movement-services$|waypoint-services$|coords$|production-status$|city-production$|unit-stamping$|impl\\.|runtime$|state$)).*)?$"
-                            "^empire\\.application\\.impl\\.(?!(runtime$|state$|coords$|production-status$|city-production$|unit-stamping$)).*$"]}
-                   {:component :application-query-services
-                    :kind :concrete
-                    :match ["empire.application.impl.coords"
-                            "empire.application.impl.production-status"]}
-                   {:component :application-city-production-service
-                    :kind :concrete
-                    :match "empire.application.impl.city-production"}
-                   {:component :application-unit-stamping-service
-                    :kind :concrete
-                    :match "empire.application.impl.unit-stamping"}
+                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|bootstrap$|movement-services$|player-movement-services$|waypoint-services$|coords$|production-status$|city-production$|unit-stamping$|runtime$|state$)).*)?$"
+                            "^empire\\.application\\.impl\\.(?!(runtime$)).*$"]}
                    {:component :application-command-services
                     :kind :concrete
                     :match ["empire.application.city-production"
                             "empire.application.unit-stamping"]}
-                   {:component :application-state-services
-                    :kind :concrete
-                    :match "empire.application.impl.state"}
                    {:component :domain-impl
                     :kind :concrete
                     :match ["empire.domain.core.impl*"
@@ -66,7 +53,10 @@
                     :kind :concrete
                     :match ["empire.units.impl*"
                             "empire.units.dispatcher"
-                            "empire.units.satellite"]}
+                            "empire.units.satellite"
+                            "empire.units.transport"
+                            "empire.units.fighter"
+                            "empire.units.carrier"]}
                    {:component :game-config
                     :kind :concrete
                     :match ["empire.config"
@@ -110,56 +100,19 @@
                     :kind :concrete
                     :match ["empire.adapters.runtime.clock"
                             "empire.adapters.runtime.rng"]}
-                   {:component :runtime-save-load-adapters
-                    :kind :concrete
-                    :match "empire.adapters.runtime.save-load"}
-                   {:component :runtime-app-bootstrap-adapter
-                    :kind :concrete
-                    :match "empire.application.bootstrap"}
-                   {:component :runtime-app-statectx-adapter
-                    :kind :concrete
-                    :match "empire.application.impl.runtime"}
-                   {:component :runtime-bootstrap-adapters
-                    :kind :concrete
-                    :match ["empire.application.impl.runtime"
-                            "empire.application.bootstrap"]}
                    {:component :computer-production-policy
                     :kind :concrete
                     :match "empire.computer.production*"}
                    {:component :computer-policy
                     :kind :concrete
                     :match ["empire.computer" "empire.computer*"]}
-                   {:component :player-commands-policy
-                    :kind :concrete
-                    :match "empire.player.commands*"}
-                   {:component :player-orders-policy
-                    :kind :concrete
-                    :match "empire.player.orders*"}
-                   {:component :player-attention-policy
-                    :kind :concrete
-                    :match "empire.player.attention*"}
-                   {:component :player-production-policy
-                    :kind :concrete
-                    :match "empire.player.production*"}
                    {:component :player-policy
                     :kind :concrete
                     :match ["empire.player" "empire.player*"]}
-                   {:component :ui-util-input-adapters
-                    :kind :concrete
-                    :match "empire.ui.util.input*"}
-                   {:component :ui-quil-input-adapter
-                    :kind :concrete
-                    :match "empire.ui.quil.input"}
                    {:component :ui-input-adapters
                     :kind :concrete
                     :match ["empire.ui.quil.input"
                             "empire.ui.util.input*"]}
-                   {:component :ui-util-rendering-adapters
-                    :kind :concrete
-                    :match "empire.ui.util.rendering*"}
-                   {:component :ui-quil-rendering-adapters
-                    :kind :concrete
-                    :match "empire.ui.quil.rendering*"}
                    {:component :ui-rendering-adapters
                     :kind :concrete
                     :match ["empire.ui.quil.rendering*"
