@@ -158,26 +158,86 @@
   [forms]
   (tree-seq coll? seq forms))
 
+(defn- call-name
+  [form]
+  (when (seq? form)
+    (let [op (first form)]
+      (when (symbol? op)
+        (name op)))))
+
+(defn- called?
+  [form callee]
+  (= callee (call-name form)))
+
 (defn- extract-direct-requires
   [forms]
   (->> (walk-forms forms)
-       (filter #(and (seq? %) (= 'require (first %))))
+       (filter #(called? % "require"))
        (mapcat rest)
        (mapcat require-arg-targets)
        (map dependency-symbol->namespace)
        (filter symbol?)
        set))
 
-(defn- extract-requiring-resolves
+(defn- ns-target
+  [arg]
+  (let [arg* (quote-unwrapped arg)]
+    (cond
+      (symbol? arg*) arg*
+      (string? arg*) (symbol arg*)
+      :else nil)))
+
+(defn- symbol-target-namespace
+  [arg]
+  (some-> arg
+          quote-unwrapped
+          dependency-symbol->namespace))
+
+(defn- qualified-symbol-namespace
+  [arg]
+  (let [sym (quote-unwrapped arg)]
+    (when (qualified-symbol? sym)
+      (dependency-symbol->namespace sym))))
+
+(def ^:private dynamic-lookup-callees
+  #{"requiring-resolve" "resolve" "ns-resolve" "find-ns" "the-ns"})
+
+(defn- dynamic-lookup-targets
+  [form]
+  (let [[_ arg1 arg2] form]
+    (case (call-name form)
+      "requiring-resolve" [(symbol-target-namespace arg1)]
+      "resolve" [(qualified-symbol-namespace arg1)]
+      "ns-resolve" [(ns-target arg1)
+                    (qualified-symbol-namespace arg2)]
+      "find-ns" [(ns-target arg1)]
+      "the-ns" [(ns-target arg1)]
+      [])))
+
+(defn- extract-dynamic-namespace-lookups
   [forms]
   (->> (walk-forms forms)
-       (filter #(and (seq? %) (= 'requiring-resolve (first %))))
-       (keep (fn [form]
-               (some-> (second form)
-                       quote-unwrapped
-                       dependency-symbol->namespace)))
+       (filter seq?)
+       (mapcat dynamic-lookup-targets)
        (filter symbol?)
        set))
+
+(defn- extract-dynamic-lookup-warnings
+  [forms]
+  (->> (walk-forms forms)
+       (filter seq?)
+       (keep (fn [form]
+               (let [callee (call-name form)]
+                 (when (contains? dynamic-lookup-callees callee)
+                   {:kind :dynamic-namespace-lookup
+                    :callee callee
+                    :targets (->> (dynamic-lookup-targets form)
+                                  (filter symbol?)
+                                  (map str)
+                                  set
+                                  sort
+                                  vec)}))))
+       vec))
 
 (defn- extract-dependencies
   [forms ns-decl]
@@ -185,7 +245,7 @@
              (extract-ns-clause-deps ns-decl :use)
              (extract-ns-clause-deps ns-decl :import)
              (extract-direct-requires forms)
-             (extract-requiring-resolves forms)))
+             (extract-dynamic-namespace-lookups forms)))
 
 (def ^:private def-ops
   #{"def" "defonce" "defmacro" "defn" "defn-" "defmulti" "defprotocol" "defmethod"})
@@ -300,15 +360,28 @@
                                (let [ns-name (second ns-decl)
                                      component (component-for-ns component-rules ns-name)
                                      requires (extract-dependencies forms ns-decl)
+                                     warnings (extract-dynamic-lookup-warnings forms)
                                      stats (var-stats forms)]
                                  {:file (.getPath f)
                                   :namespace ns-name
                                   :component component
                                   :requires requires
+                                  :warnings warnings
                                   :public-count (:public-count stats)
                                   :abstract-count (:abstract-count stats)})))))
                     (filter some?)
                     vec)
+        warnings (->> parsed
+                      (mapcat (fn [{:keys [file namespace warnings]}]
+                                (for [{:keys [kind callee targets]} warnings]
+                                  {:kind kind
+                                   :file file
+                                   :namespace (str namespace)
+                                   :callee callee
+                                   :targets targets})))
+                      distinct
+                      (sort-by (juxt :namespace :callee :targets))
+                      vec)
         ns->entry (into {} (map (juxt :namespace identity) parsed))
         component-set (->> parsed (map :component) (filter some?) set)
         ns-edges (->> parsed
@@ -400,6 +473,7 @@
      :namespaces parsed
      :component-edges (sort component-edges)
      :component-stats component-stats
+     :warnings warnings
      :violations violations
      :kind-violations (vec (concat kind-edge-violations kind-purity-violations))
      :cycles cycles}))
@@ -595,7 +669,7 @@
   (format "%.3f" (double d)))
 
 (defn- report-text
-  [{:keys [component-stats component-edges violations kind-violations cycles]}
+  [{:keys [component-stats component-edges warnings violations kind-violations cycles]}
    {:keys [max-distance distance-violations]}]
   (let [components (keys component-stats)]
     (println "Dependency Analysis")
@@ -605,6 +679,7 @@
     (println (format "Component edges: %d" (count component-edges)))
     (println (format "Boundary violations: %d" (count violations)))
     (println (format "Kind violations: %d" (count kind-violations)))
+    (println (format "Warnings: %d" (count warnings)))
     (println (format "Cycles: %d" (count cycles)))
     (println (format "Distance limit: %.3f" (double max-distance)))
     (println (format "Distance violations: %d" (count distance-violations)))
@@ -626,6 +701,17 @@
       (println "----------------------")
       (doseq [[from to] component-edges]
         (println (format "%s -> %s" from to))))
+    (when (seq warnings)
+      (println)
+      (println "Warnings")
+      (println "--------")
+      (doseq [{:keys [namespace callee targets]} warnings]
+        (println (format "%s uses %s%s"
+                         namespace
+                         callee
+                         (if (seq targets)
+                           (str " -> " (str/join ", " targets))
+                           "")))))
     (when (seq violations)
       (println)
       (println "Boundary Violations")
