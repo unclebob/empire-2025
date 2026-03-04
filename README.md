@@ -40,8 +40,8 @@ Run a faster all-tests pass (unit specs + already-generated acceptance specs):
 
 Run component dependency analysis (boundaries, cycles, fan-in/fan-out, instability, distance):
 
-    clj -M:check-dependencies dependency-tool.edn
-    clj -M:check-dependencies dependency-tool.edn --max-distance 0.35
+    clj -M:check-dependencies dependency-checker.edn
+    clj -M:check-dependencies dependency-checker.edn --max-distance 0.35
 
 Fan-in/fan-out dependency edges are derived from namespace clauses and runtime dependency forms:
 `ns :require`, `ns :use`, `ns :import`, direct `(require ...)`, and dynamic lookup forms
@@ -56,8 +56,8 @@ Abstraction rule for dependency metrics:
 
 Create a starter dependency config if it does not exist (or overwrite it):
 
-    clj -M:check-dependencies dependency-tool.edn --init
-    clj -M:check-dependencies dependency-tool.edn --force-init
+    clj -M:check-dependencies dependency-checker.edn --init
+    clj -M:check-dependencies dependency-checker.edn --force-init
 
 By default, dependency checks fail if any component distance metric exceeds `0`.
 Abstractness in these metrics is derived only from `defprotocol` and `defmulti`.
