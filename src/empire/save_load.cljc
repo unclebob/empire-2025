@@ -3,7 +3,6 @@
   (:require [empire.adapters.persistence.files :as persistence-files]
             [empire.application.ports.persistence :as ports]
             [empire.application.runtime :as app-runtime]
-            [empire.computer.production :as computer-production]
             [empire.domain.core.messages :as messages]))
 
 (def saveable-atoms
@@ -65,6 +64,11 @@
   []
   ((:load-major-invasion-state @state-ctx)))
 
+(defn- rebuild-country-stats!
+  []
+  (when-let [f (:rebuild-country-stats! @state-ctx)]
+    (f)))
+
 (defn- save-major-invasion-state!
   [state]
   ((:save-major-invasion-state! @state-ctx) state))
@@ -113,7 +117,7 @@
      (write-runtime-state! :load-menu-files [])
      (write-runtime-state! :load-menu-hovered nil)
      ((:rebuild-refueling-caches! @state-ctx))
-     (computer-production/rebuild-country-stats!)
+     (rebuild-country-stats!)
      (write-runtime-state! :turn-message (str "Loaded " filename))
      (write-runtime-state! :turn-message-until
                            (messages/expires-at (System/currentTimeMillis) 3000)))))

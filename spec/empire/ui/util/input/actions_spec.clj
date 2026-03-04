@@ -7,7 +7,6 @@
             [empire.game-loop :as game-loop]
             [empire.player.orders :as orders]
             [empire.player.production :as production]
-            [empire.save-load :as save-load]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!
                                        set-test-world! update-test-world!]]))
 

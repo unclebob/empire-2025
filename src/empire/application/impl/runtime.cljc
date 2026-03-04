@@ -23,6 +23,7 @@
      :on-same-continent? #(runtime-ports/on-same-continent? rt-store %1 %2)
      :merge-continents! #(runtime-ports/merge-continents! rt-store %1 %2)
      :rebuild-refueling-caches! #(runtime-ports/rebuild-refueling-caches! rt-store)
+     :rebuild-country-stats! (fn [] nil)
      :handle-detection! (fn [_coords _cell] nil)
      :country-coastal-explored? (fn [country-id]
                                   (get-in (or (runtime-ports/read-runtime-state rt-store :country-stats) {})

@@ -1,5 +1,6 @@
 (ns empire.ui.util.input.dispatch
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.adapters.runtime.save-load :as save-load]
+            [empire.application.runtime :as app-runtime]
             [empire.config :as config]
             [empire.debug :as debug]
             [empire.game-loop :as game-loop]
@@ -7,7 +8,6 @@
             [empire.player.attention :as player-attention]
             [empire.player.commands :as player-commands]
             [empire.player.orders :as player-orders]
-            [empire.save-load :as save-load]
             [empire.ui.util.input.actions :as actions]))
 
 (defonce ^:private state-ctx

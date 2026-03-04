@@ -26,10 +26,11 @@
                     :kind :concrete
                     :match ["empire.acceptance.harness"
                             "empire.application.acceptance-harness"
+                            "empire.adapters.runtime.acceptance-engine"
                             "empire.acceptance.harness.impl*"]}
                    {:component :application-services
                     :kind :concrete
-                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|movement-services$|player-movement-services$|waypoint-services$|impl\\.|runtime$|state$)).*)?$"
+                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|bootstrap$|movement-services$|player-movement-services$|waypoint-services$|impl\\.|runtime$|state$)).*)?$"
                             "^empire\\.application\\.impl\\.(?!runtime$).*$"]}
                    {:component :domain-impl
                     :kind :concrete
@@ -69,7 +70,8 @@
                    {:component :runtime-adapters
                     :kind :concrete
                     :match ["empire.adapters.runtime*"
-                            "empire.application.impl.runtime"]}
+                            "empire.application.impl.runtime"
+                            "empire.application.bootstrap"]}
                    {:component :computer-policy
                     :kind :concrete
                     :match ["empire.computer" "empire.computer*"]}

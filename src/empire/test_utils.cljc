@@ -1,6 +1,7 @@
 (ns empire.test-utils
   (:require [clojure.string :as str]
             [empire.adapters.state.runtime :as runtime-adapter]
+            [empire.application.bootstrap :as app-bootstrap]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.land-objectives :as land-objectives]
@@ -253,6 +254,7 @@
   (vec (repeat cols (vec (repeat rows value)))))
 
 (defn reset-all-atoms! []
+  (app-bootstrap/initialize-default-services!)
   (movement-bootstrap/initialize-default-services!)
   (set-test-state! :random-seed nil)
   (set-test-state! :map-size [0 0])
