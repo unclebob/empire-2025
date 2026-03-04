@@ -23,6 +23,23 @@
             (str/replace "*" ".*"))
         "$")))
 
+(defn- exact-regex
+  [pattern]
+  (re-pattern (str "^" (java.util.regex.Pattern/quote pattern) "$")))
+
+(defn- wildcard-or-regex?
+  [pattern]
+  (or (str/includes? pattern "*")
+      (str/starts-with? pattern "^")))
+
+(defn- string-pattern->regex
+  [pattern]
+  (if (wildcard-or-regex? pattern)
+    (if (str/starts-with? pattern "^")
+      (re-pattern pattern)
+      (glob->regex pattern))
+    (exact-regex pattern)))
+
 (defn- pattern->matcher
   [pattern]
   (cond
@@ -34,12 +51,7 @@
       (fn [s] (= exact s)))
 
     (string? pattern)
-    (let [rx (if (or (str/includes? pattern "*")
-                     (str/starts-with? pattern "^"))
-               (if (str/starts-with? pattern "^")
-                 (re-pattern pattern)
-                 (glob->regex pattern))
-               (re-pattern (str "^" (java.util.regex.Pattern/quote pattern) "$")))]
+    (let [rx (string-pattern->regex pattern)]
       (fn [s] (boolean (re-find rx s))))
 
     :else
@@ -48,26 +60,36 @@
 (defn- normalize-component-rule
   [rule]
   (cond
-    (and (map? rule) (contains? rule :component))
-    (let [raw-matches (or (:match rule) (:matches rule) (:pattern rule))
-          patterns (cond
-                     (nil? raw-matches) []
-                     (sequential? raw-matches) raw-matches
-                     :else [raw-matches])
-          matchers (mapv pattern->matcher patterns)]
-      {:component (:component rule)
-       :matches? (fn [ns-name]
-                   (boolean (some #(% ns-name) matchers)))})
-
     (and (vector? rule) (= 2 (count rule)))
-    (normalize-component-rule {:component (first rule) :match (second rule)})
+    {:component (first rule) :match (second rule)}
+
+    (and (map? rule) (contains? rule :component))
+    rule
 
     :else
     (throw (ex-info "Invalid component rule" {:rule rule}))))
 
+(defn- match-patterns
+  [rule]
+  (let [raw-matches (or (:match rule) (:matches rule) (:pattern rule))]
+    (cond
+      (nil? raw-matches) []
+      (sequential? raw-matches) raw-matches
+      :else [raw-matches])))
+
+(defn- compile-normalized-rule
+  [rule]
+  (let [matchers (mapv pattern->matcher (match-patterns rule))]
+    {:component (:component rule)
+     :matches? (fn [ns-name]
+                 (boolean (some #(% ns-name) matchers)))}))
+
 (defn- compile-component-rules
   [rules]
-  (mapv normalize-component-rule rules))
+  (->> rules
+       (map normalize-component-rule)
+       (map compile-normalized-rule)
+       vec))
 
 (defn- component-for-ns
   [compiled-rules ns-sym]
@@ -88,6 +110,10 @@
        (filter #(.exists ^java.io.File %))
        (mapcat file-seq)
        (filter #(source-file? % include-exts))))
+
+(defn- abs-num
+  [n]
+  (if (neg? n) (- n) n))
 
 (defn- read-forms
   [file]
@@ -198,16 +224,20 @@
 (def ^:private dynamic-lookup-callees
   #{"requiring-resolve" "resolve" "ns-resolve" "find-ns" "the-ns"})
 
+(def ^:private dynamic-lookup-extractors
+  {"requiring-resolve" (fn [arg1 _] [(symbol-target-namespace arg1)])
+   "resolve" (fn [arg1 _] [(qualified-symbol-namespace arg1)])
+   "ns-resolve" (fn [arg1 arg2] [(ns-target arg1)
+                                 (qualified-symbol-namespace arg2)])
+   "find-ns" (fn [arg1 _] [(ns-target arg1)])
+   "the-ns" (fn [arg1 _] [(ns-target arg1)])})
+
 (defn- dynamic-lookup-targets
   [form]
-  (let [[_ arg1 arg2] form]
-    (case (call-name form)
-      "requiring-resolve" [(symbol-target-namespace arg1)]
-      "resolve" [(qualified-symbol-namespace arg1)]
-      "ns-resolve" [(ns-target arg1)
-                    (qualified-symbol-namespace arg2)]
-      "find-ns" [(ns-target arg1)]
-      "the-ns" [(ns-target arg1)]
+  (let [[_ arg1 arg2] form
+        callee (call-name form)]
+    (if-let [extractor (get dynamic-lookup-extractors callee)]
+      (extractor arg1 arg2)
       [])))
 
 (defn- extract-dynamic-namespace-lookups
@@ -339,96 +369,117 @@
           (strongconnect v)))
       @sccs)))
 
+(defn- parse-source-entry
+  [file component-rules]
+  (let [forms (read-forms file)
+        ns-decl (first (filter ns-form? forms))]
+    (when ns-decl
+      (let [ns-name (second ns-decl)
+            stats (var-stats forms)]
+        {:file (.getPath file)
+         :namespace ns-name
+         :component (component-for-ns component-rules ns-name)
+         :requires (extract-dependencies forms ns-decl)
+         :warnings (extract-dynamic-lookup-warnings forms)
+         :public-count (:public-count stats)
+         :abstract-count (:abstract-count stats)}))))
+
+(defn- aggregate-warnings
+  [parsed]
+  (->> parsed
+       (mapcat (fn [{:keys [file namespace warnings]}]
+                 (for [{:keys [kind callee targets]} warnings]
+                   {:kind kind
+                    :file file
+                    :namespace (str namespace)
+                    :callee callee
+                    :targets targets})))
+       distinct
+       (sort-by (juxt :namespace :callee :targets))
+       vec))
+
+(defn- build-ns-edges
+  [parsed ns->entry component-rules]
+  (->> parsed
+       (mapcat (fn [{:keys [namespace component requires]}]
+                 (for [dep requires
+                       :let [dep-entry (get ns->entry dep)
+                             dep-component (or (:component dep-entry)
+                                               (component-for-ns component-rules dep))]
+                       :when (and component dep-component)]
+                   {:from-ns (str namespace)
+                    :to-ns (str dep)
+                    :from-component component
+                    :to-component dep-component})))
+       vec))
+
+(defn- neighbor-maps
+  [component-set component-edges]
+  {:outgoing (reduce (fn [m [a b]]
+                       (if (= a b) m (update m a (fnil conj #{}) b)))
+                     (zipmap component-set (repeat #{}))
+                     component-edges)
+   :incoming (reduce (fn [m [a b]]
+                       (if (= a b) m (update m b (fnil conj #{}) a)))
+                     (zipmap component-set (repeat #{}))
+                     component-edges)})
+
+(defn- component-stat
+  [component parsed incoming outgoing]
+  (let [ns-in-component (filter #(= component (:component %)) parsed)
+        public-count (reduce + (map :public-count ns-in-component))
+        abstract-count (reduce + (map :abstract-count ns-in-component))
+        fan-in (count (get incoming component #{}))
+        fan-out (count (get outgoing component #{}))
+        denom (+ fan-in fan-out)
+        instability (if (zero? denom) 0 (/ fan-out denom))
+        abstractness (if (zero? public-count) 0 (/ abstract-count public-count))
+        distance (abs-num (- (+ abstractness instability) 1))]
+    {:fan-in fan-in
+     :fan-out fan-out
+     :instability instability
+     :abstractness abstractness
+     :distance distance
+     :public-vars public-count
+     :abstract-vars abstract-count}))
+
+(defn- component-stats-map
+  [component-set parsed incoming outgoing]
+  (->> component-set
+       (map (fn [component]
+              [component (component-stat component parsed incoming outgoing)]))
+       (sort-by (comp str first))
+       (into {})))
+
+(defn- find-violations
+  [ns-edges forbidden-rules exceptions]
+  (->> ns-edges
+       (mapcat (fn [edge]
+                 (for [{:keys [from to] :as rule} forbidden-rules
+                       :when (and (= from (:from-component edge))
+                                  (= to (:to-component edge)))
+                       :when (not (some #(exception-matches? % edge) exceptions))]
+                   (assoc edge :rule rule))))
+       vec))
+
 (defn analyze-project
   [config]
   (let [cfg (merge default-config config)
         component-rules (compile-component-rules (:component-rules cfg))
         files (source-files (:source-paths cfg) (:include-exts cfg))
-        parsed (->> files
-                    (map (fn [f]
-                           (let [forms (read-forms f)
-                                 ns-decl (first (filter ns-form? forms))]
-                             (when ns-decl
-                               (let [ns-name (second ns-decl)
-                                     component (component-for-ns component-rules ns-name)
-                                     requires (extract-dependencies forms ns-decl)
-                                     warnings (extract-dynamic-lookup-warnings forms)
-                                     stats (var-stats forms)]
-                                 {:file (.getPath f)
-                                  :namespace ns-name
-                                  :component component
-                                  :requires requires
-                                  :warnings warnings
-                                  :public-count (:public-count stats)
-                                  :abstract-count (:abstract-count stats)})))))
-                    (filter some?)
-                    vec)
-        warnings (->> parsed
-                      (mapcat (fn [{:keys [file namespace warnings]}]
-                                (for [{:keys [kind callee targets]} warnings]
-                                  {:kind kind
-                                   :file file
-                                   :namespace (str namespace)
-                                   :callee callee
-                                   :targets targets})))
-                      distinct
-                      (sort-by (juxt :namespace :callee :targets))
-                      vec)
+        parsed (->> files (map #(parse-source-entry % component-rules)) (filter some?) vec)
+        warnings (aggregate-warnings parsed)
         ns->entry (into {} (map (juxt :namespace identity) parsed))
         component-set (->> parsed (map :component) (filter some?) set)
-        ns-edges (->> parsed
-                      (mapcat (fn [{:keys [namespace component requires]}]
-                                (for [dep requires
-                                      :let [dep-entry (get ns->entry dep)
-                                            dep-component (or (:component dep-entry)
-                                                              (component-for-ns component-rules dep))]
-                                      :when (and component dep-component)]
-                                  {:from-ns (str namespace)
-                                   :to-ns (str dep)
-                                   :from-component component
-                                   :to-component dep-component})))
-                      vec)
+        ns-edges (build-ns-edges parsed ns->entry component-rules)
         component-edges (->> ns-edges
                              (map (juxt :from-component :to-component))
                              set)
-        outgoing (reduce (fn [m [a b]]
-                           (if (= a b) m (update m a (fnil conj #{}) b)))
-                         (zipmap component-set (repeat #{}))
-                         component-edges)
-        incoming (reduce (fn [m [a b]]
-                           (if (= a b) m (update m b (fnil conj #{}) a)))
-                         (zipmap component-set (repeat #{}))
-                         component-edges)
-        component-stats (->> component-set
-                             (map (fn [component]
-                                    (let [ns-in-component (filter #(= component (:component %)) parsed)
-                                          public-count (reduce + (map :public-count ns-in-component))
-                                          abstract-count (reduce + (map :abstract-count ns-in-component))
-                                          fan-in (count (get incoming component #{}))
-                                          fan-out (count (get outgoing component #{}))
-                                          denom (+ fan-in fan-out)
-                                          instability (if (zero? denom) 0.0 (/ (double fan-out) (double denom)))
-                                          abstractness (if (zero? public-count) 0.0 (/ (double abstract-count) (double public-count)))
-                                          distance (Math/abs (double (- (+ abstractness instability) 1.0)))]
-                                      [component {:fan-in fan-in
-                                                  :fan-out fan-out
-                                                  :instability instability
-                                                  :abstractness abstractness
-                                                  :distance distance
-                                                  :public-vars public-count
-                                                  :abstract-vars abstract-count}])))
-                             (sort-by (comp str first))
-                             (into {}))
+        {:keys [incoming outgoing]} (neighbor-maps component-set component-edges)
+        component-stats (component-stats-map component-set parsed incoming outgoing)
         exceptions (mapv compile-exception (:allowed-exceptions cfg))
         forbidden-rules (mapv normalize-forbidden-rule (:forbidden-dependencies cfg))
-        violations (->> ns-edges
-                        (mapcat (fn [edge]
-                                  (for [{:keys [from to] :as rule} forbidden-rules
-                                        :when (and (= from (:from-component edge))
-                                                   (= to (:to-component edge)))
-                                        :when (not (some #(exception-matches? % edge) exceptions))]
-                                    (assoc edge :rule rule))))
-                        vec)
+        violations (find-violations ns-edges forbidden-rules exceptions)
         sccs (strongly-connected-components component-set (remove (fn [[a b]] (= a b)) component-edges))
         cycles (->> sccs (filter #(> (count %) 1)) vec)]
     {:config cfg
@@ -629,6 +680,63 @@
 (defn- fmt-double [d]
   (format "%.3f" (double d)))
 
+(defn- print-labeled-section
+  [title underline lines]
+  (when (seq lines)
+    (println)
+    (println title)
+    (println underline)
+    (doseq [line lines]
+      (println line))))
+
+(defn- metric-lines
+  [component-stats]
+  (cons
+   (format "%-18s %6s %7s %11s %11s %9s" "Component" "FanIn" "FanOut" "Instability" "Abstract" "Distance")
+   (for [[component {:keys [fan-in fan-out instability abstractness distance]}] component-stats]
+     (format "%-18s %6d %7d %11s %11s %9s"
+             (str component)
+             fan-in
+             fan-out
+             (fmt-double instability)
+             (fmt-double abstractness)
+             (fmt-double distance)))))
+
+(defn- edge-lines
+  [component-edges]
+  (map (fn [[from to]] (format "%s -> %s" from to)) component-edges))
+
+(defn- warning-lines
+  [warnings]
+  (map (fn [{:keys [namespace callee targets]}]
+         (format "%s uses %s%s"
+                 namespace
+                 callee
+                 (if (seq targets)
+                   (str " -> " (str/join ", " targets))
+                   "")))
+       warnings))
+
+(defn- violation-lines
+  [violations]
+  (map (fn [{:keys [from-component to-component from-ns to-ns]}]
+         (format "%s -> %s  (%s -> %s)"
+                 from-component to-component from-ns to-ns))
+       violations))
+
+(defn- cycle-lines
+  [cycles]
+  (map (fn [cycle] (str/join " -> " (map str cycle))) cycles))
+
+(defn- distance-violation-lines
+  [distance-violations max-distance]
+  (map (fn [[component distance]]
+         (format "%s distance=%s exceeds limit=%s"
+                 component
+                 (fmt-double distance)
+                 (fmt-double max-distance)))
+       distance-violations))
+
 (defn- report-text
   [{:keys [component-stats component-edges warnings violations cycles]}
    {:keys [max-distance distance-violations]}]
@@ -643,57 +751,12 @@
     (println (format "Cycles: %d" (count cycles)))
     (println (format "Distance limit: %.3f" (double max-distance)))
     (println (format "Distance violations: %d" (count distance-violations)))
-    (println)
-    (println "Component Metrics")
-    (println "-----------------")
-    (println (format "%-18s %6s %7s %11s %11s %9s" "Component" "FanIn" "FanOut" "Instability" "Abstract" "Distance"))
-    (doseq [[component {:keys [fan-in fan-out instability abstractness distance]}] component-stats]
-      (println (format "%-18s %6d %7d %11s %11s %9s"
-                       (str component)
-                       fan-in
-                       fan-out
-                       (fmt-double instability)
-                       (fmt-double abstractness)
-                       (fmt-double distance))))
-    (when (seq component-edges)
-      (println)
-      (println "Component Dependencies")
-      (println "----------------------")
-      (doseq [[from to] component-edges]
-        (println (format "%s -> %s" from to))))
-    (when (seq warnings)
-      (println)
-      (println "Warnings")
-      (println "--------")
-      (doseq [{:keys [namespace callee targets]} warnings]
-        (println (format "%s uses %s%s"
-                         namespace
-                         callee
-                         (if (seq targets)
-                           (str " -> " (str/join ", " targets))
-                           "")))))
-    (when (seq violations)
-      (println)
-      (println "Boundary Violations")
-      (println "-------------------")
-      (doseq [{:keys [from-component to-component from-ns to-ns]} violations]
-        (println (format "%s -> %s  (%s -> %s)"
-                         from-component to-component from-ns to-ns))))
-    (when (seq cycles)
-      (println)
-      (println "Cycles")
-      (println "------")
-      (doseq [cycle cycles]
-        (println (str/join " -> " (map str cycle)))))
-    (when (seq distance-violations)
-      (println)
-      (println "Distance Violations")
-      (println "-------------------")
-      (doseq [[component distance] distance-violations]
-        (println (format "%s distance=%s exceeds limit=%s"
-                         component
-                         (fmt-double distance)
-                         (fmt-double max-distance)))))))
+    (print-labeled-section "Component Metrics" "-----------------" (metric-lines component-stats))
+    (print-labeled-section "Component Dependencies" "----------------------" (edge-lines component-edges))
+    (print-labeled-section "Warnings" "--------" (warning-lines warnings))
+    (print-labeled-section "Boundary Violations" "-------------------" (violation-lines violations))
+    (print-labeled-section "Cycles" "------" (cycle-lines cycles))
+    (print-labeled-section "Distance Violations" "-------------------" (distance-violation-lines distance-violations max-distance))))
 
 (defn- load-config
   [path]
@@ -707,87 +770,151 @@
     (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--max-distance N] [--init|--force-init]"))
   2)
 
-(defn -main
-  [& args]
+(defn- parse-max-distance
+  [raw]
+  (let [parsed (try
+                 (edn/read-string raw)
+                 (catch Exception _
+                   ::invalid-max-distance))]
+    (if (or (= ::invalid-max-distance parsed) (not (number? parsed)))
+      {:error :invalid-max-distance :value raw}
+      {:max-distance parsed})))
+
+(defn- apply-format-option
+  [state more]
+  (if-let [format-arg (first more)]
+    {:state (assoc state :fmt (keyword format-arg))
+     :remaining (rest more)}
+    {:error :usage}))
+
+(defn- apply-max-distance-option
+  [state more]
+  (if-let [raw (first more)]
+    (let [parsed (parse-max-distance raw)]
+      (if (:error parsed)
+        parsed
+        {:state (assoc state :max-distance (:max-distance parsed))
+         :remaining (rest more)}))
+    {:error :usage}))
+
+(def ^:private option-handlers
+  {"--init" (fn [state more] {:state (assoc state :init? true) :remaining more})
+   "--force-init" (fn [state more] {:state (assoc state :force-init? true) :remaining more})
+   "--format" apply-format-option
+   "--max-distance" apply-max-distance-option})
+
+(defn- apply-option
+  [state arg more]
+  (if-let [handler (get option-handlers arg)]
+    (handler state more)
+    {:error :usage}))
+
+(defn- parse-args
+  [args]
   (let [[config-path args*] (if (and (seq args) (not (str/starts-with? (first args) "--")))
                               [(first args) (rest args)]
                               ["dependency-tool.edn" args])]
-    (loop [remaining args*
-           fmt :text
-           init? false
-           force-init? false
-           max-distance 0.0]
+    (loop [state {:config-path config-path
+                  :fmt :text
+                  :init? false
+                  :force-init? false
+                  :max-distance 0}
+           remaining args*]
       (if (empty? remaining)
-        (let [config-file (io/file config-path)]
-          (cond
-            (and init? force-init?)
-            (System/exit (usage!))
+        state
+        (let [[arg & more] remaining
+              step (apply-option state arg more)]
+          (if-let [error (:error step)]
+            (if (= error :invalid-max-distance)
+              {:error :invalid-max-distance :value (:value step)}
+              {:error :usage})
+            (recur (:state step) (:remaining step))))))))
 
-            (or force-init? (and init? (not (.exists config-file))) (not (.exists config-file)))
-            (let [cfg (generate-starter-config)
-                  reason (cond
-                           force-init? "Recreated"
-                           init? "Created"
-                           :else "Created")]
-              (write-config! config-path cfg)
-              (println (format "%s starter dependency config at %s" reason config-path))
-              (println "Review the generated component rules and boundary restrictions, then rerun.")
-              (System/exit 0))
+(defn- config-action
+  [exists? init? force-init?]
+  (cond
+    force-init? :recreate
+    (not exists?) :create
+    init? :noop-init
+    :else :analyze))
 
-            init?
-            (do
-              (println (format "Config already exists at %s (not overwritten)." config-path))
-              (System/exit 0))
+(defn- create-config!
+  [config-path reason]
+  (write-config! config-path (generate-starter-config))
+  (println (format "%s starter dependency config at %s" reason config-path))
+  (println "Review the generated component rules and boundary restrictions, then rerun.")
+  0)
 
-            :else
-            (let [result (analyze-project (load-config config-path))
-                  distance-violations (->> (:component-stats result)
-                                           (filter (fn [[_ {:keys [distance]}]]
-                                                     (> (double distance) (double max-distance))))
-                                           (mapv (fn [[component {:keys [distance]}]]
-                                                   [component distance])))
-                  has-violations (seq (:violations result))
-                  has-cycles (seq (:cycles result))
-                  has-distance-violations (seq distance-violations)
-                  fail? (or (and has-violations (get-in result [:config :fail-on-violations] true))
-                            (and has-cycles (get-in result [:config :fail-on-cycles] true))
-                            has-distance-violations)]
-              (case fmt
-                :edn (prn result)
-                :text (report-text result {:max-distance max-distance
-                                           :distance-violations distance-violations})
-                (do
-                  (binding [*out* *err*]
-                    (println "Unsupported format:" fmt))
-                  (System/exit 2)))
-              (when fail?
-                (System/exit 1)))))
-        (let [[arg & more] remaining]
-          (cond
-            (= arg "--init")
-            (recur more fmt true force-init? max-distance)
+(defn- apply-config-action!
+  [action config-path]
+  (case action
+    :recreate (create-config! config-path "Recreated")
+    :create (create-config! config-path "Created")
+    :noop-init (do
+                 (println (format "Config already exists at %s (not overwritten)." config-path))
+                 0)
+    nil))
 
-            (= arg "--force-init")
-            (recur more fmt init? true max-distance)
+(defn- ensure-config!
+  [{:keys [config-path init? force-init?]}]
+  (let [exists? (.exists (io/file config-path))]
+    (if (and init? force-init?)
+      (usage!)
+      (apply-config-action! (config-action exists? init? force-init?) config-path))))
 
-            (= arg "--format")
-            (if-let [format-arg (first more)]
-              (recur (rest more) (keyword format-arg) init? force-init? max-distance)
-              (System/exit (usage!)))
+(defn- distance-violations
+  [result max-distance]
+  (->> (:component-stats result)
+       (filter (fn [[_ {:keys [distance]}]]
+                 (> distance max-distance)))
+       (mapv (fn [[component {:keys [distance]}]]
+               [component distance]))))
 
-            (= arg "--max-distance")
-            (if-let [raw (first more)]
-              (let [parsed (try
-                             (Double/parseDouble raw)
-                             (catch Exception _
-                               ::invalid-max-distance))]
-                (if (= ::invalid-max-distance parsed)
-                  (do
-                    (binding [*out* *err*]
-                      (println "Invalid value for --max-distance:" raw))
-                    (System/exit 2))
-                  (recur (rest more) fmt init? force-init? parsed)))
-              (System/exit (usage!)))
+(defn- failure?
+  [result dist-violations]
+  (or (and (seq (:violations result)) (get-in result [:config :fail-on-violations] true))
+      (and (seq (:cycles result)) (get-in result [:config :fail-on-cycles] true))
+      (seq dist-violations)))
 
-            :else
-            (System/exit (usage!))))))))
+(defn- run-analysis!
+  [{:keys [config-path fmt max-distance]}]
+  (let [result (analyze-project (load-config config-path))
+        dist-violations (distance-violations result max-distance)]
+    (cond
+      (= fmt :edn)
+      (do
+        (prn result)
+        (if (failure? result dist-violations) 1 0))
+
+      (= fmt :text)
+      (do
+        (report-text result {:max-distance max-distance
+                             :distance-violations dist-violations})
+        (if (failure? result dist-violations) 1 0))
+
+      :else
+      (do
+        (binding [*out* *err*]
+          (println "Unsupported format:" fmt))
+        2))))
+
+(defn- run-cli
+  [args]
+  (let [{:keys [error value] :as parsed} (parse-args args)]
+    (cond
+      (= error :usage)
+      (usage!)
+
+      (= error :invalid-max-distance)
+      (do
+        (binding [*out* *err*]
+          (println "Invalid value for --max-distance:" value))
+        2)
+
+      :else
+      (or (ensure-config! parsed)
+          (run-analysis! parsed)))))
+
+(defn -main
+  [& args]
+  (System/exit (run-cli args)))
