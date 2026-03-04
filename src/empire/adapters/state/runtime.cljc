@@ -2,100 +2,96 @@
 (ns empire.adapters.state.runtime
   "Atom-backed runtime state adapter for non-world state."
   (:require [empire.application.ports.runtime-state :as ports]
+            [empire.atoms :as atoms]
             [empire.domain.core.continents :as continents]
             [empire.domain.core.messages :as messages]
             [empire.domain.core.refueling :as refueling]))
 
-(def ^:private runtime-key->atom-sym
-  {:random-seed 'empire.atoms/random-seed
-   :map-size 'empire.atoms/map-size
-   :map-size-constants 'empire.atoms/map-size-constants
-   :last-key 'empire.atoms/last-key
-   :production 'empire.atoms/production
-   :round-number 'empire.atoms/round-number
-   :backtick-pressed 'empire.atoms/backtick-pressed
-   :last-clicked-cell 'empire.atoms/last-clicked-cell
-   :waiting-for-input 'empire.atoms/waiting-for-input
-   :cells-needing-attention 'empire.atoms/cells-needing-attention
-   :claimed-objectives 'empire.atoms/claimed-objectives
-   :claimed-transport-targets 'empire.atoms/claimed-transport-targets
-   :claimed-patrol-targets 'empire.atoms/claimed-patrol-targets
-   :player-items 'empire.atoms/player-items
-   :computer-items 'empire.atoms/computer-items
-   :game-over-check-enabled 'empire.atoms/game-over-check-enabled
-   :paused 'empire.atoms/paused
-   :error-message 'empire.atoms/error-message
-   :error-until 'empire.atoms/error-until
-   :map-screen-dimensions 'empire.atoms/map-screen-dimensions
-   :text-area-dimensions 'empire.atoms/text-area-dimensions
-   :map-to-display 'empire.atoms/map-to-display
-   :attention-message 'empire.atoms/attention-message
-   :turn-message 'empire.atoms/turn-message
-   :turn-message-until 'empire.atoms/turn-message-until
-   :hover-message 'empire.atoms/hover-message
-   :production-status 'empire.atoms/production-status
-   :pause-requested 'empire.atoms/pause-requested
-   :destination 'empire.atoms/destination
-   :text-font 'empire.atoms/text-font
-   :production-char-font 'empire.atoms/production-char-font
-   :game-map 'empire.atoms/game-map
-   :load-menu-open 'empire.atoms/load-menu-open
-   :load-menu-files 'empire.atoms/load-menu-files
-   :load-menu-hovered 'empire.atoms/load-menu-hovered
-   :debug-drag-start 'empire.atoms/debug-drag-start
-   :debug-drag-current 'empire.atoms/debug-drag-current
-   :debug-message 'empire.atoms/debug-message
-   :player-map 'empire.atoms/player-map
-   :computer-city-positions 'empire.atoms/computer-city-positions
-   :computer-carrier-positions 'empire.atoms/computer-carrier-positions
-   :computer-map 'empire.atoms/computer-map
-   :computer-turn 'empire.atoms/computer-turn
-   :next-transport-id 'empire.atoms/next-transport-id
-   :next-country-id 'empire.atoms/next-country-id
-   :continent-groups 'empire.atoms/continent-groups
-   :next-unload-event-id 'empire.atoms/next-unload-event-id
-   :next-destroyer-id 'empire.atoms/next-destroyer-id
-   :next-carrier-id 'empire.atoms/next-carrier-id
-   :next-escort-id 'empire.atoms/next-escort-id
-   :fighter-leg-records 'empire.atoms/fighter-leg-records
-   :last-transport-city 'empire.atoms/last-transport-city
-   :country-stats 'empire.atoms/country-stats
-   :patrol-boats-produced 'empire.atoms/patrol-boats-produced
-   :seen-coast 'empire.atoms/seen-coast
-   :coast-walkers-produced 'empire.atoms/coast-walkers-produced
-   :coastal-cells-by-country 'empire.atoms/coastal-cells-by-country
-   :land-ho-targets 'empire.atoms/land-ho-targets
-   :major-invasion-state 'empire.atoms/major-invasion-state
-   :transport-fully-loaded? 'empire.atoms/transport-fully-loaded?
-   :early-patrol-boat-produced? 'empire.atoms/early-patrol-boat-produced?
-   :early-satellite-produced? 'empire.atoms/early-satellite-produced?
-   :computer-event-log 'empire.atoms/computer-event-log
-   :action-log 'empire.atoms/action-log
-   :player-movement-log 'empire.atoms/player-movement-log
-   :distant-city-pairs 'empire.atoms/distant-city-pairs
-   :lake-max-cells 'empire.atoms/lake-max-cells
-   :known-lake-cells 'empire.atoms/known-lake-cells})
+(def ^:private runtime-key->atom
+  {:random-seed atoms/random-seed
+   :map-size atoms/map-size
+   :map-size-constants atoms/map-size-constants
+   :last-key atoms/last-key
+   :production atoms/production
+   :round-number atoms/round-number
+   :backtick-pressed atoms/backtick-pressed
+   :last-clicked-cell atoms/last-clicked-cell
+   :waiting-for-input atoms/waiting-for-input
+   :cells-needing-attention atoms/cells-needing-attention
+   :claimed-objectives atoms/claimed-objectives
+   :claimed-transport-targets atoms/claimed-transport-targets
+   :claimed-patrol-targets atoms/claimed-patrol-targets
+   :player-items atoms/player-items
+   :computer-items atoms/computer-items
+   :game-over-check-enabled atoms/game-over-check-enabled
+   :paused atoms/paused
+   :error-message atoms/error-message
+   :error-until atoms/error-until
+   :map-screen-dimensions atoms/map-screen-dimensions
+   :text-area-dimensions atoms/text-area-dimensions
+   :map-to-display atoms/map-to-display
+   :attention-message atoms/attention-message
+   :turn-message atoms/turn-message
+   :turn-message-until atoms/turn-message-until
+   :hover-message atoms/hover-message
+   :production-status atoms/production-status
+   :pause-requested atoms/pause-requested
+   :destination atoms/destination
+   :text-font atoms/text-font
+   :production-char-font atoms/production-char-font
+   :game-map atoms/game-map
+   :load-menu-open atoms/load-menu-open
+   :load-menu-files atoms/load-menu-files
+   :load-menu-hovered atoms/load-menu-hovered
+   :debug-drag-start atoms/debug-drag-start
+   :debug-drag-current atoms/debug-drag-current
+   :debug-message atoms/debug-message
+   :player-map atoms/player-map
+   :computer-city-positions atoms/computer-city-positions
+   :computer-carrier-positions atoms/computer-carrier-positions
+   :computer-map atoms/computer-map
+   :computer-turn atoms/computer-turn
+   :next-transport-id atoms/next-transport-id
+   :next-country-id atoms/next-country-id
+   :continent-groups atoms/continent-groups
+   :next-unload-event-id atoms/next-unload-event-id
+   :next-destroyer-id atoms/next-destroyer-id
+   :next-carrier-id atoms/next-carrier-id
+   :next-escort-id atoms/next-escort-id
+   :fighter-leg-records atoms/fighter-leg-records
+   :last-transport-city atoms/last-transport-city
+   :country-stats atoms/country-stats
+   :patrol-boats-produced atoms/patrol-boats-produced
+   :seen-coast atoms/seen-coast
+   :coast-walkers-produced atoms/coast-walkers-produced
+   :coastal-cells-by-country atoms/coastal-cells-by-country
+   :land-ho-targets atoms/land-ho-targets
+   :major-invasion-state atoms/major-invasion-state
+   :transport-fully-loaded? atoms/transport-fully-loaded?
+   :early-patrol-boat-produced? atoms/early-patrol-boat-produced?
+   :early-satellite-produced? atoms/early-satellite-produced?
+   :computer-event-log atoms/computer-event-log
+   :action-log atoms/action-log
+   :player-movement-log atoms/player-movement-log
+   :distant-city-pairs atoms/distant-city-pairs
+   :lake-max-cells atoms/lake-max-cells
+   :known-lake-cells atoms/known-lake-cells})
 
 (def ^:private runtime-state*
   (atom {}))
 
-(defn- resolve-atom
-  [sym]
-  (or (some-> sym requiring-resolve var-get)
-      (throw (ex-info (str "Unable to resolve legacy atom var: " sym) {:symbol sym}))))
-
 (defn- runtime-atom
   [k]
-  (let [sym (get runtime-key->atom-sym k)]
-    (or (and sym (resolve-atom sym))
+  (let [a (get runtime-key->atom k)]
+    (or a
         (throw (ex-info (str "Unsupported runtime-state key: " k) {:key k})))))
 
 (defn refresh-runtime-state!
   []
   (reset! runtime-state*
           (into {}
-                (map (fn [[k sym]] [k @(resolve-atom sym)]))
-                runtime-key->atom-sym)))
+                (map (fn [[k a]] [k @a]))
+                runtime-key->atom)))
 
 (defonce ^:private initialized? true)
 

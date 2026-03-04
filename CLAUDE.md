@@ -163,6 +163,9 @@ The message area below the map has two sections, each 3 lines high:
 - When introducing a new port/protocol, migrate at least one real consumer in the same slice and add a no-regression guard for that migrated consumer.
 - Preserve API arity compatibility during boundary migrations unless an explicit breaking change is requested.
 - Any abstraction assertion in `dependency-tool.edn` must map to real indirection in source, never config-only pattern declarations.
+- Do not use `requiring-resolve` for architecture wiring.
+- Do not use namespace/var lookup for architecture wiring (`resolve`, `ns-resolve`, `find-ns`, `the-ns`, `var`, `find-var`, or equivalent dynamic lookup patterns).
+- Composition must use explicit static dependencies (`ns :require`) and explicit injected values (protocol implementations or function arguments), not symbol-based lookup.
 
 ### Quil Isolation
 

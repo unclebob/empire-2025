@@ -1,92 +1,44 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.containers.ops
-  (:require [empire.application.ports.world-store :as world-ports]
+  (:require [empire.adapters.state.atoms :as atoms-adapter]
+            [empire.application.ports.world-store :as world-ports]
+            [empire.application.unit-stamping :as unit-stamping]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.domain.model.containers :as domain-containers]
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
-
-(def ^:private world-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.atoms/world-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private map-neighbor-offsets-var
-  (delay
-    (try
-      (requiring-resolve 'empire.movement.map-utils/neighbor-offsets)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private map-any-neighbor-matches-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.movement.map-utils/any-neighbor-matches?)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private map-get-matching-neighbors-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.movement.map-utils/get-matching-neighbors)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private update-cell-visibility-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.movement.visibility/update-cell-visibility)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private stamp-unit-fields-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.player.production/stamp-unit-fields)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
 
 (defn- current-world
   []
-  (if-let [resolver @world-store-fn]
-    (world-ports/load-world (resolver))
-    []))
+  (world-ports/load-world (atoms-adapter/world-store)))
 
 (defn- update-game-map!
   [f & args]
-  (when-let [resolver @world-store-fn]
-    (let [store (resolver)
-          world (world-ports/load-world store)]
-      (world-ports/save-world! store (apply f world args)))))
+  (let [store (atoms-adapter/world-store)
+        world (world-ports/load-world store)]
+    (world-ports/save-world! store (apply f world args))))
 
 (defn- neighbor-offsets
   []
-  (if-let [v @map-neighbor-offsets-var] @v []))
+  map-utils/neighbor-offsets)
 
 (defn- any-neighbor-matches?
   [coords world offsets pred]
-  (if-let [f @map-any-neighbor-matches-fn]
-    (f coords world offsets pred)
-    false))
+  (map-utils/any-neighbor-matches? coords world offsets pred))
 
 (defn- get-matching-neighbors
   [coords world offsets pred]
-  (if-let [f @map-get-matching-neighbors-fn]
-    (f coords world offsets pred)
-    []))
+  (map-utils/get-matching-neighbors coords world offsets pred))
 
 (defn- update-cell-visibility!
   [coords owner]
-  (when-let [f @update-cell-visibility-fn]
-    (f coords owner)))
+  (visibility/update-cell-visibility coords owner))
 
 (defn- stamp-unit-fields
-  [city unit]
-  (if-let [f @stamp-unit-fields-fn]
-    (f city unit)
-    unit))
+  [unit city]
+  (unit-stamping/stamp-computer-fields unit city))
 
 ;; Transport operations
 

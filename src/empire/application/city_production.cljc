@@ -1,0 +1,36 @@
+;; mutation-tested: no
+(ns empire.application.city-production
+  (:require [empire.application.runtime :as app-runtime]))
+
+(def ^:private state-ctx
+  (delay (app-runtime/default-state-ctx)))
+
+(defn- read-runtime-state
+  [k]
+  ((:read-runtime-state @state-ctx) k))
+
+(defn- write-runtime-state!
+  [k v]
+  ((:write-runtime-state! @state-ctx) k v))
+
+(defn- item-cost
+  [item]
+  (if-let [f (:item-cost @state-ctx)]
+    (f item)
+    (if-let [resolved (try
+                        (requiring-resolve (symbol (str "empire.config")
+                                                   (str "item-cost")))
+                        (catch #?(:clj Throwable :cljs :default) _
+                          nil))]
+      (resolved item)
+      0)))
+
+(defn set-city-production
+  "Sets production and rounds remaining for a city in runtime state."
+  [coords item]
+  (let [current (read-runtime-state :production)]
+    (write-runtime-state! :production
+                          (assoc current
+                                 coords
+                                 {:item item
+                                  :remaining-rounds (item-cost item)}))))

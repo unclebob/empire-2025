@@ -5,8 +5,8 @@
 (def ^:private impl-loaded?
   (delay
     (try
-      (require 'empire.application.impl.state)
-      true
+      (some? (requiring-resolve (symbol (str "empire.application.impl.state")
+                                        (str "apply-command!"))))
       (catch #?(:clj Throwable :cljs :default) _
         false))))
 

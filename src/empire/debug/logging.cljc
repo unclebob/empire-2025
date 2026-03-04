@@ -1,23 +1,17 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.logging
   "Debug log appenders with bounded history."
-  (:require [empire.application.ports.runtime-state :as runtime-ports]))
-
-(def ^:private runtime-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
+  (:require [empire.adapters.state.runtime :as runtime-adapter]
+            [empire.application.ports.runtime-state :as runtime-ports]))
 
 (defn- read-runtime-state
   [k]
-  (let [store (when-let [f @runtime-store-fn] (f))]
+  (let [store (runtime-adapter/runtime-state-store)]
     (runtime-ports/read-runtime-state store k)))
 
 (defn- write-runtime-state!
   [k v]
-  (let [store (when-let [f @runtime-store-fn] (f))]
+  (let [store (runtime-adapter/runtime-state-store)]
     (runtime-ports/write-runtime-state! store k v)))
 
 (defn- update-runtime-state!

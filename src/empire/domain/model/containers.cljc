@@ -1,62 +1,140 @@
 ;; mutation-tested: no
-(ns empire.domain.model.containers)
-
-#?(:clj
-   (defonce ^:private methods-loaded? (atom false)))
-
-#?(:clj
-   (defn- ensure-methods-loaded!
-     []
-     (when-not @methods-loaded?
-       (requiring-resolve 'empire.domain.model.impl.containers/load-methods!)
-       (reset! methods-loaded? true))))
+(ns empire.domain.model.containers
+  (:require [empire.units.config :as units-config]))
 
 (defmulti wake-transport-armies
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti sleep-transport-armies
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti remove-awake-transport-army
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti disembarked-army
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti moving-disembarked-army
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti exploring-disembarked-army
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti wake-carrier-fighters
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti sleep-carrier-fighters
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti first-step-toward
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
 
 (defmulti launched-fighter
   (fn [& _]
-    #?(:clj (ensure-methods-loaded!))
     :default))
+
+(defn- wake-all
+  [entity count-key awake-key]
+  (assoc entity awake-key (get entity count-key 0)))
+
+(defn- sleep-all
+  [entity awake-key]
+  (assoc entity awake-key 0))
+
+(defn- remove-awake-unit
+  [entity count-key awake-key]
+  (-> entity
+      (update count-key (fnil dec 0))
+      (update awake-key (fnil dec 0))))
+
+(defn- has-awake?
+  [entity awake-key]
+  (pos? (get entity awake-key 0)))
+
+(defmethod wake-transport-armies :default
+  [transport]
+  (-> transport
+      (wake-all :army-count :awake-armies)
+      (assoc :mode :sentry :steps-remaining 0)
+      (dissoc :reason)))
+
+(defmethod sleep-transport-armies :default
+  [transport]
+  (-> transport
+      (sleep-all :awake-armies)
+      (assoc :mode :awake)
+      (dissoc :reason)))
+
+(defmethod remove-awake-transport-army :default
+  [transport]
+  (let [after-remove (remove-awake-unit transport :army-count :awake-armies)
+        no-more-awake? (not (has-awake? after-remove :awake-armies))]
+    (cond-> after-remove
+      no-more-awake? (assoc :mode :awake)
+      no-more-awake? (dissoc :reason))))
+
+(defmethod disembarked-army :default
+  [owner]
+  {:type :army
+   :mode :awake
+   :owner owner
+   :hits 1
+   :steps-remaining units-config/army-speed})
+
+(defmethod moving-disembarked-army :default
+  [owner extended-target]
+  {:type :army
+   :mode :moving
+   :owner owner
+   :hits 1
+   :steps-remaining 0
+   :target extended-target})
+
+(defmethod exploring-disembarked-army :default
+  [owner target-coords]
+  {:type :army
+   :mode :explore
+   :owner owner
+   :hits 1
+   :steps-remaining units-config/army-speed
+   :explore-steps units-config/explore-steps
+   :visited #{target-coords}})
+
+(defmethod wake-carrier-fighters :default
+  [carrier]
+  (-> carrier
+      (wake-all :fighter-count :awake-fighters)
+      (assoc :mode :sentry)
+      (dissoc :reason)))
+
+(defmethod sleep-carrier-fighters :default
+  [carrier]
+  (-> carrier
+      (sleep-all :awake-fighters)
+      (assoc :mode :awake)
+      (dissoc :reason)))
+
+(defmethod first-step-toward :default
+  [[cx cy] [tx ty]]
+  (let [dx (cond (zero? (- tx cx)) 0 (pos? (- tx cx)) 1 :else -1)
+        dy (cond (zero? (- ty cy)) 0 (pos? (- ty cy)) 1 :else -1)]
+    [(+ cx dx) (+ cy dy)]))
+
+(defmethod launched-fighter :default
+  [owner target-coords steps-remaining]
+  {:type :fighter
+   :mode :moving
+   :owner owner
+   :fuel units-config/fighter-fuel
+   :target target-coords
+   :hits 1
+   :steps-remaining steps-remaining})

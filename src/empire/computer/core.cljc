@@ -172,7 +172,7 @@
           (update-runtime-state! :player-map assoc-in city-pos (get-in (current-world) city-pos)))
         (let [city-country-id (:country-id (get-in (current-world) city-pos))
               country-city-producing-armies? (requiring-resolve 'empire.computer.production/country-city-producing-armies?)
-              set-city-production (requiring-resolve 'empire.player.production/set-city-production)]
+              set-city-production (requiring-resolve 'empire.application.city-production/set-city-production)]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
             (set-city-production city-pos :army)))

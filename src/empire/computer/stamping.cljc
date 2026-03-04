@@ -1,128 +1,15 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.stamping
-  (:require [empire.application.runtime :as app-runtime]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- next-id!
-  [k]
-  (let [id (or (read-runtime-state k) 1)]
-    (write-runtime-state! k (inc id))
-    id))
-
-(defn- apply-computer-satellite-direction
-  "Assigns a random direction to computer satellites."
-  [unit]
-  (if (and (= :satellite (:type unit)) (= :computer (:owner unit)))
-    (assoc unit :direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
-    unit))
-
-(defn- apply-computer-transport-fields
-  "Stamps transport-mission and transport-id on computer transports."
-  [unit]
-  (if (and (= :transport (:type unit)) (= :computer (:owner unit)))
-    (let [id (next-id! :next-transport-id)]
-      (assoc unit :transport-mission :loading
-                  :transport-id id
-                  :army-count 0))
-    unit))
-
-(defn- apply-country-id
-  "Assigns city's country-id to computer armies, transports, fighters, and patrol boats."
-  [unit cell]
-  (if (and (#{:army :transport :fighter :patrol-boat} (:type unit)) (:country-id cell))
-    (assoc unit :country-id (:country-id cell))
-    unit))
-
-(defn- apply-patrol-fields
-  "Stamps patrol-mode on computer patrol boats spawned from a country city."
-  [unit cell]
-  (if (and (= :patrol-boat (:type unit))
-           (= :computer (:city-status cell))
-           (:country-id cell))
-    (assoc unit :patrol-mode :crawling)
-    unit))
-
-(defn- apply-carrier-fields
-  "Stamps carrier fields on computer carriers: mode, id, group slots."
-  [unit]
-  (if (and (= :carrier (:type unit)) (= :computer (:owner unit)))
-    (let [id (next-id! :next-carrier-id)]
-      (assoc unit :carrier-mode :positioning
-                  :carrier-id id
-                  :group-battleship-id nil
-                  :group-submarine-ids []))
-    unit))
-
-(defn- apply-escort-fields
-  "Stamps escort fields on computer battleships and submarines."
-  [unit]
-  (if (and (#{:battleship :submarine} (:type unit)) (= :computer (:owner unit)))
-    (let [id (next-id! :next-escort-id)]
-      (assoc unit :escort-id id :escort-mode :seeking))
-    unit))
-
-(defn- apply-destroyer-fields
-  "Stamps destroyer-id and escort-mode on computer destroyers."
-  [unit]
-  (if (and (= :destroyer (:type unit)) (= :computer (:owner unit)))
-    (let [id (next-id! :next-destroyer-id)]
-      (assoc unit :destroyer-id id :escort-mode :seeking))
-    unit))
+  (:require [empire.application.unit-stamping :as unit-stamping]))
 
 (defn stamp-computer-fields
-  "Applies all computer-specific fields to a unit.
-   Called by stamp-unit-fields in player/production after shared attributes."
   [unit cell]
-  (-> unit
-      (apply-computer-satellite-direction)
-      (apply-computer-transport-fields)
-      (apply-destroyer-fields)
-      (apply-carrier-fields)
-      (apply-escort-fields)
-      (apply-country-id cell)
-      (apply-patrol-fields cell)))
+  (unit-stamping/stamp-computer-fields unit cell))
 
 (defn apply-coast-walk-fields
-  "Stamps coast-walk mode on first 2 computer armies per country.
-   Alternates clockwise/counter-clockwise."
   [unit item cell coords]
-  (if (and (= item :army)
-           (= (:city-status cell) :computer)
-           (:country-id cell)
-           (< (get (read-runtime-state :coast-walkers-produced) (:country-id cell) 0) 2)
-           (not ((requiring-resolve 'empire.computer.production/country-coastal-cells-explored?)
-                 (:country-id cell))))
-    (let [country-id (:country-id cell)
-          produced (get (read-runtime-state :coast-walkers-produced) country-id 0)
-          direction (if (even? produced) :clockwise :counter-clockwise)]
-      (write-runtime-state! :coast-walkers-produced
-                            (update (or (read-runtime-state :coast-walkers-produced) {})
-                                    country-id (fnil inc 0)))
-      (assoc unit :mode :coast-walk
-                  :coast-direction direction
-                  :coast-start coords
-                  :coast-visited [coords]))
-    unit))
+  (unit-stamping/apply-coast-walk-fields unit item cell coords))
 
 (defn apply-random-explore-fields
-  "Stamps random-explore mode on 1/3 of non-coast-walk computer armies."
   [unit item cell]
-  (if (and (= item :army)
-           (= :computer (:owner unit))
-           (not= :coast-walk (:mode unit))
-           (:country-id cell)
-           (< (rand) 1/3))
-    (assoc unit :mode :random-explore
-                :random-explore-direction
-                (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
-    unit))
+  (unit-stamping/apply-random-explore-fields unit item cell))

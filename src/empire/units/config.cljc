@@ -16,6 +16,8 @@
 (def fighter-fuel 32)
 (def fighter-visibility-radius 1)
 (def fighter-bingo-threshold (quot fighter-fuel 4))
+(def bingo-fuel-divisor 4)
+(def explore-steps 50)
 
 (def satellite-speed 10)
 (def satellite-cost 50)

@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
-  (:require [empire.application.movement-services :as movement-services]
+  (:require [empire.application.city-production :as city-production]
+            [empire.application.movement-services :as movement-services]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.config :as config]))
@@ -33,7 +34,7 @@
 (defn- computer-call
   [sym & args]
   (let [f (or (try
-                (requiring-resolve (symbol "empire.computer.stamping" (name sym)))
+                (requiring-resolve (symbol "empire.application.unit-stamping" (name sym)))
                 (catch #?(:clj Throwable :cljs :default) _
                   nil))
               (throw (ex-info (str "Unable to resolve computer stamping function: " (name sym))
@@ -55,7 +56,7 @@
 (defn set-city-production
   "Sets the production for a city at given coordinates to the specified item."
   [coords item]
-  (update-runtime-state! :production assoc coords {:item item :remaining-rounds (config/item-cost item)}))
+  (city-production/set-city-production coords item))
 
 (defn- create-base-unit
   "Creates a base unit with type, hits, mode, and owner."

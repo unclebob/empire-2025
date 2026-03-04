@@ -152,4 +152,4 @@
   (let [current-production (get (read-runtime-state :production) pos)]
     (when (nil? current-production)
       (when-let [unit-type (decide-production pos)]
-        ((requiring-resolve 'empire.player.production/set-city-production) pos unit-type)))))
+        ((requiring-resolve 'empire.application.city-production/set-city-production) pos unit-type)))))

@@ -1,35 +1,19 @@
 ;; mutation-tested: no
 (ns empire.application.impl.runtime
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.adapters.state.atoms :as atoms-adapter]
+            [empire.adapters.state.runtime :as runtime-adapter]
+            [empire.application.runtime :as app-runtime]
             [empire.application.ports.runtime-state :as runtime-ports]
-            [empire.application.ports.world-store :as world-ports]))
-
-(def ^:private world-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.atoms/world-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private runtime-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private movement-port-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.movement.adapter/movement-port)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
+            [empire.application.ports.world-store :as world-ports]
+            [empire.computer.production :as computer-production]
+            [empire.computer.threat-response :as threat-response]
+            [empire.movement.adapter :as movement-adapter]))
 
 (defmethod app-runtime/default-state-ctx :default
   []
-  (let [store (when-let [f @world-store-fn] (f))
-        rt-store (when-let [f @runtime-store-fn] (f))
-        movement-port (when-let [f @movement-port-fn] (f))]
+  (let [store (atoms-adapter/world-store)
+        rt-store (runtime-adapter/runtime-state-store)
+        movement-port (movement-adapter/movement-port)]
     {:world-store store
      :load-world #(world-ports/load-world store)
      :save-world! #(world-ports/save-world! store %)
@@ -40,5 +24,12 @@
      :on-same-continent? #(runtime-ports/on-same-continent? rt-store %1 %2)
      :merge-continents! #(runtime-ports/merge-continents! rt-store %1 %2)
      :rebuild-refueling-caches! #(runtime-ports/rebuild-refueling-caches! rt-store)
+     :handle-detection! threat-response/handle-detection!
+     :country-coastal-explored? (fn [country-id]
+                                  (let [country-stats (or (runtime-ports/read-runtime-state rt-store :country-stats) {})
+                                        cached (get-in country-stats [country-id :coastal-explored?] ::missing)]
+                                    (if (= cached ::missing)
+                                      (computer-production/country-coastal-cells-explored? country-id)
+                                      cached)))
      :movement-port movement-port
      :check-invariants (fn [_world] nil)}))

@@ -3,13 +3,11 @@
                     :kind :abstract
                     :match "empire.application.ports.acceptance-harness"}
                    {:component :application-ports
-                    :kind :abstract
+                   :kind :abstract
                     :match ["empire.application.ports*"
                             "empire.application.state-port*"
-                            "empire.application.state"
                             "empire.application.runtime"
-                            "empire.application.coords"
-                            "empire.application.production-status"]}
+                            "empire.application.state"]}
                    {:component :movement-contracts
                     :kind :abstract
                     :match "empire.movement.movement"}
@@ -17,14 +15,13 @@
                     :kind :abstract
                    :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
                             "^empire\\.domain\\.services(\\.(?!impl\\.).*)?$"
-                            "^empire\\.domain\\.model(\\.(?!impl\\.).*)?$"
-                            "empire.combat"]}
+                            "^empire\\.domain\\.model(\\.(?!impl\\.).*)?$"]}
                    {:component :unit-contracts
                     :kind :abstract
-                    :match "^empire\\.units(\\.(?!(impl\\.|config$)).*)?$"}
+                    :match "^empire\\.units(\\.(?!(impl\\.|satellite$|dispatcher$)).*)?$"}
                    {:component :debug-contracts
                     :kind :abstract
-                    :match "empire.debug"}
+                    :match "empire.debug.contracts*"}
                    {:component :acceptance-harness-impl
                     :kind :concrete
                     :match ["empire.acceptance.harness"
@@ -32,24 +29,32 @@
                             "empire.acceptance.harness.impl*"]}
                    {:component :application-services
                     :kind :concrete
-                    :match ["^empire\\.application(\\.(?!ports\\.).*)?$"
-                            "^empire\\.application\\.impl\\..*$"]}
+                    :match ["^empire\\.application(\\.(?!(ports\\.|acceptance-harness$|movement-services$|player-movement-services$|waypoint-services$|impl\\.|runtime$|state$)).*)?$"
+                            "^empire\\.application\\.impl\\.(?!runtime$).*$"]}
                    {:component :domain-impl
                     :kind :concrete
                     :match ["empire.domain.core.impl*"
                             "empire.domain.services.impl*"
-                            "empire.domain.model.impl*"
+                            "^empire\\.domain\\.model\\.impl\\.(?!combat-runtime$).*$"
                             "empire.units.impl*"
-                            "empire.units.config"
+                            "empire.units.dispatcher"
+                            "empire.units.satellite"
                             "empire.config"
-                            "empire.containers*"
-                            "empire.combat.escorts"]}
+                            ]}
                    {:component :movement-impl
                     :kind :concrete
-                    :match ["^empire\\.movement\\.(?!movement$).*$"]}
+                    :match ["^empire\\.movement\\.(?!movement$).*$"
+                            "empire.combat"
+                            "empire.combat.escorts"
+                            "empire.domain.model.impl.combat-runtime"
+                            "empire.application.movement-services"
+                            "empire.application.player-movement-services"
+                            "empire.application.waypoint-services"
+                            "empire.containers*"]}
                    {:component :debug-impl
                     :kind :concrete
-                    :match ["empire.debug.impl*"
+                    :match ["empire.debug"
+                            "empire.debug.impl*"
                             "empire.debug.logging"
                             "empire.debug.dump"
                             "empire.debug.dump.output"]}
@@ -63,7 +68,8 @@
                             "empire.adapters.persistence*"]}
                    {:component :runtime-adapters
                     :kind :concrete
-                    :match "empire.adapters.runtime*"}
+                    :match ["empire.adapters.runtime*"
+                            "empire.application.impl.runtime"]}
                    {:component :computer-policy
                     :kind :concrete
                     :match ["empire.computer" "empire.computer*"]}

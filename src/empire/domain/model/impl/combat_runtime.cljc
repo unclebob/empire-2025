@@ -1,48 +1,27 @@
 ;; mutation-tested: no
 (ns empire.domain.model.impl.combat-runtime
-  (:require [empire.application.ports.runtime-state :as runtime-ports]
+  (:require [empire.adapters.state.atoms :as atoms-adapter]
+            [empire.adapters.state.runtime :as runtime-adapter]
+            [empire.application.ports.runtime-state :as runtime-ports]
             [empire.application.ports.world-store :as world-ports]
             [empire.combat :as combat]
             [empire.combat.escorts :as escorts]
             [empire.config :as config]
             [empire.domain.model.combat :as domain-combat]
+            [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private flippable-types
   "Unit types that flip ownership on city conquest (ships and fighters)."
   #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
 
-(def ^:private world-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.atoms/world-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private runtime-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private update-cell-visibility-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.movement.visibility/update-cell-visibility)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
 (defn- current-world
   []
-  (if-let [f @world-store-fn]
-    (world-ports/load-world (f))
-    []))
+  (world-ports/load-world (atoms-adapter/world-store)))
 
 (defn- set-game-map!
   [world]
-  (when-let [f @world-store-fn]
-    (world-ports/save-world! (f) world)))
+  (world-ports/save-world! (atoms-adapter/world-store) world))
 
 (defn- update-game-map!
   [f & args]
@@ -51,14 +30,11 @@
 
 (defn- read-runtime-state
   [k]
-  (if-let [f @runtime-store-fn]
-    (runtime-ports/read-runtime-state (f) k)
-    nil))
+  (runtime-ports/read-runtime-state (runtime-adapter/runtime-state-store) k))
 
 (defn- write-runtime-state!
   [k v]
-  (when-let [f @runtime-store-fn]
-    (runtime-ports/write-runtime-state! (f) k v)))
+  (runtime-ports/write-runtime-state! (runtime-adapter/runtime-state-store) k v))
 
 (defn- update-runtime-state!
   [k f & args]
@@ -80,8 +56,7 @@
 
 (defn- update-cell-visibility!
   [pos owner]
-  (when-let [f @update-cell-visibility-fn]
-    (f pos owner)))
+  (visibility/update-cell-visibility pos owner))
 
 (defn- conquer-city-contents-world
   [game-map city-coords new-owner]

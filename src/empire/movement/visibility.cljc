@@ -7,13 +7,6 @@
 (def ^:private state-ctx
   (delay (app-runtime/default-state-ctx)))
 
-(def ^:private handle-detection-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.computer.threat-response/handle-detection!)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
 (defn- update-game-map!
   [f & args]
   (apply app-state/update-world! @state-ctx f args))
@@ -160,6 +153,11 @@
   [owner]
   (if (= owner :player) :player-map :computer-map))
 
+(defn- handle-detection!
+  [coords cell]
+  (when-let [f (:handle-detection! @state-ctx)]
+    (f coords cell)))
+
 (defn- reveal-and-track!
   "Reveals a single cell and tracks newly-discovered free cities."
   [visible-map-atom ni nj stamp-id track-cities? detect-threats? visible-map]
@@ -167,8 +165,7 @@
     (reveal-cell! visible-map-atom ni nj game-cell stamp-id visible-map)
     (when (and detect-threats?
                (was-unexplored? visible-map ni nj))
-      (when-let [handle-detection @handle-detection-fn]
-        (handle-detection [ni nj] game-cell)))
+      (handle-detection! [ni nj] game-cell))
     (when (and track-cities?
                (newly-discovered-free-city? visible-map ni nj game-cell))
       (let [targets (or (read-runtime-state :land-ho-targets) [])]

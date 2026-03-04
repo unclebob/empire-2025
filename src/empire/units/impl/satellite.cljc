@@ -1,28 +1,19 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.impl.satellite
-  (:require [empire.application.ports.world-store :as world-ports]
+  (:require [empire.adapters.state.atoms :as atoms-adapter]
+            [empire.application.ports.world-store :as world-ports]
             [empire.units.config :as units-config]
             [empire.units.satellite :as satellite]))
 
-(def ^:private world-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.atoms/world-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
 (defn- update-game-map!
   [f & args]
-  (when-let [resolver @world-store-fn]
-    (let [store (resolver)
-          world (world-ports/load-world store)]
-      (world-ports/save-world! store (apply f world args)))))
+  (let [store (atoms-adapter/world-store)
+        world (world-ports/load-world store)]
+    (world-ports/save-world! store (apply f world args))))
 
 (defn- current-world
   []
-  (if-let [resolver @world-store-fn]
-    (world-ports/load-world (resolver))
-    []))
+  (world-ports/load-world (atoms-adapter/world-store)))
 
 (defn- extend-to-boundary
   [[x y] [dx dy] map-height map-width]

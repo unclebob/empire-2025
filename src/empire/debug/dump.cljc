@@ -2,31 +2,19 @@
 (ns empire.debug.dump
   "Region-based debug dump rendering and file output helpers."
   (:require [clojure.string :as str]
+            [empire.adapters.state.atoms :as atoms-adapter]
+            [empire.adapters.state.runtime :as runtime-adapter]
             [empire.application.ports.runtime-state :as runtime-ports]
             [empire.application.ports.world-store :as world-ports]))
 
-(def ^:private world-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.atoms/world-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
-(def ^:private runtime-store-fn
-  (delay
-    (try
-      (requiring-resolve 'empire.adapters.state.runtime/runtime-state-store)
-      (catch #?(:clj Throwable :cljs :default) _
-        nil))))
-
 (defn- current-world
   []
-  (let [store (when-let [f @world-store-fn] (f))]
+  (let [store (atoms-adapter/world-store)]
     (world-ports/load-world store)))
 
 (defn- read-runtime-state
   [k]
-  (let [store (when-let [f @runtime-store-fn] (f))]
+  (let [store (runtime-adapter/runtime-state-store)]
     (runtime-ports/read-runtime-state store k)))
 
 (defn dump-region

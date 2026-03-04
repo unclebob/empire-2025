@@ -5,8 +5,8 @@
 (def ^:private impl-loaded?
   (delay
     (try
-      (require 'empire.application.impl.runtime)
-      true
+      (some? (requiring-resolve (symbol (str "empire.application.impl.runtime")
+                                        (str "default-state-ctx"))))
       (catch #?(:clj Throwable :cljs :default) _
         false))))
 
