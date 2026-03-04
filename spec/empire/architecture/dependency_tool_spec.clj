@@ -51,6 +51,23 @@
                      :allowed-exceptions [{:from-ns "demo.a" :to-ns "demo.b"}]})]
         (should= [] (:violations result)))))
 
+  (it "includes require, requiring-resolve, and import in dependency metrics"
+    (let [root (temp-dir)]
+      (write-file! root "demo/a.clj"
+                   "(ns demo.a (:import [demo.imported Thing]))\n(require '[demo.b :as b])\n(defn call []\n  (requiring-resolve 'demo.c/run)\n  (b/id))\n")
+      (write-file! root "demo/b.clj" "(ns demo.b)\n(defn id [] :ok)\n")
+      (write-file! root "demo/c.clj" "(ns demo.c)\n(defn run [] :ok)\n")
+      (let [result (tool/analyze-project
+                    {:source-paths [(.getPath root)]
+                     :component-rules [{:component :alpha :match "demo.a"}
+                                       {:component :beta :match "demo.b"}
+                                       {:component :gamma :match "demo.c"}
+                                       {:component :imports :match "demo.imported"}]})
+            stats (:component-stats result)]
+        (should= #{[:alpha :beta] [:alpha :gamma] [:alpha :imports]}
+                 (set (:component-edges result)))
+        (should= 3 (get-in stats [:alpha :fan-out])))))
+
   (it "generates a starter config with inferred component rules"
     (let [root (temp-dir)]
       (write-file! root "empire/application/runtime.cljc" "(ns empire.application.runtime)\n")

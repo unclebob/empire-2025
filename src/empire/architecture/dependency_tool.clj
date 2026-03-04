@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.pprint]
+            [clojure.set :as set]
             [clojure.string :as str]))
 
 (def default-config
@@ -113,16 +114,74 @@
     (vector? entry) (when (symbol? (first entry)) (first entry))
     :else nil))
 
-(defn- extract-requires
-  [ns-decl]
+(defn- ns-clause-entries
+  [ns-decl clause]
   (->> (drop 2 ns-decl)
        (filter seq?)
        (filter #(keyword? (first %)))
-       (filter #(= :require (first %)))
-       (mapcat rest)
-       (map require-target)
+       (filter #(= clause (first %)))
+       (mapcat rest)))
+
+(defn- quote-unwrapped
+  [form]
+  (if (and (seq? form) (= 'quote (first form)))
+    (second form)
+    form))
+
+(defn- dependency-symbol->namespace
+  [sym]
+  (if (qualified-symbol? sym)
+    (symbol (namespace sym))
+    sym))
+
+(defn- require-arg-targets
+  [arg]
+  (let [arg* (quote-unwrapped arg)]
+    (cond
+      (symbol? arg*) [arg*]
+      (vector? arg*) (if-let [target (require-target arg*)] [target] [])
+      :else [])))
+
+(defn- extract-ns-clause-deps
+  [ns-decl clause]
+  (->> (ns-clause-entries ns-decl clause)
+       (mapcat require-arg-targets)
+       (map dependency-symbol->namespace)
        (filter symbol?)
        set))
+
+(defn- walk-forms
+  [forms]
+  (tree-seq coll? seq forms))
+
+(defn- extract-direct-requires
+  [forms]
+  (->> (walk-forms forms)
+       (filter #(and (seq? %) (= 'require (first %))))
+       (mapcat rest)
+       (mapcat require-arg-targets)
+       (map dependency-symbol->namespace)
+       (filter symbol?)
+       set))
+
+(defn- extract-requiring-resolves
+  [forms]
+  (->> (walk-forms forms)
+       (filter #(and (seq? %) (= 'requiring-resolve (first %))))
+       (keep (fn [form]
+               (some-> (second form)
+                       quote-unwrapped
+                       dependency-symbol->namespace)))
+       (filter symbol?)
+       set))
+
+(defn- extract-dependencies
+  [forms ns-decl]
+  (set/union (extract-ns-clause-deps ns-decl :require)
+             (extract-ns-clause-deps ns-decl :use)
+             (extract-ns-clause-deps ns-decl :import)
+             (extract-direct-requires forms)
+             (extract-requiring-resolves forms)))
 
 (def ^:private def-ops
   #{"def" "defonce" "defmacro" "defn" "defn-" "defmulti" "defprotocol"})
@@ -232,7 +291,7 @@
                              (when ns-decl
                                (let [ns-name (second ns-decl)
                                      component (component-for-ns component-rules ns-name)
-                                     requires (extract-requires ns-decl)
+                                     requires (extract-dependencies forms ns-decl)
                                      stats (var-stats forms)]
                                  {:file (.getPath f)
                                   :namespace ns-name
@@ -316,7 +375,7 @@
                   (let [ns-name (second ns-decl)
                         stats (var-stats forms)]
                     {:namespace (str ns-name)
-                     :requires (set (map str (extract-requires ns-decl)))
+                     :requires (set (map str (extract-dependencies forms ns-decl)))
                      :public-count (:public-count stats)
                      :abstract-count (:abstract-count stats)})))))
        (filter some?)
