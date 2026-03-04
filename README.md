@@ -43,6 +43,9 @@ Run component dependency analysis (boundaries, cycles, fan-in/fan-out, instabili
     clj -M:check-dependencies dependency-tool.edn
     clj -M:check-dependencies dependency-tool.edn --max-distance 0.35
 
+Fan-in/fan-out dependency edges are derived from namespace clauses and runtime dependency forms:
+`ns :require`, `ns :use`, `ns :import`, direct `(require ...)`, and `(requiring-resolve ...)`.
+
 Abstraction rule for dependency metrics:
 
 - Never mark abstraction arbitrarily.
