@@ -59,4 +59,11 @@ if [[ -n "$units_impl_violations" ]]; then
   exit 1
 fi
 
+quil_outside_hits="$(rg -n 'empire\.ui\.quil' src/empire --glob '!src/empire/ui/quil/*' || true)"
+if [[ -n "$quil_outside_hits" ]]; then
+  echo "Architecture boundary violation: empire.ui.quil must only be referenced from within ui/quil/:"
+  printf '%s\n' "$quil_outside_hits"
+  exit 1
+fi
+
 echo "Architecture boundary check passed"

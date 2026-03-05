@@ -9,4 +9,4 @@
       (map-utils/determine-cell-coordinates x y))))
 
 (defn key-down [k]
-  (dispatch/dispatch-key k (mouse->cell)))
+  (dispatch/key-down k (q/mouse-x) (q/mouse-y)))

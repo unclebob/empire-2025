@@ -12,9 +12,7 @@
             [empire.game-loop.item-processing :as item-processing]
             [empire.movement.visibility :as visibility]
             [empire.test-utils :as test-utils]
-            [empire.ui.quil.input :as quil-input]
-            [empire.ui.util.input.dispatch :as input-dispatch]
-            [quil.core :as q]))
+            [empire.ui.util.input.dispatch :as input-dispatch]))
 
 (def ^:private readable-keys
   #{:round-number
@@ -160,17 +158,13 @@
 
 (defn key-down!
   [k]
-  (with-redefs [q/mouse-x (constantly 0)
-                q/mouse-y (constantly 0)]
-    (set-last-key! nil)
-    (quil-input/key-down k)))
+  (set-last-key! nil)
+  (input-dispatch/key-down k 0 0))
 
 (defn key-down-at!
   [k mouse-x mouse-y]
-  (with-redefs [q/mouse-x (constantly mouse-x)
-                q/mouse-y (constantly mouse-y)]
-    (set-last-key! nil)
-    (quil-input/key-down k)))
+  (set-last-key! nil)
+  (input-dispatch/key-down k mouse-x mouse-y))
 
 (defn start-new-round!
   []

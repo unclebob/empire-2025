@@ -160,3 +160,10 @@
     (sa/read-state :load-menu-open)   (dispatch-load-menu-key k)
     (sa/read-state :backtick-pressed) (dispatch-backtick-key k cell-coords)
     :else                   (dispatch-normal-key k cell-coords)))
+
+(defn key-down
+  "Process a key press with explicit mouse coordinates."
+  [k mouse-x mouse-y]
+  (let [cell-coords (when (map-utils/on-map? mouse-x mouse-y)
+                      (map-utils/determine-cell-coordinates mouse-x mouse-y))]
+    (dispatch-key k cell-coords)))
