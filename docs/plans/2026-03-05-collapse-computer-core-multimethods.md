@@ -1,3 +1,33 @@
+# Collapse computer.core Fake Multimethods Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Replace 17 fake-polymorphic `defmulti`/`defmethod :default` pairs in `computer/core.cljc` + `core/impl.cljc` with plain `defn` functions in a single `computer/core.cljc`.
+
+**Architecture:** Both files are in `:outer-ring`. The collapse merges `core/impl.cljc` into `core.cljc`, removes the bootstrap wiring, and removes the boundary guard. No consumer files change — same namespace, same function names, same arities.
+
+**Tech Stack:** Clojure, Speclj (`clj -M:spec`), architecture boundary checker (`scripts/check-architecture-boundaries.sh`)
+
+---
+
+### Task 1: Merge impl into core.cljc
+
+**Files:**
+- Modify: `src/empire/computer/core.cljc`
+- Reference: `src/empire/computer/core/impl.cljc` (source of implementations)
+
+**Step 1: Rewrite `core.cljc` with all functions merged**
+
+Replace the entire file. The new file:
+1. Keeps the existing ns declaration but adds all `:require` clauses from `impl.cljc`
+2. Keeps `neighbor-offsets`, `neighbors-in-map`, `adjacent?` as-is (pure helpers)
+3. Adds the 6 private helpers from impl as `defn-`
+4. Converts each `defmethod core/X :default` to `defn X` (public) — remove the `core/` prefix and the `:default` dispatch value
+5. Internal self-calls change from `core/X` to just `X`
+
+The new `core.cljc` content:
+
+```clojure
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
   (:require [empire.application.ports.movement :as movement-port]
@@ -32,6 +62,8 @@
         dr (Math/abs (- r2 r1))
         dc (Math/abs (- c2 c1))]
     (and (<= dr 1) (<= dc 1) (not (and (zero? dr) (zero? dc))))))
+
+;; --- private helpers ---
 
 (defn- movement-services
   []
@@ -69,6 +101,8 @@
        (= :land (:type to-cell))
        (:country-id to-cell)
        (not (on-same-continent? (:country-id unit) (:country-id to-cell)))))
+
+;; --- public functions (formerly defmulti/defmethod) ---
 
 (defn get-neighbors
   [pos]
@@ -210,6 +244,7 @@
         army (:contents army-cell)
         city-cell (get-in (sa/current-world) city-pos)]
     (if (< (rand) 0.5)
+      ;; Success - conquer the city, army dies
       (do
         (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
         (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
@@ -217,6 +252,8 @@
         (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)
         (combat/conquer-city-contents city-pos :computer)
         (stamp-territory city-pos army)
+        ;; Player-map updates only when the player loses a city.
+        ;; Computer conquest of free cities must not update player-map.
         (when (= :player (:city-status city-cell))
           (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))
         (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
@@ -226,8 +263,93 @@
         (update-cell-visibility! army-pos :computer)
         (update-cell-visibility! city-pos :computer)
         nil)
+      ;; Failure - army dies
       (do
         (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
         (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
         (update-cell-visibility! army-pos :computer)
         nil))))
+```
+
+**Step 2: Run core specs to verify**
+
+Run: `clj -M:spec spec/empire/computer/core_spec.clj`
+Expected: All 558 lines of tests PASS — same namespace, same function names.
+
+**Step 3: Run full test suite**
+
+Run: `clj -M:spec`
+Expected: All tests pass. The 33 consumer files require `empire.computer.core` and call functions by the same names.
+
+---
+
+### Task 2: Delete impl and clean up wiring
+
+**Files:**
+- Delete: `src/empire/computer/core/impl.cljc`
+- Modify: `src/empire/application/bootstrap.cljc` (line 17 — remove `[empire.computer.core.impl]`)
+
+**Step 1: Delete `core/impl.cljc`**
+
+```bash
+rm src/empire/computer/core/impl.cljc
+```
+
+**Step 2: Remove the require from bootstrap.cljc**
+
+In `src/empire/application/bootstrap.cljc`, remove line 17:
+```
+            [empire.computer.core.impl]
+```
+
+**Step 3: Run tests**
+
+Run: `clj -M:spec`
+Expected: All tests pass. The impl namespace is no longer needed since all functions live in `core.cljc`.
+
+---
+
+### Task 3: Remove boundary guard
+
+**Files:**
+- Modify: `scripts/check-architecture-boundaries.sh` (lines 54-60)
+
+**Step 1: Remove the `computer_core_impl` guard block**
+
+Delete lines 54-60 from `check-architecture-boundaries.sh`:
+```bash
+computer_core_impl_hits="$(rg -n 'empire\.computer\.core\.impl' src/empire || true)"
+computer_core_impl_violations="$(printf '%s\n' "$computer_core_impl_hits" | rg -v '^src/empire/computer/core/impl\.cljc:|^src/empire/application/bootstrap\.cljc:' || true)"
+if [[ -n "$computer_core_impl_violations" ]]; then
+  echo "Architecture boundary violation: computer.core.impl must only be referenced from itself and application/bootstrap:"
+  printf '%s\n' "$computer_core_impl_violations"
+  exit 1
+fi
+```
+
+**Step 2: Run boundary checker**
+
+Run: `scripts/check-architecture-boundaries.sh`
+Expected: "Architecture boundary check passed"
+
+**Step 3: Run full test suite one final time**
+
+Run: `clj -M:spec`
+Expected: All tests pass.
+
+---
+
+### Task 4: Commit
+
+**Step 1: Stage and commit**
+
+```bash
+git add -A
+git commit -m "Collapse computer.core fake multimethods to plain functions"
+```
+
+Verify no references to `empire.computer.core.impl` remain:
+```bash
+rg 'empire\.computer\.core\.impl' src/ spec/
+```
+Expected: No matches.

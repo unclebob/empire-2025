@@ -51,12 +51,4 @@ if [[ -n "$state_ctx_delay_hits" ]]; then
   exit 1
 fi
 
-computer_core_impl_hits="$(rg -n 'empire\.computer\.core\.impl' src/empire || true)"
-computer_core_impl_violations="$(printf '%s\n' "$computer_core_impl_hits" | rg -v '^src/empire/computer/core/impl\.cljc:|^src/empire/application/bootstrap\.cljc:' || true)"
-if [[ -n "$computer_core_impl_violations" ]]; then
-  echo "Architecture boundary violation: computer.core.impl must only be referenced from itself and application/bootstrap:"
-  printf '%s\n' "$computer_core_impl_violations"
-  exit 1
-fi
-
 echo "Architecture boundary check passed"
