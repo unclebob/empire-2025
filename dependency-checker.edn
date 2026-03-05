@@ -1,151 +1,590 @@
-{:source-paths ["src"]
- :component-rules [{:component :world-store-port :match "empire.application.ports.world-store"}
-                   {:component :runtime-state-port :match "empire.application.ports.runtime-state"}
-                   {:component :clock-port :match "empire.application.ports.clock"}
-                   {:component :random-port :match "empire.application.ports.random"}
-                   {:component :persistence-port :match "empire.application.ports.persistence"}
-                   {:component :movement-app-port :match "empire.application.ports.movement"}
-                   {:component :acceptance-harness-port :match "empire.application.ports.acceptance-harness"}
-                   {:component :movement-port :match "empire.movement.movement"}
-
-                   ;; Anticipated splits (contract/policy/adapter namespaces to introduce)
-                   {:component :application-contracts :match "empire.application.contracts*"}
-                   {:component :application-contracts-impl :match "empire.application.contracts.impl*"}
-                   {:component :application-policy :match "empire.application.use-cases*"}
-                   {:component :application-policy-impl :match "empire.application.use-cases.impl*"}
-                   {:component :acceptance-harness-impl :match ["empire.acceptance.harness.impl*"
-                                                                "empire.application.acceptance-harness"
-                                                                "empire.acceptance.harness"]}
-                   {:component :domain-core :match "empire.domain.core*"}
-                   {:component :domain-core-impl :match "empire.domain.core.impl*"}
-                   {:component :domain-services :match "empire.domain.services*"}
-                   {:component :domain-services-impl :match "empire.domain.services.impl*"}
-                   {:component :movement-adapter :match "empire.adapters.movement*"}
-                   {:component :state-port :match "empire.application.state-port*"}
-                   {:component :state-port-impl :match "empire.adapters.state.port*"}
-                   {:component :persistence-port-impl :match "empire.adapters.persistence.port*"}
-                   {:component :config :match ["empire.config"
-                                               "empire.units.config"]}
-
-                   {:component :application-use-cases :match "empire.application*"}
-                   {:component :domain-model :match ["empire.domain*"
-                                                     "empire.units*"
-                                                     "empire.containers*"
-                                                     "empire.combat*"]}
-                   {:component :computer-policy :match ["empire.computer" "empire.computer*"]}
-                   {:component :player-policy :match ["empire.player" "empire.player*"]}
-
-                   {:component :movement-engine :match ["empire.movement" "empire.movement*"]}
-                   {:component :state-adapters :match ["empire.atoms*" "empire.adapters.state*"]}
-                   {:component :runtime-adapters :match "empire.adapters.runtime*"}
-                   {:component :persistence-adapters :match ["empire.save-load" "empire.adapters.persistence*"]}
-                   {:component :ui-adapters :match "empire.ui*"}
-                   {:component :orchestration :match ["empire.game-loop*" "empire.init"]}
-
-                   {:component :acceptance-pipeline :match ["empire.acceptance*" "empire.test.pipeline*"]}
-                   {:component :architecture-tools :match "empire.architecture*"}
-                   {:component :debug-support :match ["empire.debug" "empire.debug*"]}
-                   {:component :test-support :match "empire.test-utils"}
-                   {:component :adapters-other :match "empire.adapters*"}
-                   {:component :legacy-misc :match ["empire.map" "empire.repair"]}]
-
- :forbidden-dependencies [
-                          ;; Abstract components do not depend on concrete components.
-                          [:application-contracts :application-use-cases]
-                          [:application-contracts :application-policy]
-                          [:application-contracts :computer-policy]
-                          [:application-contracts :player-policy]
-                          [:application-contracts :movement-engine]
-                          [:application-contracts :state-adapters]
-                          [:application-contracts :runtime-adapters]
-                          [:application-contracts :persistence-adapters]
-                          [:application-contracts :ui-adapters]
-                          [:application-contracts :orchestration]
-
-                          [:state-port :application-use-cases]
-                          [:state-port :application-policy]
-                          [:state-port :computer-policy]
-                          [:state-port :player-policy]
-                          [:state-port :movement-engine]
-                          [:state-port :state-adapters]
-                          [:state-port :runtime-adapters]
-                          [:state-port :persistence-adapters]
-                          [:state-port :ui-adapters]
-                          [:state-port :orchestration]
-
-                          [:persistence-port :application-use-cases]
-                          [:persistence-port :application-policy]
-                          [:persistence-port :computer-policy]
-                          [:persistence-port :player-policy]
-                          [:persistence-port :movement-engine]
-                          [:persistence-port :state-adapters]
-                          [:persistence-port :runtime-adapters]
-                          [:persistence-port :persistence-adapters]
-                          [:persistence-port :ui-adapters]
-                          [:persistence-port :orchestration]
-
-                          [:acceptance-harness-port :application-use-cases]
-                          [:acceptance-harness-port :computer-policy]
-                          [:acceptance-harness-port :player-policy]
-                          [:acceptance-harness-port :movement-engine]
-                          [:acceptance-harness-port :state-adapters]
-                          [:acceptance-harness-port :runtime-adapters]
-                          [:acceptance-harness-port :persistence-adapters]
-                          [:acceptance-harness-port :ui-adapters]
-                          [:acceptance-harness-port :orchestration]
-
-                          [:movement-port :application-use-cases]
-                          [:movement-port :computer-policy]
-                          [:movement-port :player-policy]
-                          [:movement-port :movement-engine]
-                          [:movement-port :state-adapters]
-                          [:movement-port :runtime-adapters]
-                          [:movement-port :persistence-adapters]
-                          [:movement-port :ui-adapters]
-                          [:movement-port :orchestration]
-
-                          ;; Policy components should only depend on domain + ports.
-                          [:application-use-cases :state-adapters]
-                          [:application-use-cases :runtime-adapters]
-                          [:application-use-cases :persistence-adapters]
-                          [:application-use-cases :ui-adapters]
-                          [:application-use-cases :orchestration]
-                          [:application-use-cases :acceptance-pipeline]
-
-                          [:computer-policy :state-adapters]
-                          [:computer-policy :runtime-adapters]
-                          [:computer-policy :persistence-adapters]
-                          [:computer-policy :ui-adapters]
-                          [:computer-policy :orchestration]
-                          [:computer-policy :acceptance-pipeline]
-
-                          [:player-policy :state-adapters]
-                          [:player-policy :runtime-adapters]
-                          [:player-policy :persistence-adapters]
-                          [:player-policy :ui-adapters]
-                          [:player-policy :orchestration]
-                          [:player-policy :acceptance-pipeline]
-
-                          ;; Domain remains independent of infrastructure.
-                          [:domain-model :state-adapters]
-                          [:domain-model :runtime-adapters]
-                          [:domain-model :persistence-adapters]
-                          [:domain-model :ui-adapters]
-                          [:domain-model :orchestration]
-                          [:domain-model :acceptance-pipeline]
-                          [:domain-model :application-use-cases]
-                          [:domain-model :computer-policy]
-                          [:domain-model :player-policy]
-                          [:domain-model :movement-engine]
-
-                          ;; Test infrastructure remains inverted from app core.
-                          [:acceptance-pipeline :application-use-cases]
-                          [:acceptance-pipeline :computer-policy]
-                          [:acceptance-pipeline :player-policy]
-                          [:acceptance-pipeline :movement-engine]
-                          [:acceptance-pipeline :orchestration]]
- ;; Components listed here are treated as utilities (A=0, I=0 target allowed)
- ;; and are excluded from --max-distance violations.
- :utility-components [:architecture-tools]
- :fail-on-cycles true
+{:source-paths ["src"],
+ :component-rules
+ [{:component :module-empire-acceptance-generator,
+   :kind :concrete,
+   :match "empire.acceptance.generator"}
+  {:component :module-empire-acceptance-generator-given,
+   :kind :concrete,
+   :match "empire.acceptance.generator.given"}
+  {:component :module-empire-acceptance-generator-then,
+   :kind :concrete,
+   :match "empire.acceptance.generator.then"}
+  {:component :module-empire-acceptance-generator-utils,
+   :kind :concrete,
+   :match "empire.acceptance.generator.utils"}
+  {:component :module-empire-acceptance-generator-when,
+   :kind :concrete,
+   :match "empire.acceptance.generator.when"}
+  {:component :module-empire-acceptance-parser,
+   :kind :concrete,
+   :match "empire.acceptance.parser"}
+  {:component :module-empire-acceptance-parser-given,
+   :kind :concrete,
+   :match "empire.acceptance.parser.given"}
+  {:component :module-empire-acceptance-parser-given-directives,
+   :kind :concrete,
+   :match "empire.acceptance.parser.given.directives"}
+  {:component :module-empire-acceptance-parser-given-props,
+   :kind :concrete,
+   :match "empire.acceptance.parser.given.props"}
+  {:component :module-empire-acceptance-parser-helpers,
+   :kind :concrete,
+   :match "empire.acceptance.parser.helpers"}
+  {:component :module-empire-acceptance-parser-ir-contracts,
+   :kind :concrete,
+   :match "empire.acceptance.parser.ir-contracts"}
+  {:component :module-empire-acceptance-parser-then,
+   :kind :concrete,
+   :match "empire.acceptance.parser.then"}
+  {:component :module-empire-acceptance-parser-then-handlers,
+   :kind :concrete,
+   :match "empire.acceptance.parser.then.handlers"}
+  {:component :module-empire-acceptance-parser-then-parse,
+   :kind :concrete,
+   :match "empire.acceptance.parser.then.parse"}
+  {:component :module-empire-acceptance-parser-then-patterns,
+   :kind :concrete,
+   :match "empire.acceptance.parser.then.patterns"}
+  {:component :module-empire-acceptance-parser-when,
+   :kind :concrete,
+   :match "empire.acceptance.parser.when"}
+  {:component :module-empire-acceptance-pipeline,
+   :kind :concrete,
+   :match "empire.acceptance.pipeline"}
+  {:component :module-empire-application-ports-acceptance-harness,
+   :kind :abstract,
+   :match "empire.application.ports.acceptance-harness"}
+  {:component :module-empire-application-ports-movement,
+   :kind :abstract,
+   :match "empire.application.ports.movement"}
+  {:component :module-empire-architecture-dependency-checker,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker"}
+  {:component :module-empire-architecture-dependency-checker-cli,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.cli"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-base-config,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-base-config"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-base-dependencies,
+   :kind :concrete,
+   :match
+   "empire.architecture.dependency-checker.core-base-dependencies"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-base-parse,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-base-parse"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-base-reader,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-base-reader"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-base-stats,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-base-stats"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-graph,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-graph"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-infer,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-infer"}
+  {:component
+   :module-empire-architecture-dependency-checker-core-report,
+   :kind :concrete,
+   :match "empire.architecture.dependency-checker.core-report"}
+  {:component :module-empire-combat,
+   :kind :concrete,
+   :match "empire.combat"}
+  {:component :module-empire-combat-escorts,
+   :kind :concrete,
+   :match "empire.combat.escorts"}
+  {:component :config,
+   :kind :concrete,
+   :match "empire.config"}
+  {:component :module-empire-containers-helpers,
+   :kind :concrete,
+   :match "empire.containers.helpers"}
+  {:component :module-empire-containers-ops,
+   :kind :concrete,
+   :match "empire.containers.ops"}
+  {:component :module-empire-debug,
+   :kind :concrete,
+   :match "empire.debug"}
+  {:component :module-empire-debug-dump,
+   :kind :concrete,
+   :match "empire.debug.dump"}
+  {:component :module-empire-debug-dump-output,
+   :kind :concrete,
+   :match "empire.debug.dump.output"}
+  {:component :module-empire-debug-impl-facade-methods,
+   :kind :concrete,
+   :match "empire.debug.impl.facade-methods"}
+  {:component :module-empire-debug-logging,
+   :kind :concrete,
+   :match "empire.debug.logging"}
+  {:component :module-empire-domain-core-impl-continents,
+   :kind :concrete,
+   :match "empire.domain.core.impl.continents"}
+  {:component :module-empire-domain-core-impl-messages,
+   :kind :concrete,
+   :match "empire.domain.core.impl.messages"}
+  {:component :module-empire-domain-core-impl-refueling,
+   :kind :concrete,
+   :match "empire.domain.core.impl.refueling"}
+  {:component :module-empire-domain-core-impl-unit-metrics,
+   :kind :concrete,
+   :match "empire.domain.core.impl.unit-metrics"}
+  {:component :module-empire-domain-model-combat,
+   :kind :concrete,
+   :match "empire.domain.model.combat"}
+  {:component :module-empire-domain-model-impl-combat,
+   :kind :concrete,
+   :match "empire.domain.model.impl.combat"}
+  {:component :module-empire-domain-model-impl-combat-runtime,
+   :kind :concrete,
+   :match "empire.domain.model.impl.combat-runtime"}
+  {:component :module-empire-domain-model-impl-containers,
+   :kind :concrete,
+   :match "empire.domain.model.impl.containers"}
+  {:component :module-empire-domain-services-impl-round-setup,
+   :kind :concrete,
+   :match "empire.domain.services.impl.round-setup"}
+  {:component :module-empire-domain-services-impl-threat-policy,
+   :kind :concrete,
+   :match "empire.domain.services.impl.threat-policy"}
+  {:component :module-empire-domain-services-round-setup,
+   :kind :concrete,
+   :match "empire.domain.services.round-setup"}
+  {:component :module-empire-movement-map-utils,
+   :kind :concrete,
+   :match "empire.movement.map-utils"}
+  {:component :module-empire-movement-movement,
+   :kind :abstract,
+   :match "empire.movement.movement"}
+  {:component :module-empire-movement-visibility,
+   :kind :concrete,
+   :match "empire.movement.visibility"}
+  {:component :module-empire-test-pipeline,
+   :kind :concrete,
+   :match "empire.test.pipeline"}
+  {:component :module-empire-test-pipeline-fast,
+   :kind :concrete,
+   :match "empire.test.pipeline-fast"}
+  {:component :module-empire-units-carrier,
+   :kind :concrete,
+   :match "empire.units.carrier"}
+  {:component :config,
+   :kind :concrete,
+   :match "empire.units.config"}
+  {:component :module-empire-units-dispatcher,
+   :kind :concrete,
+   :match "empire.units.dispatcher"}
+  {:component :module-empire-units-fighter,
+   :kind :concrete,
+   :match "empire.units.fighter"}
+  {:component :module-empire-units-impl-army,
+   :kind :concrete,
+   :match "empire.units.impl.army"}
+  {:component :module-empire-units-impl-carrier,
+   :kind :concrete,
+   :match "empire.units.impl.carrier"}
+  {:component :module-empire-units-impl-dispatcher,
+   :kind :concrete,
+   :match "empire.units.impl.dispatcher"}
+  {:component :module-empire-units-impl-fighter,
+   :kind :concrete,
+   :match "empire.units.impl.fighter"}
+  {:component :module-empire-units-impl-satellite,
+   :kind :concrete,
+   :match "empire.units.impl.satellite"}
+  {:component :module-empire-units-impl-transport,
+   :kind :concrete,
+   :match "empire.units.impl.transport"}
+  {:component :module-empire-units-satellite,
+   :kind :concrete,
+   :match "empire.units.satellite"}
+  {:component :module-empire-units-transport,
+   :kind :concrete,
+   :match "empire.units.transport"}
+  {:component :module-empire-acceptance-harness,
+   :kind :concrete,
+   :match "empire.acceptance.harness"}
+  {:component :module-empire-adapters-persistence-files,
+   :kind :concrete,
+   :match "empire.adapters.persistence.files"}
+  {:component :module-empire-adapters-runtime-acceptance-engine,
+   :kind :concrete,
+   :match "empire.adapters.runtime.acceptance-engine"}
+  {:component :module-empire-adapters-runtime-clock,
+   :kind :concrete,
+   :match "empire.adapters.runtime.clock"}
+  {:component :module-empire-adapters-runtime-rng,
+   :kind :concrete,
+   :match "empire.adapters.runtime.rng"}
+  {:component :module-empire-adapters-state-atoms,
+   :kind :concrete,
+   :match "empire.adapters.state.atoms"}
+  {:component :module-empire-adapters-state-runtime,
+   :kind :concrete,
+   :match "empire.adapters.state.runtime"}
+  {:component :module-empire-application-acceptance-harness,
+   :kind :concrete,
+   :match "empire.application.acceptance-harness"}
+  {:component :module-empire-application-bootstrap,
+   :kind :concrete,
+   :match "empire.application.bootstrap"}
+  {:component :module-empire-application-city-production,
+   :kind :concrete,
+   :match "empire.application.city-production"}
+  {:component :module-empire-application-coords,
+   :kind :concrete,
+   :match "empire.application.coords"}
+  {:component :module-empire-application-impl-city-production,
+   :kind :concrete,
+   :match "empire.application.impl.city-production"}
+  {:component :module-empire-application-impl-coords,
+   :kind :concrete,
+   :match "empire.application.impl.coords"}
+  {:component :module-empire-application-impl-production-status,
+   :kind :concrete,
+   :match "empire.application.impl.production-status"}
+  {:component :module-empire-application-impl-runtime,
+   :kind :concrete,
+   :match "empire.application.impl.runtime"}
+  {:component :module-empire-application-impl-state,
+   :kind :concrete,
+   :match "empire.application.impl.state"}
+  {:component :module-empire-application-impl-unit-stamping,
+   :kind :concrete,
+   :match "empire.application.impl.unit-stamping"}
+  {:component :module-empire-application-movement-services,
+   :kind :concrete,
+   :match "empire.application.movement-services"}
+  {:component :module-empire-application-player-movement-services,
+   :kind :concrete,
+   :match "empire.application.player-movement-services"}
+  {:component :module-empire-application-ports-clock,
+   :kind :concrete,
+   :match "empire.application.ports.clock"}
+  {:component :module-empire-application-ports-persistence,
+   :kind :concrete,
+   :match "empire.application.ports.persistence"}
+  {:component :module-empire-application-ports-random,
+   :kind :concrete,
+   :match "empire.application.ports.random"}
+  {:component :module-empire-application-ports-runtime-state,
+   :kind :concrete,
+   :match "empire.application.ports.runtime-state"}
+  {:component :module-empire-application-ports-world-store,
+   :kind :concrete,
+   :match "empire.application.ports.world-store"}
+  {:component :module-empire-application-production-status,
+   :kind :concrete,
+   :match "empire.application.production-status"}
+  {:component :module-empire-application-runtime,
+   :kind :concrete,
+   :match "empire.application.runtime"}
+  {:component :module-empire-application-state,
+   :kind :concrete,
+   :match "empire.application.state"}
+  {:component :module-empire-application-unit-stamping,
+   :kind :concrete,
+   :match "empire.application.unit-stamping"}
+  {:component :module-empire-application-waypoint-services,
+   :kind :concrete,
+   :match "empire.application.waypoint-services"}
+  {:component :module-empire-atoms,
+   :kind :concrete,
+   :match "empire.atoms"}
+  {:component :module-empire-atoms-runtime,
+   :kind :concrete,
+   :match "empire.atoms.runtime"}
+  {:component :module-empire-computer,
+   :kind :concrete,
+   :match "empire.computer"}
+  {:component :module-empire-computer-army,
+   :kind :concrete,
+   :match "empire.computer.army"}
+  {:component :module-empire-computer-army-assignment,
+   :kind :concrete,
+   :match "empire.computer.army.assignment"}
+  {:component :module-empire-computer-army-coastal,
+   :kind :concrete,
+   :match "empire.computer.army.coastal"}
+  {:component :module-empire-computer-army-coastal-invasion,
+   :kind :concrete,
+   :match "empire.computer.army.coastal.invasion"}
+  {:component :module-empire-computer-army-combat,
+   :kind :concrete,
+   :match "empire.computer.army.combat"}
+  {:component :module-empire-computer-army-exploration,
+   :kind :concrete,
+   :match "empire.computer.army.exploration"}
+  {:component :module-empire-computer-army-movement,
+   :kind :concrete,
+   :match "empire.computer.army.movement"}
+  {:component :module-empire-computer-army-transport,
+   :kind :concrete,
+   :match "empire.computer.army.transport"}
+  {:component :module-empire-computer-core,
+   :kind :concrete,
+   :match "empire.computer.core"}
+  {:component :module-empire-computer-core-transport-search,
+   :kind :concrete,
+   :match "empire.computer.core.transport-search"}
+  {:component :module-empire-computer-fighter,
+   :kind :concrete,
+   :match "empire.computer.fighter"}
+  {:component :module-empire-computer-fighter-exploration,
+   :kind :concrete,
+   :match "empire.computer.fighter-exploration"}
+  {:component :module-empire-computer-fighter-movement,
+   :kind :concrete,
+   :match "empire.computer.fighter-movement"}
+  {:component :module-empire-computer-fighter-flight-plan,
+   :kind :concrete,
+   :match "empire.computer.fighter.flight-plan"}
+  {:component :module-empire-computer-lake-naval,
+   :kind :concrete,
+   :match "empire.computer.lake-naval"}
+  {:component :module-empire-computer-land-ho,
+   :kind :concrete,
+   :match "empire.computer.land-ho"}
+  {:component :module-empire-computer-land-objectives,
+   :kind :concrete,
+   :match "empire.computer.land-objectives"}
+  {:component :module-empire-computer-movement,
+   :kind :concrete,
+   :match "empire.computer.movement"}
+  {:component :module-empire-computer-production,
+   :kind :concrete,
+   :match "empire.computer.production"}
+  {:component :module-empire-computer-production-decisions,
+   :kind :concrete,
+   :match "empire.computer.production.decisions"}
+  {:component :module-empire-computer-production-stats,
+   :kind :concrete,
+   :match "empire.computer.production.stats"}
+  {:component :module-empire-computer-ship,
+   :kind :concrete,
+   :match "empire.computer.ship"}
+  {:component :module-empire-computer-ship-carrier,
+   :kind :concrete,
+   :match "empire.computer.ship-carrier"}
+  {:component :module-empire-computer-ship-carrier-group,
+   :kind :concrete,
+   :match "empire.computer.ship-carrier-group"}
+  {:component :module-empire-computer-ship-core,
+   :kind :concrete,
+   :match "empire.computer.ship-core"}
+  {:component :module-empire-computer-ship-escort,
+   :kind :concrete,
+   :match "empire.computer.ship-escort"}
+  {:component :module-empire-computer-ship-patrol,
+   :kind :concrete,
+   :match "empire.computer.ship-patrol"}
+  {:component :module-empire-computer-stamping,
+   :kind :concrete,
+   :match "empire.computer.stamping"}
+  {:component :module-empire-computer-threat,
+   :kind :concrete,
+   :match "empire.computer.threat"}
+  {:component :module-empire-computer-threat-response,
+   :kind :concrete,
+   :match "empire.computer.threat-response"}
+  {:component :module-empire-computer-threat-response-invasion-state,
+   :kind :concrete,
+   :match "empire.computer.threat-response.invasion-state"}
+  {:component :module-empire-computer-threat-response-major-invasion,
+   :kind :concrete,
+   :match "empire.computer.threat-response.major-invasion"}
+  {:component :module-empire-computer-threat-response-processing,
+   :kind :concrete,
+   :match "empire.computer.threat-response.processing"}
+  {:component :module-empire-computer-transport,
+   :kind :concrete,
+   :match "empire.computer.transport"}
+  {:component :module-empire-computer-transport-core,
+   :kind :concrete,
+   :match "empire.computer.transport-core"}
+  {:component :module-empire-computer-transport-loading,
+   :kind :concrete,
+   :match "empire.computer.transport-loading"}
+  {:component :module-empire-computer-transport-sailing,
+   :kind :concrete,
+   :match "empire.computer.transport-sailing"}
+  {:component :module-empire-computer-transport-sailing-path,
+   :kind :concrete,
+   :match "empire.computer.transport-sailing.path"}
+  {:component :module-empire-computer-transport-targeting,
+   :kind :concrete,
+   :match "empire.computer.transport-targeting"}
+  {:component :module-empire-computer-transport-unloading,
+   :kind :concrete,
+   :match "empire.computer.transport-unloading"}
+  {:component :module-empire-computer-transport-unloading-filtering,
+   :kind :concrete,
+   :match "empire.computer.transport-unloading.filtering"}
+  {:component :module-empire-computer-transport-mission-handlers,
+   :kind :concrete,
+   :match "empire.computer.transport.mission-handlers"}
+  {:component :module-empire-domain-core-continents,
+   :kind :concrete,
+   :match "empire.domain.core.continents"}
+  {:component :module-empire-domain-core-messages,
+   :kind :concrete,
+   :match "empire.domain.core.messages"}
+  {:component :module-empire-domain-core-refueling,
+   :kind :concrete,
+   :match "empire.domain.core.refueling"}
+  {:component :module-empire-domain-core-unit-metrics,
+   :kind :concrete,
+   :match "empire.domain.core.unit-metrics"}
+  {:component :module-empire-domain-model-containers,
+   :kind :concrete,
+   :match "empire.domain.model.containers"}
+  {:component :module-empire-domain-services-threat-policy,
+   :kind :concrete,
+   :match "empire.domain.services.threat-policy"}
+  {:component :module-empire-game-loop,
+   :kind :concrete,
+   :match "empire.game-loop"}
+  {:component :module-empire-game-loop-item-processing,
+   :kind :concrete,
+   :match "empire.game-loop.item-processing"}
+  {:component :module-empire-game-loop-round-setup,
+   :kind :concrete,
+   :match "empire.game-loop.round-setup"}
+  {:component :module-empire-game-loop-round-setup-satellites,
+   :kind :concrete,
+   :match "empire.game-loop.round-setup.satellites"}
+  {:component :module-empire-init,
+   :kind :concrete,
+   :match "empire.init"}
+  {:component :module-empire-movement-adapter,
+   :kind :concrete,
+   :match "empire.movement.adapter"}
+  {:component :module-empire-movement-api,
+   :kind :concrete,
+   :match "empire.movement.api"}
+  {:component :module-empire-movement-bootstrap,
+   :kind :concrete,
+   :match "empire.movement.bootstrap"}
+  {:component :module-empire-movement-coastline,
+   :kind :concrete,
+   :match "empire.movement.coastline"}
+  {:component :module-empire-movement-explore,
+   :kind :concrete,
+   :match "empire.movement.explore"}
+  {:component :module-empire-movement-lakes,
+   :kind :concrete,
+   :match "empire.movement.lakes"}
+  {:component :module-empire-movement-methods,
+   :kind :concrete,
+   :match "empire.movement.methods"}
+  {:component :module-empire-movement-movement-execution,
+   :kind :concrete,
+   :match "empire.movement.movement-execution"}
+  {:component :module-empire-movement-movement-pathing,
+   :kind :concrete,
+   :match "empire.movement.movement-pathing"}
+  {:component :module-empire-movement-movement-resolution,
+   :kind :concrete,
+   :match "empire.movement.movement-resolution"}
+  {:component :module-empire-movement-movement-state,
+   :kind :concrete,
+   :match "empire.movement.movement-state"}
+  {:component :module-empire-movement-pathfinding,
+   :kind :concrete,
+   :match "empire.movement.pathfinding"}
+  {:component :module-empire-movement-pathfinding-bfs,
+   :kind :concrete,
+   :match "empire.movement.pathfinding-bfs"}
+  {:component :module-empire-movement-pathfinding-bfs-cache,
+   :kind :concrete,
+   :match "empire.movement.pathfinding-bfs.cache"}
+  {:component :module-empire-movement-pathfinding-bfs-coast-targeting,
+   :kind :concrete,
+   :match "empire.movement.pathfinding-bfs.coast-targeting"}
+  {:component :module-empire-movement-pathfinding-bfs-core,
+   :kind :concrete,
+   :match "empire.movement.pathfinding-bfs.core"}
+  {:component :module-empire-movement-pathfinding-bfs-exploration,
+   :kind :concrete,
+   :match "empire.movement.pathfinding-bfs.exploration"}
+  {:component :module-empire-movement-pathfinding-bfs-transport,
+   :kind :concrete,
+   :match "empire.movement.pathfinding-bfs.transport"}
+  {:component :module-empire-movement-satellite,
+   :kind :concrete,
+   :match "empire.movement.satellite"}
+  {:component :module-empire-movement-service,
+   :kind :concrete,
+   :match "empire.movement.service"}
+  {:component :module-empire-movement-wake-conditions,
+   :kind :concrete,
+   :match "empire.movement.wake-conditions"}
+  {:component :module-empire-movement-waypoint,
+   :kind :concrete,
+   :match "empire.movement.waypoint"}
+  {:component :module-empire-player-attention,
+   :kind :concrete,
+   :match "empire.player.attention"}
+  {:component :module-empire-player-commands,
+   :kind :concrete,
+   :match "empire.player.commands"}
+  {:component :module-empire-player-commands-actions,
+   :kind :concrete,
+   :match "empire.player.commands.actions"}
+  {:component :module-empire-player-orders,
+   :kind :concrete,
+   :match "empire.player.orders"}
+  {:component :module-empire-player-production,
+   :kind :concrete,
+   :match "empire.player.production"}
+  {:component :module-empire-save-load,
+   :kind :concrete,
+   :match "empire.save-load"}
+  {:component :module-empire-test-utils,
+   :kind :concrete,
+   :match "empire.test-utils"}
+  {:component :module-empire-ui-quil-core,
+   :kind :concrete,
+   :match "empire.ui.quil.core"}
+  {:component :module-empire-ui-quil-input,
+   :kind :concrete,
+   :match "empire.ui.quil.input"}
+  {:component :module-empire-ui-quil-rendering-map,
+   :kind :concrete,
+   :match "empire.ui.quil.rendering.map"}
+  {:component :module-empire-ui-quil-rendering-messages,
+   :kind :concrete,
+   :match "empire.ui.quil.rendering.messages"}
+  {:component :module-empire-ui-quil-rendering-overlay,
+   :kind :concrete,
+   :match "empire.ui.quil.rendering.overlay"}
+  {:component :module-empire-ui-util-core,
+   :kind :concrete,
+   :match "empire.ui.util.core"}
+  {:component :module-empire-ui-util-input-actions,
+   :kind :concrete,
+   :match "empire.ui.util.input.actions"}
+  {:component :module-empire-ui-util-input-dispatch,
+   :kind :concrete,
+   :match "empire.ui.util.input.dispatch"}
+  {:component :module-empire-ui-util-rendering-display,
+   :kind :concrete,
+   :match "empire.ui.util.rendering.display"}
+  {:component :module-empire-ui-util-rendering-format,
+   :kind :concrete,
+   :match "empire.ui.util.rendering.format"}
+  {:component :module-empire-units-army,
+   :kind :concrete,
+   :match "empire.units.army"}],
+ :forbidden-dependencies [],
+ :fail-on-cycles true,
  :fail-on-violations true}
