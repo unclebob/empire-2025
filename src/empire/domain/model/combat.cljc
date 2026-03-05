@@ -1,24 +1,7 @@
-;; mutation-tested: no
 (ns empire.domain.model.combat
   (:require [clojure.string]
             [empire.units.config :as units-config]
             [empire.units.ships :as ships]))
-
-(defmulti format-combat-log
-  (fn [& _]
-    :default))
-
-(defmulti format-combat-status
-  (fn [& _]
-    :default))
-
-(defmulti fight-round
-  (fn [& _]
-    :default))
-
-(defmulti resolve-combat
-  (fn [& _]
-    :default))
 
 (defn- unit-name
   [unit-type]
@@ -62,7 +45,7 @@
           {:attacker 0 :defender 0}
           log))
 
-(defmethod format-combat-log :default
+(defn format-combat-log
   [log attacker-type defender-type winner]
   (let [entries (map #(format-log-entry % attacker-type defender-type) log)
         exchange-str (clojure.string/join "," entries)
@@ -70,7 +53,7 @@
         loser-name (unit-name loser-type)]
     (str exchange-str ". " loser-name " destroyed.")))
 
-(defmethod format-combat-status :default
+(defn format-combat-status
   [log attacker-type defender-type winner]
   (let [attacker-name (unit-name attacker-type)
         defender-name (unit-name defender-type)
@@ -81,7 +64,7 @@
          attacker-name " lost " attacker ", "
          defender-name " lost " defender ".")))
 
-(defmethod fight-round :default
+(defn fight-round
   [attacker defender]
   (if (< (rand) 0.5)
     (let [damage (strength-for (:type attacker))]
@@ -89,7 +72,7 @@
     (let [damage (strength-for (:type defender))]
       [(update attacker :hits - damage) defender {:hit :attacker :damage damage}])))
 
-(defmethod resolve-combat :default
+(defn resolve-combat
   [attacker defender]
   (loop [a attacker d defender log []]
     (let [[new-a new-d log-entry] (fight-round a d)
