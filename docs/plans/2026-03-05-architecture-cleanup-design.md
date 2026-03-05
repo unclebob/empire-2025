@@ -264,3 +264,38 @@ Recommended batches:
 3. **R2** — computer AI defmulti collapse (largest batch)
 4. **R5** — split MovementPort
 5. **R6** — collapse movement internals (most complex, benefits from R5)
+6. **R8** — layer enforcement (depends on all above being clean)
+
+---
+
+## R8 — Layer Enforcement (added 2026-03-05)
+
+Split the 145-namespace `:outer-ring` catch-all into three enforced layers.
+
+### Components (dependency order, top to bottom)
+
+| Component | Namespaces | Role |
+|-----------|-----------|------|
+| `:quil` | `empire.ui.quil.*` | Quil framework binding |
+| `:ui` | `empire.ui.util.*` | UI logic, input dispatch |
+| `:use-cases` | `empire.player.*`, `empire.computer.*`, `empire.game_loop.*` | Domain orchestration |
+| `:domain-services` | `empire.movement.*`, `empire.combat.*`, `empire.containers.*`, `empire.debug.*` | Shared domain services |
+| `:application` | `empire.application.*`, `empire.adapters.*`, `empire.atoms.*` | Ports, state, adapters |
+| `:inner-ring` | `empire.domain.core.*`, `empire.domain.services.*`, `empire.domain.model.containers` | Pure domain logic |
+| `:config` | `empire.config.*`, `empire.units.config`, `empire.units.ships` | Constants |
+| `:outer-ring` | `empire.*` (catch-all) | Composition roots, init, test utils |
+
+### Enforced rules
+
+- `[:domain-services :use-cases]` — services never depend on orchestrators
+- `[:application :use-cases]` — app layer never depends on orchestrators
+- `[:application :domain-services]` — app layer never depends on services
+- `[:inner-ring :application]`, `[:inner-ring :domain-services]`, `[:inner-ring :use-cases]` — inner ring depends on nothing above config
+
+### Composition roots
+
+`bootstrap.cljc` and `acceptance_engine.cljc` are excluded from `:application` and fall into `:outer-ring`. As composition roots, they legitimately wire across all layers.
+
+### Prerequisite
+
+Three movement façade files (`movement_services`, `player_movement_services`, `waypoint_services`) moved from `application/` to `movement/` so `:application` has no `:domain-services` dependencies.
