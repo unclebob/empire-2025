@@ -11,7 +11,7 @@
 (defn handle-key [k]
   (when-let [coords (first (sa/read-state :cells-needing-attention))]
     (let [cell (get-in (sa/current-world) coords)
-          active-unit (ports/movement-get-active-unit (helpers/movement-port) cell)]
+          active-unit (ports/movement-get-active-unit (helpers/unit-state-port) cell)]
       (if active-unit
         (case k
           :space (modes/handle-space-key coords)

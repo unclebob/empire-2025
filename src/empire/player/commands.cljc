@@ -15,9 +15,13 @@
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]))
 
-(defn- movement-port []
-  (or (:movement-port (sa/state-ctx))
-      (throw (ex-info "Movement port not configured in runtime state context" {}))))
+(defn- unit-state-port []
+  (or (:unit-state-port (sa/state-ctx))
+      (throw (ex-info "Unit state port not configured in runtime state context" {}))))
+
+(defn- execution-port []
+  (or (:execution-port (sa/state-ctx))
+      (throw (ex-info "Execution port not configured in runtime state context" {}))))
 
 (defn- set-error-message!
   [msg ms]
@@ -47,7 +51,7 @@
 (defn- handle-city-production-key [k coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
-             (not (ports/movement-get-active-unit (movement-port) cell)))
+             (not (ports/movement-get-active-unit (unit-state-port) cell)))
     (cond
       (= k :space) (do (sa/update-state! :player-items rest)
                        (item-processed!)
@@ -83,7 +87,8 @@
    :read-runtime-state sa/read-state
    :write-runtime-state! sa/write-state!
    :update-runtime-state! sa/update-state!
-   :movement-port (movement-port)
+   :unit-state-port (unit-state-port)
+   :execution-port (execution-port)
    :launch-fighter-and-update launch-fighter-and-update})
 
 (defn army-aboard-action
@@ -107,7 +112,7 @@
     :conquest
     (do
       (container-ops/remove-army-from-transport coords)
-      (combat/attempt-city-conquest (sa/current-world) adjacent-target)
+      (combat/apply-combat-result! (combat/attempt-city-conquest (sa/current-world) adjacent-target))
       (item-processed!))
     nil)
   true)
@@ -128,12 +133,12 @@
   (let [hostile? (immediate-hostile-city? extended? adjacent-target)]
     (cond
       (and hostile? (= :army (:type active-unit)))
-      (do (combat/attempt-conquest (sa/current-world) coords adjacent-target)
+      (do (combat/apply-combat-result! (combat/attempt-conquest (sa/current-world) coords adjacent-target))
           (item-processed!)
           true)
 
       (and hostile? (= :fighter (:type active-unit)))
-      (do (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target)
+      (do (combat/apply-combat-result! (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target))
           (item-processed!)
           true)
 
@@ -142,7 +147,7 @@
           true)
 
       :else
-      (do (exec-ports/movement-set-unit-movement (movement-port) coords target false)
+      (do (exec-ports/movement-set-unit-movement (execution-port) coords target false)
           (item-processed!)
           true))))
 
@@ -164,7 +169,7 @@
 
 (defn- handle-unit-movement-key [k coords cell]
   (when-let [{:keys [direction extended?]} (resolve-direction k)]
-    (let [active-unit (ports/movement-get-active-unit (movement-port) cell)]
+    (let [active-unit (ports/movement-get-active-unit (unit-state-port) cell)]
       (when (player-unit? active-unit)
         (let [[x y] coords
               [dx dy] direction
@@ -173,7 +178,7 @@
               target (if extended?
                        (calculate-extended-target coords direction)
                        adjacent-target)]
-          (dispatch-movement (ports/movement-context (movement-port) cell active-unit)
+          (dispatch-movement (ports/movement-context (unit-state-port) cell active-unit)
                              coords adjacent-target target extended? target-cell active-unit cell))))))
 
 (defn handle-unit-click
@@ -189,7 +194,7 @@
 (defn handle-key [k]
   (when-let [coords (first (sa/read-state :cells-needing-attention))]
     (let [cell (get-in (sa/current-world) coords)
-          active-unit (ports/movement-get-active-unit (movement-port) cell)]
+          active-unit (ports/movement-get-active-unit (unit-state-port) cell)]
       (if active-unit
         (case k
           :space (actions/handle-space-key (actions-ctx) coords)

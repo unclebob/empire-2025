@@ -63,12 +63,12 @@
     army-pos))
 
 (defn- nearest-reachable-coastal-army
-  [world read-runtime-state get-neighbors movement-services transport-pos]
+  [world read-runtime-state get-neighbors pathfinding-port transport-pos]
   (let [computer-map (read-runtime-state :computer-map)
         candidates (candidate-coastal-armies world computer-map get-neighbors transport-pos)
         scored (keep (fn [army-pos]
                        (when-let [path (path-ports/movement-bfs-to-land-ho-target
-                                        movement-services transport-pos army-pos computer-map)]
+                                        pathfinding-port transport-pos army-pos computer-map)]
                          {:army-pos army-pos
                           :path path
                           :score [(count path)
@@ -78,10 +78,10 @@
     (first (sort-by :score scored))))
 
 (defn- move-to-sea-step
-  [move-unit-to movement-services load-adjacent-armies from step]
+  [move-unit-to execution-port load-adjacent-armies from step]
   (when (and step (move-unit-to from step))
-    (movement-port/movement-update-cell-visibility movement-services from :computer)
-    (movement-port/movement-update-cell-visibility movement-services step :computer)
+    (movement-port/movement-update-cell-visibility execution-port from :computer)
+    (movement-port/movement-update-cell-visibility execution-port step :computer)
     (load-adjacent-armies step)
     step))
 
@@ -90,7 +90,8 @@
            read-runtime-state
            update-game-map!
            get-neighbors
-           movement-services
+           execution-port
+           pathfinding-port
            load-adjacent-armies
            coastal-crawl-move
            move-unit-to]} pos]
@@ -106,9 +107,9 @@
       (load-for-invasion-start! update-game-map! read-runtime-state pos)
 
       :else
-      (if-let [{:keys [path]} (nearest-reachable-coastal-army world read-runtime-state get-neighbors movement-services pos)]
+      (if-let [{:keys [path]} (nearest-reachable-coastal-army world read-runtime-state get-neighbors pathfinding-port pos)]
         (if (seq path)
-          (or (move-to-sea-step move-unit-to movement-services load-adjacent-armies pos (first path))
+          (or (move-to-sea-step move-unit-to execution-port load-adjacent-armies pos (first path))
               (coastal-crawl-move pos))
           (load-for-invasion-start! update-game-map! read-runtime-state pos))
         (update-game-map! update-in (conj pos :contents)

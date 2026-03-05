@@ -32,9 +32,9 @@
         dc (Math/abs (- c2 c1))]
     (and (<= dr 1) (<= dc 1) (not (and (zero? dr) (zero? dc))))))
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
 
 (defn- country-city-producing-armies?
   [city-pos country-id]
@@ -50,9 +50,9 @@
 
 (defn- update-cell-visibility!
   ([pos owner]
-   (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+   (movement-port/movement-update-cell-visibility (execution-port) pos owner))
   ([pos owner unit]
-   (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
+   (movement-port/movement-update-cell-visibility-with-unit (execution-port) pos owner unit)))
 
 (defn- on-same-continent?
   [country-a country-b]

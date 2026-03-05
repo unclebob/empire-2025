@@ -9,15 +9,19 @@
             [empire.computer.threat :as threat]
             [empire.containers.helpers :as uc]))
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
+
+(defn- pathfinding-port
+  []
+  (:pathfinding-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   ([pos owner]
-   (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+   (movement-port/movement-update-cell-visibility (execution-port) pos owner))
   ([pos owner unit]
-   (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
+   (movement-port/movement-update-cell-visibility-with-unit (execution-port) pos owner unit)))
 
 (defn- set-turn-message!
   [msg ms]
@@ -91,7 +95,7 @@
 
 (defn explore-sea
   [pos ship-type]
-  (when-let [target (path-ports/movement-find-nearest-unexplored (movement-services) pos ship-type)]
+  (when-let [target (path-ports/movement-find-nearest-unexplored (pathfinding-port) pos ship-type)]
     (move-toward pos target)))
 
 (defn find-player-ship-sighting

@@ -8,13 +8,13 @@
             [empire.computer.transport-targeting :as targeting]
             [empire.debug :as debug]))
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   [pos owner]
-  (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+  (movement-port/movement-update-cell-visibility (execution-port) pos owner))
 
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."

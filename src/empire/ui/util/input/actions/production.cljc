@@ -21,7 +21,7 @@
 (defn handle-city-production-key [k coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
-             (not (ports/movement-get-active-unit (helpers/movement-port) cell)))
+             (not (ports/movement-get-active-unit (helpers/unit-state-port) cell)))
     (cond
       (= k :space) (do (sa/update-state! :player-items rest)
                        (helpers/item-processed!)

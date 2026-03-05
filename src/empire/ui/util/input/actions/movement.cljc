@@ -39,7 +39,7 @@
     :disembark-with-target (do (container-ops/disembark-army-with-target coords adjacent-target target)
                                (helpers/item-processed!))
     :conquest (do (container-ops/remove-army-from-transport coords)
-                  (combat/attempt-city-conquest (sa/current-world) adjacent-target)
+                  (combat/apply-combat-result! (combat/attempt-city-conquest (sa/current-world) adjacent-target))
                   (helpers/item-processed!))
     nil)
   true)
@@ -67,10 +67,10 @@
 
 (defn- perform-standard-movement! [action coords adjacent-target target extended?]
   (case action
-    :army-conquest (combat/attempt-conquest (sa/current-world) coords adjacent-target)
-    :fighter-overfly (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target)
+    :army-conquest (combat/apply-combat-result! (combat/attempt-conquest (sa/current-world) coords adjacent-target))
+    :fighter-overfly (combat/apply-combat-result! (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target))
     :reject-undamaged-ship (helpers/set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
-    :normal-move (exec-ports/movement-set-unit-movement (helpers/movement-port) coords target extended?))
+    :normal-move (exec-ports/movement-set-unit-movement (helpers/execution-port) coords target extended?))
   (when (not= :reject-undamaged-ship action)
     (helpers/item-processed!))
   true)
@@ -87,7 +87,7 @@
         target (if extended?
                  (calculate-extended-target coords direction)
                  adjacent-target)
-        context (ports/movement-context (helpers/movement-port) cell active-unit)]
+        context (ports/movement-context (helpers/unit-state-port) cell active-unit)]
     (case context
       :airport-fighter (launch-fighter-and-update container-ops/launch-fighter-from-airport coords target)
       :carrier-fighter (launch-fighter-and-update container-ops/launch-fighter-from-carrier coords target)
@@ -99,6 +99,6 @@
                       (config/key->extended-direction k))
         extended? (boolean (config/key->extended-direction k))]
     (when direction
-      (let [active-unit (ports/movement-get-active-unit (helpers/movement-port) cell)]
+      (let [active-unit (ports/movement-get-active-unit (helpers/unit-state-port) cell)]
         (when (and active-unit (= (:owner active-unit) :player))
           (execute-unit-movement coords direction extended? active-unit cell))))))

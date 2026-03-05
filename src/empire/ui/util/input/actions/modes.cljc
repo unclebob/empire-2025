@@ -45,9 +45,9 @@
       :else nil)))
 
 (defn handle-sentry-key [coords cell active-unit]
-  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (helpers/movement-port) active-unit)
-        is-carrier-fighter? (ports/movement-is-fighter-from-carrier? (helpers/movement-port) active-unit)
-        is-airport-fighter? (ports/movement-is-fighter-from-airport? (helpers/movement-port) active-unit)]
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (helpers/unit-state-port) active-unit)
+        is-carrier-fighter? (ports/movement-is-fighter-from-carrier? (helpers/unit-state-port) active-unit)
+        is-airport-fighter? (ports/movement-is-fighter-from-airport? (helpers/unit-state-port) active-unit)]
     (cond
       is-army-aboard?
       (do (container-ops/sleep-armies-on-transport coords)
@@ -60,7 +60,7 @@
           true)
 
       (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
-      (do (ports/movement-set-unit-mode (helpers/movement-port) coords :sentry)
+      (do (ports/movement-set-unit-mode (helpers/unit-state-port) coords :sentry)
           (helpers/item-processed!)
           true)
 
@@ -96,7 +96,7 @@
   true)
 
 (defn handle-look-around-key [coords cell active-unit]
-  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (helpers/movement-port) active-unit)
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (helpers/unit-state-port) active-unit)
         near-coast? (map-utils/any-neighbor-matches? coords (sa/current-world) map-utils/neighbor-offsets
                                                    #(= :land (:type %)))
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]

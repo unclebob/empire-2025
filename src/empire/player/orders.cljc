@@ -14,9 +14,9 @@
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
 
-(defn- movement-port []
-  (or (:movement-port (sa/state-ctx))
-      (throw (ex-info "Movement port not configured in runtime state context" {}))))
+(defn- unit-state-port []
+  (or (:unit-state-port (sa/state-ctx))
+      (throw (ex-info "Unit state port not configured in runtime state context" {}))))
 
 (defn- clamp-to-map-bounds
   [[x y]]
@@ -29,10 +29,10 @@
      (-> y (max 0) (min max-y))]))
 
 (defn add-unit-at [coords unit-type owner]
-  (ports/movement-add-unit-at (movement-port) coords unit-type owner))
+  (ports/movement-add-unit-at (unit-state-port) coords unit-type owner))
 
 (defn wake-at [coords]
-  (ports/movement-wake-at (movement-port) coords))
+  (ports/movement-wake-at (unit-state-port) coords))
 
 (defn own-city-at
   "Claims a city at the given coordinates for the player."

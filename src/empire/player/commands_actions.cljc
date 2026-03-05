@@ -28,9 +28,13 @@
 (defn- update-runtime-state! [ctx k f & args]
   (apply (:update-runtime-state! ctx) k f args))
 
-(defn- movement-port [ctx]
-  (or (:movement-port ctx)
-      (throw (ex-info "Movement port missing from commands actions ctx" {}))))
+(defn- unit-state-port [ctx]
+  (or (:unit-state-port ctx)
+      (throw (ex-info "Unit state port missing from commands actions ctx" {}))))
+
+(defn- execution-port [ctx]
+  (or (:execution-port ctx)
+      (throw (ex-info "Execution port missing from commands actions ctx" {}))))
 
 (defn- item-processed! [ctx]
   (write-runtime-state! ctx :waiting-for-input false)
@@ -72,9 +76,9 @@
       :else nil)))
 
 (defn handle-sentry-key [ctx coords cell active-unit]
-  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port ctx) active-unit)
-        is-carrier-fighter? (ports/movement-is-fighter-from-carrier? (movement-port ctx) active-unit)
-        is-airport-fighter? (ports/movement-is-fighter-from-airport? (movement-port ctx) active-unit)]
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (unit-state-port ctx) active-unit)
+        is-carrier-fighter? (ports/movement-is-fighter-from-carrier? (unit-state-port ctx) active-unit)
+        is-airport-fighter? (ports/movement-is-fighter-from-airport? (unit-state-port ctx) active-unit)]
     (cond
       is-army-aboard?
       (do (container-ops/sleep-armies-on-transport coords)
@@ -87,7 +91,7 @@
           true)
 
       (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
-      (do (ports/movement-set-unit-mode (movement-port ctx) coords :sentry)
+      (do (ports/movement-set-unit-mode (unit-state-port ctx) coords :sentry)
           (item-processed! ctx)
           true)
 
@@ -106,7 +110,7 @@
   (and (= :army (:type active-unit)) (not is-army-aboard?)))
 
 (defn handle-look-around-key [ctx coords _cell active-unit]
-  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port ctx) active-unit)
+  (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (unit-state-port ctx) active-unit)
         near-coast? (map-utils/any-neighbor-matches?
                      coords (current-world ctx) map-utils/neighbor-offsets
                      #(= :land (:type %)))
@@ -149,19 +153,19 @@
   (if (and (adjacent-coords? attn-coords clicked-coords)
            (combat/hostile-city? (current-world ctx) clicked-coords))
     (case unit-type
-      :army (combat/attempt-conquest (current-world ctx) attn-coords clicked-coords)
-      :fighter (combat/attempt-fighter-overfly (current-world ctx) attn-coords clicked-coords)
-      (exec-ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false))
-    (exec-ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false)))
+      :army (combat/apply-combat-result! (combat/attempt-conquest (current-world ctx) attn-coords clicked-coords))
+      :fighter (combat/apply-combat-result! (combat/attempt-fighter-overfly (current-world ctx) attn-coords clicked-coords))
+      (exec-ports/movement-set-unit-movement (execution-port ctx) attn-coords clicked-coords false))
+    (exec-ports/movement-set-unit-movement (execution-port ctx) attn-coords clicked-coords false)))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
   [ctx clicked-coords attention-coords]
   (let [attn-coords (first attention-coords)
         attn-cell (get-in (current-world ctx) attn-coords)
-        active-unit (ports/movement-get-active-unit (movement-port ctx) attn-cell)
+        active-unit (ports/movement-get-active-unit (unit-state-port ctx) attn-cell)
         target-cell (get-in (current-world ctx) clicked-coords)
-        context (ports/movement-context (movement-port ctx) attn-cell active-unit)]
+        context (ports/movement-context (unit-state-port ctx) attn-cell active-unit)]
     (case context
       :airport-fighter ((:launch-fighter-and-update ctx)
                         container-ops/launch-fighter-from-airport attn-coords clicked-coords)

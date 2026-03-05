@@ -9,15 +9,19 @@
             [empire.combat :as combat]
             [empire.config :as config]))
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
+
+(defn- pathfinding-port
+  []
+  (:pathfinding-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   ([pos owner]
-   (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+   (movement-port/movement-update-cell-visibility (execution-port) pos owner))
   ([pos owner unit]
-   (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
+   (movement-port/movement-update-cell-visibility-with-unit (execution-port) pos owner unit)))
 
 (defn get-passable-neighbors
   [pos]
@@ -175,7 +179,7 @@
   (let [player-units (core/find-visible-player-units)]
     (if (seq player-units)
       (apply min-key (partial distance-to pos) player-units)
-      (path-ports/movement-find-nearest-unexplored (movement-services) pos :fighter))))
+      (path-ports/movement-find-nearest-unexplored (pathfinding-port) pos :fighter))))
 
 (def fighter-speed 8)
 

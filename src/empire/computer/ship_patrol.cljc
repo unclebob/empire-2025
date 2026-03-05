@@ -7,13 +7,17 @@
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]))
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
+
+(defn- pathfinding-port
+  []
+  (:pathfinding-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   [pos owner]
-  (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+  (movement-port/movement-update-cell-visibility (execution-port) pos owner))
 
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
@@ -100,7 +104,7 @@
    Excludes targets already claimed by other patrol boats this round."
   [pos]
   (when-let [path (path-ports/movement-bfs-to-unseen-coast
-                    (movement-services)
+                    (pathfinding-port)
                     pos
                     (sa/read-state :computer-map)
                     (sa/read-state :claimed-patrol-targets))]

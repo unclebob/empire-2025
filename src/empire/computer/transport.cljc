@@ -18,9 +18,9 @@
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]))
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
 
@@ -30,8 +30,8 @@
   (let [passable (tc/get-passable-sea-neighbors pos)
         closest (core/move-toward pos target passable)]
     (when (and closest (core/move-unit-to pos closest))
-      (movement-port/movement-update-cell-visibility (movement-services) pos :computer)
-      (movement-port/movement-update-cell-visibility (movement-services) closest :computer)
+      (movement-port/movement-update-cell-visibility (execution-port) pos :computer)
+      (movement-port/movement-update-cell-visibility (execution-port) closest :computer)
       (loading/load-adjacent-armies closest)
       closest)))
 
@@ -97,7 +97,8 @@
   {:current-world sa/current-world
    :read-runtime-state sa/read-state
    :update-game-map! sa/update-world!
-   :movement-services (movement-services)
+   :execution-port (execution-port)
+   :pathfinding-port (:pathfinding-port (sa/state-ctx))
    :get-neighbors core/get-neighbors
    :load-adjacent-armies loading/load-adjacent-armies
    :coastal-crawl-move loading/coastal-crawl-move

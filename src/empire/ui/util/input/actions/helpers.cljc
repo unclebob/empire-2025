@@ -2,9 +2,13 @@
   (:require [empire.application.state-access :as sa]
             [empire.game-loop :as game-loop]))
 
-(defn movement-port []
-  (or (:movement-port (sa/state-ctx))
-      (throw (ex-info "Movement port not configured in runtime state context" {}))))
+(defn unit-state-port []
+  (or (:unit-state-port (sa/state-ctx))
+      (throw (ex-info "Unit state port not configured in runtime state context" {}))))
+
+(defn execution-port []
+  (or (:execution-port (sa/state-ctx))
+      (throw (ex-info "Execution port not configured in runtime state context" {}))))
 
 (defn set-error-message!
   [msg ms]

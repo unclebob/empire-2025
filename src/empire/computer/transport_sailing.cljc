@@ -15,13 +15,13 @@
 (def ^:private player-ship-types
   #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
 
-(defn- movement-services
+(defn- execution-port
   []
-  (:movement-port (sa/state-ctx)))
+  (:execution-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   [pos owner]
-  (movement-port/movement-update-cell-visibility (movement-services) pos owner))
+  (movement-port/movement-update-cell-visibility (execution-port) pos owner))
 
 (defn- enemy-ship-near-target?
   [target radius]

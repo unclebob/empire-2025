@@ -14,8 +14,7 @@
 (defn- build-default-state-ctx
   []
   (let [store (atoms-adapter/world-store)
-        rt-store (runtime-adapter/runtime-state-store)
-        movement-port (movement-adapter/movement-port)]
+        rt-store (runtime-adapter/runtime-state-store)]
     {:world-store store
      :load-world #(world-ports/load-world store)
      :save-world! #(world-ports/save-world! store %)
@@ -33,7 +32,6 @@
      :set-city-production! city-production/set-city-production
      :process-fighter-threat threat-response/process-fighter-threat
      :process-ship-threat threat-response/process-ship-threat
-     :movement-port movement-port
      :unit-state-port (movement-adapter/unit-state-port)
      :execution-port (movement-adapter/execution-port)
      :pathfinding-port (movement-adapter/pathfinding-port)

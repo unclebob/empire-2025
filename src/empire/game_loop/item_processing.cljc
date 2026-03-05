@@ -13,9 +13,9 @@
             [empire.movement.explore :as explore]
             [empire.movement.coastline :as coastline]))
 
-(defn- movement-port []
-  (or (:movement-port (sa/state-ctx))
-      (throw (ex-info "Movement port not configured in runtime state context" {}))))
+(defn- execution-port []
+  (or (:execution-port (sa/state-ctx))
+      (throw (ex-info "Execution port not configured in runtime state context" {}))))
 
 (defn- world-store []
   (or (:world-store (sa/state-ctx))
@@ -86,7 +86,7 @@
          unit (:contents cell)]
     (when (and (= (:mode unit) :moving)
                (pos? (:steps-remaining unit 1)))
-      (let [{:keys [result pos]} (ports/movement-move-unit (movement-port) coords (:target unit) cell (world-atom))
+      (let [{:keys [result pos]} (ports/movement-move-unit (execution-port) coords (:target unit) cell (world-atom))
             next-pos (resolve-move-result result pos (:owner unit))]
         (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
           (recur pos (dec max-sidesteps))
