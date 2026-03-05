@@ -34,6 +34,9 @@
      :process-fighter-threat threat-response/process-fighter-threat
      :process-ship-threat threat-response/process-ship-threat
      :movement-port movement-port
+     :unit-state-port (movement-adapter/unit-state-port)
+     :execution-port (movement-adapter/execution-port)
+     :pathfinding-port (movement-adapter/pathfinding-port)
      :check-invariants (fn [_world] nil)}))
 
 (app-runtime/set-ctx-factory! build-default-state-ctx)
