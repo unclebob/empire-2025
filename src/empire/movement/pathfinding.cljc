@@ -2,20 +2,25 @@
 (ns empire.movement.pathfinding
   "A* pathfinding for computer AI units.
    Provides efficient pathfinding that respects terrain constraints."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
-            [empire.movement.map-utils :as map-utils]))
+  (:require [empire.movement.map-utils :as map-utils]))
 
 (def path-cache
   "Cache for computed paths: {[start goal unit-type] path-vector}"
   (atom {}))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
+(defonce ^:private world-loader* (atom nil))
+
+(defn set-world-loader!
+  "Injects a zero-arg function that returns the current world map."
+  [f]
+  (reset! world-loader* f))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (if-let [f @world-loader*]
+    (f)
+    (throw (ex-info "Pathfinding world loader not initialized"
+                    {:hint "Initialize app bootstrap before calling pathfinding/next-step."}))))
 
 (defn clear-path-cache
   "Clears the A* path cache. Called at start of each round."
