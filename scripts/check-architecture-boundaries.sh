@@ -20,7 +20,7 @@ if [[ -n "$movement_methods_hits" ]]; then
   exit 1
 fi
 
-movement_service_hits="$(rg -n 'empire\.movement\.service' src/empire || true)"
+movement_service_hits="$(rg -n 'empire\.movement\.service[^s]' src/empire || true)"
 if [[ -n "$movement_service_hits" ]]; then
   echo "Architecture boundary violation: movement.service was removed; no references should exist:"
   printf '%s\n' "$movement_service_hits"
@@ -61,6 +61,30 @@ quil_outside_hits="$(rg -n 'empire\.ui\.quil' src/empire --glob '!src/empire/ui/
 if [[ -n "$quil_outside_hits" ]]; then
   echo "Architecture boundary violation: empire.ui.quil must only be referenced from within ui/quil/:"
   printf '%s\n' "$quil_outside_hits"
+  exit 1
+fi
+
+# Domain services must not depend on use-cases
+ds_to_uc_hits="$(rg -n 'empire\.(player|computer|game.loop)' src/empire/movement src/empire/combat.cljc src/empire/combat src/empire/containers src/empire/debug || true)"
+if [[ -n "$ds_to_uc_hits" ]]; then
+  echo "Architecture boundary violation: domain-services must not depend on use-cases (player/computer/game-loop):"
+  printf '%s\n' "$ds_to_uc_hits"
+  exit 1
+fi
+
+# Application must not depend on use-cases (excluding composition roots)
+app_to_uc_hits="$(rg -n 'empire\.(player|computer|game.loop)' src/empire/application src/empire/adapters src/empire/atoms --glob '!**/bootstrap.cljc' --glob '!**/acceptance_engine.cljc' || true)"
+if [[ -n "$app_to_uc_hits" ]]; then
+  echo "Architecture boundary violation: application must not depend on use-cases (player/computer/game-loop):"
+  printf '%s\n' "$app_to_uc_hits"
+  exit 1
+fi
+
+# Application must not depend on domain-services (excluding composition roots)
+app_to_ds_hits="$(rg -n 'empire\.(movement|combat|containers|debug)' src/empire/application src/empire/adapters src/empire/atoms --glob '!**/bootstrap.cljc' --glob '!**/acceptance_engine.cljc' || true)"
+if [[ -n "$app_to_ds_hits" ]]; then
+  echo "Architecture boundary violation: application must not depend on domain-services (movement/combat/containers/debug):"
+  printf '%s\n' "$app_to_ds_hits"
   exit 1
 fi
 

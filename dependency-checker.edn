@@ -20,13 +20,42 @@
    :kind :concrete
    :match "^empire\\.ui\\.util(\\..*)?$"}
 
+  ;; :application excludes empire.application.bootstrap and
+  ;; empire.adapters.runtime.acceptance-engine — these are composition roots
+  ;; that legitimately wire across all layers, so they fall through to :outer-ring.
+  {:component :application
+   :kind :concrete
+   :match ["^empire\\.application\\.(?!bootstrap$).*$"
+           "empire.application.runtime"
+           "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"
+           "^empire\\.atoms(\\..*)?$"]}
+
+  {:component :domain-services
+   :kind :concrete
+   :match ["^empire\\.movement(\\..*)?$"
+           "^empire\\.combat(\\..*)?$"
+           "^empire\\.containers(\\..*)?$"
+           "^empire\\.debug(\\..*)?$"]}
+
+  {:component :use-cases
+   :kind :concrete
+   :match ["^empire\\.player(\\..*)?$"
+           "^empire\\.computer(\\..*)?$"
+           "^empire\\.game.loop(\\..*)?$"]}
+
   {:component :outer-ring
    :kind :concrete
    :match "empire.*"}]
 
  :forbidden-dependencies
  [[:inner-ring :outer-ring]
-  [:ui :quil]]
+  [:inner-ring :application]
+  [:inner-ring :domain-services]
+  [:inner-ring :use-cases]
+  [:ui :quil]
+  [:domain-services :use-cases]
+  [:application :use-cases]
+  [:application :domain-services]]
 
  ;; :ui and :outer-ring intentionally cycle — :ui is carved from :outer-ring
  ;; solely to enforce [:ui :quil]. The cycle is architectural intent.
