@@ -8,9 +8,8 @@
             [empire.application.runtime :as app-runtime]
             [empire.computer.threat-response :as threat-response]
             [empire.computer.production :as computer-production]
-            [empire.config :as config]
-[empire.movement.adapter :as movement-adapter]
-            [empire.units.impl.dispatcher]))
+            [empire.application.city-production :as city-production]
+[empire.movement.adapter :as movement-adapter]))
 
 (defn- build-default-state-ctx
   []
@@ -29,19 +28,9 @@
      :rebuild-refueling-caches! #(runtime-ports/rebuild-refueling-caches! rt-store)
      :rebuild-country-stats! (fn [] nil)
      :handle-detection! threat-response/handle-detection!
-     :country-coastal-explored? (fn [country-id]
-                                  (computer-production/country-coastal-cells-explored? country-id))
-     :country-city-producing-armies? (fn [city-pos country-id]
-                                       (computer-production/country-city-producing-armies?
-                                         city-pos
-                                         country-id))
-     :set-city-production! (fn [coords item]
-                             (let [current (or (runtime-ports/read-runtime-state rt-store :production) {})]
-                               (runtime-ports/write-runtime-state! rt-store :production
-                                                                  (assoc current
-                                                                         coords
-                                                                         {:item item
-                                                                          :remaining-rounds (config/item-cost item)}))))
+     :country-coastal-explored? #(computer-production/country-coastal-cells-explored? %)
+     :country-city-producing-armies? #(computer-production/country-city-producing-armies? %1 %2)
+     :set-city-production! city-production/set-city-production
      :process-fighter-threat threat-response/process-fighter-threat
      :process-ship-threat threat-response/process-ship-threat
      :movement-port movement-port

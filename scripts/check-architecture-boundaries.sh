@@ -49,15 +49,6 @@ if [[ -n "$state_ctx_delay_hits" ]]; then
   exit 1
 fi
 
-# units.impl.dispatcher is a stub pending bootstrap cleanup; only stub + bootstrap may reference it
-units_impl_hits="$(rg -n 'empire\.units\.impl' src/empire || true)"
-units_impl_violations="$(printf '%s\n' "$units_impl_hits" | rg -v '^src/empire/units/impl/|^src/empire/application/bootstrap\.cljc:' || true)"
-if [[ -n "$units_impl_violations" ]]; then
-  echo "Architecture boundary violation: units.impl stub must only be referenced from itself and application/bootstrap:"
-  printf '%s\n' "$units_impl_violations"
-  exit 1
-fi
-
 quil_outside_hits="$(rg -n 'empire\.ui\.quil' src/empire --glob '!src/empire/ui/quil/*' || true)"
 if [[ -n "$quil_outside_hits" ]]; then
   echo "Architecture boundary violation: empire.ui.quil must only be referenced from within ui/quil/:"
