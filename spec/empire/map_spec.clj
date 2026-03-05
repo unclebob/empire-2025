@@ -207,7 +207,7 @@
     (set-test-world! (build-test-map ["F+"]))
     (set-test-unit (test-utils/game-map-atom) "F" :mode :awake)
     (test-utils/set-test-state! :error-message "")
-    (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0])
+    (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
     ;; Fighter should be removed from original cell
     (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
     ;; Fighter should be on city with hits=0
@@ -222,7 +222,7 @@
     (set-test-world! (build-test-map ["FX"]))
     (set-test-unit (test-utils/game-map-atom) "F" :mode :awake)
     (test-utils/set-test-state! :error-message "")
-    (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0])
+    (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
     ;; Fighter should be removed from original cell
     (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
     ;; Fighter should be on city with hits=0

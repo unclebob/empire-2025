@@ -5,37 +5,48 @@
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
-(defn- set-error-message!
+(defn- error-message-map
   [msg ms]
-  (sa/write-state! :error-message msg)
-  (sa/write-state! :error-until (+ (System/currentTimeMillis) ms)))
+  {:error-message msg
+   :error-until (+ (System/currentTimeMillis) ms)})
 
-(defn- set-turn-message!
+(defn- turn-message-map
   [msg ms]
-  (sa/write-state! :turn-message msg)
-  (sa/write-state! :turn-message-until (if (= ms Long/MAX_VALUE)
-                                          Long/MAX_VALUE
-                                          (+ (System/currentTimeMillis) ms))))
+  {:turn-message msg
+   :turn-message-until (if (= ms Long/MAX_VALUE)
+                         Long/MAX_VALUE
+                         (+ (System/currentTimeMillis) ms))})
 
-(defn- update-cell-visibility!
-  [pos owner]
-  (visibility/update-cell-visibility pos owner))
+(defn apply-combat-result!
+  "Applies a combat result map's side effects: world update, messages, state changes, visibility."
+  [{:keys [world messages state-updates visibility]}]
+  (when world
+    (sa/update-world! (constantly world)))
+  (doseq [[k v] messages]
+    (sa/write-state! k v))
+  (doseq [[k v] state-updates]
+    (if (fn? v)
+      (sa/update-state! k v)
+      (sa/write-state! k v)))
+  (doseq [{:keys [pos owner]} visibility]
+    (visibility/update-cell-visibility pos owner)))
 
-(defn- drown-excess-cargo
-  [coords survivor]
-  (when (#{:transport :carrier} (:type survivor))
+(defn- drown-excess-cargo-world
+  [world coords survivor]
+  (if-not (#{:transport :carrier} (:type survivor))
+    world
     (let [cap (dispatcher/effective-capacity (:type survivor) (:hits survivor))
           [count-key awake-key] (if (= :transport (:type survivor))
                                   [:army-count :awake-armies]
                                   [:fighter-count :awake-fighters])
           current-count (get survivor count-key 0)
           excess (- current-count cap)]
-      (when (pos? excess)
+      (if (pos? excess)
         (let [current-awake (get survivor awake-key 0)
               new-awake (min current-awake cap)]
-          (sa/update-world! update-in (conj coords :contents)
-                            assoc count-key cap awake-key new-awake))))))
-
+          (update-in world (conj coords :contents)
+                     assoc count-key cap awake-key new-awake))
+        world))))
 
 (defn format-combat-log
   [log attacker-type defender-type winner]
@@ -71,76 +82,87 @@
         :when (and unit (pred unit))]
     [i j]))
 
-(defn- clear-dead-escort-from-carrier!
-  [dead-unit]
+(defn- clear-dead-escort-from-carrier
+  [world dead-unit]
   (let [carrier-id (:escort-carrier-id dead-unit)
         escort-id (:escort-id dead-unit)
-        coords (find-units-where
-                (sa/current-world)
+        coords (find-units-where world
                 #(and (= :carrier (:type %))
                       (= carrier-id (:carrier-id %))))]
-    (doseq [pos coords]
-      (case (:type dead-unit)
-        :battleship
-        (sa/update-world! assoc-in (conj pos :contents :group-battleship-id) nil)
-        :submarine
-        (sa/update-world! update-in (conj pos :contents :group-submarine-ids)
-                          (fn [ids] (vec (remove #{escort-id} ids))))))))
+    (reduce (fn [w pos]
+              (case (:type dead-unit)
+                :battleship (assoc-in w (conj pos :contents :group-battleship-id) nil)
+                :submarine (update-in w (conj pos :contents :group-submarine-ids)
+                                      (fn [ids] (vec (remove #{escort-id} ids))))))
+            world coords)))
 
-(defn- release-carrier-escorts!
-  [dead-unit]
+(defn- release-carrier-escorts
+  [world dead-unit]
   (let [carrier-id (:carrier-id dead-unit)
-        coords (find-units-where
-                (sa/current-world)
-                #(= carrier-id (:escort-carrier-id %)))]
-    (doseq [pos coords]
-      (sa/update-world! update-in (conj pos :contents)
-                        #(-> % (assoc :escort-mode :seeking)
-                             (dissoc :escort-carrier-id :orbit-angle))))))
+        coords (find-units-where world #(= carrier-id (:escort-carrier-id %)))]
+    (reduce (fn [w pos]
+              (update-in w (conj pos :contents)
+                         #(-> % (assoc :escort-mode :seeking)
+                              (dissoc :escort-carrier-id :orbit-angle))))
+            world coords)))
 
-(defn- clear-carrier-group-on-death!
-  [dead-unit]
+(defn- clear-carrier-group-on-death
+  [world dead-unit]
   (cond
     (and (#{:battleship :submarine} (:type dead-unit))
          (:escort-carrier-id dead-unit))
-    (clear-dead-escort-from-carrier! dead-unit)
+    (clear-dead-escort-from-carrier world dead-unit)
 
     (and (= :carrier (:type dead-unit))
          (:carrier-id dead-unit))
-    (release-carrier-escorts! dead-unit)))
+    (release-carrier-escorts world dead-unit)
 
-(defn- clear-destroyer-escort!
-  [dead-unit]
+    :else world))
+
+(defn- clear-destroyer-escort
+  [world dead-unit]
   (let [tid (:escort-transport-id dead-unit)
-        coords (find-units-where
-                (sa/current-world)
+        coords (find-units-where world
                 #(and (= :transport (:type %))
                       (= tid (:transport-id %))))]
-    (doseq [pos coords]
-      (sa/update-world! update-in (conj pos :contents) dissoc :escort-destroyer-id))))
+    (reduce (fn [w pos]
+              (update-in w (conj pos :contents) dissoc :escort-destroyer-id))
+            world coords)))
 
-(defn- clear-transport-escort!
-  [dead-unit]
+(defn- clear-transport-escort
+  [world dead-unit]
   (let [did (:escort-destroyer-id dead-unit)
-        coords (find-units-where
-                (sa/current-world)
+        coords (find-units-where world
                 #(and (= :destroyer (:type %))
                       (= did (:destroyer-id %))))]
-    (doseq [pos coords]
-      (sa/update-world! update-in (conj pos :contents)
-                        #(-> % (assoc :escort-mode :seeking)
-                             (dissoc :escort-transport-id))))))
+    (reduce (fn [w pos]
+              (update-in w (conj pos :contents)
+                         #(-> % (assoc :escort-mode :seeking)
+                              (dissoc :escort-transport-id))))
+            world coords)))
+
+(defn- clear-escort-on-death-world
+  [world dead-unit]
+  (-> world
+      (cond->
+        (dead-escort-destroyer? dead-unit) (clear-destroyer-escort dead-unit)
+        (dead-escort-transport? dead-unit) (clear-transport-escort dead-unit))
+      (clear-carrier-group-on-death dead-unit)))
 
 (defn clear-escort-on-death
+  "Side-effectful wrapper for computer callers. Reads/writes world atom."
   [dead-unit]
-  (cond
-    (dead-escort-destroyer? dead-unit) (clear-destroyer-escort! dead-unit)
-    (dead-escort-transport? dead-unit) (clear-transport-escort! dead-unit))
-  (clear-carrier-group-on-death! dead-unit))
+  (sa/update-world! (fn [w] (clear-escort-on-death-world w dead-unit))))
+
+(defn conquer-city-contents-pure
+  "Returns updated world after conquering city contents. Pure function."
+  [world city-coords new-owner]
+  (domain-combat/conquer-city-contents-world world city-coords new-owner))
 
 (defn conquer-city-contents
+  "Side-effectful wrapper for computer callers."
   [city-coords new-owner]
-  (sa/update-world! (fn [w] (domain-combat/conquer-city-contents-world w city-coords new-owner)))
+  (sa/update-world! (fn [w] (conquer-city-contents-pure w city-coords new-owner)))
   (sa/update-state! :production dissoc city-coords)
   nil)
 
@@ -152,32 +174,39 @@
   [world city-coords]
   (let [city-cell (get-in world city-coords)]
     (if (< (rand) 0.5)
-      (do
-        (when (= :computer (:city-status city-cell))
-          (sa/update-state! :computer-city-positions disj city-coords))
-        (sa/update-world! assoc-in city-coords (assoc city-cell :city-status :player))
-        (conquer-city-contents city-coords :player)
-        (sa/update-state! :computer-carrier-positions disj city-coords)
-        (update-cell-visibility! city-coords :player)
-        (sa/update-state! :computer-map assoc-in (conj city-coords :city-status) :player))
-      (set-error-message! (:conquest-failed config/messages) config/error-message-duration))
-    true))
+      (let [new-world (-> world
+                          (assoc-in city-coords (assoc city-cell :city-status :player))
+                          (conquer-city-contents-pure city-coords :player))]
+        {:world new-world
+         :messages {}
+         :state-updates (cond-> {:production #(dissoc % city-coords)
+                                 :computer-carrier-positions #(disj % city-coords)
+                                 :computer-map #(assoc-in % (conj city-coords :city-status) :player)}
+                          (= :computer (:city-status city-cell))
+                          (assoc :computer-city-positions #(disj % city-coords)))
+         :visibility [{:pos city-coords :owner :player}]
+         :combatant true})
+      {:world world
+       :messages (error-message-map (:conquest-failed config/messages) config/error-message-duration)
+       :combatant true})))
 
 (defn attempt-conquest
   [world army-coords city-coords]
-  (let [army-cell (get-in world army-coords)]
-    (sa/update-world! assoc-in army-coords (dissoc army-cell :contents))
-    (update-cell-visibility! army-coords :player)
-    (attempt-city-conquest (sa/current-world) city-coords)))
+  (let [army-cell (get-in world army-coords)
+        world-without-army (assoc-in world army-coords (dissoc army-cell :contents))
+        city-result (attempt-city-conquest world-without-army city-coords)]
+    (update city-result :visibility
+            (fnil conj []) {:pos army-coords :owner :player})))
 
 (defn attempt-fighter-overfly
   [world fighter-coords city-coords]
   (let [fighter-cell (get-in world fighter-coords)
         fighter (:contents fighter-cell)
-        shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
-    (sa/update-world! (fn [w] (domain-combat/apply-fighter-overfly-world w fighter-coords city-coords shot-down-fighter)))
-    (set-error-message! (:fighter-destroyed-by-city config/messages) config/error-message-duration)
-    true))
+        shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)
+        new-world (domain-combat/apply-fighter-overfly-world world fighter-coords city-coords shot-down-fighter)]
+    {:world new-world
+     :messages (error-message-map (:fighter-destroyed-by-city config/messages) config/error-message-duration)
+     :combatant true}))
 
 (defn hostile-unit?
   [unit owner]
@@ -200,9 +229,10 @@
                                           (:type attacker)
                                           (:type defender)
                                           (:winner result))
-            dead-unit (if (= :attacker (:winner result)) defender attacker)]
-        (sa/update-world! (fn [w] (domain-combat/apply-attack-world w attacker-coords target-coords (:survivor result))))
-        (drown-excess-cargo target-coords (:survivor result))
-        (clear-escort-on-death dead-unit)
-        (set-turn-message! message Long/MAX_VALUE)
-        true))))
+            dead-unit (if (= :attacker (:winner result)) defender attacker)
+            new-world (-> (domain-combat/apply-attack-world world attacker-coords target-coords (:survivor result))
+                          (drown-excess-cargo-world target-coords (:survivor result))
+                          (clear-escort-on-death-world dead-unit))]
+        {:world new-world
+         :messages (turn-message-map message Long/MAX_VALUE)
+         :combatant true}))))

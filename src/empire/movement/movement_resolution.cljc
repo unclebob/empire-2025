@@ -75,6 +75,7 @@
   (let [unit (:contents cell)
         result (combat/attempt-attack (current-world) from-coords next-pos)]
     (when result
+      (combat/apply-combat-result! result)
       (visibility/update-cell-visibility next-pos (:owner unit)))
     {:result :combat :pos next-pos}))
 

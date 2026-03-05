@@ -162,7 +162,7 @@
         (update-test-world! assoc-in [1 0 :contents]
                {:type :destroyer :owner :computer :mode :sentry :hits 3})
         (test-utils/update-test-state! :production assoc [1 0] {:item :fighter :remaining-rounds 5})
-        (combat/attempt-conquest (test-utils/read-test-state :game-map) [0 0] [1 0])
+        (combat/apply-combat-result! (combat/attempt-conquest (test-utils/read-test-state :game-map) [0 0] [1 0]))
         ;; City should be player-owned
         (should= :player (get-in (test-utils/read-test-state :game-map) [1 0 :city-status]))
         ;; Destroyer should be flipped to player
@@ -214,7 +214,7 @@
       ;; Rolls: 0.6(a hits C:7), 0.6(a hits C:6), 0.6(a hits C:5), 0.6(a hits C:4), 0.4(C hits a:0)
       (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
-          (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])
+          (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (let [survivor (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
             (should= :carrier (:type survivor))
             (should= 4 (:hits survivor))
@@ -228,7 +228,7 @@
       (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
-          (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])
+          (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (let [survivor (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
             (should= 3 (:fighter-count survivor))))))
 
@@ -239,7 +239,7 @@
       ;; Carrier ends at 4 hits -> capacity 4
       (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
-          (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])
+          (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (let [survivor (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
             (should= 4 (:fighter-count survivor))
             (should (<= (:awake-fighters survivor) 4))))))
@@ -252,7 +252,7 @@
       (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       (let [rolls (atom [0.6 0.6 0.6 0.6 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
-          (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])
+          (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (let [survivor (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
             (should= :carrier (:type survivor))
             ;; Should not crash — 0 cargo, nothing to drown
@@ -277,7 +277,7 @@
       ;; Rolls: 0.4(sub hits C:5), 0.4(sub hits C:2), 0.6(C hits sub:1), 0.6(C hits sub:0)
       (let [rolls (atom [0.4 0.4 0.6 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
-          (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])
+          (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           ;; Carrier won (defender), now at 2/8 hits -> capacity 2
           ;; 7 fighters should be reduced to 2
           (let [survivor (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
@@ -297,7 +297,7 @@
       (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       ;; Destroyer attacks army. Roll 0.6 = defender hits, 0.6 again, 0.6 again => destroyer dies
       (with-redefs [rand (constantly 0.6)]
-        (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0])
+        (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0]))
         (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
           (should= :transport (:type transport))
           (should-be-nil (:escort-destroyer-id transport)))))
@@ -313,7 +313,7 @@
       (set-test-unit (test-utils/game-map-atom) "s" :hits 2)
       ;; Transport attacks sub. Roll 0.6 = sub hits transport (3 damage), transport dies.
       (with-redefs [rand (constantly 0.6)]
-        (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0])
+        (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0]))
         (let [destroyer (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
           (should= :destroyer (:type destroyer))
           (should= :seeking (:escort-mode destroyer))
@@ -332,7 +332,7 @@
       (set-test-unit (test-utils/game-map-atom) "s" :hits 2)
       ;; Battleship attacks sub. Sub hits battleship 5 times (2 damage each = 10 total), battleship dies.
       (with-redefs [rand (constantly 0.6)]
-        (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0])
+        (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0]))
         (let [carrier (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
           (should= :carrier (:type carrier))
           (should-be-nil (:group-battleship-id carrier)))))
@@ -350,7 +350,7 @@
       ;; Submarine attacks destroyer. Roll 0.6 = defender hits (1 damage each).
       ;; Sub has 2 hits, takes 1 damage per hit -> 2 rounds to die.
       (with-redefs [rand (constantly 0.6)]
-        (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0])
+        (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0]))
         (let [carrier (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
           (should= :carrier (:type carrier))
           (should= [99] (:group-submarine-ids carrier)))))
@@ -369,7 +369,7 @@
       ;; Actually sub has strength 3, so: 0.6 -> sub hits carrier (3 dmg, 5 left),
       ;; 0.6 -> sub hits carrier (3 dmg, 2 left), 0.6 -> sub hits carrier (3 dmg, -1) carrier dies
       (with-redefs [rand (constantly 0.6)]
-        (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0])
+        (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [3 0]))
         (let [escort (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
           (should= :submarine (:type escort))
           (should= :seeking (:escort-mode escort))
