@@ -4,7 +4,6 @@
             [empire.config :as config]
             [empire.game-loop :as game-loop]
             [empire.init :as init]
-            [empire.movement.bootstrap :as movement-bootstrap]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
             [empire.ui.quil.rendering.messages :as render-messages]
@@ -25,7 +24,7 @@
   "Initial setup for the game state."
   []
   (app-bootstrap/initialize-default-services!)
-  (movement-bootstrap/initialize-default-services!)
+
   (create-fonts)
   (util-core/calculate-screen-dimensions)
   (when-let [seed (sa/read-state :random-seed)]

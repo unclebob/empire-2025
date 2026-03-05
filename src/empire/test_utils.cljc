@@ -4,7 +4,6 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.computer.land-objectives :as land-objectives]
-            [empire.movement.bootstrap :as movement-bootstrap]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.units.dispatcher :as dispatcher]))
@@ -254,7 +253,7 @@
 
 (defn reset-all-atoms! []
   (app-bootstrap/initialize-default-services!)
-  (movement-bootstrap/initialize-default-services!)
+
   (set-test-state! :random-seed nil)
   (set-test-state! :map-size [0 0])
   (set-test-state! :map-size-constants {})
