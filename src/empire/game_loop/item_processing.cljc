@@ -10,7 +10,8 @@
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.player.attention :as player-attention]
-            [empire.movement.player-services :as player-movement]))
+            [empire.movement.explore :as explore]
+            [empire.movement.coastline :as coastline]))
 
 (defn- movement-port []
   (or (:movement-port (sa/state-ctx))
@@ -94,12 +95,12 @@
 (defn move-explore-unit
   "Moves an exploring unit. Returns new coords if still exploring, nil if done."
   [coords]
-  (player-movement/move-explore-unit coords))
+  (explore/move-explore-unit coords))
 
 (defn move-coastline-unit
   "Moves a coastline-following unit. Returns nil when done."
   [coords]
-  (player-movement/move-coastline-unit coords))
+  (coastline/move-coastline-unit coords))
 
 (defn- airport-flight-path [cell]
   (or (:flight-path cell) (:flight-path (:contents cell))))

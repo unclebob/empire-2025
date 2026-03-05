@@ -2,7 +2,8 @@
 (ns empire.player.commands-actions
   "Extracted unit action handlers for player command processing."
   (:require [empire.movement.services :as movement-services]
-            [empire.movement.player-services :as player-movement]
+            [empire.movement.explore :as explore]
+            [empire.movement.coastline :as coastline]
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.player.attention :as attention]
@@ -109,10 +110,10 @@
         near-coast? (movement-services/any-neighbor-matches?
                      coords (current-world ctx) movement-services/neighbor-offsets
                      #(= :land (:type %)))
-        rejection-reason (player-movement/coastline-follow-rejection-reason active-unit near-coast?)]
+        rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond
       (free-army? active-unit is-army-aboard?)
-      (do (player-movement/set-explore-mode coords)
+      (do (explore/set-explore-mode coords)
           (item-processed! ctx)
           true)
 
@@ -122,8 +123,8 @@
             (item-processed! ctx))
           true)
 
-      (player-movement/coastline-follow-eligible? active-unit near-coast?)
-      (do (player-movement/set-coastline-follow-mode coords)
+      (coastline/coastline-follow-eligible? active-unit near-coast?)
+      (do (coastline/set-coastline-follow-mode coords)
           (item-processed! ctx)
           true)
 
