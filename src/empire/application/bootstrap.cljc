@@ -13,8 +13,7 @@
             [empire.movement.context :as movement-context]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs.context :as bfs-context]
-            [empire.units.impl.dispatcher]
-            [empire.units.impl.satellite]))
+            [empire.units.impl.dispatcher]))
 
 (defn- build-default-state-ctx
   []

@@ -1,56 +1,19 @@
-;; mutation-tested: 2026-02-25
 (ns empire.units.fighter
   (:require [empire.units.config :as units-config]))
 
-(defmulti initial-state
-  (fn [& _]
-    :default))
-
-(defmulti can-move-to?
-  (fn [& _]
-    :default))
-
-(defmulti needs-attention?
-  (fn [& _]
-    :default))
-
-(defmulti consume-fuel
-  (fn [& _]
-    :default))
-
-(defmulti refuel
-  (fn [& _]
-    :default))
-
-(defmulti bingo?
-  (fn [& _]
-    :default))
-
-(defmulti out-of-fuel?
-  (fn [& _]
-    :default))
-
-(defmulti can-land-at-city?
-  (fn [& _]
-    :default))
-
-(defmulti can-land-on-carrier?
-  (fn [& _]
-    :default))
-
-(defmethod initial-state :default
+(defn initial-state
   []
   {:fuel units-config/fighter-fuel})
 
-(defmethod can-move-to? :default
+(defn can-move-to?
   [_cell]
   true)
 
-(defmethod needs-attention? :default
+(defn needs-attention?
   [unit]
   (= (:mode unit) :awake))
 
-(defmethod consume-fuel :default
+(defn consume-fuel
   [unit]
   (let [current-fuel (:fuel unit units-config/fighter-fuel)
         new-fuel (dec current-fuel)]
@@ -58,24 +21,24 @@
       nil
       (assoc unit :fuel new-fuel))))
 
-(defmethod refuel :default
+(defn refuel
   [unit]
   (assoc unit :fuel units-config/fighter-fuel))
 
-(defmethod bingo? :default
+(defn bingo?
   [unit]
   (<= (:fuel unit units-config/fighter-fuel) units-config/fighter-bingo-threshold))
 
-(defmethod out-of-fuel? :default
+(defn out-of-fuel?
   [unit]
   (<= (:fuel unit units-config/fighter-fuel) 1))
 
-(defmethod can-land-at-city? :default
+(defn can-land-at-city?
   [cell]
   (and (= (:type cell) :city)
        (= (:city-status cell) :player)))
 
-(defmethod can-land-on-carrier? :default
+(defn can-land-on-carrier?
   [cell owner carrier-capacity]
   (let [contents (:contents cell)]
     (and contents

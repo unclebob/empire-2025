@@ -1,96 +1,51 @@
-;; mutation-tested: 2026-02-25
 (ns empire.units.transport
   (:require [empire.units.config :as units-config]))
 
-(defmulti initial-state
-  (fn [& _]
-    :default))
-
-(defmulti can-move-to?
-  (fn [& _]
-    :default))
-
-(defmulti needs-attention?
-  (fn [& _]
-    :default))
-
-(defmulti full?
-  (fn [& _]
-    :default))
-
-(defmulti has-armies?
-  (fn [& _]
-    :default))
-
-(defmulti has-awake-armies?
-  (fn [& _]
-    :default))
-
-(defmulti add-army
-  (fn [& _]
-    :default))
-
-(defmulti remove-army
-  (fn [& _]
-    :default))
-
-(defmulti wake-armies
-  (fn [& _]
-    :default))
-
-(defmulti sleep-armies
-  (fn [& _]
-    :default))
-
-(defmulti remove-awake-army
-  (fn [& _]
-    :default))
-
-(defmethod initial-state :default
+(defn initial-state
   []
   {:army-count 0
    :awake-armies 0
    :been-to-sea true})
 
-(defmethod can-move-to? :default
+(defn can-move-to?
   [cell]
   (and cell
        (= (:type cell) :sea)))
 
-(defmethod needs-attention? :default
+(defn needs-attention?
   [unit]
   (or (= (:mode unit) :awake)
       (pos? (:awake-armies unit 0))))
 
-(defmethod full? :default
+(defn full?
   [unit]
   (>= (:army-count unit 0) units-config/transport-capacity))
 
-(defmethod has-armies? :default
+(defn has-armies?
   [unit]
   (pos? (:army-count unit 0)))
 
-(defmethod has-awake-armies? :default
+(defn has-awake-armies?
   [unit]
   (pos? (:awake-armies unit 0)))
 
-(defmethod add-army :default
+(defn add-army
   [unit]
   (update unit :army-count (fnil inc 0)))
 
-(defmethod remove-army :default
+(defn remove-army
   [unit]
   (update unit :army-count (fnil dec 0)))
 
-(defmethod wake-armies :default
+(defn wake-armies
   [unit]
   (assoc unit :awake-armies (:army-count unit 0)))
 
-(defmethod sleep-armies :default
+(defn sleep-armies
   [unit]
   (assoc unit :awake-armies 0))
 
-(defmethod remove-awake-army :default
+(defn remove-awake-army
   [unit]
   (-> unit
       (update :army-count (fnil dec 0))
