@@ -2,7 +2,7 @@
 (ns empire.player.attention
   (:require [empire.application.movement-services :as movement-services]
             [empire.application.state-access :as sa]
-            [empire.application.ports.movement :as ports]
+            [empire.application.ports.unit-state :as ports]
             [empire.config :as config]
             [empire.domain.core.unit-metrics :as unit-metrics]
             [empire.containers.helpers :as uc]))

@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
-  (:require [empire.application.ports.movement :as movement-port]
+  (:require [empire.application.ports.movement-execution :as movement-port]
+            [empire.application.ports.pathfinding :as path-ports]
             [empire.application.state-access :as sa]
             [empire.combat :as combat]
             [empire.computer.core :as core]
@@ -90,7 +91,7 @@
 
 (defn explore-sea
   [pos ship-type]
-  (when-let [target (movement-port/movement-find-nearest-unexplored (movement-services) pos ship-type)]
+  (when-let [target (path-ports/movement-find-nearest-unexplored (movement-services) pos ship-type)]
     (move-toward pos target)))
 
 (defn find-player-ship-sighting

@@ -3,7 +3,8 @@
   "Extracted unit action handlers for player command processing."
   (:require [empire.application.movement-services :as movement-services]
             [empire.application.player-movement-services :as player-movement]
-            [empire.application.ports.movement :as ports]
+            [empire.application.ports.unit-state :as ports]
+            [empire.application.ports.movement-execution :as exec-ports]
             [empire.player.attention :as attention]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
@@ -149,8 +150,8 @@
     (case unit-type
       :army (combat/attempt-conquest attn-coords clicked-coords)
       :fighter (combat/attempt-fighter-overfly attn-coords clicked-coords)
-      (ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false))
-    (ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false)))
+      (exec-ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false))
+    (exec-ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false)))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."

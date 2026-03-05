@@ -1,5 +1,6 @@
 (ns empire.ui.util.input.actions.movement
-  (:require [empire.application.ports.movement :as ports]
+  (:require [empire.application.ports.unit-state :as ports]
+            [empire.application.ports.movement-execution :as exec-ports]
             [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.combat :as combat]
@@ -69,7 +70,7 @@
     :army-conquest (combat/attempt-conquest coords adjacent-target)
     :fighter-overfly (combat/attempt-fighter-overfly coords adjacent-target)
     :reject-undamaged-ship (helpers/set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
-    :normal-move (ports/movement-set-unit-movement (helpers/movement-port) coords target extended?))
+    :normal-move (exec-ports/movement-set-unit-movement (helpers/movement-port) coords target extended?))
   (when (not= :reject-undamaged-ship action)
     (helpers/item-processed!))
   true)

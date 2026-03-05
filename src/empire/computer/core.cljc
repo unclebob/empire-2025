@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
-  (:require [empire.application.ports.movement :as movement-port]
+  (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.state-access :as sa]
             [empire.combat :as combat]
             [empire.computer.core.transport-search :as transport-search]

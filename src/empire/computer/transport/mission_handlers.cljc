@@ -5,7 +5,8 @@
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
-            [empire.application.ports.movement :as movement-port]))
+            [empire.application.ports.movement-execution :as movement-port]
+            [empire.application.ports.pathfinding :as path-ports]))
 
 (def ^:private invasion-army-search-max-distance 6)
 (def ^:private invasion-load-timeout-rounds 5)
@@ -66,7 +67,7 @@
   (let [computer-map (read-runtime-state :computer-map)
         candidates (candidate-coastal-armies world computer-map get-neighbors transport-pos)
         scored (keep (fn [army-pos]
-                       (when-let [path (movement-port/movement-bfs-to-land-ho-target
+                       (when-let [path (path-ports/movement-bfs-to-land-ho-target
                                         movement-services transport-pos army-pos computer-map)]
                          {:army-pos army-pos
                           :path path

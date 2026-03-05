@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
-  (:require [empire.application.ports.movement :as movement-port]
+  (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]

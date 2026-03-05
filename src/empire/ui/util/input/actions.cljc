@@ -1,5 +1,5 @@
 (ns empire.ui.util.input.actions
-  (:require [empire.application.ports.movement :as ports]
+  (:require [empire.application.ports.unit-state :as ports]
             [empire.application.state-access :as sa]
             [empire.ui.util.input.actions.helpers :as helpers]
             [empire.ui.util.input.actions.modes :as modes]

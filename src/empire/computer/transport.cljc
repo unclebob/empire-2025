@@ -4,7 +4,7 @@
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
-  (:require [empire.application.ports.movement :as movement-port]
+  (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]

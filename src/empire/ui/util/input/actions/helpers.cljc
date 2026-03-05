@@ -1,6 +1,5 @@
 (ns empire.ui.util.input.actions.helpers
-  (:require [empire.application.ports.movement :as ports]
-            [empire.application.state-access :as sa]
+  (:require [empire.application.state-access :as sa]
             [empire.game-loop :as game-loop]))
 
 (defn movement-port []

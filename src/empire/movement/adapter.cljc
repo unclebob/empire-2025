@@ -1,5 +1,7 @@
 (ns empire.movement.adapter
-  (:require [empire.application.ports.movement :as ports]
+  (:require [empire.application.ports.unit-state :as unit-state-ports]
+            [empire.application.ports.movement-execution :as exec-ports]
+            [empire.application.ports.pathfinding :as path-ports]
             [empire.movement.api :as movement]
             [empire.movement.lakes :as lakes]
             [empire.movement.pathfinding :as pathfinding]
@@ -7,9 +9,7 @@
             [empire.movement.visibility :as visibility]))
 
 (defrecord MovementAdapter []
-  ports/MovementPort
-  (movement-move-unit [_ coords target cell current-map]
-    (movement/move-unit coords target cell current-map))
+  unit-state-ports/UnitStatePort
   (movement-get-active-unit [_ cell]
     (movement/get-active-unit cell))
   (movement-is-army-aboard-transport? [_ active-unit]
@@ -26,6 +26,10 @@
     (movement/add-unit-at coords unit-type owner))
   (movement-wake-at [_ coords]
     (movement/wake-at coords))
+
+  exec-ports/MovementExecutionPort
+  (movement-move-unit [_ coords target cell current-map]
+    (movement/move-unit coords target cell current-map))
   (movement-set-unit-movement [_ coords target extended?]
     (if extended?
       (movement/set-unit-movement coords target true)
@@ -34,6 +38,8 @@
     (visibility/update-cell-visibility pos owner))
   (movement-update-cell-visibility-with-unit [_ pos owner unit]
     (visibility/update-cell-visibility pos owner unit))
+
+  path-ports/PathfindingPort
   (movement-find-nearest-unexplored [_ pos unit-type]
     (pathfinding-bfs/find-nearest-unexplored pos unit-type))
   (movement-bfs-to-unseen-coast [_ pos computer-map claimed-targets]

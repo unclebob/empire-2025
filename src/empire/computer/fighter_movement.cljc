@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
-  (:require [empire.application.ports.movement :as movement-port]
+  (:require [empire.application.ports.movement-execution :as movement-port]
+            [empire.application.ports.pathfinding :as path-ports]
             [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
@@ -174,7 +175,7 @@
   (let [player-units (core/find-visible-player-units)]
     (if (seq player-units)
       (apply min-key (partial distance-to pos) player-units)
-      (movement-port/movement-find-nearest-unexplored (movement-services) pos :fighter))))
+      (path-ports/movement-find-nearest-unexplored (movement-services) pos :fighter))))
 
 (def fighter-speed 8)
 
