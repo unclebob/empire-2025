@@ -1,31 +1,43 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.visibility
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.movement.context :as movement-context]
             [empire.units.dispatcher :as dispatcher]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
 
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (movement-context/read-runtime-state k))
 
 (defn- write-runtime-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (movement-context/write-runtime-state! k v))
 
 (defn- merge-continents!
   [stamp-id existing-cid]
-  ((:merge-continents! @state-ctx) stamp-id existing-cid))
+  (movement-context/merge-continents! stamp-id existing-cid))
+
+(defn- read-visible-map
+  [visible-map-source]
+  (if (keyword? visible-map-source)
+    (read-runtime-state visible-map-source)
+    @visible-map-source))
+
+(defn- write-visible-map!
+  [visible-map-source visible-map]
+  (if (keyword? visible-map-source)
+    (write-runtime-state! visible-map-source visible-map)
+    (reset! visible-map-source visible-map)))
+
+(defn- update-visible-map!
+  [visible-map-source f & args]
+  (write-visible-map! visible-map-source (apply f (read-visible-map visible-map-source) args)))
 
 (defn- is-players?
   "Returns true if the cell is owned by the player."
@@ -78,15 +90,15 @@
 (defn update-combatant-map
   "Updates a combatant's visible map by revealing cells near their owned units.
    Optimized to use direct vector access instead of get-in/assoc-in."
-  [visible-map-atom owner]
-  (when-let [visible-map @visible-map-atom]
+  [visible-map-source owner]
+  (when-let [visible-map (read-visible-map visible-map-source)]
     (let [game-map (current-world)
           ownership-predicate (if (= owner :player) is-players? is-computers?)
           height (count game-map)
           width (count (first game-map))
           transient-map (transient (mapv transient visible-map))
           updated (process-map-cells transient-map game-map ownership-predicate height width)]
-      (reset! visible-map-atom (mapv persistent! (persistent! updated))))))
+      (write-visible-map! visible-map-source (mapv persistent! (persistent! updated))))))
 
 (defn update-combatant-map-state
   "Pure/state-level variant of combatant map update.
@@ -124,8 +136,8 @@
 (defn- reveal-cell!
   "Reveals game-cell at [row col] in visible-map-atom.
    If stamp-id is truthy and cell was unexplored land, stamps its country-id."
-  [visible-map-atom row col game-cell stamp-id visible-map]
-  (swap! visible-map-atom assoc-in [row col] game-cell)
+  [visible-map-source row col game-cell stamp-id visible-map]
+  (update-visible-map! visible-map-source assoc-in [row col] game-cell)
   (when (and stamp-id
              (was-unexplored? visible-map row col)
              (= :land (:type game-cell)))
@@ -155,14 +167,14 @@
 
 (defn- handle-detection!
   [coords cell]
-  (when-let [f (:handle-detection! @state-ctx)]
+  (when-let [f (:handle-detection! (movement-context/state-ctx))]
     (f coords cell)))
 
 (defn- reveal-and-track!
   "Reveals a single cell and tracks newly-discovered free cities."
-  [visible-map-atom ni nj stamp-id track-cities? detect-threats? visible-map]
+  [visible-map-source ni nj stamp-id track-cities? detect-threats? visible-map]
   (let [game-cell (get-in (current-world) [ni nj])]
-    (reveal-cell! visible-map-atom ni nj game-cell stamp-id visible-map)
+    (reveal-cell! visible-map-source ni nj game-cell stamp-id visible-map)
     (when (and detect-threats?
                (was-unexplored? visible-map ni nj))
       (handle-detection! [ni nj] game-cell))
@@ -178,22 +190,20 @@
   ([pos owner] (update-cell-visibility pos owner nil))
   ([pos owner unit]
    (let [visible-map-key (visible-map-key-for owner)
-         visible-map-atom (atom (read-runtime-state visible-map-key))
          game-map (current-world)
          cell (get-in game-map pos)
          radius (cell-visibility-radius cell)
          stamp-id (should-stamp-country? unit)
          track-cities? (should-track-free-city? owner (:type (:contents cell)))
          detect-threats? (= owner :computer)]
-     (when @visible-map-atom
+     (when-let [visible-map (read-runtime-state visible-map-key)]
        (let [[x y] pos
              height (count game-map)
-             width (count (first game-map))
-             visible-map @visible-map-atom]
+             width (count (first game-map))]
          (doseq [di (range (- radius) (inc radius))
                  dj (range (- radius) (inc radius))
                  :let [ni (+ x di) nj (+ y dj)]
                  :when (in-bounds? ni nj height width)]
-           (reveal-and-track! visible-map-atom ni nj
+           (reveal-and-track! visible-map-key ni nj
                               stamp-id track-cities? detect-threats? visible-map))
-         (write-runtime-state! visible-map-key @visible-map-atom))))))
+         nil)))))

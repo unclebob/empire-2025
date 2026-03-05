@@ -10,6 +10,10 @@
   [k v]
   (movement-context/write-runtime-state! k v))
 
+(defn- map-data
+  [current-map]
+  (map-utils/resolve-map-source current-map))
+
 (defn- set-error-message!
   [msg ms]
   (write-runtime-state! :error-message msg)
@@ -18,23 +22,25 @@
 (defn near-hostile-city?
   "Returns true if position is adjacent to a hostile city."
   [pos current-map]
-  (some (fn [[di dj]]
-          (let [ni (+ (first pos) di)
-                nj (+ (second pos) dj)
-                adj-cell (get-in @current-map [ni nj])]
-            (and adj-cell
-                 (= (:type adj-cell) :city)
-                 (config/hostile-city? (:city-status adj-cell)))))
-        map-utils/neighbor-offsets))
+  (let [world (map-data current-map)]
+    (some (fn [[di dj]]
+            (let [ni (+ (first pos) di)
+                  nj (+ (second pos) dj)
+                  adj-cell (get-in world [ni nj])]
+              (and adj-cell
+                   (= (:type adj-cell) :city)
+                   (config/hostile-city? (:city-status adj-cell)))))
+          map-utils/neighbor-offsets)))
 
 (defn friendly-city-in-range?
   "Returns true if there is a friendly city within max-dist cells."
   [pos max-dist current-map]
   (let [[px py] pos
-        height (count @current-map)
-        width (count (first @current-map))]
+        world (map-data current-map)
+        height (count world)
+        width (count (first world))]
     (some (fn [[i j]]
-            (let [cell (get-in @current-map [i j])]
+            (let [cell (get-in world [i j])]
               (and (= (:type cell) :city)
                    (= (:city-status cell) :player)
                    (<= (max (abs (- i px)) (abs (- j py))) max-dist))))
@@ -46,14 +52,15 @@
   (let [[px py] pos
         radius (dispatcher/visibility-radius (:type unit))
         owner (:owner unit)
-        height (count @current-map)
-        width (count (first @current-map))]
+        world (map-data current-map)
+        height (count world)
+        width (count (first world))]
     (some (fn [[di dj]]
             (let [ni (+ px di)
                   nj (+ py dj)]
               (when (and (>= ni 0) (< ni height)
                          (>= nj 0) (< nj width))
-                (let [cell (get-in @current-map [ni nj])
+                (let [cell (get-in world [ni nj])
                       contents (:contents cell)]
                   (and contents
                        (not= (:owner contents) owner))))))
@@ -139,9 +146,10 @@
 
 (defn- target-is-reachable-friendly-city? [unit final-pos fuel current-map]
   (when-let [target (:target unit)]
-    (let [[tx ty] target
+    (let [world (map-data current-map)
+          [tx ty] target
           [fx fy] final-pos
-          target-cell (get-in @current-map target)
+          target-cell (get-in world target)
           target-contents (:contents target-cell)
           distance (max (abs (- tx fx)) (abs (- ty fy)))]
       (or (and (friendly-city? target-cell)
@@ -153,7 +161,8 @@
                (<= (* distance 4/3) fuel))))))
 
 (defn- build-fighter-checks [unit final-pos current-map]
-  (let [dest-cell (get-in @current-map final-pos)
+  (let [world (map-data current-map)
+        dest-cell (get-in world final-pos)
         entering-city? (= (:type dest-cell) :city)
         friendly-city? (= (:city-status dest-cell) :player)
         hostile-city? (and entering-city? (not friendly-city?))
@@ -205,7 +214,7 @@
   "Returns the waypoint marching orders at final-pos if unit is an army, else nil."
   [unit final-pos current-map]
   (when (= :army (:type unit))
-    (let [cell (get-in @current-map final-pos)]
+    (let [cell (get-in (map-data current-map) final-pos)]
       (:marching-orders (:waypoint cell)))))
 
 (defn- apply-state-changes [unit result]

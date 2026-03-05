@@ -1,24 +1,20 @@
 ;; mutation-tested: 2026-02-28
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-execution
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
-            [empire.config :as config]
+  (:require [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.containers.ops :as container-ops]
+            [empire.movement.context :as movement-context]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn process-consumables [unit to-cell]
   (if (and unit (= (:type unit) :fighter))

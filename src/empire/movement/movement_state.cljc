@@ -1,30 +1,26 @@
 ;; mutation-tested: 2026-02-28
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-state
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
-            [empire.config :as config]
+  (:require [empire.config :as config]
             [empire.containers.helpers :as uc]
+            [empire.movement.context :as movement-context]
             [empire.movement.visibility :as visibility]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
 
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (movement-context/read-runtime-state k))
 
 (defn- write-runtime-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (movement-context/write-runtime-state! k v))
 
 (defn- update-runtime-state!
   [k f & args]

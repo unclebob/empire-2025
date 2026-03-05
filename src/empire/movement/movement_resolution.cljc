@@ -1,11 +1,11 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-resolution
   (:require [clojure.string]
-            [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
+            [empire.movement.context :as movement-context]
+            [empire.movement.map-utils :as map-utils]
             [empire.movement.movement-execution :as execution]
             [empire.movement.movement-pathing :as pathing]
             [empire.movement.satellite :as satellite]
@@ -13,20 +13,17 @@
             [empire.movement.wake-conditions :as wake]
             [empire.units.dispatcher :as dispatcher]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- write-runtime-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (movement-context/write-runtime-state! k v))
 
 (defn- clamp-to-map-bounds
   "Clamps [x y] to the current map bounds."
@@ -187,7 +184,7 @@
                     cell
                     (assoc cell :contents safe-unit))
         next-pos (pathing/next-step-pos from-coords safe-target)
-        next-cell (get-in @current-map next-pos)]
+        next-cell (get-in (map-utils/resolve-map-source current-map) next-pos)]
     (if (uc/ship-can-dock? safe-unit next-cell)
       (dock-ship-for-repair from-coords next-pos safe-cell)
       (let [[woken-unit woke?] (wake/wake-before-move safe-unit next-cell)]

@@ -1,33 +1,25 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.explore
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.world-store :as world-ports]
-            [empire.application.state :as app-state]
-            [empire.config :as config]
+  (:require [empire.config :as config]
+            [empire.movement.context :as movement-context]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- world-store []
-  (:world-store @state-ctx))
+  (movement-context/read-runtime-state k))
 
 (defn- world-atom []
-  (world-ports/world-atom (world-store)))
+  (movement-context/world-atom))
 
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."
@@ -39,7 +31,7 @@
 (defn get-valid-explore-moves
   "Returns list of valid adjacent positions for exploration."
   [pos current-map]
-  (map-utils/get-matching-neighbors pos @current-map map-utils/neighbor-offsets
+  (map-utils/get-matching-neighbors pos (map-utils/resolve-map-source current-map) map-utils/neighbor-offsets
                                     valid-explore-cell?))
 
 (defn adjacent-to-unexplored?

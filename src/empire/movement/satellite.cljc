@@ -1,19 +1,15 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.movement.satellite
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.movement.context :as movement-context]
             [empire.movement.visibility :as visibility]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
 
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- extend-to-boundary
   "Extends from position in direction until hitting a boundary."

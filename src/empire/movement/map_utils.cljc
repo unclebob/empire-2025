@@ -25,6 +25,13 @@
          (vec (for [j (range (count (first the-map)))]
                 (f i j the-map))))))
 
+(defn resolve-map-source
+  [map-source]
+  (cond
+    (vector? map-source) map-source
+    (keyword? map-source) (read-runtime-state map-source)
+    :else @map-source))
+
 (defn filter-map
   [the-map pred]
   (for [i (range (count the-map))
@@ -107,12 +114,12 @@
 
 (defn adjacent-to-land?
   [pos current-map]
-  (any-neighbor-matches? pos @current-map neighbor-offsets
+  (any-neighbor-matches? pos (resolve-map-source current-map) neighbor-offsets
                          #(= :land (:type %))))
 
 (defn orthogonally-adjacent-to-land?
   [pos current-map]
-  (any-neighbor-matches? pos @current-map orthogonal-offsets
+  (any-neighbor-matches? pos (resolve-map-source current-map) orthogonal-offsets
                          #(= :land (:type %))))
 
 (defn completely-surrounded-by-sea?
@@ -121,20 +128,21 @@
 
 (defn in-bay?
   [pos current-map]
-  (>= (count-matching-neighbors pos @current-map neighbor-offsets
+  (>= (count-matching-neighbors pos (resolve-map-source current-map) neighbor-offsets
                                 #(= :land (:type %)))
       4))
 
 (defn adjacent-to-sea?
   [pos current-map]
-  (any-neighbor-matches? pos @current-map neighbor-offsets
+  (any-neighbor-matches? pos (resolve-map-source current-map) neighbor-offsets
                          #(= :sea (:type %))))
 
 (defn at-map-edge?
   [pos current-map]
   (let [[x y] pos
-        height (count @current-map)
-        width (count (first @current-map))]
+        map-data (resolve-map-source current-map)
+        height (count map-data)
+        width (count (first map-data))]
     (or (zero? x) (zero? y)
         (= x (dec height))
         (= y (dec width)))))

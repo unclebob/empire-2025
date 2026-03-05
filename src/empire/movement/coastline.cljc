@@ -1,30 +1,22 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.coastline
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.world-store :as world-ports]
-            [empire.application.state :as app-state]
-            [empire.config :as config]
+  (:require [empire.config :as config]
+            [empire.movement.context :as movement-context]
             [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.explore :as explore]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
-
-(defn- world-store []
-  (:world-store @state-ctx))
+  (movement-context/current-world))
 
 (defn- world-atom []
-  (world-ports/world-atom (world-store)))
+  (movement-context/world-atom))
 
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."
@@ -63,7 +55,7 @@
 (defn get-valid-coastline-moves
   "Returns list of valid adjacent sea positions for coastline following."
   [pos current-map]
-  (map-utils/get-matching-neighbors pos @current-map map-utils/neighbor-offsets
+  (map-utils/get-matching-neighbors pos (map-utils/resolve-map-source current-map) map-utils/neighbor-offsets
                                     valid-coastline-cell?))
 
 (defn- rand-nth-non-empty
