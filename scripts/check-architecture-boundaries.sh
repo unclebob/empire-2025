@@ -14,18 +14,16 @@ if [[ -n "$inner_mutation_hits" ]]; then
 fi
 
 movement_methods_hits="$(rg -n 'empire\.movement\.methods' src/empire || true)"
-movement_methods_violations="$(printf '%s\n' "$movement_methods_hits" | rg -v '^src/empire/movement/methods\.cljc:|^src/empire/movement/bootstrap\.cljc:' || true)"
-if [[ -n "$movement_methods_violations" ]]; then
-  echo "Architecture boundary violation: movement methods must only be referenced by movement bootstrap:"
-  printf '%s\n' "$movement_methods_violations"
+if [[ -n "$movement_methods_hits" ]]; then
+  echo "Architecture boundary violation: movement.methods was removed; no references should exist:"
+  printf '%s\n' "$movement_methods_hits"
   exit 1
 fi
 
 movement_service_hits="$(rg -n 'empire\.movement\.service' src/empire || true)"
-movement_service_violations="$(printf '%s\n' "$movement_service_hits" | rg -v '^src/empire/movement/service\.cljc:|^src/empire/movement/api\.cljc:|^src/empire/movement/bootstrap\.cljc:' || true)"
-if [[ -n "$movement_service_violations" ]]; then
-  echo "Architecture boundary violation: movement service must only be referenced by movement api/bootstrap:"
-  printf '%s\n' "$movement_service_violations"
+if [[ -n "$movement_service_hits" ]]; then
+  echo "Architecture boundary violation: movement.service was removed; no references should exist:"
+  printf '%s\n' "$movement_service_hits"
   exit 1
 fi
 

@@ -1,8 +1,6 @@
-(ns empire.movement.bootstrap
-  (:require [empire.movement.methods :as methods]
-            [empire.movement.service :as service]))
+(ns empire.movement.bootstrap)
 
 (defn initialize-default-services!
-  "Initializes movement services with the default concrete implementation."
+  "No-op. Retained for API compatibility with callers."
   []
-  (service/set-movement-services! (methods/default-movement-services)))
+  true)
