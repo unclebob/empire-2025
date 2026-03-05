@@ -14,9 +14,7 @@
 ;; Maps position -> continent-set. Cleared each round.
 (def continent-cache (atom {}))
 
-(defmulti clear-continent-cache! (fn [& _] :default))
-
-(defmethod clear-continent-cache! :default
+(defn clear-continent-cache!
   []
   (reset! continent-cache {}))
 
@@ -78,9 +76,7 @@
                                  rest-frontier visited continent)]
                 (recur nf nv nc))))))))))
 
-(defmulti flood-fill-continent (fn [& _] :default))
-
-(defmethod flood-fill-continent :default
+(defn flood-fill-continent
   [start-pos]
   (if-let [cached (get @continent-cache start-pos)]
     cached
@@ -99,22 +95,16 @@
   {:computer :computer-units
    :player :player-units})
 
-(defmulti city-status-key (fn [& _] :default))
-
-(defmethod city-status-key :default
+(defn city-status-key
   [cell]
   (when (= :city (:type cell))
     (city-status->key (:city-status cell))))
 
-(defmulti unit-owner-key (fn [& _] :default))
-
-(defmethod unit-owner-key :default
+(defn unit-owner-key
   [cell]
   (owner->key (:owner (:contents cell))))
 
-(defmulti scan-continent (fn [& _] :default))
-
-(defmethod scan-continent :default
+(defn scan-continent
   [continent-positions]
   (let [comp-map (sa/read-state :computer-map)]
     (reduce
@@ -131,17 +121,13 @@
       :computer-units 0 :player-units 0}
      continent-positions)))
 
-(defmulti has-land-objective? (fn [& _] :default))
-
-(defmethod has-land-objective? :default
+(defn has-land-objective?
   [continent-counts]
   (or (pos? (:unexplored continent-counts 0))
       (pos? (:free-cities continent-counts 0))
       (pos? (:player-cities continent-counts 0))))
 
-(defmulti find-all-objectives-on-continent (fn [& _] :default))
-
-(defmethod find-all-objectives-on-continent :default
+(defn find-all-objectives-on-continent
   [continent-positions]
   (let [comp-map (sa/read-state :computer-map)]
     (filter (fn [pos]
@@ -151,9 +137,7 @@
                          (#{:free :player} (:city-status cell))))))
             continent-positions)))
 
-(defmulti find-nearest-on-continent (fn [& _] :default))
-
-(defmethod find-nearest-on-continent :default
+(defn find-nearest-on-continent
   [start-pos continent-positions pred]
   (let [comp-map (sa/read-state :computer-map)
         candidates (filter (fn [pos]
@@ -163,25 +147,19 @@
     (when (seq candidates)
       (apply min-key #(core/distance start-pos %) candidates))))
 
-(defmulti find-unexplored-on-continent (fn [& _] :default))
-
-(defmethod find-unexplored-on-continent :default
+(defn find-unexplored-on-continent
   [start-pos continent-positions]
   (find-nearest-on-continent start-pos continent-positions
                              (fn [cell _pos] (nil? cell))))
 
-(defmulti find-free-city-on-continent (fn [& _] :default))
-
-(defmethod find-free-city-on-continent :default
+(defn find-free-city-on-continent
   [start-pos continent-positions]
   (find-nearest-on-continent start-pos continent-positions
                              (fn [cell _pos]
                                (and (= :city (:type cell))
                                     (= :free (:city-status cell))))))
 
-(defmulti find-player-city-on-continent (fn [& _] :default))
-
-(defmethod find-player-city-on-continent :default
+(defn find-player-city-on-continent
   [start-pos continent-positions]
   (find-nearest-on-continent start-pos continent-positions
                              (fn [cell _pos]

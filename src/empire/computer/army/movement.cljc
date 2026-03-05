@@ -6,21 +6,15 @@
             [empire.debug :as debug]
             [empire.computer.movement :as computer-movement]))
 
-(defmulti on-same-continent? (fn [& _] :default))
-
-(defmethod on-same-continent? :default
+(defn on-same-continent?
   [country-a country-b]
   ((:on-same-continent? (sa/state-ctx)) country-a country-b))
 
-(defmulti merge-continents! (fn [& _] :default))
-
-(defmethod merge-continents! :default
+(defn merge-continents!
   [stamp-id existing-cid]
   ((:merge-continents! (sa/state-ctx)) stamp-id existing-cid))
 
-(defmulti adjacent-to-sea? (fn [& _] :default))
-
-(defmethod adjacent-to-sea? :default
+(defn adjacent-to-sea?
   [pos]
   (some (fn [neighbor]
           (= :sea (:type (get-in (sa/current-world) neighbor))))
@@ -43,9 +37,7 @@
       (sa/write-state! :coastal-cells-by-country
                             (assoc registry country-id (set coastal))))))
 
-(defmulti ensure-coastal-registry (fn [& _] :default))
-
-(defmethod ensure-coastal-registry :default
+(defn ensure-coastal-registry
   [country-id]
   (when (empty? (get (sa/read-state :coastal-cells-by-country) country-id))
     (seed-coastal-registry country-id)))
@@ -75,9 +67,7 @@
                           (update registry country-id
                                   (fn [s] (into (or s #{}) coastal))))))
 
-(defmulti register-coastal-cells (fn [& _] :default))
-
-(defmethod register-coastal-cells :default
+(defn register-coastal-cells
   [pos country-id]
   (when country-id
     (let [game-map (sa/current-world)
@@ -87,9 +77,7 @@
         (when (seq coastal)
           (update-coastal-registry! country-id coastal))))))
 
-(defmulti sovereign-passable? (fn [& _] :default))
-
-(defmethod sovereign-passable? :default
+(defn sovereign-passable?
   [country-id cell]
   (and cell
        (#{:land :city} (:type cell))
@@ -99,18 +87,14 @@
            (nil? (:country-id cell))
            (on-same-continent? country-id (:country-id cell)))))
 
-(defmulti get-passable-neighbors (fn [& _] :default))
-
-(defmethod get-passable-neighbors :default
+(defn get-passable-neighbors
   [pos country-id]
   (let [game-map (sa/current-world)]
     (filter (fn [neighbor]
               (sovereign-passable? country-id (get-in game-map neighbor)))
             (core/get-neighbors pos))))
 
-(defmulti get-empty-passable-neighbors (fn [& _] :default))
-
-(defmethod get-empty-passable-neighbors :default
+(defn get-empty-passable-neighbors
   [pos country-id]
   (let [game-map (sa/current-world)]
     (filter (fn [neighbor]
@@ -118,9 +102,7 @@
                 (nil? (:contents cell))))
             (get-passable-neighbors pos country-id))))
 
-(defmulti find-nearest-unclaimed (fn [& _] :default))
-
-(defmethod find-nearest-unclaimed :default
+(defn find-nearest-unclaimed
   [candidates pos]
   (let [unclaimed (remove (or (sa/read-state :claimed-objectives) #{}) candidates)]
     (when (seq unclaimed)
@@ -134,9 +116,7 @@
       (subvec v (- (count v) 4))
       v)))
 
-(defmulti try-move (fn [& _] :default))
-
-(defmethod try-move :default
+(defn try-move
   [pos target]
   (when (core/move-unit-to pos target)
     (debug/log-computer-event! :army-move pos {:to target})
@@ -153,9 +133,7 @@
   [country-id]
   (fn [cell] (sovereign-passable? country-id cell)))
 
-(defmulti move-toward-objective (fn [& _] :default))
-
-(defmethod move-toward-objective :default
+(defn move-toward-objective
   [pos objective country-id]
   (let [unit (get-in (sa/current-world) (conj pos :contents))
         history (set (:move-history unit))
@@ -169,9 +147,7 @@
             (let [sorted (sort-by #(core/distance % objective) filtered)]
               (try-move pos (first sorted))))))))
 
-(defmulti in-bounds? (fn [& _] :default))
-
-(defmethod in-bounds? :default
+(defn in-bounds?
   [pos]
   (let [[c r] pos
         game-map (sa/current-world)]

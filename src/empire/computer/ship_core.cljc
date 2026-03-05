@@ -25,9 +25,7 @@
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
 
-(defmulti get-passable-sea-neighbors (fn [& _] :default))
-
-(defmethod get-passable-sea-neighbors :default
+(defn get-passable-sea-neighbors
   [pos]
   (let [game-map (sa/current-world)]
     (filter (fn [neighbor]
@@ -38,9 +36,7 @@
                          (= :player (:owner (:contents cell)))))))
             (core/get-neighbors pos))))
 
-(defmulti find-adjacent-enemy-ship (fn [& _] :default))
-
-(defmethod find-adjacent-enemy-ship :default
+(defn find-adjacent-enemy-ship
   [pos]
   (let [game-map (sa/current-world)]
     (first (filter (fn [neighbor]
@@ -52,9 +48,7 @@
                                :carrier :battleship} (:type unit)))))
                    (core/get-neighbors pos)))))
 
-(defmulti attack-enemy (fn [& _] :default))
-
-(defmethod attack-enemy :default
+(defn attack-enemy
   [ship-pos enemy-pos]
   (let [attacker (get-in (sa/current-world) (conj ship-pos :contents))
         defender (get-in (sa/current-world) (conj enemy-pos :contents))
@@ -84,9 +78,7 @@
         (combat/clear-escort-on-death dead-unit)
         nil))))
 
-(defmulti move-toward (fn [& _] :default))
-
-(defmethod move-toward :default
+(defn move-toward
   [pos target]
   (let [passable (get-passable-sea-neighbors pos)
         closest (core/move-toward pos target passable)]
@@ -96,33 +88,25 @@
       (update-cell-visibility! closest :computer)
       closest)))
 
-(defmulti explore-sea (fn [& _] :default))
-
-(defmethod explore-sea :default
+(defn explore-sea
   [pos ship-type]
   (when-let [target (movement-port/movement-find-nearest-unexplored (movement-services) pos ship-type)]
     (move-toward pos target)))
 
-(defmulti find-player-ship-sighting (fn [& _] :default))
-
-(defmethod find-player-ship-sighting :default
+(defn find-player-ship-sighting
   [pos]
   (let [player-units (core/find-visible-player-units)]
     (when (seq player-units)
       (apply min-key (partial core/distance pos) player-units))))
 
-(defmulti retreat-if-damaged (fn [& _] :default))
-
-(defmethod retreat-if-damaged :default
+(defn retreat-if-damaged
   [pos unit]
   (let [comp-map (sa/read-state :computer-map)]
     (when (threat/should-retreat? pos unit comp-map)
     (let [passable (get-passable-sea-neighbors pos)]
       (threat/retreat-move pos unit comp-map passable)))))
 
-(defmulti find-computer-transports (fn [& _] :default))
-
-(defmethod find-computer-transports :default
+(defn find-computer-transports
   []
   (let [game-map (sa/current-world)]
     (for [i (range (count game-map))
@@ -134,25 +118,19 @@
                      (= :transport (:type unit)))]
       [i j])))
 
-(defmulti find-nearest-transport (fn [& _] :default))
-
-(defmethod find-nearest-transport :default
+(defn find-nearest-transport
   [pos]
   (let [transports (find-computer-transports)]
     (when (seq transports)
       (apply min-key (partial core/distance pos) transports))))
 
-(defmulti find-adjacent-dock-city (fn [& _] :default))
-
-(defmethod find-adjacent-dock-city :default
+(defn find-adjacent-dock-city
   [pos unit]
   (first (filter (fn [neighbor]
                    (uc/ship-can-dock? unit (get-in (sa/current-world) neighbor)))
                  (core/get-neighbors pos))))
 
-(defmulti dock-computer-ship (fn [& _] :default))
-
-(defmethod dock-computer-ship :default
+(defn dock-computer-ship
   [ship-pos city-pos]
   (let [cell (get-in (sa/current-world) ship-pos)
         unit (:contents cell)

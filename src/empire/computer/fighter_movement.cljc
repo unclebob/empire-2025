@@ -18,8 +18,7 @@
   ([pos owner unit]
    (movement-port/movement-update-cell-visibility-with-unit (movement-services) pos owner unit)))
 
-(defmulti get-passable-neighbors (fn [& _] :default))
-(defmethod get-passable-neighbors :default
+(defn get-passable-neighbors
   [pos]
   (let [game-map (sa/current-world)
         height (count game-map)
@@ -29,8 +28,7 @@
                    (>= c 0) (< c width)))
             (core/get-neighbors pos))))
 
-(defmulti occupied? (fn [& _] :default))
-(defmethod occupied? :default
+(defn occupied?
   [pos]
   (some? (get-in (sa/current-world) (conj pos :contents))))
 
@@ -39,8 +37,7 @@
   [[r1 c1] [r2 c2]]
   (and (not= r1 r2) (not= c1 c2)))
 
-(defmulti friendly-occupied? (fn [& _] :default))
-(defmethod friendly-occupied? :default
+(defn friendly-occupied?
   [pos]
   (let [contents (get-in (sa/current-world) (conj pos :contents))]
     (and (some? contents) (= :computer (:owner contents)))))
@@ -59,8 +56,7 @@
           candidates (filter #(= best-diag (nth % 2)) at-best-dist)]
       (first (last candidates)))))
 
-(defmulti direction-from (fn [& _] :default))
-(defmethod direction-from :default
+(defn direction-from
   [[r1 c1] [r2 c2]]
   [(Integer/signum (- r2 r1)) (Integer/signum (- c2 c1))])
 
@@ -82,8 +78,7 @@
                                           candidates)))]
       {:dest best :hops 1})))
 
-(defmulti in-bounds? (fn [& _] :default))
-(defmethod in-bounds? :default
+(defn in-bounds?
   [[r c]]
   (let [game-map (sa/current-world)
         height (count game-map)
@@ -110,8 +105,7 @@
     (or (scan-friendly-hop-chain best direction)
         (sidestep-around-blocker pos target best passable))))
 
-(defmulti hop-over-friendly (fn [& _] :default))
-(defmethod hop-over-friendly :default
+(defn hop-over-friendly
   [pos target]
   (let [passable (get-passable-neighbors pos)
         best (best-neighbor-toward pos target passable)]
@@ -121,8 +115,7 @@
         (when (friendly-occupied? best)
           (hop-or-sidestep pos target best passable))))))
 
-(defmulti find-adjacent-enemy (fn [& _] :default))
-(defmethod find-adjacent-enemy :default
+(defn find-adjacent-enemy
   [pos]
   (let [game-map (sa/current-world)]
     (first (filter (fn [neighbor]
@@ -133,8 +126,7 @@
                             (not= :satellite (:type unit)))))
                    (core/get-neighbors pos)))))
 
-(defmulti attack-enemy (fn [& _] :default))
-(defmethod attack-enemy :default
+(defn attack-enemy
   [fighter-pos enemy-pos]
   (let [attacker (get-in (sa/current-world) (conj fighter-pos :contents))
         defender (get-in (sa/current-world) (conj enemy-pos :contents))
@@ -153,15 +145,13 @@
         (update-cell-visibility! fighter-pos :computer)
         nil))))
 
-(defmulti find-nearest-refueling-site (fn [& _] :default))
-(defmethod find-nearest-refueling-site :default
+(defn find-nearest-refueling-site
   [pos]
   (let [sites (ship/find-refueling-sites)]
     (when (seq sites)
       (apply min-key (partial core/distance pos) sites))))
 
-(defmulti distance-to (fn [& _] :default))
-(defmethod distance-to :default
+(defn distance-to
   [[r1 c1] [r2 c2]]
   (+ (Math/abs (- r1 r2)) (Math/abs (- c1 c2))))
 
@@ -172,8 +162,7 @@
     (distance-to pos site)
     999))
 
-(defmulti should-return-to-refuel? (fn [& _] :default))
-(defmethod should-return-to-refuel? :default
+(defn should-return-to-refuel?
   [pos fuel]
   (let [return-distance (fuel-to-return pos)]
     (<= fuel (+ return-distance 2))))
@@ -189,8 +178,7 @@
 
 (def fighter-speed 8)
 
-(defmulti land-at-city (fn [& _] :default))
-(defmethod land-at-city :default
+(defn land-at-city
   [pos city-pos]
   (let [_fighter (get-in (sa/current-world) (conj pos :contents))]
     ;; Remove from current position
@@ -200,8 +188,7 @@
     (update-cell-visibility! pos :computer)
     :landed))
 
-(defmulti consume-fighter-fuel (fn [& _] :default))
-(defmethod consume-fighter-fuel :default
+(defn consume-fighter-fuel
   [pos]
   (let [unit (get-in (sa/current-world) (conj pos :contents))
         new-fuel (dec (:fuel unit config/fighter-fuel))]
@@ -212,8 +199,7 @@
       (do (sa/update-world! assoc-in (conj pos :contents :fuel) new-fuel)
           true))))
 
-(defmulti consume-hop-fuel (fn [& _] :default))
-(defmethod consume-hop-fuel :default
+(defn consume-hop-fuel
   [pos hops]
   (loop [remaining (dec hops)]
     (if (<= remaining 0)
@@ -222,8 +208,7 @@
         (recur (dec remaining))
         false))))
 
-(defmulti execute-hop (fn [& _] :default))
-(defmethod execute-hop :default
+(defn execute-hop
   [from-pos {:keys [dest hops attack]}]
   (let [new-pos (if attack
                   (attack-enemy from-pos dest)
@@ -235,8 +220,7 @@
       (when (consume-hop-fuel new-pos hops)
         {:pos new-pos :hops hops}))))
 
-(defmulti do-patrol (fn [& _] :default))
-(defmethod do-patrol :default
+(defn do-patrol
   [pos]
   (when-let [target (find-patrol-target pos)]
     (when-let [hop (hop-over-friendly pos target)]

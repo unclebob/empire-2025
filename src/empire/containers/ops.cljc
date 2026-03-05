@@ -54,8 +54,7 @@
       (sa/update-world! update-in (conj transport-coords :contents)
                         #(assoc % :mode :awake :reason :transport-at-beach)))))
 
-(defmulti non-full-transport? (fn [& _] :default))
-(defmethod non-full-transport? :default [unit]
+(defn non-full-transport? [unit]
   (and (= (:type unit) :transport)
        (not (uc/full? unit :army-count (dispatcher/effective-capacity :transport (:hits unit))))))
 
@@ -68,8 +67,7 @@
       (sa/update-world! assoc-in [nx ny] (dissoc adj-cell :contents))
       (sa/update-world! update-in (conj transport-coords :contents) uc/add-unit :army-count))))
 
-(defmulti load-adjacent-sentry-armies (fn [& _] :default))
-(defmethod load-adjacent-sentry-armies :default
+(defn load-adjacent-sentry-armies
   [transport-coords]
   (let [unit (:contents (get-in (sa/current-world) transport-coords))]
     (when (non-full-transport? unit)
@@ -81,8 +79,7 @@
           (try-load-from-neighbor transport-coords n))
         (wake-transport-if-needed transport-coords)))))
 
-(defmulti wake-armies-on-transport (fn [& _] :default))
-(defmethod wake-armies-on-transport :default
+(defn wake-armies-on-transport
   [transport-coords]
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
@@ -90,8 +87,7 @@
         updated-cell (assoc cell :contents updated-transport)]
     (sa/update-world! assoc-in transport-coords updated-cell)))
 
-(defmulti sleep-armies-on-transport (fn [& _] :default))
-(defmethod sleep-armies-on-transport :default
+(defn sleep-armies-on-transport
   [transport-coords]
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
@@ -99,8 +95,7 @@
         updated-cell (assoc cell :contents updated-transport)]
     (sa/update-world! assoc-in transport-coords updated-cell)))
 
-(defmulti remove-army-from-transport (fn [& _] :default))
-(defmethod remove-army-from-transport :default
+(defn remove-army-from-transport
   [transport-coords]
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
@@ -108,8 +103,7 @@
         updated-cell (assoc cell :contents updated-transport)]
     (sa/update-world! assoc-in transport-coords updated-cell)))
 
-(defmulti disembark-army-from-transport (fn [& _] :default))
-(defmethod disembark-army-from-transport :default
+(defn disembark-army-from-transport
   [transport-coords target-coords]
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
@@ -121,8 +115,7 @@
     (update-cell-visibility! target-coords (:owner transport))
     target-coords))
 
-(defmulti disembark-army-with-target (fn [& _] :default))
-(defmethod disembark-army-with-target :default
+(defn disembark-army-with-target
   [transport-coords adjacent-coords extended-target]
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
@@ -133,8 +126,7 @@
     (sa/update-world! assoc-in (conj adjacent-coords :contents) moving-army)
     (update-cell-visibility! adjacent-coords (:owner transport))))
 
-(defmulti disembark-army-to-explore (fn [& _] :default))
-(defmethod disembark-army-to-explore :default
+(defn disembark-army-to-explore
   [transport-coords target-coords]
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
@@ -148,8 +140,7 @@
 
 ;; Carrier operations
 
-(defmulti wake-fighters-on-carrier (fn [& _] :default))
-(defmethod wake-fighters-on-carrier :default
+(defn wake-fighters-on-carrier
   [carrier-coords]
   (let [cell (get-in (sa/current-world) carrier-coords)
         carrier (:contents cell)
@@ -157,8 +148,7 @@
         updated-cell (assoc cell :contents updated-carrier)]
     (sa/update-world! assoc-in carrier-coords updated-cell)))
 
-(defmulti sleep-fighters-on-carrier (fn [& _] :default))
-(defmethod sleep-fighters-on-carrier :default
+(defn sleep-fighters-on-carrier
   [carrier-coords]
   (let [cell (get-in (sa/current-world) carrier-coords)
         carrier (:contents cell)
@@ -166,8 +156,7 @@
         updated-cell (assoc cell :contents updated-carrier)]
     (sa/update-world! assoc-in carrier-coords updated-cell)))
 
-(defmulti launch-fighter-from-carrier (fn [& _] :default))
-(defmethod launch-fighter-from-carrier :default
+(defn launch-fighter-from-carrier
   [carrier-coords target-coords]
   (let [world (sa/current-world)
         cell (get-in world carrier-coords)
@@ -189,8 +178,7 @@
 
 ;; Airport operations
 
-(defmulti launch-fighter-from-airport (fn [& _] :default))
-(defmethod launch-fighter-from-airport :default
+(defn launch-fighter-from-airport
   [city-coords target-coords]
   (let [cell (get-in (sa/current-world) city-coords)
         after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
@@ -204,8 +192,7 @@
 
 ;; Shipyard operations
 
-(defmulti launch-ship-from-shipyard (fn [& _] :default))
-(defmethod launch-ship-from-shipyard :default
+(defn launch-ship-from-shipyard
   ([city-coords ship-index]
    (launch-ship-from-shipyard city-coords ship-index city-coords))
   ([city-coords ship-index launch-pos]
