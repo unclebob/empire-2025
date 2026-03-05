@@ -5,7 +5,7 @@
             [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
-            [empire.computer.transport-sailing.path :as sailing-path]
+            [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-unloading :as unloading]))
 
 (def ^:private invasion-unload-radius 2)

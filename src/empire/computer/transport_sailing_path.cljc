@@ -1,5 +1,5 @@
 ;; mutation-tested: 2026-03-02
-(ns empire.computer.transport-sailing.path
+(ns empire.computer.transport-sailing-path
   (:require [empire.computer.movement :as computer-movement]))
 
 (defn passable-sea?

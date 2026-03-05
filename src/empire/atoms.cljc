@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.atoms
-  (:require [empire.atoms.runtime :as runtime]
+  (:require [empire.atoms-runtime :as runtime]
             [empire.domain.core.continents :as continents]
             [empire.domain.core.messages :as messages]
             [empire.domain.core.refueling :as refueling]))

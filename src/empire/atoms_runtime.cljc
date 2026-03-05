@@ -1,5 +1,5 @@
 ;; mutation-tested: 2026-02-28
-(ns empire.atoms.runtime)
+(ns empire.atoms-runtime)
 
 ;; Debug atoms
 

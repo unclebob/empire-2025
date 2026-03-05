@@ -8,7 +8,7 @@
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.config :as config]
             [empire.player.attention :as attention]
-            [empire.player.commands.actions :as actions]
+            [empire.player.commands-actions :as actions]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]

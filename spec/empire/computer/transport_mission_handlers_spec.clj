@@ -1,6 +1,6 @@
 (ns empire.computer.transport-mission-handlers-spec
   (:require [speclj.core :refer :all]
-            [empire.computer.transport.mission-handlers :as mh]))
+            [empire.computer.transport-mission-handlers :as mh]))
 
 (describe "transport mission-handlers"
   (context "process-land-locked-mission coverage"

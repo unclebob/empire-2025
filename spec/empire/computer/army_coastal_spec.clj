@@ -145,7 +145,7 @@
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
                     sa/current-world (fn [] {[0 0] {:contents {}}})
                     coastal/find-coast-target-once (fn [_ _] [4 4])
-                    empire.computer.army.coastal.invasion/local-empty-coast-target (fn [_ _ _] [2 2])
+                    empire.computer.army.coastal-invasion/local-empty-coast-target (fn [_ _ _] [2 2])
                     sa/update-world! (fn [& _] nil)
                     movement/move-toward-objective
                     (fn [pos target country-id]

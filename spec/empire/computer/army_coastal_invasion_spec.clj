@@ -1,6 +1,6 @@
 (ns empire.computer.army-coastal-invasion-spec
   (:require [speclj.core :refer :all]
-            [empire.computer.army.coastal.invasion :as invasion]
+            [empire.computer.army.coastal-invasion :as invasion]
             [empire.computer.army.movement :as movement]
             [empire.test-utils :refer [build-test-map reset-all-atoms!]]))
 

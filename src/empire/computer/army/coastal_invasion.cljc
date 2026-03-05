@@ -1,5 +1,5 @@
 ;; mutation-tested: 2026-03-02
-(ns empire.computer.army.coastal.invasion
+(ns empire.computer.army.coastal-invasion
   "Invasion embarkation target selection and coastal movement helpers."
   (:require [empire.computer.core :as core]
             [empire.computer.army.movement :as movement]))

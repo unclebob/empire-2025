@@ -6,7 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]
             [empire.config :as config]
-            [empire.computer.fighter.flight-plan :as flight-plan]
+            [empire.computer.fighter-flight-plan :as flight-plan]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]))
 

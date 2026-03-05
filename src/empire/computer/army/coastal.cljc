@@ -2,7 +2,7 @@
 (ns empire.computer.army.coastal
   "Coastal movement, coast-walk, and coastal positioning behaviors."
   (:require [empire.application.state-access :as sa]
-            [empire.computer.army.coastal.invasion :as invasion]
+            [empire.computer.army.coastal-invasion :as invasion]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
