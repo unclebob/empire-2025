@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.init
   (:require [empire.config :as config]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.player.production :as player-production]))

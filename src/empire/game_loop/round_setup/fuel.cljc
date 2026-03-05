@@ -1,6 +1,6 @@
 (ns empire.game-loop.round-setup.fuel
   (:require [empire.application.state-access :as sa]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.config :as config]
             [empire.domain.services.round-setup :as domain-round-setup]))
 

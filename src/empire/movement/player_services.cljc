@@ -1,5 +1,4 @@
-;; mutation-tested: no
-(ns empire.application.player-movement-services
+(ns empire.movement.player-services
   (:require [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]))
 

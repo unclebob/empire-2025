@@ -3,7 +3,7 @@
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.application.production-status :as production-status]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.computer.army :as army]

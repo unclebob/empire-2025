@@ -1,6 +1,6 @@
 (ns empire.game-loop.round-setup.lakes
   (:require [empire.application.state-access :as sa]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [clojure.set :as set]))
 
 (defn find-adjacent-empty-sea

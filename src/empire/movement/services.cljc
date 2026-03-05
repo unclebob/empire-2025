@@ -1,5 +1,4 @@
-;; mutation-tested: no
-(ns empire.application.movement-services
+(ns empire.movement.services
   (:require [empire.movement.lakes :as lakes]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.pathfinding :as pathfinding]

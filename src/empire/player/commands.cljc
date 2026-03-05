@@ -3,7 +3,7 @@
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
   (:require [empire.application.state-access :as sa]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.config :as config]

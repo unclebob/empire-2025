@@ -1,6 +1,6 @@
 (ns empire.game-loop.round-setup.waking
   (:require [empire.application.state-access :as sa]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.containers.helpers :as uc]))
 
 (defn- world-ref [world] (atom world))

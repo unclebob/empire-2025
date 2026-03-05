@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
   (:require [empire.application.city-production :as city-production]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.application.state-access :as sa]
             [empire.application.unit-stamping :as unit-stamping]
             [empire.config :as config]))

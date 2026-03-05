@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
-  (:require [empire.application.movement-services :as movement-services]
+  (:require [empire.movement.services :as movement-services]
             [empire.application.state-access :as sa]
             [empire.application.ports.unit-state :as ports]
             [empire.config :as config]

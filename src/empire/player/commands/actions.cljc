@@ -1,8 +1,8 @@
 ;; mutation-tested: no
 (ns empire.player.commands.actions
   "Extracted unit action handlers for player command processing."
-  (:require [empire.application.movement-services :as movement-services]
-            [empire.application.player-movement-services :as player-movement]
+  (:require [empire.movement.services :as movement-services]
+            [empire.movement.player-services :as player-movement]
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.player.attention :as attention]

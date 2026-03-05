@@ -1,5 +1,4 @@
-;; mutation-tested: no
-(ns empire.application.waypoint-services
+(ns empire.movement.waypoint-services
   (:require [empire.movement.waypoint :as waypoint]))
 
 (defn create-waypoint

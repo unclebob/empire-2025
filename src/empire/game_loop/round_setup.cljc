@@ -2,7 +2,7 @@
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
   (:require [empire.application.state-access :as sa]
-            [empire.application.movement-services :as movement-services]
+            [empire.movement.services :as movement-services]
             [empire.config :as config]
             [empire.domain.services.round-setup :as domain-round-setup]
             [empire.game-loop.round-setup.fuel :as fuel]

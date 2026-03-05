@@ -10,7 +10,7 @@
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.player.attention :as player-attention]
-            [empire.application.player-movement-services :as player-movement]))
+            [empire.movement.player-services :as player-movement]))
 
 (defn- movement-port []
   (or (:movement-port (sa/state-ctx))
