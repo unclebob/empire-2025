@@ -1,18 +1,15 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.map-utils
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.movement.context :as movement-context]
             [empire.units.dispatcher :as dispatcher]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (movement-context/read-runtime-state k))
 
 (def neighbor-offsets
   "Offsets for the 8 adjacent cells (excludes center)."
