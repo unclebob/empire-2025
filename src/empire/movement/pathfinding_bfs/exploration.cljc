@@ -1,20 +1,9 @@
 (ns empire.movement.pathfinding-bfs.exploration
   "BFS exploration and unseen-coast target selection."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.movement.map-utils :as map-utils]
+  (:require [empire.movement.map-utils :as map-utils]
+            [empire.movement.pathfinding-bfs.context :as bfs-context]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (defn adjacent-to-unexplored?
   "Returns true if any neighbor of pos on the computer-map is unexplored.
@@ -58,8 +47,8 @@
 (defn- find-nearest-unexplored-uncached
   "BFS from start over passable cells to find nearest cell adjacent to unexplored."
   [start unit-type]
-  (let [game-map (current-world)
-        computer-map (read-runtime-state :computer-map)]
+  (let [game-map (bfs-context/current-world)
+        computer-map (bfs-context/read-runtime-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
@@ -85,8 +74,8 @@
 (defn- find-nearest-unexplored-coastline-uncached
   "BFS from start over passable sea cells to find nearest coastal exploration frontier."
   [start unit-type]
-  (let [game-map (current-world)
-        computer-map (read-runtime-state :computer-map)]
+  (let [game-map (bfs-context/current-world)
+        computer-map (bfs-context/read-runtime-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
@@ -186,7 +175,7 @@
   "BFS from start over passable sea cells to find unseen coast or unexplored-adjacent cell.
    Returns path excluding start, or nil."
   [start computer-map excluded]
-  (let [seen-coast (read-runtime-state :seen-coast)
+  (let [seen-coast (bfs-context/read-runtime-state :seen-coast)
         sea? (partial core/passable-sea? computer-map)]
     (when (core/passable-sea? computer-map start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])

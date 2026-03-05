@@ -11,11 +11,15 @@
             [empire.debug.impl.facade-methods]
             [empire.domain.model.impl.combat-runtime]
             [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs.context :as bfs-context]
             [empire.units.impl.dispatcher]
             [empire.units.impl.satellite]))
 
 (defn initialize-default-services!
   "Loads app impl namespaces so their defmethod implementations are registered."
   []
-  (pathfinding/set-world-loader! (:load-world (app-runtime/default-state-ctx)))
+  (let [ctx (app-runtime/default-state-ctx)]
+    (pathfinding/set-world-loader! (:load-world ctx))
+    (bfs-context/set-world-loader! (:load-world ctx))
+    (bfs-context/set-runtime-reader! (:read-runtime-state ctx)))
   true)
