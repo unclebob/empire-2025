@@ -2,7 +2,6 @@
   "Debug compatibility facade.
    Implementation is split across logging and dump namespaces."
   (:require [empire.debug.dump :as dump]
-            [empire.debug.dump.output :as output]
             [empire.debug.logging :as logging]))
 
 (defn log-player-movement!
@@ -31,15 +30,15 @@
 
 (defn generate-dump-filename
   []
-  (output/generate-dump-filename))
+  (dump/generate-dump-filename))
 
 (defn write-dump!
   [start-coords end-coords]
-  (output/write-dump! start-coords end-coords))
+  (dump/write-dump! start-coords end-coords))
 
 (defn screen-coords-to-cell-range
   [start-screen end-screen]
-  (output/screen-coords-to-cell-range start-screen end-screen))
+  (dump/screen-coords-to-cell-range start-screen end-screen))
 
 ;; Preserve private var access used by debug_spec.
 (defn- format-movement-entry

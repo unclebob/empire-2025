@@ -6,11 +6,51 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
-            [empire.computer.transport-unloading.filtering :as filtering]
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]
             [empire.computer.movement :as computer-movement]))
 
+
+(defn pickup-exclude-ids
+  "Returns set of country-ids to exclude: transport's own country-id,
+   pickup-country-id, and the country-id at pickup-continent-pos."
+  [world transport]
+  (disj (set [(:country-id transport)
+              (:pickup-country-id transport)
+              (when-let [pcp (:pickup-continent-pos transport)]
+                (:country-id (get-in world pcp)))])
+        nil))
+
+(defn pickup-continent-if-needed
+  "Returns the pickup continent set for pickup-continent-pos using cached flood-fill.
+   Always prefer geography-based exclusion to avoid load/unload loops when
+   country-id stamping changes on the same landmass."
+  [transport]
+  (when-let [pcp (:pickup-continent-pos transport)]
+    (land-objectives/flood-fill-continent pcp)))
+
+(defn unloadable-land-cell?
+  "Returns true if cell is empty land/city not excluded by country-id or pickup continent."
+  [cell neighbor-pos exclude-ids pickup-continent major-invasion?]
+  (and cell
+       (#{:land :city} (:type cell))
+       (nil? (:contents cell))
+       (or (not major-invasion?)
+           (threat-response/major-invasion-target-land? neighbor-pos))
+       (or (empty? exclude-ids)
+           (not (contains? exclude-ids (:country-id cell))))
+       (or (nil? pickup-continent)
+           (not (contains? pickup-continent neighbor-pos)))))
+
+(defn adjacent-empty-land
+  "Returns adjacent land/city positions that are empty (no unit).
+   Excludes positions on the pickup continent and land belonging to
+   any country-id in exclude-ids set."
+  [world get-neighbors-fn pos exclude-ids pickup-continent major-invasion?]
+  (filter (fn [neighbor]
+            (unloadable-land-cell?
+              (get-in world neighbor) neighbor exclude-ids pickup-continent major-invasion?))
+          (get-neighbors-fn pos)))
 
 (defn- passable-coastal-sea?
   "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
@@ -29,12 +69,12 @@
    not excluded by country-id or pickup continent."
   [pos transport max-depth]
   (let [game-map (sa/current-world)
-        exclude-ids (filtering/pickup-exclude-ids game-map transport)
-        pickup-continent (filtering/pickup-continent-if-needed transport)
+        exclude-ids (pickup-exclude-ids game-map transport)
+        pickup-continent (pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
         has-unloadable-neighbor? (fn [p]
                                    (some (fn [n]
-                                           (filtering/unloadable-land-cell?
+                                           (unloadable-land-cell?
                                              (get-in game-map n) n exclude-ids pickup-continent major-invasion?))
                                          (core/get-neighbors p)))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
@@ -129,11 +169,11 @@
   (let [game-map (sa/current-world)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
-        exclude-ids (filtering/pickup-exclude-ids game-map transport)
-        pickup-continent (filtering/pickup-continent-if-needed transport)
+        exclude-ids (pickup-exclude-ids game-map transport)
+        pickup-continent (pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
         targets (when (pos? army-count)
-                  (filtering/adjacent-empty-land game-map
+                  (adjacent-empty-land game-map
                                                  core/get-neighbors
                                                  pos
                                                  exclude-ids

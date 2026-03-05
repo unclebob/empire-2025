@@ -1,6 +1,5 @@
 (ns empire.combat
   (:require [empire.application.state-access :as sa]
-            [empire.combat.escorts :as escorts]
             [empire.config :as config]
             [empire.domain.model.combat :as domain-combat]
             [empire.movement.visibility :as visibility]
@@ -56,18 +55,88 @@
 
 (defn dead-escort-destroyer?
   [dead-unit]
-  (escorts/dead-escort-destroyer? dead-unit))
+  (and (= :destroyer (:type dead-unit))
+       (:escort-transport-id dead-unit)))
 
 (defn dead-escort-transport?
   [dead-unit]
-  (escorts/dead-escort-transport? dead-unit))
+  (and (= :transport (:type dead-unit))
+       (:escort-destroyer-id dead-unit)))
+
+(defn- find-units-where
+  [world pred]
+  (for [i (range (count world))
+        j (range (count (first world)))
+        :let [unit (get-in world [i j :contents])]
+        :when (and unit (pred unit))]
+    [i j]))
+
+(defn- clear-dead-escort-from-carrier!
+  [dead-unit]
+  (let [carrier-id (:escort-carrier-id dead-unit)
+        escort-id (:escort-id dead-unit)
+        coords (find-units-where
+                (sa/current-world)
+                #(and (= :carrier (:type %))
+                      (= carrier-id (:carrier-id %))))]
+    (doseq [pos coords]
+      (case (:type dead-unit)
+        :battleship
+        (sa/update-world! assoc-in (conj pos :contents :group-battleship-id) nil)
+        :submarine
+        (sa/update-world! update-in (conj pos :contents :group-submarine-ids)
+                          (fn [ids] (vec (remove #{escort-id} ids))))))))
+
+(defn- release-carrier-escorts!
+  [dead-unit]
+  (let [carrier-id (:carrier-id dead-unit)
+        coords (find-units-where
+                (sa/current-world)
+                #(= carrier-id (:escort-carrier-id %)))]
+    (doseq [pos coords]
+      (sa/update-world! update-in (conj pos :contents)
+                        #(-> % (assoc :escort-mode :seeking)
+                             (dissoc :escort-carrier-id :orbit-angle))))))
+
+(defn- clear-carrier-group-on-death!
+  [dead-unit]
+  (cond
+    (and (#{:battleship :submarine} (:type dead-unit))
+         (:escort-carrier-id dead-unit))
+    (clear-dead-escort-from-carrier! dead-unit)
+
+    (and (= :carrier (:type dead-unit))
+         (:carrier-id dead-unit))
+    (release-carrier-escorts! dead-unit)))
+
+(defn- clear-destroyer-escort!
+  [dead-unit]
+  (let [tid (:escort-transport-id dead-unit)
+        coords (find-units-where
+                (sa/current-world)
+                #(and (= :transport (:type %))
+                      (= tid (:transport-id %))))]
+    (doseq [pos coords]
+      (sa/update-world! update-in (conj pos :contents) dissoc :escort-destroyer-id))))
+
+(defn- clear-transport-escort!
+  [dead-unit]
+  (let [did (:escort-destroyer-id dead-unit)
+        coords (find-units-where
+                (sa/current-world)
+                #(and (= :destroyer (:type %))
+                      (= did (:destroyer-id %))))]
+    (doseq [pos coords]
+      (sa/update-world! update-in (conj pos :contents)
+                        #(-> % (assoc :escort-mode :seeking)
+                             (dissoc :escort-transport-id))))))
 
 (defn clear-escort-on-death
   [dead-unit]
-  (escorts/clear-escort-on-death!
-    {:current-world sa/current-world
-     :update-game-map! sa/update-world!}
-    dead-unit))
+  (cond
+    (dead-escort-destroyer? dead-unit) (clear-destroyer-escort! dead-unit)
+    (dead-escort-transport? dead-unit) (clear-transport-escort! dead-unit))
+  (clear-carrier-group-on-death! dead-unit))
 
 (defn conquer-city-contents
   [city-coords new-owner]
