@@ -3,7 +3,7 @@
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.application.state-access :as sa]
-            [empire.movement.waypoint-services :as waypoint-services]
+            [empire.movement.waypoint :as waypoint]
             [empire.application.ports.unit-state :as ports]
             [empire.config :as config]))
 
@@ -84,7 +84,7 @@
         (apply-marching-orders [cx cy :contents :marching-orders] dest)
 
         (:waypoint cell)
-        (do (waypoint-services/set-waypoint-orders [cx cy]) true)
+        (do (waypoint/set-waypoint-orders [cx cy]) true)
 
         :else nil))))
 
@@ -115,7 +115,7 @@
 (defn set-waypoint-at
   "Creates or removes a waypoint at the given coordinates."
   [[cx cy]]
-  (when (waypoint-services/create-waypoint [cx cy])
+  (when (waypoint/create-waypoint [cx cy])
     (let [cell (get-in (sa/current-world) [cx cy])]
       (if (:waypoint cell)
         (set-turn-message! (str "Waypoint placed at " cx "," cy) 2000)
@@ -145,4 +145,4 @@
           true)
 
         (:waypoint cell)
-        (waypoint-services/set-waypoint-orders-by-direction [cx cy] direction)))))
+        (waypoint/set-waypoint-orders-by-direction [cx cy] direction)))))
