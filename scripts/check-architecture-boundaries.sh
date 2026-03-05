@@ -19,10 +19,10 @@ if [[ -n "$movement_methods_hits" ]]; then
   exit 1
 fi
 
-# movement.service was removed (movement.services is valid)
-movement_service_hits="$(rg -n 'empire\.movement\.service[^s]' src/empire || true)"
+# movement.service and movement.services were removed
+movement_service_hits="$(rg -n 'empire\.movement\.services?\b' src/empire || true)"
 if [[ -n "$movement_service_hits" ]]; then
-  echo "Architecture boundary violation: movement.service was removed; no references should exist:"
+  echo "Architecture boundary violation: movement.service(s) was removed; require target modules directly:"
   printf '%s\n' "$movement_service_hits"
   exit 1
 fi
@@ -43,8 +43,24 @@ if [[ -n "$units_impl_hits" ]]; then
   exit 1
 fi
 
+# Removed facade namespaces — require target modules directly
+facade_hits="$(rg -n 'empire\.movement\.(player.services|waypoint.services|bootstrap)\b' src/empire || true)"
+if [[ -n "$facade_hits" ]]; then
+  echo "Architecture boundary violation: movement facade namespaces were removed; require target modules directly:"
+  printf '%s\n' "$facade_hits"
+  exit 1
+fi
+
+# application.coords was removed; function moved to ui/util/core
+app_coords_hits="$(rg -n 'empire\.application\.coords' src/empire || true)"
+if [[ -n "$app_coords_hits" ]]; then
+  echo "Architecture boundary violation: application.coords was removed; use ui.util.core/screen->cell:"
+  printf '%s\n' "$app_coords_hits"
+  exit 1
+fi
+
 # legacy aggregate empire.application.ports namespace is forbidden
-legacy_app_ports_hits="$(rg -nP 'empire\.application\.ports(?!\.)' src spec generated-acceptance-specs || true)"
+legacy_app_ports_hits="$(rg -nP 'empire\.application\.ports(?!\.)' src spec generated-acceptance-specs 2>/dev/null || true)"
 if [[ -n "$legacy_app_ports_hits" ]]; then
   echo "Architecture boundary violation: legacy aggregate namespace empire.application.ports is forbidden; use split port namespaces."
   printf '%s\n' "$legacy_app_ports_hits"
@@ -94,7 +110,7 @@ fi
 # =============================================================================
 
 # Domain services must not depend on use-cases
-ds_to_uc_hits="$(rg -n 'empire\.(player|computer|game.loop)' src/empire/movement src/empire/combat.cljc src/empire/combat src/empire/containers src/empire/debug || true)"
+ds_to_uc_hits="$(rg -n 'empire\.(player|computer|game.loop)' src/empire/movement src/empire/combat.cljc src/empire/containers src/empire/debug || true)"
 if [[ -n "$ds_to_uc_hits" ]]; then
   echo "Architecture boundary violation: domain-services must not depend on use-cases (player/computer/game-loop):"
   printf '%s\n' "$ds_to_uc_hits"
@@ -102,7 +118,7 @@ if [[ -n "$ds_to_uc_hits" ]]; then
 fi
 
 # Application must not depend on use-cases (excluding composition roots)
-app_to_uc_hits="$(rg -n 'empire\.(player|computer|game.loop)' src/empire/application src/empire/adapters src/empire/atoms --glob '!**/bootstrap.cljc' --glob '!**/acceptance_engine.cljc' || true)"
+app_to_uc_hits="$(rg -n 'empire\.(player|computer|game.loop)' src/empire/application src/empire/adapters src/empire/atoms.cljc src/empire/atoms_runtime.cljc --glob '!**/bootstrap.cljc' --glob '!**/acceptance_engine.cljc' || true)"
 if [[ -n "$app_to_uc_hits" ]]; then
   echo "Architecture boundary violation: application must not depend on use-cases (player/computer/game-loop):"
   printf '%s\n' "$app_to_uc_hits"
@@ -110,7 +126,7 @@ if [[ -n "$app_to_uc_hits" ]]; then
 fi
 
 # Application must not depend on domain-services (excluding composition roots)
-app_to_ds_hits="$(rg -n 'empire\.(movement|combat|containers|debug)' src/empire/application src/empire/adapters src/empire/atoms --glob '!**/bootstrap.cljc' --glob '!**/acceptance_engine.cljc' || true)"
+app_to_ds_hits="$(rg -n 'empire\.(movement|combat|containers|debug)' src/empire/application src/empire/adapters src/empire/atoms.cljc src/empire/atoms_runtime.cljc --glob '!**/bootstrap.cljc' --glob '!**/acceptance_engine.cljc' || true)"
 if [[ -n "$app_to_ds_hits" ]]; then
   echo "Architecture boundary violation: application must not depend on domain-services (movement/combat/containers/debug):"
   printf '%s\n' "$app_to_ds_hits"
