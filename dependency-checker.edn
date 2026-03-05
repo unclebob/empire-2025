@@ -2,7 +2,7 @@
  :component-rules
  [{:component :config
    :kind :concrete
-   :match ["empire.config"
+   :match ["^empire\\.config(\\..+)?$"
            "empire.units.config"
            "empire.units.ships"]}
 

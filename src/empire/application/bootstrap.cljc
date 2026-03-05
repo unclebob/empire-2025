@@ -14,6 +14,7 @@
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs.context :as bfs-context]
             [empire.units.impl.dispatcher]
+            [empire.computer.core.impl]
             [empire.units.impl.satellite]))
 
 (defn initialize-default-services!

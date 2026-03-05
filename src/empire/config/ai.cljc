@@ -1,0 +1,10 @@
+(ns empire.config.ai)
+
+(def armies-before-transport 6)
+(def max-patrol-boats-per-country 4)
+(def carrier-city-threshold 10)
+(def max-live-carriers 8)
+(def max-carrier-producers 2)
+(def satellite-city-threshold 15)
+(def max-satellites 1)
+(def advances-per-frame 10)

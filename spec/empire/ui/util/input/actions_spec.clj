@@ -2,6 +2,7 @@
   (:require [empire.test-utils :as test-utils]
             [speclj.core :refer :all]
             [empire.ui.util.input.actions :as actions]
+            [empire.ui.util.input.actions.movement :as actions-movement]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.config :as config]
             [empire.game-loop :as game-loop]
@@ -261,7 +262,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [4 0] (#'actions/calculate-extended-target [0 0] [1 0])))
+    (should= [4 0] (#'actions-movement/calculate-extended-target [0 0] [1 0])))
 
   (it "calculates target at map edge going south"
     (set-test-world! (build-test-map ["#####"
@@ -269,7 +270,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [0 4] (#'actions/calculate-extended-target [0 0] [0 1])))
+    (should= [0 4] (#'actions-movement/calculate-extended-target [0 0] [0 1])))
 
   (it "calculates target at map edge going southeast"
     (set-test-world! (build-test-map ["#####"
@@ -277,7 +278,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [4 4] (#'actions/calculate-extended-target [0 0] [1 1])))
+    (should= [4 4] (#'actions-movement/calculate-extended-target [0 0] [1 1])))
 
   (it "calculates target at map edge going west"
     (set-test-world! (build-test-map ["#####"
@@ -285,7 +286,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [0 2] (#'actions/calculate-extended-target [4 2] [-1 0])))
+    (should= [0 2] (#'actions-movement/calculate-extended-target [4 2] [-1 0])))
 
   (it "calculates target at map edge going north"
     (set-test-world! (build-test-map ["#####"
@@ -293,7 +294,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [2 0] (#'actions/calculate-extended-target [2 4] [0 -1])))
+    (should= [2 0] (#'actions-movement/calculate-extended-target [2 4] [0 -1])))
 
   (it "returns starting position when already at edge"
     (set-test-world! (build-test-map ["#####"
@@ -301,7 +302,7 @@
                                              "#####"
                                              "#####"
                                              "#####"]))
-    (should= [0 0] (#'actions/calculate-extended-target [0 0] [-1 0])))
+    (should= [0 0] (#'actions-movement/calculate-extended-target [0 0] [-1 0])))
 
   (it "works with non-square maps"
     (set-test-world! (build-test-map ["###"
@@ -314,7 +315,7 @@
                                              "###"
                                              "###"
                                              "###"]))
-    (should= [2 1] (#'actions/calculate-extended-target [0 1] [1 0]))))
+    (should= [2 1] (#'actions-movement/calculate-extended-target [0 1] [1 0]))))
 
 (describe "handle-key :u (unload)"
   (before (reset-all-atoms!))

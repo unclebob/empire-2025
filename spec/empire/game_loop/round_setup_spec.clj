@@ -2,6 +2,10 @@
   (:require [empire.test-utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game-loop.round-setup :as setup]
+            [empire.game-loop.round-setup.fuel :as fuel]
+            [empire.game-loop.round-setup.lakes :as lakes]
+            [empire.game-loop.round-setup.repair :as repair]
+            [empire.game-loop.round-setup.waking :as waking]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.containers.ops :as container-ops]
@@ -177,20 +181,20 @@
     (let [game-map (build-test-map ["O"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [0 0 :fighter-count] 3)
-      (setup/wake-airport-fighters)
+      (waking/wake-airport-fighters)
       (should= 3 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-fighters]))))
 
   (it "does NOT wake fighters in computer city"
     (let [game-map (build-test-map ["X"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [0 0 :fighter-count] 2)
-      (setup/wake-airport-fighters)
+      (waking/wake-airport-fighters)
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-fighters] 0))))
 
   (it "does nothing when city has no fighters"
     (let [game-map (build-test-map ["O"])]
       (set-test-world! game-map)
-      (setup/wake-airport-fighters)
+      (waking/wake-airport-fighters)
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-fighters] 0)))))
 
 ;; --- wake-carrier-fighters ---
@@ -202,20 +206,20 @@
     (let [game-map (build-test-map ["C"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [0 0 :contents :fighter-count] 4)
-      (setup/wake-carrier-fighters)
+      (waking/wake-carrier-fighters)
       (should= 4 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :awake-fighters]))))
 
   (it "does NOT wake fighters on computer carrier"
     (let [game-map (build-test-map ["c"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [0 0 :contents :fighter-count] 3)
-      (setup/wake-carrier-fighters)
+      (waking/wake-carrier-fighters)
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :awake-fighters] 0))))
 
   (it "does nothing when carrier has no fighters"
     (let [game-map (build-test-map ["C"])]
       (set-test-world! game-map)
-      (setup/wake-carrier-fighters)
+      (waking/wake-carrier-fighters)
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :awake-fighters] 0)))))
 
 ;; --- consume-sentry-fighter-fuel ---
@@ -228,7 +232,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 20)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 19 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))))
 
   (it "crashes fighter when fuel reaches 0"
@@ -236,7 +240,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 1)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :hits]))))
 
   (it "wakes fighter with :fighter-out-of-fuel when fuel reaches 1"
@@ -244,7 +248,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 2)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 1 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))
       (should= :awake (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
       (should= :fighter-out-of-fuel (get-in (test-utils/read-test-state :game-map) [0 0 :contents :reason]))))
@@ -255,7 +259,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 9)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] true)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 8 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))
       (should= :awake (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
       (should= :fighter-bingo (get-in (test-utils/read-test-state :game-map) [0 0 :contents :reason]))))
@@ -265,7 +269,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 9)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 8 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))))
 
@@ -274,7 +278,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "F" :mode :awake :fuel 20)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 20 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))))
 
   (it "does not affect non-fighter sentry units"
@@ -282,7 +286,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "D" :mode :sentry)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))))
 
   (it "processes only sentry fighters on a mixed map"
@@ -293,7 +297,7 @@
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 20)
       (update-test-world! update-in [2 2 :contents] assoc :mode :sentry :fuel 10)
       (with-redefs [wake/friendly-city-in-range? (fn [_ _ _] false)]
-        (setup/consume-sentry-fighter-fuel))
+        (fuel/consume-sentry-fighter-fuel))
       (should= 19 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))
       (should= 9 (get-in (test-utils/read-test-state :game-map) [2 2 :contents :fuel]))
       (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type])))))
@@ -308,7 +312,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "D" :mode :sentry)
       (with-redefs [wake/enemy-unit-visible? (fn [_ _ _] true)]
-        (setup/wake-sentries-seeing-enemy))
+        (waking/wake-sentries-seeing-enemy))
       (should= :awake (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
       (should= :enemy-spotted (get-in (test-utils/read-test-state :game-map) [0 0 :contents :reason]))))
 
@@ -317,7 +321,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "D" :mode :sentry)
       (with-redefs [wake/enemy-unit-visible? (fn [_ _ _] false)]
-        (setup/wake-sentries-seeing-enemy))
+        (waking/wake-sentries-seeing-enemy))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))))
 
   (it "does NOT wake computer sentries"
@@ -325,7 +329,7 @@
       (set-test-world! game-map)
       (set-test-unit (test-utils/game-map-atom) "d" :mode :sentry)
       (with-redefs [wake/enemy-unit-visible? (fn [_ _ _] true)]
-        (setup/wake-sentries-seeing-enemy))
+        (waking/wake-sentries-seeing-enemy))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode])))))
 
 ;; --- move-satellites ---
@@ -460,7 +464,7 @@
     (let [game-map (build-test-map ["~O~"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 1}])
-      (setup/repair-damaged-ships)
+      (repair/repair-damaged-ships)
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= [{:type :destroyer :hits 2}] (:shipyard city)))))
 
@@ -469,7 +473,7 @@
       (set-test-world! game-map)
       ;; Destroyer at 2/3 hits, will be repaired to 3 (full)
       (update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 2}])
-      (setup/repair-damaged-ships)
+      (repair/repair-damaged-ships)
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])
             ship (:contents city)]
         (should= [] (:shipyard city))
@@ -481,7 +485,7 @@
     (let [game-map (build-test-map ["~X~"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [1 0 :shipyard] [{:type :battleship :hits 5}])
-      (setup/repair-damaged-ships)
+      (repair/repair-damaged-ships)
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= [{:type :battleship :hits 6}] (:shipyard city)))))
 
@@ -489,7 +493,7 @@
     (let [game-map (build-test-map ["~+~"])]
       (set-test-world! game-map)
       (update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 1}])
-      (setup/repair-damaged-ships)
+      (repair/repair-damaged-ships)
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= [{:type :destroyer :hits 1}] (:shipyard city)))))
 
@@ -499,7 +503,7 @@
       (update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 2}])
       (update-test-world! assoc-in [1 0 :contents]
              {:type :submarine :owner :player :hits 2 :mode :sentry})
-      (setup/repair-damaged-ships)
+      (repair/repair-damaged-ships)
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         ;; Fully repaired and launched to adjacent sea
         (should= [] (:shipyard city))
@@ -526,7 +530,7 @@
       (test-utils/set-test-state! :lake-max-cells 10)
       (update-test-world! assoc-in [1 1 :contents]
                          {:type :patrol-boat :owner :computer :hits 1 :mode :awake})
-      (setup/evacuate-lake-patrol-boats)
+      (lakes/evacuate-lake-patrol-boats)
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
       (let [sea-neighbors (for [pos [[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]]
                                 :let [u (get-in (test-utils/read-test-state :game-map) (conj pos :contents))]
@@ -549,7 +553,7 @@
       (doseq [pos [[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]]]
         (update-test-world! assoc-in (conj pos :contents)
                            {:type :transport :owner :computer :hits 1 :mode :awake}))
-      (setup/evacuate-lake-patrol-boats)
+      (lakes/evacuate-lake-patrol-boats)
       (should= :patrol-boat (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
       (should= :computer (get-in (test-utils/read-test-state :game-map) [1 1 :contents :owner]))))
 
@@ -570,7 +574,7 @@
                           :mode :awake
                           :army-count 3
                           :transport-mission :invading})
-      (setup/evacuate-lake-patrol-boats)
+      (lakes/evacuate-lake-patrol-boats)
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
       (let [moved (first (for [pos [[0 0] [0 1] [0 2] [1 0] [1 2] [2 0] [2 1] [2 2]]
                                :let [u (get-in (test-utils/read-test-state :game-map) (conj pos :contents))]
@@ -591,7 +595,7 @@
       (set-test-computer-map! computer-map)
       (with-redefs [empire.movement.lakes/lake-cells (fn [_ _] #{[0 0]})
                     visibility/update-cell-visibility (fn [_ _] nil)]
-        (setup/evacuate-lake-patrol-boats))
+        (lakes/evacuate-lake-patrol-boats))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))
       (should= :patrol-boat (get-in (test-utils/read-test-state :game-map) [0 2 :contents :type])))))
 
@@ -614,7 +618,7 @@
                          {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
       (update-test-world! assoc-in [4 4 :contents]
                          {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
-      (setup/mark-lake-locked-ships)
+      (lakes/mark-lake-locked-ships)
       (should= :move-to-coast-for-invasion (get-in (test-utils/read-test-state :game-map) [0 4 :contents :mode]))
       (should= :move-to-coast-for-invasion (get-in (test-utils/read-test-state :game-map) [4 4 :contents :mode]))
       (should (vector? (get-in (test-utils/read-test-state :game-map) [0 4 :contents :coast-target])))
@@ -632,7 +636,7 @@
       (update-test-world! assoc-in [0 0 :country-id] 1)
       (update-test-world! assoc-in [0 0 :contents]
                          {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
-      (setup/mark-lake-locked-ships)
+      (lakes/mark-lake-locked-ships)
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))))
 
   (it "removes :lake-locked? from ships no longer in a lake"
@@ -642,7 +646,7 @@
       (test-utils/set-test-state! :lake-max-cells 1)
       (test-utils/set-test-state! :known-lake-cells #{})
       (update-test-world! assoc-in [0 0 :contents :lake-locked?] true)
-      (setup/mark-lake-locked-ships)
+      (lakes/mark-lake-locked-ships)
       (should= false (contains? (get-in (test-utils/read-test-state :game-map) [0 0 :contents]) :lake-locked?))))
 
   (it "marks empty transport in lake as never-reload without forcing mission"
@@ -652,7 +656,7 @@
       (test-utils/set-test-state! :lake-max-cells 10)
       (test-utils/set-test-state! :known-lake-cells #{})
       (update-test-world! assoc-in [1 0 :contents :army-count] 0)
-      (setup/mark-lake-locked-ships)
+      (lakes/mark-lake-locked-ships)
       (should= true (get-in (test-utils/read-test-state :game-map) [1 0 :contents :lake-locked?]))
       (should= true (get-in (test-utils/read-test-state :game-map) [1 0 :contents :never-reload?]))
       (should-not= :land-locked (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission])))))
