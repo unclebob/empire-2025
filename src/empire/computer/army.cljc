@@ -2,7 +2,7 @@
 (ns empire.computer.army
   "Computer army orchestrator.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.army.assignment :as assignment]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.combat :as army-combat]
@@ -13,28 +13,13 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.debug :as debug]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
 (defn- find-city-objective
   "Find a city objective not already claimed by another army.
    Targets player and free cities only (not unexplored territory)."
   [pos]
   (let [cont-positions (land-objectives/flood-fill-continent pos)
         all-objectives (land-objectives/find-all-objectives-on-continent cont-positions)
-        comp-map (read-runtime-state :computer-map)
+        comp-map (sa/read-state :computer-map)
         player-cities (filter #(= :player (:city-status (get-in comp-map %))) all-objectives)
         free-cities (filter #(= :free (:city-status (get-in comp-map %))) all-objectives)
         cities (concat player-cities free-cities)
@@ -43,8 +28,8 @@
                    (when (seq cities)
                      (apply min-key #(core/distance pos %) cities)))]
     (when target
-      (write-runtime-state! :claimed-objectives
-                            (conj (or (read-runtime-state :claimed-objectives) #{}) target))
+      (sa/write-state! :claimed-objectives
+                            (conj (or (sa/read-state :claimed-objectives) #{}) target))
       target)))
 
 (defn- process-sentry-in-city [pos country-id cell]
@@ -78,7 +63,7 @@
   "If army is in a city, move to an empty passable neighbor.
    Returns new position, or original pos if unable to exit."
   [pos country-id]
-  (let [cell (get-in (current-world) pos)]
+  (let [cell (get-in (sa/current-world) pos)]
     (if (= :city (:type cell))
       (if-let [exit (first (movement/get-empty-passable-neighbors pos country-id))]
         (or (movement/try-move pos exit) pos)
@@ -102,12 +87,12 @@
    Priority: Exit city > Attack > Attack-target > Coast-walk > Random-explore > Coastal fill
    Returns nil after processing - armies only move once per round."
   [pos]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         cell (get-in game-map pos)
         unit (:contents cell)]
     (when (and unit (= :computer (:owner unit)) (= :army (:type unit)))
       (let [pos (exit-city pos (:country-id unit))
-            cell (get-in (current-world) pos)
+            cell (get-in (sa/current-world) pos)
             unit (:contents cell)
             enemy-pos (army-combat/find-adjacent-enemy pos)
             country-id (:country-id unit)

@@ -1,14 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.threat
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.units.dispatcher :as dispatcher]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (def ^:private threat-values
   {:battleship 10 :carrier 8 :destroyer 6 :submarine 5
@@ -70,7 +63,7 @@
 (defn- find-visible-cities
   "Finds cities visible on computer-map matching the status predicate."
   [status-pred]
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (for [i (range (count comp-map))
           j (range (count (first comp-map)))
           :let [cell (get-in comp-map [i j])]

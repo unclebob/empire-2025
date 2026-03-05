@@ -1,17 +1,10 @@
 (ns empire.ui.quil.rendering.map
   (:require [clojure.string :as str]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
-
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (defn draw-production-indicators
   "Draws production indicator for a city cell. Assumes font is already set."
@@ -50,8 +43,8 @@
   "Draws the debug selection rectangle if a drag is active.
    Uses screen coordinates from debug-drag-start and debug-drag-current atoms."
   []
-  (when-let [start (read-runtime-state :debug-drag-start)]
-    (when-let [current (read-runtime-state :debug-drag-current)]
+  (when-let [start (sa/read-state :debug-drag-start)]
+    (when-let [current (sa/read-state :debug-drag-current)]
       (let [[x1 y1] start
             [x2 y2] current
             left (min x1 x2)
@@ -67,14 +60,14 @@
 (defn draw-map
   "Draws the map on the screen."
   [the-map]
-  (let [[map-w map-h] (read-runtime-state :map-screen-dimensions)
+  (let [[map-w map-h] (sa/read-state :map-screen-dimensions)
         cols (count the-map)
         rows (count (first the-map))
         cell-w (/ map-w cols)
         cell-h (/ map-h rows)
-        attention-coords (read-runtime-state :cells-needing-attention)
-        production (read-runtime-state :production)
-        map-to-display (read-runtime-state :map-to-display)
+        attention-coords (sa/read-state :cells-needing-attention)
+        production (sa/read-state :production)
+        map-to-display (sa/read-state :map-to-display)
         blink-attention? (map-utils/blink? 125)
         blink-completed? (map-utils/blink? 500)
         blink-unit? (map-utils/blink? 250)
@@ -98,7 +91,7 @@
     (doseq [row (range (inc rows))]
       (q/line 0 (* row cell-h) map-w (* row cell-h)))
     ;; Draw production indicators, units, and waypoints (set font once)
-    (q/text-font (read-runtime-state :production-char-font))
+    (q/text-font (sa/read-state :production-char-font))
     (doseq [[_ cells] cells-by-color]
       (doseq [{:keys [col row cell]} cells]
         (draw-production-indicators row col cell cell-w cell-h production map-to-display)

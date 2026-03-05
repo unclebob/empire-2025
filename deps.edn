@@ -26,16 +26,16 @@
            :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker" "--max-distance" "1"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"
-					                         :git/sha "426045ea9d738facea204357b1243bc93070d3f6"}}
+					                         :git/sha "223da6c1a814265d0a714417def997ce7878a8da"}}
 					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
 					                                     {:git/url "https://github.com/unclebob/speclj-structure-check"
-					                                      :git/sha "493b8d2ae89a3c4e4ce472a59a50ac7ceb165af9"}}
+					                                      :git/sha "7cc804c4e99b3482ca1d8a26b735ed41751a03ab"}}
 					                        :main-opts ["-m" "speclj-structure-check.core"]}
 						 :crap {:extra-deps {io.github.unclebob/crap4clj
 						                      {:git/url "https://github.com/unclebob/crap4clj"
-						                       :git/sha "db9327689c781499f39bc115b30ad40039d26ce6"}}
+						                       :git/sha "9f12da1b09bc1177f8f058108cf22a73bc9a97a0"}}
 						        :extra-paths ["spec"]
 						        :main-opts ["-m" "crap4clj.core"]}
 				 }

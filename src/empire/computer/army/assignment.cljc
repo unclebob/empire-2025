@@ -1,30 +1,14 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.assignment
   "Attack-target assignment for computer armies."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (defn- find-assignable-armies
   "Finds all computer armies eligible for city attack assignment (not coast-walking)."
   []
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [cell (get-in game-map [i j])
@@ -38,7 +22,7 @@
 (defn- find-visible-target-cities
   "Finds free/player cities visible on the computer-map."
   []
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (when (vector? comp-map)
       (for [i (range (count comp-map))
             j (range (count (first comp-map)))
@@ -60,5 +44,5 @@
             reachable (filter #(contains? city-continent (:pos %)) available)
             closest (take 6 (sort-by #(core/distance (:pos %) city) reachable))]
         (doseq [{:keys [pos]} closest]
-          (update-game-map! assoc-in (conj pos :contents :attack-target) city)
+          (sa/update-world! assoc-in (conj pos :contents :attack-target) city)
           (swap! assigned conj pos))))))

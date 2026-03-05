@@ -2,7 +2,7 @@
 (ns empire.save-load
   (:require [empire.adapters.persistence.files :as persistence-files]
             [empire.application.ports.persistence :as ports]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.domain.core.messages :as messages]))
 
 (def saveable-atoms
@@ -41,51 +41,40 @@
 (defonce ^:private persistence
   (delay (persistence-files/persistence-adapter)))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
 (defn- load-world
   []
-  ((:load-world @state-ctx)))
+  ((:load-world (sa/state-ctx))))
 
 (defn- save-world!
   [world]
-  ((:save-world! @state-ctx) world))
+  ((:save-world! (sa/state-ctx)) world))
 
 (defn- load-major-invasion-state
   []
-  ((:load-major-invasion-state @state-ctx)))
+  ((:load-major-invasion-state (sa/state-ctx))))
 
 (defn- rebuild-country-stats!
   []
-  (when-let [f (:rebuild-country-stats! @state-ctx)]
+  (when-let [f (:rebuild-country-stats! (sa/state-ctx))]
     (f)))
 
 (defn- save-major-invasion-state!
   [state]
-  ((:save-major-invasion-state! @state-ctx) state))
+  ((:save-major-invasion-state! (sa/state-ctx)) state))
 
 (defn- read-save-key
   [k]
   (case k
     :game-map (load-world)
     :major-invasion-state (load-major-invasion-state)
-    (read-runtime-state k)))
+    (sa/read-state k)))
 
 (defn- write-save-key!
   [k value]
   (case k
     :game-map (save-world! value)
     :major-invasion-state (save-major-invasion-state! value)
-    (write-runtime-state! k value)))
+    (sa/write-state! k value)))
 
 (defn list-save-files
   "Returns a vector of save filenames sorted by modification time (newest first).
@@ -113,29 +102,29 @@
      (doseq [[k _] saveable-atoms]
        (when-let [value (get data k)]
          (write-save-key! k value)))
-     (write-runtime-state! :load-menu-open false)
-     (write-runtime-state! :load-menu-files [])
-     (write-runtime-state! :load-menu-hovered nil)
-     ((:rebuild-refueling-caches! @state-ctx))
+     (sa/write-state! :load-menu-open false)
+     (sa/write-state! :load-menu-files [])
+     (sa/write-state! :load-menu-hovered nil)
+     ((:rebuild-refueling-caches! (sa/state-ctx)))
      (rebuild-country-stats!)
-     (write-runtime-state! :turn-message (str "Loaded " filename))
-     (write-runtime-state! :turn-message-until
+     (sa/write-state! :turn-message (str "Loaded " filename))
+     (sa/write-state! :turn-message-until
                            (messages/expires-at (System/currentTimeMillis) 3000)))))
 
 (defn open-load-menu!
   "Opens the load menu, populating it with available save files."
   ([] (open-load-menu! "saves"))
   ([dir-path]
-   (write-runtime-state! :load-menu-files (list-save-files dir-path))
-   (write-runtime-state! :load-menu-hovered nil)
-   (write-runtime-state! :load-menu-open true)))
+   (sa/write-state! :load-menu-files (list-save-files dir-path))
+   (sa/write-state! :load-menu-hovered nil)
+   (sa/write-state! :load-menu-open true)))
 
 (defn close-load-menu!
   "Closes the load menu without loading."
   []
-  (write-runtime-state! :load-menu-open false)
-  (write-runtime-state! :load-menu-files [])
-  (write-runtime-state! :load-menu-hovered nil))
+  (sa/write-state! :load-menu-open false)
+  (sa/write-state! :load-menu-files [])
+  (sa/write-state! :load-menu-hovered nil))
 
 (def menu-width 350)
 (def menu-padding 15)

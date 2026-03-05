@@ -1,14 +1,11 @@
 ;; mutation-tested: no
 (ns empire.computer.movement
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]))
 
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 
 (defn update-cell-visibility!
   [pos owner]

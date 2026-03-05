@@ -1,23 +1,12 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-carrier-group
   "Carrier group escort - battleship and submarine orbiting behavior."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
             [empire.computer.movement :as computer-movement]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
 
 (def orbit-ring
   "16 offsets forming a clockwise Chebyshev ring at radius 2."
@@ -29,7 +18,7 @@
 (defn- find-carrier-with-open-slot
   "Finds the nearest computer carrier with an open slot for the given unit type."
   [pos unit-type]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         candidates (for [i (range (count game-map))
                          j (range (count (first game-map)))
                          :let [cell (get-in game-map [i j])
@@ -55,21 +44,21 @@
 (defn- adopt-carrier-escort
   "Pairs a battleship or submarine escort with a carrier."
   [pos carrier-pos unit-type]
-  (let [escort-unit (get-in (current-world) (conj pos :contents))
-        carrier (get-in (current-world) (conj carrier-pos :contents))
+  (let [escort-unit (get-in (sa/current-world) (conj pos :contents))
+        carrier (get-in (sa/current-world) (conj carrier-pos :contents))
         carrier-id (:carrier-id carrier)
         escort-id (:escort-id escort-unit)
         angle (initial-orbit-angle unit-type carrier)]
-    (update-game-map! update-in (conj pos :contents)
+    (sa/update-world! update-in (conj pos :contents)
                       assoc :escort-carrier-id carrier-id
                       :escort-mode :intercepting
                       :orbit-angle angle)
     (case unit-type
       :battleship
-      (update-game-map! update-in (conj carrier-pos :contents)
+      (sa/update-world! update-in (conj carrier-pos :contents)
                         assoc :group-battleship-id escort-id)
       :submarine
-      (update-game-map! update-in (conj carrier-pos :contents)
+      (sa/update-world! update-in (conj carrier-pos :contents)
                         update :group-submarine-ids conj escort-id))))
 
 (defn- orbit-target-pos
@@ -81,7 +70,7 @@
 (defn- valid-orbit-pos?
   "Returns true if pos is a valid empty sea cell on the game map."
   [pos]
-  (let [cell (get-in (current-world) pos)]
+  (let [cell (get-in (sa/current-world) pos)]
     (and cell (= :sea (:type cell)) (nil? (:contents cell)))))
 
 (defn- find-next-orbit-angle
@@ -97,7 +86,7 @@
 (defn- revert-escort-to-seeking
   "Reverts an escort to seeking mode, clearing carrier reference."
   [pos]
-  (update-game-map! update-in (conj pos :contents)
+  (sa/update-world! update-in (conj pos :contents)
                     #(-> % (assoc :escort-mode :seeking)
                          (dissoc :escort-carrier-id :orbit-angle))))
 
@@ -117,16 +106,16 @@
       (let [target (orbit-target-pos carrier-pos valid-angle)]
         (when (not= pos target)
           (ship-core/move-toward pos target))
-        (update-game-map! update-in
+        (sa/update-world! update-in
                           (conj (or (when (not= pos target) target) pos) :contents)
                           assoc :escort-mode :orbiting :orbit-angle valid-angle))
-      (update-game-map! update-in (conj pos :contents)
+      (sa/update-world! update-in (conj pos :contents)
                         assoc :escort-mode :orbiting))))
 
 (defn- process-escort-intercepting
   "Escort intercepting: move toward carrier, transition to orbiting at radius 2."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))]
+  (let [unit (get-in (sa/current-world) (conj pos :contents))]
     (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
       (if (<= (core/chebyshev-distance pos carrier-pos) 2)
         (transition-to-orbiting pos carrier-pos unit)
@@ -136,20 +125,20 @@
 (defn- process-escort-orbiting
   "Escort orbiting: advance one step along the orbit ring."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))]
+  (let [unit (get-in (sa/current-world) (conj pos :contents))]
     (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
       (let [current-angle (or (:orbit-angle unit) 0)
             next-angle (find-next-orbit-angle carrier-pos (inc current-angle))]
         (if next-angle
           (let [target (orbit-target-pos carrier-pos next-angle)]
             (if (= pos target)
-              (update-game-map! update-in (conj pos :contents)
+              (sa/update-world! update-in (conj pos :contents)
                                 assoc :orbit-angle next-angle)
               (when (valid-orbit-pos? target)
                 (core/move-unit-to pos target)
                 (computer-movement/update-cell-visibility! pos :computer)
                 (computer-movement/update-cell-visibility! target :computer)
-                (update-game-map! update-in (conj target :contents)
+                (sa/update-world! update-in (conj target :contents)
                                   assoc :orbit-angle next-angle))))
           nil))
       (revert-escort-to-seeking pos))))
@@ -157,7 +146,7 @@
 (defn- find-enemy-near-carrier-group
   "Finds a player ship adjacent to escort or its carrier."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))
+  (let [unit (get-in (sa/current-world) (conj pos :contents))
         carrier-pos (when (:escort-carrier-id unit)
                       (escort/find-carrier-by-id (:escort-carrier-id unit)))]
     (escort/find-enemy-near-positions (filter some? [pos carrier-pos]))))
@@ -181,7 +170,7 @@
 (defn process-carrier-group-escort
   "Processes a battleship or submarine in carrier group escort mode."
   [pos unit-type]
-  (let [unit (get-in (current-world) (conj pos :contents))
+  (let [unit (get-in (sa/current-world) (conj pos :contents))
         mode (:escort-mode unit)]
     (if-let [enemy-pos (orbiting-enemy-pos pos mode)]
       (escort/begin-pursuit pos enemy-pos)

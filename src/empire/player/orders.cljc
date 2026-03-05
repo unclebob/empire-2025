@@ -2,45 +2,25 @@
 (ns empire.player.orders
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.application.waypoint-services :as waypoint-services]
             [empire.application.ports.movement :as ports]
-            [empire.application.state :as app-state]
             [empire.config :as config]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- set-turn-message!
   [msg ms]
-  (write-runtime-state! :turn-message msg)
-  (write-runtime-state! :turn-message-until (if (= ms Long/MAX_VALUE)
+  (sa/write-state! :turn-message msg)
+  (sa/write-state! :turn-message-until (if (= ms Long/MAX_VALUE)
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
 
 (defn- movement-port []
-  (or (:movement-port @state-ctx)
+  (or (:movement-port (sa/state-ctx))
       (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
 (defn- clamp-to-map-bounds
   [[x y]]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         cols (count world)
         rows (count (first world))
         max-x (dec cols)
@@ -57,30 +37,30 @@
 (defn own-city-at
   "Claims a city at the given coordinates for the player."
   [[cx cy]]
-  (let [cell (get-in (current-world) [cx cy])]
+  (let [cell (get-in (sa/current-world) [cx cy])]
     (when (= (:type cell) :city)
-      (update-game-map! assoc-in [cx cy :city-status] :player)
+      (sa/update-world! assoc-in [cx cy :city-status] :player)
       true)))
 
 (defn set-city-lookaround
   "Sets marching orders to :lookaround on a player city at the given coordinates."
   [[cx cy]]
-  (let [cell (get-in (current-world) [cx cy])]
+  (let [cell (get-in (sa/current-world) [cx cy])]
     (when (and (= (:type cell) :city)
                (= (:city-status cell) :player))
-      (update-game-map! assoc-in [cx cy :marching-orders] :lookaround)
+      (sa/update-world! assoc-in [cx cy :marching-orders] :lookaround)
       (set-turn-message! "Marching orders set to lookaround" 2000)
       true)))
 
 (defn set-destination-at
   "Sets the destination to the given coordinates."
   [[cx cy]]
-  (write-runtime-state! :destination [cx cy])
+  (sa/write-state! :destination [cx cy])
   true)
 
 (defn- apply-marching-orders [path dest]
-  (update-game-map! assoc-in path dest)
-  (write-runtime-state! :destination nil)
+  (sa/update-world! assoc-in path dest)
+  (sa/write-state! :destination nil)
   (set-turn-message! (str "Marching orders set to " (first dest) "," (second dest)) 2000)
   true)
 
@@ -93,8 +73,8 @@
 (defn set-marching-orders-at
   "Sets marching orders on a player city, transport, or waypoint at the given coordinates."
   [[cx cy]]
-  (when-let [dest (read-runtime-state :destination)]
-    (let [cell (get-in (current-world) [cx cy])
+  (when-let [dest (sa/read-state :destination)]
+    (let [cell (get-in (sa/current-world) [cx cy])
           contents (:contents cell)]
       (cond
         (player-city? cell)
@@ -111,22 +91,22 @@
 (defn set-flight-path-at
   "Sets flight path on a player city or carrier at the given coordinates."
   [[cx cy]]
-  (when-let [dest (read-runtime-state :destination)]
-    (let [cell (get-in (current-world) [cx cy])
+  (when-let [dest (sa/read-state :destination)]
+    (let [cell (get-in (sa/current-world) [cx cy])
           clamped-dest (clamp-to-map-bounds dest)
           contents (:contents cell)]
       (cond
         (and (= (:type cell) :city)
              (= (:city-status cell) :player))
-        (do (update-game-map! assoc-in [cx cy :flight-path] clamped-dest)
-            (write-runtime-state! :destination nil)
+        (do (sa/update-world! assoc-in [cx cy :flight-path] clamped-dest)
+            (sa/write-state! :destination nil)
             (set-turn-message! (str "Flight path set to " (first clamped-dest) "," (second clamped-dest)) 2000)
             true)
 
         (and (= (:type contents) :carrier)
              (= (:owner contents) :player))
-        (do (update-game-map! assoc-in [cx cy :contents :flight-path] clamped-dest)
-            (write-runtime-state! :destination nil)
+        (do (sa/update-world! assoc-in [cx cy :contents :flight-path] clamped-dest)
+            (sa/write-state! :destination nil)
             (set-turn-message! (str "Flight path set to " (first clamped-dest) "," (second clamped-dest)) 2000)
             true)
 
@@ -136,14 +116,14 @@
   "Creates or removes a waypoint at the given coordinates."
   [[cx cy]]
   (when (waypoint-services/create-waypoint [cx cy])
-    (let [cell (get-in (current-world) [cx cy])]
+    (let [cell (get-in (sa/current-world) [cx cy])]
       (if (:waypoint cell)
         (set-turn-message! (str "Waypoint placed at " cx "," cy) 2000)
         (set-turn-message! (str "Waypoint removed from " cx "," cy) 2000)))
     true))
 
 (defn- project-to-edge [[cx cy] [dx dy]]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         cols (count world)
         rows (count (first world))]
     (loop [tx cx ty cy]
@@ -156,11 +136,11 @@
   "Sets marching orders on a player city or waypoint to the map edge in the given direction."
   [[cx cy] k]
   (when-let [direction (config/key->direction k)]
-    (let [cell (get-in (current-world) [cx cy])]
+    (let [cell (get-in (sa/current-world) [cx cy])]
       (cond
         (player-city? cell)
         (let [target (project-to-edge [cx cy] direction)]
-          (update-game-map! assoc-in [cx cy :marching-orders] target)
+          (sa/update-world! assoc-in [cx cy :marching-orders] target)
           (set-turn-message! (str "Marching orders set to " (first target) "," (second target)) 2000)
           true)
 

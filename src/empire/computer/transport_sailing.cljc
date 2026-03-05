@@ -1,16 +1,12 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing.path :as sailing-path]
             [empire.computer.transport-unloading :as unloading]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
 
 (def ^:private invasion-unload-radius 2)
 (def ^:private invasion-threat-unload-radius 3)
@@ -19,17 +15,9 @@
 (def ^:private player-ship-types
   #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
 
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   [pos owner]
@@ -37,7 +25,7 @@
 
 (defn- enemy-ship-near-target?
   [target radius]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         [tx ty] target
         min-x (max 0 (- tx radius))
         max-x (min (dec (count world)) (+ tx radius))
@@ -57,11 +45,11 @@
   [pos]
   (sailing-path/compute-sail-path
     pos
-    ((:read-runtime-state @state-ctx) :computer-map)))
+    (sa/read-state :computer-map)))
 
 (defn- launch-from-city-to-sea
   [pos transport]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         cell-type (get-in world (conj pos :type))]
     (when (= :city cell-type)
       (let [target-ref (or (:invasion-target transport)
@@ -88,7 +76,7 @@
     (when (core/move-unit-to pos retreat)
       (update-cell-visibility! pos :computer)
       (update-cell-visibility! retreat :computer)
-      (update-game-map! assoc-in
+      (sa/update-world! assoc-in
                         (conj retreat :contents :sail-path)
                         (vec (cons pos sail-path)))
       retreat)))
@@ -96,17 +84,17 @@
 (defn- sail-take-second-step
   [from-pos next-pos remaining]
   (let [step2 (or (first remaining)
-                  (sailing-path/continue-pos (current-world) from-pos next-pos))
+                  (sailing-path/continue-pos (sa/current-world) from-pos next-pos))
         remaining2 (if (seq remaining) (vec (rest remaining)) [])
         moved2 (when step2 (core/move-unit-to next-pos step2))]
     (if moved2
       (do (update-cell-visibility! next-pos :computer)
           (update-cell-visibility! step2 :computer)
-          (update-game-map! assoc-in
+          (sa/update-world! assoc-in
                             (conj step2 :contents :sail-path) remaining2)
           (unloading/try-opportunistic-unload step2)
           step2)
-      (do (update-game-map! assoc-in
+      (do (sa/update-world! assoc-in
                             (conj next-pos :contents :sail-path) remaining)
           (unloading/try-opportunistic-unload next-pos)
           next-pos))))
@@ -130,7 +118,7 @@
   [pos]
   (when-let [new-path (seq (compute-sail-path pos))]
     (let [sail-path (vec new-path)]
-      (update-game-map! assoc-in (conj pos :contents :sail-path) sail-path)
+      (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
       (sail-follow-path pos sail-path))))
 
 (defn- maybe-unload-or-sail!
@@ -140,7 +128,7 @@
     (or (compute-and-follow-sail-path! pos)
         ;; No path and no adjacent coast at all: switch to unloading crawl mode.
         (when-not (some (fn [n]
-                          (let [cell (get-in (current-world) n)]
+                          (let [cell (get-in (sa/current-world) n)]
                             (and cell (#{:land :city} (:type cell)))))
                         (core/get-neighbors pos))
           (set-unloading-and-try! pos)))))
@@ -148,7 +136,7 @@
 (defn- handle-loaded-transport-without-path!
   [pos transport]
   (if-let [sea-pos (launch-from-city-to-sea pos transport)]
-    (let [transport' (get-in (current-world) (conj sea-pos :contents))]
+    (let [transport' (get-in (sa/current-world) (conj sea-pos :contents))]
       (maybe-unload-or-sail! sea-pos transport'))
     (maybe-unload-or-sail! pos transport)))
 
@@ -163,9 +151,9 @@
 
 (defn- loaded-no-path-action
   [pos transport]
-  (let [city-cell? (= :city (:type (get-in (current-world) pos)))
+  (let [city-cell? (= :city (:type (get-in (sa/current-world) pos)))
         adjacent-land? (some (fn [n]
-                               (let [cell (get-in (current-world) n)]
+                               (let [cell (get-in (sa/current-world) n)]
                                  (and cell (#{:land :city} (:type cell)))))
                              (core/get-neighbors pos))]
     (cond
@@ -180,7 +168,7 @@
 (defn- empty-never-reload-action
   [pos]
   (when-let [new-path (seq (compute-sail-path pos))]
-    (update-game-map! assoc-in (conj pos :contents :sail-path) (vec new-path))
+    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec new-path))
     (sail-follow-path pos (vec new-path))))
 
 (defn- mission-handler
@@ -193,7 +181,7 @@
 
 (defn process-sailing-mission
   [pos]
-  (let [transport (get-in (current-world) (conj pos :contents))
+  (let [transport (get-in (sa/current-world) (conj pos :contents))
         sail-path (:sail-path transport)
         army-count (:army-count transport 0)
         never-reload? (:never-reload? transport)
@@ -203,12 +191,12 @@
 
 (defn- clear-invasion-path!
   [pos]
-  (update-game-map! update-in (conj pos :contents)
+  (sa/update-world! update-in (conj pos :contents)
                     dissoc :invasion-path :invasion-path-origin))
 
 (defn- store-invasion-path!
   [pos remaining]
-  (update-game-map! update-in (conj pos :contents)
+  (sa/update-world! update-in (conj pos :contents)
                     assoc :invasion-path remaining
                     :invasion-path-origin pos))
 
@@ -250,7 +238,7 @@
 
 (defn- retreat-away-from-target!
   [pos target]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         current-distance (core/chebyshev-distance pos target)
         candidates (->> (tc/get-passable-sea-neighbors pos)
                         (filter #(nil? (get-in world (conj % :contents))))
@@ -278,14 +266,14 @@
   (if target
     (let [pos1 (or (invading-step pos) pos)
           pos2 (or (invading-step pos1) pos1)
-          transport2 (get-in (current-world) (conj pos2 :contents))]
+          transport2 (get-in (sa/current-world) (conj pos2 :contents))]
       (when (unload-zone? pos2 target transport2)
         (tc/set-transport-mission pos2 :unloading)))
     (tc/set-transport-mission pos :unloading)))
 
 (defn- choose-invading-step
   [from target]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         transport (get-in world (conj from :contents))
         last-pos (:invasion-last-pos transport)
         neighbors (->> (tc/get-passable-sea-neighbors from)
@@ -315,14 +303,14 @@
       (update-cell-visibility! chosen :computer)
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
-      (update-game-map! assoc-in (conj chosen :contents :invasion-last-pos) from)
+      (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from)
       chosen)))
 
 (defn process-invading-mission
   "Follow precomputed invasion path. Steps up to 2 cells per round.
    When path exhausted, transition to unloading with coast-crawl."
   [pos]
-  (let [transport (get-in (current-world) (conj pos :contents))
+  (let [transport (get-in (sa/current-world) (conj pos :contents))
         path (:invasion-path transport)
         target (or (:invasion-target transport) (:major-invasion-target transport))]
     (if (handle-invasion-threat-near-target! pos target)

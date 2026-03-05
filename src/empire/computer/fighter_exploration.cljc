@@ -1,26 +1,10 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-exploration
   "Fighter exploration: sorties, drone operations, unexplored-cell scoring."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]
             [empire.computer.fighter-movement :as fm]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (def ^:private compass-directions
   "All 8 compass directions as [dr dc] vectors."
@@ -29,9 +13,9 @@
 (defn count-unexplored-neighbors
   "Count neighbors of pos that are unexplored on computer-map."
   [pos]
-  (let [computer-map (read-runtime-state :computer-map)
+  (let [computer-map (sa/read-state :computer-map)
         [r c] pos
-        game-map (current-world)
+        game-map (sa/current-world)
         height (count game-map)
         width (count (first game-map))]
     (count (filter (fn [[dr dc]]
@@ -45,8 +29,8 @@
   "Project n steps from start in direction [dr dc], count unexplored cells
    (including their visibility neighbors) along the ray."
   [start direction n]
-  (let [computer-map (read-runtime-state :computer-map)
-        game-map (current-world)
+  (let [computer-map (sa/read-state :computer-map)
+        game-map (sa/current-world)
         height (count game-map)
         width (count (first game-map))
         [dr dc] direction]
@@ -117,10 +101,10 @@
   (let [endpoint (:flight-target-site unit)]
     (when-let [{:keys [pos hops]} (explore-move-step pos endpoint)]
       (let [remaining (dec (:explore-steps-remaining unit))]
-        (update-game-map! assoc-in
+        (sa/update-world! assoc-in
                           (conj pos :contents :explore-steps-remaining) remaining)
         (when (<= remaining 0)
-          (update-game-map! update-in (conj pos :contents)
+          (sa/update-world! update-in (conj pos :contents)
                             assoc :flight-mode :regular
                             :flight-target-site (:explore-origin unit))))
       {:pos pos :hops hops})))

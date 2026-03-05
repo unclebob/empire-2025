@@ -1,30 +1,19 @@
 ;; mutation-tested: no
 (ns empire.application.impl.city-production
   (:require [empire.application.city-production :as city-production]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.config :as config]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- item-cost
   [item]
-  (if-let [f (:item-cost @state-ctx)]
+  (if-let [f (:item-cost (sa/state-ctx))]
     (f item)
     (config/item-cost item)))
 
 (defmethod city-production/set-city-production :default
   [coords item]
-  (let [current (read-runtime-state :production)]
-    (write-runtime-state! :production
+  (let [current (sa/read-state :production)]
+    (sa/write-state! :production
                           (assoc current
                                  coords
                                  {:item item

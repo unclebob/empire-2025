@@ -1,21 +1,10 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.dump.output
   "Filename generation, dump writing, and drag-range conversion."
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.debug.dump :as dump])
   #?(:clj (:import [java.time LocalDateTime]
                    [java.time.format DateTimeFormatter])))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (defn- screen->cell
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]
@@ -62,8 +51,8 @@
    Returns [[start-row start-col] [end-row end-col]] normalized so
    start is top-left and coordinates are clamped to map bounds."
   [[x1 y1] [x2 y2]]
-  (let [[map-w map-h] (read-runtime-state :map-screen-dimensions)
-        game-map (current-world)
+  (let [[map-w map-h] (sa/read-state :map-screen-dimensions)
+        game-map (sa/current-world)
         map-rows (count game-map)
         map-cols (count (first game-map))
         [row1 col1] (screen->cell x1 y1 map-w map-h map-rows map-cols)

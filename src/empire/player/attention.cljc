@@ -1,36 +1,21 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
   (:require [empire.application.movement-services :as movement-services]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.application.ports.movement :as ports]
             [empire.config :as config]
             [empire.domain.core.unit-metrics :as unit-metrics]
             [empire.containers.helpers :as uc]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
 (defn- movement-port []
-  (or (:movement-port @state-ctx)
+  (or (:movement-port (sa/state-ctx))
       (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."
   [attention-coords]
   (and (seq attention-coords)
-       (let [first-cell (get-in (current-world) (first attention-coords))
+       (let [first-cell (get-in (sa/current-world) (first attention-coords))
              unit (:contents first-cell)]
          (or unit
              (uc/has-awake? first-cell :awake-fighters)
@@ -47,8 +32,8 @@
   "Returns true if the cell at [i j] needs attention (awake unit, city with no production, awake airport fighter, carrier with awake fighters, or transport with awake armies).
    Satellites only need attention when they have no target."
   [i j]
-  (let [player-map (read-runtime-state :player-map)
-        production (read-runtime-state :production)
+  (let [player-map (sa/read-state :player-map)
+        production (sa/read-state :production)
         cell (get-in player-map [i j])
         unit (:contents cell)
         mode (:mode unit)
@@ -72,7 +57,7 @@
 (defn cells-needing-attention
   "Returns coordinates of player's units and cities with no production."
   []
-  (let [player-map (read-runtime-state :player-map)]
+  (let [player-map (sa/read-state :player-map)]
     (for [i (range (count player-map))
           j (range (count (first player-map)))
         :when (needs-attention? i j)]
@@ -82,8 +67,8 @@
   "Returns true if the item at coords needs user input.
    Satellites only need attention when they have no target."
   [coords]
-  (let [cell (get-in (current-world) coords)
-        production (read-runtime-state :production)
+  (let [cell (get-in (sa/current-world) coords)
+        production (sa/read-state :production)
         unit (:contents cell)
         satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
         has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
@@ -105,7 +90,7 @@
   (and (= :army (:type active-unit))
        (let [[ax ay] coords]
                (some (fn [[di dj]]
-                 (let [adj-cell (get-in (current-world) [(+ ax di) (+ ay dj)])]
+                 (let [adj-cell (get-in (sa/current-world) [(+ ax di) (+ ay dj)])]
                    (and adj-cell
                         (= (:type adj-cell) :city)
                         (config/hostile-city? (:city-status adj-cell)))))
@@ -160,10 +145,10 @@
 (defn set-attention-message
   "Sets the message for the current item needing attention."
   [coords]
-  (let [cell (get-in (current-world) coords)
+  (let [cell (get-in (sa/current-world) coords)
         unit (:contents cell)
         active-unit (ports/movement-get-active-unit (movement-port) cell)]
-    (write-runtime-state! :attention-message
+    (sa/write-state! :attention-message
                           (cond
                             (ports/movement-is-fighter-from-airport? (movement-port) active-unit)
                             (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages) (fuel-string active-unit))

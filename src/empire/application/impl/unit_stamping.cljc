@@ -1,23 +1,12 @@
 ;; mutation-tested: no
 (ns empire.application.impl.unit-stamping
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.application.unit-stamping :as unit-stamping]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
 
 (defn- next-id!
   [k]
-  (let [id (or (read-runtime-state k) 1)]
-    (write-runtime-state! k (inc id))
+  (let [id (or (sa/read-state k) 1)]
+    (sa/write-state! k (inc id))
     id))
 
 (defn- apply-computer-satellite-direction
@@ -86,14 +75,14 @@
 
 (defn- country-coastal-cells-explored?
   [country-id]
-  (if-let [f (:country-coastal-explored? @state-ctx)]
+  (if-let [f (:country-coastal-explored? (sa/state-ctx))]
     (let [result (f country-id)]
       (if (nil? result)
-        (get-in (or (read-runtime-state :country-stats) {})
+        (get-in (or (sa/read-state :country-stats) {})
                 [country-id :coastal-explored?]
                 true)
         result))
-    (get-in (or (read-runtime-state :country-stats) {})
+    (get-in (or (sa/read-state :country-stats) {})
             [country-id :coastal-explored?]
             true)))
 
@@ -102,13 +91,13 @@
   (if (and (= item :army)
            (= (:city-status cell) :computer)
            (:country-id cell)
-           (< (get (read-runtime-state :coast-walkers-produced) (:country-id cell) 0) 2)
+           (< (get (sa/read-state :coast-walkers-produced) (:country-id cell) 0) 2)
            (not (country-coastal-cells-explored? (:country-id cell))))
     (let [country-id (:country-id cell)
-          produced (get (read-runtime-state :coast-walkers-produced) country-id 0)
+          produced (get (sa/read-state :coast-walkers-produced) country-id 0)
           direction (if (even? produced) :clockwise :counter-clockwise)]
-      (write-runtime-state! :coast-walkers-produced
-                            (update (or (read-runtime-state :coast-walkers-produced) {})
+      (sa/write-state! :coast-walkers-produced
+                            (update (or (sa/read-state :coast-walkers-produced) {})
                                     country-id (fnil inc 0)))
       (assoc unit :mode :coast-walk
                   :coast-direction direction

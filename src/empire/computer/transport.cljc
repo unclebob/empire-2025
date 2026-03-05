@@ -4,9 +4,8 @@
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]
@@ -19,28 +18,9 @@
             [empire.computer.threat-response :as threat-response]
             [empire.debug :as debug]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
 
@@ -60,35 +40,35 @@
   [pos transport]
   (tc/set-transport-mission pos :sailing)
   (tc/mint-unload-event-id pos transport)
-  (when-not (read-runtime-state :transport-fully-loaded?)
-    (write-runtime-state! :transport-fully-loaded? true))
+  (when-not (sa/read-state :transport-fully-loaded?)
+    (sa/write-state! :transport-fully-loaded? true))
   (tc/mint-unload-country-id pos)
   (tc/record-pickup-continent-pos pos transport)
   (when-let [path (sailing/compute-sail-path pos)]
-    (update-game-map! assoc-in
+    (sa/update-world! assoc-in
                       (conj pos :contents :sail-path) path)))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."
   [pos]
-  (let [transport (get-in (current-world) (conj pos :contents))]
+  (let [transport (get-in (sa/current-world) (conj pos :contents))]
     (if (:never-reload? transport)
       (do
         (tc/set-transport-mission pos :sailing)
-        (update-game-map! update-in (conj pos :contents)
+        (sa/update-world! update-in (conj pos :contents)
                           dissoc :unload-target-city :pickup-continent-pos))
       (do
         (tc/set-transport-mission pos :loading)
-        (update-game-map! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
                                   (land-objectives/flood-fill-continent lp))
               next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-          (update-game-map! assoc-in
+          (sa/update-world! assoc-in
                             (conj pos :contents :pickup-continent-pos) next-pickup))))))
 
 (defn- load-for-invasion-start!
   [pos]
-  (mission-handlers/load-for-invasion-start! update-game-map! read-runtime-state pos))
+  (mission-handlers/load-for-invasion-start! sa/update-world! sa/read-state pos))
 
 (defn- passable-sea-cell?
   [cell]
@@ -96,7 +76,7 @@
 (defn- sea-load-points
   "All passable sea cells adjacent to at least one computer army."
   []
-  (mission-handlers/sea-load-points (current-world) core/get-neighbors))
+  (mission-handlers/sea-load-points (sa/current-world) core/get-neighbors))
 
 (declare loading-crawl-move handle-stale-loading)
 
@@ -107,16 +87,16 @@
 
 (defn- transition-load-for-invasion-to-unloading!
   [pos major-target]
-  (update-game-map! update-in (conj pos :contents)
+  (sa/update-world! update-in (conj pos :contents)
                     #(assoc % :transport-mission :unloading
                               :invasion-target (or (:invasion-target %)
                                                    major-target))))
 
 (defn- mission-handler-deps
   []
-  {:current-world current-world
-   :read-runtime-state read-runtime-state
-   :update-game-map! update-game-map!
+  {:current-world sa/current-world
+   :read-runtime-state sa/read-state
+   :update-game-map! sa/update-world!
    :movement-services (movement-services)
    :get-neighbors core/get-neighbors
    :load-adjacent-armies loading/load-adjacent-armies
@@ -150,16 +130,16 @@
 
 (defn- process-load-for-invasion-empty
   [pos timed-out?]
-  (mission-handlers/process-load-for-invasion-empty update-game-map! transition-to-loading pos timed-out?))
+  (mission-handlers/process-load-for-invasion-empty sa/update-world! transition-to-loading pos timed-out?))
 (defn- process-load-for-invasion
   [pos]
   (mission-handlers/process-load-for-invasion
-   (mission-handler-deps) update-game-map! transition-to-loading pos))
+   (mission-handler-deps) sa/update-world! transition-to-loading pos))
 
 (defn- loading-crawl-move
   [pos]
   (let [move-one (fn [p]
-                   (let [t (get-in (current-world) (conj p :contents))
+                   (let [t (get-in (sa/current-world) (conj p :contents))
                          pcp (:pickup-continent-pos t)]
                      (if pcp
                        (or (move-toward-position p pcp)
@@ -174,9 +154,9 @@
   (if (pos? army-count)
     (start-sailing pos transport)
     (let [new-pcp (targeting/find-next-pickup-continent-pos pos nil 0)]
-      (update-game-map! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
-      (update-game-map! assoc-in (conj pos :contents :loading-since)
-                        (or (read-runtime-state :round-number) 0))
+      (sa/update-world! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
+      (sa/update-world! assoc-in (conj pos :contents :loading-since)
+                        (or (sa/read-state :round-number) 0))
       (loading-crawl-move pos))))
 (defn- process-loading-mission
   [pos]
@@ -204,8 +184,8 @@
                          :load-for-invasion #(process-load-for-invasion pos)
                          :land-locked #(process-land-locked-mission pos
                                                                     (lake-naval/lake-cells
-                                                                     (read-runtime-state :computer-map)
-                                                                     (read-runtime-state :lake-max-cells)))
+                                                                     (sa/read-state :computer-map)
+                                                                     (sa/read-state :lake-max-cells)))
                          :unloading #(process-unloading-mission pos army-count)
                          :sailing #(sailing/process-sailing-mission pos)
                          :loading #(process-loading-mission pos)}
@@ -221,7 +201,7 @@
     (when (and (= :loading (or mission :loading))
                (:never-reload? transport))
       (tc/set-transport-mission pos :sailing))
-    (let [current-mission (or (:transport-mission (get-in (current-world) (conj pos :contents)))
+    (let [current-mission (or (:transport-mission (get-in (sa/current-world) (conj pos :contents)))
                               mission
                               :loading)]
       (debug/log-computer-event! :transport-process pos
@@ -240,12 +220,12 @@
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
   [pos]
-  (let [transport (:contents (get-in (current-world) pos))]
+  (let [transport (:contents (get-in (sa/current-world) pos))]
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
       (when-not (or (= :sentry (:mode transport))
                     (maybe-handle-lake-transport pos transport))
         (threat-response/prepare-transport! pos)
-        (dispatch-transport-mission pos (:contents (get-in (current-world) pos))))))
+        (dispatch-transport-mission pos (:contents (get-in (sa/current-world) pos))))))
   nil)

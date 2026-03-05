@@ -1,6 +1,6 @@
 (ns empire.ui.util.input.dispatch
   (:require [empire.save-load :as save-load]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.debug :as debug]
             [empire.game-loop :as game-loop]
@@ -10,23 +10,6 @@
             [empire.player.orders :as player-orders]
             [empire.ui.util.input.actions :as actions]))
 
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
-
 (defn handle-key [k] (actions/handle-key k))
 
 (defn handle-unit-click [clicked-coords attention-coords]
@@ -35,7 +18,7 @@
 (defn handle-cell-click
   "Handles clicking on a map cell, prioritizing attention-needing items."
   [cell-x cell-y]
-  (let [attention-coords (read-runtime-state :cells-needing-attention)
+  (let [attention-coords (sa/read-state :cells-needing-attention)
         clicked-coords [cell-x cell-y]]
     (when (player-attention/is-unit-needing-attention? attention-coords)
       (handle-unit-click clicked-coords attention-coords))))
@@ -44,8 +27,8 @@
   "Handles a mouse click when the load menu is open.
    Loads the hovered file if one is selected."
   []
-  (when-let [idx (read-runtime-state :load-menu-hovered)]
-    (let [files (read-runtime-state :load-menu-files)]
+  (when-let [idx (sa/read-state :load-menu-hovered)]
+    (let [files (sa/read-state :load-menu-files)]
       (when (< idx (count files))
         (save-load/load-game! (nth files idx))))))
 
@@ -54,14 +37,14 @@
   [x y button]
   (cond
     ;; Load menu is open - handle menu click
-    (read-runtime-state :load-menu-open)
+    (sa/read-state :load-menu-open)
     (when (= button :left)
       (handle-load-menu-click))
 
     ;; Normal map click
     (and (= button :left) (map-utils/on-map? x y))
     (let [[cell-x cell-y] (map-utils/determine-cell-coordinates x y)]
-      (write-runtime-state! :last-clicked-cell [cell-x cell-y])
+      (sa/write-state! :last-clicked-cell [cell-x cell-y])
       (handle-cell-click cell-x cell-y))))
 
 ;; Debug drag functions
@@ -74,14 +57,14 @@
 (defn debug-drag-start!
   "Starts a debug drag operation at the given screen coordinates."
   [x y]
-  (write-runtime-state! :debug-drag-start [x y])
-  (write-runtime-state! :debug-drag-current [x y]))
+  (sa/write-state! :debug-drag-start [x y])
+  (sa/write-state! :debug-drag-current [x y]))
 
 (defn debug-drag-update!
   "Updates the current drag position. Only updates if a drag is active."
   [x y]
-  (when (read-runtime-state :debug-drag-start)
-    (write-runtime-state! :debug-drag-current [x y])))
+  (when (sa/read-state :debug-drag-start)
+    (sa/write-state! :debug-drag-current [x y])))
 
 (defn- has-area?
   "Returns true if the cell range covers more than one cell."
@@ -93,16 +76,16 @@
   "Ends a debug drag operation and triggers the dump if ctrl is held and selection has area.
    Converts screen coordinates to cell range and writes the dump file."
   [x y modifiers]
-  (when (read-runtime-state :debug-drag-start)
+  (when (sa/read-state :debug-drag-start)
     (when (modifier-held? modifiers)
-      (let [start (read-runtime-state :debug-drag-start)
+      (let [start (sa/read-state :debug-drag-start)
             end [x y]
             cell-range (debug/screen-coords-to-cell-range start end)]
         (when (has-area? cell-range)
           (let [filename (debug/write-dump! (first cell-range) (second cell-range))]
-            (write-runtime-state! :debug-message (str "Debug: " filename))))))
-    (write-runtime-state! :debug-drag-start nil)
-    (write-runtime-state! :debug-drag-current nil)))
+            (sa/write-state! :debug-message (str "Debug: " filename))))))
+    (sa/write-state! :debug-drag-start nil)
+    (sa/write-state! :debug-drag-current nil)))
 
 (def ^:private backtick-unit-map
   {:A [:army :player] :F [:fighter :player] :Z [:satellite :player]
@@ -124,7 +107,7 @@
   (when (= k :escape) (save-load/close-load-menu!)))
 
 (defn- dispatch-backtick-key [k cell-coords]
-  (write-runtime-state! :backtick-pressed false)
+  (sa/write-state! :backtick-pressed false)
   (when cell-coords
     (if-let [[unit-type owner] (backtick-unit-map k)]
       (player-orders/add-unit-at cell-coords unit-type owner)
@@ -143,16 +126,16 @@
 
 (defn- dispatch-game-control-key [k]
   (cond
-    (= k backtick-key) (do (write-runtime-state! :backtick-pressed true) true)
+    (= k backtick-key) (do (sa/write-state! :backtick-pressed true) true)
     (= k :P) (do (game-loop/toggle-pause) true)
-    (= k :+) (do (update-runtime-state! :map-to-display cycle-map-display) true)
-    (and (= k :space) (read-runtime-state :paused)) (do (game-loop/step-one-round) true)))
+    (= k :+) (do (sa/update-state! :map-to-display cycle-map-display) true)
+    (and (= k :space) (sa/read-state :paused)) (do (game-loop/step-one-round) true)))
 
 (defn- dispatch-save-load-key [k]
   (cond
-    (= k bang-key) (do (write-runtime-state! :turn-message
+    (= k bang-key) (do (sa/write-state! :turn-message
                                              (str "Saved to " (save-load/save-game!)))
-                       (write-runtime-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
+                       (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
                        true)
     (= k caret-key) (do (save-load/open-load-menu!) true)))
 
@@ -174,6 +157,6 @@
 (defn dispatch-key [k cell-coords]
   (debug/log-action! [:key-pressed k])
   (cond
-    (read-runtime-state :load-menu-open)   (dispatch-load-menu-key k)
-    (read-runtime-state :backtick-pressed) (dispatch-backtick-key k cell-coords)
+    (sa/read-state :load-menu-open)   (dispatch-load-menu-key k)
+    (sa/read-state :backtick-pressed) (dispatch-backtick-key k cell-coords)
     :else                   (dispatch-normal-key k cell-coords)))

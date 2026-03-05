@@ -2,8 +2,7 @@
 (ns empire.computer.fighter
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]
             [empire.config :as config]
@@ -11,41 +10,23 @@
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]))
 
-(defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
 ;; --- Leg-based coverage ---
 
 (defn- ensure-flight-target
   [pos]
-  (flight-plan/ensure-flight-target! current-world update-game-map! read-runtime-state pos))
+  (flight-plan/ensure-flight-target! sa/current-world sa/update-world! sa/read-state pos))
 
 (defn- at-flight-target?
   [pos target]
-  (flight-plan/at-flight-target? current-world pos target))
+  (flight-plan/at-flight-target? sa/current-world pos target))
 
 (defn- assign-exploration-flight
   [pos site-pos]
-  (flight-plan/assign-exploration-flight! update-game-map! (current-world) pos site-pos))
+  (flight-plan/assign-exploration-flight! sa/update-world! (sa/current-world) pos site-pos))
 
 (defn- handle-arrival
   [pos unit]
-  (flight-plan/handle-arrival! current-world update-game-map! read-runtime-state write-runtime-state! pos unit))
+  (flight-plan/handle-arrival! sa/current-world sa/update-world! sa/read-state sa/write-state! pos unit))
 
 (defn- select-best-navigation-target
   "Score passable unoccupied neighbors by unexplored count, break ties by proximity."
@@ -80,8 +61,8 @@
 (defn- refuel-at-site
   "Refuel fighter in place, recording origin site for leg tracking."
   [pos site-pos]
-  (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-  (update-game-map! update-in (conj pos :contents)
+  (sa/update-world! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+  (sa/update-world! update-in (conj pos :contents)
                     assoc :flight-origin-site site-pos)
   pos)
 
@@ -95,7 +76,7 @@
 
 (defn- adjacent-to-city-site? [site pos]
   (and site
-       (= :city (:type (get-in (current-world) site)))
+       (= :city (:type (get-in (sa/current-world) site)))
        (<= (fm/distance-to pos site) 1)))
 
 (defn- adjacent-to-site? [site pos]
@@ -176,7 +157,7 @@
 (defn- fighter-at?
   "Returns true if a fighter exists at pos on the game map."
   [pos]
-  (= :fighter (get-in (current-world) (conj pos :contents :type))))
+  (= :fighter (get-in (sa/current-world) (conj pos :contents :type))))
 
 (defn- burn-stuck-fuel
   "Burns fuel for a stuck fighter at pos. Returns pos if survived, nil if died."
@@ -188,7 +169,7 @@
   "Execute one step. Returns {:pos p :steps-used n} or nil (landed/died)."
   [current-pos]
   (when (fighter-at? current-pos)
-    (let [unit (get-in (current-world) (conj current-pos :contents))
+    (let [unit (get-in (sa/current-world) (conj current-pos :contents))
           result (move-fighter-once current-pos unit)]
       (cond
         (= result :landed) nil
@@ -204,7 +185,7 @@
 
 (defn- process-threat-fighter?
   [pos unit]
-  (if-let [f (:process-fighter-threat @state-ctx)]
+  (if-let [f (:process-fighter-threat (sa/state-ctx))]
     (f pos unit)
     false))
 

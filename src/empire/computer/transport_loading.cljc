@@ -1,32 +1,16 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
             [empire.debug :as debug]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   [pos owner]
@@ -70,7 +54,7 @@
    Returns true if any adjacent land cell at any visited position
   has a loadable computer army."
   [pos transport max-depth]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         unloaded-countries (:unloaded-countries transport)
         unload-eid (:unload-event-id transport)
         check-neighbors (fn [p]
@@ -93,7 +77,7 @@
   "Loads computer armies from adjacent land cells. Returns number loaded.
    Skips armies from recently unloaded countries."
   [pos]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
         capacity (- 6 army-count)
@@ -116,10 +100,10 @@
     (let [loaded-positions (vec (take to-load armies))]
       (doseq [army-pos loaded-positions]
         (debug/log-computer-event! :transport-load-army pos {:from army-pos})
-        (update-game-map! update-in army-pos dissoc :contents)
+        (sa/update-world! update-in army-pos dissoc :contents)
         (update-cell-visibility! army-pos :computer))
       (when (pos? to-load)
-        (update-game-map! update-in (conj pos :contents :army-count) (fnil + 0) to-load))
+        (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load))
       ;; Wake nearby sentries to advance the transport queue
       (doseq [army-pos loaded-positions]
         (core/wake-nearby-sentries army-pos 3))
@@ -129,7 +113,7 @@
   "Moves transport to adjacent sea cell that is also adjacent to land.
    Avoids recent positions from crawl-history."
   [pos]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         unit (get-in game-map (conj pos :contents))
         history (set (:crawl-history unit []))
         passable (tc/get-passable-sea-neighbors pos)
@@ -145,7 +129,7 @@
         (update-cell-visibility! pos :computer)
         (update-cell-visibility! target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
-          (update-game-map! assoc-in (conj target :contents :crawl-history) new-history))
+          (sa/update-world! assoc-in (conj target :contents :crawl-history) new-history))
         ;; Auto-load armies from adjacent land at new position
         (load-adjacent-armies target)
         target))))
@@ -158,12 +142,12 @@
 
 (defn clear-pickup-continent-if-arrived
   [pos]
-  (let [transport (get-in (current-world) (conj pos :contents))
+  (let [transport (get-in (sa/current-world) (conj pos :contents))
         pcp (:pickup-continent-pos transport)]
     (when (and pcp
                (tc/adjacent-to-land? pos)
                (targeting/adjacent-to-pickup-continent? pos pcp))
-      (update-game-map! update-in (conj pos :contents)
+      (sa/update-world! update-in (conj pos :contents)
              dissoc :pickup-continent-pos))))
 
 (def ^:private max-loading-rounds 10)
@@ -171,4 +155,4 @@
 (defn loading-stale?
   [transport]
   (let [since (:loading-since transport)]
-    (and since (> (- (or (read-runtime-state :round-number) 0) since) max-loading-rounds))))
+    (and since (> (- (or (sa/read-state :round-number) 0) since) max-loading-rounds))))

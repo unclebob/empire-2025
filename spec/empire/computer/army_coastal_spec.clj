@@ -1,6 +1,7 @@
 (ns empire.computer.army-coastal-spec
   (:require [empire.test-utils :as test-utils]
             [speclj.core :refer :all]
+            [empire.application.state-access :as sa]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.movement :as movement]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
@@ -122,16 +123,16 @@
   (it "switches to sentry when already on coastal cell"
     (let [updates (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
-                    coastal/update-game-map! (fn [& args] (swap! updates conj args))
-                    coastal/current-world (fn [] {[0 0] {:contents {:mode :move-to-coast :coast-target [2 2]}}})]
+                    sa/update-world! (fn [& args] (swap! updates conj args))
+                    sa/current-world (fn [] {[0 0] {:contents {:mode :move-to-coast :coast-target [2 2]}}})]
         (should= [0 0] (coastal/process-move-to-coast-for-invasion [0 0] 1))
         (should= 1 (count @updates)))))
 
   (it "uses cached coast-target when present"
     (let [moves (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
-                    coastal/current-world (fn [] [[{:contents {:coast-target [3 3]}}]])
-                    coastal/update-game-map! (fn [& _] nil)
+                    sa/current-world (fn [] [[{:contents {:coast-target [3 3]}}]])
+                    sa/update-world! (fn [& _] nil)
                     movement/move-toward-objective
                     (fn [pos target country-id]
                       (swap! moves conj [pos target country-id])
@@ -142,10 +143,10 @@
   (it "falls back to local target when move toward main target fails"
     (let [moves (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
-                    coastal/current-world (fn [] {[0 0] {:contents {}}})
+                    sa/current-world (fn [] {[0 0] {:contents {}}})
                     coastal/find-coast-target-once (fn [_ _] [4 4])
                     empire.computer.army.coastal.invasion/local-empty-coast-target (fn [_ _ _] [2 2])
-                    coastal/update-game-map! (fn [& _] nil)
+                    sa/update-world! (fn [& _] nil)
                     movement/move-toward-objective
                     (fn [pos target country-id]
                       (swap! moves conj [pos target country-id])
@@ -157,8 +158,8 @@
 
   (it "returns nil when no target can be found"
     (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
-                  coastal/current-world (fn [] {[0 0] {:contents {}}})
+                  sa/current-world (fn [] {[0 0] {:contents {}}})
                   coastal/find-coast-target-once (fn [_ _] nil)
-                  coastal/update-game-map! (fn [& _] nil)
+                  sa/update-world! (fn [& _] nil)
                   movement/move-toward-objective (fn [& _] :should-not-run)]
       (should-be-nil (coastal/process-move-to-coast-for-invasion [0 0] 1)))))

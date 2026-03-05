@@ -1,17 +1,10 @@
 (ns empire.ui.quil.rendering.messages
   (:require [clojure.string :as str]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
-
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (defn- draw-text-right-justified
   "Draws text right-justified against the given right edge at vertical position y."
@@ -25,7 +18,7 @@
 (defn- draw-attention
   "Draws the attention message (row 1) left-justified in the Game Info region."
   [left-x text-y]
-  (let [attention-message (read-runtime-state :attention-message)]
+  (let [attention-message (sa/read-state :attention-message)]
     (when (seq attention-message)
       (q/text attention-message (+ left-x config/msg-left-padding) (+ text-y config/msg-line-1-y)))))
 
@@ -33,18 +26,18 @@
   "Draws the turn message (row 2) left-justified in the Game Info region.
    Falls back to destination display when no turn message is active."
   [left-x text-y]
-  (when-let [text (display/resolve-turn-text (read-runtime-state :turn-message)
-                                             (read-runtime-state :destination))]
+  (when-let [text (display/resolve-turn-text (sa/read-state :turn-message)
+                                             (sa/read-state :destination))]
     (q/text text (+ left-x config/msg-left-padding) (+ text-y config/msg-line-2-y))))
 
 (defn- draw-error
   "Draws the error message (row 3) in red, flashing, left-justified in the Game Info region."
   [left-x text-y]
-  (when (display/should-show-error? (read-runtime-state :error-until))
-    (when (and (seq (read-runtime-state :error-message))
+  (when (display/should-show-error? (sa/read-state :error-until))
+    (when (and (seq (sa/read-state :error-message))
                (map-utils/blink? 500))
       (q/fill 255 0 0)
-      (q/text (read-runtime-state :error-message) (+ left-x config/msg-left-padding) (+ text-y config/msg-line-3-y))
+      (q/text (sa/read-state :error-message) (+ left-x config/msg-left-padding) (+ text-y config/msg-line-3-y))
       (q/fill 255))))
 
 (defn- draw-game-info
@@ -59,7 +52,7 @@
 (defn- draw-debug
   "Draws the debug message centered in the Debug region."
   [debug-x debug-w text-y]
-  (let [debug-message (read-runtime-state :debug-message)]
+  (let [debug-message (sa/read-state :debug-message)]
     (when (seq debug-message)
       (let [center-x (+ debug-x (/ debug-w 2))
             lines (str/split debug-message #"\n")
@@ -77,9 +70,9 @@
   "Draws round status (row 1) right-justified. Prepends red PAUSED when paused."
   [right-edge text-y]
   (let [{:keys [text paused? round-str]}
-        (display/resolve-round-status-text (read-runtime-state :round-number)
-                                           (read-runtime-state :paused)
-                                           (read-runtime-state :pause-requested))]
+        (display/resolve-round-status-text (sa/read-state :round-number)
+                                           (sa/read-state :paused)
+                                           (sa/read-state :pause-requested))]
     (if paused?
       (let [full-width (q/text-width text)
             x (- right-edge full-width)
@@ -93,14 +86,14 @@
 (defn- draw-hover-info
   "Draws hover info (row 2) right-justified in the Game Status region."
   [right-edge text-y]
-  (let [hover-message (read-runtime-state :hover-message)]
+  (let [hover-message (sa/read-state :hover-message)]
     (when (seq hover-message)
       (draw-text-right-justified hover-message right-edge (+ text-y config/msg-line-2-y)))))
 
 (defn- draw-production-status
   "Draws production status (row 3) right-justified in the Game Status region."
   [right-edge text-y]
-  (let [production-status (read-runtime-state :production-status)]
+  (let [production-status (sa/read-state :production-status)]
     (when (seq production-status)
       (draw-text-right-justified production-status right-edge (+ text-y config/msg-line-3-y)))))
 
@@ -116,14 +109,14 @@
 (defn draw-message-area
   "Draws the three-region message area below the map."
   []
-  (let [[text-x text-y text-w _] (read-runtime-state :text-area-dimensions)
+  (let [[text-x text-y text-w _] (sa/read-state :text-area-dimensions)
         info-w (* text-w config/game-info-width-fraction)
         debug-w (* text-w config/debug-width-fraction)
         debug-x (+ text-x info-w)
         right-edge (+ text-x text-w)]
     (q/stroke 255)
     (q/line text-x (- text-y config/msg-separator-offset) (+ text-x text-w) (- text-y config/msg-separator-offset))
-    (q/text-font (read-runtime-state :text-font))
+    (q/text-font (sa/read-state :text-font))
     (q/fill 255)
     (draw-game-info text-x text-y)
     (draw-debug debug-x debug-w text-y)

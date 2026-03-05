@@ -1,19 +1,11 @@
 (ns empire.computer
   "Computer AI coordinator - dispatches to specialized modules for unit processing.
    Gutted for CommandingGeneral refactor - units currently do nothing."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.army :as army]
             [empire.computer.fighter :as fighter]
             [empire.computer.ship :as ship]
             [empire.computer.transport :as transport]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
 
 ;; Main dispatch function
 
@@ -35,6 +27,6 @@
 
 (defmethod process-computer-unit :default
   [pos]
-  (let [unit (:contents (get-in (current-world) pos))]
+  (let [unit (:contents (get-in (sa/current-world) pos))]
     (when (computer-unit? unit)
       (dispatch-unit pos unit))))

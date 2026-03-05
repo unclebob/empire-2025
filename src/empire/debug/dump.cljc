@@ -2,18 +2,7 @@
 (ns empire.debug.dump
   "Region-based debug dump rendering and file output helpers."
   (:require [clojure.string :as str]
-            [empire.application.runtime :as app-runtime]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
+            [empire.application.state-access :as sa]))
 
 (defn dump-region
   "Extract cells from all three maps for a coordinate range.
@@ -21,9 +10,9 @@
    Returns {:game-map {...} :player-map {...} :computer-map {...}}
    where each map is {[row col] cell-data}."
   [[start-row start-col] [end-row end-col]]
-  (let [game-map (current-world)
-        player-map (read-runtime-state :player-map)
-        computer-map (read-runtime-state :computer-map)
+  (let [game-map (sa/current-world)
+        player-map (sa/read-state :player-map)
+        computer-map (sa/read-state :computer-map)
         coords-in-range (for [row (range start-row (inc end-row))
                               col (range start-col (inc end-col))]
                           [row col])]
@@ -98,7 +87,7 @@
 (defn- find-coastline-units
   "Find all units in coastline-follow mode."
   []
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (for [col (range (count game-map))
           row (range (count (first game-map)))
           :let [cell (get-in game-map [col row])
@@ -134,9 +123,9 @@
 (defn- format-computer-event-section
   "Format computer unit event history for the last 50 rounds."
   []
-  (let [current-round (read-runtime-state :round-number)
+  (let [current-round (sa/read-state :round-number)
         min-round (max 1 (- current-round 49))
-        entries (read-runtime-state :computer-event-log)
+        entries (sa/read-state :computer-event-log)
         recent (filter #(<= min-round (:round %) current-round) entries)
         by-round (group-by :round recent)
         rounds (sort (keys by-round))]
@@ -160,9 +149,9 @@
 (defn- format-movement-history-section
   "Format player unit movement history for the last 20 rounds."
   []
-  (let [current-round (read-runtime-state :round-number)
+  (let [current-round (sa/read-state :round-number)
         min-round (max 1 (- current-round 19))
-        entries (read-runtime-state :player-movement-log)
+        entries (sa/read-state :player-movement-log)
         recent-entries (filter #(<= min-round (:round %) current-round) entries)
         by-round (group-by :round recent-entries)
         rounds-with-moves (sort (keys by-round))]
@@ -194,12 +183,12 @@
    - All cells in the region from all three maps"
   [[start-row start-col] [end-row end-col]]
   (let [region-data (dump-region [start-row start-col] [end-row end-col])
-        round (read-runtime-state :round-number)
-        cells-attention (read-runtime-state :cells-needing-attention)
-        player-items (read-runtime-state :player-items)
-        waiting (read-runtime-state :waiting-for-input)
-        dest (read-runtime-state :destination)
-        actions (take-last 50 (read-runtime-state :action-log))
+        round (sa/read-state :round-number)
+        cells-attention (sa/read-state :cells-needing-attention)
+        player-items (sa/read-state :player-items)
+        waiting (sa/read-state :waiting-for-input)
+        dest (sa/read-state :destination)
+        actions (take-last 50 (sa/read-state :action-log))
         header (str "=== Empire Debug Dump ===\n"
                     "Round: " round "\n"
                     "Selection: [" start-row "," start-col "] to [" end-row "," end-col "]\n"
@@ -216,10 +205,10 @@
                                (str (str/join "\n" (map format-action-entry actions)) "\n"))
                              "\n")
         production-section (str "=== Production State ===\n"
-                                "transport-fully-loaded?: " (read-runtime-state :transport-fully-loaded?) "\n"
-                                "early-patrol-boat-produced?: " (read-runtime-state :early-patrol-boat-produced?) "\n"
-                                "early-satellite-produced?: " (read-runtime-state :early-satellite-produced?) "\n"
-                                (let [prod (read-runtime-state :production)]
+                                "transport-fully-loaded?: " (sa/read-state :transport-fully-loaded?) "\n"
+                                "early-patrol-boat-produced?: " (sa/read-state :early-patrol-boat-produced?) "\n"
+                                "early-satellite-produced?: " (sa/read-state :early-satellite-produced?) "\n"
+                                (let [prod (sa/read-state :production)]
                                   (if (empty? prod)
                                     "  (no production)\n"
                                     (str/join "\n"

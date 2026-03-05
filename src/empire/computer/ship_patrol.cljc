@@ -1,34 +1,14 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   [pos owner]
@@ -37,7 +17,7 @@
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
   [pos]
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
@@ -49,7 +29,7 @@
 (defn- find-adjacent-non-transport-enemy
   "Finds an adjacent player unit that is not a transport."
   [pos]
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
@@ -61,7 +41,7 @@
 (defn- adjacent-to-land?
   "Returns true if the given position has at least one adjacent land or city cell."
   [pos]
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (some (fn [neighbor]
             (let [cell (get-in game-map neighbor)]
               (and cell (#{:land :city} (:type cell)))))
@@ -72,7 +52,7 @@
   [pos enemy-pos]
   (let [passable (ship-core/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
-                                 (nil? (:contents (get-in (current-world) n))))
+                                 (nil? (:contents (get-in (sa/current-world) n))))
                                passable)]
     (when (seq empty-passable)
       (let [farthest (apply max-key (partial core/distance enemy-pos) empty-passable)]
@@ -87,12 +67,12 @@
    all coastal neighbors are seen or at map edge with none unseen.
   Returns new position or nil."
   [pos]
-  (let [seen-coast (or (read-runtime-state :seen-coast) #{})]
-    (write-runtime-state! :seen-coast (conj seen-coast pos)))
+  (let [seen-coast (or (sa/read-state :seen-coast) #{})]
+    (sa/write-state! :seen-coast (conj seen-coast pos)))
   (let [passable (ship-core/get-passable-sea-neighbors pos)
-        empty-passable (filter #(nil? (:contents (get-in (current-world) %))) passable)
+        empty-passable (filter #(nil? (:contents (get-in (sa/current-world) %))) passable)
         coastal (filter adjacent-to-land? empty-passable)
-        unseen (remove (or (read-runtime-state :seen-coast) #{}) coastal)
+        unseen (remove (or (sa/read-state :seen-coast) #{}) coastal)
         targets (if (seq unseen) unseen coastal)
         switch? (empty? unseen)]
     (when (seq targets)
@@ -101,16 +81,16 @@
         (update-cell-visibility! pos :computer)
         (update-cell-visibility! target :computer)
         (when switch?
-          (update-game-map! assoc-in
+          (sa/update-world! assoc-in
                             (conj target :contents :patrol-mode) :exploring))
         target))))
 
 (defn- arrived-at-unseen-coast?
   "Returns true if pos is adjacent to land/city on computer-map and not in seen-coast."
   [pos]
-  (and (not (contains? (or (read-runtime-state :seen-coast) #{}) pos))
+  (and (not (contains? (or (sa/read-state :seen-coast) #{}) pos))
        (some (fn [neighbor]
-               (let [cell (get-in (read-runtime-state :computer-map) neighbor)]
+               (let [cell (get-in (sa/read-state :computer-map) neighbor)]
                  (and cell (#{:land :city} (:type cell)))))
              (core/get-neighbors pos))))
 
@@ -121,17 +101,17 @@
   (when-let [path (movement-port/movement-bfs-to-unseen-coast
                     (movement-services)
                     pos
-                    (read-runtime-state :computer-map)
-                    (read-runtime-state :claimed-patrol-targets))]
-    (let [claimed (or (read-runtime-state :claimed-patrol-targets) #{})]
-      (write-runtime-state! :claimed-patrol-targets (conj claimed (last path))))
-    (update-game-map! assoc-in
+                    (sa/read-state :computer-map)
+                    (sa/read-state :claimed-patrol-targets))]
+    (let [claimed (or (sa/read-state :claimed-patrol-targets) #{})]
+      (sa/write-state! :claimed-patrol-targets (conj claimed (last path))))
+    (sa/update-world! assoc-in
                       (conj pos :contents :explore-path) (vec path))
     path))
 
 (defn- switch-to-crawling [next-pos]
   "Switch patrol boat to crawling mode and clear explore state."
-  (update-game-map! update-in (conj next-pos :contents)
+  (sa/update-world! update-in (conj next-pos :contents)
                     #(-> % (assoc :patrol-mode :crawling)
                          (dissoc :explore-path))))
 
@@ -145,10 +125,10 @@
           (update-cell-visibility! next-pos :computer)
           (if (arrived-at-unseen-coast? next-pos)
             (switch-to-crawling next-pos)
-            (update-game-map! assoc-in
+            (sa/update-world! assoc-in
                               (conj next-pos :contents :explore-path) rest-path))
           next-pos)
-      (do (update-game-map! update-in
+      (do (sa/update-world! update-in
                             (conj pos :contents) dissoc :explore-path)
           nil))))
 
@@ -159,7 +139,7 @@
     (if (zero? steps)
       (when (seq path) path)
       (let [neighbors (ship-core/get-passable-sea-neighbors pos)
-            empty-nbrs (filter #(nil? (:contents (get-in (current-world) %))) neighbors)]
+            empty-nbrs (filter #(nil? (:contents (get-in (sa/current-world) %))) neighbors)]
         (if (empty? empty-nbrs)
           (when (seq path) path)
           (let [next-pos (rand-nth empty-nbrs)]
@@ -169,7 +149,7 @@
   "Generates a random sea walk and stores it as explore-path on the unit."
   [pos]
   (when-let [path (generate-random-sea-walk pos 10)]
-    (update-game-map! assoc-in
+    (sa/update-world! assoc-in
                       (conj pos :contents :explore-path) (vec path))
     path))
 
@@ -179,20 +159,20 @@
    Switches to crawling on arrival at unseen coast.
   Returns new position or nil."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))
+  (let [unit (get-in (sa/current-world) (conj pos :contents))
         path (:explore-path unit)]
     (if (seq path)
       (follow-explore-path pos path)
       (when (or (run-bfs-and-store-path pos)
                 (store-random-walk pos))
         (let [new-path (:explore-path
-                         (get-in (current-world) (conj pos :contents)))]
+                         (get-in (sa/current-world) (conj pos :contents)))]
           (follow-explore-path pos new-path))))))
 
 (defn- patrol-mode-step
   "Execute one mode-based movement step. Returns new position or nil."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))]
+  (let [unit (get-in (sa/current-world) (conj pos :contents))]
     (case (or (:patrol-mode unit) :crawling)
       :crawling (patrol-crawl-step pos)
       :exploring (patrol-explore-step pos))))
@@ -214,7 +194,7 @@
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))]
+  (let [unit (get-in (sa/current-world) (conj pos :contents))]
     (if (:major-invasion unit)
       (major-invasion-step pos)
       (non-invasion-step pos))))
@@ -226,9 +206,9 @@
   [pos]
   (loop [current-pos pos steps-left 4]
     (if (or (zero? steps-left)
-            (nil? (get-in (current-world) (conj current-pos :contents))))
+            (nil? (get-in (sa/current-world) (conj current-pos :contents))))
       current-pos
-      (if (and (:major-invasion (get-in (current-world) (conj current-pos :contents)))
+      (if (and (:major-invasion (get-in (sa/current-world) (conj current-pos :contents)))
                (ship-core/find-adjacent-enemy-ship current-pos))
         (or (major-invasion-step current-pos) current-pos)
         (if-let [new-pos (patrol-boat-step current-pos)]

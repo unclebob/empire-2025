@@ -2,8 +2,7 @@
 (ns empire.computer.threat-response
   "Threat-response coordinator for enemy detections.
    Handles fighter/ship local responses and global major invasion mobilization."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fighter-movement]
             [empire.computer.threat-response.invasion-state :as invasion-state]
@@ -23,28 +22,13 @@
 (def ^:private max-invasion-coastal-candidates 24)
 (def ^:private preferred-invasion-landing-distance 8)
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
 (defn- load-major-invasion-state
   []
-  ((:load-major-invasion-state @state-ctx)))
+  ((:load-major-invasion-state (sa/state-ctx))))
 
 (defn- save-major-invasion-state!
   [state]
-  ((:save-major-invasion-state! @state-ctx) state))
+  ((:save-major-invasion-state! (sa/state-ctx)) state))
 
 (defn- update-major-invasion-state!
   [f & args]
@@ -68,7 +52,7 @@
   []
   (let [state (load-major-invasion-state)
         target-land (invasion-state/recompute-target-land
-                     (current-world)
+                     (sa/current-world)
                      (:detection-points state))
         current-target-land (:target-land-set state)
         changed? (not= current-target-land target-land)
@@ -81,7 +65,7 @@
 
 (defn- find-computer-unit-positions
   [pred]
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [unit (get-in game-map [i j :contents])]
@@ -93,7 +77,7 @@
 (defn- assign-threat-mission!
   [positions mission-kv]
   (doseq [pos positions]
-    (update-game-map! update-in (conj pos :contents) merge mission-kv)))
+    (sa/update-world! update-in (conj pos :contents) merge mission-kv)))
 
 (defn- closest-positions
   [origin positions n]
@@ -109,9 +93,9 @@
   []
   {:load-major-invasion-state load-major-invasion-state
    :update-major-invasion-state! update-major-invasion-state!
-   :current-world current-world
-   :read-runtime-state read-runtime-state
-   :update-game-map! update-game-map!
+   :current-world sa/current-world
+   :read-runtime-state sa/read-state
+   :update-game-map! sa/update-world!
    :nearest-major-target nearest-major-target
    :major-invasion-ship-types major-invasion-ship-types
    :computer-sea-unit-types computer-sea-unit-types})
@@ -144,7 +128,7 @@
 (defn- best-invasion-target-and-path
   [pos target]
   (let [state (load-major-invasion-state)
-        computer-map (read-runtime-state :computer-map)
+        computer-map (sa/read-state :computer-map)
         all-candidates (connected-coastal-candidates computer-map state target)
         nearby-candidates (filter #(<= (core/chebyshev-distance % target)
                                        preferred-invasion-landing-distance)
@@ -181,12 +165,12 @@
   (let [t (:type unit)]
     (cond
       (= :fighter t)
-      (update-game-map! update-in (conj pos :contents)
+      (sa/update-world! update-in (conj pos :contents)
                         assoc :major-invasion true
                         :major-invasion-target (nearest-major-target pos))
 
       (major-invasion-ship-types t)
-      (update-game-map! update-in (conj pos :contents)
+      (sa/update-world! update-in (conj pos :contents)
                         assoc :major-invasion true
                         :major-invasion-target (nearest-major-ship-target pos))
 
@@ -209,7 +193,7 @@
       (update-major-invasion-state!
        invasion-state/activate-state
        pos
-       (read-runtime-state :round-number))
+       (sa/read-state :round-number))
       (recompute-major-invasion-target-land!)
       (recompute-sea-reachable-detection-points!))))
 
@@ -244,7 +228,7 @@
   []
   (when (major-invasion-active?)
     (let [units (find-computer-unit-positions (constantly true))
-          world (current-world)]
+          world (sa/current-world)]
       (doseq [pos units
               :let [unit (get-in world (conj pos :contents))]
               :when unit]
@@ -253,14 +237,14 @@
 (defn on-round-start!
   "Round-start maintenance for threat responses."
   []
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (doseq [i (range (count game-map))
             j (range (count (first game-map)))
             :let [unit (get-in game-map [i j :contents])]
             :when (and unit
                        (= :computer (:owner unit))
                        (:threat-mission unit))]
-      (update-game-map! update-in [i j :contents] dec-threat-rounds)))
+      (sa/update-world! update-in [i j :contents] dec-threat-rounds)))
   (when (major-invasion-active?)
     (recompute-major-invasion-target-land!)
     (recompute-sea-reachable-detection-points!)
@@ -270,7 +254,7 @@
   "Called by transport processing; applies major-invasion directives when active."
   [pos]
   (when (major-invasion-active?)
-    (when-let [unit (get-in (current-world) (conj pos :contents))]
+    (when-let [unit (get-in (sa/current-world) (conj pos :contents))]
       (when (= :transport (:type unit))
         (prepare-transport-major-invasion! pos unit)
         true))))
@@ -278,8 +262,8 @@
 (defn- fighter-step-threat
   [pos unit]
   (processing/fighter-step-threat
-   {:current-world current-world
-    :update-game-map! update-game-map!
+   {:current-world sa/current-world
+    :update-game-map! sa/update-world!
     :nearest-major-target nearest-major-target
     :threat-radius (threat-radius)}
    pos
@@ -295,7 +279,7 @@
            remaining fighter-movement/fighter-speed]
       (when (pos? remaining)
         (when-let [{:keys [pos steps-used]}
-                   (fighter-step-threat current (get-in (current-world) (conj current :contents)))]
+                   (fighter-step-threat current (get-in (sa/current-world) (conj current :contents)))]
           (recur pos (- remaining steps-used)))))
     true))
 
@@ -304,7 +288,7 @@
    Returns true when handled."
   [pos ship-type unit]
   (processing/process-ship-threat
-   {:current-world current-world
+   {:current-world sa/current-world
     :nearest-major-target nearest-major-ship-target
     :threat-radius (threat-radius)}
    pos

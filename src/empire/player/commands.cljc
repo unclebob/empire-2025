@@ -2,10 +2,9 @@
 (ns empire.player.commands
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.application.movement-services :as movement-services]
             [empire.application.ports.movement :as ports]
-            [empire.application.state :as app-state]
             [empire.config :as config]
             [empire.player.attention :as attention]
             [empire.player.commands.actions :as actions]
@@ -15,48 +14,23 @@
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
-
 (defn- movement-port []
-  (or (:movement-port @state-ctx)
+  (or (:movement-port (sa/state-ctx))
       (throw (ex-info "Movement port not configured in runtime state context" {}))))
 
 (defn- set-error-message!
   [msg ms]
-  (write-runtime-state! :error-message msg)
-  (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
+  (sa/write-state! :error-message msg)
+  (sa/write-state! :error-until (+ (System/currentTimeMillis) ms)))
 
 (defn- item-processed!
   []
-  (write-runtime-state! :waiting-for-input false)
-  (write-runtime-state! :cells-needing-attention []))
+  (sa/write-state! :waiting-for-input false)
+  (sa/write-state! :cells-needing-attention []))
 
 (defn- coastal-cell?
   [coords]
-  (movement-services/any-neighbor-matches? coords (current-world) movement-services/neighbor-offsets
+  (movement-services/any-neighbor-matches? coords (sa/current-world) movement-services/neighbor-offsets
                                            #(= :sea (:type %))))
 
 (defn- try-set-production [coords item]
@@ -74,16 +48,16 @@
              (= (:city-status cell) :player)
              (not (ports/movement-get-active-unit (movement-port) cell)))
     (cond
-      (= k :space) (do (update-runtime-state! :player-items rest)
+      (= k :space) (do (sa/update-state! :player-items rest)
                        (item-processed!)
                        true)
-      (= k :x) (do (update-runtime-state! :production assoc coords :none)
+      (= k :x) (do (sa/update-state! :production assoc coords :none)
                    (item-processed!)
                    true)
       (config/key->production-item k) (try-set-production coords (config/key->production-item k)))))
 
 (defn- calculate-extended-target [coords [dx dy]]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         height (count world)
         width (count (first world))
         [x y] coords]
@@ -96,18 +70,18 @@
 
 (defn- launch-fighter-and-update [launch-fn coords target]
   (let [fighter-pos (launch-fn coords target)]
-    (write-runtime-state! :waiting-for-input false)
-    (write-runtime-state! :attention-message "")
-    (write-runtime-state! :cells-needing-attention [])
-    (update-runtime-state! :player-items #(cons fighter-pos (rest %)))
+    (sa/write-state! :waiting-for-input false)
+    (sa/write-state! :attention-message "")
+    (sa/write-state! :cells-needing-attention [])
+    (sa/update-state! :player-items #(cons fighter-pos (rest %)))
     true))
 
 (defn- actions-ctx []
-  {:current-world current-world
-   :update-game-map! update-game-map!
-   :read-runtime-state read-runtime-state
-   :write-runtime-state! write-runtime-state!
-   :update-runtime-state! update-runtime-state!
+  {:current-world sa/current-world
+   :update-game-map! sa/update-world!
+   :read-runtime-state sa/read-state
+   :write-runtime-state! sa/write-state!
+   :update-runtime-state! sa/update-state!
    :movement-port (movement-port)
    :launch-fighter-and-update launch-fighter-and-update})
 
@@ -138,7 +112,7 @@
   true)
 
 (defn- undamaged-ship-entering-friendly-city? [active-unit adjacent-target]
-  (let [target-cell (get-in (current-world) adjacent-target)
+  (let [target-cell (get-in (sa/current-world) adjacent-target)
         unit-type (:type active-unit)
         max-hits (dispatcher/hits unit-type)]
     (and (dispatcher/naval-unit? unit-type)
@@ -194,7 +168,7 @@
         (let [[x y] coords
               [dx dy] direction
               adjacent-target [(+ x dx) (+ y dy)]
-              target-cell (get-in (current-world) adjacent-target)
+              target-cell (get-in (sa/current-world) adjacent-target)
               target (if extended?
                        (calculate-extended-target coords direction)
                        adjacent-target)]
@@ -212,8 +186,8 @@
   (actions/handle-cell-click (actions-ctx) cell-x cell-y))
 
 (defn handle-key [k]
-  (when-let [coords (first (read-runtime-state :cells-needing-attention))]
-    (let [cell (get-in (current-world) coords)
+  (when-let [coords (first (sa/read-state :cells-needing-attention))]
+    (let [cell (get-in (sa/current-world) coords)
           active-unit (ports/movement-get-active-unit (movement-port) cell)]
       (if active-unit
         (case k

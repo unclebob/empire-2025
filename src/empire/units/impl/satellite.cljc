@@ -1,20 +1,8 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.units.impl.satellite
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.units.config :as units-config]
             [empire.units.satellite :as satellite]))
-
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (let [world ((:load-world @state-ctx))]
-    ((:save-world! @state-ctx) (apply f world args))))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
 
 (defn- extend-to-boundary
   [[x y] [dx dy] map-height map-width]
@@ -70,7 +58,7 @@
 
 (defmethod satellite/move-one-step :default
   [[x y]]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         cell (get-in world [x y])
         unit (:contents cell)
         target (:target unit)]
@@ -83,13 +71,13 @@
         (if at-target?
           (let [new-target (satellite/calculate-bounce-target [x y] map-height map-width)
                 updated-unit (assoc unit :target new-target)]
-            (update-game-map! assoc-in [x y :contents] updated-unit)
+            (sa/update-world! assoc-in [x y :contents] updated-unit)
             [x y])
           (let [dx (Integer/signum (- tx x))
                 dy (Integer/signum (- ty y))
                 new-pos [(+ x dx) (+ y dy)]]
-            (update-game-map! assoc-in [x y :contents] nil)
-            (update-game-map! assoc-in (conj new-pos :contents) unit)
+            (sa/update-world! assoc-in [x y :contents] nil)
+            (sa/update-world! assoc-in (conj new-pos :contents) unit)
             new-pos))))))
 
 (defn load-methods!

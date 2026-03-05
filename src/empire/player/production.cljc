@@ -2,35 +2,9 @@
 (ns empire.player.production
   (:require [empire.application.city-production :as city-production]
             [empire.application.movement-services :as movement-services]
-            [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+            [empire.application.state-access :as sa]
             [empire.application.unit-stamping :as unit-stamping]
             [empire.config :as config]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
 
 (defn- stamp-computer-fields
   [unit cell]
@@ -101,13 +75,13 @@
 (defn- stamp-adjacent-land
   "Stamps country-id on land cells adjacent to a city when a computer army spawns."
   [coords country-id]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         neighbors (movement-services/get-matching-neighbors coords game-map
                                                             movement-services/neighbor-offsets some?)]
     (doseq [n neighbors]
       (let [cell (get-in game-map n)]
         (when (and (= :land (:type cell)) (nil? (:country-id cell)))
-          (update-game-map! assoc-in (conj n :country-id) country-id))))))
+          (sa/update-world! assoc-in (conj n :country-id) country-id))))))
 
 (defn- spawn-unit
   "Creates and places a unit at the given city coordinates."
@@ -121,38 +95,38 @@
                  (apply-random-explore-fields item cell)
                  (apply-movement-orders item marching-orders flight-path)
                  (cond-> (= item :transport) (assoc :produced-at coords)))]
-    (update-game-map! assoc-in (conj coords :contents) unit)
+    (sa/update-world! assoc-in (conj coords :contents) unit)
     (when (and (= owner :computer) (= item :army) (:country-id cell))
       (stamp-adjacent-land coords (:country-id cell)))
     (when (and (= owner :computer) (= item :carrier))
-      (update-runtime-state! :computer-carrier-positions conj coords))
+      (sa/update-state! :computer-carrier-positions conj coords))
     owner))
 
 (defn- handle-production-complete
   "Handles production completion: spawns unit and updates production state."
   [coords prod item]
-  (let [cell (get-in (current-world) coords)
+  (let [cell (get-in (sa/current-world) coords)
         owner (spawn-unit coords cell item)]
     (if (= owner :computer)
-      (update-runtime-state! :production dissoc coords)
-      (update-runtime-state! :production assoc coords
+      (sa/update-state! :production dissoc coords)
+      (sa/update-state! :production assoc coords
                              (assoc prod :remaining-rounds (config/item-cost item))))))
 
 (defn- update-city-production
   "Updates production for a single city."
   [coords prod]
-  (let [cell (get-in (current-world) coords)]
+  (let [cell (get-in (sa/current-world) coords)]
     (when-not (:contents cell)
       (let [item (:item prod)
             remaining (dec (:remaining-rounds prod))]
         (if (zero? remaining)
           (handle-production-complete coords prod item)
-          (update-runtime-state! :production assoc coords
+          (sa/update-state! :production assoc coords
                                  (assoc prod :remaining-rounds remaining)))))))
 
 (defn update-production
   "Updates production for all cities by decrementing remaining rounds."
   []
-  (doseq [[coords prod] (read-runtime-state :production)]
+  (doseq [[coords prod] (sa/read-state :production)]
     (when (map? prod)
       (update-city-production coords prod))))

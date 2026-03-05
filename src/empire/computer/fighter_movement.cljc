@@ -1,28 +1,16 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
             [empire.combat :as combat]
             [empire.config :as config]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 
 (defn- update-cell-visibility!
   ([pos owner]
@@ -33,7 +21,7 @@
 (defmulti get-passable-neighbors (fn [& _] :default))
 (defmethod get-passable-neighbors :default
   [pos]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         height (count game-map)
         width (count (first game-map))]
     (filter (fn [[r c]]
@@ -44,7 +32,7 @@
 (defmulti occupied? (fn [& _] :default))
 (defmethod occupied? :default
   [pos]
-  (some? (get-in (current-world) (conj pos :contents))))
+  (some? (get-in (sa/current-world) (conj pos :contents))))
 
 (defn- diagonal-move?
   "Returns true if moving from pos to target involves both row and column change."
@@ -54,7 +42,7 @@
 (defmulti friendly-occupied? (fn [& _] :default))
 (defmethod friendly-occupied? :default
   [pos]
-  (let [contents (get-in (current-world) (conj pos :contents))]
+  (let [contents (get-in (sa/current-world) (conj pos :contents))]
     (and (some? contents) (= :computer (:owner contents)))))
 
 (defn- best-neighbor-toward
@@ -97,7 +85,7 @@
 (defmulti in-bounds? (fn [& _] :default))
 (defmethod in-bounds? :default
   [[r c]]
-  (let [game-map (current-world)
+  (let [game-map (sa/current-world)
         height (count game-map)
         width (count (first game-map))]
     (and (>= r 0) (< r height)
@@ -136,7 +124,7 @@
 (defmulti find-adjacent-enemy (fn [& _] :default))
 (defmethod find-adjacent-enemy :default
   [pos]
-  (let [game-map (current-world)]
+  (let [game-map (sa/current-world)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
@@ -148,15 +136,15 @@
 (defmulti attack-enemy (fn [& _] :default))
 (defmethod attack-enemy :default
   [fighter-pos enemy-pos]
-  (let [attacker (get-in (current-world) (conj fighter-pos :contents))
-        defender (get-in (current-world) (conj enemy-pos :contents))
+  (let [attacker (get-in (sa/current-world) (conj fighter-pos :contents))
+        defender (get-in (sa/current-world) (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)]
     ;; Remove attacker from original position
-    (update-game-map! update-in fighter-pos dissoc :contents)
+    (sa/update-world! update-in fighter-pos dissoc :contents)
     (if (= :attacker (:winner result))
       ;; Attacker won - move to enemy position
       (do
-        (update-game-map! assoc-in (conj enemy-pos :contents) (:survivor result))
+        (sa/update-world! assoc-in (conj enemy-pos :contents) (:survivor result))
         (update-cell-visibility! fighter-pos :computer)
         (update-cell-visibility! enemy-pos :computer)
         enemy-pos)
@@ -204,24 +192,24 @@
 (defmulti land-at-city (fn [& _] :default))
 (defmethod land-at-city :default
   [pos city-pos]
-  (let [_fighter (get-in (current-world) (conj pos :contents))]
+  (let [_fighter (get-in (sa/current-world) (conj pos :contents))]
     ;; Remove from current position
-    (update-game-map! update-in pos dissoc :contents)
+    (sa/update-world! update-in pos dissoc :contents)
     ;; Add to city's airport
-    (update-game-map! update-in (conj city-pos :fighter-count) (fnil inc 0))
+    (sa/update-world! update-in (conj city-pos :fighter-count) (fnil inc 0))
     (update-cell-visibility! pos :computer)
     :landed))
 
 (defmulti consume-fighter-fuel (fn [& _] :default))
 (defmethod consume-fighter-fuel :default
   [pos]
-  (let [unit (get-in (current-world) (conj pos :contents))
+  (let [unit (get-in (sa/current-world) (conj pos :contents))
         new-fuel (dec (:fuel unit config/fighter-fuel))]
     (if (<= new-fuel 0)
-      (do (update-game-map! update-in pos dissoc :contents)
+      (do (sa/update-world! update-in pos dissoc :contents)
           (update-cell-visibility! pos :computer)
           false)
-      (do (update-game-map! assoc-in (conj pos :contents :fuel) new-fuel)
+      (do (sa/update-world! assoc-in (conj pos :contents :fuel) new-fuel)
           true))))
 
 (defmulti consume-hop-fuel (fn [& _] :default))

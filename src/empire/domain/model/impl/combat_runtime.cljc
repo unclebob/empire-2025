@@ -1,6 +1,6 @@
 ;; mutation-tested: no
 (ns empire.domain.model.impl.combat-runtime
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.combat :as combat]
             [empire.combat.escorts :as escorts]
             [empire.config :as config]
@@ -8,51 +8,21 @@
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
 (def ^:private flippable-types
   "Unit types that flip ownership on city conquest (ships and fighters)."
   #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
 
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- set-game-map!
-  [world]
-  ((:save-world! @state-ctx) world))
-
-(defn- update-game-map!
-  [f & args]
-  (let [world (current-world)]
-    (set-game-map! (apply f world args))))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
-
 (defn- set-error-message!
   [msg ms]
-  (write-runtime-state! :error-message msg)
-  (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
+  (sa/write-state! :error-message msg)
+  (sa/write-state! :error-until (+ (System/currentTimeMillis) ms)))
 
 (defn- set-turn-message!
   [msg ms]
-  (write-runtime-state! :turn-message msg)
-  (write-runtime-state! :turn-message-until (if (= ms Long/MAX_VALUE)
-                                               Long/MAX_VALUE
-                                               (+ (System/currentTimeMillis) ms))))
+  (sa/write-state! :turn-message msg)
+  (sa/write-state! :turn-message-until (if (= ms Long/MAX_VALUE)
+                                          Long/MAX_VALUE
+                                          (+ (System/currentTimeMillis) ms))))
 
 (defn- update-cell-visibility!
   [pos owner]
@@ -83,35 +53,35 @@
 
 (defmethod combat/conquer-city-contents :default
   [city-coords new-owner]
-  (set-game-map! (conquer-city-contents-world (current-world) city-coords new-owner))
-  (update-runtime-state! :production dissoc city-coords)
+  (sa/update-world! (fn [w] (conquer-city-contents-world w city-coords new-owner)))
+  (sa/update-state! :production dissoc city-coords)
   nil)
 
 (defmethod combat/hostile-city? :default
   [target-coords]
-  (let [target-cell (get-in (current-world) target-coords)]
+  (let [target-cell (get-in (sa/current-world) target-coords)]
     (and (= (:type target-cell) :city)
          (config/hostile-city? (:city-status target-cell)))))
 
 (defmethod combat/attempt-city-conquest :default
   [city-coords]
-  (let [city-cell (get-in (current-world) city-coords)]
+  (let [city-cell (get-in (sa/current-world) city-coords)]
     (if (< (rand) 0.5)
       (do
         (when (= :computer (:city-status city-cell))
-          (update-runtime-state! :computer-city-positions disj city-coords))
-        (update-game-map! assoc-in city-coords (assoc city-cell :city-status :player))
+          (sa/update-state! :computer-city-positions disj city-coords))
+        (sa/update-world! assoc-in city-coords (assoc city-cell :city-status :player))
         (combat/conquer-city-contents city-coords :player)
-        (update-runtime-state! :computer-carrier-positions disj city-coords)
+        (sa/update-state! :computer-carrier-positions disj city-coords)
         (update-cell-visibility! city-coords :player)
-        (update-runtime-state! :computer-map assoc-in (conj city-coords :city-status) :player))
+        (sa/update-state! :computer-map assoc-in (conj city-coords :city-status) :player))
       (set-error-message! (:conquest-failed config/messages) config/error-message-duration))
     true))
 
 (defmethod combat/attempt-conquest :default
   [army-coords city-coords]
-  (let [army-cell (get-in (current-world) army-coords)]
-    (update-game-map! assoc-in army-coords (dissoc army-cell :contents))
+  (let [army-cell (get-in (sa/current-world) army-coords)]
+    (sa/update-world! assoc-in army-coords (dissoc army-cell :contents))
     (update-cell-visibility! army-coords :player)
     (combat/attempt-city-conquest city-coords)))
 
@@ -125,10 +95,10 @@
 
 (defmethod combat/attempt-fighter-overfly :default
   [fighter-coords city-coords]
-  (let [fighter-cell (get-in (current-world) fighter-coords)
+  (let [fighter-cell (get-in (sa/current-world) fighter-coords)
         fighter (:contents fighter-cell)
         shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
-    (set-game-map! (apply-fighter-overfly-world (current-world) fighter-coords city-coords shot-down-fighter))
+    (sa/update-world! (fn [w] (apply-fighter-overfly-world w fighter-coords city-coords shot-down-fighter)))
     (set-error-message! (:fighter-destroyed-by-city config/messages) config/error-message-duration)
     true))
 
@@ -163,8 +133,8 @@
 (defmethod combat/clear-escort-on-death :default
   [dead-unit]
   (escorts/clear-escort-on-death!
-   {:current-world current-world
-    :update-game-map! update-game-map!}
+   {:current-world sa/current-world
+    :update-game-map! sa/update-world!}
    dead-unit))
 
 (defn- drown-excess-cargo
@@ -179,7 +149,7 @@
       (when (pos? excess)
         (let [current-awake (get survivor awake-key 0)
               new-awake (min current-awake cap)]
-          (update-game-map! update-in (conj coords :contents)
+          (sa/update-world! update-in (conj coords :contents)
                             assoc count-key cap awake-key new-awake))))))
 
 (defn- apply-attack-world
@@ -190,7 +160,7 @@
 
 (defmethod combat/attempt-attack :default
   [attacker-coords target-coords]
-  (let [world (current-world)
+  (let [world (sa/current-world)
         attacker-cell (get-in world attacker-coords)
         target-cell (get-in world target-coords)
         attacker (:contents attacker-cell)
@@ -207,7 +177,7 @@
                                                  (:type defender)
                                                  (:winner result))
             dead-unit (if (= :attacker (:winner result)) defender attacker)]
-        (set-game-map! (apply-attack-world world attacker-coords target-coords (:survivor result)))
+        (sa/update-world! (fn [w] (apply-attack-world w attacker-coords target-coords (:survivor result))))
         (drown-excess-cargo target-coords (:survivor result))
         (combat/clear-escort-on-death dead-unit)
         (set-turn-message! message Long/MAX_VALUE)

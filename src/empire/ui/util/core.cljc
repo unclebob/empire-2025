@@ -1,18 +1,7 @@
 (ns empire.ui.util.core
   (:require [empire.application.coords :as app-coords]
-            [empire.application.runtime :as app-runtime]
+            [empire.application.state-access :as sa]
             [empire.config :as config]))
-
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
 
 (defn screen->cell
   "Converts screen pixel coordinates to map cell coordinates [row col].
@@ -36,11 +25,11 @@
 (defn calculate-screen-dimensions
   "Sets pixel rendering dimensions from known map-size and fixed cell-size."
   []
-  (let [[cols rows] (read-runtime-state :map-size)
+  (let [[cols rows] (sa/read-state :map-size)
         [cell-w cell-h] config/cell-size
         dims (compute-screen-dimensions cols rows cell-w cell-h)]
-    (write-runtime-state! :map-screen-dimensions (:map-screen-dimensions dims))
-    (write-runtime-state! :text-area-dimensions (:text-area-dimensions dims))))
+    (sa/write-state! :map-screen-dimensions (:map-screen-dimensions dims))
+    (sa/write-state! :text-area-dimensions (:text-area-dimensions dims))))
 
 (defn parse-args
   "Parses command-line args into a map of {:cols :rows :seed :window-w :window-h}.
@@ -66,4 +55,4 @@
     {:cols cols :rows rows :seed seed :window-w window-w :window-h window-h}))
 
 (defn key-released [_ _]
-  (write-runtime-state! :last-key nil))
+  (sa/write-state! :last-key nil))

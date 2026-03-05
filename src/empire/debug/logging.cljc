@@ -1,24 +1,7 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.logging
   "Debug log appenders with bounded history."
-  (:require [empire.application.runtime :as app-runtime]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
+  (:require [empire.application.state-access :as sa]))
 
 (def ^:private max-action-log-size 100)
 (def ^:private max-movement-log-size 500)
@@ -29,14 +12,14 @@
    event is :move, :wake, or :blocked.
    reason is the wake/block reason (e.g., :steps-exhausted, :blocked) or nil for normal moves."
   [unit-type from-pos to-pos mode event reason]
-  (let [entry {:round (read-runtime-state :round-number)
+  (let [entry {:round (sa/read-state :round-number)
                :unit-type unit-type
                :from from-pos
                :to to-pos
                :mode mode
                :event event
                :reason reason}]
-    (update-runtime-state! :player-movement-log
+    (sa/update-state! :player-movement-log
                            (fn [log]
                              (let [new-log (conj (or log []) entry)]
                                (if (> (count new-log) max-movement-log-size)
@@ -47,9 +30,9 @@
   "Log a computer unit event. event is a keyword like :army-move, :army-die, etc.
    pos is the unit's position. details is an optional map of extra info."
   [event pos details]
-  (let [entry (cond-> {:round (read-runtime-state :round-number) :event event :pos pos}
+  (let [entry (cond-> {:round (sa/read-state :round-number) :event event :pos pos}
                 details (merge details))]
-    (update-runtime-state! :computer-event-log
+    (sa/update-state! :computer-event-log
                            (fn [log]
                              (let [new-log (conj (or log []) entry)]
                                (if (> (count new-log) max-computer-event-log-size)
@@ -64,7 +47,7 @@
   [action]
   (let [entry {:timestamp (System/currentTimeMillis)
                :action action}]
-    (update-runtime-state! :action-log
+    (sa/update-state! :action-log
                            (fn [log]
                              (let [new-log (conj (or log []) entry)]
                                (if (> (count new-log) max-action-log-size)

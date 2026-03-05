@@ -1,45 +1,25 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
   "Shared utilities for computer AI modules."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.ports.movement :as movement-port]
-            [empire.application.state :as app-state]
+  (:require [empire.application.ports.movement :as movement-port]
+            [empire.application.state-access :as sa]
             [empire.computer.core.transport-search :as transport-search]
             [empire.debug :as debug]
             [empire.combat :as combat]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- update-game-map!
-  [f & args]
-  (apply app-state/update-world! @state-ctx f args))
-
-(defn- current-world
-  []
-  ((:load-world @state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
 (defn- movement-services
   []
-  (:movement-port @state-ctx))
+  (:movement-port (sa/state-ctx)))
 
 (defn- country-city-producing-armies?
   [city-pos country-id]
-  (if-let [f (:country-city-producing-armies? @state-ctx)]
+  (if-let [f (:country-city-producing-armies? (sa/state-ctx))]
     (f city-pos country-id)
     false))
 
 (defn- set-city-production!
   [city-pos item]
-  (if-let [f (:set-city-production! @state-ctx)]
+  (if-let [f (:set-city-production! (sa/state-ctx))]
     (f city-pos item)
     nil))
 
@@ -69,18 +49,13 @@
 
 (defn- on-same-continent?
   [country-a country-b]
-  ((:on-same-continent? @state-ctx) country-a country-b))
+  ((:on-same-continent? (sa/state-ctx)) country-a country-b))
 
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
 
 (defmulti get-neighbors (fn [& _] :default))
 (defmethod get-neighbors :default
   [pos]
-  (neighbors-in-map (current-world) pos))
+  (neighbors-in-map (sa/current-world) pos))
 
 (defmulti distance (fn [& _] :default))
 (defmethod distance :default
@@ -104,7 +79,7 @@
 (defmulti find-visible-cities (fn [& _] :default))
 (defmethod find-visible-cities :default
   [status-pred]
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (for [i (range (count comp-map))
           j (range (count (first comp-map)))
           :let [cell (get-in comp-map [i j])]
@@ -121,7 +96,7 @@
 (defmulti adjacent-to-computer-unexplored? (fn [& _] :default))
 (defmethod adjacent-to-computer-unexplored? :default
   [pos]
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (boolean (some #(nil? (get-in comp-map %))
                    (neighbors-in-map comp-map pos)))))
 
@@ -131,8 +106,8 @@
   (when (and (= :army (:type unit))
              (= :computer (:owner unit))
              (:country-id unit)
-             (#{:land :city} (:type (get-in (current-world) pos))))
-    (update-game-map! assoc-in (conj pos :country-id) (:country-id unit))))
+             (#{:land :city} (:type (get-in (sa/current-world) pos))))
+    (sa/update-world! assoc-in (conj pos :country-id) (:country-id unit))))
 
 (defn- foreign-territory?
   "Returns true if unit is a computer army with a country-id and the target
@@ -148,16 +123,16 @@
 (defmulti move-unit-to (fn [& _] :default))
 (defmethod move-unit-to :default
   [from-pos to-pos]
-  (let [from-cell (get-in (current-world) from-pos)
-        to-cell (get-in (current-world) to-pos)
+  (let [from-cell (get-in (sa/current-world) from-pos)
+        to-cell (get-in (sa/current-world) to-pos)
         unit (:contents from-cell)]
     (cond
       (:contents to-cell) nil
       (foreign-territory? unit to-cell) nil
       :else
       (do
-        (update-game-map! assoc-in from-pos (dissoc from-cell :contents))
-        (update-game-map! assoc-in (conj to-pos :contents) unit)
+        (sa/update-world! assoc-in from-pos (dissoc from-cell :contents))
+        (sa/update-world! assoc-in (conj to-pos :contents) unit)
         (stamp-territory to-pos unit)
         (update-cell-visibility! from-pos (:owner unit))
         (update-cell-visibility! to-pos (:owner unit) unit)
@@ -166,23 +141,23 @@
 (defmulti attempt-conquest-computer (fn [& _] :default))
 (defmethod attempt-conquest-computer :default
   [army-pos city-pos]
-  (let [army-cell (get-in (current-world) army-pos)
+  (let [army-cell (get-in (sa/current-world) army-pos)
         army (:contents army-cell)
-        city-cell (get-in (current-world) city-pos)]
+        city-cell (get-in (sa/current-world) city-pos)]
     (if (< (rand) 0.5)
       ;; Success - conquer the city, army dies
       (do
         (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
-        (update-game-map! assoc-in army-pos (dissoc army-cell :contents))
-        (update-game-map! assoc-in city-pos (assoc city-cell :city-status :computer))
-        (update-runtime-state! :computer-city-positions (fnil conj #{}) city-pos)
+        (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
+        (sa/update-world! assoc-in city-pos (assoc city-cell :city-status :computer))
+        (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)
         (combat/conquer-city-contents city-pos :computer)
         (stamp-territory city-pos army)
         ;; Player-map updates only when the player loses a city.
         ;; Computer conquest of free cities must not update player-map.
         (when (= :player (:city-status city-cell))
-          (update-runtime-state! :player-map assoc-in city-pos (get-in (current-world) city-pos)))
-        (let [city-country-id (:country-id (get-in (current-world) city-pos))]
+          (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))
+        (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
             (set-city-production! city-pos :army)))
@@ -192,7 +167,7 @@
       ;; Failure - army dies
       (do
         (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
-        (update-game-map! assoc-in army-pos (dissoc army-cell :contents))
+        (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
         (update-cell-visibility! army-pos :computer)
         nil))))
 
@@ -234,10 +209,10 @@
 (defmulti wake-nearby-sentries (fn [& _] :default))
 (defmethod wake-nearby-sentries :default
   [pos radius]
-  (let [candidates (find-wakeable-sentries (current-world) pos radius)]
+  (let [candidates (find-wakeable-sentries (sa/current-world) pos radius)]
     (doseq [coord candidates
             :let [direction (random-away-direction pos coord)]]
-      (update-game-map! update-in (conj coord :contents)
+      (sa/update-world! update-in (conj coord :contents)
                         #(-> % (assoc :mode :awake
                                       :interior-explore-direction direction)
                              (dissoc :move-history))))
@@ -249,14 +224,14 @@
   (when-not (adjacent? army-pos transport-pos)
     (throw (ex-info "Cannot board transport from non-adjacent cell"
                     {:army-pos army-pos :transport-pos transport-pos})))
-  (update-game-map! update-in army-pos dissoc :contents)
-  (update-game-map! update-in (conj transport-pos :contents :army-count) (fnil inc 0))
+  (sa/update-world! update-in army-pos dissoc :contents)
+  (sa/update-world! update-in (conj transport-pos :contents :army-count) (fnil inc 0))
   (wake-nearby-sentries army-pos 3))
 
 (defmulti find-visible-player-units (fn [& _] :default))
 (defmethod find-visible-player-units :default
   []
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (for [i (range (count comp-map))
           j (range (count (first comp-map)))
           :let [cell (get-in comp-map [i j])
@@ -269,14 +244,14 @@
 (defmethod find-loading-transport :default
   ([] (find-loading-transport nil))
   ([army-unload-event-id]
-   (transport-search/find-loading-transport (current-world) army-unload-event-id)))
+   (transport-search/find-loading-transport (sa/current-world) army-unload-event-id)))
 
 (defmulti find-adjacent-loading-transport (fn [& _] :default))
 (defmethod find-adjacent-loading-transport :default
   ([pos]
    (find-adjacent-loading-transport pos nil))
   ([pos army-unload-event-id]
-   (transport-search/find-adjacent-loading-transport (current-world)
+   (transport-search/find-adjacent-loading-transport (sa/current-world)
                                                      get-neighbors
                                                      pos
                                                      army-unload-event-id)))

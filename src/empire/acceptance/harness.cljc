@@ -2,8 +2,8 @@
 (ns empire.acceptance.harness
   "Acceptance harness adapter used by generated acceptance specs.
    Keeps scenario execution paths behind a stable API."
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+  (:require [empire.application.state :as app-state]
+            [empire.application.state-access :as sa]
             [empire.computer.fighter :as computer-fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]
@@ -15,23 +15,6 @@
             [empire.ui.quil.input :as quil-input]
             [empire.ui.util.input.dispatch :as input-dispatch]
             [quil.core :as q]))
-
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
-(defn- write-runtime-state!
-  [k v]
-  ((:write-runtime-state! @state-ctx) k v))
-
-(defn- update-runtime-state!
-  [k f & args]
-  (let [current (read-runtime-state k)
-        next-state (apply f current args)]
-    (write-runtime-state! k next-state)))
 
 (def ^:private readable-keys
   #{:round-number
@@ -56,12 +39,12 @@
   [k]
   (when (contains? readable-keys k)
     (if (= k :game-map)
-      ((:load-world @state-ctx))
-      (read-runtime-state k))))
+      (sa/current-world)
+      (sa/read-state k))))
 
 (defn set-last-key!
   [v]
-  (write-runtime-state! :last-key v))
+  (sa/write-state! :last-key v))
 
 (defn build-test-map
   [rows]
@@ -159,16 +142,16 @@
   [k v]
   (if (contains? writable-keys k)
     (if (= k :game-map)
-      (app-state/set-world! @state-ctx v)
-      (write-runtime-state! k v))
+      (app-state/set-world! (sa/state-ctx) v)
+      (sa/write-state! k v))
     (throw (ex-info (str "Unsupported harness set-state! key: " k) {:key k}))))
 
 (defn update-state!
   [k f & args]
   (if (contains? #{:production :player-map :computer-map :player-items :game-map} k)
     (if (= k :game-map)
-      (apply app-state/update-world! @state-ctx f args)
-      (apply update-runtime-state! k f args))
+      (apply app-state/update-world! (sa/state-ctx) f args)
+      (apply sa/update-state! k f args))
     (throw (ex-info (str "Unsupported harness update-state! key: " k) {:key k}))))
 
 (defn handle-key!

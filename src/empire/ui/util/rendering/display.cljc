@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-01
 (ns empire.ui.util.rendering.display
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.movement.lakes :as lakes]
@@ -9,13 +9,6 @@
 (def ^:private default-cell-color [0 0 0])
 (def ^:private lake-cell-color [0 120 220])
 (defonce ^:private lake-cache* (atom {:map nil :limit nil :cells #{}}))
-(defonce ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
-
 (defn- safe-color
   [cell]
   (or (config/color-of cell) default-cell-color))
@@ -89,7 +82,7 @@
          :dark-color dark-color})))))
 
 (defn- lake-cells-for-display [the-map map-to-display]
-  (let [lake-limit (read-runtime-state :lake-max-cells)]
+  (let [lake-limit (sa/read-state :lake-max-cells)]
     (if (and (= :computer-map map-to-display) (pos? lake-limit))
       (let [{:keys [map limit cells]} @lake-cache*]
         (if (and (identical? map the-map) (= limit lake-limit))

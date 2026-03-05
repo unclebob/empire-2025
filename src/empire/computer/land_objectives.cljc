@@ -2,7 +2,7 @@
 (ns empire.computer.land-objectives
   "Land objective detection using flood-fill on fog-of-war map.
    Implements VMS Empire style continent recognition that respects unexplored territory."
-  (:require [empire.application.runtime :as app-runtime]
+  (:require [empire.application.state-access :as sa]
             [empire.computer.core :as core]))
 
 (def ^:private neighbor-offsets
@@ -13,13 +13,6 @@
 ;; Cache for continent flood-fill results.
 ;; Maps position -> continent-set. Cleared each round.
 (def continent-cache (atom {}))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
-(defn- read-runtime-state
-  [k]
-  ((:read-runtime-state @state-ctx) k))
 
 (defmulti clear-continent-cache! (fn [& _] :default))
 
@@ -67,7 +60,7 @@
    Marks unexplored cells adjacent to continent but does NOT expand through them.
    Returns a set of positions that are part of this continent (including adjacent unexplored)."
   [start-pos]
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (when (seq comp-map)
       (let [height (count comp-map)
             width (count (first comp-map))]
@@ -123,7 +116,7 @@
 
 (defmethod scan-continent :default
   [continent-positions]
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (reduce
      (fn [counts pos]
        (let [comp-cell (get-in comp-map pos)
@@ -150,7 +143,7 @@
 
 (defmethod find-all-objectives-on-continent :default
   [continent-positions]
-  (let [comp-map (read-runtime-state :computer-map)]
+  (let [comp-map (sa/read-state :computer-map)]
     (filter (fn [pos]
               (let [cell (get-in comp-map pos)]
                 (or (nil? cell)
@@ -162,7 +155,7 @@
 
 (defmethod find-nearest-on-continent :default
   [start-pos continent-positions pred]
-  (let [comp-map (read-runtime-state :computer-map)
+  (let [comp-map (sa/read-state :computer-map)
         candidates (filter (fn [pos]
                             (let [cell (get-in comp-map pos)]
                               (pred cell pos)))
