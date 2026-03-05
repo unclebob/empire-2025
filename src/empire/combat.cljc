@@ -116,14 +116,14 @@
   nil)
 
 (defn hostile-city?
-  [target-coords]
-  (let [target-cell (get-in (sa/current-world) target-coords)]
+  [world target-coords]
+  (let [target-cell (get-in world target-coords)]
     (and (= (:type target-cell) :city)
          (config/hostile-city? (:city-status target-cell)))))
 
 (defn attempt-city-conquest
-  [city-coords]
-  (let [city-cell (get-in (sa/current-world) city-coords)]
+  [world city-coords]
+  (let [city-cell (get-in world city-coords)]
     (if (< (rand) 0.5)
       (do
         (when (= :computer (:city-status city-cell))
@@ -137,15 +137,15 @@
     true))
 
 (defn attempt-conquest
-  [army-coords city-coords]
-  (let [army-cell (get-in (sa/current-world) army-coords)]
+  [world army-coords city-coords]
+  (let [army-cell (get-in world army-coords)]
     (sa/update-world! assoc-in army-coords (dissoc army-cell :contents))
     (update-cell-visibility! army-coords :player)
-    (attempt-city-conquest city-coords)))
+    (attempt-city-conquest (sa/current-world) city-coords)))
 
 (defn attempt-fighter-overfly
-  [fighter-coords city-coords]
-  (let [fighter-cell (get-in (sa/current-world) fighter-coords)
+  [world fighter-coords city-coords]
+  (let [fighter-cell (get-in world fighter-coords)
         fighter (:contents fighter-cell)
         shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
     (sa/update-world! (fn [w] (apply-fighter-overfly-world w fighter-coords city-coords shot-down-fighter)))
@@ -157,9 +157,8 @@
   (and unit (not= (:owner unit) owner)))
 
 (defn attempt-attack
-  [attacker-coords target-coords]
-  (let [world (sa/current-world)
-        attacker-cell (get-in world attacker-coords)
+  [world attacker-coords target-coords]
+  (let [attacker-cell (get-in world attacker-coords)
         target-cell (get-in world target-coords)
         attacker (:contents attacker-cell)
         defender (:contents target-cell)]

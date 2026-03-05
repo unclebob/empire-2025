@@ -461,7 +461,7 @@
       (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
       (setup-unit-attention [0 0])
       (let [conquest-called (atom false)]
-        (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true))
+        (with-redefs [combat/attempt-conquest (fn [_ _ _] (reset! conquest-called true))
                       game-loop/item-processed (fn [])]
           (commands/handle-key :d)
           (should @conquest-called)))))
@@ -472,7 +472,7 @@
       (set-test-unit (test-utils/game-map-atom) "F" :mode :awake)
       (setup-unit-attention [0 0])
       (let [overfly-called (atom false)]
-        (with-redefs [combat/attempt-fighter-overfly (fn [_ _] (reset! overfly-called true))
+        (with-redefs [combat/attempt-fighter-overfly (fn [_ _ _] (reset! overfly-called true))
                       movement/set-unit-movement (fn [_ _] nil)
                       game-loop/item-processed (fn [])]
           (commands/handle-key :d)
@@ -509,7 +509,7 @@
       (update-test-world! assoc-in [2 2] {:type :city :city-status :computer})
       (setup-unit-attention [1 1])
       (let [conquest-called (atom false)]
-        (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true))
+        (with-redefs [combat/attempt-conquest (fn [_ _ _] (reset! conquest-called true))
                       movement/set-unit-movement (fn [_ _] nil)
                       game-loop/item-processed (fn [])]
           (commands/handle-cell-click 2 2)

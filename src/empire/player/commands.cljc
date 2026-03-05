@@ -95,7 +95,7 @@
       :else :ignore)))
 
 (defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
-  (case (army-aboard-action extended? target-cell (combat/hostile-city? adjacent-target))
+  (case (army-aboard-action extended? target-cell (combat/hostile-city? (sa/current-world) adjacent-target))
     :disembark
     (do
       (container-ops/disembark-army-from-transport coords adjacent-target)
@@ -107,7 +107,7 @@
     :conquest
     (do
       (container-ops/remove-army-from-transport coords)
-      (combat/attempt-city-conquest adjacent-target)
+      (combat/attempt-city-conquest (sa/current-world) adjacent-target)
       (item-processed!))
     nil)
   true)
@@ -122,18 +122,18 @@
          (= (:hits active-unit) max-hits))))
 
 (defn- immediate-hostile-city? [extended? adjacent-target]
-  (and (not extended?) (combat/hostile-city? adjacent-target)))
+  (and (not extended?) (combat/hostile-city? (sa/current-world) adjacent-target)))
 
 (defn- handle-standard-unit-movement [coords adjacent-target target extended? active-unit]
   (let [hostile? (immediate-hostile-city? extended? adjacent-target)]
     (cond
       (and hostile? (= :army (:type active-unit)))
-      (do (combat/attempt-conquest coords adjacent-target)
+      (do (combat/attempt-conquest (sa/current-world) coords adjacent-target)
           (item-processed!)
           true)
 
       (and hostile? (= :fighter (:type active-unit)))
-      (do (combat/attempt-fighter-overfly coords adjacent-target)
+      (do (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target)
           (item-processed!)
           true)
 

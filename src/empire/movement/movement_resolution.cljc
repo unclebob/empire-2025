@@ -73,7 +73,7 @@
    Returns {:result :combat :pos final-pos}."
   [from-coords next-pos cell]
   (let [unit (:contents cell)
-        result (combat/attempt-attack from-coords next-pos)]
+        result (combat/attempt-attack (current-world) from-coords next-pos)]
     (when result
       (visibility/update-cell-visibility next-pos (:owner unit)))
     {:result :combat :pos next-pos}))

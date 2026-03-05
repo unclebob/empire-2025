@@ -146,10 +146,10 @@
 
 (defn- click-standard-unit [ctx attn-coords clicked-coords unit-type]
   (if (and (adjacent-coords? attn-coords clicked-coords)
-           (combat/hostile-city? clicked-coords))
+           (combat/hostile-city? (current-world ctx) clicked-coords))
     (case unit-type
-      :army (combat/attempt-conquest attn-coords clicked-coords)
-      :fighter (combat/attempt-fighter-overfly attn-coords clicked-coords)
+      :army (combat/attempt-conquest (current-world ctx) attn-coords clicked-coords)
+      :fighter (combat/attempt-fighter-overfly (current-world ctx) attn-coords clicked-coords)
       (exec-ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false))
     (exec-ports/movement-set-unit-movement (movement-port ctx) attn-coords clicked-coords false)))
 

@@ -72,7 +72,7 @@
         (set-test-world! (build-test-map ["AX"]))
         (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
         (setup-unit-attention [0 0])
-        (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
+        (with-redefs [combat/attempt-conquest (fn [_ _ _] (reset! conquest-called true) true)]
           (commands/handle-key :d)
           (should @conquest-called)))))
 
@@ -82,8 +82,8 @@
         (set-test-world! (build-test-map ["FX"]))
         (set-test-unit (test-utils/game-map-atom) "F" :mode :awake :fuel 32)
         (setup-unit-attention [0 0])
-        (with-redefs [combat/hostile-city? (fn [_] true)
-                      combat/attempt-fighter-overfly (fn [_ _] (reset! overfly-called true) true)]
+        (with-redefs [combat/hostile-city? (fn [_ _] true)
+                      combat/attempt-fighter-overfly (fn [_ _ _] (reset! overfly-called true) true)]
           (commands/handle-key :d)
           (should @overfly-called)))))
 
@@ -292,7 +292,7 @@
         (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
         (test-utils/set-test-state! :cells-needing-attention [[0 0]])
         (test-utils/set-test-state! :player-items (list [0 0]))
-        (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
+        (with-redefs [combat/attempt-conquest (fn [_ _ _] (reset! conquest-called true) true)]
           (commands/handle-unit-click [1 0] [[0 0]])
           (should @conquest-called))))
 
@@ -302,8 +302,8 @@
         (set-test-unit (test-utils/game-map-atom) "F" :mode :awake :fuel 32)
         (test-utils/set-test-state! :cells-needing-attention [[0 0]])
         (test-utils/set-test-state! :player-items (list [0 0]))
-        (with-redefs [combat/hostile-city? (fn [_] true)
-                      combat/attempt-fighter-overfly (fn [_ _] (reset! overfly-called true) true)]
+        (with-redefs [combat/hostile-city? (fn [_ _] true)
+                      combat/attempt-fighter-overfly (fn [_ _ _] (reset! overfly-called true) true)]
           (commands/handle-unit-click [1 0] [[0 0]])
           (should @overfly-called))))
 
@@ -313,7 +313,7 @@
         (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
         (test-utils/set-test-state! :cells-needing-attention [[1 2]])
         (test-utils/set-test-state! :player-items (list [1 2]))
-        (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
+        (with-redefs [combat/attempt-conquest (fn [_ _ _] (reset! conquest-called true) true)]
           (commands/handle-unit-click [2 2] [[1 2]])
           (should @conquest-called))))
 
@@ -323,7 +323,7 @@
         (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
         (test-utils/set-test-state! :cells-needing-attention [[1 1]])
         (test-utils/set-test-state! :player-items (list [1 1]))
-        (with-redefs [combat/attempt-conquest (fn [_ _] (reset! conquest-called true) true)]
+        (with-redefs [combat/attempt-conquest (fn [_ _ _] (reset! conquest-called true) true)]
           (commands/handle-unit-click [2 2] [[1 1]])
           (should @conquest-called))))
 

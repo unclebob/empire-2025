@@ -46,7 +46,7 @@
         (with-redefs [container-ops/remove-army-from-transport
                       (fn [coords] (reset! removed true))
                       combat/attempt-city-conquest
-                      (fn [coords] (reset! conquered coords))
+                      (fn [_world coords] (reset! conquered coords))
                       game-loop/item-processed (fn [] (reset! processed true))]
           (#'actions-movement/handle-army-aboard-movement [0 0] [1 0] [1 0] false
                                                 (get-in (test-utils/read-test-state :game-map) [1 0])))

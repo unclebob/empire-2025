@@ -33,13 +33,13 @@
   (player-commands/army-aboard-action extended? target-cell hostile-city?))
 
 (defn- handle-army-aboard-movement [coords adjacent-target target extended? target-cell]
-  (case (army-aboard-action extended? target-cell (combat/hostile-city? adjacent-target))
+  (case (army-aboard-action extended? target-cell (combat/hostile-city? (sa/current-world) adjacent-target))
     :disembark (do (container-ops/disembark-army-from-transport coords adjacent-target)
                    (helpers/item-processed!))
     :disembark-with-target (do (container-ops/disembark-army-with-target coords adjacent-target target)
                                (helpers/item-processed!))
     :conquest (do (container-ops/remove-army-from-transport coords)
-                  (combat/attempt-city-conquest adjacent-target)
+                  (combat/attempt-city-conquest (sa/current-world) adjacent-target)
                   (helpers/item-processed!))
     nil)
   true)
@@ -54,7 +54,7 @@
          (= (:hits active-unit) max-hits))))
 
 (defn- hostile-city-action [unit-type adjacent-target extended?]
-  (when (and (not extended?) (combat/hostile-city? adjacent-target))
+  (when (and (not extended?) (combat/hostile-city? (sa/current-world) adjacent-target))
     ({:army :army-conquest
       :fighter :fighter-overfly} unit-type)))
 
@@ -67,8 +67,8 @@
 
 (defn- perform-standard-movement! [action coords adjacent-target target extended?]
   (case action
-    :army-conquest (combat/attempt-conquest coords adjacent-target)
-    :fighter-overfly (combat/attempt-fighter-overfly coords adjacent-target)
+    :army-conquest (combat/attempt-conquest (sa/current-world) coords adjacent-target)
+    :fighter-overfly (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target)
     :reject-undamaged-ship (helpers/set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
     :normal-move (exec-ports/movement-set-unit-movement (helpers/movement-port) coords target extended?))
   (when (not= :reject-undamaged-ship action)
