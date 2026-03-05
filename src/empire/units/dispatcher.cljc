@@ -1,59 +1,110 @@
-;; mutation-tested: no
 (ns empire.units.dispatcher
-  "Abstract dispatcher contract for unit properties/behavior.")
+  "Unified unit property/behavior lookup via data map + plain functions."
+  (:require [empire.domain.core.unit-metrics :as unit-metrics]
+            [empire.units.army :as army]
+            [empire.units.carrier :as carrier]
+            [empire.units.config :as cfg]
+            [empire.units.fighter :as fighter]
+            [empire.units.satellite :as satellite]
+            [empire.units.ships :as ships]
+            [empire.units.transport :as transport]))
 
-(defmulti speed
-  (fn [& _]
-    :default))
+(def ^:private all-config
+  {:army        {:speed cfg/army-speed :cost cfg/army-cost :hits cfg/army-hits
+                 :display-char cfg/army-display-char :visibility-radius cfg/army-visibility-radius
+                 :strength cfg/army-strength :capacity nil
+                 :initial-state-fn army/initial-state
+                 :can-move-to-fn army/can-move-to?
+                 :needs-attention-fn army/needs-attention?}
+   :fighter     {:speed cfg/fighter-speed :cost cfg/fighter-cost :hits cfg/fighter-hits
+                 :display-char cfg/fighter-display-char :visibility-radius cfg/fighter-visibility-radius
+                 :strength cfg/fighter-strength :capacity nil
+                 :initial-state-fn fighter/initial-state
+                 :can-move-to-fn fighter/can-move-to?
+                 :needs-attention-fn fighter/needs-attention?}
+   :satellite   {:speed cfg/satellite-speed :cost cfg/satellite-cost :hits cfg/satellite-hits
+                 :display-char cfg/satellite-display-char :visibility-radius cfg/satellite-visibility-radius
+                 :strength cfg/satellite-strength :capacity nil
+                 :initial-state-fn satellite/initial-state
+                 :can-move-to-fn satellite/can-move-to?
+                 :needs-attention-fn satellite/needs-attention?}
+   :transport   {:speed cfg/transport-speed :cost cfg/transport-cost :hits cfg/transport-hits
+                 :display-char cfg/transport-display-char :visibility-radius cfg/transport-visibility-radius
+                 :strength cfg/transport-strength :capacity cfg/transport-capacity
+                 :initial-state-fn transport/initial-state
+                 :can-move-to-fn transport/can-move-to?
+                 :needs-attention-fn transport/needs-attention?}
+   :carrier     {:speed cfg/carrier-speed :cost cfg/carrier-cost :hits cfg/carrier-hits
+                 :display-char cfg/carrier-display-char :visibility-radius cfg/carrier-visibility-radius
+                 :strength cfg/carrier-strength :capacity cfg/carrier-capacity
+                 :initial-state-fn carrier/initial-state
+                 :can-move-to-fn carrier/can-move-to?
+                 :needs-attention-fn carrier/needs-attention?}
+   :patrol-boat {:speed 4 :cost 15 :hits 1 :strength 1 :display-char "P" :visibility-radius 1
+                 :capacity nil
+                 :initial-state-fn ships/initial-state
+                 :can-move-to-fn ships/can-move-to?
+                 :needs-attention-fn ships/needs-attention?}
+   :destroyer   {:speed 2 :cost 20 :hits 3 :strength 1 :display-char "D" :visibility-radius 1
+                 :capacity nil
+                 :initial-state-fn ships/initial-state
+                 :can-move-to-fn ships/can-move-to?
+                 :needs-attention-fn ships/needs-attention?}
+   :submarine   {:speed 2 :cost 20 :hits 2 :strength 3 :display-char "S" :visibility-radius 1
+                 :capacity nil
+                 :initial-state-fn ships/initial-state
+                 :can-move-to-fn ships/can-move-to?
+                 :needs-attention-fn ships/needs-attention?}
+   :battleship  {:speed 2 :cost 40 :hits 10 :strength 2 :display-char "B" :visibility-radius 1
+                 :capacity nil
+                 :initial-state-fn ships/initial-state
+                 :can-move-to-fn ships/can-move-to?
+                 :needs-attention-fn ships/needs-attention?}})
 
-(defmulti cost
-  (fn [& _]
-    :default))
+(defn speed [unit-type]
+  (get-in all-config [unit-type :speed]))
 
-(defmulti hits
-  (fn [& _]
-    :default))
+(defn cost [unit-type]
+  (get-in all-config [unit-type :cost]))
 
-(defmulti display-char
-  (fn [& _]
-    :default))
+(defn hits [unit-type]
+  (get-in all-config [unit-type :hits]))
 
-(defmulti visibility-radius
-  (fn [& _]
-    :default))
+(defn display-char [unit-type]
+  (get-in all-config [unit-type :display-char]))
 
-(defmulti strength
-  (fn [& _]
-    :default))
+(defn visibility-radius [unit-type]
+  (get-in all-config [unit-type :visibility-radius]))
 
-(defmulti initial-state
-  (fn [& _]
-    :default))
+(defn strength [unit-type]
+  (get-in all-config [unit-type :strength]))
 
-(defmulti can-move-to?
-  (fn [& _]
-    :default))
+(defn capacity [unit-type]
+  (get-in all-config [unit-type :capacity]))
 
-(defmulti needs-attention?
-  (fn [& _]
-    :default))
+(defn initial-state [unit-type]
+  (if-let [f (get-in all-config [unit-type :initial-state-fn])]
+    (f)
+    {}))
 
-(defmulti effective-speed
-  (fn [& _]
-    :default))
+(defn can-move-to? [unit-type cell]
+  (let [f (get-in all-config [unit-type :can-move-to-fn])]
+    (f cell)))
 
-(defmulti capacity
-  (fn [& _]
-    :default))
+(defn needs-attention? [unit]
+  (let [f (get-in all-config [(:type unit) :needs-attention-fn])]
+    (f unit)))
 
-(defmulti effective-capacity
-  (fn [& _]
-    :default))
+(defn effective-speed [unit-type current-hits]
+  (unit-metrics/effective-speed (speed unit-type) current-hits (hits unit-type)))
 
-(defmulti naval-units
-  (fn [& _]
-    :default))
+(defn effective-capacity [unit-type current-hits]
+  (let [max-h (hits unit-type)
+        cur-h (or current-hits max-h)]
+    (unit-metrics/effective-capacity (capacity unit-type) cur-h max-h)))
 
-(defmulti naval-unit?
-  (fn [& _]
-    :default))
+(defn naval-unit? [unit-type]
+  (unit-metrics/naval-unit? unit-type))
+
+(defn naval-units [unit-type]
+  (unit-metrics/naval-unit? unit-type))
