@@ -2,46 +2,6 @@
 (ns empire.domain.model.containers
   (:require [empire.units.config :as units-config]))
 
-(defmulti wake-transport-armies
-  (fn [& _]
-    :default))
-
-(defmulti sleep-transport-armies
-  (fn [& _]
-    :default))
-
-(defmulti remove-awake-transport-army
-  (fn [& _]
-    :default))
-
-(defmulti disembarked-army
-  (fn [& _]
-    :default))
-
-(defmulti moving-disembarked-army
-  (fn [& _]
-    :default))
-
-(defmulti exploring-disembarked-army
-  (fn [& _]
-    :default))
-
-(defmulti wake-carrier-fighters
-  (fn [& _]
-    :default))
-
-(defmulti sleep-carrier-fighters
-  (fn [& _]
-    :default))
-
-(defmulti first-step-toward
-  (fn [& _]
-    :default))
-
-(defmulti launched-fighter
-  (fn [& _]
-    :default))
-
 (defn- wake-all
   [entity count-key awake-key]
   (assoc entity awake-key (get entity count-key 0)))
@@ -60,21 +20,21 @@
   [entity awake-key]
   (pos? (get entity awake-key 0)))
 
-(defmethod wake-transport-armies :default
+(defn wake-transport-armies
   [transport]
   (-> transport
       (wake-all :army-count :awake-armies)
       (assoc :mode :sentry :steps-remaining 0)
       (dissoc :reason)))
 
-(defmethod sleep-transport-armies :default
+(defn sleep-transport-armies
   [transport]
   (-> transport
       (sleep-all :awake-armies)
       (assoc :mode :awake)
       (dissoc :reason)))
 
-(defmethod remove-awake-transport-army :default
+(defn remove-awake-transport-army
   [transport]
   (let [after-remove (remove-awake-unit transport :army-count :awake-armies)
         no-more-awake? (not (has-awake? after-remove :awake-armies))]
@@ -82,7 +42,7 @@
       no-more-awake? (assoc :mode :awake)
       no-more-awake? (dissoc :reason))))
 
-(defmethod disembarked-army :default
+(defn disembarked-army
   [owner]
   {:type :army
    :mode :awake
@@ -90,7 +50,7 @@
    :hits 1
    :steps-remaining units-config/army-speed})
 
-(defmethod moving-disembarked-army :default
+(defn moving-disembarked-army
   [owner extended-target]
   {:type :army
    :mode :moving
@@ -99,7 +59,7 @@
    :steps-remaining 0
    :target extended-target})
 
-(defmethod exploring-disembarked-army :default
+(defn exploring-disembarked-army
   [owner target-coords]
   {:type :army
    :mode :explore
@@ -109,27 +69,27 @@
    :explore-steps units-config/explore-steps
    :visited #{target-coords}})
 
-(defmethod wake-carrier-fighters :default
+(defn wake-carrier-fighters
   [carrier]
   (-> carrier
       (wake-all :fighter-count :awake-fighters)
       (assoc :mode :sentry)
       (dissoc :reason)))
 
-(defmethod sleep-carrier-fighters :default
+(defn sleep-carrier-fighters
   [carrier]
   (-> carrier
       (sleep-all :awake-fighters)
       (assoc :mode :awake)
       (dissoc :reason)))
 
-(defmethod first-step-toward :default
+(defn first-step-toward
   [[cx cy] [tx ty]]
   (let [dx (cond (zero? (- tx cx)) 0 (pos? (- tx cx)) 1 :else -1)
         dy (cond (zero? (- ty cy)) 0 (pos? (- ty cy)) 1 :else -1)]
     [(+ cx dx) (+ cy dy)]))
 
-(defmethod launched-fighter :default
+(defn launched-fighter
   [owner target-coords steps-remaining]
   {:type :fighter
    :mode :moving

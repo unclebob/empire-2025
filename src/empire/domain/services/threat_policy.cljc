@@ -1,11 +1,11 @@
 ;; mutation-tested: no
 (ns empire.domain.services.threat-policy)
 
-(defmulti fighter-response-count (fn [& _] :default))
-(defmulti ship-response-count (fn [& _] :default))
-(defmulti fighter-sweep-rounds (fn [& _] :default))
-(defmulti ship-scout-rounds (fn [& _] :default))
-(defmulti threat-radius (fn [& _] :default))
+(defn fighter-response-count [] 4)
+(defn ship-response-count [] 2)
+(defn fighter-sweep-rounds [] 10)
+(defn ship-scout-rounds [] 10)
+(defn threat-radius [] 5)
 
 (def ^:private enemy-ship-types
   #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
@@ -21,21 +21,7 @@
   (and (= :city (:type game-cell))
        (= :player (:city-status game-cell))))
 
-(defmulti detection-trigger (fn [& _] :default))
-
-(defmulti fighter-sweep-mission (fn [& _] :default))
-
-(defmulti sea-scout-mission (fn [& _] :default))
-
-(defmulti dec-threat-rounds (fn [& _] :default))
-
-(defmethod fighter-response-count :default [] 4)
-(defmethod ship-response-count :default [] 2)
-(defmethod fighter-sweep-rounds :default [] 10)
-(defmethod ship-scout-rounds :default [] 10)
-(defmethod threat-radius :default [] 5)
-
-(defmethod detection-trigger :default
+(defn detection-trigger
   [game-cell]
   (let [unit-type (player-unit-type game-cell)]
     (cond
@@ -45,21 +31,21 @@
       (player-city? game-cell) :major-invasion-trigger
       :else nil)))
 
-(defmethod fighter-sweep-mission :default
+(defn fighter-sweep-mission
   [center]
   {:threat-mission :fighter-sweep
    :threat-center center
    :threat-radius (threat-radius)
    :threat-rounds-left (fighter-sweep-rounds)})
 
-(defmethod sea-scout-mission :default
+(defn sea-scout-mission
   [center]
   {:threat-mission :sea-scout
    :threat-center center
    :threat-radius (threat-radius)
    :threat-rounds-left (ship-scout-rounds)})
 
-(defmethod dec-threat-rounds :default
+(defn dec-threat-rounds
   [unit]
   (if-let [left (:threat-rounds-left unit)]
     (let [next-left (dec left)]

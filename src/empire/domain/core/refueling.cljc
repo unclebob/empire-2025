@@ -1,25 +1,18 @@
 ;; mutation-tested: no
 (ns empire.domain.core.refueling)
 
-(defmulti computer-city-cell? (fn [& _] :default))
-
-(defmulti computer-carrier-cell? (fn [& _] :default))
-
-(defmulti scan-refueling-positions
-  "Scans a map and returns {:cities #{[x y]} :carriers #{[x y]}}."
-  (fn [& _] :default))
-
-(defmethod computer-city-cell? :default
+(defn computer-city-cell?
   [cell]
   (and (= :city (:type cell))
        (= :computer (:city-status cell))))
 
-(defmethod computer-carrier-cell? :default
+(defn computer-carrier-cell?
   [cell]
   (and (= :carrier (get-in cell [:contents :type]))
        (= :computer (get-in cell [:contents :owner]))))
 
-(defmethod scan-refueling-positions :default
+(defn scan-refueling-positions
+  "Scans a map and returns {:cities #{[x y]} :carriers #{[x y]}}."
   [game-map]
   (let [cities (transient #{})
         carriers (transient #{})]
