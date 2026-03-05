@@ -51,4 +51,12 @@ if [[ -n "$state_ctx_delay_hits" ]]; then
   exit 1
 fi
 
+units_impl_hits="$(rg -n 'empire\.units\.impl' src/empire || true)"
+units_impl_violations="$(printf '%s\n' "$units_impl_hits" | rg -v '^src/empire/units/impl/|^src/empire/application/bootstrap\.cljc:' || true)"
+if [[ -n "$units_impl_violations" ]]; then
+  echo "Architecture boundary violation: units.impl must only be referenced from itself and application/bootstrap:"
+  printf '%s\n' "$units_impl_violations"
+  exit 1
+fi
+
 echo "Architecture boundary check passed"
