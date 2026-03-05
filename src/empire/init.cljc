@@ -1,7 +1,8 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.init
   (:require [empire.config :as config]
-            [empire.movement.services :as movement-services]
+            [empire.movement.map-utils :as map-utils]
+            [empire.movement.visibility :as visibility]
             [empire.application.runtime :as app-runtime]
             [empire.application.state :as app-state]
             [empire.player.production :as player-production]))
@@ -21,7 +22,7 @@
   "Takes a map and returns a smoothed version where each cell is the rounded average
    of itself and its 8 surrounding cells. Edge cells use their own value for missing neighbors."
   [input-map]
-  (movement-services/process-map input-map smooth-cell))
+  (map-utils/process-map input-map smooth-cell))
 
 (defn make-map
   "Creates and initializes the game map with random integers, then applies smoothing."
@@ -38,7 +39,7 @@
 (defn finalize-map
   "Converts a height map to a terrain map with land/sea types."
   [the-map sea-level]
-  (movement-services/process-map the-map (fn [i j the-map]
+  (map-utils/process-map the-map (fn [i j the-map]
                                            (let [height (get-in the-map [i j])
                                                  terrain-type (if (> height sea-level) :land :sea)]
                                              {:type terrain-type}))))
@@ -66,7 +67,7 @@
               (and (>= ni 0) (< ni height)
                    (>= nj 0) (< nj width)
                    (= :sea (:type (get-in the-map [ni nj]))))))
-          movement-services/neighbor-offsets)))
+          map-utils/neighbor-offsets)))
 
 (defn count-surrounding-land
   "Counts land cells in a 5x5 area centered on [i j], excluding the center."
@@ -94,7 +95,7 @@
   ([the-map owner min-distance-from]
    (occupy-random-free-city the-map owner min-distance-from 0))
   ([the-map owner min-distance-from min-surrounding-land]
-   (let [free-city-positions (movement-services/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= :free (:city-status cell)))))
+   (let [free-city-positions (map-utils/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= :free (:city-status cell)))))
          coastal-cities (filter #(coastal? % the-map) free-city-positions)
          with-enough-land (filter #(>= (count-surrounding-land % the-map) min-surrounding-land) coastal-cities)
          filtered-cities (if min-distance-from
@@ -124,7 +125,7 @@
 (defn generate-cities
   "Places free cities on land cells with minimum distance constraints."
   [the-map number-of-cities min-city-distance]
-  (let [land-positions (movement-services/filter-map the-map (fn [cell] (= :land (:type cell))))
+  (let [land-positions (map-utils/filter-map the-map (fn [cell] (= :land (:type cell))))
         land-positions-vec (vec land-positions)
         num-land (count land-positions-vec)]
     (loop [placed-cities []
@@ -145,7 +146,7 @@
 (defn find-city-position
   "Finds the position of a city with the given owner."
   [the-map owner]
-  (first (movement-services/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= owner (:city-status cell)))))))
+  (first (map-utils/filter-map the-map (fn [cell] (and (= :city (:type cell)) (= owner (:city-status cell)))))))
 
 (defn- compute-lake-max-cells
   [width height]
@@ -181,10 +182,10 @@
     (write-runtime-state! :computer-map visibility-map)
     ;; Initialize visibility around starting positions
     (let [world ((:load-world state-ctx))]
-      (when-let [updated (movement-services/update-combatant-map-state
+      (when-let [updated (visibility/update-combatant-map-state
                           (read-runtime-state :player-map) :player world)]
         (write-runtime-state! :player-map updated))
-      (when-let [updated (movement-services/update-combatant-map-state
+      (when-let [updated (visibility/update-combatant-map-state
                           (read-runtime-state :computer-map) :computer world)]
         (write-runtime-state! :computer-map updated)))
     ((:rebuild-refueling-caches! state-ctx))

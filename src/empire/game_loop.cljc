@@ -3,7 +3,9 @@
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.application.production-status :as production-status]
-            [empire.movement.services :as movement-services]
+            [empire.movement.visibility :as visibility]
+            [empire.movement.pathfinding :as pathfinding]
+            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.computer.army :as army]
@@ -18,7 +20,7 @@
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (when-let [updated (movement-services/update-combatant-map-state
+  (when-let [updated (visibility/update-combatant-map-state
                       (sa/read-state :player-map)
                       :player
                       (sa/current-world))]
@@ -27,7 +29,7 @@
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (when-let [updated (movement-services/update-combatant-map-state
+  (when-let [updated (visibility/update-combatant-map-state
                       (sa/read-state :computer-map)
                       :computer
                       (sa/current-world))]
@@ -81,8 +83,8 @@
   "Starts a new round by building player and computer items lists and updating game state."
   []
   (sa/update-state! :round-number inc)
-  (movement-services/clear-path-cache!)
-  (movement-services/clear-bfs-caches!)
+  (pathfinding/clear-path-cache)
+  (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)
   (round-setup/move-satellites)
   (round-setup/consume-sentry-fighter-fuel)

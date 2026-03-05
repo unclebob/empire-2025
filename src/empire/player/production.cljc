@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
   (:require [empire.application.city-production :as city-production]
-            [empire.movement.services :as movement-services]
+            [empire.movement.map-utils :as map-utils]
             [empire.application.state-access :as sa]
             [empire.application.unit-stamping :as unit-stamping]
             [empire.config :as config]))
@@ -76,8 +76,8 @@
   "Stamps country-id on land cells adjacent to a city when a computer army spawns."
   [coords country-id]
   (let [game-map (sa/current-world)
-        neighbors (movement-services/get-matching-neighbors coords game-map
-                                                            movement-services/neighbor-offsets some?)]
+        neighbors (map-utils/get-matching-neighbors coords game-map
+                                                            map-utils/neighbor-offsets some?)]
     (doseq [n neighbors]
       (let [cell (get-in game-map n)]
         (when (and (= :land (:type cell)) (nil? (:country-id cell)))

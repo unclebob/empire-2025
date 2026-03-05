@@ -3,7 +3,7 @@
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
   (:require [empire.application.state-access :as sa]
-            [empire.movement.services :as movement-services]
+            [empire.movement.map-utils :as map-utils]
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.config :as config]
@@ -31,7 +31,7 @@
 
 (defn- coastal-cell?
   [coords]
-  (movement-services/any-neighbor-matches? coords (sa/current-world) movement-services/neighbor-offsets
+  (map-utils/any-neighbor-matches? coords (sa/current-world) map-utils/neighbor-offsets
                                            #(= :sea (:type %))))
 
 (defn- try-set-production [coords item]

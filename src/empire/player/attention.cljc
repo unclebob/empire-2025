@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
-  (:require [empire.movement.services :as movement-services]
+  (:require [empire.movement.map-utils :as map-utils]
             [empire.application.state-access :as sa]
             [empire.application.ports.unit-state :as ports]
             [empire.config :as config]
@@ -94,7 +94,7 @@
                    (and adj-cell
                         (= (:type adj-cell) :city)
                         (config/hostile-city? (:city-status adj-cell)))))
-               movement-services/neighbor-offsets))))
+               map-utils/neighbor-offsets))))
 
 ;; Returns cargo description for units that carry other units.
 ;; e.g., " (3 armies)" for transports, " (2 fighters)" for carriers.

@@ -1,9 +1,9 @@
 ;; mutation-tested: no
 (ns empire.player.commands-actions
   "Extracted unit action handlers for player command processing."
-  (:require [empire.movement.services :as movement-services]
-            [empire.movement.explore :as explore]
+  (:require [empire.movement.explore :as explore]
             [empire.movement.coastline :as coastline]
+            [empire.movement.map-utils :as map-utils]
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.player.attention :as attention]
@@ -107,8 +107,8 @@
 
 (defn handle-look-around-key [ctx coords _cell active-unit]
   (let [is-army-aboard? (ports/movement-is-army-aboard-transport? (movement-port ctx) active-unit)
-        near-coast? (movement-services/any-neighbor-matches?
-                     coords (current-world ctx) movement-services/neighbor-offsets
+        near-coast? (map-utils/any-neighbor-matches?
+                     coords (current-world ctx) map-utils/neighbor-offsets
                      #(= :land (:type %)))
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond

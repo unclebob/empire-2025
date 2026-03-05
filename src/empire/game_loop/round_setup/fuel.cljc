@@ -1,6 +1,6 @@
 (ns empire.game-loop.round-setup.fuel
   (:require [empire.application.state-access :as sa]
-            [empire.movement.services :as movement-services]
+            [empire.movement.wake-conditions :as wake]
             [empire.config :as config]
             [empire.domain.services.round-setup :as domain-round-setup]))
 
@@ -15,7 +15,7 @@
   (let [world (sa/current-world)]
     (domain-round-setup/bingo-fuel?
      new-fuel
-     (movement-services/friendly-city-in-range? pos new-fuel (world-ref world)))))
+     (wake/friendly-city-in-range? pos new-fuel (world-ref world)))))
 
 (defn- fuel-action [new-fuel pos]
   (domain-round-setup/fuel-action new-fuel (bingo-fuel? pos new-fuel)))

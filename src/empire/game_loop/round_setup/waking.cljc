@@ -1,6 +1,6 @@
 (ns empire.game-loop.round-setup.waking
   (:require [empire.application.state-access :as sa]
-            [empire.movement.services :as movement-services]
+            [empire.movement.wake-conditions :as wake]
             [empire.containers.helpers :as uc]))
 
 (defn- world-ref [world] (atom world))
@@ -49,6 +49,6 @@
             :when (and unit
                        (= :player (:owner unit))
                        (= :sentry (:mode unit))
-                       (movement-services/enemy-unit-visible? unit [i j] world-atom))]
+                       (wake/enemy-unit-visible? unit [i j] world-atom))]
       (sa/update-world! update-in [i j :contents]
                         #(assoc % :mode :awake :reason :enemy-spotted)))))

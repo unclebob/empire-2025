@@ -2,7 +2,8 @@
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
   (:require [empire.application.state-access :as sa]
-            [empire.movement.services :as movement-services]
+            [empire.movement.visibility :as visibility]
+            [empire.movement.satellite :as satellite]
             [empire.config :as config]
             [empire.domain.services.round-setup :as domain-round-setup]
             [empire.game-loop.round-setup.fuel :as fuel]
@@ -30,7 +31,7 @@
       (when (computer-carrier? contents)
         (sa/update-state! :computer-carrier-positions disj [i j]))
       (sa/update-world! assoc-in [i j] (dissoc cell :contents))
-      (movement-services/update-cell-visibility [i j] (:owner contents)))))
+      (visibility/update-cell-visibility [i j] (:owner contents)))))
 
 (defn reset-steps-remaining
   "Resets steps-remaining for all player units at start of round."
@@ -51,8 +52,8 @@
   (satellites/move-satellites!
    {:current-world sa/current-world
     :update-game-map! sa/update-world!
-    :update-visibility! movement-services/update-cell-visibility
-    :move-satellite movement-services/move-satellite
+    :update-visibility! visibility/update-cell-visibility
+    :move-satellite satellite/move-satellite
     :satellite-speed (config/unit-speed :satellite)}))
 
 ;; Delegated to sub-modules
