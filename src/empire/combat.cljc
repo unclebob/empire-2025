@@ -6,10 +6,6 @@
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
-(def ^:private flippable-types
-  "Unit types that flip ownership on city conquest (ships and fighters)."
-  #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
-
 (defn- set-error-message!
   [msg ms]
   (sa/write-state! :error-message msg)
@@ -26,37 +22,6 @@
   [pos owner]
   (visibility/update-cell-visibility pos owner))
 
-(defn- conquer-city-contents-world
-  [game-map city-coords new-owner]
-  (let [cell (get-in game-map city-coords)
-        contents (:contents cell)
-        with-updated-contents
-        (cond
-          (nil? contents) game-map
-          (= :satellite (:type contents)) game-map
-          (= :army (:type contents))
-          (update-in game-map city-coords dissoc :contents)
-          (flippable-types (:type contents))
-          (let [flipped (-> contents
-                            (assoc :owner new-owner :mode :awake)
-                            (dissoc :target :reason))
-                flipped (cond-> flipped
-                          (= :transport (:type flipped))
-                          (assoc :army-count 0 :awake-armies 0)
-                          (= :carrier (:type flipped))
-                          (assoc :fighter-count 0 :awake-fighters 0))]
-            (assoc-in game-map (conj city-coords :contents) flipped))
-          :else game-map)]
-    (update-in with-updated-contents city-coords dissoc :marching-orders :flight-path)))
-
-(defn- apply-fighter-overfly-world
-  [game-map fighter-coords city-coords shot-down-fighter]
-  (let [fighter-cell (get-in game-map fighter-coords)
-        city-cell (get-in game-map city-coords)]
-    (-> game-map
-        (assoc-in fighter-coords (dissoc fighter-cell :contents))
-        (assoc-in city-coords (assoc city-cell :contents shot-down-fighter)))))
-
 (defn- drown-excess-cargo
   [coords survivor]
   (when (#{:transport :carrier} (:type survivor))
@@ -72,11 +37,6 @@
           (sa/update-world! update-in (conj coords :contents)
                             assoc count-key cap awake-key new-awake))))))
 
-(defn- apply-attack-world
-  [game-map attacker-coords target-coords survivor]
-  (-> game-map
-      (assoc-in (conj attacker-coords :contents) nil)
-      (assoc-in (conj target-coords :contents) survivor)))
 
 (defn format-combat-log
   [log attacker-type defender-type winner]
@@ -111,15 +71,13 @@
 
 (defn conquer-city-contents
   [city-coords new-owner]
-  (sa/update-world! (fn [w] (conquer-city-contents-world w city-coords new-owner)))
+  (sa/update-world! (fn [w] (domain-combat/conquer-city-contents-world w city-coords new-owner)))
   (sa/update-state! :production dissoc city-coords)
   nil)
 
 (defn hostile-city?
   [world target-coords]
-  (let [target-cell (get-in world target-coords)]
-    (and (= (:type target-cell) :city)
-         (config/hostile-city? (:city-status target-cell)))))
+  (domain-combat/hostile-city? world target-coords))
 
 (defn attempt-city-conquest
   [world city-coords]
@@ -148,13 +106,13 @@
   (let [fighter-cell (get-in world fighter-coords)
         fighter (:contents fighter-cell)
         shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)]
-    (sa/update-world! (fn [w] (apply-fighter-overfly-world w fighter-coords city-coords shot-down-fighter)))
+    (sa/update-world! (fn [w] (domain-combat/apply-fighter-overfly-world w fighter-coords city-coords shot-down-fighter)))
     (set-error-message! (:fighter-destroyed-by-city config/messages) config/error-message-duration)
     true))
 
 (defn hostile-unit?
   [unit owner]
-  (and unit (not= (:owner unit) owner)))
+  (domain-combat/hostile-unit? unit owner))
 
 (defn attempt-attack
   [world attacker-coords target-coords]
@@ -174,7 +132,7 @@
                                           (:type defender)
                                           (:winner result))
             dead-unit (if (= :attacker (:winner result)) defender attacker)]
-        (sa/update-world! (fn [w] (apply-attack-world w attacker-coords target-coords (:survivor result))))
+        (sa/update-world! (fn [w] (domain-combat/apply-attack-world w attacker-coords target-coords (:survivor result))))
         (drown-excess-cargo target-coords (:survivor result))
         (clear-escort-on-death dead-unit)
         (set-turn-message! message Long/MAX_VALUE)

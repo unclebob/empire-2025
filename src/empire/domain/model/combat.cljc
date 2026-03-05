@@ -81,3 +81,67 @@
         (<= (:hits new-d) 0) {:winner :attacker :survivor new-a :log new-log}
         (<= (:hits new-a) 0) {:winner :defender :survivor new-d :log new-log}
         :else (recur new-a new-d new-log)))))
+
+;; --- Pure combat predicates ---
+
+(def ^:private hostile-city-statuses
+  "City statuses that are hostile to the player."
+  #{:free :computer})
+
+(defn hostile-city?
+  "Returns true if the cell at target-coords in world is a hostile city."
+  [world target-coords]
+  (let [target-cell (get-in world target-coords)]
+    (and (= (:type target-cell) :city)
+         (hostile-city-statuses (:city-status target-cell)))))
+
+(defn hostile-unit?
+  "Returns true if unit exists and is not owned by owner."
+  [unit owner]
+  (and unit (not= (:owner unit) owner)))
+
+;; --- Pure world transformations ---
+
+(def ^:private flippable-types
+  "Unit types that flip ownership on city conquest (ships and fighters)."
+  #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
+
+(defn conquer-city-contents-world
+  "Pure world transformation: updates city contents upon conquest."
+  [game-map city-coords new-owner]
+  (let [cell (get-in game-map city-coords)
+        contents (:contents cell)
+        with-updated-contents
+        (cond
+          (nil? contents) game-map
+          (= :satellite (:type contents)) game-map
+          (= :army (:type contents))
+          (update-in game-map city-coords dissoc :contents)
+          (flippable-types (:type contents))
+          (let [flipped (-> contents
+                            (assoc :owner new-owner :mode :awake)
+                            (dissoc :target :reason))
+                flipped (cond-> flipped
+                          (= :transport (:type flipped))
+                          (assoc :army-count 0 :awake-armies 0)
+                          (= :carrier (:type flipped))
+                          (assoc :fighter-count 0 :awake-fighters 0))]
+            (assoc-in game-map (conj city-coords :contents) flipped))
+          :else game-map)]
+    (update-in with-updated-contents city-coords dissoc :marching-orders :flight-path)))
+
+(defn apply-fighter-overfly-world
+  "Pure world transformation: moves fighter to city as shot-down."
+  [game-map fighter-coords city-coords shot-down-fighter]
+  (let [fighter-cell (get-in game-map fighter-coords)
+        city-cell (get-in game-map city-coords)]
+    (-> game-map
+        (assoc-in fighter-coords (dissoc fighter-cell :contents))
+        (assoc-in city-coords (assoc city-cell :contents shot-down-fighter)))))
+
+(defn apply-attack-world
+  "Pure world transformation: removes attacker, places survivor at target."
+  [game-map attacker-coords target-coords survivor]
+  (-> game-map
+      (assoc-in (conj attacker-coords :contents) nil)
+      (assoc-in (conj target-coords :contents) survivor)))
