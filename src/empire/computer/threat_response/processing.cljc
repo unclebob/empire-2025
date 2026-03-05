@@ -184,24 +184,19 @@
                                                (- 8 (min 8 (core/distance cand center)))
                                                0)]]
                        {:pos cand
+                        ;; Yield should prioritize clearing transport lanes over target pursuit.
                         :score (+ (* 4 clearance)
                                   (shore-band-score world cand)
-                                  center-bias)})]
+                                  (quot center-bias 4))})]
           ;; Use deterministic tie-breaking so yield behavior is stable in tests and gameplay.
-          ;; Prefer higher transport-clearance score, then lateral separation from blockers.
+          ;; Prefer better score, then a stable board-order tie break.
           (when-let [target (:pos (first (sort-by (fn [{:keys [score] :as cand}]
                                                     (let [cand-pos (:pos cand)
-                                                          lane-separation
-                                                          (reduce + (map #(Math/abs (- (second cand-pos) (second %)))
-                                                                         transports))
-                                                          diagonal? (and (not= (first cand-pos) (first pos))
-                                                                         (not= (second cand-pos) (second pos)))]
+                                                          row (first cand-pos)
+                                                          col (second cand-pos)]
                                                       [(- score)
-                                                       ;; Prefer diagonal sidesteps to clear transport lanes faster.
-                                                       (if diagonal? 0 1)
-                                                       (- lane-separation)
-                                                       (- (first cand-pos))
-                                                       (second cand-pos)]))
+                                                       (- row)
+                                                       col]))
                                                   scored)))]
             (when (core/move-unit-to pos target)
               target)))))))

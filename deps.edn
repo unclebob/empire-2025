@@ -19,11 +19,10 @@
 					                  :extra-paths ["spec"]}
 					 :parse-tests {:main-opts ["-m" "empire.acceptance.parser"]
 					               :extra-paths ["spec"]}
-					 :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
+           :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
 					                  :extra-paths ["generated-acceptance-specs"]}
            :acceptance-tests {:main-opts ["-m" "empire.acceptance.pipeline"]}
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
-           :all-tests-fast {:main-opts ["-m" "empire.test.pipeline-fast"]}
            :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker" "--max-distance" "1"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"

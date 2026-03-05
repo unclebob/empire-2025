@@ -2,7 +2,6 @@
   (:require [clojure.java.shell :as shell]
             [empire.acceptance.pipeline :as acceptance-pipeline]
             [empire.test.pipeline :as test-pipeline]
-            [empire.test.pipeline-fast :as test-pipeline-fast]
             [speclj.core :refer :all]))
 
 (defn- run-step
@@ -42,12 +41,4 @@
   (it "test pipeline throws on non-zero exit"
     (assert-failure! @#'test-pipeline/run-step!))
 
-  (it "fast pipeline prints output and returns :ok on success"
-    (let [stdout (with-out-str
-                   (with-redefs [shell/sh (fn [& _] {:exit 0 :out "fast-out" :err ""})]
-                     (should= :ok (run-step @#'test-pipeline-fast/run-step! "Step C" ["echo" "c"]))))]
-      (should-contain "Step C" stdout)
-      (should-contain "fast-out" stdout)))
-
-  (it "fast pipeline throws on non-zero exit"
-    (assert-failure! @#'test-pipeline-fast/run-step!)))
+  )

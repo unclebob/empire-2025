@@ -5,6 +5,7 @@
             [empire.application.runtime :as app-runtime]
             [empire.application.ports.runtime-state :as runtime-ports]
             [empire.application.ports.world-store :as world-ports]
+            [empire.computer.threat-response :as threat-response]
             [empire.computer.production :as computer-production]
             [empire.config :as config]
             [empire.movement.adapter :as movement-adapter]))
@@ -25,7 +26,7 @@
      :merge-continents! #(runtime-ports/merge-continents! rt-store %1 %2)
      :rebuild-refueling-caches! #(runtime-ports/rebuild-refueling-caches! rt-store)
      :rebuild-country-stats! (fn [] nil)
-     :handle-detection! (fn [_coords _cell] nil)
+     :handle-detection! threat-response/handle-detection!
      :country-coastal-explored? (fn [country-id]
                                   (computer-production/country-coastal-cells-explored? country-id))
      :country-city-producing-armies? (fn [city-pos country-id]
@@ -39,5 +40,7 @@
                                                                          coords
                                                                          {:item item
                                                                           :remaining-rounds (config/item-cost item)}))))
+     :process-fighter-threat threat-response/process-fighter-threat
+     :process-ship-threat threat-response/process-ship-threat
      :movement-port movement-port
      :check-invariants (fn [_world] nil)}))

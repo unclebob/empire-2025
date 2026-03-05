@@ -34,10 +34,6 @@ Run all tests (unit specs + acceptance pipeline):
 
     clj -M:all-tests
 
-Run a faster all-tests pass (unit specs + already-generated acceptance specs):
-
-    clj -M:all-tests-fast
-
 Run component dependency analysis:
 
     clj -M:check-dependencies dependency-checker.edn
