@@ -1,17 +1,14 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.config :as config]
+  (:require [empire.config :as config]
+            [empire.movement.context :as movement-context]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))
 
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
-
 (defn- write-runtime-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (movement-context/write-runtime-state! k v))
 
 (defn- set-error-message!
   [msg ms]

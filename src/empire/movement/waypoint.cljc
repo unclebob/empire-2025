@@ -1,26 +1,22 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.waypoint
-  (:require [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]))
-
-(def ^:private state-ctx
-  (delay (app-runtime/default-state-ctx)))
+  (:require [empire.movement.context :as movement-context]))
 
 (defn- update-game-map!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply movement-context/update-world! f args))
 
 (defn- current-world
   []
-  ((:load-world @state-ctx)))
+  (movement-context/current-world))
 
 (defn- read-runtime-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (movement-context/read-runtime-state k))
 
 (defn- write-runtime-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (movement-context/write-runtime-state! k v))
 
 (defn- set-turn-message!
   [msg ms]
