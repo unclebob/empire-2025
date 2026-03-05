@@ -24,7 +24,7 @@
            :acceptance-tests {:main-opts ["-m" "empire.acceptance.pipeline"]}
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
            :all-tests-fast {:main-opts ["-m" "empire.test.pipeline-fast"]}
-           :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker"]}
+           :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker" "--max-distance" "1"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"
 					                         :git/sha "426045ea9d738facea204357b1243bc93070d3f6"}}
