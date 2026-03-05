@@ -44,4 +44,11 @@ if [[ -n "$legacy_app_ports_hits" ]]; then
   exit 1
 fi
 
+state_ctx_delay_hits="$(rg -n 'delay.*default-state-ctx' src/empire --glob '!**/state_access.cljc' --glob '!**/test_utils.cljc' || true)"
+if [[ -n "$state_ctx_delay_hits" ]]; then
+  echo "Architecture boundary violation: state-ctx delay should only exist in application/state_access.cljc:"
+  printf '%s\n' "$state_ctx_delay_hits"
+  exit 1
+fi
+
 echo "Architecture boundary check passed"
