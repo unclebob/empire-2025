@@ -1,14 +1,14 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
   (:require [empire.config :as config]
-            [empire.movement.context :as movement-context]
+            [empire.application.state-access :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- write-runtime-state!
   [k v]
-  (movement-context/write-runtime-state! k v))
+  (sa/write-state! k v))
 
 (defn- map-data
   [current-map]

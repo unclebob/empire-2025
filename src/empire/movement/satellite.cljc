@@ -1,15 +1,15 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.movement.satellite
-  (:require [empire.movement.context :as movement-context]
+  (:require [empire.application.state-access :as sa]
             [empire.movement.visibility :as visibility]))
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- extend-to-boundary
   "Extends from position in direction until hitting a boundary."

@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.coastline
   (:require [empire.config :as config]
-            [empire.movement.context :as movement-context]
+            [empire.application.state-access :as sa]
             [empire.debug :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
@@ -9,14 +9,14 @@
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- world-atom []
-  (movement-context/world-atom))
+  (sa/world-atom))
 
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."

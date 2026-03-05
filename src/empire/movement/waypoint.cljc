@@ -1,22 +1,22 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.waypoint
-  (:require [empire.movement.context :as movement-context]))
+  (:require [empire.application.state-access :as sa]))
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- read-runtime-state
   [k]
-  (movement-context/read-runtime-state k))
+  (sa/read-state k))
 
 (defn- write-runtime-state!
   [k v]
-  (movement-context/write-runtime-state! k v))
+  (sa/write-state! k v))
 
 (defn- set-turn-message!
   [msg ms]

@@ -1,7 +1,7 @@
 (ns empire.movement.pathfinding-bfs.transport
   "Transport and land-HO BFS helpers."
   (:require [empire.movement.map-utils :as map-utils]
-            [empire.movement.pathfinding-bfs.context :as bfs-context]
+            [empire.application.state-access :as sa]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
 
@@ -22,7 +22,7 @@
   "BFS from start over sea cells to find nearest empty sea cell adjacent
    to land on target-continent."
   [start target-continent]
-  (let [game-map (bfs-context/current-world)]
+  (let [game-map (sa/current-world)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)

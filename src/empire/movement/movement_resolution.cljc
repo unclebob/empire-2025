@@ -4,7 +4,7 @@
             [empire.combat :as combat]
             [empire.config :as config]
             [empire.containers.helpers :as uc]
-            [empire.movement.context :as movement-context]
+            [empire.application.state-access :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement-execution :as execution]
             [empire.movement.movement-pathing :as pathing]
@@ -15,15 +15,15 @@
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- write-runtime-state!
   [k v]
-  (movement-context/write-runtime-state! k v))
+  (sa/write-state! k v))
 
 (defn- clamp-to-map-bounds
   "Clamps [x y] to the current map bounds."

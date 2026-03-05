@@ -3,24 +3,24 @@
 (ns empire.movement.movement-state
   (:require [empire.config :as config]
             [empire.containers.helpers :as uc]
-            [empire.movement.context :as movement-context]
+            [empire.application.state-access :as sa]
             [empire.movement.visibility :as visibility]))
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- read-runtime-state
   [k]
-  (movement-context/read-runtime-state k))
+  (sa/read-state k))
 
 (defn- write-runtime-state!
   [k v]
-  (movement-context/write-runtime-state! k v))
+  (sa/write-state! k v))
 
 (defn- update-runtime-state!
   [k f & args]

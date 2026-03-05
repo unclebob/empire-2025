@@ -1,15 +1,15 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.map-utils
-  (:require [empire.movement.context :as movement-context]
+  (:require [empire.application.state-access :as sa]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- read-runtime-state
   [k]
-  (movement-context/read-runtime-state k))
+  (sa/read-state k))
 
 (def neighbor-offsets
   "Offsets for the 8 adjacent cells (excludes center)."

@@ -1,7 +1,7 @@
 (ns empire.movement.pathfinding-bfs.exploration
   "BFS exploration and unseen-coast target selection."
   (:require [empire.movement.map-utils :as map-utils]
-            [empire.movement.pathfinding-bfs.context :as bfs-context]
+            [empire.application.state-access :as sa]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
 
@@ -47,8 +47,8 @@
 (defn- find-nearest-unexplored-uncached
   "BFS from start over passable cells to find nearest cell adjacent to unexplored."
   [start unit-type]
-  (let [game-map (bfs-context/current-world)
-        computer-map (bfs-context/read-runtime-state :computer-map)]
+  (let [game-map (sa/current-world)
+        computer-map (sa/read-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
@@ -74,8 +74,8 @@
 (defn- find-nearest-unexplored-coastline-uncached
   "BFS from start over passable sea cells to find nearest coastal exploration frontier."
   [start unit-type]
-  (let [game-map (bfs-context/current-world)
-        computer-map (bfs-context/read-runtime-state :computer-map)]
+  (let [game-map (sa/current-world)
+        computer-map (sa/read-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
@@ -175,7 +175,7 @@
   "BFS from start over passable sea cells to find unseen coast or unexplored-adjacent cell.
    Returns path excluding start, or nil."
   [start computer-map excluded]
-  (let [seen-coast (bfs-context/read-runtime-state :seen-coast)
+  (let [seen-coast (sa/read-state :seen-coast)
         sea? (partial core/passable-sea? computer-map)]
     (when (core/passable-sea? computer-map start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])

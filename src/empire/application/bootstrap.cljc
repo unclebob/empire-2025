@@ -10,9 +10,6 @@
             [empire.computer.production :as computer-production]
             [empire.config :as config]
 [empire.movement.adapter :as movement-adapter]
-            [empire.movement.context :as movement-context]
-            [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.pathfinding-bfs.context :as bfs-context]
             [empire.units.impl.dispatcher]))
 
 (defn- build-default-state-ctx
@@ -55,9 +52,6 @@
 (defn initialize-default-services!
   "Loads app impl namespaces so their defmethod implementations are registered."
   []
-  (let [ctx (app-runtime/default-state-ctx)]
-    (movement-context/set-state-ctx! ctx)
-    (pathfinding/set-world-loader! (:load-world ctx))
-    (bfs-context/set-world-loader! (:load-world ctx))
-    (bfs-context/set-runtime-reader! (:read-runtime-state ctx)))
+  (app-runtime/default-state-ctx)
   true)
+

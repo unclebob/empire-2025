@@ -4,17 +4,17 @@
   (:require [empire.config :as config]
             [empire.containers.helpers :as uc]
             [empire.containers.ops :as container-ops]
-            [empire.movement.context :as movement-context]
+            [empire.application.state-access :as sa]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn process-consumables [unit to-cell]
   (if (and unit (= (:type unit) :fighter))

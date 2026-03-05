@@ -1,25 +1,25 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.explore
   (:require [empire.config :as config]
-            [empire.movement.context :as movement-context]
+            [empire.application.state-access :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]))
 
 (defn- update-game-map!
   [f & args]
-  (apply movement-context/update-world! f args))
+  (apply sa/update-world! f args))
 
 (defn- current-world
   []
-  (movement-context/current-world))
+  (sa/current-world))
 
 (defn- read-runtime-state
   [k]
-  (movement-context/read-runtime-state k))
+  (sa/read-state k))
 
 (defn- world-atom []
-  (movement-context/world-atom))
+  (sa/world-atom))
 
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."
