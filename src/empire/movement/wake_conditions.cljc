@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
-  (:require [empire.config :as config]
+  (:require [empire.config.core :as config]
             [empire.application.state-access :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]

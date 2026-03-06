@@ -1,7 +1,7 @@
 (ns empire.game-loop.round-setup.fuel
   (:require [empire.application.state-access :as sa]
             [empire.movement.wake-conditions :as wake]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.domain.services.round-setup :as domain-round-setup]))
 
 (defn- world-ref [world] (atom world))

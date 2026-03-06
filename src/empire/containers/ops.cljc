@@ -2,7 +2,7 @@
 (ns empire.containers.ops
   (:require [empire.application.state-access :as sa]
             [empire.application.unit-stamping :as unit-stamping]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.domain.model.containers :as domain-containers]
             [empire.movement.map-utils :as map-utils]

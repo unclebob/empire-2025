@@ -1,9 +1,9 @@
 (ns empire.computer.ship-patrol-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship-patrol :as patrol]
             [empire.computer.ship-core :as ship-core]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-computer-map!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (describe "ship-patrol"
   (before (reset-all-atoms!))

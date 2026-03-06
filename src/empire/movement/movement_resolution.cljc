@@ -1,8 +1,8 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-resolution
   (:require [clojure.string]
-            [empire.combat :as combat]
-            [empire.config :as config]
+            [empire.application.combat :as combat]
+            [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.application.state-access :as sa]
             [empire.movement.map-utils :as map-utils]

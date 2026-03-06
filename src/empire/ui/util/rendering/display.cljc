@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-01
 (ns empire.ui.util.rendering.display
   (:require [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.movement.lakes :as lakes]
             [empire.ui.util.rendering.format :as fmt]))

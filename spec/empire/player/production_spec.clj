@@ -1,10 +1,10 @@
 (ns empire.player.production-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.production :as production]
             [empire.computer.production :as computer-production]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map get-test-city reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map get-test-city reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "update-production"
   (around [it]

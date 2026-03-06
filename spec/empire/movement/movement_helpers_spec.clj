@@ -1,6 +1,6 @@
 (ns empire.movement.movement-helpers-spec
-  (:require [empire.test-utils :as test-utils]
-    [empire.config :as config]
+  (:require [empire.test.utils :as test-utils]
+    [empire.config.core :as config]
     [empire.game-loop.core :as game-loop]
     [empire.movement.explore :as explore]
     [empire.movement.api :refer :all]
@@ -9,7 +9,7 @@
     [empire.movement.movement-state :as movement-state]
     [empire.movement.visibility :as visibility]
     [empire.movement.wake-conditions :as wake]
-    [empire.test-utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]
+    [empire.test.utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]
     [speclj.core :refer :all]))
 
 (describe "diagonal?"

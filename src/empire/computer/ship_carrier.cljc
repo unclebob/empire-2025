@@ -5,7 +5,7 @@
   (:require [clojure.set :as set]
             [empire.application.state-access :as sa]
             [empire.computer.core :as core]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.computer.movement :as computer-movement]
             [empire.computer.movement :as computer-movement]))
 

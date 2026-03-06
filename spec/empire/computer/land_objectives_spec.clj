@@ -2,7 +2,7 @@
   "Tests for land objective detection using fog-of-war flood-fill."
   (:require [speclj.core :refer :all]
             [empire.computer.land-objectives :as land-objectives]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "flood-fill-continent"
   (before (reset-all-atoms!))

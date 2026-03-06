@@ -1,8 +1,8 @@
 (ns empire.computer.threat-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.threat :as threat]
-            [empire.test-utils :refer [reset-all-atoms! set-test-computer-map!]]))
+            [empire.test.utils :refer [reset-all-atoms! set-test-computer-map!]]))
 
 (describe "unit-threat"
   (it "returns 10 for battleship"

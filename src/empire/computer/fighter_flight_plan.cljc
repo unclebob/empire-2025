@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-flight-plan
   (:require [empire.computer.ship :as ship]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]))
 

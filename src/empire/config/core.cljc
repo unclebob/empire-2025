@@ -1,4 +1,4 @@
-(ns empire.config
+(ns empire.config.core
   (:require [empire.units.config :as units-config]
             [empire.units.ships :as ships]
             [empire.config.rendering :as rendering]

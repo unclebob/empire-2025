@@ -1,10 +1,10 @@
 (ns empire.game-loop-movement-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game-loop.core :as game-loop]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.movement.api :as movement]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
+            [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
 
 (describe "unit movement"
   (before (reset-all-atoms!))

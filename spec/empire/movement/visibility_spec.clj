@@ -1,8 +1,8 @@
 (ns empire.movement.visibility-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.movement.visibility :refer :all]
-            [empire.test-utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
+            [empire.test.utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
 
 (describe "update-cell-visibility"
   (before (reset-all-atoms!))

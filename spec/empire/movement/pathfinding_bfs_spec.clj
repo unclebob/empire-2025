@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.movement.map-utils :as map-utils]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "bfs-to-unexplored-coast"
   (before (reset-all-atoms!))

@@ -1,8 +1,8 @@
 (ns empire.computer.fighter-explore-hop-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.test-utils :refer [build-test-map set-test-unit
+            [empire.test.utils :refer [build-test-map set-test-unit
                                        get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "explore-hop-over"

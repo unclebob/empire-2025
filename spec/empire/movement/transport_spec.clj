@@ -1,10 +1,10 @@
 (ns empire.movement.transport-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
     [empire.containers.ops :as container-ops]
     [empire.game-loop.core :as game-loop]
     [empire.movement.map-utils :as map-utils]
     [empire.movement.api :refer :all]
-    [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! make-initial-test-map set-test-world!]]
+    [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! make-initial-test-map set-test-world!]]
     [speclj.core :refer :all]))
 
 (describe "transport with armies"

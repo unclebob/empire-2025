@@ -1,14 +1,14 @@
 (ns empire.computer.ship-spec
   "Tests for VMS Empire style computer ship movement."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship :as ship]
             [empire.computer.ship-carrier :as ship-carrier]
             [empire.computer.core :as core]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.containers.helpers :as uc]
-            [empire.combat :as combat]
+            [empire.application.combat :as combat]
             [empire.computer.threat :as threat]))
 
 (describe "process-ship"

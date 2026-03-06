@@ -1,10 +1,10 @@
 (ns empire.player.orders-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.orders :as orders]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.movement.waypoint :as waypoint]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! get-test-city set-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! get-test-city set-test-world!]]))
 
 (describe "own-city-at"
   (before (reset-all-atoms!))

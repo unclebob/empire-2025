@@ -1,7 +1,7 @@
 (ns empire.computer.production.stats-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [empire.computer.production.stats :as stats]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map!]]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map!]]
             [speclj.core :refer :all]))
 
 (describe "production stats module"

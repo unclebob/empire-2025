@@ -1,11 +1,11 @@
 (ns empire.computer.threat-response-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.core :as core]
             [empire.application.state-access :as sa]
             [empire.computer.threat-response :as threat-response]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn computer-units
   [pred]

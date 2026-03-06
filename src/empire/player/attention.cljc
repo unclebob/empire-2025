@@ -3,7 +3,7 @@
   (:require [empire.movement.map-utils :as map-utils]
             [empire.application.state-access :as sa]
             [empire.application.ports.unit-state :as ports]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.domain.core.unit-metrics :as unit-metrics]
             [empire.containers.helpers :as uc]))
 

@@ -1,11 +1,11 @@
 (ns empire.computer.ship-carrier-group-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship-carrier-group :as cg]
             [empire.computer.ship :as ship]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.core :as core]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]
             [empire.movement.visibility :as visibility]))
 
 (describe "ship-carrier-group"

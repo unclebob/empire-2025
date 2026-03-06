@@ -4,7 +4,7 @@
             [empire.movement.map-utils :as map-utils]
             [empire.application.state-access :as sa]
             [empire.application.unit-stamping :as unit-stamping]
-            [empire.config :as config]))
+            [empire.config.core :as config]))
 
 (defn- stamp-computer-fields
   [unit cell]

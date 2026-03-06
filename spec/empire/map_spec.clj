@@ -1,16 +1,16 @@
 (ns empire.map-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.attention :as attention]
-            [empire.combat :as combat]
-            [empire.config :as config]
+            [empire.application.combat :as combat]
+            [empire.config.core :as config]
             [empire.game-loop.core :as game-loop]
             [empire.ui.util.input.actions :as input]
             [empire.ui.util.input.actions.movement :as input-movement]
             [empire.movement.explore :as explore]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.api :as movement]
-            [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map
+            [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map
                                        set-test-world! set-test-player-map!]]))
 
 (describe "build-player-items"

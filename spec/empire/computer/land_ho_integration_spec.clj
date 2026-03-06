@@ -1,9 +1,9 @@
 (ns empire.computer.land-ho-integration-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.movement.visibility :as visibility]
             [empire.computer.land-ho :as land-ho]
-            [empire.test-utils :refer [reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
+            [empire.test.utils :refer [reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (defn make-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))

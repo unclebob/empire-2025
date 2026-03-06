@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-28
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-execution
-  (:require [empire.config :as config]
+  (:require [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.containers.ops :as container-ops]
             [empire.application.state-access :as sa]

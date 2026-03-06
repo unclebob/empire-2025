@@ -1,10 +1,10 @@
 (ns empire.computer.army-coastal-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.application.state-access :as sa]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.movement :as movement]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "army coastal lake handling"
   (before (reset-all-atoms!))

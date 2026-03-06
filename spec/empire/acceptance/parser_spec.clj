@@ -1,7 +1,7 @@
 (ns empire.acceptance.parser-spec
   (:require [speclj.core :refer :all]
             [empire.acceptance.parser :as parser]
-            [empire.config :as config]))
+            [empire.config.core :as config]))
 
 (describe "acceptance test parser"
 

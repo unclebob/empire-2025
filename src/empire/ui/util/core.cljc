@@ -1,6 +1,6 @@
 (ns empire.ui.util.core
   (:require [empire.application.state-access :as sa]
-            [empire.config :as config]))
+            [empire.config.core :as config]))
 
 (defn screen->cell
   "Converts screen pixel coordinates to map cell coordinates [row col].

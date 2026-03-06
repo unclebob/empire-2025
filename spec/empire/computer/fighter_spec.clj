@@ -1,11 +1,11 @@
 (ns empire.computer.fighter-spec
   "Tests for fighter orchestrator: leg coverage, navigation, state machine."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.combat :as combat]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map set-test-unit
+            [empire.application.combat :as combat]
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map set-test-unit
                                        get-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "process-fighter"

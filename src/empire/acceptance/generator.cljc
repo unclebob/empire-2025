@@ -99,7 +99,7 @@
    [:territory-mask  ["territory-mask" "build-territory-expected"]]])
 
 (def ^:private optional-requires
-  [[:config              "[empire.config :as config]"]])
+  [[:config              "[empire.config.core :as config]"]])
 
 (defn- collect-harness-refers [needs]
   (into ["build-test-map" "set-test-world!" "update-test-world!"

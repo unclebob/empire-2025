@@ -1,6 +1,6 @@
-(ns empire.combat
+(ns empire.application.combat
   (:require [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.domain.model.combat :as domain-combat]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))

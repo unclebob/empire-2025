@@ -315,9 +315,9 @@
           result (gen/generate-spec edn-data)]
       (should-contain "(ns acceptance.army-spec" result)
       (should-contain "speclj.core :refer :all" result)
-      (should-not-contain "empire.test-utils" result)
+      (should-not-contain "empire.test.utils" result)
       (should-not-contain "empire.atoms :as atoms" result)
-      (should-contain "empire.config :as config" result)
+      (should-contain "empire.config.core :as config" result)
       (should-contain "empire.acceptance.harness :as h" result)))
 
   (it "generates army spec with correct describe"
@@ -367,7 +367,7 @@
                              :thens [{:type :unit-present :unit "A" :coords [0 0]}]}]}
           result (gen/generate-spec edn-data)]
       (should-contain "(ns acceptance.backtick-commands-spec" result)
-      (should-not-contain "empire.test-utils" result)
+      (should-not-contain "empire.test.utils" result)
       (should-contain "empire.acceptance.harness :as h" result)))
 
   (it "generates backtick-commands spec with all 13 tests"

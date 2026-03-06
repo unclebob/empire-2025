@@ -1,8 +1,8 @@
 (ns empire.player.attention-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.attention :as attention]
-            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]))
 
 (describe "is-city-needing-attention?"
   (before (reset-all-atoms!))

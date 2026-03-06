@@ -1,7 +1,7 @@
 (ns empire.movement.lakes-spec
   (:require [speclj.core :refer :all]
             [empire.movement.lakes :as lakes]
-            [empire.test-utils :refer [build-test-map]]))
+            [empire.test.utils :refer [build-test-map]]))
 
 (describe "lake-cells"
   (it "returns only sea cells in components at or below size limit"

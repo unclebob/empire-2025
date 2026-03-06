@@ -1,6 +1,6 @@
-(ns empire.test-utils-spec
+(ns empire.test.utils-spec
   (:require [speclj.core :refer :all]
-            [empire.test-utils :refer :all]))
+            [empire.test.utils :refer :all]))
 
 (describe "build-test-map"
   (it "returns a vector"

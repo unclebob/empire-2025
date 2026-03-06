@@ -1,8 +1,8 @@
 (ns empire.application.save-load-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.application.save-load :as save-load]
-            [empire.test-utils :refer [reset-all-atoms! set-test-world!]]))
+            [empire.test.utils :refer [reset-all-atoms! set-test-world!]]))
 
 (describe "load menu atoms"
   (before (reset-all-atoms!))

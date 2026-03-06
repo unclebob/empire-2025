@@ -1,7 +1,7 @@
 (ns empire.application.state-access-spec
   (:require [speclj.core :refer :all]
             [empire.application.state-access :as sa]
-            [empire.test-utils :as tu]))
+            [empire.test.utils :as tu]))
 
 (describe "state-access"
   (before (tu/reset-all-atoms!))

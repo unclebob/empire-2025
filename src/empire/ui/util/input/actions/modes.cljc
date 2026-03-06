@@ -1,7 +1,7 @@
 (ns empire.ui.util.input.actions.modes
   (:require [empire.application.ports.unit-state :as ports]
             [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.movement.coastline :as coastline]

@@ -1,7 +1,7 @@
 (ns empire.computer-spec
   "Tests for computer AI modules - post CommandingGeneral refactor.
    Decision logic has been gutted; these tests cover preserved utilities."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game-loop.core :as game-loop]
             [empire.computer.coordinator :as computer]
@@ -12,7 +12,7 @@
             [empire.computer.ship :as ship]
             [empire.computer.threat :as threat]
             [empire.computer.transport :as transport]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-player-map! set-test-computer-map!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-player-map! set-test-computer-map!]]))
 
 ;; ============================================================================
 ;; Preserved Utilities: computer/core.cljc

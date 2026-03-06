@@ -5,7 +5,7 @@
   (:require [empire.application.state-access :as sa]
             [empire.movement.waypoint :as waypoint]
             [empire.application.ports.unit-state :as ports]
-            [empire.config :as config]))
+            [empire.config.core :as config]))
 
 (defn- set-turn-message!
   [msg ms]

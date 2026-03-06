@@ -2,7 +2,7 @@
 (ns empire.computer.army.combat
   "Army combat helpers."
   (:require [empire.application.state-access :as sa]
-            [empire.combat :as combat]
+            [empire.application.combat :as combat]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
             [empire.debug.logging :as debug]

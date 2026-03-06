@@ -1,6 +1,6 @@
 (ns empire.ui.util.rendering.format
   (:require [empire.application.production-status :as production-status]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))
 

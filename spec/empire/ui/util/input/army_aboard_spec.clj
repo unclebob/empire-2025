@@ -1,12 +1,12 @@
 (ns empire.ui.util.input.army-aboard-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.ui.util.input.actions :as actions]
             [empire.ui.util.input.actions.movement :as actions-movement]
-            [empire.combat :as combat]
+            [empire.application.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.game-loop.core :as game-loop]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "handle-army-aboard-movement"
   (before (reset-all-atoms!))

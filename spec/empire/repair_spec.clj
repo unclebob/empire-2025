@@ -1,9 +1,9 @@
 (ns empire.repair-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]
-            [empire.test-utils :as tu]
+            [empire.test.utils :as tu]
             [empire.movement.api :as movement]
             [empire.game-loop.core :as game-loop]
             [empire.containers.ops :as container-ops]

@@ -1,6 +1,6 @@
 (ns empire.config-spec
   (:require [speclj.core :refer :all]
-            [empire.config :as config]))
+            [empire.config.core :as config]))
 
 (describe "city-color-key"
   (it "returns :player-city for :player"

@@ -1,9 +1,9 @@
 (ns empire.computer.fighter-exploration-spec
   "Tests for fighter exploration: sorties, drone operations, unexplored-cell scoring."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.test-utils :refer [build-test-map set-test-unit
+            [empire.test.utils :refer [build-test-map set-test-unit
                                        get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "fighter-exploration"

@@ -1,9 +1,9 @@
 (ns empire.player.commands-actions-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.commands :as commands]
-            [empire.config :as config]
-            [empire.combat :as combat]
+            [empire.config.core :as config]
+            [empire.application.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.game-loop.core :as game-loop]
@@ -12,7 +12,7 @@
             [empire.movement.api :as movement]
             [empire.player.production :as production]
             [empire.units.dispatcher :as dispatcher]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-unit set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-unit set-test-world! update-test-world!]]))
 
 ;; Helpers
 

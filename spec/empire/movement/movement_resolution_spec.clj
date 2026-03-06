@@ -1,8 +1,8 @@
 (ns empire.movement.movement-resolution-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [empire.movement.movement-resolution :as resolution]
             [empire.movement.visibility :as visibility]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "movement-resolution"
@@ -43,7 +43,7 @@
       (with-redefs [empire.movement.wake-conditions/wake-before-move
                     (fn [_ _] [{:type :army :owner :player :mode :awake :reason :somethings-in-the-way} true])
                     empire.units.dispatcher/can-move-to? (fn [_ _] true)
-                    empire.combat/attempt-attack (fn [_ _ _] true)
+                    empire.application.combat/attempt-attack (fn [_ _ _] true)
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :combat (:result (resolution/move-unit [0 0] [2 0] cell current-map))))))
 
@@ -55,7 +55,7 @@
       (with-redefs [empire.movement.wake-conditions/wake-before-move
                     (fn [_ _] [{:type :army :owner :player :mode :awake :reason :somethings-in-the-way} true])
                     empire.units.dispatcher/can-move-to? (fn [_ _] true)
-                    empire.combat/attempt-attack (fn [_ _ _] (reset! attack-called? true) true)
+                    empire.application.combat/attempt-attack (fn [_ _ _] (reset! attack-called? true) true)
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :woke (:result (resolution/move-unit [0 0] [2 0] cell current-map)))
         (should-not @attack-called?))))

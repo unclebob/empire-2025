@@ -4,7 +4,7 @@
   (:require [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.ship-core :as ship-core]
-            [empire.config :as config]))
+            [empire.config.core :as config]))
 
 (def ^:private patrol-yield-radius 4)
 (def ^:private patrol-max-invasion-distance 10)

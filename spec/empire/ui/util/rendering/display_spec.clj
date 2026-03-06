@@ -1,7 +1,7 @@
 (ns empire.ui.util.rendering.display-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.test-utils :refer [reset-all-atoms!]]
+            [empire.test.utils :refer [reset-all-atoms!]]
             [empire.ui.util.rendering.display :as display]))
 
 (describe "determine-display-unit"

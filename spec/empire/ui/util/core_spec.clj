@@ -1,7 +1,7 @@
 (ns empire.ui.util.core-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [empire.ui.util.core :as util-core]
-            [empire.test-utils :refer [reset-all-atoms!]]
+            [empire.test.utils :refer [reset-all-atoms!]]
             [speclj.core :refer :all]))
 
 (describe "key-released"

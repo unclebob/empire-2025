@@ -7,10 +7,10 @@
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.player.attention :as attention]
-            [empire.combat :as combat]
+            [empire.application.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- current-world [ctx]

@@ -2,7 +2,7 @@
 (ns empire.computer.core
   (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.state-access :as sa]
-            [empire.combat :as combat]
+            [empire.application.combat :as combat]
             [empire.debug.logging :as debug]))
 
 (def neighbor-offsets

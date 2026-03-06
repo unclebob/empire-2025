@@ -1,10 +1,10 @@
 (ns empire.computer.production-army-spec
   "Tests for VMS Empire style computer production."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.production :as production]
             [empire.computer.ship :as ship]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 ;; ===== 3. army production =====
 

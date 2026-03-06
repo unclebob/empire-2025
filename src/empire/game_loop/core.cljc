@@ -7,7 +7,7 @@
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.computer.army :as army]
             [empire.computer.land-ho :as land-ho]
             [empire.computer.land-objectives :as land-objectives]

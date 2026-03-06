@@ -6,8 +6,8 @@
             [empire.application.state-access :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
-            [empire.combat :as combat]
-            [empire.config :as config]))
+            [empire.application.combat :as combat]
+            [empire.config.core :as config]))
 
 (defn- execution-port
   []

@@ -251,7 +251,7 @@
 
   (it "always includes base harness refers"
     (let [result (gen/generate-ns-form "foo.txt" #{})]
-      (should-not-contain "empire.test-utils" result)
+      (should-not-contain "empire.test.utils" result)
       (should-contain "build-test-map" result)
       (should-not-contain "set-test-unit" result)
       (should-not-contain "get-test-unit" result)
@@ -264,7 +264,7 @@
 
   (it "includes config require and message-matches? refer when :config needed"
     (let [result (gen/generate-ns-form "foo.txt" #{:config})]
-      (should-contain "[empire.config :as config]" result)
+      (should-contain "[empire.config.core :as config]" result)
       (should-contain "message-matches?" result)))
 
   (it "does not include game-loop require when :game-loop needed"
@@ -292,7 +292,7 @@
 
   (it "combines multiple needs correctly"
     (let [result (gen/generate-ns-form "foo.txt" #{:config :game-loop})]
-      (should-contain "[empire.config :as config]" result)
+      (should-contain "[empire.config.core :as config]" result)
       (should-not-contain "[empire.game-loop :as game-loop]" result)
       (should-contain "message-matches?" result)
       (should-not-contain "get-test-cell" result))))

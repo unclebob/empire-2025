@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.production.decisions
   (:require [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.computer.production.stats :as stats]
             [empire.computer.ship :as ship]))
 

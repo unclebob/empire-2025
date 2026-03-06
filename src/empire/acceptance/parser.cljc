@@ -1,7 +1,7 @@
 (ns empire.acceptance.parser
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.acceptance.parser.helpers :as h]
             [empire.acceptance.parser.given :as given]
             [empire.acceptance.parser.when :as when-parser]

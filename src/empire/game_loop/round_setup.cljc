@@ -4,7 +4,7 @@
   (:require [empire.application.state-access :as sa]
             [empire.movement.visibility :as visibility]
             [empire.movement.satellite :as satellite]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.domain.services.round-setup :as domain-round-setup]
             [empire.game-loop.round-setup.fuel :as fuel]
             [empire.game-loop.round-setup.lakes :as lakes]

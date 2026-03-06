@@ -1,14 +1,14 @@
 (ns empire.ui.util.input.actions-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.ui.util.input.actions :as actions]
             [empire.ui.util.input.actions.movement :as actions-movement]
             [empire.ui.util.input.dispatch :as dispatch]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.game-loop.core :as game-loop]
             [empire.player.orders :as orders]
             [empire.player.production :as production]
-            [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!
+            [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!
                                        set-test-world! update-test-world!]]))
 
 (describe "set-city-lookaround"

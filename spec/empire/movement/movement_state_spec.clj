@@ -1,7 +1,7 @@
 (ns empire.movement.movement-state-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [empire.movement.movement-state :as state]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "movement-state"

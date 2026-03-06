@@ -1,9 +1,9 @@
 (ns empire.debug-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.debug.dump :as debug-dump]
             [empire.debug.logging :as debug-logging]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
             [clojure.string :as str]))
 
 (describe "format-cell handles nil contents fields"

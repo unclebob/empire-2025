@@ -1,12 +1,12 @@
 (ns empire.computer.fighter-movement-spec
   "Tests for fighter movement primitives: combat, hopping, fuel management."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
             [empire.computer.fighter-movement :as fm]
-            [empire.combat :as combat]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map build-sparse-test-map
+            [empire.application.combat :as combat]
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map build-sparse-test-map
                                        set-test-unit
                                        get-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 

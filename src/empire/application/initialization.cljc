@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-26
-(ns empire.init
-  (:require [empire.config :as config]
+(ns empire.application.initialization
+  (:require [empire.config.core :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.application.runtime :as app-runtime]

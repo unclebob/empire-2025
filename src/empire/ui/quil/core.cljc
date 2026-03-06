@@ -1,9 +1,9 @@
 (ns empire.ui.quil.core
   (:require [empire.application.bootstrap :as app-bootstrap]
             [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.game-loop.core :as game-loop]
-            [empire.init :as init]
+            [empire.application.initialization :as init]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
             [empire.ui.quil.rendering.messages :as render-messages]

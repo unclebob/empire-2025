@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.units.config :as units-config]
             [empire.units.satellite :as satellite]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world! read-test-world]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world! read-test-world]]))
 
 (describe "satellite unit module"
   (before (reset-all-atoms!))

@@ -1,8 +1,8 @@
 (ns empire.game-loop.item-processing-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game-loop.item-processing :as ip]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.movement.api :as movement]
             [empire.movement.explore :as explore]
             [empire.movement.coastline :as coastline]
@@ -10,7 +10,7 @@
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.containers.ops :as container-ops]
-            [empire.test-utils :refer [reset-all-atoms! set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [reset-all-atoms! set-test-world! update-test-world!]]))
 
 (defn- land-cell [] {:type :land})
 (defn- sea-cell [] {:type :sea})

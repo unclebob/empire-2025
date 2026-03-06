@@ -1,13 +1,13 @@
 (ns empire.computer.army-spec
   "Tests for VMS Empire style computer army movement."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.army :as army]
             [empire.computer.core :as core]
             [empire.computer.production :as production]
             [empire.computer.stamping :as stamping]
-            [empire.combat :as combat]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.application.combat :as combat]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "should-sentry-on-coast?"
   (before (reset-all-atoms!))

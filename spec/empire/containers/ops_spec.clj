@@ -1,9 +1,9 @@
 (ns empire.containers.ops-spec
-  (:require [empire.test-utils :as test-utils]
-            [empire.config :as config]
+  (:require [empire.test.utils :as test-utils]
+            [empire.config.core :as config]
             [empire.containers.ops :refer :all]
             [empire.containers.helpers :as uc]
-            [empire.test-utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit set-test-world! update-test-world!]]
+            [empire.test.utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "non-full-transport?"

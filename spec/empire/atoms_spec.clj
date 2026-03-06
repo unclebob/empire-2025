@@ -1,9 +1,9 @@
 (ns empire.atoms-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.atoms :as atoms]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
+            [empire.application.state.atoms :as atoms]
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "set-error-message"
   (before (reset-all-atoms!))

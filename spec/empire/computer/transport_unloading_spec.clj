@@ -1,8 +1,8 @@
 (ns empire.computer.transport-unloading-spec
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport-unloading :as unloading]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-world!]]))
 
 (describe "transport-unloading"
   (before (reset-all-atoms!))

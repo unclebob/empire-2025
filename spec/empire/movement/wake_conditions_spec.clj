@@ -1,8 +1,8 @@
 (ns empire.movement.wake-conditions-spec
-  (:require [empire.test-utils :as test-utils]
-            [empire.config :as config]
+  (:require [empire.test.utils :as test-utils]
+            [empire.config.core :as config]
             [empire.movement.wake-conditions :refer :all]
-            [empire.test-utils :refer [build-test-map make-initial-test-map reset-all-atoms! set-test-player-map! set-test-world!]]
+            [empire.test.utils :refer [build-test-map make-initial-test-map reset-all-atoms! set-test-player-map! set-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "near-hostile-city?"

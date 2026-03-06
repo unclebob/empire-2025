@@ -1,13 +1,13 @@
 (ns empire.computer.ship-mutations-spec
   "Tests for VMS Empire style computer ship movement - mutation: patrol boat navigation + carrier and escort operations."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship :as ship]
             [empire.computer.core :as core]
-            [empire.config :as config]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
+            [empire.config.core :as config]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.containers.helpers :as uc]
-            [empire.combat :as combat]
+            [empire.application.combat :as combat]
             [empire.computer.threat :as threat]))
 
 (describe "mutation: carrier and escort operations"

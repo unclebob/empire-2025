@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-28
 ;; mutation-tested: 2026-02-28
 (ns empire.movement.movement-state
-  (:require [empire.config :as config]
+  (:require [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.application.state-access :as sa]
             [empire.movement.visibility :as visibility]))

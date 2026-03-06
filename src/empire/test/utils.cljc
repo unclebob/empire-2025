@@ -1,4 +1,4 @@
-(ns empire.test-utils
+(ns empire.test.utils
   (:require [clojure.string :as str]
             [empire.application.bootstrap :as app-bootstrap]
             [empire.application.runtime :as app-runtime]

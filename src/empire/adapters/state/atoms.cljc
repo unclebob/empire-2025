@@ -2,7 +2,7 @@
 (ns empire.adapters.state.atoms
   "Atom-backed store adapter for application state boundary."
   (:require [empire.application.ports.world-store :as ports]
-            [empire.atoms :as atoms]))
+            [empire.application.state.atoms :as atoms]))
 
 (defrecord AtomWorldStore []
   ports/WorldStorePort

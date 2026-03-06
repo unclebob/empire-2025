@@ -2,7 +2,7 @@
 (ns empire.adapters.state.runtime
   "Atom-backed runtime state adapter for non-world state."
   (:require [empire.application.ports.runtime-state :as ports]
-            [empire.atoms :as atoms]
+            [empire.application.state.atoms :as atoms]
             [empire.domain.core.continents :as continents]
             [empire.domain.core.messages :as messages]
             [empire.domain.core.refueling :as refueling]))

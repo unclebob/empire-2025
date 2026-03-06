@@ -1,7 +1,7 @@
 (ns empire.movement.land-ho-bfs-spec
   (:require [speclj.core :refer :all]
             [empire.movement.pathfinding-bfs :as bfs]
-            [empire.test-utils :refer [reset-all-atoms!]]))
+            [empire.test.utils :refer [reset-all-atoms!]]))
 
 (defn make-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))

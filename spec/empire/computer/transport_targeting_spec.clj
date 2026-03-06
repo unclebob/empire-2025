@@ -1,13 +1,13 @@
 (ns empire.computer.transport-targeting-spec
   "Tests for VMS Empire style computer transport movement."
-  (:require [empire.test-utils :as test-utils]
+  (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport :as transport]
             [empire.computer.transport-targeting :as targeting]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map!
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map!
                                        set-test-world! update-test-world!]]))
 
 (describe "process-transport"

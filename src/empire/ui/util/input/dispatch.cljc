@@ -1,7 +1,7 @@
 (ns empire.ui.util.input.dispatch
   (:require [empire.application.save-load :as save-load]
             [empire.application.state-access :as sa]
-            [empire.config :as config]
+            [empire.config.core :as config]
             [empire.debug.dump :as debug-dump]
             [empire.debug.logging :as debug]
             [empire.game-loop.core :as game-loop]
