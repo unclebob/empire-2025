@@ -51,6 +51,38 @@ if [[ -n "$facade_hits" ]]; then
   exit 1
 fi
 
+# empire.debug facade was removed; require debug.logging or debug.dump directly
+debug_facade_hits="$(rg -nP 'empire\.debug(?!\.)' src/empire || true)"
+if [[ -n "$debug_facade_hits" ]]; then
+  echo "Architecture boundary violation: empire.debug facade was removed; require empire.debug.logging or empire.debug.dump:"
+  printf '%s\n' "$debug_facade_hits"
+  exit 1
+fi
+
+# empire.computer top-level was removed; use empire.computer.coordinator
+computer_facade_hits="$(rg -nP 'empire\.computer(?!\.)' src/empire || true)"
+if [[ -n "$computer_facade_hits" ]]; then
+  echo "Architecture boundary violation: empire.computer top-level was removed; use empire.computer.coordinator:"
+  printf '%s\n' "$computer_facade_hits"
+  exit 1
+fi
+
+# empire.game-loop moved to empire.game-loop.core
+game_loop_top_hits="$(rg -nP '(?<!\.)empire\.game-loop(?!\.)' src/empire || true)"
+if [[ -n "$game_loop_top_hits" ]]; then
+  echo "Architecture boundary violation: empire.game-loop moved to empire.game-loop.core:"
+  printf '%s\n' "$game_loop_top_hits"
+  exit 1
+fi
+
+# empire.save-load moved to empire.application.save-load
+save_load_top_hits="$(rg -nP 'empire\.save-load(?!\.)' src/empire || true)"
+if [[ -n "$save_load_top_hits" ]]; then
+  echo "Architecture boundary violation: empire.save-load moved to empire.application.save-load:"
+  printf '%s\n' "$save_load_top_hits"
+  exit 1
+fi
+
 # application.coords was removed; function moved to ui/util/core
 app_coords_hits="$(rg -n 'empire\.application\.coords' src/empire || true)"
 if [[ -n "$app_coords_hits" ]]; then

@@ -29,8 +29,7 @@
            "empire.application.runtime"
            "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"
            "^empire\\.atoms(\\..*)?$"
-           "empire.atoms-runtime"
-           "empire.save-load"]}
+           "empire.atoms-runtime"]}
 
   {:component :domain-services
    :kind :concrete
