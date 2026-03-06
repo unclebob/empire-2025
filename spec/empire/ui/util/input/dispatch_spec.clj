@@ -356,8 +356,8 @@
 
   (it "debug-drag-end! does not write dump when selection has no area"
     (dispatch/debug-drag-start! 10 10)
-    (with-redefs [empire.debug/screen-coords-to-cell-range (fn [_ _] [[1 1] [1 1]])
-                  empire.debug/write-dump! (fn [_ _] (throw (ex-info "should not dump" {})))]
+    (with-redefs [empire.debug.dump/screen-coords-to-cell-range (fn [_ _] [[1 1] [1 1]])
+                  empire.debug.dump/write-dump! (fn [_ _] (throw (ex-info "should not dump" {})))]
       (dispatch/debug-drag-end! 20 20 {:ctrl true})
       (should= "" (test-utils/read-test-state :debug-message)))
     (should-be-nil (test-utils/read-test-state :debug-drag-start))
@@ -365,8 +365,8 @@
 
   (it "debug-drag-end! writes dump and updates debug message for area selection"
     (dispatch/debug-drag-start! 10 10)
-    (with-redefs [empire.debug/screen-coords-to-cell-range (fn [_ _] [[1 1] [2 3]])
-                  empire.debug/write-dump! (fn [start end]
+    (with-redefs [empire.debug.dump/screen-coords-to-cell-range (fn [_ _] [[1 1] [2 3]])
+                  empire.debug.dump/write-dump! (fn [start end]
                                              (should= [1 1] start)
                                              (should= [2 3] end)
                                              "debug-dump.txt")]

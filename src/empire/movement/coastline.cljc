@@ -2,7 +2,7 @@
 (ns empire.movement.coastline
   (:require [empire.config :as config]
             [empire.application.state-access :as sa]
-            [empire.debug :as debug]
+            [empire.debug.logging :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.explore :as explore]))

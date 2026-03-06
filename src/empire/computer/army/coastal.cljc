@@ -6,7 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
-            [empire.debug :as debug]))
+            [empire.debug.logging :as debug]))
 
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."

@@ -2,7 +2,8 @@
   (:require [empire.save-load :as save-load]
             [empire.application.state-access :as sa]
             [empire.config :as config]
-            [empire.debug :as debug]
+            [empire.debug.dump :as debug-dump]
+            [empire.debug.logging :as debug]
             [empire.game-loop.core :as game-loop]
             [empire.movement.map-utils :as map-utils]
             [empire.player.attention :as player-attention]
@@ -80,9 +81,9 @@
     (when (modifier-held? modifiers)
       (let [start (sa/read-state :debug-drag-start)
             end [x y]
-            cell-range (debug/screen-coords-to-cell-range start end)]
+            cell-range (debug-dump/screen-coords-to-cell-range start end)]
         (when (has-area? cell-range)
-          (let [filename (debug/write-dump! (first cell-range) (second cell-range))]
+          (let [filename (debug-dump/write-dump! (first cell-range) (second cell-range))]
             (sa/write-state! :debug-message (str "Debug: " filename))))))
     (sa/write-state! :debug-drag-start nil)
     (sa/write-state! :debug-drag-current nil)))

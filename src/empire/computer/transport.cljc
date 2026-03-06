@@ -16,7 +16,7 @@
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
-            [empire.debug :as debug]))
+            [empire.debug.logging :as debug]))
 
 (defn- execution-port
   []

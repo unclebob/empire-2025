@@ -6,7 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
-            [empire.debug :as debug]))
+            [empire.debug.logging :as debug]))
 
 (defn- execution-port
   []

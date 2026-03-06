@@ -3,7 +3,7 @@
   (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.state-access :as sa]
             [empire.combat :as combat]
-            [empire.debug :as debug]))
+            [empire.debug.logging :as debug]))
 
 (def neighbor-offsets
   [[-1 -1] [-1 0] [-1 1]

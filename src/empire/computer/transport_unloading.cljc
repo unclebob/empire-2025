@@ -7,7 +7,7 @@
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.threat-response :as threat-response]
-            [empire.debug :as debug]
+            [empire.debug.logging :as debug]
             [empire.computer.movement :as computer-movement]))
 
 

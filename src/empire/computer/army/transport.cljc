@@ -4,7 +4,7 @@
   (:require [empire.application.state-access :as sa]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
-            [empire.debug :as debug]
+            [empire.debug.logging :as debug]
             [empire.computer.movement :as computer-movement]))
 
 (defn find-and-board-transport
