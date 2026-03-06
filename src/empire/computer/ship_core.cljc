@@ -4,7 +4,7 @@
   (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.ports.pathfinding :as path-ports]
             [empire.application.state-access :as sa]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.threat :as threat]
             [empire.containers.helpers :as uc]))

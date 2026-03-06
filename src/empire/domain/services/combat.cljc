@@ -1,4 +1,4 @@
-(ns empire.application.combat
+(ns empire.domain.services.combat
   (:require [empire.application.state-access :as sa]
             [empire.config.core :as config]
             [empire.domain.model.combat :as domain-combat]

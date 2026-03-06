@@ -3,7 +3,7 @@
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.application.state-access :as sa]
             [empire.config.core :as config]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.player.commands :as player-commands]
             [empire.ui.util.input.actions.helpers :as helpers]

@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.attention :as attention]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.config.core :as config]
             [empire.game-loop.core :as game-loop]
             [empire.ui.util.input.actions :as input]

@@ -9,7 +9,7 @@
             [empire.config.core :as config]
             [empire.player.attention :as attention]
             [empire.player.commands-actions :as actions]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.player.production :as production]

@@ -7,7 +7,7 @@
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
             [empire.player.attention :as attention]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.config.core :as config]

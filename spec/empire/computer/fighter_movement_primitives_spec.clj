@@ -4,7 +4,7 @@
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
             [empire.computer.fighter-movement :as fm]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.test.utils :refer [build-test-map
                                        set-test-unit
                                        get-test-unit reset-all-atoms! set-test-computer-map! set-test-world!]]))

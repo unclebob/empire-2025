@@ -9,7 +9,6 @@
   {:component :inner-ring
    :kind :concrete
    :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
-           "^empire\\.domain\\.services(\\.(?!impl\\.).*)?$"
            "^empire\\.domain\\.model(\\..*)?$"]}
 
   {:component :quil
@@ -36,7 +35,8 @@
    :match ["^empire\\.movement(\\..*)?$"
            "^empire\\.combat(\\..*)?$"
            "^empire\\.containers(\\..*)?$"
-           "^empire\\.debug(\\..*)?$"]}
+           "^empire\\.debug(\\..*)?$"
+           "^empire\\.domain\\.services(\\..*)?$"]}
 
   {:component :use-cases
    :kind :concrete

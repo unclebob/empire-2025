@@ -4,7 +4,7 @@
             [empire.computer.ship-core :as ship-core]
             [empire.computer.threat :as threat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map!]]
-            [empire.application.combat :as combat]))
+            [empire.domain.services.combat :as combat]))
 
 (describe "ship-core"
   (before (reset-all-atoms!))

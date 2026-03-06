@@ -3,7 +3,7 @@
             [speclj.core :refer :all]
             [empire.player.commands :as commands]
             [empire.config.core :as config]
-            [empire.application.combat :as combat]
+            [empire.domain.services.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.game-loop.core :as game-loop]
