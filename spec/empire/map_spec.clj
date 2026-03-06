@@ -4,7 +4,7 @@
             [empire.player.attention :as attention]
             [empire.combat :as combat]
             [empire.config :as config]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.ui.util.input.actions :as input]
             [empire.ui.util.input.actions.movement :as input-movement]
             [empire.movement.explore :as explore]

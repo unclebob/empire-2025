@@ -8,7 +8,7 @@
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]
             [empire.computer.transport :as computer-transport]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.game-loop.item-processing :as item-processing]
             [empire.movement.visibility :as visibility]
             [empire.test-utils :as test-utils]

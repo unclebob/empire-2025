@@ -3,7 +3,7 @@
    Decision logic has been gutted; these tests cover preserved utilities."
   (:require [empire.test-utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.computer.coordinator :as computer]
             [empire.computer.army :as army]
             [empire.computer.core :as computer-core]

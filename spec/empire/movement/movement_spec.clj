@@ -1,7 +1,7 @@
 (ns empire.movement.movement-spec
   (:require [empire.test-utils :as test-utils]
     [empire.config :as config]
-    [empire.game-loop :as game-loop]
+    [empire.game-loop.core :as game-loop]
     [empire.movement.explore :as explore]
     [empire.movement.api :refer :all]
     [empire.movement.visibility :as visibility]

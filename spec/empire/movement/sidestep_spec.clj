@@ -1,6 +1,6 @@
 (ns empire.movement.sidestep-spec
   (:require [empire.test-utils :as test-utils]
-    [empire.game-loop :as game-loop]
+    [empire.game-loop.core :as game-loop]
     [empire.test-utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! make-initial-test-map set-test-world! update-test-world!]]
     [speclj.core :refer :all]))
 

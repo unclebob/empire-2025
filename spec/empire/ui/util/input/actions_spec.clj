@@ -5,7 +5,7 @@
             [empire.ui.util.input.actions.movement :as actions-movement]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.config :as config]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.player.orders :as orders]
             [empire.player.production :as production]
             [empire.test-utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!

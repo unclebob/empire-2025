@@ -6,7 +6,7 @@
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.movement.coastline :as coastline]
             [empire.movement.explore :as explore]
             [empire.movement.api :as movement]

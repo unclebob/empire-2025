@@ -1,7 +1,7 @@
 (ns empire.movement.fighter-spec
   (:require [empire.test-utils :as test-utils]
     [empire.containers.ops :as container-ops]
-    [empire.game-loop :as game-loop]
+    [empire.game-loop.core :as game-loop]
     [empire.movement.api :refer :all]
     [empire.movement.wake-conditions :as wake]
     [empire.test-utils :refer [build-test-map get-test-unit get-test-city set-test-unit reset-all-atoms! set-test-player-map! make-initial-test-map set-test-world! update-test-world!]]

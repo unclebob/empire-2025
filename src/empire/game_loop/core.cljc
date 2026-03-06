@@ -1,5 +1,5 @@
 ;; mutation-tested: 2026-02-25
-(ns empire.game-loop
+(ns empire.game-loop.core
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.application.production-status :as production-status]

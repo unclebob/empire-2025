@@ -1,6 +1,6 @@
 (ns empire.ui.util.input.actions.helpers
   (:require [empire.application.state-access :as sa]
-            [empire.game-loop :as game-loop]))
+            [empire.game-loop.core :as game-loop]))
 
 (defn unit-state-port []
   (or (:unit-state-port (sa/state-ctx))

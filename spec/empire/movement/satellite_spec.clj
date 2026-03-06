@@ -1,6 +1,6 @@
 (ns empire.movement.satellite-spec
   (:require [empire.test-utils :as test-utils]
-    [empire.game-loop :as game-loop]
+    [empire.game-loop.core :as game-loop]
     [empire.movement.api :refer [set-unit-movement]]
     [empire.movement.visibility :refer [update-cell-visibility]]
     [empire.movement.satellite :as sat :refer [move-satellite calculate-satellite-target]]

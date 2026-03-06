@@ -5,7 +5,7 @@
             [empire.ui.util.input.actions.movement :as actions-movement]
             [empire.combat :as combat]
             [empire.containers.ops :as container-ops]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "handle-army-aboard-movement"

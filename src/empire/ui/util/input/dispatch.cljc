@@ -3,7 +3,7 @@
             [empire.application.state-access :as sa]
             [empire.config :as config]
             [empire.debug :as debug]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.movement.map-utils :as map-utils]
             [empire.player.attention :as player-attention]
             [empire.player.commands :as player-commands]

@@ -2,7 +2,7 @@
   (:require [empire.application.bootstrap :as app-bootstrap]
             [empire.application.state-access :as sa]
             [empire.config :as config]
-            [empire.game-loop :as game-loop]
+            [empire.game-loop.core :as game-loop]
             [empire.init :as init]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
