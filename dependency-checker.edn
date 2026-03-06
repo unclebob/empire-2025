@@ -3,14 +3,13 @@
  [{:component :config
    :kind :concrete
    :match ["^empire\\.config(\\..+)?$"
-           "empire.units.config"
-           "empire.units.ships"]}
+           "^empire\\.units(\\..*)?$"]}
 
   {:component :inner-ring
    :kind :concrete
    :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
            "^empire\\.domain\\.services(\\.(?!impl\\.).*)?$"
-           "empire.domain.model.containers"]}
+           "^empire\\.domain\\.model(\\..*)?$"]}
 
   {:component :quil
    :kind :concrete
@@ -20,15 +19,17 @@
    :kind :concrete
    :match "^empire\\.ui\\.util(\\..*)?$"}
 
-  ;; :application excludes empire.application.bootstrap and
-  ;; empire.adapters.runtime.acceptance-engine — these are composition roots
+  ;; :application excludes empire.application.bootstrap, acceptance-harness,
+  ;; and empire.adapters.runtime.acceptance-engine — these are composition roots
   ;; that legitimately wire across all layers, so they fall through to :outer-ring.
   {:component :application
    :kind :concrete
-   :match ["^empire\\.application\\.(?!bootstrap$).*$"
+   :match ["^empire\\.application\\.(?!bootstrap$|acceptance.harness$).*$"
            "empire.application.runtime"
            "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"
-           "^empire\\.atoms(\\..*)?$"]}
+           "^empire\\.atoms(\\..*)?$"
+           "empire.atoms-runtime"
+           "empire.save-load"]}
 
   {:component :domain-services
    :kind :concrete
