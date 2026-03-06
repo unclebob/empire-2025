@@ -1,27 +1,19 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
-  (:require [empire.application.ports.movement-execution :as movement-port]
-            [empire.application.ports.pathfinding :as path-ports]
+  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
-            [empire.computer.ship :as ship]
+            [empire.computer.ship-carrier :as ship-carrier]
             [empire.domain.services.combat :as combat]
             [empire.config.core :as config]))
 
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
-
-(defn- pathfinding-port
-  []
-  (:pathfinding-port (sa/state-ctx)))
-
 (defn- update-cell-visibility!
   ([pos owner]
-   (movement-port/movement-update-cell-visibility (execution-port) pos owner))
+   (visibility/update-cell-visibility pos owner))
   ([pos owner unit]
-   (movement-port/movement-update-cell-visibility-with-unit (execution-port) pos owner unit)))
+   (visibility/update-cell-visibility pos owner unit)))
 
 (defn get-passable-neighbors
   [pos]
@@ -152,7 +144,7 @@
 
 (defn find-nearest-refueling-site
   [pos]
-  (let [sites (ship/find-refueling-sites)]
+  (let [sites (ship-carrier/find-refueling-sites)]
     (when (seq sites)
       (apply min-key (partial core/distance pos) sites))))
 
@@ -179,7 +171,7 @@
   (let [player-units (core/find-visible-player-units)]
     (if (seq player-units)
       (apply min-key (partial distance-to pos) player-units)
-      (path-ports/movement-find-nearest-unexplored (pathfinding-port) pos :fighter))))
+      (pathfinding-bfs/find-nearest-unexplored pos :fighter))))
 
 (def fighter-speed 8)
 

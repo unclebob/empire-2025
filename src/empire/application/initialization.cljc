@@ -3,8 +3,7 @@
   (:require [empire.config.core :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
-            [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+            [empire.state.api :as sa]
             [empire.player.production :as player-production]))
 
 (defn smooth-cell
@@ -166,27 +165,24 @@
         map-with-computer-city (occupy-random-free-city map-with-player-city :computer [px py min-start-distance] config/min-surrounding-land)
         visibility-map (vec (for [_ (range width)]
                               (vec (for [_ (range height)]
-                                     {:type :unexplored}))))
-        state-ctx (app-runtime/default-state-ctx)
-        read-runtime-state (:read-runtime-state state-ctx)
-        write-runtime-state! (:write-runtime-state! state-ctx)]
-    (app-state/set-world! state-ctx map-with-computer-city)
+                                     {:type :unexplored}))))]
+    (reset! (sa/world-atom) map-with-computer-city)
     ;; Assign country-id 1 to computer's starting city and begin army production
     (when-let [computer-city-pos (find-city-position map-with-computer-city :computer)]
-      (app-state/update-world! state-ctx assoc-in (conj computer-city-pos :country-id) 1)
-      (write-runtime-state! :next-country-id 2)
+      (sa/update-world! assoc-in (conj computer-city-pos :country-id) 1)
+      (sa/write-state! :next-country-id 2)
       (player-production/set-city-production computer-city-pos :army))
-    (write-runtime-state! :lake-max-cells (compute-lake-max-cells width height))
-    (write-runtime-state! :known-lake-cells #{})
-    (write-runtime-state! :player-map visibility-map)
-    (write-runtime-state! :computer-map visibility-map)
+    (sa/write-state! :lake-max-cells (compute-lake-max-cells width height))
+    (sa/write-state! :known-lake-cells #{})
+    (sa/write-state! :player-map visibility-map)
+    (sa/write-state! :computer-map visibility-map)
     ;; Initialize visibility around starting positions
-    (let [world ((:load-world state-ctx))]
+    (let [world (sa/current-world)]
       (when-let [updated (visibility/update-combatant-map-state
-                          (read-runtime-state :player-map) :player world)]
-        (write-runtime-state! :player-map updated))
+                          (sa/read-state :player-map) :player world)]
+        (sa/write-state! :player-map updated))
       (when-let [updated (visibility/update-combatant-map-state
-                          (read-runtime-state :computer-map) :computer world)]
-        (write-runtime-state! :computer-map updated)))
-    ((:rebuild-refueling-caches! state-ctx))
+                          (sa/read-state :computer-map) :computer world)]
+        (sa/write-state! :computer-map updated)))
+    (sa/rebuild-refueling-caches!)
     map-with-computer-city))

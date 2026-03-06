@@ -1,27 +1,19 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
-  (:require [empire.application.ports.movement-execution :as movement-port]
-            [empire.application.ports.pathfinding :as path-ports]
+  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.domain.services.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.threat :as threat]
             [empire.containers.helpers :as uc]))
 
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
-
-(defn- pathfinding-port
-  []
-  (:pathfinding-port (sa/state-ctx)))
-
 (defn- update-cell-visibility!
   ([pos owner]
-   (movement-port/movement-update-cell-visibility (execution-port) pos owner))
+   (visibility/update-cell-visibility pos owner))
   ([pos owner unit]
-   (movement-port/movement-update-cell-visibility-with-unit (execution-port) pos owner unit)))
+   (visibility/update-cell-visibility pos owner unit)))
 
 (defn- set-turn-message!
   [msg ms]
@@ -95,7 +87,7 @@
 
 (defn explore-sea
   [pos ship-type]
-  (when-let [target (path-ports/movement-find-nearest-unexplored (pathfinding-port) pos ship-type)]
+  (when-let [target (pathfinding-bfs/find-nearest-unexplored pos ship-type)]
     (move-toward pos target)))
 
 (defn find-player-ship-sighting

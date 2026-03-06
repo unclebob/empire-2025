@@ -1,7 +1,6 @@
 (ns empire.ui.util.input.actions
-  (:require [empire.application.ports.unit-state :as ports]
+  (:require [empire.movement.movement-state :as movement-state]
             [empire.state.api :as sa]
-            [empire.ui.util.input.actions.helpers :as helpers]
             [empire.ui.util.input.actions.modes :as modes]
             [empire.ui.util.input.actions.movement :as movement]
             [empire.ui.util.input.actions.production :as production]))
@@ -11,7 +10,7 @@
 (defn handle-key [k]
   (when-let [coords (first (sa/read-state :cells-needing-attention))]
     (let [cell (get-in (sa/current-world) coords)
-          active-unit (ports/movement-get-active-unit (helpers/unit-state-port) cell)]
+          active-unit (movement-state/get-active-unit cell)]
       (if active-unit
         (case k
           :space (modes/handle-space-key coords)

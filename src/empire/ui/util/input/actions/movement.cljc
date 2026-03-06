@@ -1,6 +1,6 @@
 (ns empire.ui.util.input.actions.movement
-  (:require [empire.application.ports.unit-state :as ports]
-            [empire.application.ports.movement-execution :as exec-ports]
+  (:require [empire.movement.movement-state :as movement-state]
+            [empire.movement.api :as movement-api]
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.domain.services.combat :as combat]
@@ -70,7 +70,7 @@
     :army-conquest (combat/apply-combat-result! (combat/attempt-conquest (sa/current-world) coords adjacent-target))
     :fighter-overfly (combat/apply-combat-result! (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target))
     :reject-undamaged-ship (helpers/set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
-    :normal-move (exec-ports/movement-set-unit-movement (helpers/execution-port) coords target extended?))
+    :normal-move (movement-api/set-unit-movement coords target extended?))
   (when (not= :reject-undamaged-ship action)
     (helpers/item-processed!))
   true)
@@ -87,7 +87,7 @@
         target (if extended?
                  (calculate-extended-target coords direction)
                  adjacent-target)
-        context (ports/movement-context (helpers/unit-state-port) cell active-unit)]
+        context (movement-state/movement-context cell active-unit)]
     (case context
       :airport-fighter (launch-fighter-and-update container-ops/launch-fighter-from-airport coords target)
       :carrier-fighter (launch-fighter-and-update container-ops/launch-fighter-from-carrier coords target)
@@ -99,6 +99,6 @@
                       (config/key->extended-direction k))
         extended? (boolean (config/key->extended-direction k))]
     (when direction
-      (let [active-unit (ports/movement-get-active-unit (helpers/unit-state-port) cell)]
+      (let [active-unit (movement-state/get-active-unit cell)]
         (when (and active-unit (= (:owner active-unit) :player))
           (execute-unit-movement coords direction extended? active-unit cell))))))

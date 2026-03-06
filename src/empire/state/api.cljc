@@ -1,9 +1,8 @@
 (ns empire.state.api
   "Direct atom-backed state access. Public boundary for all game state."
   (:require [empire.application.state.atoms :as atoms]
-            [empire.application.state.runtime :as runtime]
-            [empire.application.runtime :as app-runtime]
-            [empire.domain.core.continents :as continents]))
+            [empire.domain.core.continents :as continents]
+            [empire.domain.core.refueling :as refueling]))
 
 (def ^:private key->atom
   {:random-seed atoms/random-seed
@@ -94,11 +93,13 @@
 (defn merge-continents! [stamp-id existing-cid]
   (swap! atoms/continent-groups continents/merge-continents stamp-id existing-cid))
 
+(defn on-same-continent? [cid1 cid2]
+  (continents/on-same-continent? @atoms/continent-groups cid1 cid2))
+
+(defn rebuild-refueling-caches! []
+  (let [{:keys [cities carriers]}
+        (refueling/scan-refueling-positions @atoms/game-map)]
+    (reset! atoms/computer-city-positions cities)
+    (reset! atoms/computer-carrier-positions carriers)))
+
 (defn world-atom [] atoms/game-map)
-
-;; Transition: kept until ports/adapters are removed (step C)
-(def ^:private ctx (delay (app-runtime/default-state-ctx)))
-
-(defn state-ctx [] @ctx)
-
-(defn context-fn [k] (get @ctx k))

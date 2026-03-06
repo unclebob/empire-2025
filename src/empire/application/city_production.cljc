@@ -3,12 +3,6 @@
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]))
 
-(defn- item-cost
-  [item]
-  (if-let [f (:item-cost (sa/state-ctx))]
-    (f item)
-    (config/item-cost item)))
-
 (defn set-city-production
   "Sets production and rounds remaining for a city in runtime state."
   [coords item]
@@ -17,4 +11,4 @@
                           (assoc current
                                  coords
                                  {:item item
-                                  :remaining-rounds (item-cost item)}))))
+                                  :remaining-rounds (config/item-cost item)}))))

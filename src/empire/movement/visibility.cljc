@@ -165,10 +165,18 @@
   [owner]
   (if (= owner :player) :player-map :computer-map))
 
-(defn- handle-detection!
+(def ^:private detection-queue (atom []))
+
+(defn drain-detections!
+  "Returns and clears accumulated detection events. Each event is {:pos [r c] :cell cell-map}."
+  []
+  (let [events @detection-queue]
+    (reset! detection-queue [])
+    events))
+
+(defn- queue-detection!
   [coords cell]
-  (when-let [f (sa/context-fn :handle-detection!)]
-    (f coords cell)))
+  (swap! detection-queue conj {:pos coords :cell cell}))
 
 (defn- reveal-and-track!
   "Reveals a single cell and tracks newly-discovered free cities."
@@ -177,7 +185,7 @@
     (reveal-cell! visible-map-source ni nj game-cell stamp-id visible-map)
     (when (and detect-threats?
                (was-unexplored? visible-map ni nj))
-      (handle-detection! [ni nj] game-cell))
+      (queue-detection! [ni nj] game-cell))
     (when (and track-cities?
                (newly-discovered-free-city? visible-map ni nj game-cell))
       (let [targets (or (read-runtime-state :land-ho-targets) [])]

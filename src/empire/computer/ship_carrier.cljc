@@ -6,12 +6,7 @@
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.config.core :as config]
-            [empire.computer.movement :as computer-movement]
             [empire.computer.movement :as computer-movement]))
-
-(defn- rebuild-refueling-caches!
-  []
-  ((:rebuild-refueling-caches! (sa/state-ctx))))
 
 (defn- find-computer-cities
   "Returns positions of all computer cities."
@@ -94,7 +89,8 @@
   (when (and (empty? (or (sa/read-state :computer-city-positions) #{}))
              (empty? (or (sa/read-state :computer-carrier-positions) #{}))
              (sa/current-world))
-    (rebuild-refueling-caches!))
+    (sa/rebuild-refueling-caches!))
+
   (concat (or (sa/read-state :computer-city-positions) #{})
           (or (sa/read-state :computer-carrier-positions) #{})))
 

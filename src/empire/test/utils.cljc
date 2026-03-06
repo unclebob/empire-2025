@@ -1,22 +1,20 @@
 (ns empire.test.utils
   (:require [clojure.string :as str]
             [empire.application.bootstrap :as app-bootstrap]
-            [empire.application.runtime :as app-runtime]
-            [empire.application.state :as app-state]
+            [empire.state.api :as sa]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
-
-(defonce ^:private state-ctx (delay (app-runtime/default-state-ctx)))
 
 (defn read-test-state
   [k]
-  ((:read-runtime-state @state-ctx) k))
+  (sa/read-state k))
 
 (defn set-test-state!
   [k v]
-  ((:write-runtime-state! @state-ctx) k v))
+  (sa/write-state! k v))
 
 (defn update-test-state!
   [k f & args]
@@ -24,7 +22,7 @@
 
 (defn read-test-world
   []
-  ((:load-world @state-ctx)))
+  (sa/current-world))
 
 (defn game-map-atom
   []
@@ -40,11 +38,11 @@
 
 (defn set-test-world!
   [world]
-  (app-state/set-world! @state-ctx world))
+  (reset! (sa/world-atom) world))
 
 (defn update-test-world!
   [f & args]
-  (apply app-state/update-world! @state-ctx f args))
+  (apply sa/update-world! f args))
 
 (defn set-test-player-map!
   [player-map]
@@ -324,7 +322,8 @@
   (set-test-state! :load-menu-hovered nil)
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
-  (land-objectives/clear-continent-cache!))
+  (land-objectives/clear-continent-cache!)
+  (visibility/drain-detections!))
 
 (defn message-matches?
   "Checks if a message template matches an actual message string.

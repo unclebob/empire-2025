@@ -24,11 +24,11 @@
 
 (defn- load-major-invasion-state
   []
-  ((:load-major-invasion-state (sa/state-ctx))))
+  (sa/read-state :major-invasion-state))
 
 (defn- save-major-invasion-state!
   [state]
-  ((:save-major-invasion-state! (sa/state-ctx)) state))
+  (sa/write-state! :major-invasion-state state))
 
 (defn- update-major-invasion-state!
   [f & args]

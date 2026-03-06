@@ -1,20 +1,16 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
-  (:require [empire.application.ports.movement-execution :as movement-port]
+  (:require [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]
             [empire.debug.logging :as debug]))
 
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
-
 (defn- update-cell-visibility!
   [pos owner]
-  (movement-port/movement-update-cell-visibility (execution-port) pos owner))
+  (visibility/update-cell-visibility pos owner))
 
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."

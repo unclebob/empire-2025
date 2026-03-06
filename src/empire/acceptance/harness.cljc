@@ -2,11 +2,11 @@
 (ns empire.acceptance.harness
   "Acceptance harness adapter used by generated acceptance specs.
    Keeps scenario execution paths behind a stable API."
-  (:require [empire.application.state :as app-state]
-            [empire.state.api :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.fighter :as computer-fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]
+            [empire.computer.threat-response :as threat-response]
             [empire.computer.transport :as computer-transport]
             [empire.game-loop.core :as game-loop]
             [empire.game-loop.item-processing :as item-processing]
@@ -140,7 +140,7 @@
   [k v]
   (if (contains? writable-keys k)
     (if (= k :game-map)
-      (app-state/set-world! (sa/state-ctx) v)
+      (reset! (sa/world-atom) v)
       (sa/write-state! k v))
     (throw (ex-info (str "Unsupported harness set-state! key: " k) {:key k}))))
 
@@ -148,7 +148,7 @@
   [k f & args]
   (if (contains? #{:production :player-map :computer-map :player-items :game-map} k)
     (if (= k :game-map)
-      (apply app-state/update-world! (sa/state-ctx) f args)
+      (apply sa/update-world! f args)
       (apply sa/update-state! k f args))
     (throw (ex-info (str "Unsupported harness update-state! key: " k) {:key k}))))
 
@@ -184,7 +184,9 @@
 
 (defn update-cell-visibility!
   [pos owner unit]
-  (visibility/update-cell-visibility pos owner unit))
+  (visibility/update-cell-visibility pos owner unit)
+  (doseq [{:keys [pos cell]} (visibility/drain-detections!)]
+    (threat-response/handle-detection! pos cell)))
 
 (defn evaluate-computer-production!
   [city-pos]

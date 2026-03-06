@@ -4,7 +4,7 @@
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.state.api :as sa]
             [empire.movement.waypoint :as waypoint]
-            [empire.application.ports.unit-state :as ports]
+            [empire.movement.movement-state :as movement-state]
             [empire.config.core :as config]))
 
 (defn- set-turn-message!
@@ -13,10 +13,6 @@
   (sa/write-state! :turn-message-until (if (= ms Long/MAX_VALUE)
                                                Long/MAX_VALUE
                                                (+ (System/currentTimeMillis) ms))))
-
-(defn- unit-state-port []
-  (or (:unit-state-port (sa/state-ctx))
-      (throw (ex-info "Unit state port not configured in runtime state context" {}))))
 
 (defn- clamp-to-map-bounds
   [[x y]]
@@ -29,10 +25,10 @@
      (-> y (max 0) (min max-y))]))
 
 (defn add-unit-at [coords unit-type owner]
-  (ports/movement-add-unit-at (unit-state-port) coords unit-type owner))
+  (movement-state/add-unit-at coords unit-type owner))
 
 (defn wake-at [coords]
-  (ports/movement-wake-at (unit-state-port) coords))
+  (movement-state/wake-at coords))
 
 (defn own-city-at
   "Claims a city at the given coordinates for the player."

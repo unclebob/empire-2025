@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.production.decisions
-  (:require [empire.state.api :as sa]
+  (:require [empire.application.city-production :as city-production]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.computer.production.stats :as stats]
             [empire.computer.ship :as ship]))
@@ -138,10 +139,4 @@
   (let [current-production (get (sa/read-state :production) pos)]
     (when (nil? current-production)
       (when-let [unit-type (decide-production pos)]
-        (if-let [f (:set-city-production! (sa/state-ctx))]
-          (f pos unit-type)
-          (sa/write-state! :production
-                                (assoc (or (sa/read-state :production) {})
-                                       pos
-                                       {:item unit-type
-                                        :remaining-rounds (config/item-cost unit-type)})))))))
+        (city-production/set-city-production pos unit-type)))))

@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
-  (:require [empire.application.ports.movement-execution :as movement-port]
+  (:require [empire.application.city-production :as city-production]
+            [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.domain.services.combat :as combat]
             [empire.debug.logging :as debug]))
@@ -32,31 +33,23 @@
         dc (Math/abs (- c2 c1))]
     (and (<= dr 1) (<= dc 1) (not (and (zero? dr) (zero? dc))))))
 
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
-
 (defn- country-city-producing-armies?
   [city-pos country-id]
-  (if-let [f (:country-city-producing-armies? (sa/state-ctx))]
-    (f city-pos country-id)
-    false))
-
-(defn- set-city-production!
-  [city-pos item]
-  (if-let [f (:set-city-production! (sa/state-ctx))]
-    (f city-pos item)
-    nil))
+  (some (fn [[coords prod]]
+          (and (map? prod)
+               (= :army (:item prod))
+               (not= coords city-pos)
+               (let [cell (get-in (sa/current-world) coords)]
+                 (and (= :city (:type cell))
+                      (= :computer (:city-status cell))
+                      (= country-id (:country-id cell))))))
+        (sa/read-state :production)))
 
 (defn- update-cell-visibility!
   ([pos owner]
-   (movement-port/movement-update-cell-visibility (execution-port) pos owner))
+   (visibility/update-cell-visibility pos owner))
   ([pos owner unit]
-   (movement-port/movement-update-cell-visibility-with-unit (execution-port) pos owner unit)))
-
-(defn- on-same-continent?
-  [country-a country-b]
-  ((:on-same-continent? (sa/state-ctx)) country-a country-b))
+   (visibility/update-cell-visibility pos owner unit)))
 
 (defn- foreign-territory?
   "Returns true if unit is a computer army with a country-id and the target
@@ -67,7 +60,7 @@
        (:country-id unit)
        (= :land (:type to-cell))
        (:country-id to-cell)
-       (not (on-same-continent? (:country-id unit) (:country-id to-cell)))))
+       (not (sa/on-same-continent? (:country-id unit) (:country-id to-cell)))))
 
 (defn get-neighbors
   [pos]
@@ -243,7 +236,7 @@
         (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
-            (set-city-production! city-pos :army)))
+            (city-production/set-city-production city-pos :army)))
         (update-cell-visibility! army-pos :computer)
         (update-cell-visibility! city-pos :computer)
         nil)

@@ -1,23 +1,15 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
-  (:require [empire.application.ports.movement-execution :as movement-port]
-            [empire.application.ports.pathfinding :as path-ports]
+  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]))
 
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
-
-(defn- pathfinding-port
-  []
-  (:pathfinding-port (sa/state-ctx)))
-
 (defn- update-cell-visibility!
   [pos owner]
-  (movement-port/movement-update-cell-visibility (execution-port) pos owner))
+  (visibility/update-cell-visibility pos owner))
 
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
@@ -103,8 +95,7 @@
   "Run BFS to find unseen coast, store full path on unit. Returns path or nil.
    Excludes targets already claimed by other patrol boats this round."
   [pos]
-  (when-let [path (path-ports/movement-bfs-to-unseen-coast
-                    (pathfinding-port)
+  (when-let [path (pathfinding-bfs/bfs-to-unseen-coast
                     pos
                     (sa/read-state :computer-map)
                     (sa/read-state :claimed-patrol-targets))]

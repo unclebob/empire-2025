@@ -4,7 +4,8 @@
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
-  (:require [empire.application.ports.movement-execution :as movement-port]
+  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
@@ -17,10 +18,6 @@
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
             [empire.debug.logging :as debug]))
-
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
 
@@ -30,8 +27,8 @@
   (let [passable (tc/get-passable-sea-neighbors pos)
         closest (core/move-toward pos target passable)]
     (when (and closest (core/move-unit-to pos closest))
-      (movement-port/movement-update-cell-visibility (execution-port) pos :computer)
-      (movement-port/movement-update-cell-visibility (execution-port) closest :computer)
+      (visibility/update-cell-visibility pos :computer)
+      (visibility/update-cell-visibility closest :computer)
       (loading/load-adjacent-armies closest)
       closest)))
 
@@ -97,8 +94,8 @@
   {:current-world sa/current-world
    :read-runtime-state sa/read-state
    :update-game-map! sa/update-world!
-   :execution-port (execution-port)
-   :pathfinding-port (:pathfinding-port (sa/state-ctx))
+   :update-cell-visibility! visibility/update-cell-visibility
+   :bfs-to-land-ho-target pathfinding-bfs/bfs-to-land-ho-target
    :get-neighbors core/get-neighbors
    :load-adjacent-armies loading/load-adjacent-armies
    :coastal-crawl-move loading/coastal-crawl-move

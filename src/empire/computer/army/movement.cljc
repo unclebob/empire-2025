@@ -8,11 +8,11 @@
 
 (defn on-same-continent?
   [country-a country-b]
-  ((:on-same-continent? (sa/state-ctx)) country-a country-b))
+  (sa/on-same-continent? country-a country-b))
 
 (defn merge-continents!
   [stamp-id existing-cid]
-  ((:merge-continents! (sa/state-ctx)) stamp-id existing-cid))
+  (sa/merge-continents! stamp-id existing-cid))
 
 (defn adjacent-to-sea?
   [pos]

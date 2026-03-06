@@ -8,7 +8,8 @@
             [empire.config.core :as config]
             [empire.computer.fighter-flight-plan :as flight-plan]
             [empire.computer.fighter-movement :as fm]
-            [empire.computer.fighter-exploration :as fe]))
+            [empire.computer.fighter-exploration :as fe]
+            [empire.computer.threat-response :as threat-response]))
 
 ;; --- Leg-based coverage ---
 
@@ -185,9 +186,7 @@
 
 (defn- process-threat-fighter?
   [pos unit]
-  (if-let [f (:process-fighter-threat (sa/state-ctx))]
-    (f pos unit)
-    false))
+  (threat-response/process-fighter-threat pos unit))
 
 (defn- run-fighter-steps!
   [pos]

@@ -1,5 +1,5 @@
 (ns empire.ui.util.input.actions.production
-  (:require [empire.application.ports.unit-state :as ports]
+  (:require [empire.movement.movement-state :as movement-state]
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.movement.map-utils :as map-utils]
@@ -21,7 +21,7 @@
 (defn handle-city-production-key [k coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
-             (not (ports/movement-get-active-unit (helpers/unit-state-port) cell)))
+             (not (movement-state/get-active-unit cell)))
     (cond
       (= k :space) (do (sa/update-state! :player-items rest)
                        (helpers/item-processed!)

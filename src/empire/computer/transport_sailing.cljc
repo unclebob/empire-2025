@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
-  (:require [empire.application.ports.movement-execution :as movement-port]
+  (:require [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
@@ -15,13 +15,9 @@
 (def ^:private player-ship-types
   #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
 
-(defn- execution-port
-  []
-  (:execution-port (sa/state-ctx)))
-
 (defn- update-cell-visibility!
   [pos owner]
-  (movement-port/movement-update-cell-visibility (execution-port) pos owner))
+  (visibility/update-cell-visibility pos owner))
 
 (defn- enemy-ship-near-target?
   [target radius]

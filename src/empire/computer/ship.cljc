@@ -9,7 +9,8 @@
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
             [empire.computer.ship-patrol :as patrol]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.movement :as computer-movement]
+            [empire.computer.threat-response :as threat-response]))
 
 
 ;; --- Core utility re-exports ---
@@ -85,8 +86,7 @@
 
 (defn- dispatch-ship-action [pos ship-type unit]
   (cond
-    (when-let [f (:process-ship-threat (sa/state-ctx))]
-      (f pos ship-type unit))
+    (threat-response/process-ship-threat pos ship-type unit)
     true
 
     (= :patrol-boat ship-type)

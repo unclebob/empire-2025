@@ -2,27 +2,17 @@
 (ns empire.game-loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.state.api :as sa]
-            [empire.application.ports.movement-execution :as ports]
-            [empire.application.ports.world-store :as world-ports]
+            [empire.movement.api :as movement-api]
+            [empire.movement.visibility :as visibility]
             [empire.config.core :as config]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
+            [empire.computer.threat-response :as threat-response]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.player.attention :as player-attention]
             [empire.movement.explore :as explore]
             [empire.movement.coastline :as coastline]))
-
-(defn- execution-port []
-  (or (:execution-port (sa/state-ctx))
-      (throw (ex-info "Execution port not configured in runtime state context" {}))))
-
-(defn- world-store []
-  (or (:world-store (sa/state-ctx))
-      (throw (ex-info "World store not configured in runtime state context" {}))))
-
-(defn- world-atom []
-  (world-ports/world-atom (world-store)))
 
 (defn- computer-has-items?
   "Returns true if computer has any cities or units on the map."
@@ -86,7 +76,7 @@
          unit (:contents cell)]
     (when (and (= (:mode unit) :moving)
                (pos? (:steps-remaining unit 1)))
-      (let [{:keys [result pos]} (ports/movement-move-unit (execution-port) coords (:target unit) cell (world-atom))
+      (let [{:keys [result pos]} (movement-api/move-unit coords (:target unit) cell (sa/world-atom))
             next-pos (resolve-move-result result pos (:owner unit))]
         (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
           (recur pos (dec max-sidesteps))
@@ -189,6 +179,12 @@
       :else
       (process-auto-movement coords unit))))
 
+(defn- dispatch-detections!
+  "Drains queued visibility detections and dispatches to threat-response."
+  []
+  (doseq [{:keys [pos cell]} (visibility/drain-detections!)]
+    (threat-response/handle-detection! pos cell)))
+
 (defn- process-one-computer-item
   "Processes a single computer item. Returns :done when item processed."
   []
@@ -202,6 +198,7 @@
     ;; Process unit movement if there's a computer unit here
     (if has-computer-unit?
       (let [new-coords (computer/process-computer-unit coords)]
+        (dispatch-detections!)
         (if new-coords
           (do (sa/update-state! :computer-items #(cons new-coords (rest %))) :continue)
           (do (sa/update-state! :computer-items rest) :done)))

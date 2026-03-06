@@ -2,14 +2,10 @@
 (ns empire.player.attention
   (:require [empire.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
-            [empire.application.ports.unit-state :as ports]
+            [empire.movement.movement-state :as movement-state]
             [empire.config.core :as config]
             [empire.domain.core.unit-metrics :as unit-metrics]
             [empire.containers.helpers :as uc]))
-
-(defn- unit-state-port []
-  (or (:unit-state-port (sa/state-ctx))
-      (throw (ex-info "Unit state port not configured in runtime state context" {}))))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."
@@ -147,16 +143,16 @@
   [coords]
   (let [cell (get-in (sa/current-world) coords)
         unit (:contents cell)
-        active-unit (ports/movement-get-active-unit (unit-state-port) cell)]
+        active-unit (movement-state/get-active-unit cell)]
     (sa/write-state! :attention-message
                           (cond
-                            (ports/movement-is-fighter-from-airport? (unit-state-port) active-unit)
+                            (movement-state/is-fighter-from-airport? active-unit)
                             (str "Fighter" (:unit-needs-attention config/messages) " - " (:fighter-landed-and-refueled config/messages) (fuel-string active-unit))
 
-                            (ports/movement-is-fighter-from-carrier? (unit-state-port) active-unit)
+                            (movement-state/is-fighter-from-carrier? active-unit)
                             (str "Fighter" (:unit-needs-attention config/messages) " - aboard carrier (" (:fighter-count unit 0) " fighters)" (fuel-string active-unit))
 
-                            (ports/movement-is-army-aboard-transport? (unit-state-port) active-unit)
+                            (movement-state/is-army-aboard-transport? active-unit)
                             (str "Army" (:unit-needs-attention config/messages) " - aboard transport (" (:army-count unit 0) " armies) - " (:transport-at-beach config/messages))
 
                             active-unit

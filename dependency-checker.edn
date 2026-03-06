@@ -25,16 +25,11 @@
   {:component :application
    :kind :concrete
    :match ["^empire\\.application\\.(?!bootstrap$|acceptance.harness$).*$"
-           "empire.application.runtime"
-           "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"
-           "^empire\\.atoms(\\..*)?$"
-           "empire.application.state.runtime"
-           "^empire\\.state(\\..*)?$"]}
+           "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"]}
 
   {:component :domain-services
    :kind :concrete
    :match ["^empire\\.movement(\\..*)?$"
-           "^empire\\.combat(\\..*)?$"
            "^empire\\.containers(\\..*)?$"
            "^empire\\.debug(\\..*)?$"
            "^empire\\.domain\\.services(\\..*)?$"]}

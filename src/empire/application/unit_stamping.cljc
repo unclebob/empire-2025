@@ -1,7 +1,8 @@
 ;; mutation-tested: no
 (ns empire.application.unit-stamping
   "Application port for unit stamping decisions."
-  (:require [empire.state.api :as sa]))
+  (:require [empire.state.api :as sa]
+            [empire.computer.production :as computer-production]))
 
 (defn- next-id!
   [k]
@@ -64,16 +65,7 @@
 
 (defn- country-coastal-cells-explored?
   [country-id]
-  (if-let [f (:country-coastal-explored? (sa/state-ctx))]
-    (let [result (f country-id)]
-      (if (nil? result)
-        (get-in (or (sa/read-state :country-stats) {})
-                [country-id :coastal-explored?]
-                true)
-        result))
-    (get-in (or (sa/read-state :country-stats) {})
-            [country-id :coastal-explored?]
-            true)))
+  (computer-production/country-coastal-cells-explored? country-id))
 
 (defn stamp-computer-fields
   "Applies computer-specific initial fields when stamping a produced unit."
