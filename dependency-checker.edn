@@ -11,6 +11,11 @@
    :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
            "^empire\\.domain\\.model(\\..*)?$"]}
 
+  {:component :state
+   :kind :concrete
+   :match ["^empire\\.state(\\..*)?$"
+           "^empire\\.application\\.state(\\..*)?$"]}
+
   {:component :quil
    :kind :concrete
    :match "^empire\\.ui\\.quil(\\..*)?$"}
@@ -19,13 +24,9 @@
    :kind :concrete
    :match "^empire\\.ui\\.util(\\..*)?$"}
 
-  ;; :application excludes empire.application.bootstrap, acceptance-harness,
-  ;; and empire.adapters.runtime.acceptance-engine — these are composition roots
-  ;; that legitimately wire across all layers, so they fall through to :outer-ring.
   {:component :application
    :kind :concrete
-   :match ["^empire\\.application\\.(?!bootstrap$|acceptance.harness$).*$"
-           "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"]}
+   :match "^empire\\.application(\\..*)?$"}
 
   {:component :domain-services
    :kind :concrete
@@ -49,10 +50,13 @@
   [:inner-ring :application]
   [:inner-ring :domain-services]
   [:inner-ring :use-cases]
+  [:inner-ring :state]
   [:ui :quil]
   [:domain-services :use-cases]
-  [:application :use-cases]
-  [:application :domain-services]]
+  [:domain-services :application]
+  [:state :application]
+  [:state :domain-services]
+  [:state :use-cases]]
 
  ;; :ui and :outer-ring intentionally cycle — :ui is carved from :outer-ring
  ;; solely to enforce [:ui :quil]. The cycle is architectural intent.

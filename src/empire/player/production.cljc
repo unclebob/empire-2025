@@ -1,9 +1,10 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
   (:require [empire.application.city-production :as city-production]
+            [empire.computer.production :as computer-production]
             [empire.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
-            [empire.application.unit-stamping :as unit-stamping]
+            [empire.domain.services.unit-stamping :as unit-stamping]
             [empire.config.core :as config]))
 
 (defn- stamp-computer-fields
@@ -12,7 +13,8 @@
 
 (defn- apply-coast-walk-fields
   [unit item cell coords]
-  (unit-stamping/apply-coast-walk-fields unit item cell coords))
+  (unit-stamping/apply-coast-walk-fields unit item cell coords
+                                         computer-production/country-coastal-cells-explored?))
 
 (defn- apply-random-explore-fields
   [unit item cell]

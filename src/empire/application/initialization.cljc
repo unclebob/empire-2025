@@ -4,7 +4,7 @@
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
-            [empire.player.production :as player-production]))
+            [empire.application.city-production :as city-production]))
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."
@@ -171,7 +171,7 @@
     (when-let [computer-city-pos (find-city-position map-with-computer-city :computer)]
       (sa/update-world! assoc-in (conj computer-city-pos :country-id) 1)
       (sa/write-state! :next-country-id 2)
-      (player-production/set-city-production computer-city-pos :army))
+      (city-production/set-city-production computer-city-pos :army))
     (sa/write-state! :lake-max-cells (compute-lake-max-cells width height))
     (sa/write-state! :known-lake-cells #{})
     (sa/write-state! :player-map visibility-map)

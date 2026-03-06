@@ -1,8 +1,7 @@
 ;; mutation-tested: no
-(ns empire.application.unit-stamping
-  "Application port for unit stamping decisions."
-  (:require [empire.state.api :as sa]
-            [empire.computer.production :as computer-production]))
+(ns empire.domain.services.unit-stamping
+  "Unit stamping: applies initial fields to newly produced units."
+  (:require [empire.state.api :as sa]))
 
 (defn- next-id!
   [k]
@@ -63,10 +62,6 @@
       (assoc unit :destroyer-id id :escort-mode :seeking))
     unit))
 
-(defn- country-coastal-cells-explored?
-  [country-id]
-  (computer-production/country-coastal-cells-explored? country-id))
-
 (defn stamp-computer-fields
   "Applies computer-specific initial fields when stamping a produced unit."
   [unit cell]
@@ -80,13 +75,14 @@
       (apply-patrol-fields cell)))
 
 (defn apply-coast-walk-fields
-  "Optionally assigns coast-walk mode to newly produced computer armies."
-  [unit item cell coords]
+  "Optionally assigns coast-walk mode to newly produced computer armies.
+   coast-explored? is a predicate (fn [country-id]) returning true if coastal cells are explored."
+  [unit item cell coords coast-explored?]
   (if (and (= item :army)
            (= (:city-status cell) :computer)
            (:country-id cell)
            (< (get (sa/read-state :coast-walkers-produced) (:country-id cell) 0) 2)
-           (not (country-coastal-cells-explored? (:country-id cell))))
+           (not (coast-explored? (:country-id cell))))
     (let [country-id (:country-id cell)
           produced (get (sa/read-state :coast-walkers-produced) country-id 0)
           direction (if (even? produced) :clockwise :counter-clockwise)]

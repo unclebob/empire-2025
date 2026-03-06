@@ -1,6 +1,5 @@
 (ns empire.ui.quil.core
-  (:require [empire.application.bootstrap :as app-bootstrap]
-            [empire.state.api :as sa]
+  (:require [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game-loop.core :as game-loop]
             [empire.application.initialization :as init]
@@ -23,8 +22,6 @@
 (defn setup
   "Initial setup for the game state."
   []
-  (app-bootstrap/initialize-default-services!)
-
   (create-fonts)
   (util-core/calculate-screen-dimensions)
   (when-let [seed (sa/read-state :random-seed)]

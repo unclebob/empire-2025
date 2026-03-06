@@ -1,6 +1,5 @@
 (ns empire.test.utils
   (:require [clojure.string :as str]
-            [empire.application.bootstrap :as app-bootstrap]
             [empire.state.api :as sa]
             [empire.computer.land-objectives :as land-objectives]
             [empire.movement.pathfinding :as pathfinding]
@@ -250,8 +249,6 @@
   (vec (repeat cols (vec (repeat rows value)))))
 
 (defn reset-all-atoms! []
-  (app-bootstrap/initialize-default-services!)
-
   (set-test-state! :random-seed nil)
   (set-test-state! :map-size [0 0])
   (set-test-state! :map-size-constants {})

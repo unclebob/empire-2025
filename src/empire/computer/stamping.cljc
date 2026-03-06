@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.stamping
-  (:require [empire.application.unit-stamping :as unit-stamping]))
+  (:require [empire.domain.services.unit-stamping :as unit-stamping]
+            [empire.computer.production :as computer-production]))
 
 (defn stamp-computer-fields
   [unit cell]
@@ -8,7 +9,8 @@
 
 (defn apply-coast-walk-fields
   [unit item cell coords]
-  (unit-stamping/apply-coast-walk-fields unit item cell coords))
+  (unit-stamping/apply-coast-walk-fields unit item cell coords
+                                         computer-production/country-coastal-cells-explored?))
 
 (defn apply-random-explore-fields
   [unit item cell]
