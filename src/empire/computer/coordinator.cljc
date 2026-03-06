@@ -1,13 +1,10 @@
-(ns empire.computer
-  "Computer AI coordinator - dispatches to specialized modules for unit processing.
-   Gutted for CommandingGeneral refactor - units currently do nothing."
+(ns empire.computer.coordinator
+  "Computer AI coordinator - dispatches to specialized modules for unit processing."
   (:require [empire.application.state-access :as sa]
             [empire.computer.army :as army]
             [empire.computer.fighter :as fighter]
             [empire.computer.ship :as ship]
             [empire.computer.transport :as transport]))
-
-;; Main dispatch function
 
 (defn- computer-unit? [unit]
   (and unit (= (:owner unit) :computer)))

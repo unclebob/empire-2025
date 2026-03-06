@@ -5,7 +5,7 @@
             [empire.application.ports.movement-execution :as ports]
             [empire.application.ports.world-store :as world-ports]
             [empire.config :as config]
-            [empire.computer :as computer]
+            [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]

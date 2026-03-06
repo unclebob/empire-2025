@@ -252,3 +252,4 @@
         (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
         (update-cell-visibility! army-pos :computer)
         nil))))
+

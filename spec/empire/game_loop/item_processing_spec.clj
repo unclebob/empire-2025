@@ -7,7 +7,7 @@
             [empire.movement.explore :as explore]
             [empire.movement.coastline :as coastline]
             [empire.player.attention :as attention]
-            [empire.computer :as computer]
+            [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.containers.ops :as container-ops]
             [empire.test-utils :refer [reset-all-atoms! set-test-world! update-test-world!]]))

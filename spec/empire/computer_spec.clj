@@ -4,7 +4,7 @@
   (:require [empire.test-utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game-loop :as game-loop]
-            [empire.computer :as computer]
+            [empire.computer.coordinator :as computer]
             [empire.computer.army :as army]
             [empire.computer.core :as computer-core]
             [empire.computer.fighter :as fighter]
