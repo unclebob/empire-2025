@@ -24,9 +24,6 @@
 (defn count-country-coastal-cells [country-id]
   (stats/count-country-coastal-cells country-id))
 
-(defn country-coastal-cells-explored? [country-id]
-  (stats/country-coastal-cells-explored? country-id))
-
 (defn country-has-waiting-armies? [country-id]
   (stats/country-has-waiting-armies? country-id))
 

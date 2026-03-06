@@ -63,33 +63,6 @@
       (production/rebuild-country-stats!)
       (should-not= :army (production/decide-production [1 0]))))
 
-  (context "country-coastal-cells-explored?"
-
-    (it "returns true when all coastal cells visible on computer-map"
-      (set-test-world! (build-test-map ["~###~"]))
-      (set-test-computer-map! (build-test-map ["~###~"]))
-      (doseq [col [1 2 3]]
-        (update-test-world! assoc-in [col 0 :country-id] 1))
-      (production/rebuild-country-stats!)
-      (should (production/country-coastal-cells-explored? 1)))
-
-    (it "returns false when some coastal cells unexplored"
-      (set-test-world! (build-test-map ["~###~"]))
-      ;; Computer map: [0,0]=sea visible, [1,0]=unexplored (nil), rest visible
-      (set-test-computer-map! [[{:type :sea}] [nil] [{:type :land}] [{:type :land}] [{:type :sea}]])
-      (doseq [col [1 2 3]]
-        (update-test-world! assoc-in [col 0 :country-id] 1))
-      (production/rebuild-country-stats!)
-      (should-not (production/country-coastal-cells-explored? 1)))
-
-    (it "returns true when country has no coastal cells"
-      (set-test-world! (build-test-map ["###"]))
-      (set-test-computer-map! (build-test-map ["###"]))
-      (doseq [col [0 1 2]]
-        (update-test-world! assoc-in [col 0 :country-id] 1))
-      (production/rebuild-country-stats!)
-      (should (production/country-coastal-cells-explored? 1))))
-
   (context "army overproduction fix"
 
     (it "count-country-armies includes armies aboard transports"
@@ -182,39 +155,6 @@
       ;; 0 land armies < 2 coastal cells → army limit not reached → produces army
       (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0]))))
-
-  (context "country-coastal-cells-explored? country filter (L113)"
-
-    (it "only checks cells of the given country-id"
-      ;; Country 1 has all coastal cells explored, country 2 has unexplored ones
-      ;; If L113 = -> not=, it would check country 2's cells instead and return false
-      (set-test-world! (build-test-map ["~##~"]))
-      (set-test-computer-map! [[{:type :sea}] [{:type :land}] [nil] [{:type :sea}]])
-      (update-test-world! assoc-in [1 0 :country-id] 1)
-      (update-test-world! assoc-in [2 0 :country-id] 2)
-      ;; Country 1's coastal cell [1,0] is explored (non-nil in computer-map)
-      ;; Country 2's coastal cell [2,0] is unexplored (nil in computer-map)
-      (production/rebuild-country-stats!)
-      (should (production/country-coastal-cells-explored? 1))))
-
-  (context "country-coastal-cells-explored? sea check (L114)"
-
-    (it "only considers cells adjacent to sea as coastal"
-      ;; L114: = -> not= would invert the sea check, making interior cells appear "coastal"
-      ;; Map: #### — all land, no sea. Interior cell [1,0] unexplored on computer-map.
-      ;; With correct code: no coastal cells → every? over empty seq → true
-      ;; With mutation: interior cells wrongly "coastal" → unexplored → false
-      (set-test-world! (build-test-map ["~###~"]))
-      (set-test-computer-map! [[{:type :sea}] [{:type :land}] [nil] [{:type :land}] [{:type :sea}]])
-      (doseq [col [1 2 3]]
-        (update-test-world! assoc-in [col 0 :country-id] 1))
-      ;; Cell [2,0] is interior (not adjacent to sea) and unexplored on computer-map (nil)
-      ;; Cell [1,0] is coastal (adj to [0,0] sea) and explored
-      ;; Cell [3,0] is coastal (adj to [4,0] sea) and explored
-      ;; So all coastal cells are explored → should return true
-      ;; If mutation inverts sea check, [2,0] becomes "coastal" (adj to non-sea) → nil → false
-      (production/rebuild-country-stats!)
-      (should (production/country-coastal-cells-explored? 1))))
 
   (context "country-has-waiting-armies? coastal check (L148)"
 

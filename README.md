@@ -55,7 +55,7 @@ Equivalent Clojure alias:
 - Specs in `spec/**` must not manipulate `empire.atoms` directly.
 - Use `empire.test-utils` and runtime/test helper APIs instead of `@atoms/...`, `reset! atoms/...`, or `swap! atoms/...`.
 - Boundary enforcement runs in `clj -M:all-tests` via:
-  - `scripts/check-architecture-boundaries.sh`
+  - `clj -M:check-dependencies`
   - `scripts/check-spec-boundary.sh`
   - `scripts/check-acceptance-boundary.sh`
   - `scripts/check-generated-acceptance-boundary.sh`

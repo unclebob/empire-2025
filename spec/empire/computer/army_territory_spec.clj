@@ -6,6 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.production :as production]
             [empire.computer.stamping :as stamping]
+            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
@@ -17,7 +18,7 @@
       (let [cell {:type :city :city-status :computer :country-id 1}
             base {:type :army :owner :computer :hits 1 :mode :awake}]
         (test-utils/set-test-state! :coast-walkers-produced {})
-        (with-redefs [empire.computer.production/country-coastal-cells-explored? (constantly false)]
+        (with-redefs [empire.game-mechanics.services.unit-stamping/country-coastal-cells-explored? (constantly false)]
           (let [u1 (stamping/apply-coast-walk-fields base :army cell [0 0])
                 u2 (stamping/apply-coast-walk-fields base :army cell [1 0])
                 u3 (stamping/apply-coast-walk-fields base :army cell [2 0])]

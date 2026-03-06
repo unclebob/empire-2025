@@ -74,15 +74,17 @@
       (apply-country-id cell)
       (apply-patrol-fields cell)))
 
+(defn- country-coastal-cells-explored? [country-id]
+  (get-in (or (sa/read-state :country-stats) {}) [country-id :coastal-explored?] true))
+
 (defn apply-coast-walk-fields
-  "Optionally assigns coast-walk mode to newly produced computer armies.
-   coast-explored? is a predicate (fn [country-id]) returning true if coastal cells are explored."
-  [unit item cell coords coast-explored?]
+  "Optionally assigns coast-walk mode to newly produced computer armies."
+  [unit item cell coords]
   (if (and (= item :army)
            (= (:city-status cell) :computer)
            (:country-id cell)
            (< (get (sa/read-state :coast-walkers-produced) (:country-id cell) 0) 2)
-           (not (coast-explored? (:country-id cell))))
+           (not (country-coastal-cells-explored? (:country-id cell))))
     (let [country-id (:country-id cell)
           produced (get (sa/read-state :coast-walkers-produced) country-id 0)
           direction (if (even? produced) :clockwise :counter-clockwise)]
