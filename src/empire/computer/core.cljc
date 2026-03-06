@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
-  (:require [empire.application.city-production :as city-production]
+  (:require [empire.domain.services.city-production :as city-production]
             [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.domain.services.combat :as combat]

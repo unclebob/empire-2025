@@ -4,7 +4,7 @@
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.state.api :as sa]
-            [empire.application.city-production :as city-production]))
+            [empire.domain.services.city-production :as city-production]))
 
 (defn smooth-cell
   "Calculates the smoothed value for a cell at position i j."

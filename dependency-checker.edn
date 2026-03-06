@@ -1,64 +1,81 @@
+;; 5-layer / 7-component architecture
+;; L5: ui
+;; L4: round-mechanics  (game-loop, application)
+;; L3: player, computer  (peers)
+;; L2: shared-mechanics  (movement, containers, domain.services, debug)
+;; L1: state, config     (peers)
+;; Dependencies flow strictly downward.
+
 {:source-paths ["src"]
  :component-rules
- [{:component :config
+ [{:component :ui
    :kind :concrete
-   :match ["^empire\\.config(\\..+)?$"
-           "^empire\\.units(\\..*)?$"
-           "empire.domain.core.unit-metrics"]}
+   :match "^empire\\.ui(\\..*)?$"}
 
-  {:component :inner-ring
+  {:component :round-mechanics
    :kind :concrete
-   :match ["^empire\\.domain\\.core(\\.(?!impl\\.).*)?$"
-           "^empire\\.domain\\.model(\\..*)?$"]}
+   :match ["^empire\\.game.loop(\\..*)?$"
+           "^empire\\.application(\\.(?!state).*)?$"]}
+
+  {:component :player
+   :kind :concrete
+   :match "^empire\\.player(\\..*)?$"}
+
+  {:component :computer
+   :kind :concrete
+   :match "^empire\\.computer(\\..*)?$"}
+
+  {:component :shared-mechanics
+   :kind :concrete
+   :match ["^empire\\.movement(\\..*)?$"
+           "^empire\\.containers(\\..*)?$"
+           "^empire\\.domain\\.services(\\..*)?$"
+           "^empire\\.debug(\\..*)?$"]}
 
   {:component :state
    :kind :concrete
    :match ["^empire\\.state(\\..*)?$"
            "^empire\\.application\\.state(\\..*)?$"]}
 
-  {:component :quil
+  {:component :config
    :kind :concrete
-   :match "^empire\\.ui\\.quil(\\..*)?$"}
+   :match ["^empire\\.config(\\..*)?$"
+           "^empire\\.units(\\..*)?$"
+           "^empire\\.domain\\.core(\\..*)?$"
+           "^empire\\.domain\\.model(\\..*)?$"]}
 
-  {:component :ui
-   :kind :concrete
-   :match "^empire\\.ui\\.util(\\..*)?$"}
-
-  {:component :application
-   :kind :concrete
-   :match "^empire\\.application(\\..*)?$"}
-
-  {:component :domain-services
-   :kind :concrete
-   :match ["^empire\\.movement(\\..*)?$"
-           "^empire\\.containers(\\..*)?$"
-           "^empire\\.debug(\\..*)?$"
-           "^empire\\.domain\\.services(\\..*)?$"]}
-
-  {:component :use-cases
-   :kind :concrete
-   :match ["^empire\\.player(\\..*)?$"
-           "^empire\\.computer(\\..*)?$"
-           "^empire\\.game.loop(\\..*)?$"]}
-
-  {:component :outer-ring
+  {:component :test-infra
    :kind :concrete
    :match "empire.*"}]
 
  :forbidden-dependencies
- [[:inner-ring :outer-ring]
-  [:inner-ring :application]
-  [:inner-ring :domain-services]
-  [:inner-ring :use-cases]
-  [:inner-ring :state]
-  [:ui :quil]
-  [:domain-services :use-cases]
-  [:domain-services :application]
-  [:state :application]
-  [:state :domain-services]
-  [:state :use-cases]]
+ [;; L1 cannot depend on anything above
+  [:config :state]
+  [:config :shared-mechanics]
+  [:config :player]
+  [:config :computer]
+  [:config :round-mechanics]
+  [:config :ui]
+  [:state :shared-mechanics]
+  [:state :player]
+  [:state :computer]
+  [:state :round-mechanics]
+  [:state :ui]
 
- ;; :ui and :outer-ring intentionally cycle — :ui is carved from :outer-ring
- ;; solely to enforce [:ui :quil]. The cycle is architectural intent.
+  ;; L2 cannot depend on L3+
+  [:shared-mechanics :player]
+  [:shared-mechanics :computer]
+  [:shared-mechanics :round-mechanics]
+  [:shared-mechanics :ui]
+
+  ;; L3 cannot depend on L4+
+  [:player :round-mechanics]
+  [:player :ui]
+  [:computer :round-mechanics]
+  [:computer :ui]
+
+  ;; L4 cannot depend on L5
+  [:round-mechanics :ui]]
+
  :fail-on-cycles false
  :fail-on-violations true}

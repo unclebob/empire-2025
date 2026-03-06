@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.application.city-production
+(ns empire.domain.services.city-production
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]))
 
