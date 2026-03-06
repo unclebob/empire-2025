@@ -17,3 +17,7 @@ generated-acceptance-specs/acceptance/*.clj
 /.worktrees/
 saves/
 /docs/uml/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db

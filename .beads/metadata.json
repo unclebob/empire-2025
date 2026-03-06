@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "empire_2025",
+  "project_id": "2f9d3b11-7732-4ada-bc52-703a97b76789"
+}
