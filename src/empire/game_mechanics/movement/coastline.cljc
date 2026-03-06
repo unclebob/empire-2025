@@ -15,9 +15,6 @@
   []
   (sa/current-world))
 
-(defn- world-atom []
-  (sa/world-atom))
-
 (defn coastline-follow-eligible?
   "Returns true if unit can use coastline-follow mode (transport or patrol-boat near coast)."
   [unit near-coast?]
@@ -121,7 +118,7 @@
 (defn- post-move-wake-reason
   "Returns wake reason after moving, or nil if unit should continue."
   [unit next-pos remaining-steps start-pos]
-  (let [world-atom (world-atom)
+  (let [world-atom :game-map
         started-at-edge? (map-utils/at-map-edge? start-pos world-atom)
         now-at-edge? (map-utils/at-map-edge? next-pos world-atom)]
     (cond
@@ -195,7 +192,7 @@
       (do (log-coastline-step player? (:type unit) coords coords pre-wake)
           (wake-coastline-unit coords pre-wake)
           nil)
-      (if-let [next-pos (pick-coastline-move coords (world-atom) visited (:prev-pos unit))]
+      (if-let [next-pos (pick-coastline-move coords :game-map visited (:prev-pos unit))]
         (let [next-cell (get-in (current-world) next-pos)]
           (if (:contents next-cell)
             (handle-coastline-collision coords unit next-pos next-cell player?)

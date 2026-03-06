@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.game-mechanics.movement.movement-pathing
-  (:require [empire.config.units.dispatcher :as dispatcher]))
+  (:require [empire.config.units.dispatcher :as dispatcher]
+            [empire.game-mechanics.movement.map-utils :as map-utils]))
 
 (defn next-step-pos [pos target]
   (let [[x y] pos
@@ -44,7 +45,7 @@
     (if (or (zero? remaining) (= pos target))
       pos
       (let [next-pos (next-step-pos pos target)
-            next-cell (get-in @current-map next-pos)]
+            next-cell (get-in (map-utils/resolve-map-source current-map) next-pos)]
         (if (can-move-to? unit-type next-cell)
           (recur next-pos (dec remaining))
           pos)))))
@@ -60,7 +61,7 @@
         valid-sidesteps
         (for [[sdx sdy] candidates
               :let [sidestep-pos [(+ fx sdx) (+ fy sdy)]
-                    sidestep-cell (get-in @current-map sidestep-pos)]
+                    sidestep-cell (get-in (map-utils/resolve-map-source current-map) sidestep-pos)]
               :when (can-move-to? unit-type sidestep-cell)
               :let [final-pos (simulate-path sidestep-pos target unit-type 3 current-map)
                     final-dist (chebyshev-distance final-pos target)]]

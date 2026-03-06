@@ -166,7 +166,7 @@
         visibility-map (vec (for [_ (range width)]
                               (vec (for [_ (range height)]
                                      {:type :unexplored}))))]
-    (reset! (sa/world-atom) map-with-computer-city)
+    (sa/write-state! :game-map map-with-computer-city)
     ;; Assign country-id 1 to computer's starting city and begin army production
     (when-let [computer-city-pos (find-city-position map-with-computer-city :computer)]
       (sa/update-world! assoc-in (conj computer-city-pos :country-id) 1)

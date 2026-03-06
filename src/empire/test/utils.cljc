@@ -1,6 +1,10 @@
 (ns empire.test.utils
   (:require [clojure.string :as str]
             [empire.state.api :as sa]
+            [empire.state.world :as world]
+            [empire.state.computer :as computer-state]
+            [empire.state.player :as player-state]
+            [empire.state.ui :as ui-state]
             [empire.computer.land-objectives :as land-objectives]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -37,7 +41,7 @@
 
 (defn set-test-world!
   [world]
-  (reset! (sa/world-atom) world))
+  (sa/write-state! :game-map world))
 
 (defn update-test-world!
   [f & args]
@@ -249,74 +253,11 @@
   (vec (repeat cols (vec (repeat rows value)))))
 
 (defn reset-all-atoms! []
-  (set-test-state! :random-seed nil)
-  (set-test-state! :map-size [0 0])
-  (set-test-state! :map-size-constants {})
-  (set-test-state! :last-key nil)
-  (set-test-state! :backtick-pressed false)
-  (set-test-state! :map-screen-dimensions [0 0])
-  (set-test-state! :text-area-dimensions [0 0 0 0])
-  (set-test-state! :map-to-display :player-map)
-  (set-test-state! :round-number 0)
-  (set-test-state! :last-clicked-cell nil)
-  (set-test-state! :text-font nil)
-  (set-test-state! :production-char-font nil)
-  (set-test-state! :production {})
-  (set-test-world! nil)
-  (set-test-state! :player-map {})
-  (set-test-state! :cells-needing-attention [])
-  (set-test-state! :player-items [])
-  (set-test-state! :waiting-for-input false)
-  (set-test-state! :attention-message "")
-  (set-test-state! :turn-message "")
-  (set-test-state! :turn-message-until 0)
-  (set-test-state! :hover-message "")
-  (set-test-state! :error-message "")
-  (set-test-state! :error-until 0)
-  (set-test-state! :production-status "")
-  (set-test-state! :computer-map {})
-  (set-test-state! :destination nil)
-  (set-test-state! :paused false)
-  (set-test-state! :game-over-check-enabled false)
-  (set-test-state! :pause-requested false)
-  (set-test-state! :computer-items [])
-  (set-test-state! :computer-turn false)
-  (set-test-state! :next-transport-id 1)
-  (set-test-state! :next-country-id 1)
-  (set-test-state! :continent-groups {})
-  (set-test-state! :next-unload-event-id 1)
-  (set-test-state! :next-destroyer-id 1)
-  (set-test-state! :next-carrier-id 1)
-  (set-test-state! :next-escort-id 1)
-  (set-test-state! :claimed-objectives #{})
-  (set-test-state! :claimed-transport-targets #{})
-  (set-test-state! :claimed-patrol-targets #{})
-  (set-test-state! :last-transport-city {})
-  (set-test-state! :fighter-leg-records {})
-  (set-test-state! :computer-city-positions #{})
-  (set-test-state! :computer-carrier-positions #{})
-  (set-test-state! :country-stats {})
-  (set-test-state! :coastal-cells-by-country {})
-  (set-test-state! :coast-walkers-produced {})
-  (set-test-state! :patrol-boats-produced {})
-  (set-test-state! :seen-coast #{})
-  (set-test-state! :land-ho-targets [])
-  (set-test-state! :major-invasion-state {:active? false
-                                          :detection-points #{}
-                                          :target-land-set #{}
-                                          :started-round nil})
-  (set-test-state! :transport-fully-loaded? false)
-  (set-test-state! :early-patrol-boat-produced? false)
-  (set-test-state! :early-satellite-produced? false)
-  (set-test-state! :distant-city-pairs nil)
-  (set-test-state! :lake-max-cells 0)
-  (set-test-state! :known-lake-cells #{})
-  (set-test-state! :computer-event-log [])
-  (set-test-state! :action-log [])
-  (set-test-state! :player-movement-log [])
-  (set-test-state! :load-menu-open false)
-  (set-test-state! :load-menu-files [])
-  (set-test-state! :load-menu-hovered nil)
+  (reset! world/state world/defaults)
+  (reset! computer-state/state computer-state/defaults)
+  (reset! player-state/state player-state/defaults)
+  (reset! ui-state/state ui-state/defaults)
+  (sa/write-state! :game-over-check-enabled false)
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)

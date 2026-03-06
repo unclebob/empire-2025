@@ -140,7 +140,7 @@
   [k v]
   (if (contains? writable-keys k)
     (if (= k :game-map)
-      (reset! (sa/world-atom) v)
+      (sa/write-state! :game-map v)
       (sa/write-state! k v))
     (throw (ex-info (str "Unsupported harness set-state! key: " k) {:key k}))))
 

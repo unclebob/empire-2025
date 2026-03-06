@@ -76,7 +76,7 @@
          unit (:contents cell)]
     (when (and (= (:mode unit) :moving)
                (pos? (:steps-remaining unit 1)))
-      (let [{:keys [result pos]} (movement-api/move-unit coords (:target unit) cell (sa/world-atom))
+      (let [{:keys [result pos]} (movement-api/move-unit coords (:target unit) cell :game-map)
             next-pos (resolve-move-result result pos (:owner unit))]
         (if (and (= result :sidestep) next-pos (pos? max-sidesteps))
           (recur pos (dec max-sidesteps))

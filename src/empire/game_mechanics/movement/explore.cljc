@@ -18,9 +18,6 @@
   [k]
   (sa/read-state k))
 
-(defn- world-atom []
-  (sa/world-atom))
-
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."
   [cell]
@@ -92,9 +89,9 @@
                                                     (dissoc :explore-steps :visited))))
         nil)
       ;; Try to move (return nil to limit to one step per round)
-      (if-let [next-pos (pick-explore-move coords (world-atom) visited)]
+      (if-let [next-pos (pick-explore-move coords :game-map visited)]
         (let [next-cell (get-in (current-world) next-pos)
-              found-city? (wake/near-hostile-city? next-pos (world-atom))
+              found-city? (wake/near-hostile-city? next-pos :game-map)
               moved-unit (if found-city?
                            (-> unit
                                (assoc :mode :awake :reason :army-found-city)

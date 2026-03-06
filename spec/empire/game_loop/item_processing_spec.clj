@@ -3,6 +3,7 @@
             [speclj.core :refer :all]
             [empire.game.loop.item-processing :as ip]
             [empire.config.core :as config]
+            [empire.state.api :as sa]
             [empire.game-mechanics.movement.api :as movement]
             [empire.game-mechanics.movement.explore :as explore]
             [empire.game-mechanics.movement.coastline :as coastline]
@@ -21,21 +22,21 @@
 (defn- mock-move
   "Returns a mock move-unit fn that moves the unit and returns given result."
   [result-type]
-  (fn [from-coords _target cell game-map-atom]
+  (fn [from-coords _target cell _game-map-source]
     (let [unit (:contents cell)
           [c r] from-coords
           new-pos [(inc c) r]]
-      (swap! game-map-atom assoc-in (conj from-coords :contents) nil)
-      (swap! game-map-atom assoc-in (conj new-pos :contents) unit)
+      (sa/update-world! assoc-in (conj from-coords :contents) nil)
+      (sa/update-world! assoc-in (conj new-pos :contents) unit)
       {:result result-type :pos new-pos})))
 
 (defn- mock-move-to
   "Mock move-unit that moves unit to a specific position."
   [result-type new-pos]
-  (fn [from-coords _target cell game-map-atom]
+  (fn [from-coords _target cell _game-map-source]
     (let [unit (:contents cell)]
-      (swap! game-map-atom assoc-in (conj from-coords :contents) nil)
-      (swap! game-map-atom assoc-in (conj new-pos :contents) unit)
+      (sa/update-world! assoc-in (conj from-coords :contents) nil)
+      (sa/update-world! assoc-in (conj new-pos :contents) unit)
       {:result result-type :pos new-pos})))
 
 ;; ===== check-player-victory! (L21, L22, L29, L39) =====
@@ -239,8 +240,8 @@
                   (fn [from _t cell gm]
                     ;; Simulate combat: attacker wins, moves to new pos
                     (let [attacker (:contents cell)]
-                      (swap! gm assoc-in (conj from :contents) nil)
-                      (swap! gm assoc-in [1 0 :contents] attacker)
+                      (sa/update-world! assoc-in (conj from :contents) nil)
+                      (sa/update-world! assoc-in [1 0 :contents] attacker)
                       {:result :combat :pos [1 0]}))]
       (let [result (ip/move-current-unit [0 0])]
         (should-be-nil result)
@@ -254,7 +255,7 @@
     (with-redefs [movement/move-unit
                   (fn [from _t _cell gm]
                     ;; Attacker lost: removed from map, defender stays
-                    (swap! gm assoc-in (conj from :contents) nil)
+                    (sa/update-world! assoc-in (conj from :contents) nil)
                     {:result :combat :pos [1 0]})]
       (should-be-nil (ip/move-current-unit [0 0])))))
 
@@ -271,7 +272,7 @@
     (with-redefs [movement/move-unit
                   (fn [from _t cell gm]
                     (let [unit (:contents cell)]
-                      (swap! gm update-in (conj from :contents) assoc :mode :awake)
+                      (sa/update-world! update-in (conj from :contents) assoc :mode :awake)
                       {:result :woke :pos from}))]
       (should= [0 0] (ip/move-current-unit [0 0]))))
 
@@ -282,7 +283,7 @@
                               (sea-cell)]])
     (with-redefs [movement/move-unit
                   (fn [from _t _cell gm]
-                    (swap! gm assoc-in (conj from :contents) nil)
+                    (sa/update-world! assoc-in (conj from :contents) nil)
                     {:result :docked :pos [1 0]})]
       (should-be-nil (ip/move-current-unit [0 0])))))
 
@@ -825,8 +826,8 @@
                       (let [unit (:contents cell)
                             [c r] from
                             new-pos [(inc c) r]]
-                        (swap! gm assoc-in (conj from :contents) nil)
-                        (swap! gm assoc-in (conj new-pos :contents) unit)
+                        (sa/update-world! assoc-in (conj from :contents) nil)
+                        (sa/update-world! assoc-in (conj new-pos :contents) unit)
                         {:result :normal :pos new-pos}))
                     attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
