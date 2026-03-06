@@ -3,7 +3,8 @@
  [{:component :config
    :kind :concrete
    :match ["^empire\\.config(\\..+)?$"
-           "^empire\\.units(\\..*)?$"]}
+           "^empire\\.units(\\..*)?$"
+           "empire.domain.core.unit-metrics"]}
 
   {:component :inner-ring
    :kind :concrete

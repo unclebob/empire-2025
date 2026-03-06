@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.units.config :as units-config]
             [empire.units.satellite :as satellite]
-            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world!]]))
+            [empire.test-utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world! update-test-world! read-test-world]]))
 
 (describe "satellite unit module"
   (before (reset-all-atoms!))
@@ -141,24 +141,24 @@
     (it "does not move without target"
       (update-test-world! assoc-in [5 5 :contents]
                           {:type :satellite :owner :player :turns-remaining 50})
-      (should= [5 5] (satellite/move-one-step [5 5])))
+      (should= [5 5] (:pos (satellite/move-one-step [5 5] (read-test-world)))))
 
     (it "moves toward target"
       (update-test-world! assoc-in [5 5 :contents]
                           {:type :satellite :owner :player :target [9 9] :turns-remaining 50})
-      (should= [6 6] (satellite/move-one-step [5 5])))
+      (should= [6 6] (:pos (satellite/move-one-step [5 5] (read-test-world)))))
 
     (it "moves toward lower coordinates"
       (update-test-world! assoc-in [5 5 :contents]
                           {:type :satellite :owner :player :target [2 2] :turns-remaining 50})
-      (should= [4 4] (satellite/move-one-step [5 5])))
+      (should= [4 4] (:pos (satellite/move-one-step [5 5] (read-test-world)))))
 
     (it "moves along same row toward target"
       (update-test-world! assoc-in [5 3 :contents]
                           {:type :satellite :owner :player :target [5 9] :turns-remaining 50})
-      (should= [5 4] (satellite/move-one-step [5 3])))
+      (should= [5 4] (:pos (satellite/move-one-step [5 3] (read-test-world)))))
 
     (it "moves along same column toward target"
       (update-test-world! assoc-in [3 5 :contents]
                           {:type :satellite :owner :player :target [9 5] :turns-remaining 50})
-      (should= [4 5] (satellite/move-one-step [3 5])))))
+      (should= [4 5] (:pos (satellite/move-one-step [3 5] (read-test-world)))))))

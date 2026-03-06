@@ -1,6 +1,5 @@
 (ns empire.units.satellite
-  (:require [empire.application.state-access :as sa]
-            [empire.units.config :as units-config]))
+  (:require [empire.units.config :as units-config]))
 
 (defn- extend-to-boundary
   [[x y] [dx dy] map-height map-width]
@@ -55,13 +54,13 @@
         ((bounce-dispatch edge-type) near-origin? map-height map-width)))))
 
 (defn move-one-step
-  [[x y]]
-  (let [world (sa/current-world)
-        cell (get-in world [x y])
+  "Returns {:pos new-pos :world-updates [[path value] ...]} — caller applies updates."
+  [[x y] world]
+  (let [cell (get-in world [x y])
         unit (:contents cell)
         target (:target unit)]
     (if-not target
-      [x y]
+      {:pos [x y] :world-updates []}
       (let [map-height (count world)
             map-width (count (first world))
             [tx ty] target
@@ -69,11 +68,11 @@
         (if at-target?
           (let [new-target (calculate-bounce-target [x y] map-height map-width)
                 updated-unit (assoc unit :target new-target)]
-            (sa/update-world! assoc-in [x y :contents] updated-unit)
-            [x y])
+            {:pos [x y]
+             :world-updates [[[x y :contents] updated-unit]]})
           (let [dx (Integer/signum (- tx x))
                 dy (Integer/signum (- ty y))
                 new-pos [(+ x dx) (+ y dy)]]
-            (sa/update-world! assoc-in [x y :contents] nil)
-            (sa/update-world! assoc-in (conj new-pos :contents) unit)
-            new-pos))))))
+            {:pos new-pos
+             :world-updates [[[x y :contents] nil]
+                             [(conj new-pos :contents) unit]]}))))))
