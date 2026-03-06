@@ -2,7 +2,7 @@
 (ns empire.player.production
   (:require [empire.application.city-production :as city-production]
             [empire.movement.map-utils :as map-utils]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.application.unit-stamping :as unit-stamping]
             [empire.config.core :as config]))
 

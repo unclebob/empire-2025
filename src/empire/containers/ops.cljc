@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.containers.ops
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.application.unit-stamping :as unit-stamping]
             [empire.config.core :as config]
             [empire.containers.helpers :as uc]

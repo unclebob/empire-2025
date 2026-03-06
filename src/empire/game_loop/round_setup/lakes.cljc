@@ -1,5 +1,5 @@
 (ns empire.game-loop.round-setup.lakes
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.lakes :as lakes]
             [empire.movement.visibility :as visibility]

@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
   (:require [empire.movement.map-utils :as map-utils]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.application.ports.unit-state :as ports]
             [empire.config.core :as config]
             [empire.domain.core.unit-metrics :as unit-metrics]

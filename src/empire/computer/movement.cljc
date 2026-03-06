@@ -2,7 +2,7 @@
 (ns empire.computer.movement
   (:require [empire.application.ports.movement-execution :as exec-ports]
             [empire.application.ports.pathfinding :as path-ports]
-            [empire.application.state-access :as sa]))
+            [empire.state.api :as sa]))
 
 (defn- execution-port
   []

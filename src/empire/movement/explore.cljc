@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.explore
   (:require [empire.config.core :as config]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]
             [empire.movement.wake-conditions :as wake]))

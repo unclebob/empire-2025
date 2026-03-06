@@ -2,7 +2,7 @@
 (ns empire.computer.threat-response
   "Threat-response coordinator for enemy detections.
    Handles fighter/ship local responses and global major invasion mobilization."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fighter-movement]
             [empire.computer.threat-response.invasion-state :as invasion-state]

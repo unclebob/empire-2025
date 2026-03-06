@@ -2,7 +2,7 @@
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
   (:require [empire.application.ports.movement-execution :as movement-port]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing-path :as sailing-path]

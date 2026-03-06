@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.ship
   "Computer ship module - facade delegating to sub-modules."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.ship-carrier :as carrier]

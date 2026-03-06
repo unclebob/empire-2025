@@ -2,7 +2,7 @@
 (ns empire.player.orders
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.waypoint :as waypoint]
             [empire.application.ports.unit-state :as ports]
             [empire.config.core :as config]))

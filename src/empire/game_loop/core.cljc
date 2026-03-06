@@ -6,7 +6,7 @@
             [empire.movement.visibility :as visibility]
             [empire.movement.pathfinding :as pathfinding]
             [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.computer.army :as army]
             [empire.computer.land-ho :as land-ho]

@@ -1,6 +1,6 @@
 (ns empire.computer.coordinator
   "Computer AI coordinator - dispatches to specialized modules for unit processing."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.army :as army]
             [empire.computer.fighter :as fighter]
             [empire.computer.ship :as ship]

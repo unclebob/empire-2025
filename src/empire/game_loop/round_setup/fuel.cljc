@@ -1,5 +1,5 @@
 (ns empire.game-loop.round-setup.fuel
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.wake-conditions :as wake]
             [empire.config.core :as config]
             [empire.domain.services.round-setup :as domain-round-setup]))

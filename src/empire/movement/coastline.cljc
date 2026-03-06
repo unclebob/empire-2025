@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.coastline
   (:require [empire.config.core :as config]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.debug.logging :as debug]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.visibility :as visibility]

@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.map-utils
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- current-world

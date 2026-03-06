@@ -1,7 +1,7 @@
 ;; mutation-tested: no
 (ns empire.application.unit-stamping
   "Application port for unit stamping decisions."
-  (:require [empire.application.state-access :as sa]))
+  (:require [empire.state.api :as sa]))
 
 (defn- next-id!
   [k]

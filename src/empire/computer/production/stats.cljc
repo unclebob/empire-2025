@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.production.stats
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]))
 
 (defn- get-neighbors [pos]

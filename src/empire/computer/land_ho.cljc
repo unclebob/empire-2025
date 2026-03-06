@@ -3,7 +3,7 @@
   "Round-start assignment of land-ho invasion targets to transports.
    Checks the FIFO queue of discovered free cities and assigns the nearest
    qualifying transport to invade each target."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]))
 

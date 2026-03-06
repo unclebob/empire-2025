@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.movement.wake-conditions
   (:require [empire.config.core :as config]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.containers.helpers :as uc]
             [empire.units.dispatcher :as dispatcher]))

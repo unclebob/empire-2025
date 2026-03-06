@@ -1,5 +1,5 @@
 (ns empire.game-loop.round-setup.waking
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.wake-conditions :as wake]
             [empire.containers.helpers :as uc]))
 

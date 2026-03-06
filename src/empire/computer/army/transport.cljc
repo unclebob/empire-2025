@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.transport
   "Army transport boarding behavior."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
             [empire.debug.logging :as debug]

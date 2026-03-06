@@ -2,7 +2,7 @@
 (ns empire.movement.pathfinding
   "A* pathfinding for computer AI units.
    Provides efficient pathfinding that respects terrain constraints."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.map-utils :as map-utils]))
 
 (def path-cache

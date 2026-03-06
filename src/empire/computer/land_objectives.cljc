@@ -2,7 +2,7 @@
 (ns empire.computer.land-objectives
   "Land objective detection using flood-fill on fog-of-war map.
    Implements VMS Empire style continent recognition that respects unexplored territory."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]))
 
 (def ^:private neighbor-offsets

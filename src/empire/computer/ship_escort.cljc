@@ -2,7 +2,7 @@
 ;; mutation-tested: 2026-02-27
 (ns empire.computer.ship-escort
   "Computer destroyer escort and shared pursuit logic."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.movement :as computer-movement]))

@@ -5,7 +5,7 @@
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
   (:require [empire.application.ports.movement-execution :as movement-port]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]

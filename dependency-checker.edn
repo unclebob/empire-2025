@@ -29,7 +29,8 @@
            "empire.application.runtime"
            "^empire\\.adapters\\.(?!runtime\\.acceptance.engine$).*$"
            "^empire\\.atoms(\\..*)?$"
-           "empire.application.state.runtime"]}
+           "empire.application.state.runtime"
+           "^empire\\.state(\\..*)?$"]}
 
   {:component :domain-services
    :kind :concrete

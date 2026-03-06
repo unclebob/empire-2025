@@ -1,6 +1,6 @@
 (ns empire.ui.quil.core
   (:require [empire.application.bootstrap :as app-bootstrap]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game-loop.core :as game-loop]
             [empire.application.initialization :as init]

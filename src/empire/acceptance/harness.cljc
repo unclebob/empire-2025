@@ -3,7 +3,7 @@
   "Acceptance harness adapter used by generated acceptance specs.
    Keeps scenario execution paths behind a stable API."
   (:require [empire.application.state :as app-state]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.fighter :as computer-fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]

@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-26
 (ns empire.game-loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.application.ports.movement-execution :as ports]
             [empire.application.ports.world-store :as world-ports]
             [empire.config.core :as config]

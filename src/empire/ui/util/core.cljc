@@ -1,5 +1,5 @@
 (ns empire.ui.util.core
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.config.core :as config]))
 
 (defn screen->cell

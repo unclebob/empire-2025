@@ -1,6 +1,6 @@
 (ns empire.ui.util.input.actions.production
   (:require [empire.application.ports.unit-state :as ports]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.player.production :as player-production]

@@ -1,6 +1,6 @@
 (ns empire.ui.quil.rendering.messages
   (:require [clojure.string :as str]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
