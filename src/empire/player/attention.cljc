@@ -1,11 +1,11 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.attention
-  (:require [empire.movement.map-utils :as map-utils]
+  (:require [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
-            [empire.movement.movement-state :as movement-state]
+            [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.config.core :as config]
-            [empire.domain.core.unit-metrics :as unit-metrics]
-            [empire.containers.helpers :as uc]))
+            [empire.config.domain.core.unit-metrics :as unit-metrics]
+            [empire.game-mechanics.containers.helpers :as uc]))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."

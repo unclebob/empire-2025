@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship :as ship]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.test.utils :as tu]))
 
 (describe "seen-coast atom"

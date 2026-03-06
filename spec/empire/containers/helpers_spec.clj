@@ -1,7 +1,7 @@
-(ns empire.containers.helpers-spec
+(ns empire.game-mechanics.containers.helpers-spec
   (:require [speclj.core :refer :all]
-            [empire.containers.helpers :as uc]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (describe "count and query functions"
   (context "get-count"

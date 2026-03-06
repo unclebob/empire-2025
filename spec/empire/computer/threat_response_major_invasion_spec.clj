@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.computer.threat-response.major-invasion :as mi]
             [empire.computer.threat-response.invasion-state :as invasion-state]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]))
+            [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]))
 
 (defn- update-world-fn
   [world-atom]

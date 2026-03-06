@@ -1,7 +1,7 @@
-(ns empire.movement.pathfinding-bfs-spec
+(ns empire.game-mechanics.movement.pathfinding-bfs-spec
   (:require [speclj.core :refer :all]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "bfs-to-unexplored-coast"
@@ -210,74 +210,74 @@
 
 (describe "available-for-target?"
   (it "returns true when deep enough, not start, not excluded"
-    (should (@#'empire.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 4 #{})))
+    (should (@#'empire.game-mechanics.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 4 #{})))
   (it "returns false when not deep enough"
-    (should-not (@#'empire.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 3 #{})))
+    (should-not (@#'empire.game-mechanics.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 3 #{})))
   (it "returns false when current is start"
-    (should-not (@#'empire.movement.pathfinding-bfs/available-for-target? [0 0] [0 0] 4 #{})))
+    (should-not (@#'empire.game-mechanics.movement.pathfinding-bfs/available-for-target? [0 0] [0 0] 4 #{})))
   (it "returns false when current is excluded"
-    (should-not (@#'empire.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 4 #{[5 5]}))))
+    (should-not (@#'empire.game-mechanics.movement.pathfinding-bfs/available-for-target? [5 5] [0 0] 4 #{[5 5]}))))
 
 (describe "unexplored-target?"
   (it "returns true when no best-unexplored and adjacent to unexplored"
     (let [computer-map [[{:type :sea} nil]
                          [{:type :sea} {:type :sea}]]]
-      (should (@#'empire.movement.pathfinding-bfs/unexplored-target? [0 0] nil computer-map))))
+      (should (@#'empire.game-mechanics.movement.pathfinding-bfs/unexplored-target? [0 0] nil computer-map))))
   (it "returns false when best-unexplored already found"
     (let [computer-map [[{:type :sea} nil]
                          [{:type :sea} {:type :sea}]]]
-      (should-not (@#'empire.movement.pathfinding-bfs/unexplored-target? [0 0] [3 3] computer-map))))
+      (should-not (@#'empire.game-mechanics.movement.pathfinding-bfs/unexplored-target? [0 0] [3 3] computer-map))))
   (it "returns false when not adjacent to unexplored"
     (let [computer-map [[{:type :sea} {:type :sea}]
                          [{:type :sea} {:type :sea}]]]
-      (should-not (@#'empire.movement.pathfinding-bfs/unexplored-target? [0 0] nil computer-map)))))
+      (should-not (@#'empire.game-mechanics.movement.pathfinding-bfs/unexplored-target? [0 0] nil computer-map)))))
 
 (describe "adjacent-to-unexplored?"
   (it "returns truthy when neighbor is nil"
     (let [computer-map [[{:type :sea} nil]
                          [{:type :sea} {:type :sea}]]]
-      (should (#'empire.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map))))
+      (should (#'empire.game-mechanics.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map))))
 
   (it "returns truthy when neighbor is {:type :unexplored}"
     (let [computer-map [[{:type :sea} {:type :unexplored}]
                          [{:type :sea} {:type :sea}]]]
-      (should (#'empire.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map))))
+      (should (#'empire.game-mechanics.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map))))
 
   (it "returns falsy when all neighbors are explored"
     (let [computer-map [[{:type :sea} {:type :sea}]
                          [{:type :sea} {:type :sea}]]]
-      (should-not (#'empire.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map))))
+      (should-not (#'empire.game-mechanics.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map))))
 
   (it "handles edge position correctly"
     (let [computer-map [[{:type :sea}]]]
       ;; Single cell, no neighbors within bounds, should return falsy
-      (should-not (#'empire.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map)))))
+      (should-not (#'empire.game-mechanics.movement.pathfinding-bfs/adjacent-to-unexplored? [0 0] computer-map)))))
 
 (describe "at-exploration-frontier?"
   (it "returns truthy when adjacent to both unexplored and known land"
     (let [computer-map [[{:type :sea} nil]
                          [{:type :land} {:type :sea}]]]
       ;; [0 0] is adjacent to nil [1 0] (unexplored) and [0 1] is land
-      (should (#'empire.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
+      (should (#'empire.game-mechanics.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
 
   (it "returns falsy when only adjacent to unexplored (no known land)"
     (let [computer-map [[{:type :sea} nil]
                          [{:type :sea} {:type :sea}]]]
-      (should-not (#'empire.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
+      (should-not (#'empire.game-mechanics.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
 
   (it "returns falsy when only adjacent to known land (no unexplored)"
     (let [computer-map [[{:type :sea} {:type :sea}]
                          [{:type :land} {:type :sea}]]]
-      (should-not (#'empire.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
+      (should-not (#'empire.game-mechanics.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
 
   (it "returns falsy when no neighbors"
     (let [computer-map [[{:type :sea}]]]
-      (should-not (#'empire.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
+      (should-not (#'empire.game-mechanics.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map))))
 
   (it "recognizes :city as known land for frontier detection"
     (let [computer-map [[{:type :sea} nil]
                          [{:type :city} {:type :sea}]]]
-      (should (#'empire.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map)))))
+      (should (#'empire.game-mechanics.movement.pathfinding-bfs/at-exploration-frontier? [0 0] computer-map)))))
 
 (describe "find-nearest-unexplored"
   (before (reset-all-atoms!))
@@ -556,7 +556,7 @@
     (it "recognizes :city as target-continent land"
       (let [game-map [[{:type :sea} {:type :city :city-status :free}]
                        [{:type :sea} {:type :sea}]]]
-        (should (#'empire.movement.pathfinding-bfs/adjacent-to-target-continent-land?
+        (should (#'empire.game-mechanics.movement.pathfinding-bfs/adjacent-to-target-continent-land?
                   [0 0] #{[0 1]} game-map)))))
 
   (context "find-nearest-unload-position start-skip"

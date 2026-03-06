@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.stamping
-  (:require [empire.domain.services.unit-stamping :as unit-stamping]
+  (:require [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.computer.production :as computer-production]))
 
 (defn stamp-computer-fields

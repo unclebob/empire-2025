@@ -1,7 +1,7 @@
-(ns empire.movement.map-utils-spec
+(ns empire.game-mechanics.movement.map-utils-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! make-initial-test-map set-test-world!]]))
 
 (describe "process-map"

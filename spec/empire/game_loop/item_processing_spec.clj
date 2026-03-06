@@ -1,15 +1,15 @@
-(ns empire.game-loop.item-processing-spec
+(ns empire.game.loop.item-processing-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.game-loop.item-processing :as ip]
+            [empire.game.loop.item-processing :as ip]
             [empire.config.core :as config]
-            [empire.movement.api :as movement]
-            [empire.movement.explore :as explore]
-            [empire.movement.coastline :as coastline]
+            [empire.game-mechanics.movement.api :as movement]
+            [empire.game-mechanics.movement.explore :as explore]
+            [empire.game-mechanics.movement.coastline :as coastline]
             [empire.player.attention :as attention]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
-            [empire.containers.ops :as container-ops]
+            [empire.game-mechanics.containers.ops :as container-ops]
             [empire.test.utils :refer [reset-all-atoms! set-test-world! update-test-world!]]))
 
 (defn- land-cell [] {:type :land})
@@ -763,19 +763,19 @@
 
 (describe "satellite-with-target?"
   (it "returns truthy for satellite with target"
-    (should (#'empire.game-loop.item-processing/satellite-with-target?
+    (should (#'empire.game.loop.item-processing/satellite-with-target?
               {:type :satellite :target [5 0]})))
 
   (it "returns falsy for satellite without target"
-    (should-not (#'empire.game-loop.item-processing/satellite-with-target?
+    (should-not (#'empire.game.loop.item-processing/satellite-with-target?
                   {:type :satellite})))
 
   (it "returns falsy for non-satellite with target"
-    (should-not (#'empire.game-loop.item-processing/satellite-with-target?
+    (should-not (#'empire.game.loop.item-processing/satellite-with-target?
                   {:type :army :target [5 0]})))
 
   (it "returns falsy for nil unit"
-    (should-not (#'empire.game-loop.item-processing/satellite-with-target? nil))))
+    (should-not (#'empire.game.loop.item-processing/satellite-with-target? nil))))
 
 (describe "process-player-items-batch else branch"
   (before (reset-all-atoms!))

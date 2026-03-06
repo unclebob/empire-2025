@@ -8,7 +8,7 @@
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.major-invasion :as major-invasion]
             [empire.computer.threat-response.processing :as processing]
-            [empire.domain.services.threat-policy :as threat-policy]
+            [empire.game-mechanics.services.threat-policy :as threat-policy]
             [empire.computer.movement :as computer-movement]))
 
 (defn- threat-radius []

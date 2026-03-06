@@ -3,8 +3,8 @@
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
   (:require [empire.state.api :as sa]
-            [empire.movement.waypoint :as waypoint]
-            [empire.movement.movement-state :as movement-state]
+            [empire.game-mechanics.movement.waypoint :as waypoint]
+            [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.config.core :as config]))
 
 (defn- set-turn-message!

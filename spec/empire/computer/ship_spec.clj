@@ -7,8 +7,8 @@
             [empire.computer.core :as core]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
-            [empire.containers.helpers :as uc]
-            [empire.domain.services.combat :as combat]
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.computer.threat :as threat]))
 
 (describe "process-ship"

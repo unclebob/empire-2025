@@ -1,6 +1,6 @@
-(ns empire.units.ships-spec
+(ns empire.config.units.ships-spec
   (:require [speclj.core :refer :all]
-            [empire.units.ships :as ships]))
+            [empire.config.units.ships :as ships]))
 
 (describe "ships data-driven module"
   (context "patrol-boat configuration"

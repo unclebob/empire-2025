@@ -1,8 +1,8 @@
 (ns empire.state.api
   "Direct atom-backed state access. Public boundary for all game state."
-  (:require [empire.application.state.atoms :as atoms]
-            [empire.domain.core.continents :as continents]
-            [empire.domain.core.refueling :as refueling]))
+  (:require [empire.state.atoms :as atoms]
+            [empire.config.domain.core.continents :as continents]
+            [empire.config.domain.core.refueling :as refueling]))
 
 (def ^:private key->atom
   {:random-seed atoms/random-seed

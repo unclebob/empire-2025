@@ -1,7 +1,7 @@
-(ns empire.units.army-spec
+(ns empire.config.units.army-spec
   (:require [speclj.core :refer :all]
-            [empire.units.army :as army]
-            [empire.units.config :as units-config]))
+            [empire.config.units.army :as army]
+            [empire.config.units.config :as units-config]))
 
 (describe "army unit module"
   (context "configuration"

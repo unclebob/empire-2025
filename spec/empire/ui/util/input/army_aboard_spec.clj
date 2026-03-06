@@ -3,9 +3,9 @@
             [speclj.core :refer :all]
             [empire.ui.util.input.actions :as actions]
             [empire.ui.util.input.actions.movement :as actions-movement]
-            [empire.domain.services.combat :as combat]
-            [empire.containers.ops :as container-ops]
-            [empire.game-loop.core :as game-loop]
+            [empire.game-mechanics.services.combat :as combat]
+            [empire.game-mechanics.containers.ops :as container-ops]
+            [empire.game.loop.core :as game-loop]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "handle-army-aboard-movement"

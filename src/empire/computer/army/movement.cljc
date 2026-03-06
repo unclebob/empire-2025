@@ -3,7 +3,7 @@
   "Shared movement and passability helpers for computer armies."
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
-            [empire.debug.logging :as debug]
+            [empire.game-mechanics.debug.logging :as debug]
             [empire.computer.movement :as computer-movement]))
 
 (defn on-same-continent?

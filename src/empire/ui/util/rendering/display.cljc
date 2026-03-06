@@ -2,8 +2,8 @@
 (ns empire.ui.util.rendering.display
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.containers.helpers :as uc]
-            [empire.movement.lakes :as lakes]
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.movement.lakes :as lakes]
             [empire.ui.util.rendering.format :as fmt]))
 
 (def ^:private default-cell-color [0 0 0])

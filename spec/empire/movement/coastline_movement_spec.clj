@@ -1,8 +1,8 @@
-(ns empire.movement.coastline-movement-spec
+(ns empire.game-mechanics.movement.coastline-movement-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.config.core :as config]
-            [empire.movement.coastline :refer :all]
+            [empire.game-mechanics.movement.coastline :refer :all]
             [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "set-coastline-follow-mode"

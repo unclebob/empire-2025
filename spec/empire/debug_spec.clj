@@ -1,8 +1,8 @@
 (ns empire.debug-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.debug.dump :as debug-dump]
-            [empire.debug.logging :as debug-logging]
+            [empire.game-mechanics.debug.dump :as debug-dump]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
             [clojure.string :as str]))
 

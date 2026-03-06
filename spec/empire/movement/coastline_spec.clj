@@ -1,7 +1,7 @@
-(ns empire.movement.coastline-spec
+(ns empire.game-mechanics.movement.coastline-spec
   (:require [speclj.core :refer :all]
             [empire.config.core :as config]
-            [empire.movement.coastline :refer :all]
+            [empire.game-mechanics.movement.coastline :refer :all]
             [empire.test.utils :as test-utils
              :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 

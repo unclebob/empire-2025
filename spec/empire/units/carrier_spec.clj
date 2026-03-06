@@ -1,7 +1,7 @@
-(ns empire.units.carrier-spec
+(ns empire.config.units.carrier-spec
   (:require [speclj.core :refer :all]
-            [empire.units.config :as units-config]
-            [empire.units.carrier :as carrier]))
+            [empire.config.units.config :as units-config]
+            [empire.config.units.carrier :as carrier]))
 
 (describe "carrier unit module"
   (context "configuration"

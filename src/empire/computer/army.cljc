@@ -11,7 +11,7 @@
             [empire.computer.army.transport :as transport]
             [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
-            [empire.debug.logging :as debug]))
+            [empire.game-mechanics.debug.logging :as debug]))
 
 (defn- find-city-objective
   "Find a city objective not already claimed by another army.

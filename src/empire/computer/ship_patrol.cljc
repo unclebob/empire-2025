@@ -1,8 +1,8 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
-  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]))

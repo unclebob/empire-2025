@@ -2,14 +2,14 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.player.attention :as attention]
-            [empire.domain.services.combat :as combat]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
-            [empire.game-loop.core :as game-loop]
+            [empire.game.loop.core :as game-loop]
             [empire.ui.util.input.actions :as input]
             [empire.ui.util.input.actions.movement :as input-movement]
-            [empire.movement.explore :as explore]
-            [empire.movement.map-utils :as map-utils]
-            [empire.movement.api :as movement]
+            [empire.game-mechanics.movement.explore :as explore]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.api :as movement]
             [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! make-initial-test-map
                                        set-test-world! set-test-player-map!]]))
 

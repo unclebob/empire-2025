@@ -1,7 +1,7 @@
-(ns empire.movement.pathfinding-spec
+(ns empire.game-mechanics.movement.pathfinding-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.movement.pathfinding :as pathfinding]
+            [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 
 (describe "heuristic"

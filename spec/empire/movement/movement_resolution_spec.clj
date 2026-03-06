@@ -1,7 +1,7 @@
-(ns empire.movement.movement-resolution-spec
+(ns empire.game-mechanics.movement.movement-resolution-spec
   (:require [empire.test.utils :as test-utils]
-            [empire.movement.movement-resolution :as resolution]
-            [empire.movement.visibility :as visibility]
+            [empire.game-mechanics.movement.movement-resolution :as resolution]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 
@@ -14,7 +14,7 @@
     (set-test-world! (build-test-map ["AO#" "###"]))
     (let [cell {:type :land :contents {:type :army :owner :player :mode :moving :target [2 0] :steps-remaining 1}}
           current-map (test-utils/game-map-atom)]
-      (with-redefs [empire.movement.movement-pathing/find-best-sidestep (constantly [0 1])
+      (with-redefs [empire.game-mechanics.movement.movement-pathing/find-best-sidestep (constantly [0 1])
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :sidestep (:result (resolution/move-unit [0 0] [2 0] cell current-map))))))
 
@@ -22,7 +22,7 @@
     (set-test-world! (build-test-map ["FX#" "###"]))
     (let [cell {:type :land :contents {:type :fighter :owner :player :mode :moving :target [2 0] :fuel 10 :steps-remaining 1}}
           current-map (test-utils/game-map-atom)]
-      (with-redefs [empire.movement.movement-pathing/find-best-sidestep (constantly [0 1])
+      (with-redefs [empire.game-mechanics.movement.movement-pathing/find-best-sidestep (constantly [0 1])
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :sidestep (:result (resolution/move-unit [0 0] [2 0] cell current-map))))))
 
@@ -30,9 +30,9 @@
     (set-test-world! (build-test-map ["AA#"]))
     (let [cell {:type :land :contents {:type :army :owner :player :mode :moving :target [2 0] :steps-remaining 1}}
           current-map (test-utils/game-map-atom)]
-      (with-redefs [empire.movement.wake-conditions/wake-before-move
+      (with-redefs [empire.game-mechanics.movement.wake-conditions/wake-before-move
                     (fn [_ _] [{:type :army :owner :player :mode :awake :reason :somethings-in-the-way} true])
-                    empire.movement.movement-pathing/find-best-sidestep (constantly nil)
+                    empire.game-mechanics.movement.movement-pathing/find-best-sidestep (constantly nil)
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :woke (:result (resolution/move-unit [0 0] [2 0] cell current-map))))))
 
@@ -40,10 +40,10 @@
     (set-test-world! (build-test-map ["Aa#"]))
     (let [cell {:type :land :contents {:type :army :owner :player :mode :moving :target [2 0] :steps-remaining 1}}
           current-map (test-utils/game-map-atom)]
-      (with-redefs [empire.movement.wake-conditions/wake-before-move
+      (with-redefs [empire.game-mechanics.movement.wake-conditions/wake-before-move
                     (fn [_ _] [{:type :army :owner :player :mode :awake :reason :somethings-in-the-way} true])
-                    empire.units.dispatcher/can-move-to? (fn [_ _] true)
-                    empire.domain.services.combat/attempt-attack (fn [_ _ _] true)
+                    empire.config.units.dispatcher/can-move-to? (fn [_ _] true)
+                    empire.game-mechanics.services.combat/attempt-attack (fn [_ _ _] true)
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :combat (:result (resolution/move-unit [0 0] [2 0] cell current-map))))))
 
@@ -52,10 +52,10 @@
     (let [cell {:type :land :contents {:type :army :owner :player :mode :moving :target [2 0] :steps-remaining 1}}
           current-map (test-utils/game-map-atom)
           attack-called? (atom false)]
-      (with-redefs [empire.movement.wake-conditions/wake-before-move
+      (with-redefs [empire.game-mechanics.movement.wake-conditions/wake-before-move
                     (fn [_ _] [{:type :army :owner :player :mode :awake :reason :somethings-in-the-way} true])
-                    empire.units.dispatcher/can-move-to? (fn [_ _] true)
-                    empire.domain.services.combat/attempt-attack (fn [_ _ _] (reset! attack-called? true) true)
+                    empire.config.units.dispatcher/can-move-to? (fn [_ _] true)
+                    empire.game-mechanics.services.combat/attempt-attack (fn [_ _ _] (reset! attack-called? true) true)
                     visibility/update-cell-visibility (fn [& _] nil)]
         (should= :woke (:result (resolution/move-unit [0 0] [2 0] cell current-map)))
         (should-not @attack-called?))))
@@ -102,10 +102,10 @@
     (doseq [unit-type [:army :fighter :battleship]]
       (let [cell {:type :sea
                   :contents {:type unit-type :owner :player :mode :moving :target [99 99] :steps-remaining 1}}]
-        (with-redefs [empire.containers.helpers/ship-can-dock? (constantly false)
-                      empire.movement.wake-conditions/wake-before-move (fn [u _] [u false])
-                      empire.movement.wake-conditions/wake-after-move (fn [u _ _ _] u)
-                      empire.movement.movement-execution/do-move (fn [& _] nil)]
+        (with-redefs [empire.game-mechanics.containers.helpers/ship-can-dock? (constantly false)
+                      empire.game-mechanics.movement.wake-conditions/wake-before-move (fn [u _] [u false])
+                      empire.game-mechanics.movement.wake-conditions/wake-after-move (fn [u _ _ _] u)
+                      empire.game-mechanics.movement.movement-execution/do-move (fn [& _] nil)]
           (should= [0 1] (:pos (resolution/move-unit [1 1] [-99 1] cell (test-utils/game-map-atom))))
           (should= [2 1] (:pos (resolution/move-unit [1 1] [99 1] cell (test-utils/game-map-atom))))
           (should= [1 0] (:pos (resolution/move-unit [1 1] [1 -99] cell (test-utils/game-map-atom))))

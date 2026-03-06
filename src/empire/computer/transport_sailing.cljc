@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.transport-sailing
   "Transport sailing — path following, retreating, and invasion missions."
-  (:require [empire.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]

@@ -1,6 +1,6 @@
-(ns empire.units.dispatcher-spec
+(ns empire.config.units.dispatcher-spec
   (:require [speclj.core :refer :all]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (describe "unit dispatcher module"
   (context "speed"

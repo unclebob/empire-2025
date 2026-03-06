@@ -1,6 +1,6 @@
-(ns empire.movement.lakes-spec
+(ns empire.game-mechanics.movement.lakes-spec
   (:require [speclj.core :refer :all]
-            [empire.movement.lakes :as lakes]
+            [empire.game-mechanics.movement.lakes :as lakes]
             [empire.test.utils :refer [build-test-map]]))
 
 (describe "lake-cells"

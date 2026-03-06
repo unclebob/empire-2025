@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.threat
   (:require [empire.state.api :as sa]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (def ^:private threat-values
   {:battleship 10 :carrier 8 :destroyer 6 :submarine 5

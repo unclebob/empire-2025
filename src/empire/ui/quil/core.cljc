@@ -1,8 +1,8 @@
 (ns empire.ui.quil.core
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.game-loop.core :as game-loop]
-            [empire.application.initialization :as init]
+            [empire.game.loop.core :as game-loop]
+            [empire.game.initialization :as init]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
             [empire.ui.quil.rendering.messages :as render-messages]

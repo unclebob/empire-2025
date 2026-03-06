@@ -2,10 +2,10 @@
   (:require [clojure.string :as str]
             [empire.state.api :as sa]
             [empire.computer.land-objectives :as land-objectives]
-            [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.game-mechanics.movement.pathfinding :as pathfinding]
+            [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn read-test-state
   [k]

@@ -1,7 +1,7 @@
-(ns empire.units.transport-spec
+(ns empire.config.units.transport-spec
   (:require [speclj.core :refer :all]
-            [empire.units.config :as units-config]
-            [empire.units.transport :as transport]))
+            [empire.config.units.config :as units-config]
+            [empire.config.units.transport :as transport]))
 
 (describe "transport unit module"
   (context "configuration"

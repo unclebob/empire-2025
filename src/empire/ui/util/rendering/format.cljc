@@ -1,8 +1,8 @@
 (ns empire.ui.util.rendering.format
-  (:require [empire.application.production-status :as production-status]
+  (:require [empire.game.production-status :as production-status]
             [empire.config.core :as config]
-            [empire.containers.helpers :as uc]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn should-show-paused?
   "Returns true if the PAUSED message should be displayed."

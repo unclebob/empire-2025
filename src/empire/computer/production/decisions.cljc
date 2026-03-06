@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.production.decisions
-  (:require [empire.domain.services.city-production :as city-production]
+  (:require [empire.game-mechanics.services.city-production :as city-production]
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.computer.production.stats :as stats]

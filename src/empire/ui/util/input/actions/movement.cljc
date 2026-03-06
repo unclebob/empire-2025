@@ -1,13 +1,13 @@
 (ns empire.ui.util.input.actions.movement
-  (:require [empire.movement.movement-state :as movement-state]
-            [empire.movement.api :as movement-api]
+  (:require [empire.game-mechanics.movement.movement-state :as movement-state]
+            [empire.game-mechanics.movement.api :as movement-api]
             [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.domain.services.combat :as combat]
-            [empire.containers.ops :as container-ops]
+            [empire.game-mechanics.services.combat :as combat]
+            [empire.game-mechanics.containers.ops :as container-ops]
             [empire.player.commands :as player-commands]
             [empire.ui.util.input.actions.helpers :as helpers]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- calculate-extended-target [coords [dx dy]]
   (let [world (sa/current-world)

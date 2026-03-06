@@ -1,7 +1,7 @@
-(ns empire.units.fighter-spec
+(ns empire.config.units.fighter-spec
   (:require [speclj.core :refer :all]
-            [empire.units.fighter :as fighter]
-            [empire.units.config :as units-config]))
+            [empire.config.units.fighter :as fighter]
+            [empire.config.units.config :as units-config]))
 
 (describe "fighter unit module"
   (context "configuration"

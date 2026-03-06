@@ -1,12 +1,12 @@
 (ns empire.ui.util.input.actions.modes
-  (:require [empire.movement.movement-state :as movement-state]
+  (:require [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.containers.ops :as container-ops]
-            [empire.containers.helpers :as uc]
-            [empire.movement.coastline :as coastline]
-            [empire.movement.explore :as explore]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.containers.ops :as container-ops]
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.movement.coastline :as coastline]
+            [empire.game-mechanics.movement.explore :as explore]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.ui.util.input.actions.helpers :as helpers]))
 
 (defn handle-space-key [coords]

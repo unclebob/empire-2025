@@ -1,6 +1,6 @@
-(ns empire.movement.land-ho-bfs-spec
+(ns empire.game-mechanics.movement.land-ho-bfs-spec
   (:require [speclj.core :refer :all]
-            [empire.movement.pathfinding-bfs :as bfs]
+            [empire.game-mechanics.movement.pathfinding-bfs :as bfs]
             [empire.test.utils :refer [reset-all-atoms!]]))
 
 (defn make-map [height width cell-fn]

@@ -1,7 +1,7 @@
 (ns empire.ui.quil.rendering.overlay
-  (:require [empire.application.save-load :as save-load]
+  (:require [empire.game.save-load :as save-load]
             [empire.state.api :as sa]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
 

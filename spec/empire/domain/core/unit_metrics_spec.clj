@@ -1,6 +1,6 @@
-(ns empire.domain.core.unit-metrics-spec
+(ns empire.config.domain.core.unit-metrics-spec
   (:require [speclj.core :refer :all]
-            [empire.domain.core.unit-metrics :as unit-metrics]))
+            [empire.config.domain.core.unit-metrics :as unit-metrics]))
 
 (describe "unit hit-scaling math"
   (it "scales values with ceiling division semantics"

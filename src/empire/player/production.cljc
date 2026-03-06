@@ -1,10 +1,10 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.player.production
-  (:require [empire.domain.services.city-production :as city-production]
+  (:require [empire.game-mechanics.services.city-production :as city-production]
             [empire.computer.production :as computer-production]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
-            [empire.domain.services.unit-stamping :as unit-stamping]
+            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.config.core :as config]))
 
 (defn- stamp-computer-fields

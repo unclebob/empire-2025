@@ -8,9 +8,9 @@
             [empire.computer.ship :as computer-ship]
             [empire.computer.threat-response :as threat-response]
             [empire.computer.transport :as computer-transport]
-            [empire.game-loop.core :as game-loop]
-            [empire.game-loop.item-processing :as item-processing]
-            [empire.movement.visibility :as visibility]
+            [empire.game.loop.core :as game-loop]
+            [empire.game.loop.item-processing :as item-processing]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.test.utils :as test-utils]
             [empire.ui.util.input.dispatch :as input-dispatch]))
 

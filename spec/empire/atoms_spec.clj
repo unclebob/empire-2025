@@ -1,7 +1,7 @@
 (ns empire.atoms-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.application.state.atoms :as atoms]
+            [empire.state.atoms :as atoms]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
 

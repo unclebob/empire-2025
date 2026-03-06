@@ -1,9 +1,9 @@
 ;; mutation-tested: no
 (ns empire.computer.movement
-  (:require [empire.movement.lakes :as lakes]
-            [empire.movement.pathfinding :as pathfinding]
-            [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]))
+  (:require [empire.game-mechanics.movement.lakes :as lakes]
+            [empire.game-mechanics.movement.pathfinding :as pathfinding]
+            [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.visibility :as visibility]))
 
 (defn update-cell-visibility!
   [pos owner]

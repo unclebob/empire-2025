@@ -3,7 +3,7 @@
             [speclj.core :refer :all]
             [empire.player.orders :as orders]
             [empire.config.core :as config]
-            [empire.movement.waypoint :as waypoint]
+            [empire.game-mechanics.movement.waypoint :as waypoint]
             [empire.test.utils :refer [build-test-map reset-all-atoms! get-test-city set-test-world!]]))
 
 (describe "own-city-at"

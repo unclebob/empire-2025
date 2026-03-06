@@ -1,9 +1,9 @@
 ;; 5-layer / 7-component architecture
 ;; L5: ui
-;; L4: round-mechanics  (game-loop, application)
+;; L4: game        (loop, initialization, save-load, production-status)
 ;; L3: player, computer  (peers)
-;; L2: shared-mechanics  (movement, containers, domain.services, debug)
-;; L1: state, config     (peers)
+;; L2: game-mechanics  (movement, containers, services, debug)
+;; L1: state, config   (peers)
 ;; Dependencies flow strictly downward.
 
 {:source-paths ["src"]
@@ -12,10 +12,9 @@
    :kind :concrete
    :match "^empire\\.ui(\\..*)?$"}
 
-  {:component :round-mechanics
+  {:component :game
    :kind :concrete
-   :match ["^empire\\.game.loop(\\..*)?$"
-           "^empire\\.application(\\.(?!state).*)?$"]}
+   :match "^empire\\.game(\\..*)?$"}
 
   {:component :player
    :kind :concrete
@@ -25,24 +24,17 @@
    :kind :concrete
    :match "^empire\\.computer(\\..*)?$"}
 
-  {:component :shared-mechanics
+  {:component :game-mechanics
    :kind :concrete
-   :match ["^empire\\.movement(\\..*)?$"
-           "^empire\\.containers(\\..*)?$"
-           "^empire\\.domain\\.services(\\..*)?$"
-           "^empire\\.debug(\\..*)?$"]}
+   :match "^empire\\.game-mechanics(\\..*)?$"}
 
   {:component :state
    :kind :concrete
-   :match ["^empire\\.state(\\..*)?$"
-           "^empire\\.application\\.state(\\..*)?$"]}
+   :match "^empire\\.state(\\..*)?$"}
 
   {:component :config
    :kind :concrete
-   :match ["^empire\\.config(\\..*)?$"
-           "^empire\\.units(\\..*)?$"
-           "^empire\\.domain\\.core(\\..*)?$"
-           "^empire\\.domain\\.model(\\..*)?$"]}
+   :match "^empire\\.config(\\..*)?$"}
 
   {:component :test-infra
    :kind :concrete
@@ -51,31 +43,31 @@
  :forbidden-dependencies
  [;; L1 cannot depend on anything above
   [:config :state]
-  [:config :shared-mechanics]
+  [:config :game-mechanics]
   [:config :player]
   [:config :computer]
-  [:config :round-mechanics]
+  [:config :game]
   [:config :ui]
-  [:state :shared-mechanics]
+  [:state :game-mechanics]
   [:state :player]
   [:state :computer]
-  [:state :round-mechanics]
+  [:state :game]
   [:state :ui]
 
   ;; L2 cannot depend on L3+
-  [:shared-mechanics :player]
-  [:shared-mechanics :computer]
-  [:shared-mechanics :round-mechanics]
-  [:shared-mechanics :ui]
+  [:game-mechanics :player]
+  [:game-mechanics :computer]
+  [:game-mechanics :game]
+  [:game-mechanics :ui]
 
   ;; L3 cannot depend on L4+
-  [:player :round-mechanics]
+  [:player :game]
   [:player :ui]
-  [:computer :round-mechanics]
+  [:computer :game]
   [:computer :ui]
 
   ;; L4 cannot depend on L5
-  [:round-mechanics :ui]]
+  [:game :ui]]
 
  :fail-on-cycles false
  :fail-on-violations true}

@@ -1,12 +1,12 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-movement
   "Fighter movement primitives: combat, hopping, fuel management."
-  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-carrier :as ship-carrier]
-            [empire.domain.services.combat :as combat]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]))
 
 (defn- update-cell-visibility!

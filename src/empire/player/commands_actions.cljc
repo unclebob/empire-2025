@@ -1,17 +1,17 @@
 ;; mutation-tested: no
 (ns empire.player.commands-actions
   "Extracted unit action handlers for player command processing."
-  (:require [empire.movement.explore :as explore]
-            [empire.movement.coastline :as coastline]
-            [empire.movement.map-utils :as map-utils]
-            [empire.movement.movement-state :as movement-state]
-            [empire.movement.api :as movement-api]
+  (:require [empire.game-mechanics.movement.explore :as explore]
+            [empire.game-mechanics.movement.coastline :as coastline]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.movement-state :as movement-state]
+            [empire.game-mechanics.movement.api :as movement-api]
             [empire.player.attention :as attention]
-            [empire.domain.services.combat :as combat]
-            [empire.containers.ops :as container-ops]
-            [empire.containers.helpers :as uc]
+            [empire.game-mechanics.services.combat :as combat]
+            [empire.game-mechanics.containers.ops :as container-ops]
+            [empire.game-mechanics.containers.helpers :as uc]
             [empire.config.core :as config]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- current-world [ctx]
   ((:current-world ctx)))

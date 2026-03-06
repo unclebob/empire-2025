@@ -1,9 +1,9 @@
-(ns empire.movement.waypoint-spec
+(ns empire.game-mechanics.movement.waypoint-spec
   (:require [empire.test.utils :as test-utils]
     [empire.config.core :as config]
-    [empire.game-loop.core :as game-loop]
-    [empire.movement.api :as movement]
-    [empire.movement.waypoint :as waypoint]
+    [empire.game.loop.core :as game-loop]
+    [empire.game-mechanics.movement.api :as movement]
+    [empire.game-mechanics.movement.waypoint :as waypoint]
     [empire.test.utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
     [speclj.core :refer :all]))
 

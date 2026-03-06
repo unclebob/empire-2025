@@ -1,18 +1,18 @@
-(ns empire.game-loop.round-setup-spec
+(ns empire.game.loop.round-setup-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.game-loop.round-setup :as setup]
-            [empire.game-loop.round-setup.fuel :as fuel]
-            [empire.game-loop.round-setup.lakes :as lakes]
-            [empire.game-loop.round-setup.repair :as repair]
-            [empire.game-loop.round-setup.waking :as waking]
+            [empire.game.loop.round-setup :as setup]
+            [empire.game.loop.round-setup.fuel :as fuel]
+            [empire.game.loop.round-setup.lakes :as lakes]
+            [empire.game.loop.round-setup.repair :as repair]
+            [empire.game.loop.round-setup.waking :as waking]
             [empire.config.core :as config]
-            [empire.containers.helpers :as uc]
-            [empire.containers.ops :as container-ops]
-            [empire.movement.satellite :as satellite]
-            [empire.movement.visibility :as visibility]
-            [empire.movement.wake-conditions :as wake]
-            [empire.units.dispatcher :as dispatcher]
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.containers.ops :as container-ops]
+            [empire.game-mechanics.movement.satellite :as satellite]
+            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.movement.wake-conditions :as wake]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.test.utils :refer [build-test-map reset-all-atoms!
                                        set-test-unit get-test-unit
                                        set-test-world! set-test-computer-map!
@@ -593,7 +593,7 @@
           computer-map world]
       (set-test-world! world)
       (set-test-computer-map! computer-map)
-      (with-redefs [empire.movement.lakes/lake-cells (fn [_ _] #{[0 0]})
+      (with-redefs [empire.game-mechanics.movement.lakes/lake-cells (fn [_ _] #{[0 0]})
                     visibility/update-cell-visibility (fn [_ _] nil)]
         (lakes/evacuate-lake-patrol-boats))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))

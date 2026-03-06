@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
 

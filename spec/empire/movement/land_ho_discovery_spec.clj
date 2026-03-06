@@ -1,7 +1,7 @@
-(ns empire.movement.land-ho-discovery-spec
+(ns empire.game-mechanics.movement.land-ho-discovery-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.movement.visibility :as visibility]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.test.utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (defn make-game-map [height width cell-fn]

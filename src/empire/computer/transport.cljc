@@ -4,8 +4,8 @@
    Loading: coastal crawl, auto-load adjacent armies, sail when loaded
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
-  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
@@ -17,7 +17,7 @@
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
-            [empire.debug.logging :as debug]))
+            [empire.game-mechanics.debug.logging :as debug]))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
 

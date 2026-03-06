@@ -1,11 +1,11 @@
 (ns empire.ui.util.input.actions.production
-  (:require [empire.movement.movement-state :as movement-state]
+  (:require [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.player.production :as player-production]
             [empire.ui.util.input.actions.helpers :as helpers]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- try-set-production [coords item]
   (let [[x y] coords

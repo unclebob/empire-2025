@@ -1,9 +1,9 @@
-(ns empire.movement.satellite-spec
+(ns empire.game-mechanics.movement.satellite-spec
   (:require [empire.test.utils :as test-utils]
-    [empire.game-loop.core :as game-loop]
-    [empire.movement.api :refer [set-unit-movement]]
-    [empire.movement.visibility :refer [update-cell-visibility]]
-    [empire.movement.satellite :as sat :refer [move-satellite calculate-satellite-target]]
+    [empire.game.loop.core :as game-loop]
+    [empire.game-mechanics.movement.api :refer [set-unit-movement]]
+    [empire.game-mechanics.movement.visibility :refer [update-cell-visibility]]
+    [empire.game-mechanics.movement.satellite :as sat :refer [move-satellite calculate-satellite-target]]
     [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map
                                set-test-world!]]
     [speclj.core :refer :all]))
@@ -59,7 +59,7 @@
                                       "###"]))
     (set-test-unit (test-utils/game-map-atom) "V" :direction [1 0] :turns-remaining 50)
     (set-test-player-map! (make-initial-test-map 3 3 nil))
-    (with-redefs [empire.movement.satellite/bounce-direction (fn [& _] [0 1])]
+    (with-redefs [empire.game-mechanics.movement.satellite/bounce-direction (fn [& _] [0 1])]
       (move-satellite [0 0]))
     ;; East path is fully blocked to edge; reflection should move inward (south).
     (should (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))
@@ -415,7 +415,7 @@
     (set-test-world! (build-test-map ["##vO"]))
     (set-test-unit (test-utils/game-map-atom) "v" :direction [1 0] :turns-remaining 50)
     (set-test-computer-map! (make-initial-test-map 1 4 nil))
-    (with-redefs [empire.movement.satellite/bounce-direction (fn [& _] [-1 0])]
+    (with-redefs [empire.game-mechanics.movement.satellite/bounce-direction (fn [& _] [-1 0])]
       (let [new-pos (move-satellite [2 0])]
         ;; Blocked chain reaches right edge; satellite bounces left to [1 0]
         (should= [1 0] new-pos)

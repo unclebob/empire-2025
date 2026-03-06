@@ -3,15 +3,15 @@
             [speclj.core :refer :all]
             [empire.player.commands :as commands]
             [empire.config.core :as config]
-            [empire.domain.services.combat :as combat]
-            [empire.containers.ops :as container-ops]
-            [empire.containers.helpers :as uc]
-            [empire.game-loop.core :as game-loop]
-            [empire.movement.coastline :as coastline]
-            [empire.movement.explore :as explore]
-            [empire.movement.api :as movement]
+            [empire.game-mechanics.services.combat :as combat]
+            [empire.game-mechanics.containers.ops :as container-ops]
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.movement.coastline :as coastline]
+            [empire.game-mechanics.movement.explore :as explore]
+            [empire.game-mechanics.movement.api :as movement]
             [empire.player.production :as production]
-            [empire.units.dispatcher :as dispatcher]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.test.utils :refer [build-test-map set-test-world! update-test-world! reset-all-atoms! set-test-unit]]))
 
 ;; Helpers

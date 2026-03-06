@@ -1,5 +1,5 @@
 (ns empire.ui.util.input.actions
-  (:require [empire.movement.movement-state :as movement-state]
+  (:require [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.state.api :as sa]
             [empire.ui.util.input.actions.modes :as modes]
             [empire.ui.util.input.actions.movement :as movement]

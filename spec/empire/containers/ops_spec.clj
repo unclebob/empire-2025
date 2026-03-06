@@ -1,8 +1,8 @@
-(ns empire.containers.ops-spec
+(ns empire.game-mechanics.containers.ops-spec
   (:require [empire.test.utils :as test-utils]
             [empire.config.core :as config]
-            [empire.containers.ops :refer :all]
-            [empire.containers.helpers :as uc]
+            [empire.game-mechanics.containers.ops :refer :all]
+            [empire.game-mechanics.containers.helpers :as uc]
             [empire.test.utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-unit set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 

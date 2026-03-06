@@ -4,9 +4,9 @@
             [clojure.string :as string]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.config.core :as config]
-            [empire.game-loop.core :as game-loop]
+            [empire.game.loop.core :as game-loop]
             [empire.player.orders :as orders]
-            [empire.application.save-load :as save-load]
+            [empire.game.save-load :as save-load]
             [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "key-down :P"
@@ -356,8 +356,8 @@
 
   (it "debug-drag-end! does not write dump when selection has no area"
     (dispatch/debug-drag-start! 10 10)
-    (with-redefs [empire.debug.dump/screen-coords-to-cell-range (fn [_ _] [[1 1] [1 1]])
-                  empire.debug.dump/write-dump! (fn [_ _] (throw (ex-info "should not dump" {})))]
+    (with-redefs [empire.game-mechanics.debug.dump/screen-coords-to-cell-range (fn [_ _] [[1 1] [1 1]])
+                  empire.game-mechanics.debug.dump/write-dump! (fn [_ _] (throw (ex-info "should not dump" {})))]
       (dispatch/debug-drag-end! 20 20 {:ctrl true})
       (should= "" (test-utils/read-test-state :debug-message)))
     (should-be-nil (test-utils/read-test-state :debug-drag-start))
@@ -365,8 +365,8 @@
 
   (it "debug-drag-end! writes dump and updates debug message for area selection"
     (dispatch/debug-drag-start! 10 10)
-    (with-redefs [empire.debug.dump/screen-coords-to-cell-range (fn [_ _] [[1 1] [2 3]])
-                  empire.debug.dump/write-dump! (fn [start end]
+    (with-redefs [empire.game-mechanics.debug.dump/screen-coords-to-cell-range (fn [_ _] [[1 1] [2 3]])
+                  empire.game-mechanics.debug.dump/write-dump! (fn [start end]
                                              (should= [1 1] start)
                                              (should= [2 3] end)
                                              "debug-dump.txt")]

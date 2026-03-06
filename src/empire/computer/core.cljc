@@ -1,10 +1,10 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.core
-  (:require [empire.domain.services.city-production :as city-production]
-            [empire.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.services.city-production :as city-production]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
-            [empire.domain.services.combat :as combat]
-            [empire.debug.logging :as debug]))
+            [empire.game-mechanics.services.combat :as combat]
+            [empire.game-mechanics.debug.logging :as debug]))
 
 (def neighbor-offsets
   [[-1 -1] [-1 0] [-1 1]

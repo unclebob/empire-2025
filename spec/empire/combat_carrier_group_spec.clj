@@ -1,7 +1,7 @@
-(ns empire.domain.services.combat-carrier-group-spec
+(ns empire.game-mechanics.services.combat-carrier-group-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.domain.services.combat :as combat]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]))
 
 (describe "clear-carrier-group-on-death"

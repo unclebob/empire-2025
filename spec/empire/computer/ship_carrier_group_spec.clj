@@ -6,7 +6,7 @@
             [empire.computer.ship-core :as ship-core]
             [empire.computer.core :as core]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]
-            [empire.movement.visibility :as visibility]))
+            [empire.game-mechanics.movement.visibility :as visibility]))
 
 (describe "ship-carrier-group"
   (before (reset-all-atoms!))

@@ -1,13 +1,13 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
-  (:require [empire.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
-            [empire.domain.services.combat :as combat]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.threat :as threat]
-            [empire.containers.helpers :as uc]))
+            [empire.game-mechanics.containers.helpers :as uc]))
 
 (defn- update-cell-visibility!
   ([pos owner]

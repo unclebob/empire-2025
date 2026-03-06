@@ -1,6 +1,6 @@
-(ns empire.movement.movement-state-spec
+(ns empire.game-mechanics.movement.movement-state-spec
   (:require [empire.test.utils :as test-utils]
-            [empire.movement.movement-state :as state]
+            [empire.game-mechanics.movement.movement-state :as state]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 

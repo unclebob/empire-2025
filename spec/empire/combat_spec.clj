@@ -1,12 +1,12 @@
-(ns empire.domain.services.combat-spec
+(ns empire.game-mechanics.services.combat-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.domain.services.combat :as combat]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-computer-map!
                                        set-test-world! update-test-world!]]
-            [empire.units.dispatcher :as dispatcher]
-            [empire.containers.helpers :as uc]
+            [empire.config.units.dispatcher :as dispatcher]
+            [empire.game-mechanics.containers.helpers :as uc]
             [empire.computer.core :as computer-core]
             [empire.computer.production :as comp-production]
             [empire.player.production :as production]))

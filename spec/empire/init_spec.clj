@@ -1,6 +1,6 @@
 (ns empire.init-spec
   (:require [empire.test.utils :as test-utils]
-    [empire.application.initialization :refer :all]
+    [empire.game.initialization :refer :all]
     [empire.test.utils :refer [reset-all-atoms!]]
     [empire.config.core :as config]
     [speclj.core :refer :all]))

@@ -1,6 +1,6 @@
 (ns empire.config.core
-  (:require [empire.units.config :as units-config]
-            [empire.units.ships :as ships]
+  (:require [empire.config.units.config :as units-config]
+            [empire.config.units.ships :as ships]
             [empire.config.rendering :as rendering]
             [empire.config.generation :as generation]
             [empire.config.ai :as ai]

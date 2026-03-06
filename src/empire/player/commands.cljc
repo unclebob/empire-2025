@@ -3,17 +3,17 @@
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
   (:require [empire.state.api :as sa]
-            [empire.movement.map-utils :as map-utils]
-            [empire.movement.movement-state :as movement-state]
-            [empire.movement.api :as movement-api]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.movement-state :as movement-state]
+            [empire.game-mechanics.movement.api :as movement-api]
             [empire.config.core :as config]
             [empire.player.attention :as attention]
             [empire.player.commands-actions :as actions]
-            [empire.domain.services.combat :as combat]
-            [empire.containers.ops :as container-ops]
-            [empire.containers.helpers :as uc]
+            [empire.game-mechanics.services.combat :as combat]
+            [empire.game-mechanics.containers.ops :as container-ops]
+            [empire.game-mechanics.containers.helpers :as uc]
             [empire.player.production :as production]
-            [empire.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- set-error-message!
   [msg ms]

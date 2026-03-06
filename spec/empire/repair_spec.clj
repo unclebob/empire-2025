@@ -1,12 +1,12 @@
 (ns empire.repair-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.containers.helpers :as uc]
-            [empire.units.dispatcher :as dispatcher]
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.test.utils :as tu]
-            [empire.movement.api :as movement]
-            [empire.game-loop.core :as game-loop]
-            [empire.containers.ops :as container-ops]
+            [empire.game-mechanics.movement.api :as movement]
+            [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.containers.ops :as container-ops]
             [empire.player.production :as production]))
 
 (describe "Shipyard helpers"

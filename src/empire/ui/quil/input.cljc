@@ -1,5 +1,5 @@
 (ns empire.ui.quil.input
-  (:require [empire.movement.map-utils :as map-utils]
+  (:require [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.ui.util.input.dispatch :as dispatch]
             [quil.core :as q]))
 

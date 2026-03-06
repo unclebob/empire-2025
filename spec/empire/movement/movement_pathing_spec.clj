@@ -1,5 +1,5 @@
-(ns empire.movement.movement-pathing-spec
-  (:require [empire.movement.movement-pathing :as pathing]
+(ns empire.game-mechanics.movement.movement-pathing-spec
+  (:require [empire.game-mechanics.movement.movement-pathing :as pathing]
             [speclj.core :refer :all]))
 
 (describe "movement-pathing"

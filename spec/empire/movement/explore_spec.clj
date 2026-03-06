@@ -1,9 +1,9 @@
-(ns empire.movement.explore-spec
+(ns empire.game-mechanics.movement.explore-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.config.core :as config]
-            [empire.movement.explore :refer :all]
-            [empire.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.explore :refer :all]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.test.utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]))
 
 (describe "valid-explore-cell?"

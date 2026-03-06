@@ -131,7 +131,7 @@
                                           :target-land-set #{[3 3]}
                                           :sea-reachable-detection-points #{}
                                           :target-land-revision 1})
-      (with-redefs [empire.movement.pathfinding-bfs/bfs-to-land-ho-target
+      (with-redefs [empire.game-mechanics.movement.pathfinding-bfs/bfs-to-land-ho-target
                     (fn [& _]
                       (swap! bfs-calls inc)
                       nil)]
@@ -382,7 +382,7 @@
                   (fn [k] (case k :computer-map {} nil))
                   empire.computer.threat-response/connected-coastal-candidates
                   (fn [_ _ _] [[10 0] [2 0]])
-                  empire.movement.pathfinding-bfs/bfs-to-land-ho-target
+                  empire.game-mechanics.movement.pathfinding-bfs/bfs-to-land-ho-target
                   (fn [_ candidate _]
                     (case candidate
                       [10 0] [[10 0]]
