@@ -1,7 +1,7 @@
 (ns empire.ui.util.input.actions.movement
   (:require [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.domain.services.combat :as combat]
             [empire.containers.ops :as container-ops]

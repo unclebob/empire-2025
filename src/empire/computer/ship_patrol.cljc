@@ -3,7 +3,7 @@
   "Computer patrol boat movement - coastline crawling and BFS exploration."
   (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.ports.pathfinding :as path-ports]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]))
 

@@ -1,5 +1,5 @@
 (ns empire.game-loop.round-setup.repair
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]
             [empire.game-loop.round-setup.lakes :as lakes]))

@@ -3,7 +3,7 @@
 (ns empire.movement.movement-state
   (:require [empire.config.core :as config]
             [empire.containers.helpers :as uc]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.visibility :as visibility]))
 
 (defn- update-game-map!

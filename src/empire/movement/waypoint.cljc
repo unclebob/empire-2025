@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.waypoint
-  (:require [empire.application.state-access :as sa]))
+  (:require [empire.state.api :as sa]))
 
 (defn- update-game-map!
   [f & args]

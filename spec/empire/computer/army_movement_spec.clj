@@ -1,6 +1,6 @@
 (ns empire.computer.army-movement-spec
   (:require [speclj.core :refer :all]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]))
 

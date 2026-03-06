@@ -1,5 +1,5 @@
 (ns empire.domain.services.combat
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.domain.model.combat :as domain-combat]
             [empire.movement.visibility :as visibility]

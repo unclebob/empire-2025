@@ -1,7 +1,7 @@
 (ns empire.game-loop.round-setup
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.visibility :as visibility]
             [empire.movement.satellite :as satellite]
             [empire.config.core :as config]

@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.exploration
   "Army exploration behaviors (interior, inland, random)."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]))
 

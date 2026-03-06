@@ -1,5 +1,5 @@
 (ns empire.ui.util.input.actions.helpers
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.game-loop.core :as game-loop]))
 
 (defn unit-state-port []

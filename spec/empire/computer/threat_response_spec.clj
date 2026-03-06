@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.core :as core]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.threat-response :as threat-response]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
@@ -378,7 +378,7 @@
   (it "best-invasion-target-and-path prefers closer landing over shorter path"
     (with-redefs [empire.computer.threat-response/load-major-invasion-state
                   (fn [] {:active? true :target-land-set #{[0 0]}})
-                  empire.application.state-access/read-state
+                  empire.state.api/read-state
                   (fn [k] (case k :computer-map {} nil))
                   empire.computer.threat-response/connected-coastal-candidates
                   (fn [_ _ _] [[10 0] [2 0]])

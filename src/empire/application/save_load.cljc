@@ -2,7 +2,7 @@
 (ns empire.application.save-load
   (:require [empire.adapters.persistence.files :as persistence-files]
             [empire.application.ports.persistence :as ports]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.domain.core.messages :as messages]))
 
 (def saveable-atoms

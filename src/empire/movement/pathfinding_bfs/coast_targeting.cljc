@@ -1,7 +1,7 @@
 (ns empire.movement.pathfinding-bfs.coast-targeting
   "Coastal BFS target selection over sea routes."
   (:require [empire.movement.map-utils :as map-utils]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.pathfinding-bfs.core :as core]
             [empire.movement.pathfinding-bfs.exploration :as exploration]))
 

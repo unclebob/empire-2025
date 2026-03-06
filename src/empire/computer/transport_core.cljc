@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.transport-core
   "Shared transport helpers — no dependencies on other transport sub-modules."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]))
 
 

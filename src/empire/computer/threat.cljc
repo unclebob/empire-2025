@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-03-03
 (ns empire.computer.threat
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.units.dispatcher :as dispatcher]))
 
 (def ^:private threat-values

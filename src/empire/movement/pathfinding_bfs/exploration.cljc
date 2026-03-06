@@ -1,7 +1,7 @@
 (ns empire.movement.pathfinding-bfs.exploration
   "BFS exploration and unseen-coast target selection."
   (:require [empire.movement.map-utils :as map-utils]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
 

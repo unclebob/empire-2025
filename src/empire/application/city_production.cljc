@@ -1,6 +1,6 @@
 ;; mutation-tested: no
 (ns empire.application.city-production
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.config.core :as config]))
 
 (defn- item-cost

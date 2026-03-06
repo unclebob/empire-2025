@@ -3,7 +3,7 @@
 (ns empire.computer.ship-carrier
   "Computer carrier positioning - finding and navigating to holding positions."
   (:require [clojure.set :as set]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.config.core :as config]
             [empire.computer.movement :as computer-movement]

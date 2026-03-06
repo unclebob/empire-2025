@@ -2,7 +2,7 @@
 (ns empire.computer.fighter
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]
             [empire.config.core :as config]

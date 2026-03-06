@@ -2,7 +2,7 @@
 (ns empire.computer.army
   "Computer army orchestrator.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.computer.army.assignment :as assignment]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.combat :as army-combat]

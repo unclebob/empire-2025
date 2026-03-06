@@ -2,7 +2,7 @@
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
   (:require [empire.application.ports.movement-execution :as movement-port]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-targeting :as targeting]

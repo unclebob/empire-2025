@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-02-28
 (ns empire.debug.logging
   "Debug log appenders with bounded history."
-  (:require [empire.application.state-access :as sa]))
+  (:require [empire.state.api :as sa]))
 
 (def ^:private max-action-log-size 100)
 (def ^:private max-movement-log-size 500)

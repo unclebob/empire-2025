@@ -2,7 +2,7 @@
 (ns empire.player.commands
   "Pure command dispatch for player attention items.
    Handles key input when units/cities need attention. No Quil dependency."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.application.ports.unit-state :as ports]
             [empire.application.ports.movement-execution :as exec-ports]

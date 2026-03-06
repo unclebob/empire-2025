@@ -1,6 +1,6 @@
 (ns empire.ui.util.input.actions.modes
   (:require [empire.application.ports.unit-state :as ports]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.containers.ops :as container-ops]
             [empire.containers.helpers :as uc]

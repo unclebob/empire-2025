@@ -3,7 +3,7 @@
   "Fighter movement primitives: combat, hopping, fuel management."
   (:require [empire.application.ports.movement-execution :as movement-port]
             [empire.application.ports.pathfinding :as path-ports]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship :as ship]
             [empire.domain.services.combat :as combat]

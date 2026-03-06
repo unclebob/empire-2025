@@ -1,7 +1,7 @@
 (ns empire.movement.pathfinding-bfs.transport
   "Transport and land-HO BFS helpers."
   (:require [empire.movement.map-utils :as map-utils]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.pathfinding-bfs.cache :as cache]
             [empire.movement.pathfinding-bfs.core :as core]))
 

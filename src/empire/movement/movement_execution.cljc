@@ -4,7 +4,7 @@
   (:require [empire.config.core :as config]
             [empire.containers.helpers :as uc]
             [empire.containers.ops :as container-ops]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.visibility :as visibility]
             [empire.units.dispatcher :as dispatcher]))
 

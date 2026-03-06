@@ -1,7 +1,7 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.army.combat
   "Army combat helpers."
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.domain.services.combat :as combat]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]

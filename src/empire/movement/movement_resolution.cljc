@@ -4,7 +4,7 @@
             [empire.domain.services.combat :as combat]
             [empire.config.core :as config]
             [empire.containers.helpers :as uc]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.movement.map-utils :as map-utils]
             [empire.movement.movement-execution :as execution]
             [empire.movement.movement-pathing :as pathing]

@@ -1,6 +1,6 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.movement.visibility
-  (:require [empire.application.state-access :as sa]
+  (:require [empire.state.api :as sa]
             [empire.units.dispatcher :as dispatcher]))
 
 (defn- update-game-map!

@@ -1,6 +1,6 @@
-(ns empire.application.state-access-spec
+(ns empire.state.api-spec
   (:require [speclj.core :refer :all]
-            [empire.application.state-access :as sa]
+            [empire.state.api :as sa]
             [empire.test.utils :as tu]))
 
 (describe "state-access"
