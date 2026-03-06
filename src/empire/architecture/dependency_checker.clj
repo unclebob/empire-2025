@@ -64,35 +64,20 @@
       (usage!)
       (apply-config-action! (config-action exists? init? force-init?) config-path))))
 
-(defn- distance-violations
-  [result max-distance]
-  (let [utility-components (->> (get-in result [:config :utility-components] [])
-                                (keep #(when (keyword? %) %))
-                                set)]
-    (->> (:component-stats result)
-       (remove (fn [[component _]]
-                 (contains? utility-components component)))
-       (filter (fn [[_ {:keys [distance]}]]
-                 (> distance max-distance)))
-       (mapv (fn [[component {:keys [distance]}]]
-               [component distance])))))
-
 (defn- failure?
-  [result dist-violations]
+  [result]
   (or (and (seq (:violations result)) (get-in result [:config :fail-on-violations] true))
-      (and (seq (:cycles result)) (get-in result [:config :fail-on-cycles] true))
-      (seq dist-violations)))
+      (and (seq (:cycles result)) (get-in result [:config :fail-on-cycles] true))))
 
 (defn- edn-output
-  [result dist-violations]
+  [result]
   (prn result)
-  (if (failure? result dist-violations) 1 0))
+  (if (failure? result) 1 0))
 
 (defn- text-output
-  [result dist-violations max-distance]
-  (report-text result {:max-distance max-distance
-                       :distance-violations dist-violations})
-  (if (failure? result dist-violations) 1 0))
+  [result]
+  (report-text result)
+  (if (failure? result) 1 0))
 
 (defn- unsupported-format-output
   [fmt]
@@ -101,30 +86,20 @@
   2)
 
 (defn- run-analysis!
-  [{:keys [config-path fmt max-distance]}]
+  [{:keys [config-path fmt]}]
   (let [result (analyze-project (load-config config-path))
-        dist-violations (distance-violations result max-distance)
         format-handler ({:edn edn-output
-                         :text (fn [r d] (text-output r d max-distance))}
+                         :text text-output}
                         fmt)]
     (if format-handler
-      (format-handler result dist-violations)
+      (format-handler result)
       (unsupported-format-output fmt))))
 
 (defn- run-cli
   [args]
-  (let [{:keys [error value] :as parsed} (parse-args args)]
-    (cond
-      (= error :usage)
+  (let [{:keys [error] :as parsed} (parse-args args)]
+    (if (= error :usage)
       (usage!)
-
-      (= error :invalid-max-distance)
-      (do
-        (binding [*out* *err*]
-          (println "Invalid value for --max-distance:" value))
-        2)
-
-      :else
       (or (ensure-config! parsed)
           (run-analysis! parsed)))))
 

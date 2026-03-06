@@ -9,65 +9,45 @@
 {:source-paths ["src"]
  :component-rules
  [{:component :ui
-   :kind :concrete
    :match "^empire\\.ui(\\..*)?$"}
 
   {:component :game
-   :kind :concrete
    :match "^empire\\.game(\\..*)?$"}
 
   {:component :player
-   :kind :concrete
    :match "^empire\\.player(\\..*)?$"}
 
   {:component :computer
-   :kind :concrete
    :match "^empire\\.computer(\\..*)?$"}
 
   {:component :game-mechanics
-   :kind :concrete
    :match "^empire\\.game-mechanics(\\..*)?$"}
 
   {:component :state
-   :kind :concrete
    :match "^empire\\.state(\\..*)?$"}
 
   {:component :config
-   :kind :concrete
    :match "^empire\\.config(\\..*)?$"}
 
   {:component :test-infra
-   :kind :concrete
    :match "empire.*"}]
 
- :forbidden-dependencies
- [;; L1 cannot depend on anything above
-  [:config :state]
-  [:config :game-mechanics]
-  [:config :player]
-  [:config :computer]
-  [:config :game]
-  [:config :ui]
-  [:state :game-mechanics]
-  [:state :player]
-  [:state :computer]
-  [:state :game]
-  [:state :ui]
+ :allowed-dependencies
+ {;; L5 ui → can depend on L4, L3, L2, L1
+  :ui [:game :player :computer :game-mechanics :state :config]
+  ;; L4 game → can depend on L3, L2, L1
+  :game [:player :computer :game-mechanics :state :config]
+  ;; L3 peers → can depend on L2, L1
+  :player [:game-mechanics :state :config]
+  :computer [:game-mechanics :state :config]
+  ;; L2 → can depend on L1
+  :game-mechanics [:state :config]
+  ;; L1 state → can depend on L1 peer config
+  :state [:config]
+  ;; L1 config → no dependencies
+  :config []
+  ;; test-infra → can depend on anything
+  :test-infra :all}
 
-  ;; L2 cannot depend on L3+
-  [:game-mechanics :player]
-  [:game-mechanics :computer]
-  [:game-mechanics :game]
-  [:game-mechanics :ui]
-
-  ;; L3 cannot depend on L4+
-  [:player :game]
-  [:player :ui]
-  [:computer :game]
-  [:computer :ui]
-
-  ;; L4 cannot depend on L5
-  [:game :ui]]
-
- :fail-on-cycles false
+ :fail-on-cycles true
  :fail-on-violations true}

@@ -135,27 +135,9 @@
                    (when seg1 (str root "." seg1)))))
          set)))
 
-(defn default-forbidden-deps
+(defn default-allowed-deps
   [components]
-  (let [present? (set components)
-        pairs [[:application :atoms]
-               [:application :ui]
-               [:application :game-loop]
-               [:application :test-utils]
-               [:application :acceptance-parser]
-               [:application :acceptance-generator]
-               [:domain :atoms]
-               [:domain :ui]
-               [:domain :game-loop]
-               [:domain :test-utils]
-               [:domain :application]
-               [:domain :acceptance-parser]
-               [:domain :acceptance-generator]
-               [:adapters :acceptance-parser]
-               [:adapters :acceptance-generator]]]
-    (->> pairs
-         (filter (fn [[a b]] (and (present? a) (present? b))))
-         vec)))
+  (zipmap components (repeat [])))
 
 (defn generate-starter-config
   ([]
@@ -186,8 +168,7 @@
          components (map :component rules)]
      {:source-paths (vec source-paths)
       :component-rules rules
-      :utility-components []
-      :forbidden-dependencies (default-forbidden-deps components)
+      :allowed-dependencies (default-allowed-deps components)
       :fail-on-cycles false
       :fail-on-violations true})))
 

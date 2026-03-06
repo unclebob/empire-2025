@@ -23,7 +23,7 @@
 					                  :extra-paths ["generated-acceptance-specs"]}
            :acceptance-tests {:main-opts ["-m" "empire.acceptance.pipeline"]}
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
-           :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker" "--max-distance" "1"]}
+           :check-dependencies {:main-opts ["-m" "empire.architecture.dependency-checker"]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 					                        {:git/url "https://github.com/unclebob/clj-mutate"
 					                         :git/sha "223da6c1a814265d0a714417def997ce7878a8da"}}

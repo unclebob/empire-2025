@@ -138,7 +138,7 @@
        (sort-by (comp str first))
        (into {})))
 
-(defn find-violations
+(defn find-forbidden-violations
   [ns-edges forbidden-rules exceptions]
   (->> ns-edges
        (mapcat (fn [edge]
@@ -148,6 +148,23 @@
                        :when (not (some #(cfg/exception-matches? % edge) exceptions))]
                    (assoc edge :rule rule))))
        vec))
+
+(defn find-allowed-violations
+  [ns-edges allowed-deps exceptions]
+  (->> ns-edges
+       (filter (fn [{:keys [from-component to-component]}]
+                 (and (not= from-component to-component)
+                      (let [allowed (get allowed-deps from-component)]
+                        (and (not= allowed :all)
+                             (not (contains? (set allowed) to-component)))))))
+       (remove (fn [edge] (some #(cfg/exception-matches? % edge) exceptions)))
+       vec))
+
+(defn find-violations
+  [ns-edges allowed-deps forbidden-rules exceptions]
+  (if (seq allowed-deps)
+    (find-allowed-violations ns-edges allowed-deps exceptions)
+    (find-forbidden-violations ns-edges forbidden-rules exceptions)))
 
 (defn analyze-project
   [config]
@@ -165,8 +182,9 @@
         {:keys [incoming outgoing]} (neighbor-maps component-set component-edges)
         component-stats (component-stats-map component-set parsed incoming outgoing)
         exceptions (mapv cfg/compile-exception (:allowed-exceptions merged-config))
+        allowed-deps (:allowed-dependencies merged-config)
         forbidden-rules (mapv cfg/normalize-forbidden-rule (:forbidden-dependencies merged-config))
-        violations (find-violations ns-edges forbidden-rules exceptions)
+        violations (find-violations ns-edges allowed-deps forbidden-rules exceptions)
         sccs (strongly-connected-components component-set (remove (fn [[a b]] (= a b)) component-edges))
         cycles (->> sccs (filter #(> (count %) 1)) vec)]
     {:config merged-config

@@ -33,13 +33,15 @@
                      :component-rules [{:component :alpha :match "demo.a"}
                                        {:component :beta :match "demo.b"}
                                        {:component :gamma :match "demo.c"}]
-                     :forbidden-dependencies [[:alpha :beta]]})]
+                     :allowed-dependencies {:alpha [:gamma]
+                                              :beta [:gamma]
+                                              :gamma [:alpha]}})]
         (should= #{[:alpha :beta] [:alpha :gamma] [:beta :gamma] [:gamma :alpha]}
                  (set (:component-edges result)))
         (should= 1 (count (:violations result)))
         (should= :alpha (:from-component (first (:violations result))))
         (should= :beta (:to-component (first (:violations result))))
-        (should (some #(= #{:alpha :beta :gamma} (set %)) (:cycles result)))))
+        (should (some #(= #{:alpha :beta :gamma} (set %)) (:cycles result))))))
 
   (it "calculates fan-in, fan-out, instability, abstractness, and distance metrics"
     (let [root (temp-dir)]
@@ -66,7 +68,41 @@
         (should (< (Math/abs (- 0.0 (get-in stats [:beta :abstractness]))) 1.0e-9))
         (should (< (Math/abs (- 0.5 (get-in stats [:beta :distance]))) 1.0e-9)))))
 
-  (it "supports allowed exceptions for forbidden component dependencies"
+  (it "uses allowed-dependencies to flag edges not in the allowed map"
+    (let [root (temp-dir)]
+      (write-file! root "demo/a.clj"
+                   "(ns demo.a (:require [demo.b :as b] [demo.c :as c]))\n")
+      (write-file! root "demo/b.clj"
+                   "(ns demo.b (:require [demo.c :as c]))\n")
+      (write-file! root "demo/c.clj"
+                   "(ns demo.c)\n")
+      (let [result (tool/analyze-project
+                    {:source-paths [(.getPath root)]
+                     :component-rules [{:component :alpha :match "demo.a"}
+                                       {:component :beta :match "demo.b"}
+                                       {:component :gamma :match "demo.c"}]
+                     :allowed-dependencies {:alpha [:gamma]
+                                            :beta [:gamma]
+                                            :gamma []}})]
+        (should= 1 (count (:violations result)))
+        (should= :alpha (:from-component (first (:violations result))))
+        (should= :beta (:to-component (first (:violations result)))))))
+
+  (it "allows all dependencies when component has :all in allowed-dependencies"
+    (let [root (temp-dir)]
+      (write-file! root "demo/a.clj"
+                   "(ns demo.a (:require [demo.b :as b]))\n")
+      (write-file! root "demo/b.clj"
+                   "(ns demo.b)\n")
+      (let [result (tool/analyze-project
+                    {:source-paths [(.getPath root)]
+                     :component-rules [{:component :alpha :match "demo.a"}
+                                       {:component :beta :match "demo.b"}]
+                     :allowed-dependencies {:alpha :all
+                                            :beta []}})]
+        (should= 0 (count (:violations result))))))
+
+  (it "supports allowed exceptions for disallowed component dependencies"
     (let [root (temp-dir)]
       (write-file! root "demo/a.clj" "(ns demo.a (:require [demo.b :as b]))\n(defn call [] (b/id))\n")
       (write-file! root "demo/b.clj" "(ns demo.b)\n(defn id [] :ok)\n")
@@ -74,7 +110,8 @@
                     {:source-paths [(.getPath root)]
                      :component-rules [{:component :left :match "demo.a"}
                                        {:component :right :match "demo.b"}]
-                     :forbidden-dependencies [[:left :right]]
+                     :allowed-dependencies {:left []
+                                            :right []}
                      :allowed-exceptions [{:from-ns "demo.a" :to-ns "demo.b"}]})]
         (should= [] (:violations result)))))
 
@@ -177,7 +214,7 @@
       (should= 2 (:code usage-output))
       (should (str/includes? (:text usage-output) "Usage: clj -M:check-dependencies"))))
 
-  (it "formats text report with warnings, violations, cycles, and distance violations"
+  (it "formats text report with warnings, violations, and cycles"
     (let [report (with-out-str
                    (#'tool/report-text
                     {:component-stats {:alpha {:fan-in 1
@@ -191,15 +228,11 @@
                                    :to-component :beta
                                    :from-ns "demo.a"
                                    :to-ns "demo.b"}]
-                     :cycles [[:alpha :beta]]
-                     :config {}}
-                    {:max-distance 0.20
-                     :distance-violations [[:alpha 0.24]]}))]
+                     :cycles [[:alpha :beta]]}))]
       (should (str/includes? report "Warnings: 1"))
       (should (str/includes? report "demo.a uses requiring-resolve -> demo.b"))
       (should (str/includes? report "Boundary Violations"))
-      (should (str/includes? report "Cycles"))
-      (should (str/includes? report "Distance Violations")))))
+      (should (str/includes? report "Cycles")))))
 
 (describe "dependency-tool CLI flow"
   (it "parses args with defaults"
@@ -207,26 +240,18 @@
       (should= "dependency-checker.edn" (:config-path defaults))
       (should= :text (:fmt defaults))
       (should= false (:init? defaults))
-      (should= false (:force-init? defaults))
-      (should= 0 (:max-distance defaults))))
+      (should= false (:force-init? defaults))))
 
   (it "parses explicit config path and options"
-    (let [parsed (#'tool/parse-args ["cfg.edn" "--format" "edn" "--max-distance" "0.25" "--init"])]
+    (let [parsed (#'tool/parse-args ["cfg.edn" "--format" "edn" "--init"])]
       (should= "cfg.edn" (:config-path parsed))
       (should= :edn (:fmt parsed))
       (should= true (:init? parsed))
-      (should= false (:force-init? parsed))
-      (should= 0.25 (:max-distance parsed))))
+      (should= false (:force-init? parsed))))
 
   (it "returns usage error for unknown option"
     (should= :usage (:error (#'tool/parse-args ["--unknown"])))
-    (should= :usage (:error (#'tool/parse-args ["--format"])))
-    (should= :usage (:error (#'tool/parse-args ["--max-distance"]))))
-
-  (it "returns invalid-max-distance parsing error for bad numeric value"
-    (let [err (#'tool/parse-args ["--max-distance" "not-a-number"])]
-      (should= :invalid-max-distance (:error err))
-      (should= "not-a-number" (:value err))))
+    (should= :usage (:error (#'tool/parse-args ["--format"]))))
 
   (it "run-cli creates config for --init"
     (let [root (temp-dir)
@@ -284,7 +309,7 @@
                                             :component-edges []
                                             :warnings []})
                     tool/report-text (fn [& _] nil)]
-        (should= 1 (#'tool/run-cli [cfg-path "--max-distance" "1.0"])))))
+        (should= 1 (#'tool/run-cli [cfg-path])))))
 
   (it "run-cli returns 0 when analysis passes"
     (let [root (temp-dir)
@@ -298,24 +323,7 @@
                                             :component-edges []
                                             :warnings []})
                     tool/report-text (fn [& _] nil)]
-        (should= 0 (#'tool/run-cli [cfg-path "--max-distance" "1.0"])))))
-
-  (it "run-cli ignores max-distance violations for utility components"
-    (let [root (temp-dir)
-          cfg-path (.getPath (io/file root "dep.edn"))]
-      (spit cfg-path "{}")
-      (with-redefs [tool/analyze-project (fn [_]
-                                           {:config {:fail-on-violations true
-                                                     :fail-on-cycles true
-                                                     :utility-components [:util]}
-                                            :component-stats {:util {:distance 1.2}
-                                                              :alpha {:distance 0.0}}
-                                            :violations []
-                                            :cycles []
-                                            :component-edges []
-                                            :warnings []})
-                    tool/report-text (fn [& _] nil)]
-        (should= 0 (#'tool/run-cli [cfg-path "--max-distance" "1.0"])))))
+        (should= 0 (#'tool/run-cli [cfg-path])))))
 
   (it "run-cli supports edn output format"
     (let [root (temp-dir)
@@ -330,15 +338,8 @@
       (spit cfg-path "{}")
       (with-redefs [tool/analyze-project (fn [_] result)]
         (binding [*out* out]
-          (should= 0 (#'tool/run-cli [cfg-path "--format" "edn" "--max-distance" "1.0"]))))
+          (should= 0 (#'tool/run-cli [cfg-path "--format" "edn"]))))
       (should (str/includes? (str out) ":component-stats"))))
-
-  (it "run-cli returns 2 for invalid max-distance value"
-    (let [root (temp-dir)
-          cfg-path (.getPath (io/file root "dep.edn"))]
-      (with-redefs [tool/generate-starter-config (fn [] {:source-paths ["src"]})]
-        (should= 0 (#'tool/run-cli [cfg-path "--force-init"])))
-      (should= 2 (#'tool/run-cli [cfg-path "--max-distance" "bad"]))))
 
   (it "run-cli returns 0 for --force-init when config does not yet exist"
     (let [root (temp-dir)
@@ -449,7 +450,7 @@
           cfg (#'tool/generate-starter-config [(.getPath root)])]
       (should= [(.getPath root)] (:source-paths cfg))
       (should (vector? (:component-rules cfg)))
-      (should (vector? (:forbidden-dependencies cfg)))
+      (should (map? (:allowed-dependencies cfg)))
       (should= false (:fail-on-cycles cfg))
       (should= true (:fail-on-violations cfg))))
 
@@ -495,4 +496,3 @@
           sets (set (map set sccs))]
       (should (contains? sets #{:a}))
       (should (contains? sets #{:b :c})))))
-)

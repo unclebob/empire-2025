@@ -7,8 +7,7 @@
   {:source-paths ["src"]
    :include-exts #{".clj" ".cljc" ".cljs"}
    :component-rules []
-   :utility-components []
-   :forbidden-dependencies []
+   :allowed-dependencies {}
    :allowed-exceptions []
    :fail-on-cycles true
    :fail-on-violations true})

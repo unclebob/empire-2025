@@ -55,18 +55,8 @@
   [cycles]
   (map (fn [cycle] (str/join " -> " (map str cycle))) cycles))
 
-(defn distance-violation-lines
-  [distance-violations max-distance]
-  (map (fn [[component distance]]
-         (format "%s distance=%s exceeds limit=%s"
-                 component
-                 (fmt-double distance)
-                 (fmt-double max-distance)))
-       distance-violations))
-
 (defn report-text
-  [{:keys [component-stats component-edges warnings violations cycles]}
-   {:keys [max-distance distance-violations]}]
+  [{:keys [component-stats component-edges warnings violations cycles]}]
   (let [components (keys component-stats)]
     (println "Dependency Analysis")
     (println "===================")
@@ -76,14 +66,11 @@
     (println (format "Warnings: %d" (count warnings)))
     (println (format "Violations: %d" (count violations)))
     (println (format "Cycles: %d" (count cycles)))
-    (println (format "Distance limit: %.3f" (double max-distance)))
-    (println (format "Distance violations: %d" (count distance-violations)))
     (print-labeled-section "Component Metrics" "-----------------" (metric-lines component-stats))
     (print-labeled-section "Component Dependencies" "----------------------" (edge-lines component-edges))
     (print-labeled-section "Warnings" "--------" (warning-lines warnings))
     (print-labeled-section "Boundary Violations" "-------------------" (violation-lines violations))
-    (print-labeled-section "Cycles" "------" (cycle-lines cycles))
-    (print-labeled-section "Distance Violations" "-------------------" (distance-violation-lines distance-violations max-distance))))
+    (print-labeled-section "Cycles" "------" (cycle-lines cycles))))
 
 (defn load-config
   [path]
@@ -94,5 +81,5 @@
 (defn usage!
   []
   (binding [*out* *err*]
-    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--max-distance N] [--init|--force-init]"))
+    (println "Usage: clj -M:check-dependencies [config.edn] [--format text|edn] [--init|--force-init]"))
   2)
