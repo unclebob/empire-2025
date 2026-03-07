@@ -370,6 +370,15 @@
         (should @moved?)
         (should-not @explored?))))
 
+  (it "starts random walk for blocked major-invasion ships when sidestep is unavailable"
+    (set-test-world! (build-test-map ["d"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (should
+     (threat-response/process-ship-threat
+      [0 0] :destroyer {:major-invasion true :major-invasion-target [3 3]}))
+    (should= 5 (get-in (test-utils/read-test-state :game-map)
+                       [0 0 :contents :oscillation-random-walk-rounds-left])))
+
   (it "makes patrol boats yield away from nearby invading transports"
     (set-test-world! (build-test-map ["~~~"
                                       "tp~"
@@ -439,7 +448,24 @@
                       nil)]
         (should (threat-response/process-fighter-threat
                  [0 0] {:major-invasion true :major-invasion-target [3 3]}))
-        (should= 1 @calls)))))
+        (should= 1 @calls))))
+
+  (it "starts random walk for blocked major-invasion fighters when sidestep is unavailable"
+    (set-test-world! (build-test-map ["f"]))
+    (update-test-world! update-in [0 0 :contents] merge
+                        {:major-invasion true
+                         :major-invasion-target [3 3]
+                         :threat-radius 0
+                         :fuel 10})
+    (with-redefs [empire.computer.fighter-movement/should-return-to-refuel? (constantly false)
+                  empire.computer.fighter-movement/hop-over-friendly (constantly nil)
+                  empire.computer.fighter-movement/get-passable-neighbors (constantly [])]
+      (should
+       (threat-response/process-fighter-threat
+        [0 0] (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
+    (should= 5 (get-in (test-utils/read-test-state :game-map)
+                       [0 0 :contents :oscillation-random-walk-rounds-left])))
+  )
 
 (describe "prepare-transport!"
   (before (reset-all-atoms!))

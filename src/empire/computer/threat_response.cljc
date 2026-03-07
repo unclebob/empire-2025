@@ -5,6 +5,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fighter-movement]
+            [empire.computer.oscillation :as oscillation]
             [empire.computer.threat-response.country-defense :as country-defense]
             [empire.computer.threat-response.invasion-decision :as invasion-decision]
             [empire.computer.threat-response.invasion-state :as invasion-state]
@@ -442,12 +443,17 @@
   (when (or (= :fighter-sweep (:threat-mission unit))
             (= :country-defense (:threat-mission unit))
             (:major-invasion unit))
-    (loop [current pos
-           remaining fighter-movement/fighter-speed]
-      (when (pos? remaining)
-        (when-let [{:keys [pos steps-used]}
-                   (fighter-step-threat current (get-in (sa/current-world) (conj current :contents)))]
-          (recur pos (- remaining steps-used)))))
+    (if (oscillation/in-random-walk? unit)
+      (processing/process-fighter-random-walk-round
+       {:current-world sa/current-world
+        :update-game-map! sa/update-world!}
+       pos)
+      (loop [current pos
+             remaining fighter-movement/fighter-speed]
+        (when (pos? remaining)
+          (when-let [{:keys [pos steps-used]}
+                     (fighter-step-threat current (get-in (sa/current-world) (conj current :contents)))]
+            (recur pos (- remaining steps-used))))))
     true))
 
 (defn process-ship-threat
@@ -456,6 +462,7 @@
   [pos ship-type unit]
   (processing/process-ship-threat
    {:current-world sa/current-world
+    :update-game-map! sa/update-world!
     :nearest-major-target nearest-major-ship-target
     :threat-radius (threat-radius)}
    pos

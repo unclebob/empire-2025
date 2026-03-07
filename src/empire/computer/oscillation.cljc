@@ -43,6 +43,17 @@
   [unit]
   (pos? (:oscillation-random-walk-rounds-left unit 0)))
 
+(defn start-random-walk
+  [unit restore-keys]
+  (if (in-random-walk? unit)
+    unit
+    (let [snapshot (into {}
+                         (for [k restore-keys]
+                           [k (if (contains? unit k) (get unit k) missing)]))]
+      (-> unit
+          (assoc :oscillation-random-walk-rounds-left escape-rounds)
+          (assoc :oscillation-restore snapshot)))))
+
 (defn maybe-enter-random-walk
   ([unit restore-keys]
    (maybe-enter-random-walk unit restore-keys nil))
@@ -50,12 +61,7 @@
   (if (or (in-random-walk? unit)
           (not (oscillating? unit)))
     unit
-    (let [snapshot (into {}
-                         (for [k restore-keys]
-                           [k (if (contains? unit k) (get unit k) missing)]))]
-      (-> unit
-          (assoc :oscillation-random-walk-rounds-left escape-rounds)
-          (assoc :oscillation-restore snapshot))))))
+    (start-random-walk unit restore-keys))))
 
 (defn dec-random-walk
   [unit]

@@ -1,8 +1,10 @@
 ;; mutation-tested: 2026-03-02
 (ns empire.computer.threat-response.processing
   "Threat mission execution helpers extracted from threat-response coordinator."
-  (:require [empire.computer.core :as core]
+  (:require [empire.state.api :as sa]
+            [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fm]
+            [empire.computer.oscillation :as oscillation]
             [empire.computer.ship-core :as ship-core]
             [empire.config.core :as config]))
 
@@ -10,6 +12,9 @@
 (def ^:private patrol-max-invasion-distance 10)
 ;; Keep at least one-turn margin after reaching nearest refueling site.
 (def ^:private fighter-refuel-safety-buffer 1)
+(def ^:private congestion-random-walk-restore-keys
+  [:threat-mission :threat-center :threat-radius :threat-rounds-left
+   :major-invasion :major-invasion-target])
 
 (defn- fighter-threat-active?
   [unit]
@@ -67,6 +72,47 @@
             (move-hop-consume pos center remaining-fuel)
             {:pos pos :steps-used hops}))))))
 
+(defn- fighter-sidestep-consume
+  [pos center]
+  (let [current-distance (core/distance pos center)
+        passable (fm/get-passable-neighbors pos)
+        candidates (->> passable
+                        (remove fm/occupied?)
+                        (map (fn [p] {:pos p :distance (core/distance p center)}))
+                        (filter #(<= (:distance %) current-distance))
+                        (sort-by (fn [{:keys [distance pos]}] [distance pos])))]
+    (when-let [target (:pos (first candidates))]
+      (when (core/move-unit-to pos target)
+        (when (fm/consume-fighter-fuel target)
+          {:pos target :steps-used 1})))))
+
+(defn- start-fighter-congestion-random-walk!
+  [ctx pos]
+  ((:update-game-map! ctx) update-in (conj pos :contents)
+   #(oscillation/start-random-walk % congestion-random-walk-restore-keys)))
+
+(defn- fighter-random-walk-step
+  [pos]
+  (let [passable (fm/get-passable-neighbors pos)
+        candidates (vec (remove fm/occupied? passable))]
+    (if-let [target (when (seq candidates) (rand-nth candidates))]
+      (if (core/move-unit-to pos target)
+        (when (fm/consume-fighter-fuel target)
+          target)
+        pos)
+      pos)))
+
+(defn process-fighter-random-walk-round
+  [ctx pos]
+  (let [final-pos (or (fighter-random-walk-step pos) pos)
+        unit (get-in ((:current-world ctx)) (conj final-pos :contents))]
+    (when unit
+      ((:update-game-map! ctx) update-in (conj final-pos :contents)
+       #(-> %
+            oscillation/dec-random-walk
+            oscillation/maybe-restore))))
+  true)
+
 (defn fighter-step-threat
   [ctx pos unit]
   (let [center (or (:threat-center unit)
@@ -84,7 +130,11 @@
       (refuel-threat-step ctx pos)
 
       (out-of-threat-radius? pos center radius)
-      (move-hop-consume pos center fuel)
+      (or (move-hop-consume pos center fuel)
+          (when center (fighter-sidestep-consume pos center))
+          (when (:major-invasion unit)
+            (start-fighter-congestion-random-walk! ctx pos)
+            nil))
 
       :else
       (patrol-threat-step pos center radius fuel))))
@@ -94,12 +144,14 @@
    Returns true when handled."
   [ctx pos unit]
   (when (fighter-threat-active? unit)
+    (if (oscillation/in-random-walk? unit)
+      (process-fighter-random-walk-round ctx pos)
     (loop [current pos
            remaining fm/fighter-speed]
       (when (pos? remaining)
         (when-let [{:keys [pos steps-used]}
                    (fighter-step-threat ctx current (get-in ((:current-world ctx)) (conj current :contents)))]
-          (recur pos (- remaining steps-used)))))
+            (recur pos (- remaining steps-used))))))
     true))
 
 (defn- ship-threat-action
@@ -109,6 +161,38 @@
       (when move-target
         (ship-core/move-toward pos move-target))
       (ship-core/explore-sea pos ship-type)))
+
+(defn- ship-sidestep-toward
+  [pos target]
+  (let [world (sa/current-world)
+        current-distance (core/distance pos target)
+        candidates (->> (ship-core/get-passable-sea-neighbors pos)
+                        (filter #(nil? (:contents (get-in world %))))
+                        (map (fn [p] {:pos p :distance (core/distance p target)}))
+                        (filter #(<= (:distance %) current-distance))
+                        (sort-by (fn [{:keys [distance pos]}] [distance pos])))]
+    (when-let [choice (:pos (first candidates))]
+      (when (core/move-unit-to pos choice)
+        choice))))
+
+(defn- start-ship-congestion-random-walk!
+  [ctx pos]
+  ((:update-game-map! ctx) update-in (conj pos :contents)
+   #(oscillation/start-random-walk % congestion-random-walk-restore-keys)))
+
+(defn- process-ship-random-walk
+  [ctx pos]
+  (let [world ((:current-world ctx))
+        candidates (vec (->> (ship-core/get-passable-sea-neighbors pos)
+                             (filter #(nil? (:contents (get-in world %))))))
+        final-pos (if-let [target (when (seq candidates) (rand-nth candidates))]
+                    (if (core/move-unit-to pos target) target pos)
+                    pos)]
+    ((:update-game-map! ctx) update-in (conj final-pos :contents)
+     #(-> %
+          oscillation/dec-random-walk
+          oscillation/maybe-restore))
+    true))
 
 (defn- nearby-invading-transports
   [world pos]
@@ -247,7 +331,15 @@
   [ctx nearest-major-target pos ship-type center]
   (if (= :patrol-boat ship-type)
     (run-patrol-major-invasion ctx nearest-major-target pos center)
-    (ship-threat-action pos ship-type (major-invasion-target nearest-major-target pos center)))
+    (let [target (major-invasion-target nearest-major-target pos center)]
+      (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
+            (ship-core/attack-enemy pos enemy-pos))
+          (when target
+            (or (ship-core/move-toward pos target)
+                (ship-sidestep-toward pos target)
+                (do (start-ship-congestion-random-walk! ctx pos)
+                    true)))
+          (ship-core/explore-sea pos ship-type))))
   true)
 
 (defn process-ship-threat
@@ -258,6 +350,9 @@
         radius (:threat-radius unit (:threat-radius ctx))
         nearest-major-target (:nearest-major-target ctx)
         result (cond
+                 (and (:major-invasion unit) (oscillation/in-random-walk? unit))
+                 (process-ship-random-walk ctx pos)
+
                  (= :sea-scout (:threat-mission unit))
                  (handle-sea-scout-ship-threat pos ship-type center radius)
 

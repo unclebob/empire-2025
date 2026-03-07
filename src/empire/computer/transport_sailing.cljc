@@ -4,6 +4,7 @@
   (:require [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.computer.oscillation :as oscillation]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-unloading :as unloading]))
@@ -11,6 +12,19 @@
 (def ^:private invasion-unload-radius 2)
 (def ^:private invasion-threat-unload-radius 3)
 (def ^:private invasion-threat-scan-radius 2)
+;; Keep restore keys aligned with transport random-walk recovery behavior.
+(def ^:private transport-random-walk-restore-keys
+  [:transport-mission
+   :sail-path
+   :pickup-continent-pos
+   :loading-since
+   :invasion-target
+   :invasion-path
+   :invasion-path-origin
+   :invasion-plan-revision
+   :invasion-load-since
+   :major-invasion-find-armies-round
+   :major-invasion-skip-revision])
 
 (def ^:private player-ship-types
   #{:patrol-boat :destroyer :submarine :transport :carrier :battleship})
@@ -260,9 +274,14 @@
 (defn- continue-invading-without-path!
   [pos target invading-step]
   (if target
-    (let [pos1 (or (invading-step pos) pos)
-          pos2 (or (invading-step pos1) pos1)
+    (let [moved1 (invading-step pos)
+          pos1 (or moved1 pos)
+          moved2 (invading-step pos1)
+          pos2 (or moved2 pos1)
           transport2 (get-in (sa/current-world) (conj pos2 :contents))]
+      (when (and (nil? moved1) (nil? moved2))
+        (sa/update-world! update-in (conj pos :contents)
+                          #(oscillation/start-random-walk % transport-random-walk-restore-keys)))
       (when (unload-zone? pos2 target transport2)
         (tc/set-transport-mission pos2 :unloading)))
     (tc/set-transport-mission pos :unloading)))
@@ -309,10 +328,12 @@
   (let [transport (get-in (sa/current-world) (conj pos :contents))
         path (:invasion-path transport)
         target (or (:invasion-target transport) (:major-invasion-target transport))]
-    (if (handle-invasion-threat-near-target! pos target)
+      (if (handle-invasion-threat-near-target! pos target)
       nil
       (if (empty? path)
         (continue-invading-without-path! pos target #(invading-step % target))
         (when (= :blocked (continue-invading-via-path! pos path))
           ;; Blocked — sidestep toward target when possible, otherwise retry next round.
-          (invading-step pos target))))))
+          (when-not (invading-step pos target)
+            (sa/update-world! update-in (conj pos :contents)
+                              #(oscillation/start-random-walk % transport-random-walk-restore-keys))))))))

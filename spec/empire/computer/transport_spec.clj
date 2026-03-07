@@ -1271,7 +1271,23 @@
                           :army-count 1})
       (transport/process-transport [1 0])
       (should (#{:invading :unloading}
-               (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission])))))
+               (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission]))))
+
+    (it "blocked invading transport enters temporary random walk"
+      (set-test-world! [[{:type :sea
+                          :contents {:type :transport :owner :computer
+                                     :transport-mission :invading
+                                     :major-invasion true
+                                     :major-invasion-target [2 0]
+                                     :invasion-target [2 0]
+                                     :invasion-path [[1 0]]
+                                     :army-count 1}}
+                        {:type :sea
+                         :contents {:type :destroyer :owner :computer}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (transport/process-transport [0 0])
+      (should= 5 (get-in (test-utils/read-test-state :game-map)
+                         [0 0 :contents :oscillation-random-walk-rounds-left]))))
 
 (describe "transport internals"
   (before (reset-all-atoms!))
