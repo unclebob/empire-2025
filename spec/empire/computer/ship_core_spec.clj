@@ -99,4 +99,38 @@
                                             (reset! retreat-called? true)
                                             [0 1])]
           (should-be-nil (ship-core/retreat-if-damaged [0 0] {:type :destroyer :owner :computer :hits 3}))
-          (should= false @retreat-called?))))))
+          (should= false @retreat-called?)))))
+
+  (context "move-toward direct-route heuristic"
+    (it "prefers direct heading when known sea path is at least 2x chebyshev and corridor is sea-or-unexplored"
+      (set-test-world! (build-test-map ["~~~~~"
+                                        "~~~~~"
+                                        "s~~~~"
+                                        "~~~~~"
+                                        "~~~~~"]))
+      (set-test-computer-map!
+       [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :sea}]
+        [{:type :sea} {:type :land} {:type :land} {:type :land} {:type :sea}]
+        [{:type :sea} nil nil nil {:type :sea}]
+        [nil nil nil nil nil]
+        [nil nil nil nil nil]])
+      (let [long-path [[1 0] [0 0] [0 1] [0 2] [0 3] [0 4] [1 4] [2 4]]]
+        (with-redefs [empire.computer.ship-core/bfs-sea-path-to-target (fn [& _] long-path)]
+          (let [new-pos (ship-core/move-toward [2 0] [2 4])]
+            (should= [2 1] new-pos))))
+      )
+
+    (it "falls back to recomputed sea path when direct corridor contains discovered land"
+      (set-test-world! (build-test-map ["~~~~~"
+                                        "~~~~~"
+                                        "s~~~~"
+                                        "~~~~~"
+                                        "~~~~~"]))
+      (set-test-computer-map!
+       [[{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :sea}]
+        [{:type :sea} {:type :land} {:type :land} {:type :land} {:type :sea}]
+        [{:type :sea} {:type :land} {:type :land} {:type :land} {:type :sea}]
+        [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]
+        [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]])
+      (let [new-pos (ship-core/move-toward [2 0] [2 4])]
+        (should= [1 0] new-pos)))))

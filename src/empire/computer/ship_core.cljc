@@ -7,7 +7,103 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.computer.core :as core]
             [empire.computer.threat :as threat]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.game-mechanics.containers.helpers :as uc]))
+
+(def ^:private sea-path-inflation-threshold 2)
+
+(defn- direct-step
+  [from to]
+  (let [[fr fc] from
+        [tr tc] to
+        dr (Long/signum (- tr fr))
+        dc (Long/signum (- tc fc))]
+    [(+ fr dr) (+ fc dc)]))
+
+(defn- between-cells
+  "Cells strictly between from and to along king-step direct line."
+  [from to]
+  (loop [current from
+         cells []]
+    (if (= current to)
+      cells
+      (let [next-pos (direct-step current to)]
+        (if (= next-pos to)
+          cells
+          (recur next-pos (conj cells next-pos)))))))
+
+(defn- sea-or-unexplored?
+  [cell]
+  (or (nil? cell)
+      (= :sea (:type cell))
+      (= :unexplored (:type cell))))
+
+(defn- direct-sea-corridor?
+  [from to computer-map]
+  (every? (fn [pos] (sea-or-unexplored? (get-in computer-map pos)))
+          (between-cells from to)))
+
+(defn- adjacent?
+  [[r1 c1] [r2 c2]]
+  (and (<= (Math/abs (- r2 r1)) 1)
+       (<= (Math/abs (- c2 c1)) 1)
+       (not= [r1 c1] [r2 c2])))
+
+(defn- sea-path-target?
+  [current start target computer-map]
+  (let [target-cell (get-in computer-map target)
+        target-sea? (= :sea (:type target-cell))]
+    (or (and target-sea? (= current target))
+        (and (not= current start)
+             (not target-sea?)
+             (adjacent? current target)))))
+
+(defn- bfs-sea-path-to-target
+  "Path over known sea on computer-map.
+   Returns sea path excluding start; for land targets, ends adjacent."
+  [start target computer-map]
+  (let [passable-sea? (fn [pos] (= :sea (:type (get-in computer-map pos))))]
+    (cond
+      (= start target) []
+      (not (passable-sea? start)) nil
+      (and (not= :sea (:type (get-in computer-map target)))
+           (adjacent? start target)) []
+      :else
+      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+             visited #{start}
+             came-from {}]
+        (when (seq queue)
+          (let [current (peek queue)]
+            (if (sea-path-target? current start target computer-map)
+              (vec (rest (map-utils/reconstruct-path came-from start current)))
+              (let [neighbors (->> (core/neighbors-in-map computer-map current)
+                                   (filter passable-sea?)
+                                   (remove visited))
+                    next-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+                (recur (reduce conj (pop queue) neighbors)
+                       (into visited neighbors)
+                       next-came-from)))))))))
+
+(defn- inflated-sea-path?
+  [sea-path from target]
+  (let [cheb (core/chebyshev-distance from target)]
+    (and (seq sea-path)
+         (pos? cheb)
+         (>= (count sea-path) (* sea-path-inflation-threshold cheb)))))
+
+(defn- select-next-sea-step
+  [from target passable]
+  (let [computer-map (sa/read-state :computer-map)
+        sea-path (bfs-sea-path-to-target from target computer-map)
+        use-direct? (and (inflated-sea-path? sea-path from target)
+                         (direct-sea-corridor? from target computer-map))
+        direct-next (core/move-toward from target passable)
+        sea-next (when (seq sea-path)
+                   (let [step (first sea-path)]
+                     (when (some #{step} passable) step)))]
+    (or (when use-direct? direct-next)
+        sea-next
+        direct-next)))
 
 (defn- update-cell-visibility!
   ([pos owner]
@@ -78,7 +174,7 @@
 (defn move-toward
   [pos target]
   (let [passable (get-passable-sea-neighbors pos)
-        closest (core/move-toward pos target passable)]
+        closest (select-next-sea-step pos target passable)]
     (when closest
       (core/move-unit-to pos closest)
       (update-cell-visibility! pos :computer)
