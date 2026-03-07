@@ -72,6 +72,8 @@
 
 (defn- build-army-actions [pos country-id mode unit cell enemy-pos]
   [[enemy-pos                               #(army-combat/attack-enemy pos enemy-pos)]
+   [(= :country-defense (:threat-mission unit))
+    #(movement/move-toward-objective pos (:threat-center unit) country-id)]
    [(:attack-target unit)                   #(army-combat/process-attack-target pos country-id)]
    [(= :coast-walk mode)                    #(coastal/process-coast-walk pos country-id)]
    [(= :move-to-coast-for-invasion mode)    #(coastal/process-move-to-coast-for-invasion pos country-id)]

@@ -5,6 +5,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fighter-movement]
+            [empire.computer.threat-response.country-defense :as country-defense]
             [empire.computer.threat-response.invasion-decision :as invasion-decision]
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.major-invasion :as major-invasion]
@@ -117,6 +118,29 @@
 (defn- dec-threat-rounds
   [unit]
   (threat-policy/dec-threat-rounds unit))
+
+(defn- homeland-defense-unit?
+  [unit]
+  (and unit
+       (= :computer (:owner unit))
+       (#{:army :fighter} (:type unit))
+       (:country-id unit)))
+
+(defn- refresh-country-defense!
+  []
+  (let [targets-by-country (country-defense/player-armies-by-country (sa/read-state :computer-map))
+        radius (threat-radius)
+        game-map (sa/current-world)]
+    (doseq [i (range (count game-map))
+            j (range (count (first game-map)))
+            :let [unit (get-in game-map [i j :contents])]
+            :when (homeland-defense-unit? unit)]
+      (let [cid (:country-id unit)
+            targets (get targets-by-country cid)]
+        (sa/update-world! update-in [i j :contents]
+                          (if (seq targets)
+                            #(country-defense/apply-country-defense % [i j] targets radius)
+                            country-defense/clear-country-defense))))))
 
 (defn- nearest-major-sea-target
   [pos]
@@ -344,12 +368,17 @@
         selected (concat psel bsel)]
     (assign-threat-mission! selected (threat-policy/sea-scout-mission pos))))
 
+(defn- handle-country-defense-detection!
+  [_pos]
+  (refresh-country-defense!))
+
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
   (case (threat-policy/detection-trigger game-cell)
     :fighter-detected (handle-fighter-detection! pos)
     :ship-detected (handle-ship-detection! pos)
+    :country-defense-trigger (handle-country-defense-detection! pos)
     :major-invasion-trigger (handle-major-invasion-detection! pos)
     nil)
   nil)
@@ -382,6 +411,7 @@
     (maybe-handle-unsustainable-losses!)
     (when (major-invasion-active?)
       (refresh-major-invasion-assignments!)))
+  (refresh-country-defense!)
   (maybe-review-deferred-major-invasion!)
   (when (= :no-sea-path (:failure-reason (load-major-invasion-state)))
     (force-patrol-boat-exploration!)))
@@ -406,10 +436,11 @@
    unit))
 
 (defn process-fighter-threat
-  "Overrides regular fighter logic while fighter-sweep or major-invasion mission is active.
+  "Overrides regular fighter logic while fighter-sweep/country-defense or major-invasion mission is active.
    Returns true when handled."
   [pos unit]
   (when (or (= :fighter-sweep (:threat-mission unit))
+            (= :country-defense (:threat-mission unit))
             (:major-invasion unit))
     (loop [current pos
            remaining fighter-movement/fighter-speed]

@@ -14,6 +14,7 @@
 (defn- fighter-threat-active?
   [unit]
   (or (= :fighter-sweep (:threat-mission unit))
+      (= :country-defense (:threat-mission unit))
       (:major-invasion unit)))
 
 (defn- can-stay-in-refuel-range?

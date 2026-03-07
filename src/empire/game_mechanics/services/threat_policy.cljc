@@ -27,7 +27,9 @@
     (cond
       (= :fighter unit-type) :fighter-detected
       (enemy-ship-types unit-type) :ship-detected
-      (= :army unit-type) :major-invasion-trigger
+      (= :army unit-type) (if (:country-id game-cell)
+                            :country-defense-trigger
+                            :major-invasion-trigger)
       (player-city? game-cell) :major-invasion-trigger
       :else nil)))
 
