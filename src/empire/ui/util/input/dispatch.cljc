@@ -1,5 +1,6 @@
 (ns empire.ui.util.input.dispatch
-  (:require [empire.game.save-load :as save-load]
+  (:require [clojure.string :as string]
+            [empire.game.save-load :as save-load]
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game-mechanics.debug.dump :as debug-dump]
@@ -37,6 +38,10 @@
   "Handles mouse click events."
   [x y button]
   (cond
+    ;; Save menu is open - ignore clicks
+    (sa/read-state :save-menu-open)
+    nil
+
     ;; Load menu is open - handle menu click
     (sa/read-state :load-menu-open)
     (when (= button :left)
@@ -107,6 +112,56 @@
 (defn- dispatch-load-menu-key [k]
   (when (= k :escape) (save-load/close-load-menu!)))
 
+(defn- save-char-key
+  [k]
+  (let [s (name k)]
+    (when (and (= 1 (count s))
+               (re-matches #"[A-Za-z0-9._-]" s))
+      s)))
+
+(defn- clear-default-save-input!
+  []
+  (when (sa/read-state :save-menu-default-active)
+    (sa/write-state! :save-menu-input "")
+    (sa/write-state! :save-menu-default-active false)))
+
+(defn- delete-key?
+  [k]
+  (let [name-lc (some-> k name string/lower-case)]
+    (or (= k :backspace)
+        (= k :delete)
+        (= k :del)
+        (= k (keyword (str (char 127))))
+        (= name-lc "forward-delete")
+        (= name-lc "kp-delete")
+        (string/includes? (or name-lc "") "delete"))))
+
+(defn- enter-key?
+  [k]
+  (let [name-lc (some-> k name string/lower-case)]
+    (or (= k :enter)
+        (= k :return)
+        (= k :newline)
+        (= k (keyword (str \newline)))
+        (= name-lc "kp-enter")
+        (string/includes? (or name-lc "") "enter"))))
+
+(defn- dispatch-save-menu-key
+  [k]
+  (cond
+    (= k :escape) (do (save-load/close-save-menu!) true)
+    (enter-key? k) (do (sa/write-state! :turn-message
+                                        (str "Saved to " (save-load/save-from-menu!)))
+                       (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
+                       true)
+    :else (do
+            (clear-default-save-input!)
+            (cond
+              (delete-key? k) (do (save-load/backspace-save-menu-input!) true)
+              :else (when-let [ch (save-char-key k)]
+                      (save-load/append-save-menu-char! ch)
+                      true)))))
+
 (defn- dispatch-backtick-key [k cell-coords]
   (sa/write-state! :backtick-pressed false)
   (when cell-coords
@@ -117,6 +172,11 @@
 (def ^:private backtick-key (keyword "`"))
 (def ^:private bang-key (keyword "!"))
 (def ^:private caret-key (keyword "^"))
+
+(defn- save-dialog-available?
+  []
+  (let [[w h] (sa/read-state :map-screen-dimensions)]
+    (and (pos? w) (pos? h))))
 
 (defn- cycle-map-display
   [current]
@@ -134,10 +194,13 @@
 
 (defn- dispatch-save-load-key [k]
   (cond
-    (= k bang-key) (do (sa/write-state! :turn-message
-                                             (str "Saved to " (save-load/save-game!)))
-                       (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
-                       true)
+    (= k bang-key) (do
+                     (if (save-dialog-available?)
+                       (save-load/open-save-menu!)
+                       (sa/write-state! :turn-message
+                                        (str "Saved to " (save-load/save-game! "saves"))))
+                     (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
+                     true)
     (= k caret-key) (do (save-load/open-load-menu!) true)))
 
 (defn- dispatch-standing-order-key [k cell-coords]
@@ -158,6 +221,7 @@
 (defn dispatch-key [k cell-coords]
   (debug/log-action! [:key-pressed k])
   (cond
+    (sa/read-state :save-menu-open)   (dispatch-save-menu-key k)
     (sa/read-state :load-menu-open)   (dispatch-load-menu-key k)
     (sa/read-state :backtick-pressed) (dispatch-backtick-key k cell-coords)
     :else                   (dispatch-normal-key k cell-coords)))

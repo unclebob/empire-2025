@@ -57,10 +57,18 @@
     (render-map/draw-map the-map)
     (render-map/draw-debug-selection-rectangle)
     (render-messages/draw-message-area)
-    (render-overlay/draw-load-menu)))
+    (render-overlay/draw-load-menu)
+    (render-overlay/draw-save-menu)))
 
 (defn key-pressed [state _]
-  (let [k (q/key-as-keyword)]
+  (let [raw-k (q/key-as-keyword)
+        key-code (q/key-code)
+        k (cond
+            (= key-code java.awt.event.KeyEvent/VK_DELETE) :delete
+            (= key-code java.awt.event.KeyEvent/VK_BACK_SPACE) :backspace
+            (= key-code java.awt.event.KeyEvent/VK_ENTER) :enter
+            (= key-code java.awt.event.KeyEvent/VK_ESCAPE) :escape
+            :else raw-k)]
     (when (not= k :shift)
       (when (nil? (sa/read-state :last-key))
         (quil-input/key-down k))

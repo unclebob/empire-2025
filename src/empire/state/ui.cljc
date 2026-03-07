@@ -23,6 +23,9 @@
    :player-movement-log []
    :load-menu-open false
    :load-menu-files []
-   :load-menu-hovered nil})
+   :load-menu-hovered nil
+   :save-menu-open false
+   :save-menu-input ""
+   :save-menu-default-active false})
 
 (def state (atom defaults))

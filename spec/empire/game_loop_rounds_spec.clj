@@ -113,6 +113,15 @@
       (game-loop/advance-game)
       (should= 5 (test-utils/read-test-state :round-number))))
 
+  (context "game pauses when save menu is open"
+    (it "does not advance game when save-menu-open is true"
+      (test-utils/set-test-state! :save-menu-open true)
+      (test-utils/set-test-state! :player-items [])
+      (test-utils/set-test-state! :computer-items [])
+      (test-utils/set-test-state! :round-number 5)
+      (game-loop/advance-game)
+      (should= 5 (test-utils/read-test-state :round-number))))
+
   (context "pause functionality"
     (before
       (test-utils/set-test-state! :paused false)

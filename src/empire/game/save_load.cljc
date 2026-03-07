@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.game.save-load
   (:require [clojure.edn :as edn]
+            [clojure.string :as string]
             [empire.state.api :as sa]
             [empire.config.domain.core.messages :as messages]))
 
@@ -42,6 +43,21 @@
         fmt (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmss")]
     (.format now fmt)))
 
+(defn- default-save-basename []
+  (str "save-" (timestamp)))
+
+(defn normalize-save-filename
+  "Returns a valid save filename ending in .edn.
+   Blank input falls back to a timestamped default."
+  [input-name]
+  (let [trimmed (some-> input-name string/trim)
+        base-name (if (string/blank? trimmed)
+                    (default-save-basename)
+                    trimmed)]
+    (if (string/ends-with? base-name ".edn")
+      base-name
+      (str base-name ".edn"))))
+
 (defn- read-save-key
   [k]
   (case k
@@ -68,20 +84,54 @@
        []))))
 
 (defn save-game!
-  "Saves the current game state to a timestamped EDN file.
-   Returns the filename. If dir-path is not provided, defaults to 'saves'."
-  ([] (save-game! "saves"))
-  ([dir-path]
+  "Saves the current game state to an EDN file and returns the filename.
+   If no filename is provided, uses a timestamped default.
+   If dir-path is not provided, defaults to 'saves'."
+  ([] (save-game! "saves" nil))
+  ([dir-path] (save-game! dir-path nil))
+  ([dir-path filename]
    (let [dir (java.io.File. dir-path)]
      (when-not (.exists dir)
        (.mkdirs dir))
      (let [data (reduce-kv (fn [acc k _] (assoc acc k (read-save-key k)))
                            {}
                            saveable-atoms)
-           filename (str "save-" (timestamp) ".edn")
-           filepath (str dir-path "/" filename)]
+           save-filename (normalize-save-filename filename)
+           filepath (str dir-path "/" save-filename)]
        (spit filepath (pr-str data))
-       filename))))
+       save-filename))))
+
+(defn open-save-menu!
+  "Opens the save-name dialog with a timestamped default filename."
+  []
+  (sa/write-state! :save-menu-input (default-save-basename))
+  (sa/write-state! :save-menu-default-active true)
+  (sa/write-state! :save-menu-open true))
+
+(defn close-save-menu!
+  "Closes the save-name dialog."
+  []
+  (sa/write-state! :save-menu-default-active false)
+  (sa/write-state! :save-menu-open false))
+
+(defn append-save-menu-char!
+  [ch]
+  (sa/update-state! :save-menu-input str ch))
+
+(defn backspace-save-menu-input!
+  []
+  (sa/update-state! :save-menu-input
+                    (fn [s]
+                      (if (seq s)
+                        (subs s 0 (dec (count s)))
+                        ""))))
+
+(defn save-from-menu!
+  "Saves using the current save-menu input and closes the save-name dialog."
+  []
+  (let [filename (save-game! "saves" (sa/read-state :save-menu-input))]
+    (close-save-menu!)
+    filename))
 
 (defn load-game!
   "Loads game state from an EDN file. Closes the load menu after loading.

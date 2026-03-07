@@ -71,3 +71,51 @@
               (do
                 (q/fill 255)
                 (q/text filename (+ (:left geom) menu-padding) (+ y 17))))))))))
+
+(defn draw-save-menu
+  "Draws the save-name dialog overlay when open."
+  []
+  (when (sa/read-state :save-menu-open)
+    (let [screen-w (q/width)
+          screen-h (q/height)
+          ;; Reuse menu sizing with enough vertical room for prompt, input, and help text.
+          geom (save-load/menu-geometry screen-w screen-h 3)
+          menu-padding save-load/menu-padding
+          input (or (sa/read-state :save-menu-input) "")
+          default-active? (sa/read-state :save-menu-default-active)
+          prompt "Save file name (.edn optional):"
+          input-y (+ (:content-top geom) 12)]
+      ;; Semi-transparent overlay
+      (q/fill 0 0 0 128)
+      (q/rect 0 0 screen-w screen-h)
+      ;; Dialog background
+      (q/fill 40 40 40)
+      (q/stroke 255)
+      (q/stroke-weight 2)
+      (q/rect (:left geom) (:top geom) (:width geom) (:height geom))
+      (q/stroke-weight 1)
+      (q/text-font (sa/read-state :text-font))
+      ;; Title and prompt
+      (q/fill 255)
+      (q/text "Save Game" (+ (:left geom) menu-padding) (+ (:top geom) menu-padding 15))
+      (q/fill 200 200 200)
+      (q/text prompt (+ (:left geom) menu-padding) input-y)
+      ;; Input box
+      (let [box-x (+ (:left geom) menu-padding)
+            box-y (+ input-y 8)
+            box-w (- (:width geom) (* 2 menu-padding))
+            box-h 24]
+        (q/fill 255)
+        (q/stroke 160)
+        (q/rect box-x box-y box-w box-h)
+        (if default-active?
+          (q/fill 120)
+          (q/fill 0))
+        (q/text input (+ box-x 6) (+ box-y 16)))
+      (q/fill 200 200 200)
+      (q/text "Enter=Save  Esc=Cancel"
+              (+ (:left geom) menu-padding)
+              (+ input-y 50))
+      (q/text "Backspace/Delete=Remove Last"
+              (+ (:left geom) menu-padding)
+              (+ input-y 68)))))

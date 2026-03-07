@@ -16,6 +16,18 @@
   (it "load-menu-hovered defaults to nil"
     (should-be-nil (test-utils/read-test-state :load-menu-hovered))))
 
+(describe "save menu atoms"
+  (before (reset-all-atoms!))
+
+  (it "save-menu-open defaults to false"
+    (should= false (test-utils/read-test-state :save-menu-open)))
+
+  (it "save-menu-input defaults to empty string"
+    (should= "" (test-utils/read-test-state :save-menu-input)))
+
+  (it "save-menu-default-active defaults to false"
+    (should= false (test-utils/read-test-state :save-menu-default-active))))
+
 (describe "list-save-files"
   (it "returns empty vector when saves directory doesn't exist"
     (should= [] (save-load/list-save-files "nonexistent-dir")))
@@ -71,6 +83,16 @@
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir))))))
 
+  (it "uses provided filename and appends .edn when missing"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
+      (try
+        (let [filename (save-load/save-game! dir "my-save")]
+          (should= "my-save.edn" filename)
+          (should (.exists (java.io.File. dir "my-save.edn"))))
+        (finally
+          (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
+          (.delete (java.io.File. dir))))))
+
   (it "saves game-map atom value"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")
           test-map [[{:type :land}]]]
@@ -82,6 +104,19 @@
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir)))))))
+
+(describe "normalize-save-filename"
+  (it "adds .edn when extension is missing"
+    (should= "alpha.edn" (save-load/normalize-save-filename "alpha")))
+
+  (it "keeps .edn when already present"
+    (should= "alpha.edn" (save-load/normalize-save-filename "alpha.edn")))
+
+  (it "trims whitespace from input"
+    (should= "alpha.edn" (save-load/normalize-save-filename " alpha ")))
+
+  (it "falls back to timestamped name for blank input"
+    (should (.startsWith (save-load/normalize-save-filename "   ") "save-"))))
 
 (describe "saveable-atoms"
   (it "contains game-map"
@@ -173,6 +208,34 @@
     (test-utils/set-test-state! :load-menu-hovered 2)
     (save-load/close-load-menu!)
     (should-be-nil (test-utils/read-test-state :load-menu-hovered))))
+
+(describe "save menu operations"
+  (before (reset-all-atoms!))
+
+  (it "open-save-menu! opens menu with timestamped default input"
+    (save-load/open-save-menu!)
+    (should= true (test-utils/read-test-state :save-menu-open))
+    (should= true (test-utils/read-test-state :save-menu-default-active))
+    (should (.startsWith (test-utils/read-test-state :save-menu-input) "save-")))
+
+  (it "close-save-menu! closes menu"
+    (test-utils/set-test-state! :save-menu-open true)
+    (test-utils/set-test-state! :save-menu-default-active true)
+    (save-load/close-save-menu!)
+    (should= false (test-utils/read-test-state :save-menu-open))
+    (should= false (test-utils/read-test-state :save-menu-default-active)))
+
+  (it "save-from-menu! saves using current input and closes menu"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
+      (try
+        (.mkdirs (java.io.File. dir))
+        (test-utils/set-test-state! :save-menu-open true)
+        (test-utils/set-test-state! :save-menu-input "named-save")
+        (with-redefs [save-load/save-game! (fn [_ input] (str input ".edn"))]
+          (should= "named-save.edn" (save-load/save-from-menu!))
+          (should= false (test-utils/read-test-state :save-menu-open)))
+        (finally
+          (.delete (java.io.File. dir)))))))
 
 (describe "menu-geometry"
   (it "calculates exact values for 3 files"

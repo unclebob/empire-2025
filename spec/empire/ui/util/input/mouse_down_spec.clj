@@ -31,6 +31,13 @@
           (dispatch/mouse-down 50 50 :right))
         (should= false @loaded))))
 
+  (context "when save menu is open"
+    (it "ignores left click while save menu is open"
+      (test-utils/set-test-state! :save-menu-open true)
+      (test-utils/set-test-state! :last-clicked-cell nil)
+      (dispatch/mouse-down 150 150 :left)
+      (should-be-nil (test-utils/read-test-state :last-clicked-cell))))
+
   (context "normal map click"
     (it "sets last-clicked-cell on left click within map"
       (dispatch/mouse-down 150 150 :left)

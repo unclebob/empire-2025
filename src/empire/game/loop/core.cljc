@@ -149,6 +149,7 @@
   []
   (cond
     (sa/read-state :load-menu-open) nil
+    (sa/read-state :save-menu-open) nil
     (sa/read-state :paused) nil
     (both-lists-empty?) (handle-pause-or-new-round)
     (sa/read-state :waiting-for-input) nil
