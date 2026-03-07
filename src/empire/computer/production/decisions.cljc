@@ -107,9 +107,25 @@
 (defn- early-patrol-boat-needed? [coastal?]
   (and coastal? (not (sa/read-state :early-patrol-boat-produced?))))
 
+(defn- has-distinct-army-and-transport-producers?
+  []
+  (let [production (sa/read-state :production)
+        army-cities (set (for [[coords prod] production
+                               :when (and (map? prod) (= :army (:item prod)))]
+                           coords))
+        transport-cities (set (for [[coords prod] production
+                                    :when (and (map? prod) (= :transport (:item prod)))]
+                                coords))]
+    (boolean (some #(contains? transport-cities %)
+                   (for [a army-cities
+                         t transport-cities
+                         :when (not= a t)]
+                     t)))))
+
 (defn- early-satellite-needed? [coastal?]
   (and (sa/read-state :early-patrol-boat-produced?)
        (not (sa/read-state :early-satellite-produced?))
+       (has-distinct-army-and-transport-producers?)
        (or (not coastal?) (not (has-inland-computer-city?)))))
 
 (defn- decide-early-production [city-pos coastal?]

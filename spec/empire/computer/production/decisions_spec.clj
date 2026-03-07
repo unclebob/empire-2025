@@ -43,6 +43,8 @@
     (test-utils/set-test-state! :early-satellite-produced? false)
     (should= :patrol-boat (#'decisions/decide-early-production [0 0] true))
     (should (test-utils/read-test-state :early-patrol-boat-produced?))
+    (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 2}
+                                             [1 0] {:item :transport :remaining-rounds 2}})
     (should= :satellite (#'decisions/decide-early-production [0 0] false))
     (should (test-utils/read-test-state :early-satellite-produced?)))
 

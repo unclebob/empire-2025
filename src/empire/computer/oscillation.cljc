@@ -46,18 +46,13 @@
 (defn maybe-enter-random-walk
   ([unit restore-keys]
    (maybe-enter-random-walk unit restore-keys nil))
-  ([unit restore-keys context]
+  ([unit restore-keys _context]
   (if (or (in-random-walk? unit)
           (not (oscillating? unit)))
     unit
     (let [snapshot (into {}
                          (for [k restore-keys]
                            [k (if (contains? unit k) (get unit k) missing)]))]
-      (when context
-        (println (str "OSCILLATION "
-                      (name (:unit-type context))
-                      " at " (:pos context)
-                      " -> random-walk " escape-rounds " rounds")))
       (-> unit
           (assoc :oscillation-random-walk-rounds-left escape-rounds)
           (assoc :oscillation-restore snapshot))))))

@@ -337,6 +337,8 @@
         (test-utils/set-test-state! :transport-fully-loaded? true)
         (test-utils/set-test-state! :early-patrol-boat-produced? true)
         (test-utils/set-test-state! :early-satellite-produced? false)
+        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 2}
+                                                 [1 2] {:item :transport :remaining-rounds 2}})
         (update-test-world! assoc-in [1 2 :country-id] 1)
         (production/rebuild-country-stats!)
         (should= :satellite (production/decide-production [1 2]))))
@@ -377,8 +379,24 @@
         (test-utils/set-test-state! :transport-fully-loaded? true)
         (test-utils/set-test-state! :early-patrol-boat-produced? true)
         (test-utils/set-test-state! :early-satellite-produced? false)
+        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 2}
+                                                 [2 0] {:item :transport :remaining-rounds 2}})
         (update-test-world! assoc-in [0 0 :country-id] 1)
         (production/rebuild-country-stats!)
-        (should= :satellite (production/decide-production [0 0]))))))
+        (should= :satellite (production/decide-production [0 0]))))
+
+    (it "does not produce early satellite without distinct army and transport producers"
+      (let [game-map (build-test-map ["X~~~"
+                                      "####"
+                                      "#X##"
+                                      "####"])]
+        (set-test-world! game-map)
+        (test-utils/set-test-state! :transport-fully-loaded? true)
+        (test-utils/set-test-state! :early-patrol-boat-produced? true)
+        (test-utils/set-test-state! :early-satellite-produced? false)
+        (test-utils/set-test-state! :production {[1 2] {:item :army :remaining-rounds 2}})
+        (update-test-world! assoc-in [1 2 :country-id] 1)
+        (production/rebuild-country-stats!)
+        (should-not= :satellite (production/decide-production [1 2]))))))
 
 (run-specs)

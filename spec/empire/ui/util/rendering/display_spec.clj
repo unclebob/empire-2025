@@ -286,35 +286,20 @@
     (should= :g (display/resolve-display-map :actual-map :p :c :g))))
 
 (describe "resolve-center-lines"
-  (it "shows invasion status lines on computer-map"
+  (it "shows debug lines on computer-map"
     (let [lines (display/resolve-center-lines :computer-map
-                                              {:active? false
-                                               :decision :deferred
-                                               :failure-reason :no-sea-path
-                                               :next-review-round 15
-                                               :started-round 5
-                                               :detection-points #{[1 1] [3 2]}}
+                                              {}
                                               10
-                                              "ignored debug")]
-      (should= ["Invasion: deferred"
-                "Reason: no-sea-path  Targets:2"
-                "Retries: 0  Next:5r"]
+                                              "line1\nline2\nline3\nline4")]
+      (should= ["line1" "line2" "line3"]
                lines)))
 
-  (it "shows active invasion state without review countdown"
+  (it "returns empty vector for nil debug message on computer-map"
     (let [lines (display/resolve-center-lines :computer-map
-                                              {:active? true
-                                               :decision :ready
-                                               :failure-reason nil
-                                               :next-review-round nil
-                                               :started-round 2
-                                               :detection-points #{[1 1]}}
+                                              {}
                                               10
                                               nil)]
-      (should= ["Invasion: active"
-                "Reason: none  Targets:1"
-                "Retries: 0  Next:-"]
-               lines)))
+      (should= [] lines)))
 
   (it "falls back to debug lines when not on computer-map"
     (should= ["line1" "line2" "line3"]
