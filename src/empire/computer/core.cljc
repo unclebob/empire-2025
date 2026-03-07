@@ -4,6 +4,7 @@
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.game-mechanics.services.combat :as combat]
+            [empire.computer.oscillation :as oscillation]
             [empire.game-mechanics.debug.logging :as debug]))
 
 (def neighbor-offsets
@@ -123,6 +124,9 @@
       (do
         (sa/update-world! assoc-in from-pos (dissoc from-cell :contents))
         (sa/update-world! assoc-in (conj to-pos :contents) unit)
+        (when (#{:patrol-boat :transport} (:type unit))
+          (sa/update-world! update-in (conj to-pos :contents)
+                            oscillation/append-position to-pos))
         (stamp-territory to-pos unit)
         (update-cell-visibility! from-pos (:owner unit))
         (update-cell-visibility! to-pos (:owner unit) unit)
@@ -245,4 +249,3 @@
         (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
         (update-cell-visibility! army-pos :computer)
         nil))))
-

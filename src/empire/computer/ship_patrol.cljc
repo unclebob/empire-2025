@@ -5,6 +5,7 @@
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.computer.oscillation :as oscillation]
             [empire.computer.ship-core :as ship-core]))
 
 (defn- update-cell-visibility!
@@ -200,13 +201,37 @@
    Nil results (reflections, blocked) consume a step but loop continues.
    Stops if unit is destroyed in combat."
   [pos]
-  (loop [current-pos pos steps-left 4]
-    (if (or (zero? steps-left)
-            (nil? (get-in (sa/current-world) (conj current-pos :contents))))
-      current-pos
-      (if (and (:major-invasion (get-in (sa/current-world) (conj current-pos :contents)))
-               (ship-core/find-adjacent-enemy-ship current-pos))
-        (or (major-invasion-step current-pos) current-pos)
-        (if-let [new-pos (patrol-boat-step current-pos)]
-          (recur new-pos (dec steps-left))
-          (recur current-pos (dec steps-left)))))))
+  (let [restore-keys [:patrol-mode :explore-path]]
+    (sa/update-world! update-in (conj pos :contents)
+                      #(oscillation/maybe-enter-random-walk % restore-keys
+                                                            {:unit-type :patrol-boat
+                                                             :pos pos}))
+    (if (oscillation/in-random-walk? (get-in (sa/current-world) (conj pos :contents)))
+      (let [final-pos (loop [current-pos pos
+                             steps-left 4]
+                        (if (zero? steps-left)
+                          current-pos
+                          (let [passable (ship-core/get-passable-sea-neighbors current-pos)
+                                empty-passable (filter #(nil? (:contents (get-in (sa/current-world) %))) passable)]
+                            (if-let [target (when (seq empty-passable) (rand-nth empty-passable))]
+                              (do
+                                (core/move-unit-to current-pos target)
+                                (update-cell-visibility! current-pos :computer)
+                                (update-cell-visibility! target :computer)
+                                (recur target (dec steps-left)))
+                              (recur current-pos (dec steps-left))))))]
+        (sa/update-world! update-in (conj final-pos :contents)
+                          #(-> %
+                               oscillation/dec-random-walk
+                               oscillation/maybe-restore))
+        final-pos)
+      (loop [current-pos pos steps-left 4]
+        (if (or (zero? steps-left)
+                (nil? (get-in (sa/current-world) (conj current-pos :contents))))
+          current-pos
+          (if (and (:major-invasion (get-in (sa/current-world) (conj current-pos :contents)))
+                   (ship-core/find-adjacent-enemy-ship current-pos))
+            (or (major-invasion-step current-pos) current-pos)
+            (if-let [new-pos (patrol-boat-step current-pos)]
+              (recur new-pos (dec steps-left))
+              (recur current-pos (dec steps-left)))))))))
