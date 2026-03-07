@@ -454,7 +454,21 @@
         (set-test-world! (build-test-map ["X"]))
         (set-test-computer-map! (build-test-map ["X"]))
         (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) [0 0]))
-        (should= :player (get-in (test-utils/read-test-state :computer-map) [0 0 :city-status])))))
+        (should= :player (get-in (test-utils/read-test-state :computer-map) [0 0 :city-status]))))
+
+    (it "declares resignation when player conquers the last computer city"
+      (with-redefs [rand (constantly 0.1)]
+        (set-test-world! (build-test-map ["X"]))
+        (set-test-computer-map! (build-test-map ["X"]))
+        (test-utils/set-test-state! :game-over-check-enabled true)
+        (test-utils/set-test-state! :player-items [[0 0]])
+        (test-utils/set-test-state! :computer-items [[1 0]])
+        (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) [0 0]))
+        (should (test-utils/read-test-state :paused))
+        (should-contain "I Resign" (test-utils/read-test-state :error-message))
+        (should= :actual-map (test-utils/read-test-state :map-to-display))
+        (should= [] (vec (test-utils/read-test-state :player-items)))
+        (should= [] (vec (test-utils/read-test-state :computer-items))))))
 
   (context "attempt-fighter-overfly"
     (it "returns a result map"

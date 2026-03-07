@@ -14,33 +14,10 @@
             [empire.game-mechanics.movement.explore :as explore]
             [empire.game-mechanics.movement.coastline :as coastline]))
 
-(defn- computer-has-items?
-  "Returns true if computer has any cities or units on the map."
-  []
-  (let [game-map (sa/current-world)]
-    (some (fn [col]
-            (some (fn [cell]
-                    (or (= (:city-status cell) :computer)
-                        (= (:owner (:contents cell)) :computer)))
-                  col))
-          game-map)))
-
-(defn- declare-victory!
-  "Declares player victory, pauses game, and flushes remaining items."
-  []
-  (sa/write-state! :paused true)
-  (sa/write-state! :error-message "****YOU WIN!*****")
-  (sa/write-state! :error-until Long/MAX_VALUE)
-  (sa/write-state! :map-to-display :actual-map)
-  (sa/write-state! :player-items [])
-  (sa/write-state! :computer-items []))
-
 (defn check-player-victory!
-  "Checks if player has won (no computer items remain) and declares victory if so."
+  "Game-over from city elimination is handled at city-conquest time."
   []
-  (when (and (sa/read-state :game-over-check-enabled)
-             (not (computer-has-items?)))
-    (declare-victory!)))
+  nil)
 
 (defn- advance-step
   "Decrements steps-remaining for unit at pos. Returns pos if steps remain, nil otherwise."

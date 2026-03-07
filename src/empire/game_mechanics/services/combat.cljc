@@ -170,20 +170,45 @@
   [world target-coords]
   (domain-combat/hostile-city? world target-coords))
 
+(defn- has-city?
+  [world owner]
+  (boolean
+   (some (fn [col]
+           (some #(and (= :city (:type %))
+                       (= owner (:city-status %)))
+                 col))
+         world)))
+
+(defn- city-elimination-game-over-updates
+  [message]
+  {:paused true
+   :error-message message
+   :error-until Long/MAX_VALUE
+   :map-to-display :actual-map
+   :player-items []
+   :computer-items []})
+
 (defn attempt-city-conquest
   [world city-coords]
   (let [city-cell (get-in world city-coords)]
     (if (< (rand) 0.5)
-      (let [new-world (-> world
+      (let [captured-computer-city? (= :computer (:city-status city-cell))
+            new-world (-> world
                           (assoc-in city-coords (assoc city-cell :city-status :player))
-                          (conquer-city-contents-pure city-coords :player))]
+                          (conquer-city-contents-pure city-coords :player))
+            resigns? (and (sa/read-state :game-over-check-enabled)
+                          captured-computer-city?
+                          (not (has-city? new-world :computer)))]
         {:world new-world
          :messages {}
          :state-updates (cond-> {:production #(dissoc % city-coords)
                                  :computer-carrier-positions #(disj % city-coords)
                                  :computer-map #(assoc-in % (conj city-coords :city-status) :player)}
-                          (= :computer (:city-status city-cell))
-                          (assoc :computer-city-positions #(disj % city-coords)))
+                          captured-computer-city?
+                          (assoc :computer-city-positions #(disj % city-coords))
+                          resigns?
+                          (merge (city-elimination-game-over-updates
+                                  "****GAME OVER*****  I Resign  YOU WIN!")))
          :visibility [{:pos city-coords :owner :player}]
          :combatant true})
       {:world world

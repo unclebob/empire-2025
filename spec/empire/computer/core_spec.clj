@@ -224,7 +224,22 @@
     (set-test-player-map! (build-test-map ["a+"]))
     (with-redefs [rand (constantly 0.1)]
       (core/attempt-conquest-computer [0 0] [1 0])
-      (should= :free (get-in (test-utils/read-test-state :player-map) [1 0 :city-status])))))
+      (should= :free (get-in (test-utils/read-test-state :player-map) [1 0 :city-status]))))
+
+  (it "declares defeat when computer conquers the last player city"
+    (set-test-world! (build-test-map ["aO"]))
+    (set-test-computer-map! (build-test-map ["aO"]))
+    (set-test-player-map! (build-test-map ["aO"]))
+    (test-utils/set-test-state! :game-over-check-enabled true)
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (test-utils/set-test-state! :computer-items [[1 0]])
+    (with-redefs [rand (constantly 0.1)]
+      (core/attempt-conquest-computer [0 0] [1 0])
+      (should (test-utils/read-test-state :paused))
+      (should-contain "You Lose" (test-utils/read-test-state :error-message))
+      (should= :actual-map (test-utils/read-test-state :map-to-display))
+      (should= [] (vec (test-utils/read-test-state :player-items)))
+      (should= [] (vec (test-utils/read-test-state :computer-items))))))
 
 (describe "wake-nearby-sentries"
   (before (reset-all-atoms!))

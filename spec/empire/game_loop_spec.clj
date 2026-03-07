@@ -424,7 +424,7 @@
       (test-utils/set-test-state! :game-over-check-enabled true)
       (game-loop/start-new-round)
       (should= true (test-utils/read-test-state :paused))
-      (should-contain "GAME OVER" (test-utils/read-test-state :error-message))))
+      (should-contain "You Lose" (test-utils/read-test-state :error-message))))
 
   (it "does not set game over when player items exist"
     (let [m (build-test-map ["OX"])]
@@ -435,7 +435,7 @@
       (game-loop/start-new-round)
       (should= false (test-utils/read-test-state :paused))))
 
-  (it "detects victory when no computer items"
+  (it "detects resignation when no computer items"
     (let [m (build-test-map ["O"])]
       (set-test-world! m)
       (set-test-player-map! m)
@@ -443,7 +443,7 @@
       (test-utils/set-test-state! :game-over-check-enabled true)
       (game-loop/start-new-round)
       (should= true (test-utils/read-test-state :paused))
-      (should-contain "YOU WIN" (test-utils/read-test-state :error-message))))
+      (should-contain "I Resign" (test-utils/read-test-state :error-message))))
 
   (it "does not set victory when computer items exist"
     (let [m (build-test-map ["OX"])]

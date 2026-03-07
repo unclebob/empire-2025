@@ -269,8 +269,8 @@
     (reset-all-atoms!)
     (test-utils/set-test-state! :game-over-check-enabled true))
 
-  (context "game over"
-    (it "pauses game when player has no cities and no units"
+  (context "round start elimination with empty item lists"
+    (it "pauses game when player has no cities or units"
       (set-test-world! (build-test-map ["X#"]))  ;; Only computer city
       (set-test-player-map! (build-test-map ["##"]))
       (set-test-computer-map! (build-test-map ["##"]))
@@ -279,44 +279,17 @@
       (game-loop/start-new-round)
       (should (test-utils/read-test-state :paused)))
 
-    (it "displays ****GAME OVER***** in error message"
-      (set-test-world! (build-test-map ["X#"]))  ;; Only computer city
-      (set-test-player-map! (build-test-map ["##"]))
-      (set-test-computer-map! (build-test-map ["##"]))
-      (test-utils/set-test-state! :production {})
-      (test-utils/set-test-state! :error-message "")
-      (game-loop/start-new-round)
-      (should= "****GAME OVER*****" (test-utils/read-test-state :error-message)))
-
-    (it "does not trigger game over when player has a city"
-      (set-test-world! (build-test-map ["OX"]))  ;; Player has a city
-      (set-test-player-map! (build-test-map ["##"]))
-      (set-test-computer-map! (build-test-map ["##"]))
-      (test-utils/set-test-state! :production {})
-      (test-utils/set-test-state! :paused false)
-      (game-loop/start-new-round)
-      (should-not (test-utils/read-test-state :paused)))
-
-    (it "does not trigger game over when player has a unit"
+    (it "does not pause game when player only has a unit at round start"
       (set-test-world! (build-test-map ["AX"]))  ;; Player has an army
       (set-test-player-map! (build-test-map ["##"]))
       (set-test-computer-map! (build-test-map ["##"]))
       (test-utils/set-test-state! :production {})
       (test-utils/set-test-state! :paused false)
       (game-loop/start-new-round)
-      (should-not (test-utils/read-test-state :paused)))
+      (should-not (test-utils/read-test-state :paused))))
 
-    (it "switches map display to actual-map on game over"
-      (set-test-world! (build-test-map ["X#"]))  ;; Only computer city
-      (set-test-player-map! (build-test-map ["##"]))
-      (set-test-computer-map! (build-test-map ["##"]))
-      (test-utils/set-test-state! :production {})
-      (test-utils/set-test-state! :map-to-display :player-map)
-      (game-loop/start-new-round)
-      (should= :actual-map (test-utils/read-test-state :map-to-display))))
-
-  (context "player victory"
-    (it "pauses game when computer has no cities and no units"
+  (context "round start resignation with empty item lists"
+    (it "pauses game when computer has no cities or units"
       (set-test-world! (build-test-map ["O#"]))  ;; Only player city
       (set-test-player-map! (build-test-map ["##"]))
       (set-test-computer-map! (build-test-map ["##"]))
@@ -325,25 +298,7 @@
       (game-loop/start-new-round)
       (should (test-utils/read-test-state :paused)))
 
-    (it "displays ****YOU WIN!***** in error message"
-      (set-test-world! (build-test-map ["O#"]))  ;; Only player city
-      (set-test-player-map! (build-test-map ["##"]))
-      (set-test-computer-map! (build-test-map ["##"]))
-      (test-utils/set-test-state! :production {})
-      (test-utils/set-test-state! :error-message "")
-      (game-loop/start-new-round)
-      (should= "****YOU WIN!*****" (test-utils/read-test-state :error-message)))
-
-    (it "does not trigger victory when computer has a city"
-      (set-test-world! (build-test-map ["OX"]))  ;; Computer has a city
-      (set-test-player-map! (build-test-map ["##"]))
-      (set-test-computer-map! (build-test-map ["##"]))
-      (test-utils/set-test-state! :production {})
-      (test-utils/set-test-state! :paused false)
-      (game-loop/start-new-round)
-      (should-not (test-utils/read-test-state :paused)))
-
-    (it "does not trigger victory when computer has a unit"
+    (it "does not pause game when computer only has a unit at round start"
       (set-test-world! (build-test-map ["Oa"]))  ;; Computer has an army
       (set-test-player-map! (build-test-map ["##"]))
       (set-test-computer-map! (build-test-map ["##"]))
@@ -352,19 +307,8 @@
       (game-loop/start-new-round)
       (should-not (test-utils/read-test-state :paused)))
 
-    (it "switches map display to actual-map on victory"
-      (set-test-world! (build-test-map ["O#"]))  ;; Only player city
-      (set-test-player-map! (build-test-map ["##"]))
-      (set-test-computer-map! (build-test-map ["##"]))
-      (test-utils/set-test-state! :production {})
-      (test-utils/set-test-state! :map-to-display :player-map)
-      (game-loop/start-new-round)
-      (should= :actual-map (test-utils/read-test-state :map-to-display)))
-
-    (it "declares victory immediately after player move eliminates last computer"
-      ;; Scenario: player has two armies, computer has one army
-      ;; First army kills computer army, victory should be declared immediately
-      ;; Second army should NOT get attention
+    (it "does not end game when player only eliminates the last computer unit"
+      ;; Eliminating units alone should not end the game; city elimination triggers game over.
       (set-test-world! (build-test-map ["Aa#A"]))
       (set-test-unit (test-utils/game-map-atom) "A1" :mode :awake :steps-remaining 1)
       (set-test-unit (test-utils/game-map-atom) "A2" :mode :awake :steps-remaining 1)
@@ -384,7 +328,4 @@
       ;; Step 3: advance-game triggers combat; mock rand so player wins
       (with-redefs [rand (constantly 0.0)]
         (game-loop/advance-game))
-      (should (test-utils/read-test-state :paused))
-      (should= "****YOU WIN!*****" (test-utils/read-test-state :error-message))
-      (should= :actual-map (test-utils/read-test-state :map-to-display))
-      (should= [] (vec (test-utils/read-test-state :player-items))))))
+      (should-not (test-utils/read-test-state :paused)))))

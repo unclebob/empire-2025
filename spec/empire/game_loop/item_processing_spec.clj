@@ -44,12 +44,11 @@
 (describe "check-player-victory!"
   (before (reset-all-atoms!))
 
-  (it "declares victory when no computer items on map (L39)"
+  (it "does not pause game when no computer city exists"
     (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land}]])
     (ip/check-player-victory!)
-    (should= true (test-utils/read-test-state :paused))
-    (should-contain "YOU WIN" (test-utils/read-test-state :error-message)))
+    (should= false (test-utils/read-test-state :paused)))
 
   (it "does not declare victory when computer city exists (L21)"
     (test-utils/set-test-state! :game-over-check-enabled true)
@@ -63,14 +62,14 @@
     (ip/check-player-victory!)
     (should= false (test-utils/read-test-state :paused)))
 
-  (it "flushes both item lists on victory (L29, L32, L33)"
+  (it "does not flush item lists (city elimination handled on conquest)"
     (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land}]])
     (test-utils/set-test-state! :player-items [[0 0]])
     (test-utils/set-test-state! :computer-items [[1 1]])
     (ip/check-player-victory!)
-    (should= [] (test-utils/read-test-state :player-items))
-    (should= [] (test-utils/read-test-state :computer-items)))
+    (should= [[0 0]] (test-utils/read-test-state :player-items))
+    (should= [[1 1]] (test-utils/read-test-state :computer-items)))
 
   (it "does not declare victory when check disabled"
     (test-utils/set-test-state! :game-over-check-enabled false)
@@ -708,7 +707,9 @@
       (test-utils/set-test-state! :computer-items (vec (apply concat (repeat 5 coords))))
       (should= 125 (count (test-utils/read-test-state :computer-items)))
       (ip/process-computer-items)
-      (should= 25 (count (test-utils/read-test-state :computer-items))))))
+      (should= 25 (count (test-utils/read-test-state :computer-items)))))
+
+  )
 
 ;; ===== process-player-items-batch =====
 
@@ -753,14 +754,13 @@
       (should (test-utils/read-test-state :waiting-for-input))
       (should= [[1 1]] (test-utils/read-test-state :cells-needing-attention))))
 
-  (it "declares victory when computer has no items left"
+  (it "does not declare resignation when computer has no cities left"
     (let [game-map (make-land-map 3)]
       (set-test-world! game-map)
       (test-utils/set-test-state! :game-over-check-enabled true)
       (test-utils/set-test-state! :player-items (list [0 0] [1 1]))
       (ip/process-player-items-batch)
-      (should (test-utils/read-test-state :paused))
-      (should= "****YOU WIN!*****" (test-utils/read-test-state :error-message)))))
+      (should-not (test-utils/read-test-state :paused)))))
 
 (describe "satellite-with-target?"
   (it "returns truthy for satellite with target"
@@ -834,13 +834,13 @@
         (ip/process-player-items-batch)
         (should (<= @call-count 100)))))
 
-  (it "stops when paused (victory declared mid-batch)"
+  (it "does not pause when no city conquest occurred mid-batch"
     (test-utils/set-test-state! :game-over-check-enabled true)
     (set-test-world! [[{:type :land} {:type :land}]])
     (test-utils/set-test-state! :player-items [[0 0] [1 0]])
     (with-redefs [attention/item-needs-attention? (fn [_] false)
                   attention/set-attention-message (fn [_])]
       (ip/process-player-items-batch)
-      (should (test-utils/read-test-state :paused)))))
+      (should-not (test-utils/read-test-state :paused)))))
 
 (run-specs)

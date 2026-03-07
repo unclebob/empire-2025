@@ -75,6 +75,25 @@
   [[r1 c1] [r2 c2]]
   (max (Math/abs (- r2 r1)) (Math/abs (- c2 c1))))
 
+(defn- has-city?
+  [owner]
+  (let [world (sa/current-world)]
+    (boolean
+     (some (fn [col]
+             (some #(and (= :city (:type %))
+                         (= owner (:city-status %)))
+                   col))
+           world))))
+
+(defn- declare-game-over!
+  [message]
+  (sa/write-state! :paused true)
+  (sa/write-state! :error-message message)
+  (sa/write-state! :error-until Long/MAX_VALUE)
+  (sa/write-state! :map-to-display :actual-map)
+  (sa/write-state! :player-items [])
+  (sa/write-state! :computer-items []))
+
 (defn attackable-target?
   [cell]
   (or (and (= (:type cell) :city)
@@ -243,6 +262,10 @@
             (city-production/set-city-production city-pos :army)))
         (update-cell-visibility! army-pos :computer)
         (update-cell-visibility! city-pos :computer)
+        (when (and (sa/read-state :game-over-check-enabled)
+                   (= :player (:city-status city-cell))
+                   (not (has-city? :player)))
+          (declare-game-over! "****GAME OVER*****  You Lose"))
         nil)
       (do
         (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})

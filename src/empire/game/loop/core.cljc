@@ -57,6 +57,15 @@
                   (= (:owner (:contents cell)) :computer))]
       [i j])))
 
+(defn- declare-game-over!
+  [message]
+  (sa/write-state! :paused true)
+  (sa/write-state! :error-message message)
+  (sa/write-state! :error-until Long/MAX_VALUE)
+  (sa/write-state! :map-to-display :actual-map)
+  (sa/write-state! :player-items [])
+  (sa/write-state! :computer-items []))
+
 (defn item-processed
   "Called when user input has been processed for current item.
    Victory check happens in item-processing/process-player-items-batch."
@@ -108,18 +117,15 @@
     (sa/write-state! :computer-items computer-items)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
-    ;; Check for game over: no player cities or units
-    (when (and (sa/read-state :game-over-check-enabled) (empty? player-items))
-      (sa/write-state! :paused true)
-      (sa/write-state! :error-message "****GAME OVER*****")
-      (sa/write-state! :error-until Long/MAX_VALUE)
-      (sa/write-state! :map-to-display :actual-map))
-    ;; Check for victory: no computer cities or units
-    (when (and (sa/read-state :game-over-check-enabled) (empty? computer-items))
-      (sa/write-state! :paused true)
-      (sa/write-state! :error-message "****YOU WIN!*****")
-      (sa/write-state! :error-until Long/MAX_VALUE)
-      (sa/write-state! :map-to-display :actual-map)))
+    (when (sa/read-state :game-over-check-enabled)
+      (cond
+        (empty? player-items)
+        (declare-game-over! "****GAME OVER*****  You Lose")
+
+        (empty? computer-items)
+        (declare-game-over! "****GAME OVER*****  I Resign  YOU WIN!")
+
+        :else nil)))
   (sa/write-state! :waiting-for-input false)
   (sa/write-state! :attention-message "")
   (sa/write-state! :cells-needing-attention [])
