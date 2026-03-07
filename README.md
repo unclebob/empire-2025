@@ -40,7 +40,7 @@ Run component dependency analysis:
 
 Dependency checker usage, metrics, config, and policy notes are documented in:
 
-- `src/empire/architecture/dependency_checker/README.md`
+- `~/projects/clojure/dependency-checker/README.md`
 
 Run acceptance pipeline (parse scenarios, generate specs, enforce acceptance boundaries, run generated acceptance specs):
 
