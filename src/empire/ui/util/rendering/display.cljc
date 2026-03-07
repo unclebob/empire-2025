@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-03-01
 (ns empire.ui.util.rendering.display
-  (:require [empire.state.api :as sa]
+  (:require [clojure.string :as str]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.movement.lakes :as lakes]
@@ -158,3 +159,55 @@
     (if (fmt/should-show-paused? paused pause-requested)
       {:text (str "PAUSED  " round-str) :paused? true :round-str round-str}
       {:text round-str :paused? false})))
+
+(def ^:private invasion-review-interval-rounds 10)
+
+(defn- invasion-status-label
+  [major-invasion-state]
+  (cond
+    (:active? major-invasion-state) "active"
+    (= :deferred (:decision major-invasion-state)) "deferred"
+    :else "idle"))
+
+(defn- reason-label
+  [major-invasion-state]
+  (if-let [reason (:failure-reason major-invasion-state)]
+    (name reason)
+    "none"))
+
+(defn- retry-count
+  [major-invasion-state round-number]
+  (let [started-round (:started-round major-invasion-state)]
+    (if (and (= :deferred (:decision major-invasion-state))
+             (number? started-round)
+             (number? round-number))
+      (max 0 (quot (- round-number started-round) invasion-review-interval-rounds))
+      0)))
+
+(defn- rounds-until-review
+  [major-invasion-state round-number]
+  (let [next-review-round (:next-review-round major-invasion-state)]
+    (when (and (number? next-review-round) (number? round-number))
+      (max 0 (- next-review-round round-number)))))
+
+(defn- invasion-center-lines
+  [major-invasion-state round-number]
+  (let [targets (count (:detection-points major-invasion-state))
+        retries (retry-count major-invasion-state round-number)
+        until-review (rounds-until-review major-invasion-state round-number)
+        review-label (if (number? until-review) (str until-review "r") "-")]
+    [(str "Invasion: " (invasion-status-label major-invasion-state))
+     (str "Reason: " (reason-label major-invasion-state) "  Targets:" targets)
+     (str "Retries: " retries "  Next:" review-label)]))
+
+(defn resolve-center-lines
+  "Returns up to three center-region lines.
+   On computer-map display, shows invasion status and retry information.
+   On other displays, falls back to debug message lines."
+  [map-to-display major-invasion-state round-number debug-message]
+  (if (= :computer-map map-to-display)
+    (invasion-center-lines major-invasion-state round-number)
+    (->> (str/split (or debug-message "") #"\n")
+         (take 3)
+         (filter seq)
+         vec)))

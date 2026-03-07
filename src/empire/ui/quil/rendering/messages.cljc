@@ -1,6 +1,5 @@
 (ns empire.ui.quil.rendering.messages
-  (:require [clojure.string :as str]
-            [empire.state.api :as sa]
+  (:require [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
@@ -52,10 +51,12 @@
 (defn- draw-debug
   "Draws the debug message centered in the Debug region."
   [debug-x debug-w text-y]
-  (let [debug-message (sa/read-state :debug-message)]
-    (when (seq debug-message)
+  (let [lines (display/resolve-center-lines (sa/read-state :map-to-display)
+                                            (sa/read-state :major-invasion-state)
+                                            (sa/read-state :round-number)
+                                            (sa/read-state :debug-message))]
+    (when (seq lines)
       (let [center-x (+ debug-x (/ debug-w 2))
-            lines (str/split debug-message #"\n")
             y-offsets [config/msg-line-1-y config/msg-line-2-y config/msg-line-3-y]]
         (q/fill 0 255 255)
         (doseq [[line y-off] (map vector (take 3 lines) y-offsets)]
