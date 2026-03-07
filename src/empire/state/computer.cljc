@@ -17,9 +17,13 @@
    :seen-coast #{}
    :land-ho-targets []
    :major-invasion-state {:active? false
+                          :decision nil
+                          :failure-reason nil
+                          :next-review-round nil
                           :detection-points #{}
                           :target-land-set #{}
-                          :started-round nil}
+                          :started-round nil
+                          :first-landing-round nil}
    :transport-fully-loaded? false
    :early-patrol-boat-produced? false
    :early-satellite-produced? false

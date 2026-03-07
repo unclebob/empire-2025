@@ -5,6 +5,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fighter-movement]
+            [empire.computer.threat-response.invasion-decision :as invasion-decision]
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.major-invasion :as major-invasion]
             [empire.computer.threat-response.processing :as processing]
@@ -182,7 +183,96 @@
 
       :else nil)))
 
-(defn- activate-major-invasion!
+(defn- current-round
+  []
+  (or (sa/read-state :round-number) 0))
+
+(defn- next-review-round
+  []
+  (+ (current-round) invasion-decision/review-interval-rounds))
+
+(defn- mission-needs-reset?
+  [unit]
+  (and (= :transport (:type unit))
+       (#{:invading :unloading :load-for-invasion :find-armies-for-invasion}
+        (:transport-mission unit))))
+
+(declare refresh-major-invasion-assignments!)
+
+(defn- clear-major-invasion-from-unit
+  [unit]
+  (let [base (dissoc unit :major-invasion :major-invasion-target)]
+    (if (= :transport (:type base))
+      (let [transport (-> base
+                          (dissoc :major-invasion-find-armies-round
+                                  :major-invasion-skip-revision
+                                  :invasion-target
+                                  :invasion-path
+                                  :invasion-path-origin
+                                  :invasion-plan-revision
+                                  :invasion-load-since))]
+        (if (mission-needs-reset? transport)
+          (assoc transport :transport-mission :sailing)
+          transport))
+      base)))
+
+(defn- stand-down-major-invasion!
+  [failure-reason]
+  (let [game-map (sa/current-world)]
+    (doseq [x (range (count game-map))
+            y (range (count (first game-map)))
+            :let [unit (get-in game-map [x y :contents])]
+            :when (and unit
+                       (= :computer (:owner unit))
+                       (or (:major-invasion unit)
+                           (mission-needs-reset? unit)))]
+      (sa/update-world! update-in [x y :contents] clear-major-invasion-from-unit)))
+  (update-major-invasion-state! assoc
+                                :active? false
+                                :decision :deferred
+                                :failure-reason failure-reason
+                                :next-review-round (next-review-round)
+                                :first-landing-round nil))
+
+(defn- force-patrol-boat-exploration!
+  []
+  (doseq [pos (find-computer-unit-positions #(= :patrol-boat (:type %)))]
+    (sa/update-world! update-in (conj pos :contents)
+                      #(-> %
+                           (assoc :patrol-mode :exploring)
+                           (dissoc :explore-path)))))
+
+(defn- evaluate-major-invasion-start!
+  []
+  (let [state (load-major-invasion-state)
+        evaluation (invasion-decision/evaluate-invasion-start
+                    {:world (sa/current-world)
+                     :computer-map (sa/read-state :computer-map)
+                     :detection-points (:detection-points state)
+                     :computer-sea-unit-types computer-sea-unit-types})]
+    (if (= :ready (:decision evaluation))
+      (do
+        (update-major-invasion-state! assoc
+                                      :active? true
+                                      :decision :ready
+                                      :failure-reason nil
+                                      :next-review-round nil
+                                      :first-landing-round nil
+                                      :sea-reachable-detection-points
+                                      (:sea-reachable-detection-points evaluation))
+        (recompute-major-invasion-target-land!)
+        (recompute-sea-reachable-detection-points!)
+        (refresh-major-invasion-assignments!))
+      (update-major-invasion-state! assoc
+                                    :active? false
+                                    :decision :deferred
+                                    :failure-reason (:failure-reason evaluation)
+                                    :next-review-round (next-review-round)
+                                    :first-landing-round nil
+                                    :sea-reachable-detection-points
+                                    (:sea-reachable-detection-points evaluation)))))
+
+(defn- maybe-record-major-invasion-detection!
   [pos]
   (let [state (load-major-invasion-state)
         nearby-existing? (some #(<= (core/chebyshev-distance pos %) 2)
@@ -191,11 +281,52 @@
                         (not nearby-existing?))]
     (when should-add?
       (update-major-invasion-state!
-       invasion-state/activate-state
-       pos
-       (sa/read-state :round-number))
-      (recompute-major-invasion-target-land!)
-      (recompute-sea-reachable-detection-points!))))
+       (fn [s]
+         (-> s
+             (update :detection-points conj pos)
+             (assoc :started-round (or (:started-round s) (current-round)))))))
+    should-add?))
+
+(defn- handle-major-invasion-detection!
+  [pos]
+  (when (maybe-record-major-invasion-detection! pos)
+    (if (:active? (load-major-invasion-state))
+      (do
+        (recompute-major-invasion-target-land!)
+        (recompute-sea-reachable-detection-points!)
+        (refresh-major-invasion-assignments!))
+      (when (nil? (:decision (load-major-invasion-state)))
+        (evaluate-major-invasion-start!)))))
+
+(defn- maybe-handle-unsustainable-losses!
+  []
+  (let [state (load-major-invasion-state)
+        target-land-set (:target-land-set state)]
+    (when (and (:active? state)
+               (seq target-land-set))
+      (let [world (sa/current-world)
+            armies-on-target (invasion-decision/invasion-armies-on-target-continent world target-land-set)]
+        (when (and (nil? (:first-landing-round state))
+                   (pos? armies-on-target))
+          (update-major-invasion-state! assoc :first-landing-round (current-round)))
+        (let [updated-state (load-major-invasion-state)
+              armies-in-transit (invasion-decision/armies-in-transports-to-target-continent
+                                 world
+                                 target-land-set)]
+          (when (and (:first-landing-round updated-state)
+                     (zero? armies-on-target)
+                     (zero? armies-in-transit))
+            (stand-down-major-invasion! :unsustainable-losses)))))))
+
+(defn- maybe-review-deferred-major-invasion!
+  []
+  (let [state (load-major-invasion-state)]
+    (when (and (= :deferred (:decision state))
+               (#{:no-sea-path :insufficient-resources :unsustainable-losses}
+                (:failure-reason state))
+               (number? (:next-review-round state))
+               (>= (current-round) (:next-review-round state)))
+      (evaluate-major-invasion-start!))))
 
 (defn- handle-fighter-detection!
   [pos]
@@ -219,7 +350,7 @@
   (case (threat-policy/detection-trigger game-cell)
     :fighter-detected (handle-fighter-detection! pos)
     :ship-detected (handle-ship-detection! pos)
-    :major-invasion-trigger (activate-major-invasion! pos)
+    :major-invasion-trigger (handle-major-invasion-detection! pos)
     nil)
   nil)
 
@@ -248,7 +379,12 @@
   (when (major-invasion-active?)
     (recompute-major-invasion-target-land!)
     (recompute-sea-reachable-detection-points!)
-    (refresh-major-invasion-assignments!)))
+    (maybe-handle-unsustainable-losses!)
+    (when (major-invasion-active?)
+      (refresh-major-invasion-assignments!)))
+  (maybe-review-deferred-major-invasion!)
+  (when (= :no-sea-path (:failure-reason (load-major-invasion-state)))
+    (force-patrol-boat-exploration!)))
 
 (defn prepare-transport!
   "Called by transport processing; applies major-invasion directives when active."

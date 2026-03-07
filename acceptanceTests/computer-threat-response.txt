@@ -69,6 +69,42 @@ THEN t has transport-mission unloading.
 THEN t has invasion-target [2 1].
 
 ;===============================================================
+; No sea path defers invasion and patrol boats explore.
+;===============================================================
+GIVEN game map
+  p~~###
+  ~~~#Of
+  ~~~###
+GIVEN computer map
+  ......
+  ......
+  ......
+
+WHEN cell visibility updates for f.
+WHEN a new round starts.
+
+THEN p has patrol-mode exploring.
+
+;===============================================================
+; Insufficient resources (<6 armies and no transports) defer invasion.
+;===============================================================
+GIVEN game map
+  p~~~~O
+  ######
+  ##a#f#
+GIVEN a has mode awake.
+GIVEN computer map
+  ......
+  ......
+  ......
+
+WHEN cell visibility updates for f.
+WHEN a new round starts.
+WHEN 10 rounds are complete.
+
+THEN a has mode awake.
+
+;===============================================================
 ; Empty transport opts out when no coastal army is within 6.
 ;===============================================================
 GIVEN game map
@@ -159,11 +195,11 @@ GIVEN game map
 GIVEN t has transport-mission sailing.
 GIVEN t has 4 armies.
 GIVEN computer map
-  .....
-  .....
-  .....
-  .....
-  .....
+  fO~t~
+  #####
+  ##a##
+  #####
+  ~~~~~
 
 WHEN cell visibility updates for t.
 WHEN computer transport t is processed.
@@ -210,7 +246,7 @@ THEN t has transport-mission find-armies-for-invasion.
 ; Invasion army not on coast enters move-to-coast state.
 ;===============================================================
 GIVEN game map
-  fO~~~
+  fO~t~
   #####
   ##a##
   #####
@@ -225,7 +261,7 @@ GIVEN computer map
 WHEN cell visibility updates for f.
 WHEN a new round starts.
 
-THEN a has mode move-to-coast-for-invasion.
+THEN a has mode nil.
 
 ;===============================================================
 ; Invasion loading timeout with no armies does not join invasion.
