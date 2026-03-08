@@ -2,7 +2,7 @@
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.config.domain.model.combat :as domain-combat]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.services.combat-visibility-port :as visibility-port]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- error-message-map
@@ -28,8 +28,9 @@
     (if (fn? v)
       (sa/update-state! k v)
       (sa/write-state! k v)))
-  (doseq [{:keys [pos owner]} visibility]
-    (visibility/update-cell-visibility pos owner)))
+  (visibility-port/apply-visibility-effects!
+    (visibility-port/combat-visibility-port)
+    visibility))
 
 (defn- drown-excess-cargo-world
   [world coords survivor]

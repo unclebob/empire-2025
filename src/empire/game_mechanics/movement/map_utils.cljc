@@ -1,6 +1,7 @@
 ;; mutation-tested: 2026-02-22
 (ns empire.game-mechanics.movement.map-utils
   (:require [empire.state.api :as sa]
+            [empire.game-mechanics.spatial.neighbors :as neighbors]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- current-world
@@ -11,13 +12,9 @@
   [k]
   (sa/read-state k))
 
-(def neighbor-offsets
-  "Offsets for the 8 adjacent cells (excludes center)."
-  [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
+(def neighbor-offsets neighbors/neighbor-offsets)
 
-(def orthogonal-offsets
-  "Offsets for the 4 orthogonally adjacent cells (N, S, E, W)."
-  [[-1 0] [1 0] [0 -1] [0 1]])
+(def orthogonal-offsets neighbors/orthogonal-offsets)
 
 (defn process-map
   [the-map f]
@@ -42,44 +39,11 @@
 
 (defn any-neighbor-matches?
   [pos the-map offsets pred]
-  (let [[x y] pos
-        height (count the-map)
-        width (count (first the-map))]
-    (some (fn [[dx dy]]
-            (let [nx (+ x dx)
-                  ny (+ y dy)]
-              (and (>= nx 0) (< nx height)
-                   (>= ny 0) (< ny width)
-                   (pred (get-in the-map [nx ny])))))
-          offsets)))
-
-(defn- count-matching-neighbors
-  "Counts neighbors (using given offsets) that satisfy the predicate."
-  [pos the-map offsets pred]
-  (let [[x y] pos
-        height (count the-map)
-        width (count (first the-map))]
-    (count (filter (fn [[dx dy]]
-                     (let [nx (+ x dx)
-                           ny (+ y dy)]
-                       (and (>= nx 0) (< nx height)
-                            (>= ny 0) (< ny width)
-                            (pred (get-in the-map [nx ny])))))
-                   offsets))))
+  (neighbors/any-neighbor-matches? pos the-map offsets pred))
 
 (defn get-matching-neighbors
   [pos the-map offsets pred]
-  (let [[x y] pos
-        height (count the-map)
-        width (count (first the-map))]
-    (for [[dx dy] offsets
-          :let [nx (+ x dx)
-                ny (+ y dy)
-                cell (when (and (>= nx 0) (< nx height)
-                                (>= ny 0) (< ny width))
-                       (get-in the-map [nx ny]))]
-          :when (and cell (pred cell))]
-      [nx ny])))
+  (neighbors/get-matching-neighbors pos the-map offsets pred))
 
 (defn on-coast?
   [cell-x cell-y]
@@ -128,8 +92,8 @@
 
 (defn in-bay?
   [pos current-map]
-  (>= (count-matching-neighbors pos (resolve-map-source current-map) neighbor-offsets
-                                #(= :land (:type %)))
+  (>= (neighbors/count-matching-neighbors pos (resolve-map-source current-map) neighbor-offsets
+                                          #(= :land (:type %)))
       4))
 
 (defn adjacent-to-sea?

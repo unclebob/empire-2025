@@ -4,26 +4,29 @@
             [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.containers.visibility-port :as visibility-port]
             [empire.config.domain.model.containers :as domain-containers]
-            [empire.game-mechanics.movement.map-utils :as map-utils]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.spatial.neighbors :as neighbors]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- neighbor-offsets
   []
-  map-utils/neighbor-offsets)
+  neighbors/neighbor-offsets)
 
 (defn- any-neighbor-matches?
   [coords world offsets pred]
-  (map-utils/any-neighbor-matches? coords world offsets pred))
+  (neighbors/any-neighbor-matches? coords world offsets pred))
 
 (defn- get-matching-neighbors
   [coords world offsets pred]
-  (map-utils/get-matching-neighbors coords world offsets pred))
+  (neighbors/get-matching-neighbors coords world offsets pred))
 
 (defn- update-cell-visibility!
   [coords owner]
-  (visibility/update-cell-visibility coords owner))
+  (visibility-port/apply-container-visibility!
+    (visibility-port/container-visibility-port)
+    coords
+    owner))
 
 (defn- stamp-unit-fields
   [unit city]

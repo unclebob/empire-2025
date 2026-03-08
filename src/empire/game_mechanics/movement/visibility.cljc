@@ -1,6 +1,8 @@
 ;; mutation-tested: 2026-02-25
 (ns empire.game-mechanics.movement.visibility
   (:require [empire.state.api :as sa]
+            [empire.game-mechanics.containers.visibility-port :as containers-visibility-port]
+            [empire.game-mechanics.services.combat-visibility-port :as visibility-port]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- update-game-map!
@@ -215,3 +217,16 @@
            (reveal-and-track! visible-map-key ni nj
                               stamp-id track-cities? detect-threats? visible-map))
          nil)))))
+
+(defrecord MovementCombatVisibilityPort []
+  visibility-port/CombatVisibilityPort
+  (update-visibility! [_ pos owner]
+    (update-cell-visibility pos owner)))
+
+(defrecord MovementContainerVisibilityPort []
+  containers-visibility-port/ContainerVisibilityPort
+  (update-container-visibility! [_ pos owner]
+    (update-cell-visibility pos owner)))
+
+(visibility-port/set-combat-visibility-port! (->MovementCombatVisibilityPort))
+(containers-visibility-port/set-container-visibility-port! (->MovementContainerVisibilityPort))
