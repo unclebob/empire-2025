@@ -18,11 +18,8 @@
     (ship/process-ship pos (:type unit))
     nil))
 
-(defmulti process-computer-unit
+(defn process-computer-unit
   "Processes a single computer unit's turn."
-  (fn [& _] :default))
-
-(defmethod process-computer-unit :default
   [pos]
   (let [unit (:contents (get-in (sa/current-world) pos))]
     (when (computer-unit? unit)
