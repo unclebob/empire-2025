@@ -1,12 +1,12 @@
 (ns empire.config.units.dispatcher
   "Unified unit property/behavior lookup via data map + plain functions."
-  (:require [empire.config.domain.core.unit-metrics :as unit-metrics]
-            [empire.config.units.army :as army]
+  (:require [empire.config.units.army :as army]
             [empire.config.units.carrier :as carrier]
             [empire.config.units.config :as cfg]
             [empire.config.units.fighter :as fighter]
             [empire.config.units.satellite :as satellite]
             [empire.config.units.ships :as ships]
+            [empire.config.units.unit-metrics :as unit-metrics]
             [empire.config.units.transport :as transport]))
 
 (def ^:private all-config

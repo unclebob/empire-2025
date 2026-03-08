@@ -23,13 +23,16 @@
 					                  :extra-paths ["generated-acceptance-specs"]}
            :acceptance-tests {:main-opts ["-m" "empire.acceptance.pipeline"]}
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
-           :check-dependencies {:extra-deps {io.github.unclebob/dependency-checker
-                                             {:git/url "https://github.com/unclebob/dependency-checker"
-                                              :git/sha "f7189a86bdb682d9cd1d4a60858db97e11b7b2b9"}}
-                                :main-opts ["-m" "dependency-checker.core"]}
-					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
-					                        {:git/url "https://github.com/unclebob/clj-mutate"
-					                         :git/sha "223da6c1a814265d0a714417def997ce7878a8da"}}
+	           :check-dependencies {:extra-deps {io.github.unclebob/dependency-checker
+	                                             {:git/url "https://github.com/unclebob/dependency-checker"
+	                                              :git/sha "f7189a86bdb682d9cd1d4a60858db97e11b7b2b9"}}
+	                                :main-opts ["-m" "dependency-checker.core"]}
+	           :arch-view {:extra-deps {io.github.unclebob/arch-view
+	                                    {:git/url "https://github.com/unclebob/arch-view"
+	                                     :git/sha "6d3ed706310e1fdee57672215cd0b16f33e1e99b"}}}
+						 :mutate {:extra-deps {io.github.unclebob/clj-mutate
+						                        {:git/url "https://github.com/unclebob/clj-mutate"
+						                         :git/sha "223da6c1a814265d0a714417def997ce7878a8da"}}
 					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
