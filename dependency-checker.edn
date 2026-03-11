@@ -1,53 +1,14 @@
-;; 5-layer / 7-component architecture
-;; L5: ui
-;; L4: game        (loop, initialization, save-load, production-status)
-;; L3: player, computer  (peers)
-;; L2: game-mechanics  (movement, containers, services, debug)
-;; L1: state, config   (peers)
-;; Dependencies flow strictly downward.
-
-{:source-paths ["src"]
- :component-rules
- [{:component :ui
-   :match "^empire\\.ui(\\..*)?$"}
-
-  {:component :game
-   :match "^empire\\.game(\\..*)?$"}
-
-  {:component :player
-   :match "^empire\\.player(\\..*)?$"}
-
-  {:component :computer
-   :match "^empire\\.computer(\\..*)?$"}
-
-  {:component :game-mechanics
-   :match "^empire\\.game-mechanics(\\..*)?$"}
-
-  {:component :state
-   :match "^empire\\.state(\\..*)?$"}
-
-  {:component :config
-   :match "^empire\\.config(\\..*)?$"}
-
-  {:component :test-infra
-   :match "empire.*"}]
-
- :allowed-dependencies
- {;; L5 ui → can depend on L4, L3, L2, L1
-  :ui [:game :player :computer :game-mechanics :state :config]
-  ;; L4 game → can depend on L3, L2, L1
-  :game [:player :computer :game-mechanics :state :config]
-  ;; L3 peers → can depend on L2, L1
-  :player [:game-mechanics :state :config]
-  :computer [:game-mechanics :state :config]
-  ;; L2 → can depend on L1
-  :game-mechanics [:state :config]
-  ;; L1 state → can depend on L1 peer config
-  :state [:config]
-  ;; L1 config → no dependencies
-  :config []
-  ;; test-infra → can depend on anything
-  :test-infra :all}
-
- :fail-on-cycles true
+{:allowed-dependencies
+ {:computer [:config :game-mechanics :state],
+  :architecture [],
+  :config [],
+  :game [:computer :config :game-mechanics :player :state],
+  :state [:config],
+  :acceptance
+  [:computer :config :game :game-mechanics :state :test :ui],
+  :ui [:config :game :game-mechanics :player :state],
+  :player [:config :game-mechanics :state],
+  :game-mechanics [:config :state],
+  :test [:computer :config :game-mechanics :state]},
+ :fail-on-cycles true,
  :fail-on-violations true}
