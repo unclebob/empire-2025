@@ -25,7 +25,7 @@
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
 	           :check-dependencies {:extra-deps {io.github.unclebob/dependency-checker
 	                                             {:git/url "https://github.com/unclebob/dependency-checker"
-	                                              :git/sha "f7189a86bdb682d9cd1d4a60858db97e11b7b2b9"}}
+	                                              :git/sha "c32e45199469ef747d13294a4fd71c194834fcd3"}}
 	                                :main-opts ["-m" "dependency-checker.core"]}
 	           :arch-view {:extra-deps {io.github.unclebob/arch-view
 	                                    {:git/url "https://github.com/unclebob/arch-view"
