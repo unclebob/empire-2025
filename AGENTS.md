@@ -140,7 +140,10 @@ When the user requests a check on module size use the mutator's --scan mode to m
  * For every changed module run differential mutation tests, one module at a time, cover ucovered sites and kill survivors before running the next.  Set max-workers to 3. 
  * Differential mutation updates the manifest automatically. Do not run `--update-manifest` afterward unless there is a separate reason.
  * Never run crap or mutate concurrently with any other command, including another crap or mutate run.
- * If a green unchanged module must be split before mutation work, update the daughter manifests before running differential mutation on them.
+ * If an unchanged file with a manifest is split, do not copy the parent manifest into the daughters.
+ * Run tests first.
+ * If green, update daughter manifests.
+ * Then continue with CRAP and differential mutation, which should be a no-op for a semantics-preserving split.
 
 ### Test Utilities
 
