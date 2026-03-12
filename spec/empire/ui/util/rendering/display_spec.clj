@@ -268,6 +268,74 @@
     (let [t (System/currentTimeMillis)]
       (should-not (display/should-show-error? t)))))
 
+(describe "resolve-banner"
+  (it "prefers a live error over attention and turn messages"
+    (should= {:kind :error :text "Bad news"}
+             (display/resolve-banner "Bad news"
+                                     (+ (System/currentTimeMillis) 1000)
+                                     "Need orders"
+                                     "Moved")))
+
+  (it "uses attention when there is no live error"
+    (should= {:kind :attention :text "Need orders"}
+             (display/resolve-banner "Old error"
+                                     (- (System/currentTimeMillis) 1000)
+                                     "Need orders"
+                                     "Moved")))
+
+  (it "uses turn message when error and attention are absent"
+    (should= {:kind :result :text "Moved"}
+             (display/resolve-banner "" 0 "" "Moved")))
+
+  (it "returns empty banner when no messages are available"
+    (should= {:kind :empty :text nil}
+             (display/resolve-banner "" 0 "" "")))
+  )
+
+(describe "resolve-status-line"
+  (it "formats paused round and map label on the left"
+    (should= {:left "PAUSED  Round 17  Map: Comp"
+              :center "Dest 12,7"
+              :right "Prod: fighter 2r"}
+             (display/resolve-status-line 17 true false :computer-map [12 7] "Prod: fighter 2r")))
+
+  (it "omits player-map label and empty optional fields"
+    (should= {:left "Round 3"
+              :center nil
+              :right nil}
+             (display/resolve-status-line 3 false false :player-map nil "")))
+
+  (it "shows actual-map label when appropriate"
+    (should= {:left "Round 9  Map: Actual"
+              :center nil
+              :right "Prod"}
+             (display/resolve-status-line 9 false false :actual-map nil "Prod")))
+
+  (it "truncates long center and right fields"
+    (should= {:left "Round 7"
+              :center "Dest 1234567890..."
+              :right "Production summary th..."}
+             (display/resolve-status-line 7 false false :player-map [123456789012 999]
+                                          "Production summary that is too long")))
+  )
+
+(describe "resolve-inspector-lines"
+  (it "splits hover text into summary and detail"
+    (should= {:summary "[12,7] player carrier [5/8]"
+              :detail "cargo:3 sentry"}
+             (display/resolve-inspector-lines "[12,7] player carrier [5/8] cargo:3 sentry")))
+
+  (it "truncates overly long detail text"
+    (should= {:summary "[12,7] player carrier [5/8]"
+              :detail "cargo:3 fuel:32 mission:escort waypoint:14,9 and more det..."}
+             (display/resolve-inspector-lines
+              "[12,7] player carrier [5/8] cargo:3 fuel:32 mission:escort waypoint:14,9 and more detail text beyond the limit")))
+
+  (it "returns empty inspector lines when there is no hover text"
+    (should= {:summary nil :detail nil}
+             (display/resolve-inspector-lines "")))
+  )
+
 (describe "compute-hover-result"
   (it "returns hover message using player-map"
     (let [player-map [[{:type :land :contents {:type :army :hits 1 :mode :awake :owner :player}}]]

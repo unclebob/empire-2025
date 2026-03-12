@@ -169,6 +169,21 @@
     (let [cell {:type :land :waypoint {}}]
       (should= "[0,0] waypoint (no orders)" (fmt/format-hover-status [0 0] cell nil)))))
 
+(describe "split-hover-status"
+  (it "splits a unit hover message into summary and detail"
+    (should= {:summary "[12,7] player carrier [5/8]"
+              :detail "cargo:3 sentry"}
+             (fmt/split-hover-status "[12,7] player carrier [5/8] cargo:3 sentry")))
+
+  (it "keeps short hover text on the summary line"
+    (should= {:summary "[0,0] city:free"
+              :detail nil}
+             (fmt/split-hover-status "[0,0] city:free")))
+
+  (it "returns empty lines for blank hover text"
+    (should= {:summary nil :detail nil}
+             (fmt/split-hover-status ""))))
+
 (describe "format-production-status"
   (it "returns all zeros and 0% for empty map"
     (let [game-map [[{:type :sea} {:type :land}]]

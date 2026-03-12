@@ -30,8 +30,8 @@
       (should= 727 (second (:text-area-dimensions result)))
       ;; text-w = 1000
       (should= 1000 (nth (:text-area-dimensions result) 2))
-      ;; text-h = 3 * 20 = 60
-      (should= 60 (nth (:text-area-dimensions result) 3))))
+      ;; text-h = 4 * 20 = 80
+      (should= 80 (nth (:text-area-dimensions result) 3))))
 
   (it "calculates dimensions for small map"
     (let [result (util-core/compute-screen-dimensions 80 26 8 16)]
@@ -88,7 +88,7 @@
   (it "computes window dimensions from cols and rows"
     (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
       (should= (* 80 11) (:window-w result))
-      (should= (+ (* 40 16) (* 3 16) 7) (:window-h result))))
+      (should= (+ (* 40 16) (* 4 16) 7) (:window-h result))))
 
   (it "throws ex-info when map exceeds screen"
     (should-throw clojure.lang.ExceptionInfo
@@ -101,7 +101,7 @@
       (catch clojure.lang.ExceptionInfo e
         (let [data (ex-data e)]
           (should= (quot 1000 11) (:max-cols data))
-          (should= (quot (- 1000 (* 3 16) 7) 16) (:max-rows data))))))
+          (should= (quot (- 1000 (* 4 16) 7) 16) (:max-rows data))))))
 
   (it "ignores seed arg when computing dimensions"
     (let [result (util-core/parse-args ["--seed=99" "50" "30"] 2000 2000)]

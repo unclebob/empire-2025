@@ -1,9 +1,15 @@
 (ns empire.ui.quil.rendering.messages
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]
-            [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.config.rendering :as rendering]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
+
+(def ^:private banner-error-color [255 80 80])
+(def ^:private banner-attention-color [255 215 64])
+(def ^:private banner-result-color [235 245 255])
+(def ^:private hud-text-color [230 230 230])
+(def ^:private hud-secondary-color [170 170 170])
 
 (defn- draw-text-right-justified
   "Draws text right-justified against the given right edge at vertical position y."
@@ -12,117 +18,74 @@
         x (- right-edge text-width)]
     (q/text text x y)))
 
-;; --- Game Info region (left-justified, 37.5%) ---
+(defn- banner-color [kind]
+  (case kind
+    :error banner-error-color
+    :attention banner-attention-color
+    :result banner-result-color
+    hud-text-color))
 
-(defn- draw-attention
-  "Draws the attention message (row 1) left-justified in the Game Info region."
-  [left-x text-y]
-  (let [attention-message (sa/read-state :attention-message)]
-    (when (seq attention-message)
-      (q/text attention-message (+ left-x config/msg-left-padding) (+ text-y config/msg-line-1-y)))))
+(defn- draw-banner
+  [text-x text-y]
+  (let [{:keys [kind text]} (display/resolve-banner (sa/read-state :error-message)
+                                                    (sa/read-state :error-until)
+                                                    (sa/read-state :attention-message)
+                                                    (sa/read-state :turn-message))]
+    (when text
+      (apply q/fill (banner-color kind))
+      (q/text text (+ text-x config/msg-left-padding) (+ text-y config/msg-line-1-y))
+      (apply q/fill hud-text-color))))
 
-(defn- draw-turn
-  "Draws the turn message (row 2) left-justified in the Game Info region.
-   Falls back to destination display when no turn message is active."
-  [left-x text-y]
-  (when-let [text (display/resolve-turn-text (sa/read-state :turn-message)
-                                             (sa/read-state :destination))]
-    (q/text text (+ left-x config/msg-left-padding) (+ text-y config/msg-line-2-y))))
+(defn- draw-status
+  [text-x text-y text-w]
+  (let [{:keys [left center right]}
+        (display/resolve-status-line (sa/read-state :round-number)
+                                     (sa/read-state :paused)
+                                     (sa/read-state :pause-requested)
+                                     (sa/read-state :map-to-display)
+                                     (sa/read-state :destination)
+                                     (sa/read-state :production-status))
+        right-edge (- (+ text-x text-w) rendering/status-right-padding)
+        center-x (+ text-x (/ text-w 2))]
+    (apply q/fill hud-secondary-color)
+    (when left
+      (q/text left (+ text-x rendering/status-left-padding) (+ text-y config/msg-line-2-y)))
+    (when center
+      (let [msg-width (q/text-width center)]
+        (q/text center (- center-x (/ msg-width 2)) (+ text-y config/msg-line-2-y))))
+    (when right
+      (draw-text-right-justified right right-edge (+ text-y config/msg-line-2-y)))
+    (apply q/fill hud-text-color)))
 
-(defn- draw-error
-  "Draws the error message (row 3) in red, flashing, left-justified in the Game Info region."
-  [left-x text-y]
-  (when (display/should-show-error? (sa/read-state :error-until))
-    (when (and (seq (sa/read-state :error-message))
-               (map-utils/blink? 500))
-      (q/fill 255 0 0)
-      (q/text (sa/read-state :error-message) (+ left-x config/msg-left-padding) (+ text-y config/msg-line-3-y))
-      (q/fill 255))))
-
-(defn- draw-game-info
-  "Draws the Game Info region (left): attention, turn, error."
-  [left-x text-y]
-  (draw-attention left-x text-y)
-  (draw-turn left-x text-y)
-  (draw-error left-x text-y))
-
-;; --- Debug region (centered, 25%) ---
-
-(defn- draw-debug
-  "Draws the debug message centered in the Debug region."
-  [debug-x debug-w text-y]
-  (let [lines (display/resolve-center-lines (sa/read-state :map-to-display)
-                                            (sa/read-state :major-invasion-state)
-                                            (sa/read-state :round-number)
-                                            (sa/read-state :debug-message))]
-    (when (seq lines)
-      (let [center-x (+ debug-x (/ debug-w 2))
-            y-offsets [config/msg-line-1-y config/msg-line-2-y config/msg-line-3-y]]
-        (q/fill 0 255 255)
-        (doseq [[line y-off] (map vector (take 3 lines) y-offsets)]
-          (let [msg-width (q/text-width line)
-                msg-x (- center-x (/ msg-width 2))]
-            (q/text line msg-x (+ text-y y-off))))
-        (q/fill 255)))))
-
-;; --- Game Status region (right-justified, 37.5%) ---
-
-(defn- draw-round-status
-  "Draws round status (row 1) right-justified. Prepends red PAUSED when paused."
-  [right-edge text-y]
-  (let [{:keys [text paused? round-str]}
-        (display/resolve-round-status-text (sa/read-state :round-number)
-                                           (sa/read-state :paused)
-                                           (sa/read-state :pause-requested))]
-    (if paused?
-      (let [full-width (q/text-width text)
-            x (- right-edge full-width)
-            paused-width (q/text-width "PAUSED  ")]
-        (q/fill 255 0 0)
-        (q/text "PAUSED  " x (+ text-y config/msg-line-1-y))
-        (q/fill 255)
-        (q/text round-str (+ x paused-width) (+ text-y config/msg-line-1-y)))
-      (draw-text-right-justified text right-edge (+ text-y config/msg-line-1-y)))))
-
-(defn- draw-hover-info
-  "Draws hover info (row 2) right-justified in the Game Status region."
-  [right-edge text-y]
-  (let [hover-message (sa/read-state :hover-message)]
-    (when (seq hover-message)
-      (draw-text-right-justified hover-message right-edge (+ text-y config/msg-line-2-y)))))
-
-(defn- draw-production-status
-  "Draws production status (row 3) right-justified in the Game Status region."
-  [right-edge text-y]
-  (let [production-status (sa/read-state :production-status)]
-    (when (seq production-status)
-      (draw-text-right-justified production-status right-edge (+ text-y config/msg-line-3-y)))))
-
-(defn- draw-game-status
-  "Draws the Game Status region (right): round status, hover info, production."
-  [right-edge text-y]
-  (draw-round-status right-edge text-y)
-  (draw-hover-info right-edge text-y)
-  (draw-production-status right-edge text-y))
+(defn- draw-inspector
+  [text-x text-y]
+  (let [{:keys [summary detail]}
+        (display/resolve-inspector-lines (sa/read-state :hover-message))]
+    (apply q/fill hud-text-color)
+    (when summary
+      (q/text summary (+ text-x config/msg-left-padding) (+ text-y config/msg-line-3-y)))
+    (when detail
+      (apply q/fill hud-secondary-color)
+      (q/text detail (+ text-x config/msg-left-padding) (+ text-y rendering/msg-line-4-y))
+      (apply q/fill hud-text-color))))
 
 ;; --- Message area master function ---
 
 (defn draw-message-area
-  "Draws the three-region message area below the map."
+  "Draws the redesigned bottom HUD."
   []
   (let [[text-x text-y text-w _] (sa/read-state :text-area-dimensions)
-        info-w (* text-w config/game-info-width-fraction)
-        debug-w (* text-w config/debug-width-fraction)
-        debug-x (+ text-x info-w)
-        right-edge (+ text-x text-w)]
+        top-separator-y (- text-y config/msg-separator-offset)
+        banner-separator-y (+ text-y rendering/msg-banner-separator-y)]
     (q/stroke 255)
-    (q/line text-x (- text-y config/msg-separator-offset) (+ text-x text-w) (- text-y config/msg-separator-offset))
+    (q/line text-x top-separator-y (+ text-x text-w) top-separator-y)
+    (q/line text-x banner-separator-y (+ text-x text-w) banner-separator-y)
     (q/text-font (sa/read-state :text-font))
-    (q/fill 255)
-    (draw-game-info text-x text-y)
-    (draw-debug debug-x debug-w text-y)
-    (draw-game-status right-edge text-y)))
+    (apply q/fill hud-text-color)
+    (draw-banner text-x text-y)
+    (draw-status text-x text-y text-w)
+    (draw-inspector text-x text-y)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:03:07.061089-05:00", :module-hash "1882333778", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-445377342"} {:id "defn-/draw-text-right-justified", :kind "defn-", :line 8, :end-line 13, :hash "-787062085"} {:id "defn-/draw-attention", :kind "defn-", :line 17, :end-line 22, :hash "-683165631"} {:id "defn-/draw-turn", :kind "defn-", :line 24, :end-line 30, :hash "966768773"} {:id "defn-/draw-error", :kind "defn-", :line 32, :end-line 40, :hash "188528833"} {:id "defn-/draw-game-info", :kind "defn-", :line 42, :end-line 47, :hash "-1898364636"} {:id "defn-/draw-debug", :kind "defn-", :line 51, :end-line 66, :hash "-653329736"} {:id "defn-/draw-round-status", :kind "defn-", :line 70, :end-line 85, :hash "-1307047414"} {:id "defn-/draw-hover-info", :kind "defn-", :line 87, :end-line 92, :hash "-2059049852"} {:id "defn-/draw-production-status", :kind "defn-", :line 94, :end-line 99, :hash "-1857274076"} {:id "defn-/draw-game-status", :kind "defn-", :line 101, :end-line 106, :hash "-1391441458"} {:id "defn/draw-message-area", :kind "defn", :line 110, :end-line 124, :hash "395279169"}]}
+;; {:version 1, :tested-at "2026-03-12T15:04:55.727668-05:00", :module-hash "-1375580151", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-2065200641"} {:id "def/banner-error-color", :kind "def", :line 8, :end-line 8, :hash "117545043"} {:id "def/banner-attention-color", :kind "def", :line 9, :end-line 9, :hash "-320121614"} {:id "def/banner-result-color", :kind "def", :line 10, :end-line 10, :hash "1601020709"} {:id "def/hud-text-color", :kind "def", :line 11, :end-line 11, :hash "-1064068390"} {:id "def/hud-secondary-color", :kind "def", :line 12, :end-line 12, :hash "-1855887430"} {:id "defn-/draw-text-right-justified", :kind "defn-", :line 14, :end-line 19, :hash "-787062085"} {:id "defn-/banner-color", :kind "defn-", :line 21, :end-line 26, :hash "1492030370"} {:id "defn-/draw-banner", :kind "defn-", :line 28, :end-line 37, :hash "-1311356262"} {:id "defn-/draw-status", :kind "defn-", :line 39, :end-line 58, :hash "1260053532"} {:id "defn-/draw-inspector", :kind "defn-", :line 60, :end-line 70, :hash "1866044165"} {:id "defn/draw-message-area", :kind "defn", :line 74, :end-line 87, :hash "-768691005"}]}
 ;; clj-mutate-manifest-end

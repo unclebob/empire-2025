@@ -11,6 +11,10 @@
 (def ^:private attention-flash-cell-color [255 255 255])
 (def ^:private attention-flash-unit-color [0 0 0])
 (def ^:private attention-normal-unit-color [255 255 255])
+(def ^:private inspector-summary-max 48)
+(def ^:private inspector-detail-max 60)
+(def ^:private status-center-max 18)
+(def ^:private status-right-max 24)
 (defonce ^:private lake-cache* (atom {:map nil :limit nil :cells #{}}))
 (defn- safe-color
   [cell]
@@ -151,6 +155,57 @@
   [error-until]
   (< (System/currentTimeMillis) error-until))
 
+(defn resolve-banner
+  "Resolves the highest-priority banner message for the HUD."
+  [error-message error-until attention-message turn-message]
+  (cond
+    (and (should-show-error? error-until) (seq error-message))
+    {:kind :error :text error-message}
+
+    (seq attention-message)
+    {:kind :attention :text attention-message}
+
+    (seq turn-message)
+    {:kind :result :text turn-message}
+
+    :else
+    {:kind :empty :text nil}))
+
+(defn- map-display-label
+  [map-to-display]
+  ({:player-map nil
+    :computer-map "Map: Comp"
+    :actual-map "Map: Actual"} map-to-display))
+
+(defn- ellipsize
+  [s max-len]
+  (when (seq s)
+    (let [trimmed (str/trim s)]
+      (if (<= (count trimmed) max-len)
+        trimmed
+        (str (subs trimmed 0 (max 0 (- max-len 3))) "...")))))
+
+(defn resolve-status-line
+  "Builds the compact left/center/right status line fields for the redesigned HUD."
+  [round-number paused pause-requested map-to-display destination production-status]
+  (let [left-parts (remove nil? [(when (fmt/should-show-paused? paused pause-requested) "PAUSED")
+                                 (str "Round " round-number)
+                                 (map-display-label map-to-display)])
+        center (when destination
+                 (str "Dest " (first destination) "," (second destination)))
+        right (when (seq production-status) production-status)]
+    {:left (when (seq left-parts) (str/join "  " left-parts))
+     :center (ellipsize center status-center-max)
+     :right (ellipsize right status-right-max)}))
+
+(defn resolve-inspector-lines
+  "Returns the inspector summary/detail lines for the redesigned HUD.
+   Splits hover text into summary/detail and truncates both lines."
+  [hover-message]
+  (let [{:keys [summary detail]} (fmt/split-hover-status hover-message)]
+    {:summary (ellipsize summary inspector-summary-max)
+     :detail (ellipsize detail inspector-detail-max)}))
+
 (defn resolve-turn-text
   "Returns the turn text to display, falling back to destination."
   [turn-message destination]
@@ -177,5 +232,5 @@
        vec))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T13:50:35.485444-05:00", :module-hash "2024331156", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line 11, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line 12, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line 13, :hash "-1032802797"} {:id "form/6/defonce", :kind "defonce", :line 14, :end-line 14, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 15, :end-line 17, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 19, :end-line 22, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 24, :end-line 30, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 32, :end-line 36, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 38, :end-line 55, :hash "1928759595"} {:id "defn/attention-unit-color", :kind "defn", :line 57, :end-line 64, :hash "735152350"} {:id "defn-/show-city-production?", :kind "defn-", :line 66, :end-line 71, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 73, :end-line 90, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 92, :end-line 101, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 103, :end-line 107, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 109, :end-line 113, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 115, :end-line 123, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 125, :end-line 147, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 149, :end-line 152, :hash "1593526722"} {:id "defn/resolve-turn-text", :kind "defn", :line 154, :end-line 160, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 162, :end-line 168, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 170, :end-line 177, :hash "245117443"}]}
+;; {:version 1, :tested-at "2026-03-12T15:14:27.993814-05:00", :module-hash "1774858170", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line 11, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line 12, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line 13, :hash "-1032802797"} {:id "def/inspector-summary-max", :kind "def", :line 14, :end-line 14, :hash "-792760336"} {:id "def/inspector-detail-max", :kind "def", :line 15, :end-line 15, :hash "-1377604862"} {:id "def/status-center-max", :kind "def", :line 16, :end-line 16, :hash "-580134895"} {:id "def/status-right-max", :kind "def", :line 17, :end-line 17, :hash "-539755630"} {:id "form/10/defonce", :kind "defonce", :line 18, :end-line 18, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 19, :end-line 21, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 23, :end-line 26, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 28, :end-line 34, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 36, :end-line 40, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 42, :end-line 59, :hash "1928759595"} {:id "defn/attention-unit-color", :kind "defn", :line 61, :end-line 68, :hash "735152350"} {:id "defn-/show-city-production?", :kind "defn-", :line 70, :end-line 75, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 77, :end-line 94, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 96, :end-line 105, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 107, :end-line 111, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 113, :end-line 117, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 119, :end-line 127, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 129, :end-line 151, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 153, :end-line 156, :hash "1593526722"} {:id "defn/resolve-banner", :kind "defn", :line 158, :end-line 172, :hash "1089634649"} {:id "defn-/map-display-label", :kind "defn-", :line 174, :end-line 178, :hash "-46287158"} {:id "defn-/ellipsize", :kind "defn-", :line 180, :end-line 186, :hash "1078971021"} {:id "defn/resolve-status-line", :kind "defn", :line 188, :end-line 199, :hash "1685306345"} {:id "defn/resolve-inspector-lines", :kind "defn", :line 201, :end-line 207, :hash "1384942978"} {:id "defn/resolve-turn-text", :kind "defn", :line 209, :end-line 215, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 217, :end-line 223, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 225, :end-line 232, :hash "245117443"}]}
 ;; clj-mutate-manifest-end
