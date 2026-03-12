@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.game-mechanics.movement.movement-pathing
   (:require [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.movement.map-utils :as map-utils]))
@@ -71,3 +70,7 @@
             best-options (filter #(= (:dist %) best-dist) valid-sidesteps)]
         (when (< best-dist current-dist)
           (:pos (rand-nth best-options)))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:15.411339-05:00", :module-hash "-813064417", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-486554360"} {:id "defn/next-step-pos", :kind "defn", :line 5, :end-line 10, :hash "-710299676"} {:id "defn/chebyshev-distance", :kind "defn", :line 12, :end-line 15, :hash "2102745561"} {:id "defn/can-move-to?", :kind "defn", :line 17, :end-line 23, :hash "546259425"} {:id "defn/diagonal?", :kind "defn", :line 25, :end-line 26, :hash "170011665"} {:id "defn/get-sidestep-directions", :kind "defn", :line 28, :end-line 36, :hash "-153256158"} {:id "defn-/simulate-path", :kind "defn-", :line 38, :end-line 50, :hash "-1866349737"} {:id "defn/find-best-sidestep", :kind "defn", :line 52, :end-line 72, :hash "752931445"}]}
+;; clj-mutate-manifest-end

@@ -228,9 +228,9 @@
 (defn- validate-test-ir!
   "Validate parser IR contracts for all test phases. Throws ex-info on contract violations."
   [source {:keys [line description givens whens thens]}]
-  (let [phase-data [[:givens ::contracts/givens givens]
-                    [:whens ::contracts/whens whens]
-                    [:thens ::contracts/thens thens]]]
+  (let [phase-data [[:givens :empire.acceptance.parser.ir-contracts/givens givens]
+                    [:whens :empire.acceptance.parser.ir-contracts/whens whens]
+                    [:thens :empire.acceptance.parser.ir-contracts/thens thens]]]
     (doseq [[phase spec-key value] phase-data]
       (when-not (s/valid? spec-key value)
         (throw (ex-info (str "IR contract validation failed for " source
@@ -279,3 +279,7 @@
         (io/make-parents (io/file out-path))
         (spit out-path spec-str)
         (println (str "  " (count (:tests data)) " tests generated"))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:04:10.426694-05:00", :module-hash "1252199109", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "-16631093"} {:id "defn-/node-types", :kind "defn-", :line 13, :end-line 16, :hash "-209752400"} {:id "defn-/build-need-context", :kind "defn-", :line 18, :end-line 27, :hash "1180670715"} {:id "def/need-rules", :kind "def", :line 29, :end-line 79, :hash "269152176"} {:id "defn/determine-needs", :kind "defn", :line 81, :end-line 91, :hash "161833285"} {:id "def/optional-refers", :kind "def", :line 95, :end-line 99, :hash "-2066643811"} {:id "def/optional-requires", :kind "def", :line 101, :end-line 102, :hash "-2098069097"} {:id "defn-/collect-harness-refers", :kind "defn-", :line 104, :end-line 108, :hash "1885883674"} {:id "defn-/collect-requires", :kind "defn-", :line 110, :end-line 113, :hash "-306610198"} {:id "defn/generate-ns-form", :kind "defn", :line 115, :end-line 126, :hash "1338040456"} {:id "defn/generate-helper-fns", :kind "defn", :line 130, :end-line 173, :hash "-973297317"} {:id "defn/generate-given", :kind "defn", :line 177, :end-line 180, :hash "-371571042"} {:id "defn/generate-when", :kind "defn", :line 182, :end-line 185, :hash "-1592427725"} {:id "defn/generate-then", :kind "defn", :line 187, :end-line 190, :hash "472725419"} {:id "defn-/wrap-with-redefs", :kind "defn-", :line 194, :end-line 199, :hash "-1438905868"} {:id "defn/generate-test", :kind "defn", :line 201, :end-line 224, :hash "-1832111092"} {:id "defn-/validate-test-ir!", :kind "defn-", :line 228, :end-line 243, :hash "739720756"} {:id "defn/generate-spec", :kind "defn", :line 245, :end-line 259, :hash "1991289022"} {:id "defn/-main", :kind "defn", :line 263, :end-line 281, :hash "-1629665199"}]}
+;; clj-mutate-manifest-end

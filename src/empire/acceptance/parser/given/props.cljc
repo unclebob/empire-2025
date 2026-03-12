@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.acceptance.parser.given.props
   (:require [clojure.string :as str]
             [clojure.edn :as edn]
@@ -92,3 +91,7 @@
           {:type :container-state :target target :props {:fighter-count count}}))
 
       :else nil)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:56:41.661161-05:00", :module-hash "2054985965", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1223534466"} {:id "def/unit-prop-extractors", :kind "def", :line 6, :end-line 54, :hash "-958270143"} {:id "defn/parse-unit-props-line", :kind "defn", :line 56, :end-line 74, :hash "-1551467611"} {:id "defn/parse-container-state-line", :kind "defn", :line 76, :end-line 93, :hash "-2029154966"}]}
+;; clj-mutate-manifest-end

@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.acceptance.parser.given
   (:require [clojure.string :as str]
             [empire.acceptance.parser.helpers :as h]
@@ -68,3 +67,7 @@
           (let [parsed (directives/parse-given-line trimmed @context)]
             (handle-parsed-directive! lines i givens context parsed)))))
     {:givens @givens :context @context}))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:56:37.554506-05:00", :module-hash "-1281009660", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "-1348465017"} {:id "def/append-ir-directives", :kind "def", :line 6, :end-line 11, :hash "-657286937"} {:id "defn-/consume-map-rows", :kind "defn-", :line 13, :end-line 20, :hash "-324887794"} {:id "defn-/handle-map-start!", :kind "defn-", :line 22, :end-line 26, :hash "837435772"} {:id "defn-/handle-unit-props!", :kind "defn-", :line 28, :end-line 37, :hash "-202749968"} {:id "defn-/handle-parsed-directive!", :kind "defn-", :line 39, :end-line 54, :hash "-1879058195"} {:id "defn/parse-given", :kind "defn", :line 56, :end-line 69, :hash "-1390225254"}]}
+;; clj-mutate-manifest-end

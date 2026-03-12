@@ -108,3 +108,7 @@
 
 (defn naval-units [unit-type]
   (unit-metrics/naval-unit? unit-type))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:48.534607-05:00", :module-hash "139854211", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "-1418690521"} {:id "def/all-config", :kind "def", :line 12, :end-line 62, :hash "1381769171"} {:id "defn/speed", :kind "defn", :line 64, :end-line 65, :hash "-798565689"} {:id "defn/cost", :kind "defn", :line 67, :end-line 68, :hash "1191851411"} {:id "defn/hits", :kind "defn", :line 70, :end-line 71, :hash "-1864399518"} {:id "defn/display-char", :kind "defn", :line 73, :end-line 74, :hash "1878064206"} {:id "defn/visibility-radius", :kind "defn", :line 76, :end-line 77, :hash "1180808113"} {:id "defn/strength", :kind "defn", :line 79, :end-line 80, :hash "1223272414"} {:id "defn/capacity", :kind "defn", :line 82, :end-line 83, :hash "2096295950"} {:id "defn/initial-state", :kind "defn", :line 85, :end-line 88, :hash "-1859744669"} {:id "defn/can-move-to?", :kind "defn", :line 90, :end-line 92, :hash "400843408"} {:id "defn/needs-attention?", :kind "defn", :line 94, :end-line 96, :hash "162848047"} {:id "defn/effective-speed", :kind "defn", :line 98, :end-line 99, :hash "786106594"} {:id "defn/effective-capacity", :kind "defn", :line 101, :end-line 104, :hash "-830718604"} {:id "defn/naval-unit?", :kind "defn", :line 106, :end-line 107, :hash "-1836024285"} {:id "defn/naval-units", :kind "defn", :line 109, :end-line 110, :hash "-1796906852"}]}
+;; clj-mutate-manifest-end

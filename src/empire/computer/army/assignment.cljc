@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.army.assignment
   "Attack-target assignment for computer armies."
   (:require [empire.state.api :as sa]
@@ -46,3 +45,7 @@
         (doseq [{:keys [pos]} closest]
           (sa/update-world! assoc-in (conj pos :contents :attack-target) city)
           (swap! assigned conj pos))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:09.256671-05:00", :module-hash "1492647378", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1934577566"} {:id "defn-/find-assignable-armies", :kind "defn-", :line 7, :end-line 19, :hash "-102020325"} {:id "defn-/find-visible-target-cities", :kind "defn-", :line 21, :end-line 32, :hash "-1927185487"} {:id "defn/assign-city-attacks", :kind "defn", :line 34, :end-line 47, :hash "-1372810118"}]}
+;; clj-mutate-manifest-end

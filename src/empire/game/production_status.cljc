@@ -33,3 +33,7 @@
         unit-strs (map #(str (unit-type-labels %) ":" (get counts %))
                        unit-type-order)]
     (str (str/join " " unit-strs) " | " pct "%")))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:24.19144-05:00", :module-hash "-852133878", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "1702437270"} {:id "def/unit-type-order", :kind "def", :line 5, :end-line 6, :hash "449708913"} {:id "def/unit-type-labels", :kind "def", :line 8, :end-line 10, :hash "1339473421"} {:id "defn/format-production-status", :kind "defn", :line 12, :end-line 35, :hash "-485312180"}]}
+;; clj-mutate-manifest-end

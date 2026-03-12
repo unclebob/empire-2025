@@ -66,3 +66,7 @@
                     (assoc u k v))))
               cleared
               defense-threat-keys))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:39.677299-05:00", :module-hash "1538708626", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 4, :hash "52339648"} {:id "def/defense-threat-keys", :kind "def", :line 6, :end-line 7, :hash "-943903286"} {:id "def/absent-sentinel", :kind "def", :line 9, :end-line 9, :hash "508355299"} {:id "defn/player-armies-by-country", :kind "defn", :line 11, :end-line 26, :hash "733139256"} {:id "defn-/nearest-target", :kind "defn-", :line 28, :end-line 31, :hash "816381016"} {:id "defn-/snapshot-threat-fields", :kind "defn-", :line 33, :end-line 37, :hash "1979160693"} {:id "defn/apply-country-defense", :kind "defn", :line 39, :end-line 53, :hash "450910269"} {:id "defn/clear-country-defense", :kind "defn", :line 55, :end-line 68, :hash "1211599436"}]}
+;; clj-mutate-manifest-end

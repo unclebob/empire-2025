@@ -19,3 +19,7 @@
           :l (modes/handle-look-around-key coords cell active-unit)
           (movement/handle-unit-movement-key k coords cell))
         (production/handle-city-production-key k coords cell)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:16.275314-05:00", :module-hash "1670463138", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1612157178"} {:id "def/army-aboard-action", :kind "def", :line 8, :end-line 8, :hash "-2006119160"} {:id "defn/handle-key", :kind "defn", :line 10, :end-line 21, :hash "661574224"}]}
+;; clj-mutate-manifest-end

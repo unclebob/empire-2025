@@ -119,3 +119,7 @@
       (q/text "Backspace/Delete=Remove Last"
               (+ (:left geom) menu-padding)
               (+ input-y 68)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:09.479509-05:00", :module-hash "-612126401", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-467571804"} {:id "defn/update-hover-status", :kind "defn", :line 8, :end-line 28, :hash "1331641784"} {:id "defn/draw-load-menu", :kind "defn", :line 30, :end-line 73, :hash "2122055074"} {:id "defn/draw-save-menu", :kind "defn", :line 75, :end-line 121, :hash "550099933"}]}
+;; clj-mutate-manifest-end

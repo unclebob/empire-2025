@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.army.coastal-invasion
   "Invasion embarkation target selection and coastal movement helpers."
   (:require [empire.computer.core :as core]
@@ -145,3 +144,7 @@
       (when-let [target (resolve-coast-target ctx unit pos country-id)]
         (set-coast-target! ctx pos target)
         (execute-coast-target-step ctx pos country-id unit target)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:14.454353-05:00", :module-hash "1675257817", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "36182858"} {:id "defn-/coastal-cell?", :kind "defn-", :line 6, :end-line 10, :hash "-308990903"} {:id "defn/empty-coastal-cell?", :kind "defn", :line 12, :end-line 16, :hash "-935405407"} {:id "defn-/bfs-land-distances", :kind "defn-", :line 18, :end-line 30, :hash "-702595219"} {:id "defn-/closest-staging-cell", :kind "defn-", :line 32, :end-line 46, :hash "-552429092"} {:id "defn/find-coast-target-once", :kind "defn", :line 48, :end-line 57, :hash "-876050566"} {:id "defn/local-empty-coast-target", :kind "defn", :line 59, :end-line 73, :hash "-1500944447"} {:id "def/local-coast-repath-interval-rounds", :kind "def", :line 75, :end-line 75, :hash "1825849599"} {:id "defn-/settle-at-coast-target!", :kind "defn-", :line 77, :end-line 82, :hash "-1412082256"} {:id "defn-/step-toward-target-cheap", :kind "defn-", :line 84, :end-line 91, :hash "-193395722"} {:id "defn-/set-coast-target!", :kind "defn-", :line 93, :end-line 94, :hash "-1760347742"} {:id "defn-/resolve-coast-target", :kind "defn-", :line 96, :end-line 98, :hash "1906314702"} {:id "defn-/retry-repath-now?", :kind "defn-", :line 100, :end-line 106, :hash "-1900661975"} {:id "defn-/maybe-repath-local-target", :kind "defn-", :line 108, :end-line 113, :hash "918333870"} {:id "defn-/move-toward-coast-target", :kind "defn-", :line 115, :end-line 118, :hash "928392083"} {:id "defn-/execute-coast-target-step", :kind "defn-", :line 120, :end-line 131, :hash "1707271765"} {:id "defn/process-move-to-coast-for-invasion", :kind "defn", :line 133, :end-line 146, :hash "-1263077659"}]}
+;; clj-mutate-manifest-end

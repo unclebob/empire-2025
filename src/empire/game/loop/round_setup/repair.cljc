@@ -40,3 +40,7 @@
                        (#{:player :computer} (:city-status cell))
                        (seq (uc/get-shipyard-ships cell)))]
       (repair-city-ships [i j]))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:15.486583-05:00", :module-hash "-2075668288", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-740500162"} {:id "defn-/repair-city-ships", :kind "defn-", :line 7, :end-line 29, :hash "-277778239"} {:id "defn/repair-damaged-ships", :kind "defn", :line 31, :end-line 42, :hash "-752989877"}]}
+;; clj-mutate-manifest-end

@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.land-ho
   "Round-start assignment of land-ho invasion targets to transports.
    Checks the FIFO queue of discovered free cities and assigns the nearest
@@ -57,3 +56,7 @@
             ;; BFS failed -- move target to end of queue
             (sa/write-state! :land-ho-targets
                               (conj (vec (rest targets)) target))))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:53.544887-05:00", :module-hash "-1694485085", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-362365515"} {:id "defn-/find-sailing-transports", :kind "defn-", :line 9, :end-line 25, :hash "302493609"} {:id "defn-/nearest-transport", :kind "defn-", :line 27, :end-line 31, :hash "-1361509551"} {:id "defn/assign-land-ho-invasion", :kind "defn", :line 33, :end-line 58, :hash "-1966366827"}]}
+;; clj-mutate-manifest-end

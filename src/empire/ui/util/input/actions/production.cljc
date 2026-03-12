@@ -30,3 +30,7 @@
                    (helpers/item-processed!)
                    true)
       (config/key->production-item k) (try-set-production coords (config/key->production-item k)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:29.398883-05:00", :module-hash "610205501", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "351098827"} {:id "defn-/try-set-production", :kind "defn-", :line 10, :end-line 19, :hash "-1709960315"} {:id "defn/handle-city-production-key", :kind "defn", :line 21, :end-line 32, :hash "1566189338"}]}
+;; clj-mutate-manifest-end

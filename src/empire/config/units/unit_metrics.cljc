@@ -20,3 +20,7 @@
 (defn effective-capacity
   [base-cap current-hits max-hits]
   (scale-by-hits base-cap current-hits max-hits))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:58.964634-05:00", :module-hash "1971052060", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 2, :hash "1776888221"} {:id "def/naval-units", :kind "def", :line 4, :end-line 5, :hash "-569052656"} {:id "defn/naval-unit?", :kind "defn", :line 7, :end-line 9, :hash "838680342"} {:id "defn/scale-by-hits", :kind "defn", :line 11, :end-line 14, :hash "-679300535"} {:id "defn/effective-speed", :kind "defn", :line 16, :end-line 18, :hash "-743163770"} {:id "defn/effective-capacity", :kind "defn", :line 20, :end-line 22, :hash "-2107664833"}]}
+;; clj-mutate-manifest-end

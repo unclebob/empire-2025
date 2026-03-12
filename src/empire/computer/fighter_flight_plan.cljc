@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-flight-plan
   (:require [empire.computer.ship :as ship]
             [empire.config.core :as config]
@@ -131,3 +130,7 @@
                              (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)
                              (assoc :flight-target-site new-target :flight-origin-site target))))
     {:pos pos :hops 1}))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:43.298828-05:00", :module-hash "-1585903293", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "83911764"} {:id "def/sortie-half-steps", :kind "def", :line 7, :end-line 7, :hash "1596510764"} {:id "def/neighbor-offsets", :kind "def", :line 9, :end-line 12, :hash "-1254756339"} {:id "defn-/neighbors", :kind "defn-", :line 14, :end-line 21, :hash "1594434900"} {:id "defn-/current-refueling-site", :kind "defn-", :line 23, :end-line 36, :hash "-1139369009"} {:id "defn-/choose-leg", :kind "defn-", :line 38, :end-line 62, :hash "422572113"} {:id "defn-/assign-regular-leg!", :kind "defn-", :line 64, :end-line 70, :hash "-2084680192"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 72, :end-line 79, :hash "-610341190"} {:id "defn/assign-exploration-flight!", :kind "defn", :line 81, :end-line 97, :hash "-982208474"} {:id "defn/ensure-flight-target!", :kind "defn", :line 99, :end-line 108, :hash "-187380062"} {:id "defn/at-flight-target?", :kind "defn", :line 110, :end-line 115, :hash "86323421"} {:id "defn/handle-arrival!", :kind "defn", :line 117, :end-line 132, :hash "326495545"}]}
+;; clj-mutate-manifest-end

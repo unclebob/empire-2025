@@ -22,3 +22,7 @@
     (<= new-fuel 1) :out-of-fuel
     bingo? :bingo
     :else :burn))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:15.74467-05:00", :module-hash "-215378057", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "-228511216"} {:id "defn/dead-unit?", :kind "defn", :line 5, :end-line 7, :hash "783030106"} {:id "defn/computer-carrier?", :kind "defn", :line 9, :end-line 11, :hash "165670236"} {:id "defn/bingo-fuel?", :kind "defn", :line 13, :end-line 16, :hash "102138636"} {:id "defn/fuel-action", :kind "defn", :line 18, :end-line 24, :hash "-213520270"}]}
+;; clj-mutate-manifest-end

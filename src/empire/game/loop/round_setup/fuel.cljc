@@ -43,3 +43,7 @@
                        (= :sentry (:mode unit)))]
       (let [new-fuel (dec (:fuel unit config/fighter-fuel))]
         (apply-fuel-action [i j] (fuel-action new-fuel [i j]) new-fuel)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:10.34683-05:00", :module-hash "2071655665", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1067048952"} {:id "defn-/world-ref", :kind "defn-", :line 7, :end-line 7, :hash "-1351735972"} {:id "defn-/set-error-message!", :kind "defn-", :line 9, :end-line 12, :hash "-369960802"} {:id "defn-/bingo-fuel?", :kind "defn-", :line 14, :end-line 18, :hash "-1488368327"} {:id "defn-/fuel-action", :kind "defn-", :line 20, :end-line 21, :hash "-1364834926"} {:id "defn-/apply-fuel-action", :kind "defn-", :line 23, :end-line 31, :hash "1684615316"} {:id "defn/consume-sentry-fighter-fuel", :kind "defn", :line 33, :end-line 45, :hash "-1721693425"}]}
+;; clj-mutate-manifest-end

@@ -38,3 +38,7 @@
    :next-escort-id 1})
 
 (def state (atom defaults))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:47.576375-05:00", :module-hash "-10532134", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-654248230"} {:id "def/defaults", :kind "def", :line 3, :end-line 38, :hash "1715941080"} {:id "def/state", :kind "def", :line 40, :end-line 40, :hash "-1274501582"}]}
+;; clj-mutate-manifest-end

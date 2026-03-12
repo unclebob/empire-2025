@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-25
 (ns empire.game.save-load
   (:require [clojure.edn :as edn]
             [clojure.string :as string]
@@ -196,3 +195,7 @@
              (>= mouse-y (:content-top geom))
              (< mouse-y (+ (:content-top geom) (* file-count (:item-height geom)))))
     (int (/ (- mouse-y (:content-top geom)) (:item-height geom)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:27.102913-05:00", :module-hash "-853051293", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "1110262074"} {:id "def/saveable-atoms", :kind "def", :line 7, :end-line 38, :hash "-445609867"} {:id "defn-/timestamp", :kind "defn-", :line 40, :end-line 43, :hash "1770911414"} {:id "defn-/default-save-basename", :kind "defn-", :line 45, :end-line 46, :hash "-1409773980"} {:id "defn/normalize-save-filename", :kind "defn", :line 48, :end-line 58, :hash "1412945129"} {:id "defn-/read-save-key", :kind "defn-", :line 60, :end-line 64, :hash "1502581137"} {:id "defn-/write-save-key!", :kind "defn-", :line 66, :end-line 70, :hash "-861186194"} {:id "defn/list-save-files", :kind "defn", :line 72, :end-line 83, :hash "484810619"} {:id "defn/save-game!", :kind "defn", :line 85, :end-line 101, :hash "1259703819"} {:id "defn/open-save-menu!", :kind "defn", :line 103, :end-line 108, :hash "276430531"} {:id "defn/close-save-menu!", :kind "defn", :line 110, :end-line 114, :hash "-2142207825"} {:id "defn/append-save-menu-char!", :kind "defn", :line 116, :end-line 118, :hash "-560179540"} {:id "defn/backspace-save-menu-input!", :kind "defn", :line 120, :end-line 126, :hash "-1361916783"} {:id "defn/save-from-menu!", :kind "defn", :line 128, :end-line 133, :hash "-1673029621"} {:id "defn/load-game!", :kind "defn", :line 135, :end-line 151, :hash "1106251625"} {:id "defn/open-load-menu!", :kind "defn", :line 153, :end-line 159, :hash "-2087101621"} {:id "defn/close-load-menu!", :kind "defn", :line 161, :end-line 166, :hash "1390749144"} {:id "def/menu-width", :kind "def", :line 168, :end-line 168, :hash "-1110273700"} {:id "def/menu-padding", :kind "def", :line 169, :end-line 169, :hash "-1892092342"} {:id "def/menu-title-height", :kind "def", :line 170, :end-line 170, :hash "263027173"} {:id "def/menu-item-height", :kind "def", :line 171, :end-line 171, :hash "107622945"} {:id "defn/menu-geometry", :kind "defn", :line 173, :end-line 187, :hash "-1208100556"} {:id "defn/hovered-file-index", :kind "defn", :line 189, :end-line 197, :hash "-1407830035"}]}
+;; clj-mutate-manifest-end

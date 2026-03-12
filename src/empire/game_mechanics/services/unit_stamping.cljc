@@ -109,3 +109,7 @@
                 :random-explore-direction
                 (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
     unit))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:25.62253-05:00", :module-hash "-506140239", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 4, :hash "-1239904682"} {:id "defn-/next-id!", :kind "defn-", :line 6, :end-line 10, :hash "-78904397"} {:id "defn-/apply-computer-satellite-direction", :kind "defn-", :line 12, :end-line 16, :hash "-382100866"} {:id "defn-/apply-computer-transport-fields", :kind "defn-", :line 18, :end-line 25, :hash "-1980935197"} {:id "defn-/apply-country-id", :kind "defn-", :line 27, :end-line 31, :hash "-1622960732"} {:id "defn-/apply-patrol-fields", :kind "defn-", :line 33, :end-line 39, :hash "-31215873"} {:id "defn-/apply-carrier-fields", :kind "defn-", :line 41, :end-line 49, :hash "2075914662"} {:id "defn-/apply-escort-fields", :kind "defn-", :line 51, :end-line 56, :hash "1647652015"} {:id "defn-/apply-destroyer-fields", :kind "defn-", :line 58, :end-line 63, :hash "970361077"} {:id "defn/stamp-computer-fields", :kind "defn", :line 65, :end-line 75, :hash "-800983818"} {:id "defn-/country-coastal-cells-explored?", :kind "defn-", :line 77, :end-line 78, :hash "1350831394"} {:id "defn/apply-coast-walk-fields", :kind "defn", :line 80, :end-line 98, :hash "-1525998489"} {:id "defn/apply-random-explore-fields", :kind "defn", :line 100, :end-line 111, :hash "-1065275940"}]}
+;; clj-mutate-manifest-end

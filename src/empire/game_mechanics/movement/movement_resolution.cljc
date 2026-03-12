@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.game-mechanics.movement.movement-resolution
   (:require [clojure.string]
             [empire.game-mechanics.services.combat :as combat]
@@ -205,3 +204,7 @@
                               (dissoc :reason :extended)
                               (cond-> extended? (assoc :extended true)))]
      (update-game-map! assoc-in unit-coords (assoc first-cell :contents updated-contents)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:18.716858-05:00", :module-hash "1620829780", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "316750983"} {:id "defn-/update-game-map!", :kind "defn-", :line 15, :end-line 17, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 19, :end-line 21, :hash "-640438772"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 23, :end-line 25, :hash "1105581680"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 27, :end-line 36, :hash "1663727491"} {:id "defn-/normalize-target", :kind "defn-", :line 38, :end-line 45, :hash "985031462"} {:id "defn-/blocked-by-friendly?", :kind "defn-", :line 47, :end-line 52, :hash "1281932102"} {:id "defn-/blocked-by-enemy?", :kind "defn-", :line 54, :end-line 59, :hash "363411348"} {:id "defn-/can-attack-enemy?", :kind "defn-", :line 61, :end-line 68, :hash "1956538127"} {:id "defn-/handle-combat", :kind "defn-", :line 70, :end-line 79, :hash "-1444329373"} {:id "defn-/should-sidestep-city?", :kind "defn-", :line 81, :end-line 95, :hash "-2042468378"} {:id "defn-/get-blocked-direction", :kind "defn-", :line 97, :end-line 100, :hash "-997753313"} {:id "defn-/try-sidestep", :kind "defn-", :line 102, :end-line 116, :hash "-806743667"} {:id "defn-/wake-unit-for-city", :kind "defn-", :line 118, :end-line 121, :hash "-828913488"} {:id "defn-/dock-ship-for-repair", :kind "defn-", :line 123, :end-line 142, :hash "-1937915179"} {:id "defn-/woke-and-blocked?", :kind "defn-", :line 144, :end-line 145, :hash "1414423656"} {:id "defn-/handle-movement-result", :kind "defn-", :line 147, :end-line 171, :hash "-1999682375"} {:id "defn/move-unit", :kind "defn", :line 173, :end-line 191, :hash "-1855906636"} {:id "defn/set-unit-movement", :kind "defn", :line 193, :end-line 206, :hash "-1991903948"}]}
+;; clj-mutate-manifest-end

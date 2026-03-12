@@ -14,7 +14,8 @@
            "      (h/handle-key! :" (name key) ")\n"
            "      (h/advance-game!))")
       (str "    (with-redefs [rand (constantly " rand-val ")]\n"
-           "      (h/handle-key! :" (name key) "))"))))
+           "      (h/handle-key! :" (name key) ")\n"
+           "      (h/advance-game!))"))))
 
 (defn- generate-backtick-when [{:keys [key mouse-cell]}]
   (let [[x y] mouse-cell]
@@ -145,3 +146,7 @@
        (str "    (pending \"Unrecognized: " (:text when-ir) "\")")
        :else
        (str "    ;; Unknown when type: " type)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:08:05.344094-05:00", :module-hash "-1155497975", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "401875766"} {:id "defn-/generate-key-press-when", :kind "defn-", :line 5, :end-line 8, :hash "653351182"} {:id "defn-/generate-battle-when", :kind "defn-", :line 10, :end-line 18, :hash "636356161"} {:id "defn-/generate-backtick-when", :kind "defn-", :line 20, :end-line 24, :hash "298774770"} {:id "defn-/mouse-at-key-expr", :kind "defn-", :line 26, :end-line 30, :hash "715537869"} {:id "defn-/generate-mouse-at-key-when", :kind "defn-", :line 32, :end-line 43, :hash "-1246038032"} {:id "defn-/generate-visibility-update-when", :kind "defn-", :line 45, :end-line 46, :hash "1584876063"} {:id "defn-/generate-cell-visibility-update-when", :kind "defn-", :line 48, :end-line 52, :hash "267489652"} {:id "defn-/generate-evaluate-production-when", :kind "defn-", :line 54, :end-line 56, :hash "666763105"} {:id "defn-/generate-process-computer-transport-when", :kind "defn-", :line 58, :end-line 60, :hash "-546766140"} {:id "defn-/generate-process-computer-fighter-when", :kind "defn-", :line 62, :end-line 66, :hash "-797050054"} {:id "defn-/generate-process-computer-ship-when", :kind "defn-", :line 68, :end-line 70, :hash "1090142395"} {:id "defn-/generate-computer-rounds-when", :kind "defn-", :line 72, :end-line 82, :hash "2116163251"} {:id "def/start-new-round-step", :kind "def", :line 84, :end-line 92, :hash "-546269705"} {:id "defn-/generate-start-new-round-when", :kind "defn-", :line 94, :end-line 95, :hash "-809901383"} {:id "defn-/generate-rounds-complete-when", :kind "defn-", :line 97, :end-line 100, :hash "1507409683"} {:id "defn-/generate-advance-game-when", :kind "defn-", :line 102, :end-line 103, :hash "272973498"} {:id "defn-/generate-process-player-items-when", :kind "defn-", :line 105, :end-line 106, :hash "31827892"} {:id "defn-/generate-advance-until-waiting-when", :kind "defn-", :line 108, :end-line 109, :hash "-620043933"} {:id "def/when-generators", :kind "def", :line 111, :end-line 133, :hash "390219139"} {:id "defn/generate-when", :kind "defn", :line 135, :end-line 148, :hash "-32536941"}]}
+;; clj-mutate-manifest-end

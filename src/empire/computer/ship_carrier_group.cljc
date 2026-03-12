@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-carrier-group
   "Carrier group escort - battleship and submarine orbiting behavior."
   (:require [empire.state.api :as sa]
@@ -175,3 +174,7 @@
     (if-let [enemy-pos (orbiting-enemy-pos pos mode)]
       (escort/begin-pursuit pos enemy-pos)
       (dispatch-escort-mode pos unit-type mode))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:19.344118-05:00", :module-hash "-1544608056", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "1905823106"} {:id "def/orbit-ring", :kind "def", :line 10, :end-line 15, :hash "1896622938"} {:id "defn-/find-carrier-with-open-slot", :kind "defn-", :line 17, :end-line 34, :hash "-2019653570"} {:id "defn-/initial-orbit-angle", :kind "defn-", :line 36, :end-line 41, :hash "-1883950430"} {:id "defn-/adopt-carrier-escort", :kind "defn-", :line 43, :end-line 61, :hash "1508885090"} {:id "defn-/orbit-target-pos", :kind "defn-", :line 63, :end-line 67, :hash "2118903567"} {:id "defn-/valid-orbit-pos?", :kind "defn-", :line 69, :end-line 73, :hash "1667318196"} {:id "defn-/find-next-orbit-angle", :kind "defn-", :line 75, :end-line 83, :hash "954411254"} {:id "defn-/revert-escort-to-seeking", :kind "defn-", :line 85, :end-line 90, :hash "-2124523176"} {:id "defn-/process-escort-seeking", :kind "defn-", :line 92, :end-line 97, :hash "723363070"} {:id "defn-/transition-to-orbiting", :kind "defn-", :line 99, :end-line 112, :hash "1105365618"} {:id "defn-/process-escort-intercepting", :kind "defn-", :line 114, :end-line 122, :hash "1724523770"} {:id "defn-/process-escort-orbiting", :kind "defn-", :line 124, :end-line 143, :hash "1215011207"} {:id "defn-/find-enemy-near-carrier-group", :kind "defn-", :line 145, :end-line 151, :hash "-1065071916"} {:id "defn-/orbiting-enemy-pos", :kind "defn-", :line 153, :end-line 157, :hash "-965978677"} {:id "defn-/dispatch-escort-mode", :kind "defn-", :line 159, :end-line 167, :hash "-1246732420"} {:id "defn/process-carrier-group-escort", :kind "defn", :line 169, :end-line 176, :hash "-1690704505"}]}
+;; clj-mutate-manifest-end

@@ -272,3 +272,16 @@ GIVEN F is waiting for input.
 WHEN the player presses d.
 
 THEN at the next step the error message contains :fighter-destroyed-by-city.
+
+;===============================================================
+; Fighter can keep moving after defeating a computer army.
+;===============================================================
+GIVEN game map
+  Fa#
+GIVEN F is waiting for input.
+
+WHEN the player presses d and wins the battle.
+WHEN the game advances until F is waiting for input.
+
+THEN F is at [1 0].
+THEN F is waiting for input.

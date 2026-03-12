@@ -25,3 +25,7 @@
         (conj! carriers [i j])))
     {:cities (persistent! cities)
      :carriers (persistent! carriers)}))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:24.791101-05:00", :module-hash "32320224", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 2, :hash "-1736060099"} {:id "defn/computer-city-cell?", :kind "defn", :line 4, :end-line 7, :hash "263806765"} {:id "defn/computer-carrier-cell?", :kind "defn", :line 9, :end-line 12, :hash "1245641492"} {:id "defn/scan-refueling-positions", :kind "defn", :line 14, :end-line 27, :hash "-780216883"}]}
+;; clj-mutate-manifest-end

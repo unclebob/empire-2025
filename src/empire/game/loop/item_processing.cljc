@@ -1,18 +1,14 @@
-;; mutation-tested: 2026-02-26
 (ns empire.game.loop.item-processing
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.api :as movement-api]
-            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.config.core :as config]
-            [empire.computer.coordinator :as computer]
-            [empire.computer.production :as computer-production]
-            [empire.computer.threat-response :as threat-response]
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.player.attention :as player-attention]
             [empire.game-mechanics.movement.explore :as explore]
-            [empire.game-mechanics.movement.coastline :as coastline]))
+            [empire.game-mechanics.movement.coastline :as coastline]
+            [empire.game.loop.item-processing.computer-items :as computer-items]))
 
 (defn check-player-victory!
   "Game-over from city elimination is handled at city-conquest time."
@@ -33,14 +29,27 @@
 [pos owner]
   (let [moved-unit (:contents (get-in (sa/current-world) pos))]
     (when (and moved-unit (= (:owner moved-unit) owner))
-      (sa/update-world! assoc-in (conj pos :contents :steps-remaining) 0))))
+      (if (= :fighter (:type moved-unit))
+        (let [new-steps (dec (:steps-remaining moved-unit 1))]
+          (sa/update-world! update-in (conj pos :contents)
+                            #(-> %
+                                 (assoc :mode :awake
+                                        :steps-remaining new-steps)
+                                 (dissoc :target :extended))))
+        (sa/update-world! assoc-in (conj pos :contents :steps-remaining) 0)))))
 
 (defn- resolve-move-result
   "Resolves a move result into the next position. Returns pos if unit should continue, nil if done."
   [result pos owner]
   (case result
     (:sidestep :normal) (advance-step pos)
-    :combat (do (end-combat-move pos owner) nil)
+    :combat (do (end-combat-move pos owner)
+                (let [moved-unit (:contents (get-in (sa/current-world) pos))]
+                  (when (and moved-unit
+                             (= :fighter (:type moved-unit))
+                             (= (:owner moved-unit) owner)
+                             (pos? (:steps-remaining moved-unit 0)))
+                    pos)))
     :woke pos
     :docked nil))
 
@@ -156,39 +165,10 @@
       :else
       (process-auto-movement coords unit))))
 
-(defn- dispatch-detections!
-  "Drains queued visibility detections and dispatches to threat-response."
-  []
-  (doseq [{:keys [pos cell]} (visibility/drain-detections!)]
-    (threat-response/handle-detection! pos cell)))
-
-(defn- process-one-computer-item
-  "Processes a single computer item. Returns :done when item processed."
-  []
-  (let [coords (first (sa/read-state :computer-items))
-        cell (get-in (sa/current-world) coords)
-        is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
-        has-computer-unit? (= (:owner (:contents cell)) :computer)]
-    ;; Handle city production if this is a computer city
-    (when is-computer-city?
-      (computer-production/process-computer-city coords))
-    ;; Process unit movement if there's a computer unit here
-    (if has-computer-unit?
-      (let [new-coords (computer/process-computer-unit coords)]
-        (dispatch-detections!)
-        (if new-coords
-          (do (sa/update-state! :computer-items #(cons new-coords (rest %))) :continue)
-          (do (sa/update-state! :computer-items rest) :done)))
-      ;; No unit, just city processing done
-      (do (sa/update-state! :computer-items rest) :done))))
-
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."
   []
-  (loop [processed 0]
-    (when (and (seq (sa/read-state :computer-items)) (< processed 100))
-      (process-one-computer-item)
-      (recur (inc processed)))))
+  (computer-items/process-computer-items))
 
 (defn- batch-should-stop? [processed]
   (or (sa/read-state :paused)
@@ -205,3 +185,7 @@
           :waiting nil
           :continue (recur (inc processed))
           :done (recur (inc processed)))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:16:04.721977-05:00", :module-hash "-148534857", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 11, :hash "674996277"} {:id "defn/check-player-victory!", :kind "defn", :line 13, :end-line 16, :hash "1003493917"} {:id "defn-/advance-step", :kind "defn-", :line 18, :end-line 25, :hash "-1281843861"} {:id "defn-/end-combat-move", :kind "defn-", :line 27, :end-line 39, :hash "-621370463"} {:id "defn-/resolve-move-result", :kind "defn-", :line 41, :end-line 54, :hash "321976992"} {:id "defn/move-current-unit", :kind "defn", :line 56, :end-line 69, :hash "367190430"} {:id "defn/move-explore-unit", :kind "defn", :line 71, :end-line 74, :hash "-703094186"} {:id "defn/move-coastline-unit", :kind "defn", :line 76, :end-line 79, :hash "-127782"} {:id "defn-/airport-flight-path", :kind "defn-", :line 81, :end-line 82, :hash "502978521"} {:id "defn-/awake-airport-fighter?", :kind "defn-", :line 84, :end-line 85, :hash "-358747613"} {:id "defn-/awake-carrier-fighter?", :kind "defn-", :line 87, :end-line 89, :hash "-230396723"} {:id "defn-/auto-launch-fighter", :kind "defn-", :line 91, :end-line 100, :hash "251699985"} {:id "defn-/auto-disembark-army", :kind "defn-", :line 102, :end-line 121, :hash "217231336"} {:id "defn-/process-auto-movement", :kind "defn-", :line 123, :end-line 131, :hash "-781362847"} {:id "defn-/satellite-with-target?", :kind "defn-", :line 133, :end-line 134, :hash "-1209035924"} {:id "defn-/try-auto-launch-or-disembark", :kind "defn-", :line 136, :end-line 138, :hash "1778439438"} {:id "defn-/process-one-item", :kind "defn-", :line 140, :end-line 166, :hash "-747283155"} {:id "defn/process-computer-items", :kind "defn", :line 168, :end-line 171, :hash "-1537801344"} {:id "defn-/batch-should-stop?", :kind "defn-", :line 173, :end-line 177, :hash "102333966"} {:id "defn/process-player-items-batch", :kind "defn", :line 179, :end-line 187, :hash "1662766734"}]}
+;; clj-mutate-manifest-end

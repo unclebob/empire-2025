@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-26
 (ns empire.game-mechanics.movement.satellite
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.visibility :as visibility]))
@@ -209,3 +208,7 @@
                       [x y])
 
                     :else [x y]))))))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:46.543045-05:00", :module-hash "-1207297436", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-1245406970"} {:id "defn-/update-game-map!", :kind "defn-", :line 5, :end-line 7, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 9, :end-line 11, :hash "-640438772"} {:id "defn-/extend-to-boundary", :kind "defn-", :line 13, :end-line 22, :hash "974468210"} {:id "defn/calculate-satellite-target", :kind "defn", :line 24, :end-line 34, :hash "1999800491"} {:id "defn-/opposite-row", :kind "defn-", :line 36, :end-line 37, :hash "1729144679"} {:id "defn-/opposite-col", :kind "defn-", :line 39, :end-line 40, :hash "1218751045"} {:id "defn-/target-on-opposite-row", :kind "defn-", :line 42, :end-line 43, :hash "1076132881"} {:id "defn-/target-on-opposite-col", :kind "defn-", :line 45, :end-line 46, :hash "-1367885660"} {:id "defn-/boundary-type", :kind "defn-", :line 48, :end-line 51, :hash "105730157"} {:id "defn-/pick-corner-target", :kind "defn-", :line 53, :end-line 56, :hash "-919321911"} {:id "defn-/calculate-new-satellite-target", :kind "defn-", :line 58, :end-line 66, :hash "1106150626"} {:id "defn-/blocked-cell?", :kind "defn-", :line 68, :end-line 72, :hash "-1819699903"} {:id "defn-/in-bounds?", :kind "defn-", :line 74, :end-line 76, :hash "-768521146"} {:id "defn-/find-open-cell", :kind "defn-", :line 78, :end-line 87, :hash "1772835370"} {:id "defn-/bounce-direction", :kind "defn-", :line 89, :end-line 108, :hash "1823438433"} {:id "defn-/move-satellite-to!", :kind "defn-", :line 110, :end-line 116, :hash "-802385206"} {:id "defn-/bounce-move", :kind "defn-", :line 118, :end-line 127, :hash "-2098485205"} {:id "defn-/straight-move-action", :kind "defn-", :line 129, :end-line 137, :hash "607806084"} {:id "defn-/move-satellite-straight", :kind "defn-", :line 139, :end-line 161, :hash "-124621734"} {:id "defn/move-satellite", :kind "defn", :line 163, :end-line 210, :hash "69543404"}]}
+;; clj-mutate-manifest-end

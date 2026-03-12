@@ -64,3 +64,7 @@
 (def evacuate-lake-patrol-boats lakes/evacuate-lake-patrol-boats)
 (def mark-lake-locked-ships lakes/mark-lake-locked-ships)
 (def repair-damaged-ships repair/repair-damaged-ships)
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:08.094471-05:00", :module-hash "-1224834806", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-865788478"} {:id "defn/dead-unit?", :kind "defn", :line 16, :end-line 17, :hash "774282137"} {:id "defn/computer-carrier?", :kind "defn", :line 19, :end-line 20, :hash "-931774369"} {:id "defn/remove-dead-units", :kind "defn", :line 22, :end-line 34, :hash "-1398936752"} {:id "defn/reset-steps-remaining", :kind "defn", :line 36, :end-line 46, :hash "-2013273020"} {:id "defn/move-satellites", :kind "defn", :line 48, :end-line 57, :hash "1312988440"} {:id "def/wake-airport-fighters", :kind "def", :line 60, :end-line 60, :hash "-1677494432"} {:id "def/wake-carrier-fighters", :kind "def", :line 61, :end-line 61, :hash "1788720167"} {:id "def/wake-sentries-seeing-enemy", :kind "def", :line 62, :end-line 62, :hash "1060641709"} {:id "def/consume-sentry-fighter-fuel", :kind "def", :line 63, :end-line 63, :hash "321479004"} {:id "def/evacuate-lake-patrol-boats", :kind "def", :line 64, :end-line 64, :hash "360128640"} {:id "def/mark-lake-locked-ships", :kind "def", :line 65, :end-line 65, :hash "-1083822323"} {:id "def/repair-damaged-ships", :kind "def", :line 66, :end-line 66, :hash "189964291"}]}
+;; clj-mutate-manifest-end

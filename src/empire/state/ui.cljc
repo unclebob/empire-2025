@@ -29,3 +29,7 @@
    :save-menu-default-active false})
 
 (def state (atom defaults))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:52.392128-05:00", :module-hash "-452244108", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "254930533"} {:id "def/defaults", :kind "def", :line 3, :end-line 29, :hash "794861183"} {:id "def/state", :kind "def", :line 31, :end-line 31, :hash "-1274501582"}]}
+;; clj-mutate-manifest-end

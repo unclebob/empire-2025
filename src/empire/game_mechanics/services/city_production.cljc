@@ -12,3 +12,7 @@
                                  coords
                                  {:item item
                                   :remaining-rounds (config/item-cost item)}))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:02.341176-05:00", :module-hash "1378850599", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 4, :hash "2051790061"} {:id "defn/set-city-production", :kind "defn", :line 6, :end-line 14, :hash "569870887"}]}
+;; clj-mutate-manifest-end

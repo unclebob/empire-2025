@@ -66,3 +66,7 @@
                             (component-fully-explored? the-map component rows cols))
                      (into lakes component)
                      lakes))))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:05.245991-05:00", :module-hash "798164675", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "678409883"} {:id "defn-/in-bounds?", :kind "defn-", :line 5, :end-line 7, :hash "-1113606377"} {:id "defn-/sea-cell?", :kind "defn-", :line 9, :end-line 11, :hash "452144751"} {:id "defn-/bfs-sea-component", :kind "defn-", :line 13, :end-line 31, :hash "1754859198"} {:id "defn-/explored-cell?", :kind "defn-", :line 33, :end-line 35, :hash "-1906120449"} {:id "defn-/component-fully-explored?", :kind "defn-", :line 37, :end-line 45, :hash "1234831981"} {:id "defn/lake-cells", :kind "defn", :line 47, :end-line 68, :hash "685693919"}]}
+;; clj-mutate-manifest-end

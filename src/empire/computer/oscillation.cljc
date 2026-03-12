@@ -82,3 +82,7 @@
                 without-meta
                 snapshot))
       (dissoc unit :oscillation-random-walk-rounds-left))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:02.945762-05:00", :module-hash "-1245599918", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "1663568167"} {:id "def/default-history-limit", :kind "def", :line 5, :end-line 5, :hash "183882387"} {:id "def/patrol-boat-history-limit", :kind "def", :line 6, :end-line 6, :hash "1938788207"} {:id "def/escape-rounds", :kind "def", :line 7, :end-line 7, :hash "-1420890481"} {:id "def/missing", :kind "def", :line 8, :end-line 8, :hash "1923231318"} {:id "defn-/history-limit-for-unit", :kind "defn-", :line 10, :end-line 14, :hash "-1645874476"} {:id "defn/append-position", :kind "defn", :line 16, :end-line 23, :hash "-451428230"} {:id "defn-/oscillation-period?", :kind "defn-", :line 25, :end-line 32, :hash "2002281526"} {:id "defn/oscillating?", :kind "defn", :line 34, :end-line 40, :hash "603756188"} {:id "defn/in-random-walk?", :kind "defn", :line 42, :end-line 44, :hash "-1464565000"} {:id "defn/start-random-walk", :kind "defn", :line 46, :end-line 55, :hash "-581970112"} {:id "defn/maybe-enter-random-walk", :kind "defn", :line 57, :end-line 64, :hash "-1313270760"} {:id "defn/dec-random-walk", :kind "defn", :line 66, :end-line 70, :hash "245997758"} {:id "defn/maybe-restore", :kind "defn", :line 72, :end-line 84, :hash "1755917827"}]}
+;; clj-mutate-manifest-end

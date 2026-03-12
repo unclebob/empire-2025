@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.game-mechanics.debug.logging
   "Debug log appenders with bounded history."
   (:require [empire.state.api :as sa]))
@@ -53,3 +52,7 @@
                                (if (> (count new-log) max-action-log-size)
                                  (vec (drop (- (count new-log) max-action-log-size) new-log))
                                  new-log))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:49.459279-05:00", :module-hash "-211312106", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "777327598"} {:id "def/max-action-log-size", :kind "def", :line 5, :end-line 5, :hash "670369281"} {:id "def/max-movement-log-size", :kind "def", :line 6, :end-line 6, :hash "215068873"} {:id "def/max-computer-event-log-size", :kind "def", :line 7, :end-line 7, :hash "-1473022156"} {:id "defn/log-player-movement!", :kind "defn", :line 9, :end-line 26, :hash "-282432460"} {:id "defn/log-computer-event!", :kind "defn", :line 28, :end-line 39, :hash "-782503197"} {:id "defn/log-action!", :kind "defn", :line 41, :end-line 54, :hash "1265608058"}]}
+;; clj-mutate-manifest-end

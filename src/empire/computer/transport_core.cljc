@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-03
 (ns empire.computer.transport-core
   "Shared transport helpers — no dependencies on other transport sub-modules."
   (:require [empire.state.api :as sa]
@@ -66,3 +65,7 @@
       (when-let [cid (:country-id (get-in (sa/current-world) land-pos))]
         (sa/update-world! assoc-in
                (conj pos :contents :pickup-country-id) cid)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:55.047797-05:00", :module-hash "-1339241194", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "432609882"} {:id "defn/get-passable-sea-neighbors", :kind "defn", :line 7, :end-line 16, :hash "-230437541"} {:id "defn/recently-unloaded-country?", :kind "defn", :line 18, :end-line 21, :hash "-493759778"} {:id "defn/adjacent-to-land?", :kind "defn", :line 23, :end-line 28, :hash "2037017228"} {:id "defn/find-adjacent-land-pos", :kind "defn", :line 30, :end-line 36, :hash "-1582415204"} {:id "defn/set-transport-mission", :kind "defn", :line 38, :end-line 43, :hash "-164182747"} {:id "defn/mint-unload-event-id", :kind "defn", :line 45, :end-line 50, :hash "953808771"} {:id "defn/mint-unload-country-id", :kind "defn", :line 52, :end-line 57, :hash "-845291531"} {:id "defn/record-pickup-continent-pos", :kind "defn", :line 59, :end-line 67, :hash "26774624"}]}
+;; clj-mutate-manifest-end

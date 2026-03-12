@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.ship-patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
   (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -235,3 +234,7 @@
             (if-let [new-pos (patrol-boat-step current-pos)]
               (recur new-pos (dec steps-left))
               (recur current-pos (dec steps-left)))))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:27.948086-05:00", :module-hash "-655861476", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1898398778"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 10, :end-line 12, :hash "-1102586575"} {:id "defn-/find-adjacent-player-transport", :kind "defn-", :line 14, :end-line 24, :hash "1563452575"} {:id "defn-/find-adjacent-non-transport-enemy", :kind "defn-", :line 26, :end-line 36, :hash "-1921282721"} {:id "defn-/adjacent-to-land?", :kind "defn-", :line 38, :end-line 45, :hash "-1700771999"} {:id "defn-/flee-from", :kind "defn-", :line 47, :end-line 59, :hash "-826184541"} {:id "defn/patrol-crawl-step", :kind "defn", :line 61, :end-line 83, :hash "1931910733"} {:id "defn-/arrived-at-unseen-coast?", :kind "defn-", :line 85, :end-line 92, :hash "-414765874"} {:id "defn-/run-bfs-and-store-path", :kind "defn-", :line 94, :end-line 106, :hash "-1691419451"} {:id "defn-/switch-to-crawling", :kind "defn-", :line 108, :end-line 112, :hash "-2033427846"} {:id "defn-/follow-explore-path", :kind "defn-", :line 114, :end-line 129, :hash "-865251015"} {:id "defn-/generate-random-sea-walk", :kind "defn-", :line 131, :end-line 142, :hash "-1068655937"} {:id "defn-/store-random-walk", :kind "defn-", :line 144, :end-line 150, :hash "-731934508"} {:id "defn/patrol-explore-step", :kind "defn", :line 152, :end-line 166, :hash "-389736091"} {:id "defn-/patrol-mode-step", :kind "defn-", :line 168, :end-line 174, :hash "-53768473"} {:id "defn-/major-invasion-step", :kind "defn-", :line 176, :end-line 180, :hash "-214934784"} {:id "defn-/non-invasion-step", :kind "defn-", :line 182, :end-line 188, :hash "668836354"} {:id "defn-/patrol-boat-step", :kind "defn-", :line 190, :end-line 196, :hash "-1795611871"} {:id "defn/process-patrol-boat", :kind "defn", :line 198, :end-line 236, :hash "-1826718201"}]}
+;; clj-mutate-manifest-end

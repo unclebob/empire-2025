@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-unloading
   "Transport unloading — opportunistic and targeted army unloading."
   (:require [empire.state.api :as sa]
@@ -246,3 +245,7 @@
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
           (sa/update-world! assoc-in (conj target :contents :crawl-history) new-history))
         target))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:11.701992-05:00", :module-hash "1542528357", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "571949949"} {:id "defn/pickup-exclude-ids", :kind "defn", :line 13, :end-line 21, :hash "1846454024"} {:id "defn/pickup-continent-if-needed", :kind "defn", :line 23, :end-line 29, :hash "-1134240335"} {:id "defn/unloadable-land-cell?", :kind "defn", :line 31, :end-line 42, :hash "-1386163529"} {:id "defn/adjacent-empty-land", :kind "defn", :line 44, :end-line 52, :hash "27296169"} {:id "defn-/passable-coastal-sea?", :kind "defn-", :line 54, :end-line 63, :hash "1069173453"} {:id "defn/has-nearby-unloadable-land?", :kind "defn", :line 65, :end-line 92, :hash "1193770655"} {:id "defn-/transition-to-loading-inline", :kind "defn-", :line 94, :end-line 110, :hash "-55081164"} {:id "defn-/unload-army-template", :kind "defn-", :line 112, :end-line 118, :hash "-201166129"} {:id "defn-/place-unloaded-armies!", :kind "defn-", :line 120, :end-line 126, :hash "381899336"} {:id "defn-/record-unloaded-country!", :kind "defn-", :line 128, :end-line 135, :hash "-84411371"} {:id "defn-/finish-unload!", :kind "defn-", :line 137, :end-line 141, :hash "270973256"} {:id "defn-/adjacent-unloadable-neighbors", :kind "defn-", :line 143, :end-line 153, :hash "-947538451"} {:id "defn-/adjacent-empty-land-any", :kind "defn-", :line 155, :end-line 162, :hash "-456014395"} {:id "defn/try-opportunistic-unload", :kind "defn", :line 164, :end-line 189, :hash "-1410515644"} {:id "defn/try-opportunistic-unload-any-land", :kind "defn", :line 191, :end-line 207, :hash "817909817"} {:id "defn/unload-armies", :kind "defn", :line 209, :end-line 224, :hash "818516088"} {:id "defn/unloading-crawl-move", :kind "defn", :line 226, :end-line 247, :hash "-1673599752"}]}
+;; clj-mutate-manifest-end

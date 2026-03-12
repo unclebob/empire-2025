@@ -58,3 +58,7 @@
 
 (defn key-released [_ _]
   (sa/write-state! :last-key nil))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:12.448981-05:00", :module-hash "-745697936", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "1156805815"} {:id "defn/screen->cell", :kind "defn", :line 5, :end-line 12, :hash "2032235543"} {:id "defn/compute-screen-dimensions", :kind "defn", :line 14, :end-line 25, :hash "1230315301"} {:id "defn/calculate-screen-dimensions", :kind "defn", :line 27, :end-line 34, :hash "-829060484"} {:id "defn/parse-args", :kind "defn", :line 36, :end-line 57, :hash "-1112366759"} {:id "defn/key-released", :kind "defn", :line 59, :end-line 60, :hash "-2012139141"}]}
+;; clj-mutate-manifest-end

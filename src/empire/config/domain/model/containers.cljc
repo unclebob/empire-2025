@@ -98,3 +98,7 @@
    :target target-coords
    :hits 1
    :steps-remaining steps-remaining})
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:31.657044-05:00", :module-hash "756044061", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "1644965298"} {:id "defn-/wake-all", :kind "defn-", :line 5, :end-line 7, :hash "-1741431791"} {:id "defn-/sleep-all", :kind "defn-", :line 9, :end-line 11, :hash "-10660096"} {:id "defn-/remove-awake-unit", :kind "defn-", :line 13, :end-line 17, :hash "2054284563"} {:id "defn-/has-awake?", :kind "defn-", :line 19, :end-line 21, :hash "-604107264"} {:id "defn/wake-transport-armies", :kind "defn", :line 23, :end-line 28, :hash "1521612537"} {:id "defn/sleep-transport-armies", :kind "defn", :line 30, :end-line 35, :hash "-1217435071"} {:id "defn/remove-awake-transport-army", :kind "defn", :line 37, :end-line 43, :hash "172609969"} {:id "defn/disembarked-army", :kind "defn", :line 45, :end-line 51, :hash "-955625761"} {:id "defn/moving-disembarked-army", :kind "defn", :line 53, :end-line 60, :hash "-389344812"} {:id "defn/exploring-disembarked-army", :kind "defn", :line 62, :end-line 70, :hash "-519995982"} {:id "defn/wake-carrier-fighters", :kind "defn", :line 72, :end-line 77, :hash "1350851168"} {:id "defn/sleep-carrier-fighters", :kind "defn", :line 79, :end-line 84, :hash "-1809907058"} {:id "defn/first-step-toward", :kind "defn", :line 86, :end-line 90, :hash "-218893439"} {:id "defn/launched-fighter", :kind "defn", :line 92, :end-line 100, :hash "-1737092586"}]}
+;; clj-mutate-manifest-end

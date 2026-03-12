@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-25
 (ns empire.player.attention
   (:require [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
@@ -160,3 +159,7 @@
 
                             :else
                             (:city-needs-attention config/messages)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:31.526464-05:00", :module-hash "-1423655796", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1222643075"} {:id "defn/is-unit-needing-attention?", :kind "defn", :line 9, :end-line 17, :hash "-1931873458"} {:id "defn/is-city-needing-attention?", :kind "defn", :line 19, :end-line 24, :hash "733558512"} {:id "defn/needs-attention?", :kind "defn", :line 26, :end-line 50, :hash "303007721"} {:id "defn/cells-needing-attention", :kind "defn", :line 52, :end-line 59, :hash "-85158594"} {:id "defn/item-needs-attention?", :kind "defn", :line 61, :end-line 80, :hash "-1534984960"} {:id "defn-/army-adjacent-to-enemy-city?", :kind "defn-", :line 84, :end-line 92, :hash "1339912166"} {:id "defn-/cargo-string", :kind "defn-", :line 96, :end-line 100, :hash "-531062870"} {:id "defn-/reason-string", :kind "defn-", :line 104, :end-line 108, :hash "-270678909"} {:id "defn-/fuel-string", :kind "defn-", :line 111, :end-line 113, :hash "-835329319"} {:id "defn-/ship-hits-string", :kind "defn-", :line 115, :end-line 120, :hash "67812064"} {:id "defn-/active-unit-attention-message", :kind "defn-", :line 124, :end-line 138, :hash "1849029674"} {:id "defn/set-attention-message", :kind "defn", :line 140, :end-line 161, :hash "-1242166375"}]}
+;; clj-mutate-manifest-end

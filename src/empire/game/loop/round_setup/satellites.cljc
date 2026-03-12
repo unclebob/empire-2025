@@ -47,3 +47,7 @@
   [ctx]
   (doseq [coords (find-satellite-coords ((:current-world ctx)))]
     (move-satellite-steps ctx coords)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:18.564906-05:00", :module-hash "-1528467211", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 2, :hash "-390047102"} {:id "defn-/find-satellite-coords", :kind "defn-", :line 4, :end-line 11, :hash "1125499085"} {:id "defn-/move-satellite-steps", :kind "defn-", :line 13, :end-line 44, :hash "-851306630"} {:id "defn/move-satellites!", :kind "defn", :line 46, :end-line 49, :hash "1438118815"}]}
+;; clj-mutate-manifest-end

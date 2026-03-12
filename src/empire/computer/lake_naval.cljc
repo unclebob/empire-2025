@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.lake-naval
   "Lake-specific naval behavior: retreat from shore and park as sentry."
   (:require [empire.computer.movement :as computer-movement]))
@@ -87,3 +86,7 @@
                                        rest-queue
                                        nbrs)]
                 (recur next-queue next-visited)))))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:50.252217-05:00", :module-hash "-426536300", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "557526847"} {:id "def/neighbor-offsets", :kind "def", :line 5, :end-line 8, :hash "-1254756339"} {:id "defn-/in-bounds?", :kind "defn-", :line 10, :end-line 13, :hash "-541133760"} {:id "defn-/matching-neighbors", :kind "defn-", :line 15, :end-line 21, :hash "1628731295"} {:id "form/4/defonce", :kind "defonce", :line 23, :end-line 23, :hash "-765703590"} {:id "defn/lake-cells", :kind "defn", :line 25, :end-line 36, :hash "-91240742"} {:id "defn-/in-lake?", :kind "defn-", :line 38, :end-line 40, :hash "1182847924"} {:id "defn-/adjacent-land-or-city?", :kind "defn-", :line 42, :end-line 46, :hash "-1617224619"} {:id "defn/deep-water?", :kind "defn", :line 48, :end-line 50, :hash "-284089372"} {:id "defn-/sea-passable?", :kind "defn-", :line 52, :end-line 60, :hash "-1378176541"} {:id "defn-/neighbors*", :kind "defn-", :line 62, :end-line 67, :hash "-1742308839"} {:id "defn/retreat-step-from-shore", :kind "defn", :line 69, :end-line 88, :hash "1972536003"}]}
+;; clj-mutate-manifest-end

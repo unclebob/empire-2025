@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.acceptance.parser.given.directives
   (:require [clojure.string :as str]
             [empire.acceptance.parser.helpers :as h]
@@ -177,3 +176,7 @@
           {:directive :unit-props :ir ir})
         {:directive :unrecognized
          :ir {:type :unrecognized :text clean}})))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:56:39.520215-05:00", :module-hash "-1068101900", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1133684467"} {:id "defn-/given-handle-game-map", :kind "defn-", :line 6, :end-line 6, :hash "333031082"} {:id "defn-/given-handle-player-map", :kind "defn-", :line 7, :end-line 7, :hash "1264130732"} {:id "defn-/given-handle-computer-map", :kind "defn-", :line 8, :end-line 8, :hash "1593887375"} {:id "defn-/given-handle-waiting-for-input", :kind "defn-", :line 10, :end-line 13, :hash "2121736818"} {:id "defn-/given-handle-production-with-rounds", :kind "defn-", :line 15, :end-line 17, :hash "408939428"} {:id "defn-/given-handle-production", :kind "defn-", :line 19, :end-line 21, :hash "-1518920973"} {:id "defn-/given-handle-no-production", :kind "defn-", :line 23, :end-line 24, :hash "-1568396292"} {:id "defn-/given-handle-round", :kind "defn-", :line 26, :end-line 27, :hash "210359631"} {:id "defn-/given-handle-destination", :kind "defn-", :line 29, :end-line 31, :hash "1871937735"} {:id "defn-/given-handle-cell-props", :kind "defn-", :line 33, :end-line 43, :hash "-1155635992"} {:id "defn-/given-handle-player-items-multi", :kind "defn-", :line 45, :end-line 47, :hash "-258251918"} {:id "defn-/given-handle-player-items-single", :kind "defn-", :line 49, :end-line 50, :hash "399851903"} {:id "defn-/given-handle-waiting-for-input-bare", :kind "defn-", :line 52, :end-line 53, :hash "1598257538"} {:id "defn-/given-handle-unit-target", :kind "defn-", :line 55, :end-line 56, :hash "-1628898526"} {:id "defn-/given-handle-city-unit", :kind "defn-", :line 58, :end-line 60, :hash "-2145567419"} {:id "defn-/given-handle-shipyard-state", :kind "defn-", :line 62, :end-line 64, :hash "325416864"} {:id "def/given-map-patterns", :kind "def", :line 66, :end-line 74, :hash "666163464"} {:id "def/given-directive-patterns", :kind "def", :line 76, :end-line 165, :hash "-141795125"} {:id "defn/parse-given-line", :kind "defn", :line 167, :end-line 178, :hash "888693943"}]}
+;; clj-mutate-manifest-end

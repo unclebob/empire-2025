@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.army.exploration
   "Army exploration behaviors (interior, inland, random)."
   (:require [empire.state.api :as sa]
@@ -119,3 +118,7 @@
             :else
             (or (try-random-direction-move pos country-id unit)
                 (handle-blocked-random-explore pos country-id)))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:19.786247-05:00", :module-hash "-923858380", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-2023733251"} {:id "defn/explore-randomly", :kind "defn", :line 7, :end-line 21, :hash "372054611"} {:id "defn-/try-interior-move", :kind "defn-", :line 23, :end-line 37, :hash "-1296383180"} {:id "defn/start-interior-exploration", :kind "defn", :line 39, :end-line 47, :hash "-1724163131"} {:id "defn/process-interior-explore", :kind "defn", :line 49, :end-line 56, :hash "495713377"} {:id "defn/process-move-inland", :kind "defn", :line 58, :end-line 75, :hash "-1504930586"} {:id "defn-/at-sea-coast?", :kind "defn-", :line 77, :end-line 79, :hash "-1357323273"} {:id "defn-/clear-random-explore-state", :kind "defn-", :line 81, :end-line 84, :hash "719587439"} {:id "defn-/try-random-direction-move", :kind "defn-", :line 86, :end-line 96, :hash "-1623945617"} {:id "defn-/handle-blocked-random-explore", :kind "defn-", :line 98, :end-line 102, :hash "-1372413408"} {:id "defn/process-random-explore", :kind "defn", :line 104, :end-line 120, :hash "1299623537"}]}
+;; clj-mutate-manifest-end

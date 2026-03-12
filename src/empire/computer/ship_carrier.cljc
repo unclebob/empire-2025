@@ -1,5 +1,3 @@
-;; mutation-tested: 2026-03-02
-;; mutation-tested: 2026-02-27
 (ns empire.computer.ship-carrier
   "Computer carrier positioning - finding and navigating to holding positions."
   (:require [clojure.set :as set]
@@ -197,3 +195,7 @@
       :repositioning (reposition-carrier pos)
 
       nil)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:16.576503-05:00", :module-hash "1248080404", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-977787572"} {:id "defn-/find-computer-cities", :kind "defn-", :line 9, :end-line 18, :hash "-94501669"} {:id "defn/compute-distant-city-pairs", :kind "defn", :line 20, :end-line 30, :hash "-1403042797"} {:id "defn/update-distant-city-pairs!", :kind "defn", :line 32, :end-line 35, :hash "-1394890960"} {:id "defn/find-reserved-pairs", :kind "defn", :line 37, :end-line 49, :hash "-1571384935"} {:id "defn/find-unreserved-pair", :kind "defn", :line 51, :end-line 60, :hash "100655481"} {:id "defn/find-position-between-cities", :kind "defn", :line 62, :end-line 82, :hash "1244149587"} {:id "defn/find-refueling-sites", :kind "defn", :line 84, :end-line 93, :hash "402911791"} {:id "defn/find-carrier-position", :kind "defn", :line 95, :end-line 101, :hash "1347128345"} {:id "form/9/declare", :kind "declare", :line 103, :end-line 103, :hash "1504557565"} {:id "defn-/target-still-valid?", :kind "defn-", :line 105, :end-line 110, :hash "-1702101786"} {:id "defn-/position-carrier-with-target", :kind "defn-", :line 112, :end-line 131, :hash "-1384669858"} {:id "defn-/position-carrier-without-target", :kind "defn-", :line 133, :end-line 147, :hash "-1695841197"} {:id "defn-/reposition-carrier", :kind "defn-", :line 149, :end-line 163, :hash "1145040612"} {:id "defn-/pair-still-valid?", :kind "defn-", :line 165, :end-line 173, :hash "-2008126743"} {:id "defn/process-carrier", :kind "defn", :line 175, :end-line 197, :hash "-190807814"}]}
+;; clj-mutate-manifest-end

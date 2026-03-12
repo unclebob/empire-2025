@@ -52,3 +52,7 @@
                        (wake/enemy-unit-visible? unit [i j] world-atom))]
       (sa/update-world! update-in [i j :contents]
                         #(assoc % :mode :awake :reason :enemy-spotted)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:21.418149-05:00", :module-hash "-1066347908", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1719980751"} {:id "defn-/world-ref", :kind "defn-", :line 6, :end-line 6, :hash "-1351735972"} {:id "defn/wake-airport-fighters", :kind "defn", :line 8, :end-line 21, :hash "116418176"} {:id "defn/wake-carrier-fighters", :kind "defn", :line 23, :end-line 38, :hash "825275198"} {:id "defn/wake-sentries-seeing-enemy", :kind "defn", :line 40, :end-line 54, :hash "241745160"}]}
+;; clj-mutate-manifest-end

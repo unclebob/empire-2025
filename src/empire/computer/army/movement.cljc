@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.army.movement
   "Shared movement and passability helpers for computer armies."
   (:require [empire.state.api :as sa]
@@ -154,3 +153,7 @@
     (and (>= c 0) (>= r 0)
          (< c (count game-map))
          (< r (count (first game-map))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:22.42638-05:00", :module-hash "280881474", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1820433582"} {:id "defn/on-same-continent?", :kind "defn", :line 8, :end-line 10, :hash "1156216714"} {:id "defn/merge-continents!", :kind "defn", :line 12, :end-line 14, :hash "-454703343"} {:id "defn/adjacent-to-sea?", :kind "defn", :line 16, :end-line 20, :hash "-142666661"} {:id "defn-/seed-coastal-registry", :kind "defn-", :line 22, :end-line 37, :hash "1436125686"} {:id "defn/ensure-coastal-registry", :kind "defn", :line 39, :end-line 42, :hash "-675360738"} {:id "defn-/merge-neighbor-continents!", :kind "defn-", :line 44, :end-line 49, :hash "908131821"} {:id "defn-/local-coastal-cells", :kind "defn-", :line 51, :end-line 60, :hash "-1307796171"} {:id "defn-/update-coastal-registry!", :kind "defn-", :line 62, :end-line 67, :hash "-1830690924"} {:id "defn/register-coastal-cells", :kind "defn", :line 69, :end-line 77, :hash "-1929613630"} {:id "defn/sovereign-passable?", :kind "defn", :line 79, :end-line 87, :hash "-2145061485"} {:id "defn/get-passable-neighbors", :kind "defn", :line 89, :end-line 94, :hash "451113115"} {:id "defn/get-empty-passable-neighbors", :kind "defn", :line 96, :end-line 102, :hash "103104840"} {:id "defn/find-nearest-unclaimed", :kind "defn", :line 104, :end-line 108, :hash "-1699464324"} {:id "defn-/update-move-history", :kind "defn-", :line 110, :end-line 116, :hash "1842406334"} {:id "defn/try-move", :kind "defn", :line 118, :end-line 128, :hash "1946626754"} {:id "defn-/sovereignty-passability-fn", :kind "defn-", :line 130, :end-line 133, :hash "-2003031201"} {:id "defn/move-toward-objective", :kind "defn", :line 135, :end-line 147, :hash "1322877056"} {:id "defn/in-bounds?", :kind "defn", :line 149, :end-line 155, :hash "-615119798"}]}
+;; clj-mutate-manifest-end

@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-01
 (ns empire.ui.util.rendering.display
   (:require [clojure.string :as str]
             [empire.state.api :as sa]
@@ -168,3 +167,7 @@
        (take 3)
        (filter seq)
        vec))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:37.199523-05:00", :module-hash "-1185310854", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "form/3/defonce", :kind "defonce", :line 11, :end-line 11, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 12, :end-line 14, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 16, :end-line 19, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 21, :end-line 27, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 29, :end-line 33, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 35, :end-line 56, :hash "1957051614"} {:id "defn-/show-city-production?", :kind "defn-", :line 58, :end-line 63, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 65, :end-line 82, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 84, :end-line 93, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 95, :end-line 99, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 101, :end-line 105, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 107, :end-line 115, :hash "-98827088"} {:id "defn/group-cells-by-color", :kind "defn", :line 117, :end-line 139, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 141, :end-line 144, :hash "1593526722"} {:id "defn/resolve-turn-text", :kind "defn", :line 146, :end-line 152, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 154, :end-line 160, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 162, :end-line 169, :hash "245117443"}]}
+;; clj-mutate-manifest-end

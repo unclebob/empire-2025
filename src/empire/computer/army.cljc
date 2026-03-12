@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.army
   "Computer army orchestrator.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"
@@ -112,3 +111,7 @@
   "Scans computer-map for visible free/player cities and assigns up to 6 closest armies each."
   []
   (assignment/assign-city-attacks))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:06.393057-05:00", :module-hash "71535860", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "742924637"} {:id "defn-/find-city-objective", :kind "defn-", :line 15, :end-line 32, :hash "-556093316"} {:id "defn-/process-sentry-in-city", :kind "defn-", :line 34, :end-line 36, :hash "1801065927"} {:id "defn-/process-unowned-army", :kind "defn-", :line 38, :end-line 41, :hash "1767655122"} {:id "defn-/should-sentry-on-coast?", :kind "defn-", :line 43, :end-line 44, :hash "-370775186"} {:id "defn-/can-settle-here?", :kind "defn-", :line 46, :end-line 47, :hash "1670601850"} {:id "defn-/start-interior-exploration", :kind "defn-", :line 49, :end-line 50, :hash "-1722277386"} {:id "defn-/find-and-execute-land-action", :kind "defn-", :line 52, :end-line 59, :hash "-1042447618"} {:id "defn-/exit-city", :kind "defn-", :line 61, :end-line 70, :hash "1761327126"} {:id "defn-/build-army-actions", :kind "defn-", :line 72, :end-line 84, :hash "-1213306281"} {:id "defn/process-army", :kind "defn", :line 86, :end-line 108, :hash "-1671640060"} {:id "defn/assign-city-attacks", :kind "defn", :line 110, :end-line 113, :hash "-176952326"}]}
+;; clj-mutate-manifest-end

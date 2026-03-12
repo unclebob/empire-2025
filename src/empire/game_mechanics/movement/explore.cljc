@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-25
 (ns empire.game-mechanics.movement.explore
   (:require [empire.config.core :as config]
             [empire.state.api :as sa]
@@ -122,3 +121,7 @@
                                 :visited #{coords})
                          (dissoc :reason :target))]
     (update-game-map! assoc-in coords (assoc cell :contents updated-unit))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:01.071283-05:00", :module-hash "37357744", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1482420346"} {:id "defn-/update-game-map!", :kind "defn-", :line 8, :end-line 10, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 12, :end-line 14, :hash "-640438772"} {:id "defn-/read-runtime-state", :kind "defn-", :line 16, :end-line 18, :hash "2315423"} {:id "defn/valid-explore-cell?", :kind "defn", :line 20, :end-line 25, :hash "-630525576"} {:id "defn/get-valid-explore-moves", :kind "defn", :line 27, :end-line 31, :hash "-1217743693"} {:id "defn/adjacent-to-unexplored?", :kind "defn", :line 33, :end-line 37, :hash "1658319555"} {:id "defn/get-unexplored-explore-moves", :kind "defn", :line 39, :end-line 43, :hash "1152911072"} {:id "defn/pick-explore-move", :kind "defn", :line 45, :end-line 72, :hash "308303792"} {:id "defn/move-explore-unit", :kind "defn", :line 74, :end-line 111, :hash "841374406"} {:id "defn/set-explore-mode", :kind "defn", :line 113, :end-line 123, :hash "750782466"}]}
+;; clj-mutate-manifest-end

@@ -375,7 +375,24 @@
       (game-loop/advance-game)
       ;; Unit should have moved - player-items should be updated
       (should (or (empty? (test-utils/read-test-state :player-items))
-                  (not= [[1 5]] (vec (test-utils/read-test-state :player-items))))))))
+                  (not= [[1 5]] (vec (test-utils/read-test-state :player-items)))))))
+
+  (context "advance-game with fighter combat"
+    (it "keeps a victorious fighter active when it still has steps remaining"
+      (set-test-world! (build-test-map ["Fa#"]))
+      (set-test-unit (test-utils/game-map-atom) "F" :mode :moving :target [2 0] :steps-remaining 8 :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
+      (set-test-player-map! (build-test-map ["###"]))
+      (test-utils/set-test-state! :production {})
+      (test-utils/set-test-state! :player-items [[0 0]])
+      (test-utils/set-test-state! :waiting-for-input false)
+      (with-redefs [rand (constantly 0.0)]
+        (game-loop/advance-game))
+      (let [fighter (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
+        (should= :fighter (:type fighter))
+        (should= 7 (:steps-remaining fighter))
+        (should= [[1 0]] (vec (test-utils/read-test-state :player-items)))
+        (should= true (test-utils/read-test-state :waiting-for-input))))))
 
 (describe "build-computer-items"
   (before (reset-all-atoms!))

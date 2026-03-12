@@ -45,3 +45,7 @@
    :army-transport-attention "Army needs attention - aboard transport (%d armies) - At beach."
    :damaged-unit-attention "Damaged %s needs attention%s%s%s"
    :unit-attention "%s needs attention%s%s%s"})
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:38.224496-05:00", :module-hash "-2071033662", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "917790933"} {:id "def/error-message-duration", :kind "def", :line 3, :end-line 3, :hash "-2136737491"} {:id "def/messages", :kind "def", :line 5, :end-line 47, :hash "-990940595"}]}
+;; clj-mutate-manifest-end

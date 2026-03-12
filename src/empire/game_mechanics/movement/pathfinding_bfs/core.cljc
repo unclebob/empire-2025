@@ -25,3 +25,7 @@
   [the-map pos]
   (let [cell (get-in the-map pos)]
     (and cell (= :sea (:type cell)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:37.691835-05:00", :module-hash "-1177968417", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "1770237734"} {:id "defn/update-first-match", :kind "defn", :line 5, :end-line 7, :hash "-1796435012"} {:id "defn/bfs-sea-neighbors", :kind "defn", :line 9, :end-line 16, :hash "1694187772"} {:id "defn/build-coast-path", :kind "defn", :line 18, :end-line 21, :hash "925901257"} {:id "defn/passable-sea?", :kind "defn", :line 23, :end-line 27, :hash "-1999367331"}]}
+;; clj-mutate-manifest-end

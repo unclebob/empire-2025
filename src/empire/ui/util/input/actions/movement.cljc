@@ -102,3 +102,7 @@
       (let [active-unit (movement-state/get-active-unit cell)]
         (when (and active-unit (= (:owner active-unit) :player))
           (execute-unit-movement coords direction extended? active-unit cell))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:25.735221-05:00", :module-hash "-1203230622", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "1119243477"} {:id "defn-/calculate-extended-target", :kind "defn-", :line 12, :end-line 22, :hash "-1811725595"} {:id "defn-/launch-fighter-and-update", :kind "defn-", :line 24, :end-line 30, :hash "1341934344"} {:id "defn/army-aboard-action", :kind "defn", :line 32, :end-line 33, :hash "1245189332"} {:id "defn-/handle-army-aboard-movement", :kind "defn-", :line 35, :end-line 45, :hash "-1114819059"} {:id "defn-/undamaged-ship-entering-friendly-city?", :kind "defn-", :line 47, :end-line 54, :hash "429312611"} {:id "defn-/hostile-city-action", :kind "defn-", :line 56, :end-line 59, :hash "1533938223"} {:id "defn-/standard-movement-action", :kind "defn-", :line 61, :end-line 66, :hash "1290523638"} {:id "defn-/perform-standard-movement!", :kind "defn-", :line 68, :end-line 76, :hash "1906289461"} {:id "defn-/handle-standard-unit-movement", :kind "defn-", :line 78, :end-line 80, :hash "-1623385592"} {:id "defn-/execute-unit-movement", :kind "defn-", :line 82, :end-line 95, :hash "-1610568678"} {:id "defn/handle-unit-movement-key", :kind "defn", :line 97, :end-line 104, :hash "1952795788"}]}
+;; clj-mutate-manifest-end

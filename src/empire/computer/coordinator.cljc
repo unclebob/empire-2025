@@ -24,3 +24,7 @@
   (let [unit (:contents (get-in (sa/current-world) pos))]
     (when (computer-unit? unit)
       (dispatch-unit pos unit))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:27.899889-05:00", :module-hash "1021597229", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-942997730"} {:id "defn-/computer-unit?", :kind "defn-", :line 9, :end-line 10, :hash "-799138969"} {:id "defn-/dispatch-unit", :kind "defn-", :line 12, :end-line 19, :hash "1650727784"} {:id "defn/process-computer-unit", :kind "defn", :line 21, :end-line 26, :hash "938671659"}]}
+;; clj-mutate-manifest-end

@@ -169,7 +169,7 @@
     (let [result (gen/generate-when {:type :battle :key :d :outcome :win :combat-type :army})]
       (should-contain "rand (constantly 0.0)" result)
       (should-contain "h/handle-key! :d" result)
-      (should-not-contain "advance-game" result)))
+      (should-contain "advance-game" result)))
 
   (it "generates ship battle win when"
     (let [result (gen/generate-when {:type :battle :key :d :outcome :win :combat-type :ship})]

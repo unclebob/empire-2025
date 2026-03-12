@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-25
 (ns empire.game-mechanics.movement.waypoint
   (:require [empire.state.api :as sa]))
 
@@ -76,3 +75,7 @@
         (update-game-map! assoc-in [cx cy :waypoint :marching-orders] target)
         (set-turn-message! (str "Waypoint orders set to " (first target) "," (second target)) 2000)
         true))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:58.237565-05:00", :module-hash "-1809214551", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-1287571662"} {:id "defn-/update-game-map!", :kind "defn-", :line 4, :end-line 6, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 8, :end-line 10, :hash "-640438772"} {:id "defn-/read-runtime-state", :kind "defn-", :line 12, :end-line 14, :hash "2315423"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 16, :end-line 18, :hash "1105581680"} {:id "defn-/set-turn-message!", :kind "defn-", :line 20, :end-line 26, :hash "476286532"} {:id "defn/create-waypoint", :kind "defn", :line 28, :end-line 46, :hash "616206223"} {:id "defn/set-waypoint-orders", :kind "defn", :line 48, :end-line 58, :hash "46634298"} {:id "defn/set-waypoint-orders-by-direction", :kind "defn", :line 60, :end-line 77, :hash "-363045717"}]}
+;; clj-mutate-manifest-end

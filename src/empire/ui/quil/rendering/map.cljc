@@ -97,3 +97,7 @@
         (draw-production-indicators row col cell cell-w cell-h production map-to-display)
         (draw-unit col row cell cell-w cell-h attention-coords blink-unit?)
         (draw-waypoint col row cell cell-w cell-h)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:04.631761-05:00", :module-hash "-417737368", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1169683959"} {:id "defn/draw-production-indicators", :kind "defn", :line 9, :end-line 20, :hash "1768886334"} {:id "defn-/draw-unit", :kind "defn-", :line 22, :end-line 31, :hash "-546191399"} {:id "defn-/draw-waypoint", :kind "defn-", :line 33, :end-line 40, :hash "1569607689"} {:id "defn/draw-debug-selection-rectangle", :kind "defn", :line 42, :end-line 58, :hash "251657802"} {:id "defn/draw-map", :kind "defn", :line 60, :end-line 99, :hash "-1286442283"}]}
+;; clj-mutate-manifest-end

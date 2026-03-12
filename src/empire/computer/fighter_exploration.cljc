@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.fighter-exploration
   "Fighter exploration: sorties, drone operations, unexplored-cell scoring."
   (:require [empire.state.api :as sa]
@@ -114,3 +113,7 @@
    Returns {:pos p :hops n} or nil."
   [pos unit]
   (explore-move-step pos (:flight-target-site unit)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:57:39.982213-05:00", :module-hash "-2063118544", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "407161768"} {:id "def/compass-directions", :kind "def", :line 8, :end-line 10, :hash "1521788393"} {:id "defn/count-unexplored-neighbors", :kind "defn", :line 12, :end-line 25, :hash "552922855"} {:id "defn-/count-unexplored-along-direction", :kind "defn-", :line 27, :end-line 50, :hash "-915357597"} {:id "defn/best-exploration-heading", :kind "defn", :line 52, :end-line 61, :hash "-915439036"} {:id "defn-/select-best-explore-target", :kind "defn-", :line 63, :end-line 71, :hash "1629491586"} {:id "defn-/simple-explore-move", :kind "defn-", :line 73, :end-line 80, :hash "464458532"} {:id "defn-/explore-move-step", :kind "defn-", :line 82, :end-line 93, :hash "1272575161"} {:id "defn/explore-step", :kind "defn", :line 95, :end-line 109, :hash "324745724"} {:id "defn/drone-step", :kind "defn", :line 111, :end-line 115, :hash "1856648356"}]}
+;; clj-mutate-manifest-end

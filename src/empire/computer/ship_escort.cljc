@@ -1,5 +1,3 @@
-;; mutation-tested: 2026-03-02
-;; mutation-tested: 2026-02-27
 (ns empire.computer.ship-escort
   "Computer destroyer escort and shared pursuit logic."
   (:require [empire.state.api :as sa]
@@ -196,3 +194,7 @@
     (if-let [enemy-pos (escorting-enemy-pos pos mode)]
       (begin-pursuit pos enemy-pos)
       (dispatch-destroyer-mode pos unit mode))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:58:25.133796-05:00", :module-hash "1358841495", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-249113611"} {:id "defn/find-carrier-by-id", :kind "defn", :line 9, :end-line 20, :hash "-1516236955"} {:id "defn-/find-transport-by-id", :kind "defn-", :line 22, :end-line 33, :hash "724024597"} {:id "defn/find-enemy-near-positions", :kind "defn", :line 35, :end-line 48, :hash "1430359275"} {:id "defn-/group-positions", :kind "defn-", :line 50, :end-line 58, :hash "-773162896"} {:id "defn-/visible-to-group?", :kind "defn-", :line 60, :end-line 63, :hash "-1205346728"} {:id "defn-/end-pursuit", :kind "defn-", :line 65, :end-line 73, :hash "-588101425"} {:id "defn/begin-pursuit", :kind "defn", :line 75, :end-line 82, :hash "-1190171338"} {:id "defn/process-pursuit", :kind "defn", :line 84, :end-line 106, :hash "1676111292"} {:id "defn-/find-unadopted-transport", :kind "defn-", :line 110, :end-line 124, :hash "-32038296"} {:id "defn-/adopt-transport", :kind "defn-", :line 126, :end-line 136, :hash "-343915519"} {:id "defn-/find-enemy-near-destroyer-group", :kind "defn-", :line 138, :end-line 144, :hash "2079034753"} {:id "defn-/revert-destroyer-to-seeking", :kind "defn-", :line 146, :end-line 152, :hash "1346887847"} {:id "defn-/process-destroyer-seeking", :kind "defn-", :line 154, :end-line 157, :hash "1549646564"} {:id "defn-/process-destroyer-intercepting", :kind "defn-", :line 159, :end-line 165, :hash "260714804"} {:id "defn-/process-destroyer-escorting", :kind "defn-", :line 167, :end-line 171, :hash "-1398097223"} {:id "defn-/escorting-enemy-pos", :kind "defn-", :line 173, :end-line 177, :hash "-995263492"} {:id "defn-/dispatch-destroyer-mode", :kind "defn-", :line 179, :end-line 187, :hash "-961437166"} {:id "defn/process-escort-destroyer", :kind "defn", :line 189, :end-line 196, :hash "-1830899172"}]}
+;; clj-mutate-manifest-end

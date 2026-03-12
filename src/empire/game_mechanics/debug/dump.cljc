@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-28
 (ns empire.game-mechanics.debug.dump
   "Region-based debug dump rendering and file output helpers."
   (:require [clojure.string :as str]
@@ -288,3 +287,7 @@
         end-row (min (dec map-rows) end-row)
         end-col (min (dec map-cols) end-col)]
     [[start-row start-col] [end-row end-col]]))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:00:44.726874-05:00", :module-hash "1743426237", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-313872616"} {:id "defn/dump-region", :kind "defn", :line 8, :end-line 34, :hash "90180318"} {:id "defn-/format-contents", :kind "defn-", :line 36, :end-line 58, :hash "1258193189"} {:id "defn-/format-cell-data", :kind "defn-", :line 60, :end-line 71, :hash "-706070322"} {:id "defn/format-cell", :kind "defn", :line 73, :end-line 81, :hash "-2125203702"} {:id "defn-/format-action-entry", :kind "defn-", :line 83, :end-line 86, :hash "-120148540"} {:id "defn-/find-coastline-units", :kind "defn-", :line 88, :end-line 101, :hash "-1471486597"} {:id "defn-/format-coastline-section", :kind "defn-", :line 103, :end-line 115, :hash "-55142457"} {:id "defn-/format-computer-event-entry", :kind "defn-", :line 117, :end-line 122, :hash "-1993787720"} {:id "defn-/format-computer-event-section", :kind "defn-", :line 124, :end-line 140, :hash "-1569684083"} {:id "defn/format-movement-entry", :kind "defn", :line 142, :end-line 148, :hash "938588367"} {:id "defn-/format-movement-history-section", :kind "defn-", :line 150, :end-line 166, :hash "22924012"} {:id "defn-/format-map-section", :kind "defn-", :line 168, :end-line 177, :hash "1439044669"} {:id "defn/format-dump", :kind "defn", :line 179, :end-line 228, :hash "-62647181"} {:id "defn-/screen->cell", :kind "defn-", :line 230, :end-line 235, :hash "203161354"} {:id "defn/generate-dump-filename", :kind "defn", :line 237, :end-line 254, :hash "-1617652009"} {:id "defn/write-dump!", :kind "defn", :line 256, :end-line 267, :hash "-1382417262"} {:id "defn/screen-coords-to-cell-range", :kind "defn", :line 269, :end-line 289, :hash "1209818922"}]}
+;; clj-mutate-manifest-end

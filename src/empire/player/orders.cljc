@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-25
 (ns empire.player.orders
   "Standing orders on cities and units: marching orders, flight paths, waypoints.
    All functions take explicit coordinates — no Quil dependency."
@@ -142,3 +141,7 @@
 
         (:waypoint cell)
         (waypoint/set-waypoint-orders-by-direction [cx cy] direction)))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:39.840921-05:00", :module-hash "-604446303", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "971444149"} {:id "defn-/set-turn-message!", :kind "defn-", :line 9, :end-line 14, :hash "961870185"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 16, :end-line 24, :hash "-301232408"} {:id "defn/add-unit-at", :kind "defn", :line 26, :end-line 27, :hash "813959733"} {:id "defn/wake-at", :kind "defn", :line 29, :end-line 30, :hash "779826581"} {:id "defn/own-city-at", :kind "defn", :line 32, :end-line 38, :hash "-1561046374"} {:id "defn/set-city-lookaround", :kind "defn", :line 40, :end-line 48, :hash "980716336"} {:id "defn/set-destination-at", :kind "defn", :line 50, :end-line 54, :hash "1747846993"} {:id "defn-/apply-marching-orders", :kind "defn-", :line 56, :end-line 60, :hash "778059583"} {:id "defn-/player-city?", :kind "defn-", :line 62, :end-line 63, :hash "490674704"} {:id "defn-/player-transport?", :kind "defn-", :line 65, :end-line 66, :hash "-63135200"} {:id "defn/set-marching-orders-at", :kind "defn", :line 68, :end-line 84, :hash "340495904"} {:id "defn/set-flight-path-at", :kind "defn", :line 86, :end-line 108, :hash "-588506689"} {:id "defn/set-waypoint-at", :kind "defn", :line 110, :end-line 118, :hash "1709103029"} {:id "defn-/project-to-edge", :kind "defn-", :line 120, :end-line 128, :hash "1846050668"} {:id "defn/set-city-marching-orders-by-direction-at", :kind "defn", :line 130, :end-line 143, :hash "-584599667"}]}
+;; clj-mutate-manifest-end

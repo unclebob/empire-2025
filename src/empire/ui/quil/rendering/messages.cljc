@@ -122,3 +122,7 @@
     (draw-game-info text-x text-y)
     (draw-debug debug-x debug-w text-y)
     (draw-game-status right-edge text-y)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:03:07.061089-05:00", :module-hash "1882333778", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-445377342"} {:id "defn-/draw-text-right-justified", :kind "defn-", :line 8, :end-line 13, :hash "-787062085"} {:id "defn-/draw-attention", :kind "defn-", :line 17, :end-line 22, :hash "-683165631"} {:id "defn-/draw-turn", :kind "defn-", :line 24, :end-line 30, :hash "966768773"} {:id "defn-/draw-error", :kind "defn-", :line 32, :end-line 40, :hash "188528833"} {:id "defn-/draw-game-info", :kind "defn-", :line 42, :end-line 47, :hash "-1898364636"} {:id "defn-/draw-debug", :kind "defn-", :line 51, :end-line 66, :hash "-653329736"} {:id "defn-/draw-round-status", :kind "defn-", :line 70, :end-line 85, :hash "-1307047414"} {:id "defn-/draw-hover-info", :kind "defn-", :line 87, :end-line 92, :hash "-2059049852"} {:id "defn-/draw-production-status", :kind "defn-", :line 94, :end-line 99, :hash "-1857274076"} {:id "defn-/draw-game-status", :kind "defn-", :line 101, :end-line 106, :hash "-1391441458"} {:id "defn/draw-message-area", :kind "defn", :line 110, :end-line 124, :hash "395279169"}]}
+;; clj-mutate-manifest-end

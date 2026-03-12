@@ -81,3 +81,7 @@
                   (recur (reduce conj (pop queue) neighbors)
                          (into visited neighbors)
                          new-came-from))))))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:01:43.52-05:00", :module-hash "1853638579", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2073553519"} {:id "defn/adjacent-to-target-continent-land?", :kind "defn", :line 8, :end-line 19, :hash "1305370384"} {:id "defn-/find-nearest-unload-uncached", :kind "defn-", :line 21, :end-line 41, :hash "-1502398238"} {:id "defn/find-nearest-unload-position", :kind "defn", :line 43, :end-line 50, :hash "1788335098"} {:id "defn-/adjacent-to-target?", :kind "defn-", :line 52, :end-line 58, :hash "317433455"} {:id "defn/bfs-to-land-ho-target", :kind "defn", :line 60, :end-line 83, :hash "-15207848"}]}
+;; clj-mutate-manifest-end

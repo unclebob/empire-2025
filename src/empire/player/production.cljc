@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-02-25
 (ns empire.player.production
   (:require [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.movement.map-utils :as map-utils]
@@ -130,3 +129,7 @@
   (doseq [[coords prod] (sa/read-state :production)]
     (when (map? prod)
       (update-city-production coords prod))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T12:02:42.455702-05:00", :module-hash "1578100239", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1032698653"} {:id "defn-/stamp-computer-fields", :kind "defn-", :line 8, :end-line 10, :hash "1182657874"} {:id "defn-/apply-coast-walk-fields", :kind "defn-", :line 12, :end-line 14, :hash "2087648991"} {:id "defn-/apply-random-explore-fields", :kind "defn-", :line 16, :end-line 18, :hash "-707898253"} {:id "defn/set-city-production", :kind "defn", :line 20, :end-line 23, :hash "781392752"} {:id "defn-/create-base-unit", :kind "defn-", :line 25, :end-line 28, :hash "466336624"} {:id "defn-/apply-unit-type-attributes", :kind "defn-", :line 30, :end-line 38, :hash "-327359930"} {:id "defn-/army-with-lookaround?", :kind "defn-", :line 40, :end-line 41, :hash "1805255192"} {:id "defn-/army-with-marching-orders?", :kind "defn-", :line 43, :end-line 44, :hash "939802950"} {:id "defn-/fighter-with-flight-path?", :kind "defn-", :line 46, :end-line 47, :hash "2030388680"} {:id "defn-/apply-movement-orders", :kind "defn-", :line 49, :end-line 62, :hash "-1706259954"} {:id "defn/stamp-unit-fields", :kind "defn", :line 64, :end-line 72, :hash "532239762"} {:id "defn-/stamp-adjacent-land", :kind "defn-", :line 74, :end-line 83, :hash "-2092654768"} {:id "defn-/spawn-unit", :kind "defn-", :line 85, :end-line 102, :hash "472217386"} {:id "defn-/handle-production-complete", :kind "defn-", :line 104, :end-line 112, :hash "1308681376"} {:id "defn-/update-city-production", :kind "defn-", :line 114, :end-line 124, :hash "1240282712"} {:id "defn/update-production", :kind "defn", :line 126, :end-line 131, :hash "1482439119"}]}
+;; clj-mutate-manifest-end

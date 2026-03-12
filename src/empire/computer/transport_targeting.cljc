@@ -1,4 +1,3 @@
-;; mutation-tested: 2026-03-02
 (ns empire.computer.transport-targeting
   "Transport target selection — finding unload targets and pickup continents."
   (:require [empire.state.api :as sa]
@@ -107,3 +106,7 @@
   [army-count mission]
   (and (pos? army-count)
        (#{:sailing :unloading} mission)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-12T11:59:08.935081-05:00", :module-hash "391894956", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "491700917"} {:id "defn/adjacent-to-pickup-continent?", :kind "defn", :line 8, :end-line 22, :hash "-655962961"} {:id "defn-/score-target-city", :kind "defn-", :line 24, :end-line 36, :hash "1702347925"} {:id "defn/find-unload-target", :kind "defn", :line 38, :end-line 63, :hash "1751466011"} {:id "defn/find-next-pickup-continent-pos", :kind "defn", :line 65, :end-line 103, :hash "-1706719671"} {:id "defn/should-try-opportunistic-unload?", :kind "defn", :line 105, :end-line 108, :hash "2063591989"}]}
+;; clj-mutate-manifest-end
