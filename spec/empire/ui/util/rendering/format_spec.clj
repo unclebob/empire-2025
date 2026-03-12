@@ -176,7 +176,7 @@
              (fmt/split-hover-status "[12,7] player carrier [5/8] cargo:3 sentry")))
 
   (it "keeps city summary compact and moves the rest into detail"
-    (should= {:summary "[3,7] city:player"
+    (should= {:summary "[3,7] Player City"
               :detail "prod:army ftrs:2 dock:S[1/2]"}
              (fmt/split-hover-status
               "[3,7] city:player producing:army fighters:2 dock:S[1/2]")))
@@ -188,12 +188,12 @@
               "[12,7] computer transport [1/1] cargo:2 loading timeout:3")))
 
   (it "keeps waypoint headline on the summary line"
-    (should= {:summary "[1,4] waypoint"
+    (should= {:summary "[1,4] Waypoint"
               :detail "-> 2,3"}
              (fmt/split-hover-status "[1,4] waypoint -> 2,3")))
 
   (it "keeps short hover text on the summary line"
-    (should= {:summary "[0,0] city:free"
+    (should= {:summary "[0,0] Free City"
               :detail nil}
              (fmt/split-hover-status "[0,0] city:free")))
 
