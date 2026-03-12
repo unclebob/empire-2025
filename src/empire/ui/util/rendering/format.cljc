@@ -102,26 +102,44 @@
                       :else nil)]
     (str "[" (first coords) "," (second coords) "] " status)))
 
+(declare compact-detail)
+
 (defn- split-unit-hover
   [coords-part rest]
   (let [[owner unit-type hits & detail-tokens] (clojure.string/split rest #" ")]
     {:summary (str coords-part " " owner " " unit-type " " hits)
      :detail (when (seq detail-tokens)
-               (clojure.string/join " " detail-tokens))}))
+               (compact-detail (clojure.string/join " " detail-tokens)))}))
+
+(defn- compact-detail-token
+  [token]
+  (cond
+    (clojure.string/starts-with? token "producing:") (clojure.string/replace token "producing:" "prod:")
+    (clojure.string/starts-with? token "fighters:") (clojure.string/replace token "fighters:" "ftrs:")
+    (clojure.string/starts-with? token "timeout:") (clojure.string/replace token "timeout:" "to:")
+    (clojure.string/starts-with? token "mission:") (clojure.string/replace token "mission:" "mis:")
+    :else token))
+
+(defn- compact-detail
+  [detail]
+  (when (seq detail)
+    (->> (clojure.string/split detail #" ")
+         (map compact-detail-token)
+         (clojure.string/join " "))))
 
 (defn- split-city-hover
   [coords-part rest]
   (let [[city-status & detail-tokens] (clojure.string/split rest #" ")]
     {:summary (str coords-part " " city-status)
      :detail (when (seq detail-tokens)
-               (clojure.string/join " " detail-tokens))}))
+               (compact-detail (clojure.string/join " " detail-tokens)))}))
 
 (defn- split-waypoint-hover
   [coords-part rest]
   (let [[waypoint-text & detail-tokens] (clojure.string/split rest #" ")]
     {:summary (str coords-part " " waypoint-text)
      :detail (when (seq detail-tokens)
-               (clojure.string/join " " detail-tokens))}))
+               (compact-detail (clojure.string/join " " detail-tokens)))}))
 
 (defn- hover-kind
   [rest]
@@ -200,5 +218,5 @@
         (join-production-summary units-summary pct-part)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T15:59:59.291776-05:00", :module-hash "-2027246920", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "434536401"} {:id "defn/should-show-paused?", :kind "defn", :line 7, :end-line 10, :hash "1556317815"} {:id "defn-/unit-fuel-str", :kind "defn-", :line 12, :end-line 14, :hash "1572131136"} {:id "defn-/unit-cargo-str", :kind "defn-", :line 16, :end-line 20, :hash "-912894557"} {:id "defn-/transport-mission-str", :kind "defn-", :line 22, :end-line 27, :hash "2125337359"} {:id "defn-/patrol-mode-str", :kind "defn-", :line 29, :end-line 31, :hash "1917316096"} {:id "defn-/army-mission-str", :kind "defn-", :line 33, :end-line 35, :hash "18689968"} {:id "defn-/unit-orders-str", :kind "defn-", :line 37, :end-line 41, :hash "-636057977"} {:id "defn/format-unit-status", :kind "defn", :line 43, :end-line 56, :hash "1526979702"} {:id "defn-/format-ship-for-dock", :kind "defn-", :line 58, :end-line 63, :hash "2019898018"} {:id "defn-/format-shipyard", :kind "defn-", :line 65, :end-line 69, :hash "1584376118"} {:id "defn/format-city-status", :kind "defn", :line 71, :end-line 84, :hash "-1175931009"} {:id "defn/format-waypoint-status", :kind "defn", :line 86, :end-line 92, :hash "1023450594"} {:id "defn/format-hover-status", :kind "defn", :line 94, :end-line 103, :hash "115637379"} {:id "defn-/split-unit-hover", :kind "defn-", :line 105, :end-line 110, :hash "-1296534020"} {:id "defn-/split-city-hover", :kind "defn-", :line 112, :end-line 117, :hash "-680233837"} {:id "defn-/split-waypoint-hover", :kind "defn-", :line 119, :end-line 124, :hash "-1746356909"} {:id "defn-/hover-kind", :kind "defn-", :line 126, :end-line 131, :hash "1578687087"} {:id "defn/split-hover-status", :kind "defn", :line 133, :end-line 144, :hash "1155669426"} {:id "defn/format-production-status", :kind "defn", :line 146, :end-line 150, :hash "1957771995"} {:id "defn-/parse-count-entry", :kind "defn-", :line 152, :end-line 158, :hash "-1237319404"} {:id "defn-/compact-nonzero-units", :kind "defn-", :line 160, :end-line 167, :hash "131416162"} {:id "defn-/summarize-nonzero-units", :kind "defn-", :line 169, :end-line 175, :hash "-489438097"} {:id "defn-/parseable-production-status?", :kind "defn-", :line 177, :end-line 180, :hash "1843558349"} {:id "defn-/join-production-summary", :kind "defn-", :line 182, :end-line 186, :hash "-2105547342"} {:id "defn/compact-production-status", :kind "defn", :line 188, :end-line 200, :hash "644266267"}]}
+;; {:version 1, :tested-at "2026-03-12T16:04:40.50777-05:00", :module-hash "-1335240118", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "434536401"} {:id "defn/should-show-paused?", :kind "defn", :line 7, :end-line 10, :hash "1556317815"} {:id "defn-/unit-fuel-str", :kind "defn-", :line 12, :end-line 14, :hash "1572131136"} {:id "defn-/unit-cargo-str", :kind "defn-", :line 16, :end-line 20, :hash "-912894557"} {:id "defn-/transport-mission-str", :kind "defn-", :line 22, :end-line 27, :hash "2125337359"} {:id "defn-/patrol-mode-str", :kind "defn-", :line 29, :end-line 31, :hash "1917316096"} {:id "defn-/army-mission-str", :kind "defn-", :line 33, :end-line 35, :hash "18689968"} {:id "defn-/unit-orders-str", :kind "defn-", :line 37, :end-line 41, :hash "-636057977"} {:id "defn/format-unit-status", :kind "defn", :line 43, :end-line 56, :hash "1526979702"} {:id "defn-/format-ship-for-dock", :kind "defn-", :line 58, :end-line 63, :hash "2019898018"} {:id "defn-/format-shipyard", :kind "defn-", :line 65, :end-line 69, :hash "1584376118"} {:id "defn/format-city-status", :kind "defn", :line 71, :end-line 84, :hash "-1175931009"} {:id "defn/format-waypoint-status", :kind "defn", :line 86, :end-line 92, :hash "1023450594"} {:id "defn/format-hover-status", :kind "defn", :line 94, :end-line 103, :hash "115637379"} {:id "form/14/declare", :kind "declare", :line 105, :end-line 105, :hash "1539091516"} {:id "defn-/split-unit-hover", :kind "defn-", :line 107, :end-line 112, :hash "-181459465"} {:id "defn-/compact-detail-token", :kind "defn-", :line 114, :end-line 121, :hash "-1028236552"} {:id "defn-/compact-detail", :kind "defn-", :line 123, :end-line 128, :hash "-468040357"} {:id "defn-/split-city-hover", :kind "defn-", :line 130, :end-line 135, :hash "-252224042"} {:id "defn-/split-waypoint-hover", :kind "defn-", :line 137, :end-line 142, :hash "1048163326"} {:id "defn-/hover-kind", :kind "defn-", :line 144, :end-line 149, :hash "1578687087"} {:id "defn/split-hover-status", :kind "defn", :line 151, :end-line 162, :hash "1155669426"} {:id "defn/format-production-status", :kind "defn", :line 164, :end-line 168, :hash "1957771995"} {:id "defn-/parse-count-entry", :kind "defn-", :line 170, :end-line 176, :hash "-1237319404"} {:id "defn-/compact-nonzero-units", :kind "defn-", :line 178, :end-line 185, :hash "131416162"} {:id "defn-/summarize-nonzero-units", :kind "defn-", :line 187, :end-line 193, :hash "-489438097"} {:id "defn-/parseable-production-status?", :kind "defn-", :line 195, :end-line 198, :hash "1843558349"} {:id "defn-/join-production-summary", :kind "defn-", :line 200, :end-line 204, :hash "-2105547342"} {:id "defn/compact-production-status", :kind "defn", :line 206, :end-line 218, :hash "644266267"}]}
 ;; clj-mutate-manifest-end

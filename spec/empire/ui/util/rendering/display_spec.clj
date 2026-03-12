@@ -363,7 +363,7 @@
 
   (it "truncates overly long detail text"
     (should= {:summary "[12,7] player carrier [5/8]"
-              :detail "cargo:3 fuel:32 mission:escort waypoint:14,9..."}
+              :detail "cargo:3 fuel:32 mis:escort waypoint:14,9 and..."}
              (display/resolve-inspector-lines
               "[12,7] player carrier [5/8] cargo:3 fuel:32 mission:escort waypoint:14,9 and more detail text beyond the limit")))
 

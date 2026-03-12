@@ -177,9 +177,15 @@
 
   (it "keeps city summary compact and moves the rest into detail"
     (should= {:summary "[3,7] city:player"
-              :detail "producing:army fighters:2 dock:S[1/2]"}
+              :detail "prod:army ftrs:2 dock:S[1/2]"}
              (fmt/split-hover-status
               "[3,7] city:player producing:army fighters:2 dock:S[1/2]")))
+
+  (it "shortens verbose detail tokens for unit inspector text"
+    (should= {:summary "[12,7] computer transport [1/1]"
+              :detail "cargo:2 loading to:3"}
+             (fmt/split-hover-status
+              "[12,7] computer transport [1/1] cargo:2 loading timeout:3")))
 
   (it "keeps waypoint headline on the summary line"
     (should= {:summary "[1,4] waypoint"
