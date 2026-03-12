@@ -1,6 +1,7 @@
 (ns empire.ui.util.rendering.display-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
+            [empire.config.core :as config]
             [empire.test.utils :refer [reset-all-atoms!]]
             [empire.ui.util.rendering.display :as display]))
 
@@ -19,9 +20,10 @@
       (should= {:type :fighter :mode :awake}
                (display/determine-display-unit 0 0 cell [[0 0]] true))))
 
-  (it "returns nil for attention cell with awake airport when blink is off"
+  (it "keeps attention fighter visible when blink is off"
     (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
-      (should-not (display/determine-display-unit 0 0 cell [[0 0]] false))))
+      (should= {:type :fighter :mode :awake}
+               (display/determine-display-unit 0 0 cell [[0 0]] false))))
 
   (it "returns blinking fighter for attention cell with carrier with awake fighters"
     (let [cell {:contents {:type :carrier :awake-fighters 1}}]
@@ -133,7 +135,7 @@
   (it "flashes attention cell black when blink-attention is true"
     (let [the-map [[{:type :land}]]
           result (display/group-cells-by-color the-map [[0 0]] {} true false)]
-      (should= 1 (count (get result [0 0 0])))))
+      (should= 1 (count (get result [255 255 255])))))
 
   (it "shows normal color for attention cell when blink-attention is false"
     (let [the-map [[{:type :land}]]
@@ -163,7 +165,7 @@
     (let [the-map [[{:type :city :city-status :player}]]
           production {[0 0] {:item :army :remaining-rounds 0}}
           result (display/group-cells-by-color the-map [[0 0]] production true true)]
-      (should= 1 (count (get result [0 0 0])))))
+      (should= 1 (count (get result [255 255 255])))))
 
   (it "renders lake cells as deeper blue on computer-map display"
     (let [the-map [[{:type :sea} {:type :sea}]
@@ -171,6 +173,19 @@
       (test-utils/set-test-state! :lake-max-cells 3)
       (let [result (display/group-cells-by-color the-map nil {} false false :computer-map)]
         (should= 3 (count (get result [0 120 220])))))))
+
+(describe "attention-unit-color"
+  (it "uses black for an attention unit during the flash phase"
+    (should= [0 0 0]
+             (display/attention-unit-color {:type :army :owner :player} 0 0 [[0 0]] true)))
+
+  (it "uses white for an attention unit during the normal cell phase"
+    (should= [255 255 255]
+             (display/attention-unit-color {:type :army :owner :player} 0 0 [[0 0]] false)))
+
+  (it "uses the normal unit color for non-attention units"
+    (should= (config/unit->color {:type :army :owner :player})
+             (display/attention-unit-color {:type :army :owner :player} 1 0 [[0 0]] true))))
 
 (describe "compute-hover-message"
   (it "returns formatted status for cell with unit"

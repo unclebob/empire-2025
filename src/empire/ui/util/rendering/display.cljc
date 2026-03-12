@@ -8,6 +8,9 @@
 
 (def ^:private default-cell-color [0 0 0])
 (def ^:private lake-cell-color [0 120 220])
+(def ^:private attention-flash-cell-color [255 255 255])
+(def ^:private attention-flash-unit-color [0 0 0])
+(def ^:private attention-normal-unit-color [255 255 255])
 (defonce ^:private lake-cache* (atom {:map nil :limit nil :cells #{}}))
 (defn- safe-color
   [cell]
@@ -43,17 +46,22 @@
         has-awake-carrier? (uc/has-awake-carrier-fighter? contents)
         has-awake-army? (uc/has-awake-army-aboard? contents)
         has-contained-unit? (or has-awake-airport? has-awake-carrier? has-awake-army?)
-        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
-        show-contained? (and is-attention-cell? has-contained-unit? blink?)]
+        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))]
     (cond
-      show-contained?
+      (and is-attention-cell? has-contained-unit?)
       (uc/blinking-contained-unit has-awake-airport? has-awake-carrier? has-awake-army?)
-
-      (and is-attention-cell? has-awake-airport?)
-      nil ;; Hide airport fighter on alternate blink frame
 
       :else
       (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
+
+(defn attention-unit-color
+  "Returns the color for a displayed unit, overriding attention cells for stronger blink contrast."
+  [display-unit col row attention-coords blink-attention?]
+  (if (and display-unit
+           (seq attention-coords)
+           (= [col row] (first attention-coords)))
+    (if blink-attention? attention-flash-unit-color attention-normal-unit-color)
+    (config/unit->color display-unit)))
 
 (defn- show-city-production?
   [cell map-to-display]
@@ -110,7 +118,7 @@
         flash-attention? (and (= current attention-cell) blink-attention?)
         flash-completed? (and (completed-production-city? cell production current) blink-completed?)]
     (cond
-      flash-attention? [0 0 0]
+      flash-attention? attention-flash-cell-color
       flash-completed? [255 255 255]
       :else base-color)))
 
@@ -169,5 +177,5 @@
        vec))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:03:37.199523-05:00", :module-hash "-1185310854", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "form/3/defonce", :kind "defonce", :line 11, :end-line 11, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 12, :end-line 14, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 16, :end-line 19, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 21, :end-line 27, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 29, :end-line 33, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 35, :end-line 56, :hash "1957051614"} {:id "defn-/show-city-production?", :kind "defn-", :line 58, :end-line 63, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 65, :end-line 82, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 84, :end-line 93, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 95, :end-line 99, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 101, :end-line 105, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 107, :end-line 115, :hash "-98827088"} {:id "defn/group-cells-by-color", :kind "defn", :line 117, :end-line 139, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 141, :end-line 144, :hash "1593526722"} {:id "defn/resolve-turn-text", :kind "defn", :line 146, :end-line 152, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 154, :end-line 160, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 162, :end-line 169, :hash "245117443"}]}
+;; {:version 1, :tested-at "2026-03-12T13:50:35.485444-05:00", :module-hash "2024331156", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line 11, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line 12, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line 13, :hash "-1032802797"} {:id "form/6/defonce", :kind "defonce", :line 14, :end-line 14, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 15, :end-line 17, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 19, :end-line 22, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 24, :end-line 30, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 32, :end-line 36, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 38, :end-line 55, :hash "1928759595"} {:id "defn/attention-unit-color", :kind "defn", :line 57, :end-line 64, :hash "735152350"} {:id "defn-/show-city-production?", :kind "defn-", :line 66, :end-line 71, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 73, :end-line 90, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 92, :end-line 101, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 103, :end-line 107, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 109, :end-line 113, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 115, :end-line 123, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 125, :end-line 147, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 149, :end-line 152, :hash "1593526722"} {:id "defn/resolve-turn-text", :kind "defn", :line 154, :end-line 160, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 162, :end-line 168, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 170, :end-line 177, :hash "245117443"}]}
 ;; clj-mutate-manifest-end
