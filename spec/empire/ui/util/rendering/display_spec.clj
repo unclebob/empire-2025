@@ -363,9 +363,15 @@
 
   (it "truncates overly long detail text"
     (should= {:summary "[12,7] player carrier [5/8]"
-              :detail "cargo:3 fuel:32 mission:escort waypoint:14,9 and more det..."}
+              :detail "cargo:3 fuel:32 mission:escort waypoint:14,9..."}
              (display/resolve-inspector-lines
               "[12,7] player carrier [5/8] cargo:3 fuel:32 mission:escort waypoint:14,9 and more detail text beyond the limit")))
+
+  (it "preserves more of a long summary before truncating"
+    (should= {:summary "[12,7] player very-long-custom-unit-name-that-keeps-g..."
+              :detail nil}
+             (display/resolve-inspector-lines
+              "[12,7] player very-long-custom-unit-name-that-keeps-going [5/8]")))
 
   (it "returns empty inspector lines when there is no hover text"
     (should= {:summary nil :detail nil}
