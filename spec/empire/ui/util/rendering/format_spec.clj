@@ -175,6 +175,17 @@
               :detail "cargo:3 sentry"}
              (fmt/split-hover-status "[12,7] player carrier [5/8] cargo:3 sentry")))
 
+  (it "keeps city summary compact and moves the rest into detail"
+    (should= {:summary "[3,7] city:player"
+              :detail "producing:army fighters:2 dock:S[1/2]"}
+             (fmt/split-hover-status
+              "[3,7] city:player producing:army fighters:2 dock:S[1/2]")))
+
+  (it "keeps waypoint headline on the summary line"
+    (should= {:summary "[1,4] waypoint"
+              :detail "-> 2,3"}
+             (fmt/split-hover-status "[1,4] waypoint -> 2,3")))
+
   (it "keeps short hover text on the summary line"
     (should= {:summary "[0,0] city:free"
               :detail nil}
