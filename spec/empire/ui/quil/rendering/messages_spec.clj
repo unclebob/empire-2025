@@ -42,7 +42,7 @@
         (should-contain [:text-font [:fake-font]] @calls)
         (should-contain [:fill [255 215 64]] @calls)
         (should-contain [:text ["Fighter needs attention..." 10 110]] @calls)
-        (should-contain [:text ["Round 17  Map: Comp" 10 126]] @calls)
+        (should-contain [:text ["R17  Comp Map" 10 126]] @calls)
         (should-contain [:text ["Dest 12,7" 114 126]] @calls)
         (should-contain [:text ["Prod: fighter 2r" 162 126]] @calls)
         (should-contain [:text ["[12,7] player carrier [5/8]" 10 142]] @calls)
@@ -74,7 +74,7 @@
         (messages-render/draw-message-area)
         (should-contain [:fill [255 80 80]] @calls)
         (should-contain [:text ["Conquest Failed" 10 110]] @calls)
-        (should-contain [:text ["PAUSED  Round 2" 10 126]] @calls)
+        (should-contain [:text ["PAUSED  R2" 10 126]] @calls)
         (should-not-contain [:text [nil 10 142]] @calls))))
 
   (it "shows attention-cell order context in the status center when there is no destination"
@@ -106,5 +106,5 @@
                     q/text-width (fn [text] (* 8 (count text)))
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
-        (should-contain [:text ["Round 6" 10 126]] @calls)
-        (should-contain [:text ["Flight 9,4" 110 126]] @calls)))))
+        (should-contain [:text ["R6" 10 126]] @calls)
+        (should-contain [:text ["Orders Flight 9,4" 82 126]] @calls)))))

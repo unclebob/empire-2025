@@ -294,7 +294,7 @@
 
 (describe "resolve-status-line"
   (it "formats paused round and map label on the left"
-    (should= {:left "PAUSED  Round 17  Map: Comp"
+    (should= {:left "PAUSED  R17  Comp Map"
               :center "Dest 12,7"
               :right "A1 F2 | 75%"}
              (display/resolve-status-line 17 true false :computer-map [12 7]
@@ -302,13 +302,13 @@
                                           [] [])))
 
   (it "omits player-map label and empty optional fields"
-    (should= {:left "Round 3"
+    (should= {:left "R3"
               :center nil
               :right nil}
              (display/resolve-status-line 3 false false :player-map nil "" [] [])))
 
   (it "shows actual-map label when appropriate"
-    (should= {:left "Round 9  Map: Actual"
+    (should= {:left "R9  Actual Map"
               :center nil
               :right "0 units | 4%"}
              (display/resolve-status-line 9 false false :actual-map nil
@@ -316,7 +316,7 @@
                                           [] [])))
 
   (it "truncates long center and right fields"
-    (should= {:left "Round 7"
+    (should= {:left "R7"
               :center "Dest 1234567890..."
               :right "A12 F9 D3 | 100%"}
              (display/resolve-status-line 7 false false :player-map [123456789012 999]
@@ -324,8 +324,8 @@
                                           [] [])))
 
   (it "shows city lookaround in the center when there is no pending destination"
-    (should= {:left "Round 11"
-              :center "Lookaround"
+    (should= {:left "R11"
+              :center "Orders Lookaround"
               :right nil}
              (display/resolve-status-line 11 false false :player-map nil ""
                                           [[{:type :city :city-status :player
@@ -333,8 +333,8 @@
                                           [[0 0]])))
 
   (it "shows transport marching orders from the current attention cell"
-    (should= {:left "Round 5"
-              :center "March 8,3"
+    (should= {:left "R5"
+              :center "Orders March 8,3"
               :right nil}
              (display/resolve-status-line 5 false false :player-map nil ""
                                           [[{:type :sea
@@ -344,8 +344,8 @@
                                           [[0 0]])))
 
   (it "shows carrier flight orders from the current attention cell"
-    (should= {:left "Round 6"
-              :center "Flight 9,4"
+    (should= {:left "R6"
+              :center "Orders Flight 9,4"
               :right nil}
              (display/resolve-status-line 6 false false :player-map nil ""
                                           [[{:type :sea
