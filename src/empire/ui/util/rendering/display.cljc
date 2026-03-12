@@ -185,14 +185,57 @@
         trimmed
         (str (subs trimmed 0 (max 0 (- max-len 3))) "...")))))
 
+(defn- format-coords
+  [[x y]]
+  (str x "," y))
+
+(defn- order-context-text
+  [order-type coords]
+  (when coords
+    (case order-type
+      :flight (str "Flight " (format-coords coords))
+      :march (str "March " (format-coords coords))
+      :waypoint (str "Waypoint " (format-coords coords))
+      nil)))
+
+(defn- cell-order-context
+  [cell]
+  (let [city-marching-orders (:marching-orders cell)
+        city-flight-path (:flight-path cell)
+        waypoint-orders (get-in cell [:waypoint :marching-orders])]
+    (cond
+      (= city-marching-orders :lookaround) "Lookaround"
+      city-flight-path (order-context-text :flight city-flight-path)
+      city-marching-orders (order-context-text :march city-marching-orders)
+      waypoint-orders (order-context-text :waypoint waypoint-orders)
+      :else nil)))
+
+(defn- unit-order-context
+  [cell]
+  (let [contents (:contents cell)
+        unit-marching-orders (:marching-orders contents)
+        unit-flight-path (:flight-path contents)]
+    (cond
+      unit-flight-path (order-context-text :flight unit-flight-path)
+      unit-marching-orders (order-context-text :march unit-marching-orders)
+      :else nil)))
+
+(defn- resolve-order-context
+  [current-world attention-coords]
+  (when-let [coords (first attention-coords)]
+    (let [cell (get-in current-world coords)]
+      (or (cell-order-context cell)
+          (unit-order-context cell)))))
+
 (defn resolve-status-line
   "Builds the compact left/center/right status line fields for the redesigned HUD."
-  [round-number paused pause-requested map-to-display destination production-status]
+  [round-number paused pause-requested map-to-display destination production-status current-world attention-coords]
   (let [left-parts (remove nil? [(when (fmt/should-show-paused? paused pause-requested) "PAUSED")
                                  (str "Round " round-number)
                                  (map-display-label map-to-display)])
-        center (when destination
-                 (str "Dest " (first destination) "," (second destination)))
+        center (or (when destination
+                     (str "Dest " (format-coords destination)))
+                   (resolve-order-context current-world attention-coords))
         right (fmt/compact-production-status production-status)]
     {:left (when (seq left-parts) (str/join "  " left-parts))
      :center (ellipsize center status-center-max)
@@ -232,5 +275,5 @@
        vec))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T15:22:11.768474-05:00", :module-hash "-1354694834", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line 11, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line 12, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line 13, :hash "-1032802797"} {:id "def/inspector-summary-max", :kind "def", :line 14, :end-line 14, :hash "-792760336"} {:id "def/inspector-detail-max", :kind "def", :line 15, :end-line 15, :hash "-1377604862"} {:id "def/status-center-max", :kind "def", :line 16, :end-line 16, :hash "-580134895"} {:id "def/status-right-max", :kind "def", :line 17, :end-line 17, :hash "-539755630"} {:id "form/10/defonce", :kind "defonce", :line 18, :end-line 18, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 19, :end-line 21, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 23, :end-line 26, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 28, :end-line 34, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 36, :end-line 40, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 42, :end-line 59, :hash "1928759595"} {:id "defn/attention-unit-color", :kind "defn", :line 61, :end-line 68, :hash "735152350"} {:id "defn-/show-city-production?", :kind "defn-", :line 70, :end-line 75, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 77, :end-line 94, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 96, :end-line 105, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 107, :end-line 111, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 113, :end-line 117, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 119, :end-line 127, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 129, :end-line 151, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 153, :end-line 156, :hash "1593526722"} {:id "defn/resolve-banner", :kind "defn", :line 158, :end-line 172, :hash "1089634649"} {:id "defn-/map-display-label", :kind "defn-", :line 174, :end-line 178, :hash "-46287158"} {:id "defn-/ellipsize", :kind "defn-", :line 180, :end-line 186, :hash "1078971021"} {:id "defn/resolve-status-line", :kind "defn", :line 188, :end-line 199, :hash "-1017071555"} {:id "defn/resolve-inspector-lines", :kind "defn", :line 201, :end-line 207, :hash "1384942978"} {:id "defn/resolve-turn-text", :kind "defn", :line 209, :end-line 215, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 217, :end-line 223, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 225, :end-line 232, :hash "245117443"}]}
+;; {:version 1, :tested-at "2026-03-12T15:32:45.087662-05:00", :module-hash "-739756397", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2128578818"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line 11, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line 12, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line 13, :hash "-1032802797"} {:id "def/inspector-summary-max", :kind "def", :line 14, :end-line 14, :hash "-792760336"} {:id "def/inspector-detail-max", :kind "def", :line 15, :end-line 15, :hash "-1377604862"} {:id "def/status-center-max", :kind "def", :line 16, :end-line 16, :hash "-580134895"} {:id "def/status-right-max", :kind "def", :line 17, :end-line 17, :hash "-539755630"} {:id "form/10/defonce", :kind "defonce", :line 18, :end-line 18, :hash "1764353803"} {:id "defn-/safe-color", :kind "defn-", :line 19, :end-line 21, :hash "-1335025619"} {:id "defn/resolve-display-map", :kind "defn", :line 23, :end-line 26, :hash "-442023512"} {:id "defn/compute-hover-message", :kind "defn", :line 28, :end-line 34, :hash "1130106368"} {:id "defn/compute-hover-result", :kind "defn", :line 36, :end-line 40, :hash "1222432952"} {:id "defn/determine-display-unit", :kind "defn", :line 42, :end-line 59, :hash "1928759595"} {:id "defn/attention-unit-color", :kind "defn", :line 61, :end-line 68, :hash "735152350"} {:id "defn-/show-city-production?", :kind "defn-", :line 70, :end-line 75, :hash "1360271203"} {:id "defn/production-indicator-data", :kind "defn", :line 77, :end-line 94, :hash "1241042084"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 96, :end-line 105, :hash "-1833440901"} {:id "defn-/completed-production-city?", :kind "defn-", :line 107, :end-line 111, :hash "-1046378919"} {:id "defn-/cell-base-color", :kind "defn-", :line 113, :end-line 117, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 119, :end-line 127, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 129, :end-line 151, :hash "1520872785"} {:id "defn/should-show-error?", :kind "defn", :line 153, :end-line 156, :hash "1593526722"} {:id "defn/resolve-banner", :kind "defn", :line 158, :end-line 172, :hash "1089634649"} {:id "defn-/map-display-label", :kind "defn-", :line 174, :end-line 178, :hash "-46287158"} {:id "defn-/ellipsize", :kind "defn-", :line 180, :end-line 186, :hash "1078971021"} {:id "defn-/format-coords", :kind "defn-", :line 188, :end-line 190, :hash "1411646979"} {:id "defn-/order-context-text", :kind "defn-", :line 192, :end-line 199, :hash "1958696046"} {:id "defn-/cell-order-context", :kind "defn-", :line 201, :end-line 211, :hash "-1545886776"} {:id "defn-/unit-order-context", :kind "defn-", :line 213, :end-line 221, :hash "-1291338553"} {:id "defn-/resolve-order-context", :kind "defn-", :line 223, :end-line 228, :hash "-1106020974"} {:id "defn/resolve-status-line", :kind "defn", :line 230, :end-line 242, :hash "1194296728"} {:id "defn/resolve-inspector-lines", :kind "defn", :line 244, :end-line 250, :hash "1384942978"} {:id "defn/resolve-turn-text", :kind "defn", :line 252, :end-line 258, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 260, :end-line 266, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 268, :end-line 275, :hash "245117443"}]}
 ;; clj-mutate-manifest-end

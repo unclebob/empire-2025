@@ -66,4 +66,34 @@
         (should-contain [:fill [255 80 80]] @calls)
         (should-contain [:text ["Conquest Failed" 10 110]] @calls)
         (should-contain [:text ["PAUSED  Round 2" 10 126]] @calls)
-        (should-not-contain [:text [nil 10 142]] @calls)))))
+        (should-not-contain [:text [nil 10 142]] @calls))))
+
+  (it "shows attention-cell order context in the status center when there is no destination"
+    (let [calls (atom [])]
+      (sa/write-state! :text-area-dimensions [0 100 300 64])
+      (sa/write-state! :text-font :fake-font)
+      (sa/update-world! (fn [_]
+                          [[{:type :city
+                             :city-status :player
+                             :flight-path [9 4]}]]))
+      (sa/write-state! :cells-needing-attention [[0 0]])
+      (sa/write-state! :error-message "")
+      (sa/write-state! :error-until 0)
+      (sa/write-state! :attention-message "")
+      (sa/write-state! :turn-message "")
+      (sa/write-state! :round-number 6)
+      (sa/write-state! :paused false)
+      (sa/write-state! :pause-requested false)
+      (sa/write-state! :map-to-display :player-map)
+      (sa/write-state! :destination nil)
+      (sa/write-state! :production-status "")
+      (sa/write-state! :hover-message "")
+      (with-redefs [q/stroke (fn [& _] nil)
+                    q/line (fn [& _] nil)
+                    q/text-font (fn [& _] nil)
+                    q/fill (fn [& _] nil)
+                    q/text-width (fn [text] (* 8 (count text)))
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (messages-render/draw-message-area)
+        (should-contain [:text ["Round 6" 10 126]] @calls)
+        (should-contain [:text ["Flight 9,4" 110 126]] @calls)))))

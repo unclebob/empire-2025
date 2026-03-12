@@ -298,27 +298,61 @@
               :center "Dest 12,7"
               :right "A1 F2 | 75%"}
              (display/resolve-status-line 17 true false :computer-map [12 7]
-                                          "A:1 F:2 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 75%")))
+                                          "A:1 F:2 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 75%"
+                                          [] [])))
 
   (it "omits player-map label and empty optional fields"
     (should= {:left "Round 3"
               :center nil
               :right nil}
-             (display/resolve-status-line 3 false false :player-map nil "")))
+             (display/resolve-status-line 3 false false :player-map nil "" [] [])))
 
   (it "shows actual-map label when appropriate"
     (should= {:left "Round 9  Map: Actual"
               :center nil
               :right "0 units | 4%"}
              (display/resolve-status-line 9 false false :actual-map nil
-                                          "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 4%")))
+                                          "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 4%"
+                                          [] [])))
 
   (it "truncates long center and right fields"
     (should= {:left "Round 7"
               :center "Dest 1234567890..."
               :right "A12 F9 D3 | 100%"}
              (display/resolve-status-line 7 false false :player-map [123456789012 999]
-                                          "A:12 F:9 T:0 D:3 S:0 P:0 C:0 B:0 Z:0 | 100%")))
+                                          "A:12 F:9 T:0 D:3 S:0 P:0 C:0 B:0 Z:0 | 100%"
+                                          [] [])))
+
+  (it "shows city lookaround in the center when there is no pending destination"
+    (should= {:left "Round 11"
+              :center "Lookaround"
+              :right nil}
+             (display/resolve-status-line 11 false false :player-map nil ""
+                                          [[{:type :city :city-status :player
+                                              :marching-orders :lookaround}]]
+                                          [[0 0]])))
+
+  (it "shows transport marching orders from the current attention cell"
+    (should= {:left "Round 5"
+              :center "March 8,3"
+              :right nil}
+             (display/resolve-status-line 5 false false :player-map nil ""
+                                          [[{:type :sea
+                                             :contents {:type :transport
+                                                        :owner :player
+                                                        :marching-orders [8 3]}}]]
+                                          [[0 0]])))
+
+  (it "shows carrier flight orders from the current attention cell"
+    (should= {:left "Round 6"
+              :center "Flight 9,4"
+              :right nil}
+             (display/resolve-status-line 6 false false :player-map nil ""
+                                          [[{:type :sea
+                                             :contents {:type :carrier
+                                                        :owner :player
+                                                        :flight-path [9 4]}}]]
+                                          [[0 0]])))
   )
 
 (describe "resolve-inspector-lines"
