@@ -325,7 +325,7 @@
 
   (it "shows city lookaround in the center when there is no pending destination"
     (should= {:left "R11"
-              :center "Orders Lookaround"
+              :center "Lookaround"
               :right nil}
              (display/resolve-status-line 11 false false :player-map nil ""
                                           [[{:type :city :city-status :player
@@ -334,7 +334,7 @@
 
   (it "shows transport marching orders from the current attention cell"
     (should= {:left "R5"
-              :center "Orders March 8,3"
+              :center "March 8,3"
               :right nil}
              (display/resolve-status-line 5 false false :player-map nil ""
                                           [[{:type :sea
@@ -345,7 +345,7 @@
 
   (it "shows carrier flight orders from the current attention cell"
     (should= {:left "R6"
-              :center "Orders Flight 9,4"
+              :center "Flight 9,4"
               :right nil}
              (display/resolve-status-line 6 false false :player-map nil ""
                                           [[{:type :sea

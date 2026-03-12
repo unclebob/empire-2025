@@ -107,4 +107,4 @@
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
         (should-contain [:text ["R6" 10 126]] @calls)
-        (should-contain [:text ["Orders Flight 9,4" 82 126]] @calls)))))
+        (should-contain [:text ["Flight 9,4" 110 126]] @calls)))))
