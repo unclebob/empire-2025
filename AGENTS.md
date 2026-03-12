@@ -1,25 +1,7 @@
-# Agent Startup Rule
-
-At session start, read `CLAUDE.md` in this repository root before taking any action.
-
-If `CLAUDE.md` and runtime/system instructions conflict, follow runtime/system instructions and report the conflict.
-
-## CLAUDE.md Rules
-
-The following repository rules are copied from `CLAUDE.md`.
-
-## Project Overview
-
-Empire is a Clojure implementation of the classic VMS Empire wargame - a turn-based strategy game of global conquest between a human player and computer opponent. The game uses Quil for rendering a grid-based map where players produce and command military units (armies, fighters, ships) to capture cities and destroy enemy forces. Source files use `.cljc` extension for cross-platform Clojure/ClojureScript compatibility.
-
 ## Permissions
 
-allow all standard unix tools, clj, and clojure.
+allow all standard unix tools, git, clj, and clojure.
 
-## Local rules
-
-- If the working directory is named <x> then local rules will be stored in <x>.md. BEFORE making any changes, read `<x>.md` and follow its restrictions.
-- If in a worktree, stay in that worktree and merge to other branches from there.
 
 ## Acceptance Tests
 
@@ -50,12 +32,8 @@ clj -M:parse-tests && clj -M:generate-specs && clj -M:spec generated-acceptance-
 ### Rules
 
 - Never modify an acceptance test `.txt` file without explicit permission.
-- Always check `.txt` vs `.edn` and `.edn` vs `.clj` modification dates before running acceptance tests; re-parse and/or regenerate if the source is newer.
-- Clear context (reset-all-atoms!) before each test.
-- Before a push, ask whether acceptance tests should be run.
-- On failure, report file name and line number of the first GIVEN line.
-- If a directive is ambiguous, report the ambiguity rather than guessing.
-- Never modify generated specs in `generated-acceptance-specs/`; only delete and regenerate them from the `.txt` source via the pipeline.
+- Always run the full acceptance test pipeline.
+- Include (reset-all-atoms!) before each test.
 - Generated specs and `.edn` files are gitignored - do not commit them.
 - If an acceptance test cannot be translated to a spec, report which test and why to the user. Still generate the spec as a failing test documenting the desired behavior.
 - Mock the random number generator (`with-redefs [rand ...]`) for tests with random/non-deterministic conditions.
@@ -79,9 +57,6 @@ clj -M:cov
 # Acceptance test pipeline
 clj -M:parse-tests      # Parse .txt -> .edn (acceptanceTests/edn/)
 clj -M:generate-specs   # Generate .edn -> .clj (generated-acceptance-specs/)
-
-# Clear acceptance tests - list each file explicitly, no globs
-# rm -f acceptanceTests/edn/<each>.edn generated-acceptance-specs/acceptance/<each>_spec.clj
 ```
 
 ## Architecture
@@ -154,189 +129,30 @@ The message area below the map has two sections, each 3 lines high:
 
 ## Coding Guidelines
 
-### Architecture Policy
-
-- Abstraction is never arbitrary. Only count or claim abstraction when there is real indirection in code:
-  - `defprotocol`
-  - `defmulti`/`defmethod`
-  - explicit function-argument injection of behavior
-- Do not use config-only or naming-only mechanisms to assert abstraction when no indirection exists.
-- For component boundaries, prefer `defprotocol` ports over multimethods by default.
-- Use multimethods only when open-ended value/type dispatch is actually required.
-- Keep boundary namespaces abstract-only when practical (contracts only); place concrete implementations in implementation namespaces.
-- Wire protocol implementations in initialization/composition code; wire multimethod implementations by requiring concrete namespaces during initialization.
-- When a contract namespace exists (for example `*.movement`), define it as a distinct dependency component (for example `:movement-contract`) in `dependency-tool.edn`.
-- Contract components must remain abstraction-only; no concrete logic or runtime wiring in contract namespaces.
-- Concrete implementation namespaces must not be required directly by feature modules; only adapters/bootstrap/composition code may wire implementations.
-- Every boundary refactor must add or update an automated guard in `scripts/check-architecture-boundaries.sh`.
-- Boundary checks must run in all pipelines (`all-tests`, `all-tests-fast`, and acceptance pipeline), not only manually.
-- When introducing a new port/protocol, migrate at least one real consumer in the same slice and add a no-regression guard for that migrated consumer.
-- Preserve API arity compatibility during boundary migrations unless an explicit breaking change is requested.
-- Any abstraction assertion in `dependency-tool.edn` must map to real indirection in source, never config-only pattern declarations.
-- Do not use `requiring-resolve` for architecture wiring.
-- Do not use namespace/var lookup for architecture wiring (`resolve`, `ns-resolve`, `find-ns`, `the-ns`, `var`, `find-var`, or equivalent dynamic lookup patterns).
-- Composition must use explicit static dependencies (`ns :require`) and explicit injected values (protocol implementations or function arguments), not symbol-based lookup.
-
-### Quil Isolation
-
-Functions in `input.cljc` and `rendering.cljc` that do not depend on Quil should be moved to appropriate non-Quil modules. Keep Quil dependencies (e.g., `q/mouse-x`, `q/mouse-y`, drawing functions) isolated to thin wrapper functions, with core logic extracted into testable, Quil-independent functions in modules like `movement.cljc`, `config.cljc`, or `unit-container.cljc`.
-
-### Unused Arguments
-
-Remove unused function arguments before committing. If an argument must be retained for API consistency (e.g., polymorphic dispatch where all implementations share the same signature), prefix it with `_` to indicate it is intentionally unused.
-
 ### Large Module Mutation Rule
 
-Before mutating a module larger than 250 lines, explicitly suggest splitting it into smaller modules/functions first. If mutation is still required, keep edits minimal and scoped.
+When the user requests a check on module size use the mutator's --scan mode to measure the number of mutation sites for the modules.  Inform the user of the those over 50 and offer to split them.
 
-### Mutation Workflow
-
-When the user asks to mutate a module:
-0. If the module is over 250 lines, split it first; do not run mutation tests until after the split.
-1. Run mutation tests for that module.
-2. Add tests to cover any uncovered functions.
-3. Kill surviving mutants by writing new tests.
-
-### Mutation Playbook (THEN Parser)
-
-For `src/empire/acceptance/parser/then/*` modules:
-1. Run mutation tests in this order: `handlers -> patterns -> parse -> facade`.
-2. Use `clj -M:mutate <path>` and wait for delayed output; baseline output can be deferred.
-3. Preserve regex literals exactly when moving pattern tables; avoid accidental double-escaping.
-4. Ensure coverage of the `tag-timing` vector branch in `then/parse.cljc` (`update result 0 ...`) to avoid uncovered mutations.
-5. A thin facade (`then.cljc`) may report `0 mutation sites`; this is expected.
-6. After mutation/testing changes, rerun:
-   - `clj -M:spec spec/empire/acceptance/parser/then_spec.clj spec/empire/acceptance/parser_spec.clj`
-   - `clj -M:parse-tests && clj -M:generate-specs && clj -M:spec generated-acceptance-specs/`
-7. Check `plans/permanent/equivalent-mutations.md` before adding tests for survivors.
-
-### Parenthesis Safety
-
-LLMs lose track of parentheses in deeply nested s-expressions. Follow these practices to limit errors:
-
-1. **Smaller edits**: Use find-and-replace on specific fragments rather than rewriting whole functions.
-2. **Lower cyclomatic complexity**: Simpler functions mean shallower nesting and fewer parens to track. Keep CC <= 5.
-3. **Extract before modifying**: If changing a deeply nested branch, extract the logic into a named helper first, then modify in the simpler context.
-4. **Run tests immediately**: Run specs after every code change to catch paren errors early.
-5. **Read before editing**: Always read the current source before editing - never reconstruct code from memory.
+### Workflow
+ * For every new or changed behavior, write acceptance scenarios.  Ask before changing existing scenarios.  Confirm the scenarios fail.  Write failing unit tests and make them pass until scenarios pass.
+ * Before running changed specs use speclj-structure-check to ensure the structure.
+ * For every changed module run crap and refactor until crap is 8 or less.
+ * For every changed module run differential mutation tests, one module at a time, cover ucovered sites and kill survivors before running the next.  Set max-workers to 3. 
+ * Differential mutation updates the manifest automatically. Do not run `--update-manifest` afterward unless there is a separate reason.
+ * Never run crap or mutate concurrently with any other command, including another crap or mutate run.
+ * If a green unchanged module must be split before mutation work, update the daughter manifests before running differential mutation on them.
 
 ### Test Utilities
 
-When adding new atoms to `atoms.cljc`, also add them to `reset-all-atoms!` in `test_utils.cljc`.
+When adding new atoms, remember to update `reset-all-atoms!`.
 
 ## Plans
 
 Implementation plans are stored in the `plans/` directory. Upon completion, move finished plans into `plans/complete/`.
 
-<!-- BEGIN BEADS INTEGRATION -->
-## Issue Tracking with bd (beads)
+## Tools In `deps.edn`
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
-
-### Why bd?
-
-- Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Dolt-powered version control with native sync
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
-
-### Quick Start
-
-**Check for ready work:**
-
-```bash
-bd ready --json
-```
-
-**Create new issues:**
-
-```bash
-bd create "Issue title" --description="Detailed context" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" --description="What this issue is about" -p 1 --deps discovered-from:bd-123 --json
-```
-
-**Claim and update:**
-
-```bash
-bd update <id> --claim --json
-bd update bd-42 --priority 1 --json
-```
-
-**Complete work:**
-
-```bash
-bd close bd-42 --reason "Completed" --json
-```
-
-### Issue Types
-
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
-
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Workflow for AI Agents
-
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task atomically**: `bd update <id> --claim`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" --description="Details about what was found" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-
-### Auto-Sync
-
-bd automatically syncs via Dolt:
-
-- Each write auto-commits to Dolt history
-- Use `bd dolt push`/`bd dolt pull` for remote sync
-- No manual export/import needed!
-
-### Important Rules
-
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
-- ❌ Do NOT duplicate tracking systems
-
-For more details, see README.md and docs/QUICKSTART.md.
-
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-
-<!-- END BEADS INTEGRATION -->
+- `io.github.unclebob/clj-mutate`
+- `io.github.unclebob/speclj-structure-check`
+- `io.github.unclebob/crap4clj`
+- At startup check that these tools have the most recent SHAs in deps.edn.
