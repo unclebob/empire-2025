@@ -49,13 +49,15 @@
                                      (sa/read-state :cells-needing-attention))
         right-edge (- (+ text-x text-w) rendering/status-right-padding)
         center-x (+ text-x (/ text-w 2))]
-    (apply q/fill hud-secondary-color)
     (when left
+      (apply q/fill hud-secondary-color)
       (q/text left (+ text-x rendering/status-left-padding) (+ text-y config/msg-line-2-y)))
     (when center
+      (apply q/fill hud-text-color)
       (let [msg-width (q/text-width center)]
         (q/text center (- center-x (/ msg-width 2)) (+ text-y config/msg-line-2-y))))
     (when right
+      (apply q/fill hud-secondary-color)
       (draw-text-right-justified right right-edge (+ text-y config/msg-line-2-y)))
     (apply q/fill hud-text-color)))
 
@@ -94,5 +96,5 @@
     (draw-inspector text-x text-y)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T15:48:38.006416-05:00", :module-hash "1761855290", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-2065200641"} {:id "def/banner-error-color", :kind "def", :line 8, :end-line 8, :hash "117545043"} {:id "def/banner-attention-color", :kind "def", :line 9, :end-line 9, :hash "-320121614"} {:id "def/banner-result-color", :kind "def", :line 10, :end-line 10, :hash "1601020709"} {:id "def/hud-text-color", :kind "def", :line 11, :end-line 11, :hash "-1064068390"} {:id "def/hud-secondary-color", :kind "def", :line 12, :end-line 12, :hash "-1855887430"} {:id "defn-/draw-text-right-justified", :kind "defn-", :line 14, :end-line 19, :hash "-787062085"} {:id "defn-/banner-color", :kind "defn-", :line 21, :end-line 26, :hash "1492030370"} {:id "defn-/draw-banner", :kind "defn-", :line 28, :end-line 37, :hash "-1311356262"} {:id "defn-/draw-status", :kind "defn-", :line 39, :end-line 60, :hash "-533535522"} {:id "defn-/draw-inspector", :kind "defn-", :line 62, :end-line 72, :hash "1866044165"} {:id "defn/draw-message-area", :kind "defn", :line 76, :end-line 94, :hash "1126396776"}]}
+;; {:version 1, :tested-at "2026-03-12T16:11:38.752883-05:00", :module-hash "-1048745763", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-2065200641"} {:id "def/banner-error-color", :kind "def", :line 8, :end-line 8, :hash "117545043"} {:id "def/banner-attention-color", :kind "def", :line 9, :end-line 9, :hash "-320121614"} {:id "def/banner-result-color", :kind "def", :line 10, :end-line 10, :hash "1601020709"} {:id "def/hud-text-color", :kind "def", :line 11, :end-line 11, :hash "-1064068390"} {:id "def/hud-secondary-color", :kind "def", :line 12, :end-line 12, :hash "-1855887430"} {:id "defn-/draw-text-right-justified", :kind "defn-", :line 14, :end-line 19, :hash "-787062085"} {:id "defn-/banner-color", :kind "defn-", :line 21, :end-line 26, :hash "1492030370"} {:id "defn-/draw-banner", :kind "defn-", :line 28, :end-line 37, :hash "-1311356262"} {:id "defn-/draw-status", :kind "defn-", :line 39, :end-line 62, :hash "-429457997"} {:id "defn-/draw-inspector", :kind "defn-", :line 64, :end-line 74, :hash "1866044165"} {:id "defn/draw-message-area", :kind "defn", :line 78, :end-line 96, :hash "1126396776"}]}
 ;; clj-mutate-manifest-end
