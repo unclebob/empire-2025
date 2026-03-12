@@ -25,23 +25,23 @@
            :all-tests {:main-opts ["-m" "empire.test.pipeline"]}
 	           :check-dependencies {:extra-deps {io.github.unclebob/dependency-checker
 	                                             {:git/url "https://github.com/unclebob/dependency-checker"
-	                                              :git/sha "c32e45199469ef747d13294a4fd71c194834fcd3"}}
+	                                              :git/sha "e8f35792434adb35fb6b99f5c3f9ab2ab24a0279"}}
 	                                :main-opts ["-m" "dependency-checker.core"]}
 	           :arch-view {:extra-deps {io.github.unclebob/arch-view
 	                                    {:git/url "https://github.com/unclebob/arch-view"
 	                                     :git/sha "6d3ed706310e1fdee57672215cd0b16f33e1e99b"}}}
 						 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 						                        {:git/url "https://github.com/unclebob/clj-mutate"
-						                         :git/sha "223da6c1a814265d0a714417def997ce7878a8da"}}
+						                         :git/sha "2624370edd85ccf73f4c5b0b002ae13775290b80"}}
 					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
 					                                     {:git/url "https://github.com/unclebob/speclj-structure-check"
-					                                      :git/sha "7cc804c4e99b3482ca1d8a26b735ed41751a03ab"}}
+					                                      :git/sha "0b1cfd4736f3b5186c37be55c5f9aaa5ae48a2b1"}}
 					                        :main-opts ["-m" "speclj-structure-check.core"]}
 						 :crap {:extra-deps {io.github.unclebob/crap4clj
 						                      {:git/url "https://github.com/unclebob/crap4clj"
-						                       :git/sha "9f12da1b09bc1177f8f058108cf22a73bc9a97a0"}}
+						                       :git/sha "992a5dd41bb337a843c02fb4829a69af7bfcf595"}}
 						        :extra-paths ["spec"]
 						        :main-opts ["-m" "crap4clj.core"]}
 				 }
