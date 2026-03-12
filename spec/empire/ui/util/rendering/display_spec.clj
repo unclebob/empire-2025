@@ -294,7 +294,7 @@
 
 (describe "resolve-status-line"
   (it "formats paused round and map label on the left"
-    (should= {:left "PAUSED  R17  Comp Map"
+    (should= {:left "PAUSED  R17  Comp"
               :center "Dest 12,7"
               :right "A1 F2 | 75%"}
              (display/resolve-status-line 17 true false :computer-map [12 7]
@@ -308,7 +308,7 @@
              (display/resolve-status-line 3 false false :player-map nil "" [] [])))
 
   (it "shows actual-map label when appropriate"
-    (should= {:left "R9  Actual Map"
+    (should= {:left "R9  Actual"
               :center nil
               :right "0 units | 4%"}
              (display/resolve-status-line 9 false false :actual-map nil

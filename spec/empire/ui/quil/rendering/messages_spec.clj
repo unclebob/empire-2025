@@ -43,7 +43,7 @@
         (should-contain [:fill [255 215 64]] @calls)
         (should-contain [:text ["Fighter needs attention..." 10 110]] @calls)
         (should-contain [:fill [170 170 170]] @calls)
-        (should-contain [:text ["R17  Comp Map" 10 126]] @calls)
+        (should-contain [:text ["R17  Comp" 10 126]] @calls)
         (should-contain [:fill [230 230 230]] @calls)
         (should-contain [:text ["Dest 12,7" 114 126]] @calls)
         (should-contain [:text ["Prod: fighter 2r" 162 126]] @calls)
