@@ -68,6 +68,19 @@ WHEN the player presses d.
 THEN at the next step the attention message contains :cant-move-into-city.
 
 ;===============================================================
+; Coastal army can attack enemy ship and drowns after winning.
+;===============================================================
+GIVEN game map
+  Ad
+GIVEN A is waiting for input.
+
+WHEN the player presses d and wins the battle.
+
+THEN there is no A on the map.
+THEN there is no d on the map.
+THEN the turn message contains "That army drowned."
+
+;===============================================================
 ; Computer map updated when player conquers computer city.
 ;===============================================================
 GIVEN game map

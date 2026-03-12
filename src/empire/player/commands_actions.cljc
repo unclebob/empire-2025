@@ -141,14 +141,39 @@
     (container-ops/disembark-army-from-transport attn-coords clicked-coords)
     (item-processed! ctx)))
 
-(defn- click-standard-unit [ctx attn-coords clicked-coords unit-type]
-  (if (and (adjacent-coords? attn-coords clicked-coords)
-           (combat/hostile-city? (current-world ctx) clicked-coords))
-    (case unit-type
-      :army (combat/apply-combat-result! (combat/attempt-conquest (current-world ctx) attn-coords clicked-coords))
-      :fighter (combat/apply-combat-result! (combat/attempt-fighter-overfly (current-world ctx) attn-coords clicked-coords))
-      (movement-api/set-unit-movement attn-coords clicked-coords))
+(defn- coastal-army-attack?
+  [attn-coords clicked-coords unit-type target-cell target-unit]
+  (and (adjacent-coords? attn-coords clicked-coords)
+       (= unit-type :army)
+       (= :sea (:type target-cell))
+       (map-utils/on-coast? (first attn-coords) (second attn-coords))
+       (combat/hostile-unit? target-unit :player)))
+
+(defn- adjacent-hostile-city?
+  [world attn-coords clicked-coords]
+  (and (adjacent-coords? attn-coords clicked-coords)
+       (combat/hostile-city? world clicked-coords)))
+
+(defn- perform-click-combat!
+  [world attn-coords clicked-coords unit-type]
+  (case unit-type
+    :army (combat/apply-combat-result! (combat/attempt-conquest world attn-coords clicked-coords))
+    :fighter (combat/apply-combat-result! (combat/attempt-fighter-overfly world attn-coords clicked-coords))
     (movement-api/set-unit-movement attn-coords clicked-coords)))
+
+(defn- click-standard-unit [ctx attn-coords clicked-coords unit-type]
+  (let [world (current-world ctx)
+        target-cell (get-in world clicked-coords)
+        target-unit (:contents target-cell)]
+    (cond
+      (coastal-army-attack? attn-coords clicked-coords unit-type target-cell target-unit)
+      (combat/apply-combat-result! (combat/attempt-coastal-army-attack world attn-coords clicked-coords))
+
+      (adjacent-hostile-city? world attn-coords clicked-coords)
+      (perform-click-combat! world attn-coords clicked-coords unit-type)
+
+      :else
+      (movement-api/set-unit-movement attn-coords clicked-coords))))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
@@ -174,5 +199,5 @@
       (handle-unit-click ctx clicked-coords attention-coords))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:02:37.230916-05:00", :module-hash "-278576487", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 14, :hash "-1201154000"} {:id "defn-/current-world", :kind "defn-", :line 16, :end-line 17, :hash "1933317035"} {:id "defn-/update-game-map!", :kind "defn-", :line 19, :end-line 20, :hash "416575166"} {:id "defn-/read-runtime-state", :kind "defn-", :line 22, :end-line 23, :hash "1884179192"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 25, :end-line 26, :hash "-908984863"} {:id "defn-/update-runtime-state!", :kind "defn-", :line 28, :end-line 29, :hash "1255797596"} {:id "defn-/item-processed!", :kind "defn-", :line 31, :end-line 33, :hash "821174700"} {:id "defn/handle-space-key", :kind "defn", :line 35, :end-line 53, :hash "-1241509164"} {:id "defn/handle-unload-key", :kind "defn", :line 55, :end-line 68, :hash "-1602274805"} {:id "defn/handle-sentry-key", :kind "defn", :line 70, :end-line 90, :hash "-289112769"} {:id "defn-/find-adjacent-land", :kind "defn-", :line 92, :end-line 99, :hash "509949162"} {:id "defn-/free-army?", :kind "defn-", :line 101, :end-line 102, :hash "-735145983"} {:id "defn/handle-look-around-key", :kind "defn", :line 104, :end-line 131, :hash "540040820"} {:id "defn-/adjacent-coords?", :kind "defn-", :line 133, :end-line 135, :hash "-832019639"} {:id "defn-/click-army-aboard", :kind "defn-", :line 137, :end-line 142, :hash "1908320977"} {:id "defn-/click-standard-unit", :kind "defn-", :line 144, :end-line 151, :hash "689218128"} {:id "defn/handle-unit-click", :kind "defn", :line 153, :end-line 166, :hash "-1630868591"} {:id "defn/handle-cell-click", :kind "defn", :line 168, :end-line 174, :hash "-1491182524"}]}
+;; {:version 1, :tested-at "2026-03-12T12:53:53.246474-05:00", :module-hash "315869154", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 14, :hash "-1201154000"} {:id "defn-/current-world", :kind "defn-", :line 16, :end-line 17, :hash "1933317035"} {:id "defn-/update-game-map!", :kind "defn-", :line 19, :end-line 20, :hash "416575166"} {:id "defn-/read-runtime-state", :kind "defn-", :line 22, :end-line 23, :hash "1884179192"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 25, :end-line 26, :hash "-908984863"} {:id "defn-/update-runtime-state!", :kind "defn-", :line 28, :end-line 29, :hash "1255797596"} {:id "defn-/item-processed!", :kind "defn-", :line 31, :end-line 33, :hash "821174700"} {:id "defn/handle-space-key", :kind "defn", :line 35, :end-line 53, :hash "-1241509164"} {:id "defn/handle-unload-key", :kind "defn", :line 55, :end-line 68, :hash "-1602274805"} {:id "defn/handle-sentry-key", :kind "defn", :line 70, :end-line 90, :hash "-289112769"} {:id "defn-/find-adjacent-land", :kind "defn-", :line 92, :end-line 99, :hash "509949162"} {:id "defn-/free-army?", :kind "defn-", :line 101, :end-line 102, :hash "-735145983"} {:id "defn/handle-look-around-key", :kind "defn", :line 104, :end-line 131, :hash "540040820"} {:id "defn-/adjacent-coords?", :kind "defn-", :line 133, :end-line 135, :hash "-832019639"} {:id "defn-/click-army-aboard", :kind "defn-", :line 137, :end-line 142, :hash "1908320977"} {:id "defn-/coastal-army-attack?", :kind "defn-", :line 144, :end-line 150, :hash "-152204549"} {:id "defn-/adjacent-hostile-city?", :kind "defn-", :line 152, :end-line 155, :hash "-1488161818"} {:id "defn-/perform-click-combat!", :kind "defn-", :line 157, :end-line 162, :hash "622775798"} {:id "defn-/click-standard-unit", :kind "defn-", :line 164, :end-line 176, :hash "757037716"} {:id "defn/handle-unit-click", :kind "defn", :line 178, :end-line 191, :hash "-1630868591"} {:id "defn/handle-cell-click", :kind "defn", :line 193, :end-line 199, :hash "-1491182524"}]}
 ;; clj-mutate-manifest-end

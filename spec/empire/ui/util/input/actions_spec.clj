@@ -6,6 +6,7 @@
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.services.combat :as combat]
             [empire.player.orders :as orders]
             [empire.player.production :as production]
             [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms!
@@ -224,6 +225,24 @@
       (let [ship (:contents (get-in (test-utils/read-test-state :game-map) ship-coords))]
         (should= :moving (:mode ship))
         (should= city-coords (:target ship))))))
+
+(describe "coastal army attacks ship"
+  (before (reset-all-atoms!))
+
+  (it "uses coastal army attack when moving into an adjacent hostile ship"
+    (set-test-world! (build-test-map ["Ad"]))
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+    (set-test-unit (test-utils/game-map-atom) "d" :owner :computer :hits 3)
+    (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
+      (test-utils/set-test-state! :cells-needing-attention [army-coords])
+      (test-utils/set-test-state! :player-items [army-coords])
+      (test-utils/set-test-state! :waiting-for-input true)
+      (let [attack-called (atom false)]
+        (with-redefs [combat/attempt-coastal-army-attack (fn [_ _ _] (reset! attack-called true) {})
+                      combat/apply-combat-result! (fn [_] nil)]
+          (actions/handle-key :d)
+          (should @attack-called)
+          (should= false (test-utils/read-test-state :waiting-for-input)))))))
 
 (describe "army-aboard-action"
   (it "disembarks to empty land when not extended"

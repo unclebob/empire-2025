@@ -7,6 +7,7 @@
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.player.commands :as player-commands]
             [empire.ui.util.input.actions.helpers :as helpers]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- calculate-extended-target [coords [dx dy]]
@@ -58,8 +59,18 @@
     ({:army :army-conquest
       :fighter :fighter-overfly} unit-type)))
 
-(defn- standard-movement-action [active-unit adjacent-target extended?]
-  (or (hostile-city-action (:type active-unit) adjacent-target extended?)
+(defn- coastal-army-attack-action [coords active-unit adjacent-target extended?]
+  (let [target-cell (get-in (sa/current-world) adjacent-target)]
+    (when (and (not extended?)
+               (= :army (:type active-unit))
+               (= :sea (:type target-cell))
+               (map-utils/on-coast? (first coords) (second coords))
+               (combat/hostile-unit? (:contents target-cell) (:owner active-unit)))
+      :coastal-army-attack)))
+
+(defn- standard-movement-action [coords active-unit adjacent-target extended?]
+  (or (coastal-army-attack-action coords active-unit adjacent-target extended?)
+      (hostile-city-action (:type active-unit) adjacent-target extended?)
       (when (and (not extended?)
                  (undamaged-ship-entering-friendly-city? active-unit adjacent-target))
         :reject-undamaged-ship)
@@ -67,6 +78,7 @@
 
 (defn- perform-standard-movement! [action coords adjacent-target target extended?]
   (case action
+    :coastal-army-attack (combat/apply-combat-result! (combat/attempt-coastal-army-attack (sa/current-world) coords adjacent-target))
     :army-conquest (combat/apply-combat-result! (combat/attempt-conquest (sa/current-world) coords adjacent-target))
     :fighter-overfly (combat/apply-combat-result! (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target))
     :reject-undamaged-ship (helpers/set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
@@ -76,7 +88,7 @@
   true)
 
 (defn- handle-standard-unit-movement [coords adjacent-target target extended? active-unit]
-  (-> (standard-movement-action active-unit adjacent-target extended?)
+  (-> (standard-movement-action coords active-unit adjacent-target extended?)
       (perform-standard-movement! coords adjacent-target target extended?)))
 
 (defn- execute-unit-movement [coords direction extended? active-unit cell]
@@ -104,5 +116,5 @@
           (execute-unit-movement coords direction extended? active-unit cell))))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:03:25.735221-05:00", :module-hash "-1203230622", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "1119243477"} {:id "defn-/calculate-extended-target", :kind "defn-", :line 12, :end-line 22, :hash "-1811725595"} {:id "defn-/launch-fighter-and-update", :kind "defn-", :line 24, :end-line 30, :hash "1341934344"} {:id "defn/army-aboard-action", :kind "defn", :line 32, :end-line 33, :hash "1245189332"} {:id "defn-/handle-army-aboard-movement", :kind "defn-", :line 35, :end-line 45, :hash "-1114819059"} {:id "defn-/undamaged-ship-entering-friendly-city?", :kind "defn-", :line 47, :end-line 54, :hash "429312611"} {:id "defn-/hostile-city-action", :kind "defn-", :line 56, :end-line 59, :hash "1533938223"} {:id "defn-/standard-movement-action", :kind "defn-", :line 61, :end-line 66, :hash "1290523638"} {:id "defn-/perform-standard-movement!", :kind "defn-", :line 68, :end-line 76, :hash "1906289461"} {:id "defn-/handle-standard-unit-movement", :kind "defn-", :line 78, :end-line 80, :hash "-1623385592"} {:id "defn-/execute-unit-movement", :kind "defn-", :line 82, :end-line 95, :hash "-1610568678"} {:id "defn/handle-unit-movement-key", :kind "defn", :line 97, :end-line 104, :hash "1952795788"}]}
+;; {:version 1, :tested-at "2026-03-12T12:54:01.026757-05:00", :module-hash "-991213860", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 11, :hash "1578840643"} {:id "defn-/calculate-extended-target", :kind "defn-", :line 13, :end-line 23, :hash "-1811725595"} {:id "defn-/launch-fighter-and-update", :kind "defn-", :line 25, :end-line 31, :hash "1341934344"} {:id "defn/army-aboard-action", :kind "defn", :line 33, :end-line 34, :hash "1245189332"} {:id "defn-/handle-army-aboard-movement", :kind "defn-", :line 36, :end-line 46, :hash "-1114819059"} {:id "defn-/undamaged-ship-entering-friendly-city?", :kind "defn-", :line 48, :end-line 55, :hash "429312611"} {:id "defn-/hostile-city-action", :kind "defn-", :line 57, :end-line 60, :hash "1533938223"} {:id "defn-/coastal-army-attack-action", :kind "defn-", :line 62, :end-line 69, :hash "-1772006669"} {:id "defn-/standard-movement-action", :kind "defn-", :line 71, :end-line 77, :hash "-1871099131"} {:id "defn-/perform-standard-movement!", :kind "defn-", :line 79, :end-line 88, :hash "-1373878146"} {:id "defn-/handle-standard-unit-movement", :kind "defn-", :line 90, :end-line 92, :hash "2064052240"} {:id "defn-/execute-unit-movement", :kind "defn-", :line 94, :end-line 107, :hash "-1610568678"} {:id "defn/handle-unit-movement-key", :kind "defn", :line 109, :end-line 116, :hash "1952795788"}]}
 ;; clj-mutate-manifest-end

@@ -466,6 +466,19 @@
           (commands/handle-key :d)
           (should @conquest-called)))))
 
+  (context "coastal army attack via direction key"
+    (it "attacks hostile ship from the coast"
+      (set-test-world! (build-test-map ["Ad"]))
+      (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+      (set-test-unit (test-utils/game-map-atom) "d" :owner :computer :hits 3)
+      (setup-unit-attention [0 0])
+      (let [attack-called (atom false)]
+        (with-redefs [combat/attempt-coastal-army-attack (fn [_ _ _] (reset! attack-called true) {})
+                      combat/apply-combat-result! (fn [_] nil)
+                      game-loop/item-processed (fn [])]
+          (commands/handle-key :d)
+          (should @attack-called)))))
+
   (context "fighter overfly via direction key (L87)"
     (it "attempts overfly when moving to hostile city"
       (set-test-world! (build-test-map ["F+"]))

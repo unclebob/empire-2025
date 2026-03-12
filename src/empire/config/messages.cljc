@@ -11,6 +11,7 @@
    :fighter-shot-down "Incoming anti-aircraft fire!"
    :fighter-destroyed-by-city "Fighter destroyed by city defenses."
    :fighter-crashed "Fighter crashed."
+   :army-drowned "That army drowned."
    :failed-to-conquer "Failed to conquer city."
    :conquest-failed "Conquest Failed"
    :cant-move-into-water "Can't move into water."
@@ -47,5 +48,5 @@
    :unit-attention "%s needs attention%s%s%s"})
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:59:38.224496-05:00", :module-hash "-2071033662", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "917790933"} {:id "def/error-message-duration", :kind "def", :line 3, :end-line 3, :hash "-2136737491"} {:id "def/messages", :kind "def", :line 5, :end-line 47, :hash "-990940595"}]}
+;; {:version 1, :tested-at "2026-03-12T12:53:28.352387-05:00", :module-hash "-955726927", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "917790933"} {:id "def/error-message-duration", :kind "def", :line 3, :end-line 3, :hash "-2136737491"} {:id "def/messages", :kind "def", :line 5, :end-line 48, :hash "1834249931"}]}
 ;; clj-mutate-manifest-end

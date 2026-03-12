@@ -250,6 +250,18 @@
           (commands/handle-unit-click [2 2] [[0 0]])
           (should @movement-called))))
 
+    (it "attacks a hostile ship from the coast"
+      (let [attack-called (atom false)]
+        (set-test-world! (build-test-map ["Ad"]))
+        (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+        (set-test-unit (test-utils/game-map-atom) "d" :owner :computer :hits 3)
+        (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+        (test-utils/set-test-state! :player-items (list [0 0]))
+        (with-redefs [combat/attempt-coastal-army-attack (fn [_ _ _] (reset! attack-called true) {})
+                      combat/apply-combat-result! (fn [_] nil)]
+          (commands/handle-unit-click [1 0] [[0 0]])
+          (should @attack-called))))
+
     (it "launches airport fighter on click"
       (let [launch-called (atom false)]
         (set-test-world! (build-test-map ["O##"
