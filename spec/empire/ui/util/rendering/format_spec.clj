@@ -271,6 +271,11 @@
              (fmt/compact-production-status
               "A:2 F:0 T:0 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%")))
 
+  (it "reports how many additional non-zero unit types are hidden"
+    (should= "A2 F1 T1 +2 | 75%"
+             (fmt/compact-production-status
+              "A:2 F:1 T:1 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%")))
+
   (it "reports zero units when nothing is built yet"
     (should= "0 units | 0%"
              (fmt/compact-production-status

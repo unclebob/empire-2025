@@ -164,11 +164,19 @@
        (keep (fn [{:keys [label count]}]
                (when (and label count (pos? count))
                  (str label count))))
-       (take 3)))
+       vec))
+
+(defn- summarize-nonzero-units
+  [nonzero-units]
+  (let [visible-units (take 3 nonzero-units)
+        hidden-count (- (count nonzero-units) (count visible-units))]
+    (str (clojure.string/join " " visible-units)
+         (when (pos? hidden-count)
+           (str " +" hidden-count)))))
 
 (defn- parseable-production-status?
   [counts-part nonzero-units]
-  (or (seq nonzero-units)
+      (or (seq nonzero-units)
       (clojure.string/includes? (or counts-part "") "A:")))
 
 (defn- join-production-summary
@@ -185,12 +193,12 @@
           nonzero-units (compact-nonzero-units counts-part)
           parseable? (parseable-production-status? counts-part nonzero-units)
           units-summary (if (seq nonzero-units)
-                          (clojure.string/join " " nonzero-units)
+                          (summarize-nonzero-units nonzero-units)
                           "0 units")]
       (if-not parseable?
         production-status
         (join-production-summary units-summary pct-part)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T15:52:21.799296-05:00", :module-hash "-1068839537", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "434536401"} {:id "defn/should-show-paused?", :kind "defn", :line 7, :end-line 10, :hash "1556317815"} {:id "defn-/unit-fuel-str", :kind "defn-", :line 12, :end-line 14, :hash "1572131136"} {:id "defn-/unit-cargo-str", :kind "defn-", :line 16, :end-line 20, :hash "-912894557"} {:id "defn-/transport-mission-str", :kind "defn-", :line 22, :end-line 27, :hash "2125337359"} {:id "defn-/patrol-mode-str", :kind "defn-", :line 29, :end-line 31, :hash "1917316096"} {:id "defn-/army-mission-str", :kind "defn-", :line 33, :end-line 35, :hash "18689968"} {:id "defn-/unit-orders-str", :kind "defn-", :line 37, :end-line 41, :hash "-636057977"} {:id "defn/format-unit-status", :kind "defn", :line 43, :end-line 56, :hash "1526979702"} {:id "defn-/format-ship-for-dock", :kind "defn-", :line 58, :end-line 63, :hash "2019898018"} {:id "defn-/format-shipyard", :kind "defn-", :line 65, :end-line 69, :hash "1584376118"} {:id "defn/format-city-status", :kind "defn", :line 71, :end-line 84, :hash "-1175931009"} {:id "defn/format-waypoint-status", :kind "defn", :line 86, :end-line 92, :hash "1023450594"} {:id "defn/format-hover-status", :kind "defn", :line 94, :end-line 103, :hash "115637379"} {:id "defn-/split-unit-hover", :kind "defn-", :line 105, :end-line 110, :hash "-1296534020"} {:id "defn-/split-city-hover", :kind "defn-", :line 112, :end-line 117, :hash "-680233837"} {:id "defn-/split-waypoint-hover", :kind "defn-", :line 119, :end-line 124, :hash "-1746356909"} {:id "defn-/hover-kind", :kind "defn-", :line 126, :end-line 131, :hash "1578687087"} {:id "defn/split-hover-status", :kind "defn", :line 133, :end-line 144, :hash "1155669426"} {:id "defn/format-production-status", :kind "defn", :line 146, :end-line 150, :hash "1957771995"} {:id "defn-/parse-count-entry", :kind "defn-", :line 152, :end-line 158, :hash "-1237319404"} {:id "defn-/compact-nonzero-units", :kind "defn-", :line 160, :end-line 167, :hash "-1586867102"} {:id "defn-/parseable-production-status?", :kind "defn-", :line 169, :end-line 172, :hash "1843558349"} {:id "defn-/join-production-summary", :kind "defn-", :line 174, :end-line 178, :hash "-2105547342"} {:id "defn/compact-production-status", :kind "defn", :line 180, :end-line 192, :hash "-1203721644"}]}
+;; {:version 1, :tested-at "2026-03-12T15:59:59.291776-05:00", :module-hash "-2027246920", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "434536401"} {:id "defn/should-show-paused?", :kind "defn", :line 7, :end-line 10, :hash "1556317815"} {:id "defn-/unit-fuel-str", :kind "defn-", :line 12, :end-line 14, :hash "1572131136"} {:id "defn-/unit-cargo-str", :kind "defn-", :line 16, :end-line 20, :hash "-912894557"} {:id "defn-/transport-mission-str", :kind "defn-", :line 22, :end-line 27, :hash "2125337359"} {:id "defn-/patrol-mode-str", :kind "defn-", :line 29, :end-line 31, :hash "1917316096"} {:id "defn-/army-mission-str", :kind "defn-", :line 33, :end-line 35, :hash "18689968"} {:id "defn-/unit-orders-str", :kind "defn-", :line 37, :end-line 41, :hash "-636057977"} {:id "defn/format-unit-status", :kind "defn", :line 43, :end-line 56, :hash "1526979702"} {:id "defn-/format-ship-for-dock", :kind "defn-", :line 58, :end-line 63, :hash "2019898018"} {:id "defn-/format-shipyard", :kind "defn-", :line 65, :end-line 69, :hash "1584376118"} {:id "defn/format-city-status", :kind "defn", :line 71, :end-line 84, :hash "-1175931009"} {:id "defn/format-waypoint-status", :kind "defn", :line 86, :end-line 92, :hash "1023450594"} {:id "defn/format-hover-status", :kind "defn", :line 94, :end-line 103, :hash "115637379"} {:id "defn-/split-unit-hover", :kind "defn-", :line 105, :end-line 110, :hash "-1296534020"} {:id "defn-/split-city-hover", :kind "defn-", :line 112, :end-line 117, :hash "-680233837"} {:id "defn-/split-waypoint-hover", :kind "defn-", :line 119, :end-line 124, :hash "-1746356909"} {:id "defn-/hover-kind", :kind "defn-", :line 126, :end-line 131, :hash "1578687087"} {:id "defn/split-hover-status", :kind "defn", :line 133, :end-line 144, :hash "1155669426"} {:id "defn/format-production-status", :kind "defn", :line 146, :end-line 150, :hash "1957771995"} {:id "defn-/parse-count-entry", :kind "defn-", :line 152, :end-line 158, :hash "-1237319404"} {:id "defn-/compact-nonzero-units", :kind "defn-", :line 160, :end-line 167, :hash "131416162"} {:id "defn-/summarize-nonzero-units", :kind "defn-", :line 169, :end-line 175, :hash "-489438097"} {:id "defn-/parseable-production-status?", :kind "defn-", :line 177, :end-line 180, :hash "1843558349"} {:id "defn-/join-production-summary", :kind "defn-", :line 182, :end-line 186, :hash "-2105547342"} {:id "defn/compact-production-status", :kind "defn", :line 188, :end-line 200, :hash "644266267"}]}
 ;; clj-mutate-manifest-end
