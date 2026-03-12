@@ -296,8 +296,9 @@
   (it "formats paused round and map label on the left"
     (should= {:left "PAUSED  Round 17  Map: Comp"
               :center "Dest 12,7"
-              :right "Prod: fighter 2r"}
-             (display/resolve-status-line 17 true false :computer-map [12 7] "Prod: fighter 2r")))
+              :right "A1 F2 | 75%"}
+             (display/resolve-status-line 17 true false :computer-map [12 7]
+                                          "A:1 F:2 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 75%")))
 
   (it "omits player-map label and empty optional fields"
     (should= {:left "Round 3"
@@ -308,15 +309,16 @@
   (it "shows actual-map label when appropriate"
     (should= {:left "Round 9  Map: Actual"
               :center nil
-              :right "Prod"}
-             (display/resolve-status-line 9 false false :actual-map nil "Prod")))
+              :right "0 units | 4%"}
+             (display/resolve-status-line 9 false false :actual-map nil
+                                          "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 4%")))
 
   (it "truncates long center and right fields"
     (should= {:left "Round 7"
               :center "Dest 1234567890..."
-              :right "Production summary th..."}
+              :right "A12 F9 D3 | 100%"}
              (display/resolve-status-line 7 false false :player-map [123456789012 999]
-                                          "Production summary that is too long")))
+                                          "A:12 F:9 T:0 D:3 S:0 P:0 C:0 B:0 Z:0 | 100%")))
   )
 
 (describe "resolve-inspector-lines"

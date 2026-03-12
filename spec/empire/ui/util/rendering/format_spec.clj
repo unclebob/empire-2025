@@ -254,6 +254,21 @@
       (should= "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 0%"
                (fmt/format-production-status game-map player-map)))))
 
+(describe "compact-production-status"
+  (it "keeps up to three non-zero unit counts plus exploration"
+    (should= "A2 D1 C1 | 75%"
+             (fmt/compact-production-status
+              "A:2 F:0 T:0 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%")))
+
+  (it "reports zero units when nothing is built yet"
+    (should= "0 units | 0%"
+             (fmt/compact-production-status
+              "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 0%")))
+
+  (it "returns nil for blank input"
+    (should= nil
+             (fmt/compact-production-status ""))))
+
 (describe "should-show-paused?"
   (it "returns true when paused is true"
     (should (fmt/should-show-paused? true false)))
