@@ -4,7 +4,7 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-computer-map!
-                                       set-test-world! update-test-world!]]
+                                       set-test-player-map! set-test-world! update-test-world!]]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.computer.core :as computer-core]
@@ -352,6 +352,7 @@
 
     (it "coastal army attack removes both units when the army wins"
       (set-test-world! (build-test-map ["Ad"]))
+      (set-test-player-map! (build-test-map ["Ad"]))
       (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
       (test-utils/set-test-state! :turn-message "")
@@ -359,6 +360,7 @@
         (combat/apply-combat-result! (combat/attempt-coastal-army-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))
+        (should-be-nil (get-in (test-utils/read-test-state :player-map) [0 0 :contents]))
         (should-contain "That army drowned." (test-utils/read-test-state :turn-message))))
 
     (it "coastal army attack leaves the ship when the army loses"
