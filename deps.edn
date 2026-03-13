@@ -32,7 +32,7 @@
 	                                     :git/sha "6d3ed706310e1fdee57672215cd0b16f33e1e99b"}}}
 						 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 						                        {:git/url "https://github.com/unclebob/clj-mutate"
-						                         :git/sha "0abec037f3d7f103aea031ba92c6f93c9f0252fb"}}
+						                         :git/sha "5f8262718d1a2791cc89424036d4fb4e7007ff91"}}
 					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
