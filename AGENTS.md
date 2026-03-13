@@ -158,4 +158,3 @@ Implementation plans are stored in the `plans/` directory. Upon completion, move
 - `io.github.unclebob/clj-mutate`
 - `io.github.unclebob/speclj-structure-check`
 - `io.github.unclebob/crap4clj`
-- At startup check that these tools have the most recent SHAs in deps.edn.
