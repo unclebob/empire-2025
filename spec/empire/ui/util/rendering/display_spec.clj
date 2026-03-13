@@ -292,6 +292,50 @@
              (display/resolve-banner "" 0 "" "")))
   )
 
+(describe "resolve-banner-pair"
+  (it "returns the highest-priority active banner as primary and the next as secondary"
+    (should= {:primary {:kind :attention :text "City needs attention"}
+              :secondary {:kind :result :text "City conquered."}}
+             (display/resolve-banner-pair "" 0 "City needs attention" "City conquered.")))
+
+  (it "prefers error over attention and turn message"
+    (should= {:primary {:kind :error :text "Bad news"}
+              :secondary {:kind :attention :text "Need orders"}}
+             (display/resolve-banner-pair "Bad news"
+                                          (+ (System/currentTimeMillis) 1000)
+                                          "Need orders"
+                                          "Moved")))
+
+  (it "returns only a primary banner when there is no secondary candidate"
+    (should= {:primary {:kind :result :text "Moved"}
+              :secondary nil}
+             (display/resolve-banner-pair "" 0 "" "Moved"))))
+
+(describe "resolve-banner-list"
+  (it "returns active banner messages in priority order"
+    (should= [{:kind :error :text "Bad news"}
+              {:kind :attention :text "Need orders"}
+              {:kind :result :text "Moved"}]
+             (display/resolve-banner-list "Bad news"
+                                          (+ (System/currentTimeMillis) 1000)
+                                          "Need orders"
+                                          "Moved")))
+
+  (it "omits expired errors"
+    (should= [{:kind :attention :text "Need orders"}
+              {:kind :result :text "Moved"}]
+             (display/resolve-banner-list "Old error"
+                                          (- (System/currentTimeMillis) 1000)
+                                          "Need orders"
+                                          "Moved")))
+
+  (it "limits the list to three messages"
+    (should= 3
+             (count (display/resolve-banner-list "Bad news"
+                                                 (+ (System/currentTimeMillis) 1000)
+                                                 "Need orders"
+                                                 "Moved")))))
+
 (describe "resolve-status-line"
   (it "formats paused round and map label on the left"
     (should= {:left "PAUSED  R17  Comp"

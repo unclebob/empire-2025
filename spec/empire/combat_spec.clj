@@ -416,7 +416,8 @@
         (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
               city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-conquest (test-utils/read-test-state :game-map) army-coords city-coords))
-          (should= (:conquest-failed config/messages) (test-utils/read-test-state :error-message)))))
+          (should= (:conquest-failed config/messages) (test-utils/read-test-state :turn-message))
+          (should= "" (test-utils/read-test-state :error-message)))))
 
     (it "returns a result map regardless of outcome"
       (with-redefs [rand (constantly 0.5)]
@@ -433,6 +434,17 @@
         (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords))
           (should= :player (:city-status (get-in (test-utils/read-test-state :game-map) city-coords))))))
+
+    (it "sets a success turn message and clears stale conquest error on successful roll"
+      (with-redefs [rand (constantly 0.1)]
+        (set-test-world! (build-test-map ["+"]))
+        (test-utils/set-test-state! :error-message (:conquest-failed config/messages))
+        (test-utils/set-test-state! :error-until Long/MAX_VALUE)
+        (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
+          (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords))
+          (should= "City conquered." (test-utils/read-test-state :turn-message))
+          (should= "" (test-utils/read-test-state :error-message))
+          (should= 0 (test-utils/read-test-state :error-until)))))
 
     (it "returns a result map on successful roll"
       (with-redefs [rand (constantly 0.1)]
@@ -455,7 +467,8 @@
         (test-utils/set-test-state! :error-message "")
         (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords))
-          (should= (:conquest-failed config/messages) (test-utils/read-test-state :error-message)))))
+          (should= (:conquest-failed config/messages) (test-utils/read-test-state :turn-message))
+          (should= "" (test-utils/read-test-state :error-message)))))
 
     (it "returns a result map on failed roll"
       (with-redefs [rand (constantly 0.9)]
