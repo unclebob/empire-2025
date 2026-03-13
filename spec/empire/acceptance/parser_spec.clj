@@ -168,7 +168,7 @@
     (it "parses fighter.txt correctly"
       (let [result (parser/parse-file "acceptanceTests/fighter.txt")]
         (should= "fighter.txt" (:source result))
-        (should= 16 (count (:tests result)))))
+        (should= 17 (count (:tests result)))))
 
     (it "parses destroyer.txt correctly"
       (let [result (parser/parse-file "acceptanceTests/destroyer.txt")]

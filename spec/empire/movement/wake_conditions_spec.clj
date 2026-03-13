@@ -283,6 +283,14 @@
             result (wake-after-move unit [2 0] [3 0] game-map)]
         (should= :moving (:mode result)))))
 
+  (it "does not wake fighter at bingo fuel when a friendly city is on its current path"
+    (let [game-map (atom (build-test-map ["#####O"]))]
+      (set-test-world! @game-map)
+      (let [unit {:type :fighter :mode :moving :owner :player :target [5 0] :fuel 9}
+            result (wake-after-move unit [0 0] [1 0] game-map)]
+        (should= :moving (:mode result))
+        (should-be-nil (:reason result)))))
+
   (it "does not wake transport without armies at beach"
     (let [game-map (atom (build-test-map ["#~~#~"]))]
       (set-test-world! @game-map)

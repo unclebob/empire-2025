@@ -39,6 +39,18 @@ THEN F has mode awake.
 and the attention message for F contains :fighter-bingo.
 
 ;===============================================================
+; Fighter does not bingo when a friendly city is on its current path.
+;===============================================================
+GIVEN game map
+  F###O=
+F has fuel 9.
+GIVEN F is waiting for input.
+
+WHEN the player presses D.
+
+THEN at the next step the game is not waiting for input.
+
+;===============================================================
 ; Fighter out of fuel wakes.
 ;===============================================================
 GIVEN game map

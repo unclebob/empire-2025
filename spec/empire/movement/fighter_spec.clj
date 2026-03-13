@@ -177,6 +177,19 @@
         (should= :moving (:mode fighter))
         (should= nil (:reason fighter)))))
 
+  (it "fighter does not wake with bingo when a friendly city is on its current path"
+    (set-test-world! (build-test-map ["F---O-"]))
+    (let [fighter-coords (:pos (get-test-unit (test-utils/game-map-atom) "F"))
+          dest-coords [(inc (first fighter-coords)) (second fighter-coords)]
+          target-coords [5 0]]
+      (set-test-unit (test-utils/game-map-atom) "F" :mode :moving :target target-coords :fuel 9 :steps-remaining 1)
+      (set-test-player-map! (make-initial-test-map 1 6 nil))
+      (game-loop/move-current-unit fighter-coords)
+      (let [fighter (:contents (get-in (test-utils/read-test-state :game-map) dest-coords))]
+        (should= :fighter (:type fighter))
+        (should= :moving (:mode fighter))
+        (should= nil (:reason fighter)))))
+
   (it "fighter wakes with bingo when carrier is too far to reach"
     (set-test-world! (build-test-map ["O---------"
                                              "F~------C-"]))
