@@ -1,202 +1,27 @@
 (ns empire.game.save-load
-  (:require [clojure.edn :as edn]
-            [clojure.string :as string]
-            [empire.state.api :as sa]
-            [empire.config.domain.core.messages :as messages]))
+  (:require [empire.game.save-load.menu :as menu]
+            [empire.game.save-load.persistence :as persistence]))
 
-(def saveable-atoms
-  "Stable keys that should be persisted."
-  {:game-map true
-   :player-map true
-   :computer-map true
-   :production true
-   :destination true
-   :round-number true
-   :cells-needing-attention true
-   :player-items true
-   :computer-items true
-   :waiting-for-input true
-   :paused true
-   :computer-turn true
-   :next-transport-id true
-   :next-country-id true
-   :next-unload-event-id true
-   :next-destroyer-id true
-   :next-carrier-id true
-   :next-escort-id true
-   :claimed-objectives true
-   :claimed-transport-targets true
-   :fighter-leg-records true
-   :coast-walkers-produced true
-   :opening-satellite-produced? true
-   :land-ho-targets true
-   :major-invasion-state true
-   :transport-fully-loaded? true
-   :early-patrol-boat-produced? true
-   :early-satellite-produced? true
-   :distant-city-pairs true
-   :lake-max-cells true
-   :known-lake-cells true})
+(def saveable-atoms persistence/saveable-atoms)
+(def normalize-save-filename persistence/normalize-save-filename)
+(def list-save-files persistence/list-save-files)
+(def save-game! persistence/save-game!)
+(def load-game! persistence/load-game!)
 
-(defn- timestamp []
-  (let [now (java.time.LocalDateTime/now)
-        fmt (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmss")]
-    (.format now fmt)))
-
-(defn- default-save-basename []
-  (str "save-" (timestamp)))
-
-(defn normalize-save-filename
-  "Returns a valid save filename ending in .edn.
-   Blank input falls back to a timestamped default."
-  [input-name]
-  (let [trimmed (some-> input-name string/trim)
-        base-name (if (string/blank? trimmed)
-                    (default-save-basename)
-                    trimmed)]
-    (if (string/ends-with? base-name ".edn")
-      base-name
-      (str base-name ".edn"))))
-
-(defn- read-save-key
-  [k]
-  (case k
-    :game-map (sa/current-world)
-    (sa/read-state k)))
-
-(defn- write-save-key!
-  [k value]
-  (case k
-    :game-map (sa/update-world! (constantly value))
-    (sa/write-state! k value)))
-
-(defn list-save-files
-  "Returns a vector of save filenames sorted by modification time (newest first).
-   If dir-path is not provided, defaults to 'saves'."
-  ([] (list-save-files "saves"))
-  ([dir-path]
-   (let [dir (java.io.File. dir-path)]
-     (if (.exists dir)
-       (->> (.listFiles dir)
-            (filter #(.endsWith (.getName %) ".edn"))
-            (sort-by #(- (.lastModified %)))
-            (mapv #(.getName %)))
-       []))))
-
-(defn save-game!
-  "Saves the current game state to an EDN file and returns the filename.
-   If no filename is provided, uses a timestamped default.
-   If dir-path is not provided, defaults to 'saves'."
-  ([] (save-game! "saves" nil))
-  ([dir-path] (save-game! dir-path nil))
-  ([dir-path filename]
-   (let [dir (java.io.File. dir-path)]
-     (when-not (.exists dir)
-       (.mkdirs dir))
-     (let [data (reduce-kv (fn [acc k _] (assoc acc k (read-save-key k)))
-                           {}
-                           saveable-atoms)
-           save-filename (normalize-save-filename filename)
-           filepath (str dir-path "/" save-filename)]
-       (spit filepath (pr-str data))
-       save-filename))))
-
-(defn open-save-menu!
-  "Opens the save-name dialog with a timestamped default filename."
-  []
-  (sa/write-state! :save-menu-input (default-save-basename))
-  (sa/write-state! :save-menu-default-active true)
-  (sa/write-state! :save-menu-open true))
-
-(defn close-save-menu!
-  "Closes the save-name dialog."
-  []
-  (sa/write-state! :save-menu-default-active false)
-  (sa/write-state! :save-menu-open false))
-
-(defn append-save-menu-char!
-  [ch]
-  (sa/update-state! :save-menu-input str ch))
-
-(defn backspace-save-menu-input!
-  []
-  (sa/update-state! :save-menu-input
-                    (fn [s]
-                      (if (seq s)
-                        (subs s 0 (dec (count s)))
-                        ""))))
-
-(defn save-from-menu!
-  "Saves using the current save-menu input and closes the save-name dialog."
-  []
-  (let [filename (save-game! "saves" (sa/read-state :save-menu-input))]
-    (close-save-menu!)
-    filename))
-
-(defn load-game!
-  "Loads game state from an EDN file. Closes the load menu after loading.
-   If dir-path is not provided, defaults to 'saves'."
-  ([filename] (load-game! "saves" filename))
-  ([dir-path filename]
-   (let [filepath (str dir-path "/" filename)
-         data (edn/read-string (slurp filepath))]
-     (doseq [[k _] saveable-atoms]
-       (when-let [value (get data k)]
-         (write-save-key! k value)))
-     (sa/write-state! :load-menu-open false)
-     (sa/write-state! :load-menu-files [])
-     (sa/write-state! :load-menu-hovered nil)
-     (sa/rebuild-refueling-caches!)
-     (sa/write-state! :turn-message (str "Loaded " filename))
-     (sa/write-state! :turn-message-until
-                           (messages/expires-at (System/currentTimeMillis) 3000)))))
-
-(defn open-load-menu!
-  "Opens the load menu, populating it with available save files."
-  ([] (open-load-menu! "saves"))
-  ([dir-path]
-   (sa/write-state! :load-menu-files (list-save-files dir-path))
-   (sa/write-state! :load-menu-hovered nil)
-   (sa/write-state! :load-menu-open true)))
-
-(defn close-load-menu!
-  "Closes the load menu without loading."
-  []
-  (sa/write-state! :load-menu-open false)
-  (sa/write-state! :load-menu-files [])
-  (sa/write-state! :load-menu-hovered nil))
-
-(def menu-width 350)
-(def menu-padding 15)
-(def menu-title-height 30)
-(def menu-item-height 25)
-
-(defn menu-geometry
-  "Calculates menu geometry for given screen dimensions and file count."
-  [screen-w screen-h file-count]
-  (let [content-height (* menu-item-height (max 1 file-count))
-        total-height (+ menu-title-height content-height (* 2 menu-padding))
-        left (/ (- screen-w menu-width) 2)
-        top (/ (- screen-h total-height) 2)]
-    {:left left
-     :top top
-     :right (+ left menu-width)
-     :bottom (+ top total-height)
-     :width menu-width
-     :height total-height
-     :content-top (+ top menu-padding menu-title-height)
-     :item-height menu-item-height}))
-
-(defn hovered-file-index
-  "Returns the index of the file at mouse position, or nil if none."
-  [mouse-x mouse-y geom file-count]
-  (when (and (> file-count 0)
-             (>= mouse-x (:left geom))
-             (<= mouse-x (:right geom))
-             (>= mouse-y (:content-top geom))
-             (< mouse-y (+ (:content-top geom) (* file-count (:item-height geom)))))
-    (int (/ (- mouse-y (:content-top geom)) (:item-height geom)))))
+(def open-save-menu! menu/open-save-menu!)
+(def close-save-menu! menu/close-save-menu!)
+(def append-save-menu-char! menu/append-save-menu-char!)
+(def backspace-save-menu-input! menu/backspace-save-menu-input!)
+(def save-from-menu! menu/save-from-menu!)
+(def open-load-menu! menu/open-load-menu!)
+(def close-load-menu! menu/close-load-menu!)
+(def menu-width menu/menu-width)
+(def menu-padding menu/menu-padding)
+(def menu-title-height menu/menu-title-height)
+(def menu-item-height menu/menu-item-height)
+(def menu-geometry menu/menu-geometry)
+(def hovered-file-index menu/hovered-file-index)
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T15:31:01.939043-05:00", :module-hash "-1536413873", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "1110262074"} {:id "def/saveable-atoms", :kind "def", :line 7, :end-line 39, :hash "159421838"} {:id "defn-/timestamp", :kind "defn-", :line 41, :end-line 44, :hash "1770911414"} {:id "defn-/default-save-basename", :kind "defn-", :line 46, :end-line 47, :hash "-1409773980"} {:id "defn/normalize-save-filename", :kind "defn", :line 49, :end-line 59, :hash "1412945129"} {:id "defn-/read-save-key", :kind "defn-", :line 61, :end-line 65, :hash "1502581137"} {:id "defn-/write-save-key!", :kind "defn-", :line 67, :end-line 71, :hash "-861186194"} {:id "defn/list-save-files", :kind "defn", :line 73, :end-line 84, :hash "-1091273668"} {:id "defn/save-game!", :kind "defn", :line 86, :end-line 102, :hash "1259703819"} {:id "defn/open-save-menu!", :kind "defn", :line 104, :end-line 109, :hash "276430531"} {:id "defn/close-save-menu!", :kind "defn", :line 111, :end-line 115, :hash "-2142207825"} {:id "defn/append-save-menu-char!", :kind "defn", :line 117, :end-line 119, :hash "-560179540"} {:id "defn/backspace-save-menu-input!", :kind "defn", :line 121, :end-line 127, :hash "-1361916783"} {:id "defn/save-from-menu!", :kind "defn", :line 129, :end-line 134, :hash "-1673029621"} {:id "defn/load-game!", :kind "defn", :line 136, :end-line 152, :hash "1106251625"} {:id "defn/open-load-menu!", :kind "defn", :line 154, :end-line 160, :hash "-2087101621"} {:id "defn/close-load-menu!", :kind "defn", :line 162, :end-line 167, :hash "1390749144"} {:id "def/menu-width", :kind "def", :line 169, :end-line 169, :hash "-1110273700"} {:id "def/menu-padding", :kind "def", :line 170, :end-line 170, :hash "-1892092342"} {:id "def/menu-title-height", :kind "def", :line 171, :end-line 171, :hash "263027173"} {:id "def/menu-item-height", :kind "def", :line 172, :end-line 172, :hash "107622945"} {:id "defn/menu-geometry", :kind "defn", :line 174, :end-line 188, :hash "-1208100556"} {:id "defn/hovered-file-index", :kind "defn", :line 190, :end-line 198, :hash "-1407830035"}]}
+;; {:version 1, :tested-at "2026-03-13T16:19:26.304536-05:00", :module-hash "-485749828", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-298693592"} {:id "def/saveable-atoms", :kind "def", :line 5, :end-line 5, :hash "-1204332107"} {:id "def/normalize-save-filename", :kind "def", :line 6, :end-line 6, :hash "511134978"} {:id "def/list-save-files", :kind "def", :line 7, :end-line 7, :hash "-171234518"} {:id "def/save-game!", :kind "def", :line 8, :end-line 8, :hash "-1497753570"} {:id "def/load-game!", :kind "def", :line 9, :end-line 9, :hash "382234279"} {:id "def/open-save-menu!", :kind "def", :line 11, :end-line 11, :hash "-469108860"} {:id "def/close-save-menu!", :kind "def", :line 12, :end-line 12, :hash "-214256845"} {:id "def/append-save-menu-char!", :kind "def", :line 13, :end-line 13, :hash "-193535612"} {:id "def/backspace-save-menu-input!", :kind "def", :line 14, :end-line 14, :hash "1535068716"} {:id "def/save-from-menu!", :kind "def", :line 15, :end-line 15, :hash "1747316967"} {:id "def/open-load-menu!", :kind "def", :line 16, :end-line 16, :hash "1989549686"} {:id "def/close-load-menu!", :kind "def", :line 17, :end-line 17, :hash "-1456120811"} {:id "def/menu-width", :kind "def", :line 18, :end-line 18, :hash "-365903193"} {:id "def/menu-padding", :kind "def", :line 19, :end-line 19, :hash "-507423549"} {:id "def/menu-title-height", :kind "def", :line 20, :end-line 20, :hash "435872571"} {:id "def/menu-item-height", :kind "def", :line 21, :end-line 21, :hash "518895263"} {:id "def/menu-geometry", :kind "def", :line 22, :end-line 22, :hash "1408657009"} {:id "def/hovered-file-index", :kind "def", :line 23, :end-line 23, :hash "-1510976232"}]}
 ;; clj-mutate-manifest-end
