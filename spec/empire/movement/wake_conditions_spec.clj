@@ -386,32 +386,32 @@
 
 (describe "found-land?"
   (it "returns true when both in open sea and at beach"
-    (should (@#'empire.game-mechanics.movement.wake-conditions/found-land? true true)))
+    (should (@#'empire.game-mechanics.movement.wake-conditions.transport/found-land? true true)))
 
   (it "returns false when not in open sea"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/found-land? false true)))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/found-land? false true)))
 
   (it "returns false when not at beach"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/found-land? true false)))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/found-land? true false)))
 
   (it "returns false when neither in open sea nor at beach"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/found-land? false false))))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/found-land? false false))))
 
 (describe "should-wake-at-beach?"
   (it "returns true when all conditions met"
-    (should (@#'empire.game-mechanics.movement.wake-conditions/should-wake-at-beach? true true true)))
+    (should (@#'empire.game-mechanics.movement.wake-conditions.transport/should-wake-at-beach? true true true)))
 
   (it "returns false when no armies"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/should-wake-at-beach? false true true)))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/should-wake-at-beach? false true true)))
 
   (it "returns false when not at beach"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/should-wake-at-beach? true false true)))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/should-wake-at-beach? true false true)))
 
   (it "returns false when not been to sea"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/should-wake-at-beach? true true false)))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/should-wake-at-beach? true true false)))
 
   (it "returns false when no armies and not at beach"
-    (should-not (@#'empire.game-mechanics.movement.wake-conditions/should-wake-at-beach? false false true))))
+    (should-not (@#'empire.game-mechanics.movement.wake-conditions.transport/should-wake-at-beach? false false true))))
 
 (describe "wake-after-move enemy spotted"
   (before (reset-all-atoms!))

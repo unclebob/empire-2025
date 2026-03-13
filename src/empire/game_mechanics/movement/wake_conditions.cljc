@@ -2,7 +2,8 @@
   (:require [empire.config.core :as config]
             [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]
-            [empire.game-mechanics.movement.movement-pathing :as pathing]
+            [empire.game-mechanics.movement.wake-conditions.fighter :as fighter-wake]
+            [empire.game-mechanics.movement.wake-conditions.transport :as transport-wake]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.config.units.dispatcher :as dispatcher]))
 
@@ -136,96 +137,10 @@
   (when (near-hostile-city? final-pos current-map)
     {:wake? true :reason :army-found-city}))
 
-(defn- friendly-city? [cell]
-  (and (= (:type cell) :city)
-       (= (:city-status cell) :player)))
-
-(defn- friendly-carrier? [carrier unit]
-  (and (= (:type carrier) :carrier)
-       (= (:owner carrier) (:owner unit))))
-
-(defn- target-is-reachable-friendly-city? [unit final-pos fuel current-map]
-  (when-let [target (:target unit)]
-    (let [world (map-data current-map)
-          [tx ty] target
-          [fx fy] final-pos
-          target-cell (get-in world target)
-          target-contents (:contents target-cell)
-          distance (max (abs (- tx fx)) (abs (- ty fy)))]
-      (or (and (friendly-city? target-cell)
-               (<= distance fuel))
-          ;; Carrier may be moving away, so account for chase:
-          ;; fuel needed = distance * fighter-speed / (fighter-speed - carrier-speed)
-          ;; = distance * 8 / 6 = distance * 4/3
-          (and (friendly-carrier? target-contents unit)
-               (<= (* distance 4/3) fuel))))))
-
-(defn- landing-site-on-path-status [unit target next-pos next-cell]
-  (cond
-    (nil? next-pos) :blocked
-    (hostile-city? next-cell) :blocked
-    (friendly-city? next-cell) :landing-site
-    (friendly-carrier? (:contents next-cell) unit) :landing-site
-    (= next-pos target) :blocked
-    :else :continue))
-
-(defn- reachable-landing-site-on-path?
-  [unit final-pos fuel current-map]
-  (when-let [target (:target unit)]
-    (let [world (map-data current-map)]
-      (loop [pos final-pos
-             remaining-fuel fuel]
-        (when (pos? remaining-fuel)
-          (let [next-pos (pathing/next-step-pos pos target)
-                next-cell (get-in world next-pos)]
-            (case (landing-site-on-path-status unit target next-pos next-cell)
-              :landing-site true
-              :blocked false
-              (recur next-pos (dec remaining-fuel)))))))))
-
-(defn- build-fighter-checks [unit final-pos current-map]
-  (let [world (map-data current-map)
-        dest-cell (get-in world final-pos)
-        entering-city? (= (:type dest-cell) :city)
-        friendly-city? (= (:city-status dest-cell) :player)
-        hostile-city? (and entering-city? (not friendly-city?))
-        fuel (:fuel unit config/fighter-fuel)
-        low-fuel? (<= fuel 1)
-        bingo-fuel? (and (<= fuel (quot config/fighter-fuel 4))
-                         (friendly-city-in-range? final-pos fuel current-map)
-                         (not (target-is-reachable-friendly-city? unit final-pos fuel current-map))
-                         (not (reachable-landing-site-on-path? unit final-pos fuel current-map)))]
-    [[hostile-city?  {:wake? true :reason :fighter-shot-down :shot-down? true}]
-     [entering-city? {:wake? true :reason :fighter-landed-and-refueled :refuel? true}]
-     [low-fuel?      {:wake? true :reason :fighter-out-of-fuel}]
-     [bingo-fuel?    {:wake? true :reason :fighter-bingo}]]))
-
-(defn- wake-fighter-check [unit _from-pos final-pos current-map]
-  (let [checks (build-fighter-checks unit final-pos current-map)]
-    (some (fn [[pred result]] (when pred result)) checks)))
-
-(defn- found-land? [was-in-open-sea? at-beach?]
-  (and was-in-open-sea? at-beach?))
-
-(defn- should-wake-at-beach? [has-armies? at-beach? been-to-sea?]
-  (and has-armies? at-beach? been-to-sea?))
-
-(defn- wake-transport-check [unit from-pos final-pos current-map]
-  (let [has-armies? (pos? (:army-count unit 0))
-        at-beach? (map-utils/adjacent-to-land? final-pos current-map)
-        was-in-open-sea? (map-utils/completely-surrounded-by-sea? from-pos current-map)
-        now-in-open-sea? (map-utils/completely-surrounded-by-sea? final-pos current-map)
-        been-to-sea? (:been-to-sea unit true)]
-    (cond
-      (found-land? was-in-open-sea? at-beach?) {:wake? true :reason :transport-found-land :been-to-sea false}
-      (should-wake-at-beach? has-armies? at-beach? been-to-sea?) {:wake? true :reason :transport-at-beach :been-to-sea false}
-      now-in-open-sea? {:been-to-sea true}
-      :else nil)))
-
 (def ^:private wake-check-handlers
   {:army wake-army-check
-   :fighter wake-fighter-check
-   :transport wake-transport-check})
+   :fighter fighter-wake/wake-check
+   :transport transport-wake/wake-check})
 
 (defn- apply-wake-result [unit result]
   (cond-> (assoc unit :mode :awake)
@@ -287,5 +202,5 @@
     (apply-wake-action unit final-result waypoint-orders wake-up?)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T08:16:03.123175-05:00", :module-hash "-140343368", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "1361828187"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 9, :end-line 11, :hash "1105581680"} {:id "defn-/map-data", :kind "defn-", :line 13, :end-line 15, :hash "406913368"} {:id "defn-/set-error-message!", :kind "defn-", :line 17, :end-line 20, :hash "678717250"} {:id "defn/near-hostile-city?", :kind "defn", :line 22, :end-line 33, :hash "1856683080"} {:id "defn/friendly-city-in-range?", :kind "defn", :line 35, :end-line 47, :hash "-624092931"} {:id "defn/enemy-unit-visible?", :kind "defn", :line 49, :end-line 70, :hash "-1068497858"} {:id "defn-/fighter-landing-on-carrier?", :kind "defn-", :line 72, :end-line 77, :hash "-1430977648"} {:id "defn-/fighter-landing-at-city?", :kind "defn-", :line 79, :end-line 82, :hash "-666029366"} {:id "defn-/occupied-blocking-reason", :kind "defn-", :line 84, :end-line 88, :hash "110612946"} {:id "defn-/army-blocking-reason", :kind "defn-", :line 90, :end-line 94, :hash "1261272110"} {:id "defn-/naval-blocking-reason", :kind "defn-", :line 96, :end-line 100, :hash "-47713617"} {:id "defn-/hostile-city?", :kind "defn-", :line 102, :end-line 104, :hash "1644532547"} {:id "defn-/unit-type-blocking-reason", :kind "defn-", :line 106, :end-line 112, :hash "-1671425505"} {:id "defn-/blocking-wake-reason", :kind "defn-", :line 114, :end-line 118, :hash "817047601"} {:id "defn-/wake-unit-with-reason", :kind "defn-", :line 120, :end-line 121, :hash "-1604482991"} {:id "defn/wake-before-move", :kind "defn", :line 123, :end-line 131, :hash "-1901749309"} {:id "defn-/wake-army-check", :kind "defn-", :line 135, :end-line 137, :hash "1076072861"} {:id "defn-/friendly-city?", :kind "defn-", :line 139, :end-line 141, :hash "798434623"} {:id "defn-/friendly-carrier?", :kind "defn-", :line 143, :end-line 145, :hash "-1325282601"} {:id "defn-/target-is-reachable-friendly-city?", :kind "defn-", :line 147, :end-line 161, :hash "468885002"} {:id "defn-/landing-site-on-path-status", :kind "defn-", :line 163, :end-line 170, :hash "-941817352"} {:id "defn-/reachable-landing-site-on-path?", :kind "defn-", :line 172, :end-line 184, :hash "1053660306"} {:id "defn-/build-fighter-checks", :kind "defn-", :line 186, :end-line 201, :hash "1568246404"} {:id "defn-/wake-fighter-check", :kind "defn-", :line 203, :end-line 205, :hash "1730640503"} {:id "defn-/found-land?", :kind "defn-", :line 207, :end-line 208, :hash "-1455074046"} {:id "defn-/should-wake-at-beach?", :kind "defn-", :line 210, :end-line 211, :hash "-566558367"} {:id "defn-/wake-transport-check", :kind "defn-", :line 213, :end-line 223, :hash "835612901"} {:id "def/wake-check-handlers", :kind "def", :line 225, :end-line 228, :hash "-2066350617"} {:id "defn-/apply-wake-result", :kind "defn-", :line 230, :end-line 235, :hash "-789567457"} {:id "defn-/get-waypoint-orders", :kind "defn-", :line 237, :end-line 242, :hash "1359675064"} {:id "defn-/apply-state-changes", :kind "defn-", :line 244, :end-line 246, :hash "1856624523"} {:id "defn-/compute-handler-result", :kind "defn-", :line 248, :end-line 253, :hash "58939931"} {:id "defn-/determine-final-result", :kind "defn-", :line 255, :end-line 258, :hash "-705184977"} {:id "defn-/apply-wake-action", :kind "defn-", :line 260, :end-line 274, :hash "-2100797452"} {:id "defn/wake-after-move", :kind "defn", :line 276, :end-line 287, :hash "-418781532"}]}
+;; {:version 1, :tested-at "2026-03-13T09:23:59.465157-05:00", :module-hash "1498193459", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1941504025"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 10, :end-line 12, :hash "1105581680"} {:id "defn-/map-data", :kind "defn-", :line 14, :end-line 16, :hash "406913368"} {:id "defn-/set-error-message!", :kind "defn-", :line 18, :end-line 21, :hash "678717250"} {:id "defn/near-hostile-city?", :kind "defn", :line 23, :end-line 34, :hash "1856683080"} {:id "defn/friendly-city-in-range?", :kind "defn", :line 36, :end-line 48, :hash "-624092931"} {:id "defn/enemy-unit-visible?", :kind "defn", :line 50, :end-line 71, :hash "-1068497858"} {:id "defn-/fighter-landing-on-carrier?", :kind "defn-", :line 73, :end-line 78, :hash "-1430977648"} {:id "defn-/fighter-landing-at-city?", :kind "defn-", :line 80, :end-line 83, :hash "-666029366"} {:id "defn-/occupied-blocking-reason", :kind "defn-", :line 85, :end-line 89, :hash "110612946"} {:id "defn-/army-blocking-reason", :kind "defn-", :line 91, :end-line 95, :hash "1261272110"} {:id "defn-/naval-blocking-reason", :kind "defn-", :line 97, :end-line 101, :hash "-47713617"} {:id "defn-/hostile-city?", :kind "defn-", :line 103, :end-line 105, :hash "1644532547"} {:id "defn-/unit-type-blocking-reason", :kind "defn-", :line 107, :end-line 113, :hash "-1671425505"} {:id "defn-/blocking-wake-reason", :kind "defn-", :line 115, :end-line 119, :hash "817047601"} {:id "defn-/wake-unit-with-reason", :kind "defn-", :line 121, :end-line 122, :hash "-1604482991"} {:id "defn/wake-before-move", :kind "defn", :line 124, :end-line 132, :hash "-1901749309"} {:id "defn-/wake-army-check", :kind "defn-", :line 136, :end-line 138, :hash "1076072861"} {:id "def/wake-check-handlers", :kind "def", :line 140, :end-line 143, :hash "-2086580873"} {:id "defn-/apply-wake-result", :kind "defn-", :line 145, :end-line 150, :hash "-789567457"} {:id "defn-/get-waypoint-orders", :kind "defn-", :line 152, :end-line 157, :hash "1359675064"} {:id "defn-/apply-state-changes", :kind "defn-", :line 159, :end-line 161, :hash "1856624523"} {:id "defn-/compute-handler-result", :kind "defn-", :line 163, :end-line 168, :hash "58939931"} {:id "defn-/determine-final-result", :kind "defn-", :line 170, :end-line 173, :hash "-705184977"} {:id "defn-/apply-wake-action", :kind "defn-", :line 175, :end-line 189, :hash "-2100797452"} {:id "defn/wake-after-move", :kind "defn", :line 191, :end-line 202, :hash "-418781532"}]}
 ;; clj-mutate-manifest-end
