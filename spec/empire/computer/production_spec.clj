@@ -63,7 +63,7 @@
 
   (context "priority-based production"
 
-    (it "country city produces fighter via per-country priority when 0 fighters exist"
+    (it "country city stays on armies while the opening overlay is active"
       ;; 2-row map: coastal city, armies fill all coastal cells, transport+escort, 4 patrol boats
       ;; Row 0: ~ X a a t d ~ p p p p
       ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -81,7 +81,7 @@
       (doseq [col [7 8 9 10]]
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
-      (should= :fighter (production/decide-production [1 0])))
+      (should= :army (production/decide-production [1 0])))
 
     (it "inland country city skips coastal priorities and produces army"
       ;; Inland city in a country with unfilled coastal cells
@@ -140,7 +140,7 @@
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 0])))
 
-    (it "two coastal cities can both produce transports simultaneously"
+    (it "opening role assignment does not force both coastal cities into transport at once"
       ;; Two coastal cities, plenty of coastal armies, no transports
       ;; Row 0: ~ X a a a a a a X a a a a a
       ;; Row 1: ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -153,12 +153,13 @@
         (update-test-world! assoc-in [col 0 :country-id] 1)
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (production/rebuild-country-stats!)
-      (let [first-decision (production/decide-production [1 0])]
-        (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 20}})
-        (should= :transport first-decision)
-        (should= :transport (production/decide-production [8 0]))))
+      (with-redefs [rand-nth first]
+        (let [first-decision (production/decide-production [1 0])]
+          (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 20}})
+          (should= :transport first-decision)
+          (should= :army (production/decide-production [8 0]))))))
 
-    (it "does not produce transport when existing transport has room"
+    (it "still follows opening transport assignment once phase 2 transport production begins"
       ;; Transport with army-count < 6 and :loading mission
       (set-test-world! (build-test-map ["~Xaaaaaaa~t"
                                                "~~~~~~~~~~~"]))
@@ -172,7 +173,7 @@
       (update-test-world! assoc-in [10 0 :contents :army-count] 2)
       (update-test-world! assoc-in [10 0 :contents :transport-mission] :loading)
       (production/rebuild-country-stats!)
-      (should-not= :transport (production/decide-production [1 0])))
+      (should= :transport (production/decide-production [1 0])))
 
     (it "landlocked city does not produce transport even when country needs one"
       (set-test-world! (build-test-map ["###"
@@ -204,7 +205,7 @@
       (production/rebuild-country-stats!)
       (should= :army (production/decide-production [1 0])))
 
-    (it "does not produce army when another city in country is already producing armies"
+    (it "opening army production is not coordinated by the legacy per-country guard"
       ;; City 1 at [1,0] already producing army, city 2 at [3,0] should not also produce army
       ;; 2-row map so cities have coastal cells
       (set-test-world! (build-test-map ["~X~X~"
@@ -214,7 +215,7 @@
       (update-test-world! assoc-in [3 0 :country-id] 1)
       (test-utils/set-test-state! :production {[1 0] {:item :army :remaining-rounds 3}})
       (production/rebuild-country-stats!)
-      (should-not= :army (production/decide-production [3 0]))))
+      (should= :army (production/decide-production [3 0]))))
 
   (context "country-city-producing? coordination"
 
@@ -252,9 +253,9 @@
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 10}})
       (production/rebuild-country-stats!)
-      (should= :transport (production/decide-production [3 0])))
+      (should= :army (production/decide-production [3 0])))
 
-    (it "does not produce destroyer when another city in country is already producing"
+    (it "keeps the second city on army production before invasion starts"
       ;; Two coastal cities, same country, 200 armies in transport, 4 patrol boats, first producing destroyer
       (set-test-world! (build-test-map ["~X~X~t~pppp"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -266,7 +267,7 @@
         (update-test-world! assoc-in [col 0 :contents :country-id] 1))
       (test-utils/set-test-state! :production {[1 0] {:item :destroyer :remaining-rounds 10}})
       (production/rebuild-country-stats!)
-      (should= :fighter (production/decide-production [3 0]))))
+      (should= :army (production/decide-production [3 0]))))
 
   (context "army limit 2/3 of coastal cells"
 
@@ -314,89 +315,34 @@
       (production/process-computer-city [0 0])
       (should= :fighter (:item (get (test-utils/read-test-state :production) [0 0])))))
 
-  (context "early production"
+  (context "opening production"
 
-    (it "produces patrol boat from coastal city when trigger fired"
-      (let [game-map (build-test-map ["X~~"
-                                      "###"
-                                      "~~~"])]
+    (it "uses fighter production for a C=0 theater after six armies"
+      (let [game-map (build-test-map ["aaa"
+                                      "aXa"
+                                      "aaa"])]
         (set-test-world! game-map)
-        (test-utils/set-test-state! :transport-fully-loaded? true)
-        (test-utils/set-test-state! :early-patrol-boat-produced? false)
-        (update-test-world! assoc-in [0 0 :country-id] 1)
+        (set-test-computer-map! game-map)
+        (update-test-world! assoc-in [1 1 :country-id] 1)
+        (doseq [pos [[0 0] [1 0] [2 0] [0 1] [2 1] [0 2]]]
+          (update-test-world! assoc-in (conj pos :contents :country-id) 1))
+        (test-utils/set-test-state! :round-number 30)
         (production/rebuild-country-stats!)
-        (should= :patrol-boat (production/decide-production [0 0]))
-        (should (test-utils/read-test-state :early-patrol-boat-produced?))))
+        (should= :fighter (production/decide-production [1 1]))))
 
-    (it "produces satellite from inland city after patrol boat flag set"
-      (let [game-map (build-test-map ["X~~~"
-                                      "####"
-                                      "#X##"
-                                      "####"])]
-        (set-test-world! game-map)
-        (test-utils/set-test-state! :transport-fully-loaded? true)
-        (test-utils/set-test-state! :early-patrol-boat-produced? true)
-        (test-utils/set-test-state! :early-satellite-produced? false)
-        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 2}
-                                                 [1 2] {:item :transport :remaining-rounds 2}})
-        (update-test-world! assoc-in [1 2 :country-id] 1)
-        (production/rebuild-country-stats!)
-        (should= :satellite (production/decide-production [1 2]))))
-
-    (it "does not produce satellite before patrol boat flag set"
-      (let [game-map (build-test-map ["X~~~"
-                                      "####"
-                                      "#X##"
-                                      "####"])]
-        (set-test-world! game-map)
-        (test-utils/set-test-state! :transport-fully-loaded? true)
-        (test-utils/set-test-state! :early-patrol-boat-produced? false)
-        (test-utils/set-test-state! :early-satellite-produced? false)
-        (update-test-world! assoc-in [1 2 :country-id] 1)
-        (production/rebuild-country-stats!)
-        (should-not= :satellite (production/decide-production [1 2]))))
-
-    (it "prefers inland city for satellite over coastal"
-      (let [game-map (build-test-map ["X~~~"
-                                      "####"
-                                      "#X##"
-                                      "####"])]
-        (set-test-world! game-map)
-        (test-utils/set-test-state! :transport-fully-loaded? true)
-        (test-utils/set-test-state! :early-patrol-boat-produced? true)
-        (test-utils/set-test-state! :early-satellite-produced? false)
-        (update-test-world! assoc-in [0 0 :country-id] 1)
-        (update-test-world! assoc-in [1 2 :country-id] 1)
-        (production/rebuild-country-stats!)
-        ;; [0 0] is coastal — should skip satellite, fall through
-        (should-not= :satellite (production/decide-production [0 0]))))
-
-    (it "coastal city produces satellite when no inland city exists"
-      (let [game-map (build-test-map ["X~~"
+    (it "immediately replaces a coastal opening role that becomes lake-locked"
+      (let [game-map (build-test-map ["~X~"
                                       "~~~"
-                                      "~~~"])]
+                                      "###"])]
         (set-test-world! game-map)
-        (test-utils/set-test-state! :transport-fully-loaded? true)
-        (test-utils/set-test-state! :early-patrol-boat-produced? true)
-        (test-utils/set-test-state! :early-satellite-produced? false)
-        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 2}
-                                                 [2 0] {:item :transport :remaining-rounds 2}})
-        (update-test-world! assoc-in [0 0 :country-id] 1)
-        (production/rebuild-country-stats!)
-        (should= :satellite (production/decide-production [0 0]))))
-
-    (it "does not produce early satellite without distinct army and transport producers"
-      (let [game-map (build-test-map ["X~~~"
-                                      "####"
-                                      "#X##"
-                                      "####"])]
-        (set-test-world! game-map)
-        (test-utils/set-test-state! :transport-fully-loaded? true)
-        (test-utils/set-test-state! :early-patrol-boat-produced? true)
-        (test-utils/set-test-state! :early-satellite-produced? false)
-        (test-utils/set-test-state! :production {[1 2] {:item :army :remaining-rounds 2}})
-        (update-test-world! assoc-in [1 2 :country-id] 1)
-        (production/rebuild-country-stats!)
-        (should-not= :satellite (production/decide-production [1 2]))))))
+        (set-test-computer-map! game-map)
+        (update-test-world! assoc-in [1 0 :country-id] 1)
+        (update-test-world! assoc-in [1 0 :opening-role] :CT)
+        (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 6}})
+        (test-utils/set-test-state! :known-lake-cells #{[0 0] [2 0] [0 1] [1 1] [2 1]})
+        (test-utils/set-test-state! :lake-max-cells 10)
+        (test-utils/set-test-state! :round-number 30)
+        (production/process-computer-city [1 0])
+        (should-not= :transport (:item (get (test-utils/read-test-state :production) [1 0]))))))
 
 (run-specs)

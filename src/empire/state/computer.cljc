@@ -13,6 +13,7 @@
    :country-stats {}
    :coastal-cells-by-country {}
    :coast-walkers-produced {}
+   :opening-satellite-produced? false
    :patrol-boats-produced {}
    :seen-coast #{}
    :land-ho-targets []
@@ -40,5 +41,5 @@
 (def state (atom defaults))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:02:47.576375-05:00", :module-hash "-10532134", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-654248230"} {:id "def/defaults", :kind "def", :line 3, :end-line 38, :hash "1715941080"} {:id "def/state", :kind "def", :line 40, :end-line 40, :hash "-1274501582"}]}
+;; {:version 1, :tested-at "2026-03-13T15:28:04.640574-05:00", :module-hash "-1517718144", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-654248230"} {:id "def/defaults", :kind "def", :line 3, :end-line 39, :hash "-1215465483"} {:id "def/state", :kind "def", :line 41, :end-line 41, :hash "-1274501582"}]}
 ;; clj-mutate-manifest-end

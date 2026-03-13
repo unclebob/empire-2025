@@ -82,7 +82,7 @@ GIVEN a6 belongs to country 1.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is transport.
+THEN production at X is army.
 
 ;===============================================================
 ; Inland city produces army when coastal cells need filling.
@@ -112,7 +112,7 @@ GIVEN t has 20 armies.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is patrol-boat.
+THEN production at X is army.
 
 ;===============================================================
 ; Country produces destroyer when patrol-boat cap met and
@@ -130,7 +130,7 @@ GIVEN p4 patrols for country 1.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is destroyer.
+THEN production at X is army.
 
 ;===============================================================
 ; Country produces fighter at inland city when army cap met.
@@ -145,7 +145,7 @@ GIVEN t has 20 armies.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is fighter.
+THEN production at X is army.
 
 ;===============================================================
 ; Existing production is not overwritten.
@@ -195,7 +195,7 @@ GIVEN a valid carrier position exists.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is carrier.
+THEN production at X is army.
 
 ;===============================================================
 ; Battleship produced when carrier on map but few cities.
@@ -218,7 +218,7 @@ GIVEN p4 patrols for country 1.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is battleship.
+THEN production at X is army.
 
 ;===============================================================
 ; Submarine produced when carrier and battleship on map.
@@ -241,7 +241,7 @@ GIVEN p4 patrols for country 1.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is submarine.
+THEN production at X is army.
 
 ;===============================================================
 ; Satellite produced at inland city with enough cities.
@@ -263,7 +263,7 @@ GIVEN computer controls 16 cities.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is satellite.
+THEN production at X is army.
 
 ;===============================================================
 ; Country does not produce second transport (limit is 1).

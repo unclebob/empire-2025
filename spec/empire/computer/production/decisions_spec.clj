@@ -8,7 +8,7 @@
 (describe "production decisions module"
   (before (reset-all-atoms!))
 
-  (it "produces destroyer when escort is needed"
+  (it "keeps building armies while opening production is still army-first"
     (set-test-world! (build-test-map ["~Xaat~pppp"
                                       "~~~~~~~~~~"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -21,7 +21,7 @@
     (doseq [col [6 7 8 9]]
       (update-test-world! assoc-in [col 0 :contents :country-id] 1))
     (stats/rebuild-country-stats!)
-    (should= :destroyer (decisions/decide-production [1 0])))
+    (should= :army (decisions/decide-production [1 0])))
 
   (it "produces fighter only when fighters are below computer city count"
     (set-test-world! (build-test-map ["X#Xf"]))
@@ -37,19 +37,27 @@
     (with-redefs [empire.computer.production.stats/count-computer-cities (constantly 20)]
       (should= :satellite (#'decisions/decide-global-production false {:carrier 0 :battleship 0 :submarine 0 :satellite 0}))))
 
-  (it "executes early production side effects"
-    (test-utils/set-test-state! :transport-fully-loaded? true)
-    (test-utils/set-test-state! :early-patrol-boat-produced? false)
-    (test-utils/set-test-state! :early-satellite-produced? false)
-    (should= :patrol-boat (#'decisions/decide-early-production [0 0] true))
-    (should (test-utils/read-test-state :early-patrol-boat-produced?))
-    (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 2}
-                                             [1 0] {:item :transport :remaining-rounds 2}})
-    (should= :satellite (#'decisions/decide-early-production [0 0] false))
-    (should (test-utils/read-test-state :early-satellite-produced?)))
+  (it "uses opening strategy production before legacy heuristics"
+    (set-test-world! (build-test-map ["aaa"
+                                      "aXa"
+                                      "aaa"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [1 1 :country-id] 1)
+    (doseq [pos [[0 0] [1 0] [2 0] [0 1] [2 1] [0 2]]]
+      (update-test-world! assoc-in (conj pos :contents :country-id) 1))
+    (test-utils/set-test-state! :round-number 30)
+    (should= :fighter (decisions/decide-production [1 1])))
+
+  (it "marks the one-time opening satellite when assigned"
+    (set-test-world! (build-test-map ["X"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [0 0 :country-id] 1)
+    (test-utils/set-test-state! :round-number 51)
+    (should= :satellite (decisions/decide-production [0 0]))
+    (should (test-utils/read-test-state :opening-satellite-produced?)))
 
   (it "falls back to army when city has no country and no early production"
     (set-test-world! (build-test-map ["X"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
-    (test-utils/set-test-state! :transport-fully-loaded? false)
+    (test-utils/set-test-state! :round-number 1)
     (should= :army (decisions/decide-production [0 0]))))

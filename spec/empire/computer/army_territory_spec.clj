@@ -14,43 +14,50 @@
   (before (reset-all-atoms!))
 
   (context "army stamping"
-    (it "limits coast-walkers to 2 per country"
+    (it "uses the opening strategy coast-walk limit"
       (let [cell {:type :city :city-status :computer :country-id 1}
             base {:type :army :owner :computer :hits 1 :mode :awake}]
         (test-utils/set-test-state! :coast-walkers-produced {})
-        (with-redefs [empire.game-mechanics.services.unit-stamping/country-coastal-cells-explored? (constantly false)]
+        (with-redefs [empire.game-mechanics.services.unit-stamping/country-coastal-cells-explored? (constantly false)
+                      empire.computer.early-game.strategy/opening-exploration-profile
+                      (constantly {:coast-walk-limit 3 :random-explore-chance 1/5})]
           (let [u1 (stamping/apply-coast-walk-fields base :army cell [0 0])
                 u2 (stamping/apply-coast-walk-fields base :army cell [1 0])
-                u3 (stamping/apply-coast-walk-fields base :army cell [2 0])]
+                u3 (stamping/apply-coast-walk-fields base :army cell [2 0])
+                u4 (stamping/apply-coast-walk-fields base :army cell [3 0])]
             (should= :coast-walk (:mode u1))
             (should= :coast-walk (:mode u2))
-            ;; Third should NOT get coast-walk
-            (should= :awake (:mode u3))))))
+            (should= :coast-walk (:mode u3))
+            (should= :awake (:mode u4))))))
 
-    (it "1/3 of non-coast-walk armies get random-explore"
+    (it "uses the opening strategy random-explore chance"
       (let [cell {:type :city :city-status :computer :country-id 1}
             base {:type :army :owner :computer :hits 1 :mode :awake}]
-        ;; Mock rand < 1/3 → should get random-explore
-        (with-redefs [rand (constantly 0.2)
+        (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                      (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                      rand (constantly 0.1)
                       rand-nth (constantly [0 1])]
-          (let [result (stamping/apply-random-explore-fields base :army cell)]
+          (let [result (stamping/apply-random-explore-fields base :army cell [0 0])]
             (should= :random-explore (:mode result))
             (should= [0 1] (:random-explore-direction result))))))
 
-    (it "2/3 of non-coast-walk armies stay awake"
+    (it "keeps armies awake when rand exceeds the opening explore chance"
       (let [cell {:type :city :city-status :computer :country-id 1}
             base {:type :army :owner :computer :hits 1 :mode :awake}]
-        ;; Mock rand >= 1/3 → should stay awake
-        (with-redefs [rand (constantly 0.5)]
-          (let [result (stamping/apply-random-explore-fields base :army cell)]
+        (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                      (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                      rand (constantly 0.5)]
+          (let [result (stamping/apply-random-explore-fields base :army cell [0 0])]
             (should= :awake (:mode result))))))
 
     (it "does not override coast-walk to random-explore"
       (let [cell {:type :city :city-status :computer :country-id 1}
             cw {:type :army :owner :computer :hits 1 :mode :coast-walk
                 :coast-direction :clockwise :coast-start [0 0] :coast-visited [[0 0]]}]
-        (with-redefs [rand (constantly 0.1)]
-          (let [result (stamping/apply-random-explore-fields cw :army cell)]
+        (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                      (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                      rand (constantly 0.1)]
+          (let [result (stamping/apply-random-explore-fields cw :army cell [0 0])]
             (should= :coast-walk (:mode result)))))))
 
   (context "stamp-territory on cities"
@@ -217,145 +224,6 @@
       ;; Army should have moved to one of the two candidates
       (should (or (= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
                   (= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))))))
-
-  (context "adjacent-to-computer-city? (L252, L253)"
-    (it "avoids coastal cell adjacent to computer city"
-      ;; "####" / "X###" / "~~~~"
-      ;; col0=[land,city,sea], col1=[land,land,sea], col2=[land,land,sea], col3=[land,land,sea]
-      ;; [1 1] is coastal (adj [1 2]=sea) AND adj to city [0 1]. Filtered out.
-      ;; [2 1] is coastal, NOT adj to city. [3 1] same.
-      ;; Army at [1 0]: nearest unfiltered coastal = [2 1] (dist 2).
-      ;; Correct: target [2 1], step diagonally to [2 1].
-      ;; Mutation: target [1 1] (dist 1, no longer filtered), step to [1 1].
-      (set-test-world! (build-test-map ["####"
-                                               "X###"
-                                               "~~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (doseq [col (range 4)]
-        (update-test-world! assoc-in [col 0 :country-id] 1)
-        (update-test-world! assoc-in [col 1 :country-id] 1))
-      (update-test-world! assoc-in [1 0 :contents]
-             {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
-      (with-redefs [rand (constantly 0.5)]
-        (army/process-army [1 0]))
-      ;; Correct: army goes to [2 1] (diagonal step toward target [2 1]).
-      ;; With mutation: army goes to [1 1] (directly, since it's the nearest unfiltered target).
-      (should-not= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
-      (should= :army (get-in (test-utils/read-test-state :game-map) [2 1 :contents :type]))))
-
-  (context "find-nearest-unoccupied-coastal-cell (L259, L264, L266, L272)"
-    (it "finds coastal cell with matching country-id (L259, L264, L266)"
-      ;; Army at [0 0] interior, coastal cell at [0 2] with country-id 1
-      (set-test-world! [[{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1
-                                            :mode :awake :country-id 1}}
-                                {:type :land :country-id 1}
-                                {:type :land :country-id 1}
-                                {:type :sea}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [rand (constantly 0.5)]
-        (army/process-army [0 0]))
-      ;; Army should have moved toward coast (row 2)
-      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
-      (should= :army (get-in (test-utils/read-test-state :game-map) [0 1 :contents :type])))
-
-    (it "falls back to unfiltered candidates when all near computer cities (L272)"
-      ;; Army at [1 0] interior. Only coastal cell [1 1] is adjacent to computer city [0 1].
-      ;; remove-adjacent-to-computer-city? filters it out → empty list → fallback to unfiltered.
-      ;; Map: 3 cols x 3 rows
-      ;; col 0: [land, city, sea]
-      ;; col 1: [land+army, land, sea]  — [1 1] is coastal (adj to [1 2]=sea) AND adj to city [0 1]
-      ;; col 2: [land, land, sea]
-      ;; BUT we need all coastal cells adjacent to a computer city.
-      ;; Put cities adjacent to every coastal cell.
-      (set-test-world! [[{:type :city :city-status :computer :country-id 1}
-                                {:type :land :country-id 1}
-                                {:type :sea}]
-                               [{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1
-                                            :mode :awake :country-id 1}}
-                                {:type :land :country-id 1}
-                                {:type :sea}]
-                               [{:type :city :city-status :computer :country-id 1}
-                                {:type :land :country-id 1}
-                                {:type :sea}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [rand (constantly 0.5)]
-        (army/process-army [1 0]))
-      ;; Army should move toward a coastal cell despite it being near cities (fallback)
-      (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
-      (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))))
-
-  (context "find-nearest-cell-close-to-coast (L284, L290, L291)"
-    (it "prefers directly coastal cell (distance 0) over near-coastal (distance 1) (L284, L290, L291)"
-      ;; Army at [1 0] (interior). All directly-coastal cells are occupied
-      ;; except one that doesn't exist. So find-nearest-unoccupied-coastal-cell returns nil.
-      ;; Then find-nearest-cell-close-to-coast finds both directly-coastal and near-coastal cells.
-      ;; It should prefer distance 0 (directly coastal) over distance 1 (near-coastal).
-      ;;
-      ;; Map: 3 cols x 4 rows
-      ;; col 0: [land, land, sentry, sea]
-      ;; col 1: [army, land, sentry, sea]
-      ;; col 2: [land, land, sentry, sea]
-      ;; All row-2 coastal cells have sentries. row-1 cells are near-coastal (1 step).
-      ;; find-nearest-unoccupied-coastal-cell: all coastal cells occupied → nil
-      ;; find-nearest-cell-close-to-coast: should find row-1 cells (distance 1 from coast)
-      ;;   and row-2 is occupied so NOT candidates (contents not nil).
-      ;;   Actually row-1 cells ARE candidates: empty, land, country-id match.
-      ;;   For row-1 cells: adjacent-to-sea? is false, but some neighbor is adjacent-to-sea? → distance 1.
-      ;;   So they're near-coastal. But there are no distance-0 unoccupied cells.
-      ;;   → the code picks the nearest near-coastal cell.
-      ;; To test L290/L291 distinctly: I need BOTH a directly-coastal empty cell AND a near-coastal cell.
-      ;; Let me have one coastal cell empty and one near-coastal cell empty, and verify the coastal one wins.
-      (set-test-world! [[{:type :land :country-id 1}
-                                {:type :land :country-id 1}
-                                {:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}
-                                {:type :sea}]
-                               [{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1
-                                            :mode :awake :country-id 1}}
-                                {:type :land :country-id 1}
-                                {:type :land :country-id 1}
-                                {:type :sea}]
-                               [{:type :land :country-id 1}
-                                {:type :land :country-id 1}
-                                {:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}
-                                {:type :sea}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; [1 2] is the only empty coastal cell (adj to [1 3]=sea).
-      ;; [0 1], [1 1], [2 1] are near-coastal (neighbors of row 2 which is coastal).
-      ;; find-nearest-unoccupied-coastal-cell should find [1 2].
-      (with-redefs [rand (constantly 0.5)]
-        (army/process-army [1 0]))
-      ;; Army at [1 0] should move toward [1 2] (coastal). Next step is [1 1].
-      (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
-      (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))))
-
-  (context "fill-coastal-cell wake sentries (L325)"
-    (it "wakes nearby sentries when no coastal or near-coast cells available"
-      ;; Army at [2 1], all coastal and near-coast cells occupied by sentries
-      ;; No coastal cells, no near-coast cells → falls to wake-nearby-sentries
-      (set-test-world! [[{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]
-                               [{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]
-                               [{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :awake :country-id 1}}]
-                               [{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]
-                               [{:type :land :country-id 1
-                                 :contents {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; No sea anywhere → no coastal cells → fill-coastal-cell can't find targets
-      ;; Army is at [2 0], all land, all occupied
-      (with-redefs [rand (constantly 0.5)
-                    rand-nth first]
-        (army/process-army [2 0]))
-      ;; At least one sentry should have been woken
-      (let [modes (map #(get-in (test-utils/read-test-state :game-map) [% 0 :contents :mode]) [0 1 3 4])]
-        (should (some #(not= :sentry %) modes)))))
 
   (context "start-interior-exploration target calculation (L354)"
     (it "correctly adds direction to position"

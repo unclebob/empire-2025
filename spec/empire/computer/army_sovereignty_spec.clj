@@ -9,8 +9,14 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
+(defn- disable-opening!
+  []
+  (test-utils/set-test-state! :round-number nil))
+
 (describe "process-army"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (context "ignores non-computer units"
     (it "returns nil for player army"
@@ -196,7 +202,9 @@
         (should-be-nil (:interior-explore-direction unit))))))
 
 (describe "backtrack and anti-oscillation"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (context "backtrack memory"
     (it "records move-history after moving"

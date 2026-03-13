@@ -178,7 +178,7 @@
 (describe "apply-coast-walk-fields"
   (before (reset-all-atoms!))
 
-  (it "first 2 armies get coast-walk while coastal cells unexplored"
+  (it "uses the opening strategy coast-walk limit while coastal cells are unexplored"
     ;; Map with unexplored coastal cells
     (set-test-world! (build-test-map ["~###~"]))
     (doseq [col [1 2 3]]
@@ -186,20 +186,25 @@
     ;; Computer map: coastal cells unexplored
     (set-test-computer-map! [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
     (computer-production/rebuild-country-stats!)
-    (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
-          cell {:type :city :city-status :computer :country-id 1}]
-      ;; First → clockwise
-      (let [s (stamping/apply-coast-walk-fields unit :army cell [3 4])]
-        (should= :coast-walk (:mode s))
-        (should= :clockwise (:coast-direction s))
-        (should= [3 4] (:coast-start s))
-        (should= [[3 4]] (:coast-visited s)))
-      ;; Second → counter-clockwise
-      (let [s (stamping/apply-coast-walk-fields unit :army cell [3 5])]
-        (should= :counter-clockwise (:coast-direction s)))
-      ;; Third → no coast-walk (limit of 2 per country)
-      (let [s (stamping/apply-coast-walk-fields unit :army cell [3 6])]
-        (should= :awake (:mode s)))))
+    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                  (constantly {:coast-walk-limit 3 :random-explore-chance 1/5})]
+      (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
+            cell {:type :city :city-status :computer :country-id 1}]
+        ;; First → clockwise
+        (let [s (stamping/apply-coast-walk-fields unit :army cell [1 0])]
+          (should= :coast-walk (:mode s))
+          (should= :clockwise (:coast-direction s))
+          (should= [1 0] (:coast-start s))
+          (should= [[1 0]] (:coast-visited s)))
+        ;; Second → counter-clockwise
+        (let [s (stamping/apply-coast-walk-fields unit :army cell [1 0])]
+          (should= :counter-clockwise (:coast-direction s)))
+        ;; Third still gets coast-walk at the higher opening limit.
+        (let [s (stamping/apply-coast-walk-fields unit :army cell [1 0])]
+          (should= :coast-walk (:mode s)))
+        ;; Fourth does not.
+        (let [s (stamping/apply-coast-walk-fields unit :army cell [1 0])]
+          (should= :awake (:mode s))))))
 
   (it "no coast-walk when all coastal cells explored"
     (set-test-world! (build-test-map ["~###~"]))
@@ -208,7 +213,7 @@
       (update-test-world! assoc-in [col 0 :country-id] 1))
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
           cell {:type :city :city-status :computer :country-id 1}
-          stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
+          stamped (stamping/apply-coast-walk-fields unit :army cell [1 0])]
       (should= :awake (:mode stamped))
       (should-not-contain :coast-direction stamped)))
 
@@ -219,59 +224,69 @@
       (update-test-world! assoc-in [col 0 :country-id] 1))
     (let [unit {:type :army :owner :player :hits 1 :mode :awake}
           cell {:type :city :city-status :player :country-id 1}
-          stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
+          stamped (stamping/apply-coast-walk-fields unit :army cell [1 0])]
       (should= :awake (:mode stamped))
       (should-not-contain :coast-direction stamped)))
 
   (it "non-army unit does not get coast-walk"
     (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
           cell {:type :city :city-status :computer :country-id 1}
-          stamped (stamping/apply-coast-walk-fields unit :transport cell [3 4])]
+          stamped (stamping/apply-coast-walk-fields unit :transport cell [1 0])]
       (should-not-contain :coast-direction stamped)))
 
   (it "army from city without country-id does not get coast-walk"
     (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
           cell {:type :city :city-status :computer}
-          stamped (stamping/apply-coast-walk-fields unit :army cell [3 4])]
+          stamped (stamping/apply-coast-walk-fields unit :army cell [1 0])]
       (should= :awake (:mode stamped))
       (should-not-contain :coast-direction stamped))))
 
 (describe "apply-random-explore-fields"
   (before (reset-all-atoms!))
 
-  (it "stamps random-explore on computer army when rand < 1/3"
-    (with-redefs [rand (constantly 0.0)
+  (it "stamps random-explore on computer army when rand is below the opening profile chance"
+    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                  (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                  rand (constantly 0.0)
                   rand-nth (fn [v] (first v))]
       (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer :country-id 1}
-            stamped (stamping/apply-random-explore-fields unit :army cell)]
+            stamped (stamping/apply-random-explore-fields unit :army cell [1 0])]
         (should= :random-explore (:mode stamped))
         (should-contain :random-explore-direction stamped))))
 
-  (it "does not stamp when rand >= 1/3"
-    (with-redefs [rand (constantly 0.5)]
+  (it "does not stamp when rand is above the opening profile chance"
+    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                  (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                  rand (constantly 0.5)]
       (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer :country-id 1}
-            stamped (stamping/apply-random-explore-fields unit :army cell)]
+            stamped (stamping/apply-random-explore-fields unit :army cell [1 0])]
         (should= :awake (:mode stamped)))))
 
   (it "does not stamp on non-army item"
-    (with-redefs [rand (constantly 0.0)]
+    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                  (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                  rand (constantly 0.0)]
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer :country-id 1}
-            stamped (stamping/apply-random-explore-fields unit :transport cell)]
+            stamped (stamping/apply-random-explore-fields unit :transport cell [1 0])]
         (should-not-contain :random-explore-direction stamped))))
 
   (it "does not stamp on player army"
-    (with-redefs [rand (constantly 0.0)]
+    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                  (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                  rand (constantly 0.0)]
       (let [unit {:type :army :owner :player :hits 1 :mode :awake}
             cell {:type :city :city-status :player :country-id 1}
-            stamped (stamping/apply-random-explore-fields unit :army cell)]
+            stamped (stamping/apply-random-explore-fields unit :army cell [1 0])]
         (should-not-contain :random-explore-direction stamped))))
 
   (it "does not stamp on coast-walk army"
-    (with-redefs [rand (constantly 0.0)]
+    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+                  (constantly {:coast-walk-limit 1 :random-explore-chance 1/5})
+                  rand (constantly 0.0)]
       (let [unit {:type :army :owner :computer :hits 1 :mode :coast-walk}
             cell {:type :city :city-status :computer :country-id 1}
-            stamped (stamping/apply-random-explore-fields unit :army cell)]
+            stamped (stamping/apply-random-explore-fields unit :army cell [1 0])]
         (should= :coast-walk (:mode stamped))))))

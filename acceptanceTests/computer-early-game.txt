@@ -1,0 +1,69 @@
+; Computer early-game opening strategy.
+
+;===============================================================
+; C=0 theater stays on armies until six armies are present,
+; then switches one city to fighters.
+;===============================================================
+GIVEN game map
+  aaa
+  aXa
+  aaa
+GIVEN computer map
+  ###
+  #X#
+  ###
+GIVEN X belongs to country 1.
+GIVEN a1 belongs to country 1.
+GIVEN a2 belongs to country 1.
+GIVEN a3 belongs to country 1.
+GIVEN a4 belongs to country 1.
+GIVEN a5 belongs to country 1.
+GIVEN a6 belongs to country 1.
+GIVEN round 30.
+
+WHEN the computer chooses production at X.
+
+THEN production at X is fighter.
+
+;===============================================================
+; After round 50, one otherwise-CA city builds a satellite.
+;===============================================================
+GIVEN game map
+  X
+GIVEN computer map
+  X
+GIVEN X belongs to country 1.
+GIVEN round 51.
+
+WHEN the computer chooses production at X.
+
+THEN production at X is satellite.
+
+;===============================================================
+; A single coastal city with inland support becomes a transport city
+; once phase 2 is reached.
+;===============================================================
+GIVEN game map
+  ~Xaa
+  ##aa
+  ##Xa
+  ##Xa
+GIVEN computer map
+  ~X##
+  ####
+  ##X#
+  ##X#
+GIVEN X belongs to country 1.
+GIVEN X2 belongs to country 1.
+GIVEN X3 belongs to country 1.
+GIVEN a1 belongs to country 1.
+GIVEN a2 belongs to country 1.
+GIVEN a3 belongs to country 1.
+GIVEN a4 belongs to country 1.
+GIVEN a5 belongs to country 1.
+GIVEN a6 belongs to country 1.
+GIVEN round 30.
+
+WHEN the computer chooses production at X.
+
+THEN production at X is transport.

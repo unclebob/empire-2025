@@ -6,10 +6,16 @@
             [empire.computer.ship :as ship]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
+(defn- disable-opening!
+  []
+  (test-utils/set-test-state! :round-number nil))
+
 ;; ===== 3. army production =====
 
 (describe "army production"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (context "coastal army production"
 
@@ -214,7 +220,9 @@
 ;; ===== 4. transport and patrol boat production =====
 
 (describe "transport and patrol boat production"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (context "transport waiting-armies production"
 

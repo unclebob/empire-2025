@@ -9,8 +9,14 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
+(defn- disable-opening!
+  []
+  (test-utils/set-test-state! :round-number nil))
+
 (describe "should-sentry-on-coast?"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (it "returns true for coastal land with country-id, not city, not near computer city"
     (set-test-world! (build-test-map ["#~"]))
@@ -36,7 +42,9 @@
     (should-not (@#'army/should-sentry-on-coast? [0 0] 1))))
 
 (describe "can-settle-here?"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (it "returns true for coastal land with country-id, not city"
     (set-test-world! (build-test-map ["#~"]))
@@ -57,7 +65,9 @@
     (should-not (@#'army/can-settle-here? [0 0] 1))))
 
 (describe "process-army"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (context "attack behavior"
     (it "attacks adjacent player army"

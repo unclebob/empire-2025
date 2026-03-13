@@ -1,7 +1,8 @@
 ;; mutation-tested: no
 (ns empire.game-mechanics.services.unit-stamping
   "Unit stamping: applies initial fields to newly produced units."
-  (:require [empire.state.api :as sa]))
+  (:require [empire.state.api :as sa]
+            [empire.computer.early-game.strategy :as opening]))
 
 (defn- next-id!
   [k]
@@ -80,36 +81,38 @@
 (defn apply-coast-walk-fields
   "Optionally assigns coast-walk mode to newly produced computer armies."
   [unit item cell coords]
-  (if (and (= item :army)
-           (= (:city-status cell) :computer)
-           (:country-id cell)
-           (< (get (sa/read-state :coast-walkers-produced) (:country-id cell) 0) 2)
-           (not (country-coastal-cells-explored? (:country-id cell))))
-    (let [country-id (:country-id cell)
-          produced (get (sa/read-state :coast-walkers-produced) country-id 0)
-          direction (if (even? produced) :clockwise :counter-clockwise)]
-      (sa/write-state! :coast-walkers-produced
-                            (update (or (sa/read-state :coast-walkers-produced) {})
-                                    country-id (fnil inc 0)))
-      (assoc unit :mode :coast-walk
-                  :coast-direction direction
-                  :coast-start coords
-                  :coast-visited [coords]))
-    unit))
+  (let [country-id (:country-id cell)
+        {:keys [coast-walk-limit]} (opening/opening-exploration-profile coords)]
+    (if (and (= item :army)
+             (= (:city-status cell) :computer)
+             country-id
+             (< (get (sa/read-state :coast-walkers-produced) country-id 0) coast-walk-limit)
+             (not (country-coastal-cells-explored? country-id)))
+      (let [produced (get (sa/read-state :coast-walkers-produced) country-id 0)
+            direction (if (even? produced) :clockwise :counter-clockwise)]
+        (sa/write-state! :coast-walkers-produced
+                         (update (or (sa/read-state :coast-walkers-produced) {})
+                                 country-id (fnil inc 0)))
+        (assoc unit :mode :coast-walk
+                    :coast-direction direction
+                    :coast-start coords
+                    :coast-visited [coords]))
+      unit)))
 
 (defn apply-random-explore-fields
   "Optionally assigns random-explore mode to newly produced computer armies."
-  [unit item cell]
-  (if (and (= item :army)
-           (= :computer (:owner unit))
-           (not= :coast-walk (:mode unit))
-           (:country-id cell)
-           (< (rand) 1/3))
-    (assoc unit :mode :random-explore
-                :random-explore-direction
-                (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
-    unit))
+  [unit item cell coords]
+  (let [{:keys [random-explore-chance]} (opening/opening-exploration-profile coords)]
+    (if (and (= item :army)
+             (= :computer (:owner unit))
+             (not= :coast-walk (:mode unit))
+             (:country-id cell)
+             (< (rand) random-explore-chance))
+      (assoc unit :mode :random-explore
+                  :random-explore-direction
+                  (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]))
+      unit)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:02:25.62253-05:00", :module-hash "-506140239", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 4, :hash "-1239904682"} {:id "defn-/next-id!", :kind "defn-", :line 6, :end-line 10, :hash "-78904397"} {:id "defn-/apply-computer-satellite-direction", :kind "defn-", :line 12, :end-line 16, :hash "-382100866"} {:id "defn-/apply-computer-transport-fields", :kind "defn-", :line 18, :end-line 25, :hash "-1980935197"} {:id "defn-/apply-country-id", :kind "defn-", :line 27, :end-line 31, :hash "-1622960732"} {:id "defn-/apply-patrol-fields", :kind "defn-", :line 33, :end-line 39, :hash "-31215873"} {:id "defn-/apply-carrier-fields", :kind "defn-", :line 41, :end-line 49, :hash "2075914662"} {:id "defn-/apply-escort-fields", :kind "defn-", :line 51, :end-line 56, :hash "1647652015"} {:id "defn-/apply-destroyer-fields", :kind "defn-", :line 58, :end-line 63, :hash "970361077"} {:id "defn/stamp-computer-fields", :kind "defn", :line 65, :end-line 75, :hash "-800983818"} {:id "defn-/country-coastal-cells-explored?", :kind "defn-", :line 77, :end-line 78, :hash "1350831394"} {:id "defn/apply-coast-walk-fields", :kind "defn", :line 80, :end-line 98, :hash "-1525998489"} {:id "defn/apply-random-explore-fields", :kind "defn", :line 100, :end-line 111, :hash "-1065275940"}]}
+;; {:version 1, :tested-at "2026-03-13T15:24:22.583689-05:00", :module-hash "1019372859", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 5, :hash "1372251652"} {:id "defn-/next-id!", :kind "defn-", :line 7, :end-line 11, :hash "-78904397"} {:id "defn-/apply-computer-satellite-direction", :kind "defn-", :line 13, :end-line 17, :hash "-382100866"} {:id "defn-/apply-computer-transport-fields", :kind "defn-", :line 19, :end-line 26, :hash "-1980935197"} {:id "defn-/apply-country-id", :kind "defn-", :line 28, :end-line 32, :hash "-1622960732"} {:id "defn-/apply-patrol-fields", :kind "defn-", :line 34, :end-line 40, :hash "-31215873"} {:id "defn-/apply-carrier-fields", :kind "defn-", :line 42, :end-line 50, :hash "2075914662"} {:id "defn-/apply-escort-fields", :kind "defn-", :line 52, :end-line 57, :hash "1647652015"} {:id "defn-/apply-destroyer-fields", :kind "defn-", :line 59, :end-line 64, :hash "970361077"} {:id "defn/stamp-computer-fields", :kind "defn", :line 66, :end-line 76, :hash "-800983818"} {:id "defn-/country-coastal-cells-explored?", :kind "defn-", :line 78, :end-line 79, :hash "1350831394"} {:id "defn/apply-coast-walk-fields", :kind "defn", :line 81, :end-line 100, :hash "1053176763"} {:id "defn/apply-random-explore-fields", :kind "defn", :line 102, :end-line 114, :hash "1323071339"}]}
 ;; clj-mutate-manifest-end

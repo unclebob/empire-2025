@@ -5,6 +5,7 @@
             [empire.computer.army.assignment :as assignment]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.combat :as army-combat]
+            [empire.computer.early-game.strategy :as opening]
             [empire.computer.army.exploration :as exploration]
             [empire.computer.army.movement :as movement]
             [empire.computer.army.transport :as transport]
@@ -49,13 +50,18 @@
 (defn- start-interior-exploration [pos country-id]
   (exploration/start-interior-exploration pos country-id))
 
+(defn- should-stage-for-opening-transport?
+  [pos]
+  (opening/allow-coastal-staging? pos))
+
 (defn- find-and-execute-land-action [pos country-id]
   (or (when-let [objective (find-city-objective pos)]
         (movement/move-toward-objective pos objective country-id))
       (when (and country-id (< (rand) 1/3))
         (start-interior-exploration pos country-id))
-      (coastal/fill-coastal-cell pos country-id)
-      (transport/find-and-board-transport pos country-id)
+      (when (should-stage-for-opening-transport? pos)
+        (or (coastal/fill-coastal-cell pos country-id)
+            (transport/find-and-board-transport pos country-id)))
       (exploration/explore-randomly pos country-id)))
 
 (defn- exit-city
@@ -113,5 +119,5 @@
   (assignment/assign-city-attacks))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:06.393057-05:00", :module-hash "71535860", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "742924637"} {:id "defn-/find-city-objective", :kind "defn-", :line 15, :end-line 32, :hash "-556093316"} {:id "defn-/process-sentry-in-city", :kind "defn-", :line 34, :end-line 36, :hash "1801065927"} {:id "defn-/process-unowned-army", :kind "defn-", :line 38, :end-line 41, :hash "1767655122"} {:id "defn-/should-sentry-on-coast?", :kind "defn-", :line 43, :end-line 44, :hash "-370775186"} {:id "defn-/can-settle-here?", :kind "defn-", :line 46, :end-line 47, :hash "1670601850"} {:id "defn-/start-interior-exploration", :kind "defn-", :line 49, :end-line 50, :hash "-1722277386"} {:id "defn-/find-and-execute-land-action", :kind "defn-", :line 52, :end-line 59, :hash "-1042447618"} {:id "defn-/exit-city", :kind "defn-", :line 61, :end-line 70, :hash "1761327126"} {:id "defn-/build-army-actions", :kind "defn-", :line 72, :end-line 84, :hash "-1213306281"} {:id "defn/process-army", :kind "defn", :line 86, :end-line 108, :hash "-1671640060"} {:id "defn/assign-city-attacks", :kind "defn", :line 110, :end-line 113, :hash "-176952326"}]}
+;; {:version 1, :tested-at "2026-03-13T15:23:05.917928-05:00", :module-hash "-56593631", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-1799636957"} {:id "defn-/find-city-objective", :kind "defn-", :line 16, :end-line 33, :hash "-1808002651"} {:id "defn-/process-sentry-in-city", :kind "defn-", :line 35, :end-line 37, :hash "1801065927"} {:id "defn-/process-unowned-army", :kind "defn-", :line 39, :end-line 42, :hash "1767655122"} {:id "defn-/should-sentry-on-coast?", :kind "defn-", :line 44, :end-line 45, :hash "-370775186"} {:id "defn-/can-settle-here?", :kind "defn-", :line 47, :end-line 48, :hash "1670601850"} {:id "defn-/start-interior-exploration", :kind "defn-", :line 50, :end-line 51, :hash "-1722277386"} {:id "defn-/should-stage-for-opening-transport?", :kind "defn-", :line 53, :end-line 55, :hash "1763417169"} {:id "defn-/find-and-execute-land-action", :kind "defn-", :line 57, :end-line 65, :hash "-1785007441"} {:id "defn-/exit-city", :kind "defn-", :line 67, :end-line 76, :hash "1761327126"} {:id "defn-/build-army-actions", :kind "defn-", :line 78, :end-line 90, :hash "-1213306281"} {:id "defn/process-army", :kind "defn", :line 92, :end-line 114, :hash "-1671640060"} {:id "defn/assign-city-attacks", :kind "defn", :line 116, :end-line 119, :hash "-176952326"}]}
 ;; clj-mutate-manifest-end

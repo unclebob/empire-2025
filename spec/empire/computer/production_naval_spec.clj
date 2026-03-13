@@ -6,6 +6,10 @@
             [empire.computer.ship :as ship]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! update-test-computer-map! set-test-world! update-test-world!]]))
 
+(defn- disable-opening!
+  []
+  (test-utils/set-test-state! :round-number nil))
+
 (defn- rebuild! [] (production/rebuild-country-stats!))
 
 (defn- add-sea-column
@@ -77,7 +81,9 @@
 ;; ===== 5. naval and air production gates =====
 
 (describe "naval and air production gates"
-  (before (reset-all-atoms!))
+  (before
+    (reset-all-atoms!)
+    (disable-opening!))
 
   (context "destroyer escort production"
 

@@ -10,9 +10,8 @@
 ; patrol boat, fighters).
 
 ;===============================================================
-; Computer chooses carrier production when distant cities need
-; a refueling position and per-country needs are satisfied.
-; Verifies both production choice and position calculation.
+; Before an invasion begins, the opening overlay keeps this city on
+; army production even though a future carrier position is available.
 ;===============================================================
 GIVEN game map
   X~~~~~~~~~~~~~~~~~=~~~~~~~~~~~~~~~~~Xtppppffffffffffff
@@ -30,7 +29,7 @@ GIVEN computer controls 12 cities.
 
 WHEN the computer chooses production at X1.
 
-THEN production at X1 is carrier.
+THEN production at X1 is army.
 
 ;===============================================================
 ; Carrier spawns with refueling position targeting the calculated
