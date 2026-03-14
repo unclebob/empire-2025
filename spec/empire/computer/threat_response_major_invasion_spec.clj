@@ -1,6 +1,7 @@
 (ns empire.computer.threat-response-major-invasion-spec
   (:require [speclj.core :refer :all]
             [empire.computer.threat-response.major-invasion :as mi]
+            [empire.computer.threat-response.major-invasion-assignment :as assignment]
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]))
 
@@ -41,6 +42,43 @@
         (mi/apply-major-invasion-assignment! ctx [0 1] (get-in @world [0 1 :contents]))
         (should (true? (get-in @world [0 0 :contents :major-invasion])))
         (should (true? (get-in @world [0 1 :contents :major-invasion]))))))
+
+    (it "freezes carrier bridge support in sentry mode"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :carrier :owner :computer}}]])
+            ctx {:update-game-map! (update-world-fn world)
+                 :nearest-major-ship-target-fn (fn [_] [9 9])
+                 :major-invasion-ship-types #{:carrier}}]
+        (with-redefs [empire.computer.threat-response.kamikazee/carrier-support-target
+                      (fn [_ _] [0 0])]
+          (mi/apply-major-invasion-assignment! ctx [0 0] (get-in @world [0 0 :contents])))
+        (should= true (get-in @world [0 0 :contents :major-invasion]))
+        (should= :sentry (get-in @world [0 0 :contents :mode]))
+        (should= [0 0] (get-in @world [0 0 :contents :major-invasion-target]))))
+
+    (it "assigns non-bridge carriers toward the nearest sea target"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :carrier :owner :computer}}]])
+            ctx {:update-game-map! (update-world-fn world)
+                 :nearest-major-ship-target-fn (fn [_] [9 9])
+                 :major-invasion-ship-types #{:carrier}}]
+        (with-redefs [empire.computer.threat-response.kamikazee/carrier-support-target
+                      (fn [_ _] nil)]
+          (assignment/apply-major-invasion-assignment! ctx [0 0] (get-in @world [0 0 :contents])))
+        (should= true (get-in @world [0 0 :contents :major-invasion]))
+        (should= [9 9] (get-in @world [0 0 :contents :major-invasion-target]))
+        (should-not= :sentry (get-in @world [0 0 :contents :mode]))))
+
+    (it "delegates transport preparation"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer}}]])
+            called (atom nil)
+            ctx {:update-game-map! (update-world-fn world)
+                 :prepare-transport-major-invasion!-fn (fn [pos unit]
+                                                         (reset! called [pos (:type unit)]))
+                 :major-invasion-ship-types #{:carrier}}]
+        (assignment/apply-major-invasion-assignment! ctx [0 0] (get-in @world [0 0 :contents]))
+        (should= [[0 0] :transport] @called))))
 
   (context "prepare transport routing and stale clearing"
     (it "plans invasion route when target exists"
@@ -120,4 +158,4 @@
         (mi/trim-stale-find-armies-missions! ctx)
         (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
         (should= 9 (get-in @world [0 0 :contents :major-invasion-skip-revision]))
-        (should-be-nil (get-in @world [0 0 :contents :major-invasion-target]))))))
+        (should-be-nil (get-in @world [0 0 :contents :major-invasion-target])))))

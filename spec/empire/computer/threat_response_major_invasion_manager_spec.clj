@@ -13,6 +13,73 @@
     (apply swap! state-atom f args)))
 
 (describe "threat-response major-invasion manager"
+  (it "uses built-in recompute functions when callback hooks are absent"
+    (let [world (atom [[{:type :sea}]])
+          state (atom {:active? false
+                       :detection-points #{[0 0]}
+                       :target-land-set #{}
+                       :target-land-revision 0})
+          refreshed? (atom false)
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] {:computer-map @world})
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :computer-sea-unit-types #{:carrier}
+               :chebyshev-distance-fn (fn [& _] 0)}]
+      (with-redefs [empire.computer.threat-response.invasion-state/recompute-target-land
+                    (fn [& _] #{[0 0]})
+                    empire.computer.threat-response.invasion-decision/evaluate-invasion-start
+                    (fn [_]
+                      {:decision :ready
+                       :sea-reachable-detection-points #{[0 0]}})
+                    empire.computer.threat-response.major-invasion/recompute-sea-reachable-detection-points!
+                    (fn [_]
+                      (swap! state assoc :sea-reachable-detection-points #{[0 0]}))
+                    empire.computer.threat-response.major-invasion-manager/refresh-major-invasion-assignments!
+                    (fn [_]
+                      (reset! refreshed? true))]
+        (manager/evaluate-major-invasion-start! ctx))
+      (should= #{[0 0]} (:target-land-set @state))
+      (should= 1 (:target-land-revision @state))
+      (should= #{[0 0]} (:sea-reachable-detection-points @state))
+      (should @refreshed?)))
+
+  (it "records deferred evaluation state when invasion start is not ready"
+    (let [world (atom [[{:type :sea}]])
+          state (atom {:active? true
+                       :detection-points #{[0 0]}})
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] {:computer-map @world})
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 12)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :computer-sea-unit-types #{:carrier}
+               :chebyshev-distance-fn (fn [& _] 0)}]
+      (with-redefs [empire.computer.threat-response.invasion-decision/evaluate-invasion-start
+                    (fn [_]
+                      {:decision :deferred
+                       :failure-reason :insufficient-resources
+                       :sea-reachable-detection-points #{[1 1]}})]
+        (manager/evaluate-major-invasion-start! ctx))
+      (should-not (:active? @state))
+      (should= :deferred (:decision @state))
+      (should= :insufficient-resources (:failure-reason @state))
+      (should= 12 (:next-review-round @state))
+      (should= #{[1 1]} (:sea-reachable-detection-points @state))))
+
   (it "stands down invasion units after unsustainable losses"
     (let [world (atom [[{:type :sea
                          :contents {:type :transport
@@ -62,6 +129,68 @@
       (should-be-nil (get-in @world [0 0 :contents :major-invasion]))
       (should-be-nil (get-in @world [1 0 :contents :major-invasion]))
       (should-be-nil (get-in @world [1 0 :contents :kamikazee]))))
+
+  (it "clears invasion flags from non-mission transport without resetting sailing"
+    (let [world (atom [[{:type :sea
+                         :contents {:type :transport
+                                    :owner :computer
+                                    :major-invasion true
+                                    :transport-mission :sailing}}]])
+          state (atom {:active? true
+                       :decision :ready
+                       :target-land-set #{[0 0]}
+                       :first-landing-round 2})
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] nil)
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :chebyshev-distance-fn (fn [& _] 0)
+               :recompute-major-invasion-target-land!-fn (fn [] nil)
+               :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
+      (with-redefs [empire.computer.threat-response.invasion-decision/invasion-armies-on-target-continent (fn [& _] 0)
+                    empire.computer.threat-response.invasion-decision/armies-in-transports-to-target-continent (fn [& _] 0)
+                    empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)]
+        (manager/on-round-start! ctx))
+      (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
+      (should-be-nil (get-in @world [0 0 :contents :major-invasion]))))
+
+  (it "stands down resettable transport missions even without a major-invasion flag"
+    (let [world (atom [[{:type :sea
+                         :contents {:type :transport
+                                    :owner :computer
+                                    :transport-mission :invading
+                                    :invasion-target [0 0]}}]])
+          state (atom {:active? true
+                       :decision :ready
+                       :target-land-set #{[0 0]}
+                       :first-landing-round 2})
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] nil)
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :chebyshev-distance-fn (fn [& _] 0)
+               :recompute-major-invasion-target-land!-fn (fn [] nil)
+               :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
+      (with-redefs [empire.computer.threat-response.invasion-decision/invasion-armies-on-target-continent (fn [& _] 0)
+                    empire.computer.threat-response.invasion-decision/armies-in-transports-to-target-continent (fn [& _] 0)
+                    empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)]
+        (manager/on-round-start! ctx))
+      (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
+      (should-be-nil (get-in @world [0 0 :contents :invasion-target]))))
 
   (it "forces patrol boats into exploration when sea-pathing is unavailable"
     (let [world (atom [[{:type :sea

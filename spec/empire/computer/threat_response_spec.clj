@@ -488,6 +488,12 @@
         (should (threat-response/prepare-transport! [0 0]))
         (should= [[0 0] :transport] @called)))))
 
+(describe "major invasion review timing"
+  (it "defaults next review round from zero when no round is recorded"
+    (with-redefs [empire.state.api/read-state (constantly nil)]
+      (should= empire.computer.threat-response.invasion-decision/review-interval-rounds
+               (@#'threat-response/next-review-round)))))
+
 (describe "prepare-transport-major-invasion!"
   (before (reset-all-atoms!))
 
