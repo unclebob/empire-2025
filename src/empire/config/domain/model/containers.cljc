@@ -1,6 +1,7 @@
 ;; mutation-tested: no
 (ns empire.config.domain.model.containers
-  (:require [empire.config.units.config :as units-config]))
+  (:require [empire.config.units.config :as units-config]
+            [empire.game-mechanics.spatial.neighbors :as neighbors]))
 
 (defn- wake-all
   [entity count-key awake-key]
@@ -88,6 +89,16 @@
   (let [dx (cond (zero? (- tx cx)) 0 (pos? (- tx cx)) 1 :else -1)
         dy (cond (zero? (- ty cy)) 0 (pos? (- ty cy)) 1 :else -1)]
     [(+ cx dx) (+ cy dy)]))
+
+(defn launch-steps-toward
+  [[cx cy] [tx ty]]
+  (let [distance (fn [[x y]]
+                   (+ (Math/abs (long (- tx x)))
+                      (Math/abs (long (- ty y)))))]
+    (->> neighbors/neighbor-offsets
+         (map (fn [[dx dy]] [(+ cx dx) (+ cy dy)]))
+         (sort-by (juxt distance identity))
+         vec)))
 
 (defn launched-fighter
   [owner target-coords steps-remaining]

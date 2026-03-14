@@ -288,6 +288,31 @@
            "  (none)")
          "\n\n")))
 
+(defn- format-kamikazee-airport-section
+  [cell-map]
+  (let [airports (->> cell-map
+                      (keep (fn [[coords cell]]
+                              (when (pos? (:kamikazee-fighter-count cell 0))
+                                {:pos coords
+                                 :fighters (:fighter-count cell 0)
+                                 :awake (:awake-fighters cell 0)
+                                 :kamikazees (:kamikazee-fighter-count cell 0)
+                                 :awake-kamikazees (:awake-kamikazee-fighters cell 0)})))
+                      (sort-by :pos)
+                      vec)]
+    (str "=== Kamikazee Airports In Region ===\n"
+         (if (seq airports)
+           (str/join
+            "\n"
+            (for [{:keys [pos fighters awake kamikazees awake-kamikazees]} airports]
+              (str "  " pos
+                   " fighters:" fighters
+                   " awake:" awake
+                   " kamikazees:" kamikazees
+                   " awake-kamikazees:" awake-kamikazees)))
+           "  (none)")
+         "\n\n")))
+
 (defn format-dump
   "Build complete dump string with:
    - Header with round number and selection coordinates
@@ -333,13 +358,14 @@
         computer-event-section (format-computer-event-section)
         movement-section (format-movement-history-section)
         kamikazee-fighter-section (format-kamikazee-fighter-section (:game-map region-data))
+        kamikazee-airport-section (format-kamikazee-airport-section (:game-map region-data))
         maps-section (str "=== Map Data ===\n"
                           (format-map-section "game-map" (:game-map region-data))
                           "\n"
                           (format-map-section "player-map" (:player-map region-data))
                           "\n"
                           (format-map-section "computer-map" (:computer-map region-data)))]
-    (str header global-state actions-section production-section invasion-section coastline-section computer-event-section movement-section kamikazee-fighter-section maps-section)))
+    (str header global-state actions-section production-section invasion-section coastline-section computer-event-section movement-section kamikazee-fighter-section kamikazee-airport-section maps-section)))
 
 (defn- screen->cell
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]

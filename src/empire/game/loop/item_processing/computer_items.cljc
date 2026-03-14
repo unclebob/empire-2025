@@ -18,16 +18,26 @@
   (let [coords (first (sa/read-state :computer-items))
         cell (get-in (sa/current-world) coords)
         is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
-        has-computer-unit? (= (:owner (:contents cell)) :computer)]
+        has-computer-unit? (= (:owner (:contents cell)) :computer)
+        should-requeue-city? (fn [city-pos]
+                               (let [current-cell (get-in (sa/current-world) city-pos)]
+                                 (pos? (:awake-kamikazee-fighters current-cell 0))))]
     (when is-computer-city?
       (computer-production/process-computer-city coords))
-    (if has-computer-unit?
+    (if-let [launched-pos (when is-computer-city?
+                            (threat-response/launch-kamikazee-from-airport! coords))]
+      (do
+        (sa/update-state! :computer-items
+                          #(cond-> (cons launched-pos (rest %))
+                             (should-requeue-city? coords) (cons coords)))
+        :continue)
+      (if has-computer-unit?
       (let [new-coords (computer/process-computer-unit coords)]
         (dispatch-detections!)
         (if new-coords
           (do (sa/update-state! :computer-items #(cons new-coords (rest %))) :continue)
           (do (sa/update-state! :computer-items rest) :done)))
-      (do (sa/update-state! :computer-items rest) :done))))
+      (do (sa/update-state! :computer-items rest) :done)))))
 
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."

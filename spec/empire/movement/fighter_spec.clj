@@ -420,8 +420,9 @@
       (update-test-world! assoc-in (conj city-coords :awake-fighters) 2)
       (set-test-player-map! (make-initial-test-map 1 4 nil))
       (container-ops/launch-fighter-from-airport city-coords target-coords)
-      (let [city (get-in (test-utils/read-test-state :game-map) city-coords)
-            fighter (:contents city)]
+      (let [world (test-utils/read-test-state :game-map)
+            city (get-in world city-coords)
+            fighter (get-in world [2 0 :contents])]
         (should= 1 (:fighter-count city))
         (should= 1 (:awake-fighters city))
         (should= :fighter (:type fighter))

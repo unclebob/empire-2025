@@ -302,6 +302,7 @@
       (with-redefs [container-ops/launch-fighter-from-airport
                     (fn [coords fp]
                       (reset! launched? true)
+                      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
                       [1 0])
                     attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
@@ -596,7 +597,10 @@
     (test-utils/set-test-state! :player-items [[0 0]])
     (let [launched? (atom false)]
       (with-redefs [container-ops/launch-fighter-from-airport
-                    (fn [_ _] (reset! launched? true) [1 0])
+                    (fn [_ _]
+                      (reset! launched? true)
+                      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
+                      [1 0])
                     attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
         (ip/process-player-items-batch)
@@ -651,6 +655,22 @@
                     (fn [_] (reset! produced? true))]
         (ip/process-computer-items)
         (should @produced?))))
+
+  (it "requeues a computer city after launching a kamikazee fighter from its airport"
+    (set-test-world! [[{:type :city :city-status :computer}]])
+    (test-utils/set-test-state! :computer-items [[0 0]])
+    (let [produced? (atom false)
+          launched? (atom false)]
+      (with-redefs [computer-production/process-computer-city
+                    (fn [_] (reset! produced? true))
+                    empire.computer.threat-response/launch-kamikazee-from-airport!
+                    (fn [coords]
+                      (reset! launched? true)
+                      coords)]
+        (ip/process-computer-items)
+        (should @produced?)
+        (should @launched?)
+        (should= [[0 0]] (test-utils/read-test-state :computer-items)))))
 
   (it "does not process non-computer city (L191 =→not=)"
     (set-test-world! [[{:type :city :city-status :player}]])

@@ -195,11 +195,15 @@
 
 (defn land-at-city
   [pos city-pos]
-  (let [_fighter (get-in (sa/current-world) (conj pos :contents))]
+  (let [fighter (get-in (sa/current-world) (conj pos :contents))]
     ;; Remove from current position
     (sa/update-world! update-in pos dissoc :contents)
     ;; Add to city's airport
     (sa/update-world! update-in (conj city-pos :fighter-count) (fnil inc 0))
+    (when (:kamikazee fighter)
+      (sa/update-world! update-in (conj city-pos :kamikazee-fighter-count) (fnil inc 0))
+      (sa/update-world! update-in (conj city-pos :awake-kamikazee-fighters) (fnil inc 0)))
+    (sa/update-world! update-in (conj city-pos :awake-fighters) (fnil inc 0))
     (update-cell-visibility! pos :computer)
     :landed))
 

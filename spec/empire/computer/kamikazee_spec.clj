@@ -107,8 +107,8 @@
       (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))
       (should= nil (get-in (test-utils/read-test-state :game-map) [2 2 :contents]))))
 
-  (it "degrades into hunt one cell away from a city target instead of entering the city"
-    (let [world (build-test-map ["~fO"
+  (it "lands in the airport one cell away from a city route target"
+    (let [world (build-test-map ["~fX"
                                  "~~~"])]
       (set-test-world! world)
       (set-test-computer-map! world)
@@ -118,13 +118,43 @@
                           {:major-invasion true
                            :kamikazee true
                            :kamikazee-stage :route
+                           :kamikazee-route [[2 0]]
                            :fuel 20})
       (with-redefs [rand-nth first]
         (#'mission/process-kamikazee-fighter (mission-ctx)
                                              [1 0]
                                              (get-in (test-utils/read-test-state :game-map) [1 0 :contents])))
       (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))
-      (should= :hunt (get-in (test-utils/read-test-state :game-map) [2 1 :contents :kamikazee-stage]))))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
+      (should= 1 (get-in (test-utils/read-test-state :game-map) [2 0 :fighter-count]))
+      (should= 1 (get-in (test-utils/read-test-state :game-map) [2 0 :kamikazee-fighter-count]))
+      (should= 1 (get-in (test-utils/read-test-state :game-map) [2 0 :awake-kamikazee-fighters]))))
+
+  (it "relaunches a kamikazee fighter from a computer city airport in hunt mode at the root city"
+    (let [world (build-test-map ["X~~A"
+                                 "~~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state
+                       {:active? true
+                        :detection-points #{[3 0]}
+                        :target-land-set #{[3 0]}
+                        :kamikazee-root-city [0 0]
+                        :kamikazee-terminal-sites #{[0 0]}
+                        :kamikazee-city-next-hops {}
+                        :kamikazee-carrier-next-hops {}})
+      (update-test-world! assoc-in [0 0 :fighter-count] 2)
+      (update-test-world! assoc-in [0 0 :awake-fighters] 1)
+      (update-test-world! assoc-in [0 0 :kamikazee-fighter-count] 2)
+      (update-test-world! assoc-in [0 0 :awake-kamikazee-fighters] 1)
+      (threat-response/launch-kamikazee-from-airport! [0 0])
+      (let [fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
+        (should= :fighter (:type fighter))
+        (should= true (:kamikazee fighter))
+        (should= :hunt (:kamikazee-stage fighter))
+        (should= [] (:kamikazee-route fighter))
+        (should= 1 (get-in (test-utils/read-test-state :game-map) [0 0 :kamikazee-fighter-count]))
+        (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-kamikazee-fighters])))))
 
   (it "does not proactively refuel on the final leg at fuel sixteen"
     (let [world (build-test-map ["Xf~~A"

@@ -182,15 +182,27 @@
 
 (defn launch-fighter-from-airport
   [city-coords target-coords]
-  (let [cell (get-in (sa/current-world) city-coords)
-        after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
-        moving-fighter (domain-containers/launched-fighter
-                        :player
-                        target-coords
-                        (config/unit-speed :fighter))
-        updated-cell (assoc after-remove :contents moving-fighter)]
-    (sa/update-world! assoc-in city-coords updated-cell)
-    city-coords))
+  (let [world (sa/current-world)
+        cell (get-in world city-coords)
+        owner (case (:city-status cell)
+                :computer :computer
+                :player)
+        first-step (some (fn [candidate]
+                           (let [candidate-cell (get-in world candidate)]
+                             (when (and candidate-cell (nil? (:contents candidate-cell)))
+                               candidate)))
+                         (domain-containers/launch-steps-toward city-coords target-coords))
+        target-cell (get-in world first-step)]
+    (when first-step
+      (let [after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
+            moving-fighter (domain-containers/launched-fighter
+                            owner
+                            target-coords
+                            (dec (config/unit-speed :fighter)))]
+        (sa/update-world! assoc-in city-coords after-remove)
+        (sa/update-world! assoc-in first-step (assoc target-cell :contents moving-fighter))
+        (update-cell-visibility! first-step owner)
+        first-step))))
 
 ;; Shipyard operations
 

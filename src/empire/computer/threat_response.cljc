@@ -271,6 +271,10 @@
   []
   (manager/rebuild-kamikazee-routing! (manager-ctx)))
 
+(defn launch-kamikazee-from-airport!
+  [city-pos]
+  (kamikazee/launch-kamikazee-from-airport! (invasion-ctx) city-pos))
+
 (defn on-round-start!
   "Round-start maintenance for threat responses."
   []

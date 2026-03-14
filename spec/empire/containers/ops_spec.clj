@@ -392,14 +392,29 @@
     (update-test-world! assoc-in [1 0 :fighter-count] 2)
     (update-test-world! assoc-in [1 0 :awake-fighters] 2)
     (launch-fighter-from-airport [1 0] [3 0])
-    (let [city (get-in (test-utils/read-test-state :game-map) [1 0])
-          fighter (:contents city)]
+    (let [world (test-utils/read-test-state :game-map)
+          city (get-in world [1 0])
+          fighter (get-in world [2 0 :contents])]
       (should= 1 (:fighter-count city))
       (should= 1 (:awake-fighters city))
       (should= :fighter (:type fighter))
       (should= :moving (:mode fighter))
       (should= [3 0] (:target fighter))
       (should= 1 (:hits fighter)))))
+
+  (it "uses a second adjacent cell when the nearest launch cell is occupied"
+    (set-test-world! (build-test-map ["---"
+                                      "-O-"
+                                      "---"]))
+    (update-test-world! assoc-in [1 1 :fighter-count] 2)
+    (update-test-world! assoc-in [1 1 :awake-fighters] 2)
+    (launch-fighter-from-airport [1 1] [3 1])
+    (launch-fighter-from-airport [1 1] [3 1])
+    (let [world (test-utils/read-test-state :game-map)]
+      (should= :fighter (get-in world [2 1 :contents :type]))
+      (should= :fighter (get-in world [2 0 :contents :type]))
+      (should= 0 (get-in world [1 1 :awake-fighters]))
+      (should= 0 (get-in world [1 1 :fighter-count]))))
 
 (describe "remove-army-from-transport"
   (before (reset-all-atoms!))

@@ -339,4 +339,18 @@
         (should-contain "[0 0] fuel:17 stage::hunt major-target:[9 9]" result)
         (should-contain "targets: [[8 8] [9 9]]" result)
         (should-contain "route: [[1 0] [1 1]]" result)
-        (should-contain "terminal-site: [1 1] wait-site: [0 1] resume-pos: [0 0]" result)))))
+        (should-contain "terminal-site: [1 1] wait-site: [0 1] resume-pos: [0 0]" result))))
+
+  (it "contains kamikazee airport aggregate counts in region"
+    (let [world (build-test-map ["X#"
+                                 "##"])]
+      (set-test-world! world)
+      (set-test-player-map! world)
+      (set-test-computer-map! world)
+      (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 3)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 2)
+      (test-utils/update-test-world! assoc-in [0 0 :kamikazee-fighter-count] 2)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-kamikazee-fighters] 1)
+      (let [result (debug-dump/format-dump [0 0] [1 1])]
+        (should-contain "Kamikazee Airports In Region" result)
+        (should-contain "[0 0] fighters:3 awake:2 kamikazees:2 awake-kamikazees:1" result)))))

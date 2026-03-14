@@ -88,6 +88,13 @@
   (let [contents (:contents cell)]
     (and (= :carrier (:type contents)) (uc/has-awake? contents :awake-fighters))))
 
+(defn- should-requeue-airport?
+  [coords]
+  (let [cell (get-in (sa/current-world) coords)]
+    (and (= :city (:type cell))
+         (uc/has-awake? cell :awake-fighters)
+         (airport-flight-path cell))))
+
 (defn- auto-launch-fighter [coords cell]
   "Auto-launches a fighter from city airport or carrier if flight-path is set.
    Returns new coords if launched, nil otherwise."
@@ -151,7 +158,10 @@
       (do (sa/update-state! :player-items rest) :done)
 
       auto-coords
-      (do (sa/update-state! :player-items #(cons auto-coords (rest %))) :continue)
+      (do (sa/update-state! :player-items
+                            #(cond-> (cons auto-coords (rest %))
+                               (should-requeue-airport? coords) (cons coords)))
+          :continue)
 
       unit-in-auto-mode?
       (process-auto-movement coords unit)

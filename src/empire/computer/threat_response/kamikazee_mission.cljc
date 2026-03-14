@@ -3,7 +3,8 @@
             [empire.computer.fighter-movement :as fm]
             [empire.computer.threat-response.kamikazee-routing :as routing]
             [empire.computer.threat-response.kamikazee-targets :as targets]
-            [empire.config.core :as config]))
+            [empire.config.core :as config]
+            [empire.config.domain.model.containers :as containers]))
 
 (def ^:private hunt-trail-length 4)
 (def ^:private hunt-refuel-threshold 5)
@@ -24,9 +25,18 @@
          (= :player (:owner unit))
          (= :army (:type unit)))))
 
+(defn- computer-city-site?
+  [world pos]
+  (and (= :city (get-in world (conj pos :type)))
+       (= :computer (get-in world (conj pos :city-status)))))
+
 (defn- adjacent-player-army
   [world pos]
   (first (filter #(player-army-at? world %) (core/get-neighbors pos))))
+
+(defn- dec-count
+  [n]
+  (max 0 (dec (or n 0))))
 
 (defn- move-toward!
   [pos target]
@@ -97,6 +107,56 @@
       (when (fm/consume-fighter-fuel new-pos)
         {:pos new-pos :steps-used 1}))))
 
+(defn- airport-kamikazee-ready?
+  [cell]
+  (pos? (:awake-kamikazee-fighters cell 0)))
+
+(defn- remove-airport-kamikazee!
+  [ctx city-pos]
+  ((:update-game-map! ctx) update-in city-pos
+   #(-> %
+        (update :fighter-count dec-count)
+        (update :awake-fighters dec-count)
+        (update :kamikazee-fighter-count dec-count)
+        (update :awake-kamikazee-fighters dec-count))))
+
+(defn launch-kamikazee-from-airport!
+  [ctx city-pos]
+  (let [world ((:current-world ctx))
+        cell (get-in world city-pos)
+        state ((:load-major-invasion-state ctx))]
+    (when (and (computer-city-site? world city-pos)
+               (airport-kamikazee-ready? cell))
+      (let [targets (targets/ordered-army-target-positions state
+                                                           (targets/current-round ctx)
+                                                           world)
+            plan (routing/plan-route state world city-pos config/fighter-fuel)
+            major-target (targets/choose-major-target state world city-pos)
+            launch-pos (some (fn [candidate]
+                               (let [candidate-cell (get-in world candidate)]
+                                 (when (and candidate-cell (nil? (:contents candidate-cell)))
+                                   candidate)))
+                             (containers/launch-steps-toward city-pos
+                                                             (or (first (:route plan))
+                                                                 major-target
+                                                                 city-pos)))
+            launched-fighter {:type :fighter
+                              :owner :computer
+                              :mode :awake
+                              :hits 1
+                              :fuel config/fighter-fuel
+                              :major-invasion true
+                              :kamikazee true
+                              :major-invasion-target major-target
+                              :kamikazee-targets targets
+                              :kamikazee-route (:route plan)
+                              :kamikazee-terminal-site (:terminal-site plan)
+                              :kamikazee-stage (if (seq (:route plan)) :route :hunt)}]
+        (when launch-pos
+          (remove-airport-kamikazee! ctx city-pos)
+          ((:update-game-map! ctx) assoc-in (conj launch-pos :contents) launched-fighter)
+          launch-pos)))))
+
 (declare process-kamikazee-fighter)
 
 (defn- process-hunt-step
@@ -144,6 +204,13 @@
     (cond
       (#{:hunt :refuel :return} (:kamikazee-stage unit))
       (process-hunt-step ctx pos unit current-goal refuel-sites)
+
+      (and next-site
+           (computer-city-site? world next-site)
+           (<= (routing/site-distance pos next-site) 1))
+      (do
+        (fm/land-at-city pos next-site)
+        nil)
 
       (and next-site (routing/at-site? world pos next-site))
       (do
