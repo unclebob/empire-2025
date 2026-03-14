@@ -30,9 +30,9 @@
 	           :arch-view {:extra-deps {io.github.unclebob/arch-view
 	                                    {:git/url "https://github.com/unclebob/arch-view"
 	                                     :git/sha "6d3ed706310e1fdee57672215cd0b16f33e1e99b"}}}
-						 :mutate {:extra-deps {io.github.unclebob/clj-mutate
+					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 						                        {:git/url "https://github.com/unclebob/clj-mutate"
-						                         :git/sha "5f8262718d1a2791cc89424036d4fb4e7007ff91"}}
+						                         :git/sha "a95a3352cd5fe104dac8e7a5c0b97547ba5718d5"}}
 					          :main-opts ["-m" "clj-mutate.core"]
 					          :extra-paths ["spec"]}
 					 :spec-structure-check {:extra-deps {io.github.unclebob/speclj-structure-check
