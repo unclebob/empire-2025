@@ -39,12 +39,21 @@
   (let [optional-fields [[:mode "mode"]
                          [:hits "hits"]
                          [:fuel "fuel"]
+                         [:major-invasion "major-invasion"]
+                         [:kamikazee "kamikazee"]
+                         [:kamikazee-stage "k-stage"]
                          [:army-count "army-count"]
                          [:fighter-count "fighter-count"]
                          [:transport-mission "transport-mission"]
                          [:country-id "cid"]
                          [:unload-event-id "eid"]
                          [:attack-target "atk-target"]
+                         [:major-invasion-target "mi-target"]
+                         [:kamikazee-terminal-site "k-terminal"]
+                         [:kamikazee-wait-site "k-wait"]
+                         [:kamikazee-hunt-resume-pos "k-resume"]
+                         [:kamikazee-route "k-route"]
+                         [:kamikazee-targets "k-targets"]
                          [:pickup-continent-pos "pcp"]
                          [:stuck-since-round "stuck-since"]
                          [:patrol-mode "patrol-mode"]]
@@ -176,6 +185,109 @@
                      (str "  " (format-cell coord cell))))
          "\n")))
 
+(defn- format-path
+  [path]
+  (if (seq path)
+    (str/join " -> " (map pr-str path))
+    "(none)"))
+
+(defn- route-from-node
+  [next-hop-fn start]
+  (loop [node start
+         seen #{}
+         path [start]]
+    (if-let [next-hop (and (not (seen node))
+                           (next-hop-fn node))]
+      (recur next-hop
+             (conj seen node)
+             (conj path next-hop))
+      path)))
+
+(defn- format-major-invasion-section
+  []
+  (let [state (sa/read-state :major-invasion-state)
+        city-next-hops (:kamikazee-city-next-hops state)
+        carrier-next-hops (:kamikazee-carrier-next-hops state)
+        next-hop-fn (fn [node]
+                      (or (get city-next-hops node)
+                          (get carrier-next-hops node)))
+        army-targets (mapv :pos (:kamikazee-army-targets state))
+        city-paths (->> (keys city-next-hops)
+                        sort
+                        (map (fn [city]
+                               (str "  " city " -> " (format-path (rest (route-from-node next-hop-fn city))))))
+                        vec)
+        carrier-paths (->> (keys carrier-next-hops)
+                           sort
+                           (map (fn [carrier]
+                                  (str "  " carrier " -> " (format-path (rest (route-from-node next-hop-fn carrier))))))
+                           vec)]
+    (str "=== Major Invasion State ===\n"
+         "active?: " (:active? state) "\n"
+         "decision: " (pr-str (:decision state)) "\n"
+         "failure-reason: " (pr-str (:failure-reason state)) "\n"
+         "started-round: " (pr-str (:started-round state)) "\n"
+         "first-landing-round: " (pr-str (:first-landing-round state)) "\n"
+         "next-review-round: " (pr-str (:next-review-round state)) "\n"
+         "detection-points: " (pr-str (sort (:detection-points state))) "\n"
+         "sea-reachable-detection-points: " (pr-str (sort (:sea-reachable-detection-points state))) "\n"
+         "target-land-set: " (pr-str (sort (:target-land-set state))) "\n"
+         "kamikazee-army-targets: " (pr-str army-targets) "\n"
+         "kamikazee-root-city: " (pr-str (:kamikazee-root-city state)) "\n"
+         "kamikazee-forward-carrier: " (pr-str (:kamikazee-forward-carrier state)) "\n"
+         "kamikazee-bridge-carriers: " (pr-str (sort (:kamikazee-bridge-carriers state))) "\n"
+         "kamikazee-terminal-sites: " (pr-str (sort (:kamikazee-terminal-sites state))) "\n"
+         "city-paths:\n"
+         (if (seq city-paths)
+           (str (str/join "\n" city-paths) "\n")
+           "  (none)\n")
+         "carrier-paths:\n"
+         (if (seq carrier-paths)
+           (str (str/join "\n" carrier-paths) "\n")
+           "  (none)\n")
+         "\n")))
+
+(defn- region-kamikazee-fighters
+  [cell-map]
+  (->> cell-map
+       (keep (fn [[coords cell]]
+               (let [unit (:contents cell)]
+                 (when (and (= :fighter (:type unit))
+                            (= :computer (:owner unit))
+                            (or (:kamikazee unit)
+                                (:major-invasion unit)))
+                   {:pos coords
+                    :fuel (:fuel unit)
+                    :stage (:kamikazee-stage unit)
+                    :major-target (:major-invasion-target unit)
+                    :targets (:kamikazee-targets unit)
+                    :route (:kamikazee-route unit)
+                    :terminal-site (:kamikazee-terminal-site unit)
+                    :wait-site (:kamikazee-wait-site unit)
+                    :resume-pos (:kamikazee-hunt-resume-pos unit)}))))
+       (sort-by :pos)
+       vec))
+
+(defn- format-kamikazee-fighter-section
+  [cell-map]
+  (let [fighters (region-kamikazee-fighters cell-map)]
+    (str "=== Kamikazee Fighters In Region ===\n"
+         (if (seq fighters)
+           (str/join
+            "\n"
+            (for [{:keys [pos fuel stage major-target targets route terminal-site wait-site resume-pos]} fighters]
+              (str "  " pos
+                   " fuel:" fuel
+                   " stage:" (pr-str stage)
+                   " major-target:" (pr-str major-target) "\n"
+                   "    targets: " (pr-str targets) "\n"
+                   "    route: " (pr-str route) "\n"
+                   "    terminal-site: " (pr-str terminal-site)
+                   " wait-site: " (pr-str wait-site)
+                   " resume-pos: " (pr-str resume-pos))))
+           "  (none)")
+         "\n\n")))
+
 (defn format-dump
   "Build complete dump string with:
    - Header with round number and selection coordinates
@@ -216,16 +328,18 @@
                                               (for [[coords p] (sort-by first prod)]
                                                 (str "  " coords " " (pr-str p))))))
                                 "\n\n")
+        invasion-section (format-major-invasion-section)
         coastline-section (format-coastline-section)
         computer-event-section (format-computer-event-section)
         movement-section (format-movement-history-section)
+        kamikazee-fighter-section (format-kamikazee-fighter-section (:game-map region-data))
         maps-section (str "=== Map Data ===\n"
                           (format-map-section "game-map" (:game-map region-data))
                           "\n"
                           (format-map-section "player-map" (:player-map region-data))
                           "\n"
                           (format-map-section "computer-map" (:computer-map region-data)))]
-    (str header global-state actions-section production-section coastline-section computer-event-section movement-section maps-section)))
+    (str header global-state actions-section production-section invasion-section coastline-section computer-event-section movement-section kamikazee-fighter-section maps-section)))
 
 (defn- screen->cell
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]

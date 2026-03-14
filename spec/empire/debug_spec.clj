@@ -41,6 +41,23 @@
       (should-contain "mode::sentry" result)
       (should-contain "fuel:20" result)))
 
+  (it "formats cell with kamikazee routing fields"
+    (let [cell {:type :land
+                :contents {:type :fighter
+                           :owner :computer
+                           :kamikazee true
+                           :kamikazee-stage :hunt
+                           :major-invasion-target [9 9]
+                           :kamikazee-route [[2 3] [4 5]]
+                           :kamikazee-targets [[7 8]]
+                           :kamikazee-terminal-site [4 5]}}
+          result (debug-dump/format-cell [0 0] cell)]
+      (should-contain "kamikazee:true" result)
+      (should-contain "k-stage::hunt" result)
+      (should-contain "mi-target:[9 9]" result)
+      (should-contain "k-route:[[2 3] [4 5]]" result)
+      (should-contain "k-targets:[[7 8]]" result)))
+
   (it "includes coordinate prefix"
     (let [result (debug-dump/format-cell [7 12] {:type :sea})]
       (should-contain "[7,12]" result))))
@@ -265,4 +282,61 @@
     (test-utils/set-test-state! :computer-event-log [{:round 10 :event :army-move :pos [1 1] :to [1 2]}])
     (let [result (debug-dump/format-dump [0 0] [1 1])]
       (should-contain "army-move" result)
-      (should-contain ":to [1 2]" result))))
+      (should-contain ":to [1 2]" result)))
+
+  (it "contains major invasion targets and routing paths"
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
+    (test-utils/set-test-state! :major-invasion-state
+                                {:active? true
+                                 :decision :ready
+                                 :failure-reason nil
+                                 :next-review-round 99
+                                 :started-round 12
+                                 :first-landing-round 18
+                                 :detection-points #{[9 9] [8 8]}
+                                 :sea-reachable-detection-points #{[8 8]}
+                                 :target-land-set #{[10 10]}
+                                 :kamikazee-army-targets [{:pos [11 11] :seen-round 12}]
+                                 :kamikazee-root-city [1 1]
+                                 :kamikazee-forward-carrier [3 3]
+                                 :kamikazee-bridge-carriers #{[2 2]}
+                                 :kamikazee-terminal-sites #{[1 1] [3 3]}
+                                 :kamikazee-city-next-hops {[0 0] [1 1]}
+                                 :kamikazee-carrier-next-hops {[2 2] [1 1]}})
+    (let [result (debug-dump/format-dump [0 0] [1 1])]
+      (should-contain "Major Invasion State" result)
+      (should-contain "detection-points: ([8 8] [9 9])" result)
+      (should-contain "kamikazee-army-targets: [[11 11]]" result)
+      (should-contain "city-paths:" result)
+      (should-contain "[0 0] -> [1 1]" result)
+      (should-contain "carrier-paths:" result)
+      (should-contain "[2 2] -> [1 1]" result)))
+
+  (it "contains kamikazee fighter targets and paths for fighters in region"
+    (let [world (build-test-map ["f#"
+                                 "##"])]
+      (set-test-world! world)
+      (set-test-player-map! world)
+      (set-test-computer-map! world)
+      (test-utils/update-test-world! assoc-in [0 0 :contents]
+                                     {:type :fighter
+                                      :owner :computer
+                                      :hits 1
+                                      :fuel 17
+                                      :major-invasion true
+                                      :kamikazee true
+                                      :kamikazee-stage :hunt
+                                      :major-invasion-target [9 9]
+                                      :kamikazee-targets [[8 8] [9 9]]
+                                      :kamikazee-route [[1 0] [1 1]]
+                                      :kamikazee-terminal-site [1 1]
+                                      :kamikazee-wait-site [0 1]
+                                      :kamikazee-hunt-resume-pos [0 0]})
+      (let [result (debug-dump/format-dump [0 0] [1 1])]
+        (should-contain "Kamikazee Fighters In Region" result)
+        (should-contain "[0 0] fuel:17 stage::hunt major-target:[9 9]" result)
+        (should-contain "targets: [[8 8] [9 9]]" result)
+        (should-contain "route: [[1 0] [1 1]]" result)
+        (should-contain "terminal-site: [1 1] wait-site: [0 1] resume-pos: [0 0]" result)))))
