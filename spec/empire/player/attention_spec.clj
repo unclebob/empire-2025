@@ -125,6 +125,12 @@
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (should (attention/item-needs-attention? unit-coords))))
 
+  (it "returns false for awake computer fighter sitting in a player city"
+    (set-test-world! (build-test-map ["O"]))
+    (update-test-world! assoc-in [0 0 :contents] {:type :fighter :owner :computer :mode :awake :fuel 20})
+    (test-utils/set-test-state! :production {[0 0] :army})
+    (should-not (attention/item-needs-attention? [0 0])))
+
   (it "returns false for sleeping unit"
     (set-test-world! (build-test-map ["A"]))
     (set-test-unit (test-utils/game-map-atom) "A" :mode :sentry)

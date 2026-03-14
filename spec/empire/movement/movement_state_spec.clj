@@ -21,6 +21,12 @@
              (:from-airport
                (state/get-active-unit {:type :city :awake-fighters 1 :fighter-count 1}))))
 
+  (it "ignores awake non-player units as active units"
+    (should-be-nil
+     (state/get-active-unit {:type :city
+                             :city-status :player
+                             :contents {:type :fighter :owner :computer :mode :awake}})))
+
   (it "wakes player city and removes production"
     (update-test-world! assoc-in [1 1] {:type :city :city-status :player})
     (test-utils/set-test-state! :production {[1 1] {:item :army :remaining-rounds 3}})

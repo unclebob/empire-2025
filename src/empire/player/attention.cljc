@@ -65,13 +65,15 @@
   (let [cell (get-in (sa/current-world) coords)
         production (sa/read-state :production)
         unit (:contents cell)
+        player-owned-unit? (= (:owner unit) :player)
         satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
         has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
+                                        player-owned-unit?
                                         (uc/has-awake? unit :awake-fighters))]
     (and (not satellite-with-target?)
-         (or (= (:mode unit) :awake)
+         (or (and player-owned-unit? (= (:mode unit) :awake))
              has-awake-airport-fighter?
              has-awake-army-aboard?
              has-awake-carrier-fighter?

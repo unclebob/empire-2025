@@ -46,13 +46,16 @@
   [cell]
   (let [contents (:contents cell)]
     (cond
-      (transport-with-awake-armies? contents)
+      (and (= :player (:owner contents))
+           (transport-with-awake-armies? contents))
       {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}
 
-      (carrier-with-awake-fighters? contents)
+      (and (= :player (:owner contents))
+           (carrier-with-awake-fighters? contents))
       {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}
 
-      (awake-unit? contents) contents
+      (and (= :player (:owner contents))
+           (awake-unit? contents)) contents
 
       (uc/has-awake? cell :awake-fighters)
       {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}
