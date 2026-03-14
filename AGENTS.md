@@ -139,7 +139,9 @@ When the user requests a check on module size use the mutator's --scan mode to m
  * For every changed module run crap and refactor until crap is 8 or less.
  * For every changed module run differential mutation tests, one module at a time, cover ucovered sites and kill survivors before running the next.  Set max-workers to 3. 
  * Differential mutation updates the manifest automatically. Do not run `--update-manifest` afterward unless there is a separate reason.
+ * `--update-manifest` should not run coverage at all; it is a manifest rewrite only.
  * Never run crap or mutate concurrently with any other command, including another crap or mutate run.
+ * If you have a batch of mutation runs, let the first run generate fresh coverage, then use `--reuse-coverage` for the rest of the batch to save time.
  * If an unchanged file with a manifest is split, do not copy the parent manifest into the daughters.
  * Run tests first.
  * If green, update daughter manifests.
