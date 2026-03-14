@@ -3,8 +3,14 @@
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! set-test-state! update-test-world!]]
             [empire.test.utils :as test-utils]
             [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response.kamikazee-mission :as mission]
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.production :as production]))
+
+(defn- mission-ctx []
+  {:current-world test-utils/read-test-world
+   :update-game-map! test-utils/update-test-world!
+   :load-major-invasion-state #(test-utils/read-test-state :major-invasion-state)})
 
 (describe "major invasion kamikazee"
   (before (reset-all-atoms!))
@@ -99,4 +105,99 @@
       (should= :carrier (get-in (test-utils/read-test-state :game-map) [2 1 :contents :type]))
       (should= nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
       (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))
-      (should= nil (get-in (test-utils/read-test-state :game-map) [2 2 :contents])))))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [2 2 :contents]))))
+
+  (it "degrades into hunt one cell away from a city target instead of entering the city"
+    (let [world (build-test-map ["~fO"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {:detection-points #{[2 0]}})
+      (update-test-world! update-in [1 0 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :route
+                           :fuel 20})
+      (with-redefs [rand-nth first]
+        (#'mission/process-kamikazee-fighter (mission-ctx)
+                                             [1 0]
+                                             (get-in (test-utils/read-test-state :game-map) [1 0 :contents])))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))
+      (should= :hunt (get-in (test-utils/read-test-state :game-map) [2 1 :contents :kamikazee-stage]))))
+
+  (it "does not proactively refuel on the final leg at fuel sixteen"
+    (let [world (build-test-map ["Xf~~A"
+                                 "~~~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {:kamikazee-army-targets [{:pos [4 0] :seen-round 1}]})
+      (update-test-world! update-in [1 0 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :route
+                           :fuel 16})
+      (#'mission/process-kamikazee-fighter (mission-ctx)
+                                           [1 0]
+                                           (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
+      (should= :fighter (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
+      (should= 16 (get-in (test-utils/read-test-state :game-map) [2 0 :contents :fuel]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
+
+  (it "refuels only from hunt at fuel five and records a return point"
+    (let [world (build-test-map ["c~"
+                                 "f~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {})
+      (update-test-world! update-in [0 1 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :hunt
+                           :fuel 5})
+      (#'mission/process-kamikazee-fighter (mission-ctx)
+                                           [0 1]
+                                           (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))
+      (should= :return (get-in (test-utils/read-test-state :game-map) [0 1 :contents :kamikazee-stage]))
+      (should= 32 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :fuel]))
+      (should= [0 1] (get-in (test-utils/read-test-state :game-map) [0 1 :contents :kamikazee-hunt-resume-pos]))))
+
+  (it "keeps hunting at fuel five when no refueling site is close enough"
+    (let [world (build-test-map ["f~~~~~~"
+                                 "~~~~~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {:detection-points #{[6 0]}})
+      (update-test-world! update-in [0 0 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :hunt
+                           :fuel 5})
+      (with-redefs [rand-nth first]
+        (#'mission/process-kamikazee-fighter (mission-ctx)
+                                             [0 0]
+                                             (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
+      (should= :fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))
+      (should= 4 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :fuel]))
+      (should= :hunt (get-in (test-utils/read-test-state :game-map) [1 0 :contents :kamikazee-stage]))))
+
+  (it "attacks adjacent player armies while hunting"
+    (let [world (build-test-map ["fA"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {})
+      (update-test-world! update-in [0 0 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :hunt
+                           :fuel 20})
+      (with-redefs [rand (constantly 0.4)]
+        (#'mission/process-kamikazee-fighter (mission-ctx)
+                                             [0 0]
+                                             (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
+      (should= :computer (get-in (test-utils/read-test-state :game-map) [1 0 :contents :owner]))
+      (should= :fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type])))))

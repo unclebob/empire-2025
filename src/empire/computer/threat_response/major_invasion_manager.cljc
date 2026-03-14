@@ -48,6 +48,7 @@
                      :kamikazee-terminal-site
                      :kamikazee-stage
                      :kamikazee-wait-site
+                     :kamikazee-hunt-resume-pos
                      :kamikazee-trail)]
     (if (= :transport (:type base))
       (let [transport (-> base

@@ -29,6 +29,9 @@
                  :kamikazee-route (:route plan)
                  :kamikazee-terminal-site (:terminal-site plan)
                  :kamikazee-stage (if (seq (:route plan)) :route :hunt))
+          (dissoc :kamikazee-wait-site
+                  :kamikazee-hunt-resume-pos
+                  :kamikazee-trail)
           (dissoc :threat-mission :threat-center :threat-radius :threat-rounds-left)))))
 
 (defn- assign-carrier-major-invasion!
