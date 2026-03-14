@@ -18,10 +18,17 @@
        (= 2 (count x))
        (every? integer? x)))
 
-(defn- next-computer-item-coords
+(defn- normalize-computer-items
   []
   (let [items (sa/read-state :computer-items)]
-    (if (coord-pair? items) items (first items))))
+    (cond
+      (coord-pair? items) [items]
+      (sequential? items) items
+      :else [])))
+
+(defn- next-computer-item-coords
+  []
+  (first (normalize-computer-items)))
 
 (defn- process-one-computer-item
   "Processes a single computer item. Returns :done when item processed."
@@ -39,22 +46,27 @@
                             (threat-response/launch-kamikazee-from-airport! coords))]
       (do
         (sa/update-state! :computer-items
-                          #(cond-> (cons launched-pos (rest %))
-                             (should-requeue-city? coords) (cons coords)))
+                          (fn [_]
+                            (let [remaining (rest (normalize-computer-items))]
+                              (cond-> (vec (cons launched-pos remaining))
+                                (should-requeue-city? coords) (#(vec (cons coords %)))))))
         :continue)
       (if has-computer-unit?
       (let [new-coords (computer/process-computer-unit coords)]
         (dispatch-detections!)
         (if new-coords
-          (do (sa/update-state! :computer-items #(cons new-coords (rest %))) :continue)
-          (do (sa/update-state! :computer-items rest) :done)))
-      (do (sa/update-state! :computer-items rest) :done)))))
+          (do (sa/update-state! :computer-items (fn [_]
+                                                  (vec (cons new-coords
+                                                             (rest (normalize-computer-items))))))
+              :continue)
+          (do (sa/update-state! :computer-items (fn [_] (vec (rest (normalize-computer-items))))) :done)))
+      (do (sa/update-state! :computer-items (fn [_] (vec (rest (normalize-computer-items))))) :done)))))
 
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."
   []
   (loop [processed 0]
-    (when (and (seq (sa/read-state :computer-items)) (< processed 100))
+    (when (and (seq (normalize-computer-items)) (< processed 100))
       (process-one-computer-item)
       (recur (inc processed)))))
 
