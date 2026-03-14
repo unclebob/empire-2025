@@ -10,6 +10,7 @@
             [empire.player.attention :as attention]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
+            [empire.game.loop.item-processing.computer-items :as computer-items]
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.test.utils :refer [reset-all-atoms! set-test-world! update-test-world!]]))
 
@@ -654,6 +655,15 @@
       (with-redefs [computer-production/process-computer-city
                     (fn [_] (reset! produced? true))]
         (ip/process-computer-items)
+        (should @produced?))))
+
+  (it "handles a single raw computer item coord pair without crashing"
+    (set-test-world! [[{:type :city :city-status :computer}]])
+    (test-utils/set-test-state! :computer-items [0 0])
+    (let [produced? (atom false)]
+      (with-redefs [computer-production/process-computer-city
+                    (fn [_] (reset! produced? true))]
+        (#'computer-items/process-one-computer-item)
         (should @produced?))))
 
   (it "requeues a computer city after launching a kamikazee fighter from its airport"

@@ -12,10 +12,21 @@
   (doseq [{:keys [pos cell]} (visibility/drain-detections!)]
     (threat-response/handle-detection! pos cell)))
 
+(defn- coord-pair?
+  [x]
+  (and (vector? x)
+       (= 2 (count x))
+       (every? integer? x)))
+
+(defn- next-computer-item-coords
+  []
+  (let [items (sa/read-state :computer-items)]
+    (if (coord-pair? items) items (first items))))
+
 (defn- process-one-computer-item
   "Processes a single computer item. Returns :done when item processed."
   []
-  (let [coords (first (sa/read-state :computer-items))
+  (let [coords (next-computer-item-coords)
         cell (get-in (sa/current-world) coords)
         is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
         has-computer-unit? (= (:owner (:contents cell)) :computer)
