@@ -450,6 +450,17 @@
                  [0 0] {:major-invasion true :major-invasion-target [3 3]}))
         (should= 1 @calls))))
 
+  (it "defaults a missing fighter step cost to one"
+    (set-test-world! (build-test-map ["f"]))
+    (let [calls (atom 0)]
+      (with-redefs [empire.computer.threat-response/fighter-step-threat
+                    (fn [_ _]
+                      (swap! calls inc)
+                      (when (= 1 @calls)
+                        {:pos [0 0] :steps-used nil :hops nil}))]
+        (should (threat-response/process-fighter-threat [0 0] {:threat-mission :fighter-sweep}))
+        (should= 2 @calls))))
+
   (it "starts random walk for blocked major-invasion fighters when sidestep is unavailable"
     (set-test-world! (build-test-map ["f"]))
     (update-test-world! update-in [0 0 :contents] merge

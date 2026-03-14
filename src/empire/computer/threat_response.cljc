@@ -307,7 +307,8 @@
          remaining speed]
     (when (pos? remaining)
       (when-let [{:keys [pos steps-used hops]} (step-fn current)]
-        (recur pos (- remaining (or steps-used hops 1)))))))
+        (let [used (or steps-used hops 1)]
+          (recur pos (- remaining used)))))))
 
 (defn- run-kamikazee-round
   [pos]
