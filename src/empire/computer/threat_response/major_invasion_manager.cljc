@@ -5,6 +5,28 @@
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.major-invasion :as major-invasion]))
 
+(defn- computer-city-count
+  [world]
+  (count (for [x (range (count world))
+               y (range (count (first world)))
+               :let [cell (get-in world [x y])]
+               :when (and (= :city (:type cell))
+                          (= :computer (:city-status cell)))]
+           [x y])))
+
+(defn- rebuild-routing-if-needed!
+  [ctx]
+  (let [world ((:current-world ctx))
+        state ((:load-major-invasion-state ctx))
+        current-city-count (computer-city-count world)
+        previous-city-count (:kamikazee-routing-city-count state)]
+    (when (or (nil? previous-city-count)
+              (> current-city-count previous-city-count))
+      (kamikazee/rebuild-routing-graph! ctx)
+      ((:update-major-invasion-state! ctx) assoc
+       :kamikazee-routing-city-count current-city-count)
+      true)))
+
 (defn recompute-major-invasion-target-land!
   [ctx]
   (let [state ((:load-major-invasion-state ctx))
@@ -111,6 +133,7 @@
          :sea-reachable-detection-points (:sea-reachable-detection-points evaluation))
         (recompute-target-land! ctx)
         (recompute-sea-reachable! ctx)
+        (rebuild-routing-if-needed! ctx)
         (refresh-major-invasion-assignments! ctx))
       ((:update-major-invasion-state! ctx) assoc
        :active? false
@@ -118,6 +141,7 @@
        :failure-reason (:failure-reason evaluation)
        :next-review-round ((:next-review-round-fn ctx))
        :first-landing-round nil
+       :kamikazee-routing-city-count nil
        :sea-reachable-detection-points (:sea-reachable-detection-points evaluation)))))
 
 (defn- maybe-record-major-invasion-detection!
@@ -181,7 +205,6 @@
   (when (:active? ((:load-major-invasion-state ctx)))
     (let [units ((:find-computer-unit-positions-fn ctx) (constantly true))
           world ((:current-world ctx))]
-      (kamikazee/rebuild-routing-graph! ctx)
       (doseq [pos units
               :let [unit (get-in world (conj pos :contents))]
               :when (= :fighter (:type unit))]
@@ -195,7 +218,7 @@
 (defn rebuild-kamikazee-routing!
   [ctx]
   (when (:active? ((:load-major-invasion-state ctx)))
-    (kamikazee/rebuild-routing-graph! ctx)
+    (rebuild-routing-if-needed! ctx)
     (refresh-major-invasion-assignments! ctx)))
 
 (defn- dec-threat-rounds!
@@ -217,6 +240,7 @@
     (kamikazee/refresh-army-targets! ctx)
     (maybe-handle-unsustainable-losses! ctx)
     (when (:active? ((:load-major-invasion-state ctx)))
+      (rebuild-routing-if-needed! ctx)
       (refresh-major-invasion-assignments! ctx))))
 
 (defn- finalize-round-start!

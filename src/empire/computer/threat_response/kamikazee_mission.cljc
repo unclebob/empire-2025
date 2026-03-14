@@ -8,6 +8,7 @@
 
 (def ^:private hunt-trail-length 4)
 (def ^:private hunt-refuel-threshold 5)
+(def ^:private route-city-launch-buffer 2)
 
 (defn- fill-fuel!
   [ctx pos site]
@@ -126,12 +127,15 @@
         cell (get-in world city-pos)
         state ((:load-major-invasion-state ctx))]
     (when (and (computer-city-site? world city-pos)
-               (airport-kamikazee-ready? cell))
+               (airport-kamikazee-ready? cell)
+               (routing/city-has-launch-capacity? world city-pos route-city-launch-buffer))
       (let [targets (targets/ordered-army-target-positions state
                                                            (targets/current-round ctx)
                                                            world)
             plan (routing/plan-route state world city-pos config/fighter-fuel)
             major-target (targets/choose-major-target state world city-pos)
+            next-route-city (when (routing/city-site? world (first (:route plan)))
+                              (first (:route plan)))
             launch-pos (some (fn [candidate]
                                (let [candidate-cell (get-in world candidate)]
                                  (when (and candidate-cell (nil? (:contents candidate-cell)))
@@ -152,7 +156,11 @@
                               :kamikazee-route (:route plan)
                               :kamikazee-terminal-site (:terminal-site plan)
                               :kamikazee-stage (if (seq (:route plan)) :route :hunt)}]
-        (when launch-pos
+        (when (and launch-pos
+                   (or (nil? next-route-city)
+                       (routing/city-has-launch-capacity? world
+                                                          next-route-city
+                                                          route-city-launch-buffer)))
           (remove-airport-kamikazee! ctx city-pos)
           ((:update-game-map! ctx) assoc-in (conj launch-pos :contents) launched-fighter)
           launch-pos)))))

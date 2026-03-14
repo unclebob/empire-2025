@@ -14,6 +14,16 @@
   (and (= :city (get-in world (conj pos :type)))
        (= :computer (get-in world (conj pos :city-status)))))
 
+(defn free-adjacent-cell-count
+  [world pos]
+  (count (filter #(nil? (get-in world (conj % :contents)))
+                 (core/neighbors-in-map world pos))))
+
+(defn city-has-launch-capacity?
+  [world pos required-free-cells]
+  (and (city-site? world pos)
+       (>= (free-adjacent-cell-count world pos) required-free-cells)))
+
 (defn site-distance
   [a b]
   (fm/distance-to a b))

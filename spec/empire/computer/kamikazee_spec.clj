@@ -156,6 +156,30 @@
         (should= 1 (get-in (test-utils/read-test-state :game-map) [0 0 :kamikazee-fighter-count]))
         (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-kamikazee-fighters])))))
 
+  (it "delays kamikazee airport launch when the next route city lacks two free adjacent cells"
+    (let [world (build-test-map ["X~~~"
+                                 "~~~~"
+                                 "~fff"
+                                 "~fXf"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state
+                       {:active? true
+                        :detection-points #{[2 3]}
+                        :target-land-set #{[2 3]}
+                        :kamikazee-root-city [2 3]
+                        :kamikazee-terminal-sites #{[2 3]}
+                        :kamikazee-city-next-hops {[0 0] [2 3]}
+                        :kamikazee-carrier-next-hops {}})
+      (update-test-world! assoc-in [0 0 :fighter-count] 1)
+      (update-test-world! assoc-in [0 0 :awake-fighters] 1)
+      (update-test-world! assoc-in [0 0 :kamikazee-fighter-count] 1)
+      (update-test-world! assoc-in [0 0 :awake-kamikazee-fighters] 1)
+      (should= nil (threat-response/launch-kamikazee-from-airport! [0 0]))
+      (should= 1 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-kamikazee-fighters]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))))
+
   (it "does not proactively refuel on the final leg at fuel sixteen"
     (let [world (build-test-map ["Xf~~A"
                                  "~~~~~"])]

@@ -220,4 +220,67 @@
                :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
       (manager/on-round-start! ctx)
       (should= :exploring (get-in @world [0 0 :contents :patrol-mode]))
-      (should-be-nil (get-in @world [0 0 :contents :explore-path])))))
+      (should-be-nil (get-in @world [0 0 :contents :explore-path]))))
+
+  (it "does not rebuild kamikazee routing on round start when city count is unchanged"
+    (let [world (atom [[{:type :city :city-status :computer}]
+                       [{:type :sea}]])
+          state (atom {:active? true
+                       :decision :ready
+                       :target-land-set #{[0 0]}
+                       :detection-points #{[0 0]}
+                       :kamikazee-routing-city-count 1})
+          rebuilds (atom 0)
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] nil)
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :chebyshev-distance-fn (fn [& _] 0)
+               :recompute-major-invasion-target-land!-fn (fn [] nil)
+               :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
+      (with-redefs [empire.computer.threat-response.kamikazee/rebuild-routing-graph!
+                    (fn [_] (swap! rebuilds inc))
+                    empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)
+                    empire.computer.threat-response.invasion-decision/invasion-armies-on-target-continent (fn [& _] 1)
+                    empire.computer.threat-response.invasion-decision/armies-in-transports-to-target-continent (fn [& _] 1)]
+        (manager/on-round-start! ctx))
+      (should= 0 @rebuilds)))
+
+  (it "rebuilds kamikazee routing on round start after the computer conquers a city"
+    (let [world (atom [[{:type :city :city-status :computer}]
+                       [{:type :city :city-status :computer}]])
+          state (atom {:active? true
+                       :decision :ready
+                       :target-land-set #{[0 0]}
+                       :detection-points #{[0 0]}
+                       :kamikazee-routing-city-count 1})
+          rebuilds (atom 0)
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] nil)
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :chebyshev-distance-fn (fn [& _] 0)
+               :recompute-major-invasion-target-land!-fn (fn [] nil)
+               :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
+      (with-redefs [empire.computer.threat-response.kamikazee/rebuild-routing-graph!
+                    (fn [_] (swap! rebuilds inc))
+                    empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)
+                    empire.computer.threat-response.invasion-decision/invasion-armies-on-target-continent (fn [& _] 1)
+                    empire.computer.threat-response.invasion-decision/armies-in-transports-to-target-continent (fn [& _] 1)]
+        (manager/on-round-start! ctx))
+      (should= 1 @rebuilds)
+      (should= 2 (:kamikazee-routing-city-count @state)))))
