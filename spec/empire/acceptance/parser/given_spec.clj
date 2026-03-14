@@ -295,6 +295,14 @@
         (should= [{:type :unit-props :unit "t" :props {:army-count 6}}]
                  (:givens result))))
 
+    (it "parses nested vector path properties like invasion-path"
+      (let [lines ["t has invasion-path [[1 2] [1 1] [0 1] [0 2]]."]
+            result (given/parse-given lines {})]
+        (should= [{:type :unit-props
+                   :unit "t"
+                   :props {:invasion-path [[1 2] [1 1] [0 1] [0 2]]}}]
+                 (:givens result))))
+
     (it "parses 'computer controls N cities' as stub"
       (let [lines ["GIVEN computer controls 12 cities."]
             result (given/parse-given lines {})]

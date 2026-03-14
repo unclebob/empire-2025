@@ -85,3 +85,28 @@ WHEN a new round starts.
 THEN t is at [2 0].
 THEN t has transport-mission sailing.
 THEN t has 5 armies.
+
+;===============================================================
+; Invading transport cuts across unexplored sea when the corridor
+; is much shorter than the stored sea path.
+;===============================================================
+GIVEN game map
+  ~~~~~
+  ~~~~~
+  t~~~O
+  ~~~~~
+  ~~~~~
+GIVEN computer map
+  ~~~~~
+  ~###~
+  ~....
+  .....
+  .....
+GIVEN t has transport-mission invading.
+GIVEN t has invasion-target [4 2].
+GIVEN t has invasion-path [[1 2] [1 1] [0 1] [0 2] [0 3] [1 3] [2 3] [3 3]].
+GIVEN t has 4 armies.
+
+WHEN computer transport t is processed.
+
+THEN t is at [2 0].

@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport :as transport]
-            [empire.test.utils :refer [reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (defn make-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))
@@ -51,4 +51,31 @@
         ;; Should have moved to [0 1] and transitioned to unloading
         (let [transport (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
           (should= :unloading (:transport-mission transport))
-          (should-be-nil (:invasion-path-origin transport)))))))
+          (should-be-nil (:invasion-path-origin transport))))))
+
+  (context "when the direct fog corridor is much shorter than the invasion path"
+    (it "cuts across the unexplored corridor until blocked"
+      (let [game-map (build-test-map ["~~~~~"
+                                      "~~~~~"
+                                      "t~~~O"
+                                      "~~~~~"
+                                      "~~~~~"])
+            computer-map (build-test-map ["~~~~~"
+                                          "~###~"
+                                          "....O"
+                                          "....."
+                                          "....."])]
+        (set-test-world! game-map)
+        (set-test-computer-map! computer-map)
+        (update-test-world! assoc-in [0 2 :contents]
+                            {:type :transport :owner :computer
+                             :transport-mission :invading
+                             :invasion-target [4 2]
+                             :invasion-path [[0 1] [0 0] [1 0] [2 0] [3 0] [4 0] [4 1] [3 2]]
+                             :army-count 4})
+        (transport/process-transport [0 2])
+        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))
+        (let [transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents])]
+          (should= :unloading (:transport-mission transport))
+          (should-be-nil (:invasion-path transport))
+          (should= [1 1] (:invasion-last-pos transport)))))))

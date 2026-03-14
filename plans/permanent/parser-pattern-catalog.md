@@ -70,7 +70,7 @@ If no directive matches, lines like `<U> is <mode>` or `<U> has fuel <N>` are pa
 | `has/with mission <v>` | `:transport-mission :v` |
 | `has/with [an] escort destroyer` | `:escort-destroyer-id 1` |
 | `has/with heading <N>` | `:heading N` |
-| `has/with [sail-]path [...]` | `:(sail-)path <edn-vec>` |
+| `has/with <*-path> [...]` | `:<*-path> <edn-vec>` |
 | `has/with <prop> [X Y]` | `:prop [X Y]` |
 | `has/with <hyphenated-prop> <val>` | `:prop val` (catch-all) |
 
