@@ -117,7 +117,8 @@
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)
                            unit (:contents cell)]
-                       (and unit
+                       (and (not= :city (:type cell))
+                            unit
                             (= :player (:owner unit))
                             (not= :satellite (:type unit)))))
                    (core/get-neighbors pos)))))

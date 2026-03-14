@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
+            [empire.computer.fighter-movement :as fighter-movement]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map set-test-unit
@@ -22,6 +23,17 @@
       (set-test-world! (build-test-map ["a"]))
       (let [unit (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
         (should-be-nil (fighter/process-fighter [0 0] unit)))))
+
+  (context "adjacent enemy targeting"
+    (it "does not target a player unit inside a city"
+      (set-test-world! (build-test-map ["fO"]))
+      (update-test-world! assoc-in [1 0 :contents]
+             {:type :fighter :owner :player :fuel 20})
+      (should-be-nil (fighter-movement/find-adjacent-enemy [0 0])))
+
+    (it "still targets adjacent player units outside cities"
+      (set-test-world! (build-test-map ["fF"]))
+      (should= [1 0] (fighter-movement/find-adjacent-enemy [0 0]))))
 
   (context "leg-based coverage"
     (it "picks unflown leg target over previously flown leg"
