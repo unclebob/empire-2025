@@ -26,7 +26,7 @@ WHEN the computer chooses production at X.
 THEN production at X is fighter.
 
 ;===============================================================
-; After round 50, one otherwise-CA city builds a satellite.
+; After round 50, the original continent still does not build satellites.
 ;===============================================================
 GIVEN game map
   X
@@ -37,7 +37,7 @@ GIVEN round 51.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is satellite.
+THEN production at X is army.
 
 ;===============================================================
 ; A single coastal city with inland support becomes a transport city

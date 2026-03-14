@@ -48,10 +48,18 @@
     (test-utils/set-test-state! :round-number 30)
     (should= :fighter (decisions/decide-production [1 1])))
 
-  (it "marks the one-time opening satellite when assigned"
+  (it "does not mark the opening satellite on the original continent"
     (set-test-world! (build-test-map ["X"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (update-test-world! assoc-in [0 0 :country-id] 1)
+    (test-utils/set-test-state! :round-number 51)
+    (should= :army (decisions/decide-production [0 0]))
+    (should-not (test-utils/read-test-state :opening-satellite-produced?)))
+
+  (it "marks the one-time opening satellite when assigned on a non-origin continent"
+    (set-test-world! (build-test-map ["X"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [0 0 :country-id] 2)
     (test-utils/set-test-state! :round-number 51)
     (should= :satellite (decisions/decide-production [0 0]))
     (should (test-utils/read-test-state :opening-satellite-produced?)))

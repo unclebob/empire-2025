@@ -49,6 +49,20 @@
     (test-utils/set-test-state! :round-number 30)
     (should= :fighter (strategy/opening-production [1 1])))
 
+  (it "does not build the opening satellite on the original continent"
+    (set-test-world! (build-test-map ["X"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [0 0 :country-id] 1)
+    (test-utils/set-test-state! :round-number 51)
+    (should= :army (strategy/opening-production [0 0])))
+
+  (it "still allows the opening satellite on a non-origin continent"
+    (set-test-world! (build-test-map ["X"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [0 0 :country-id] 2)
+    (test-utils/set-test-state! :round-number 51)
+    (should= :satellite (strategy/opening-production [0 0])))
+
   (it "delays coastal staging until transport production is close enough"
     (set-test-world! (build-test-map ["~X##"
                                       "####"
