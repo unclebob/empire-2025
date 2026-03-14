@@ -6,6 +6,7 @@
             [empire.computer.core :as core]
             [empire.computer.ship-carrier :as ship-carrier]
             [empire.game-mechanics.services.combat :as combat]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.config.core :as config]))
 
 (defn- update-cell-visibility!
@@ -37,6 +38,14 @@
   [pos]
   (let [contents (get-in (sa/current-world) (conj pos :contents))]
     (and (some? contents) (= :computer (:owner contents)))))
+
+(defn- attackable-enemy-cell?
+  [cell]
+  (let [unit (:contents cell)]
+    (and (not= :city (:type cell))
+         unit
+         (= :player (:owner unit))
+         (not= :satellite (:type unit)))))
 
 (defn- best-neighbor-toward
   "Picks the best neighbor toward target using distance + diagonal preference.
@@ -89,11 +98,13 @@
     (loop [sr br sc bc hops 1]
       (let [next-pos [(+ sr dr) (+ sc dc)]]
         (when (in-bounds? next-pos)
-          (if-not (occupied? next-pos)
-            {:dest next-pos :hops (inc hops)}
-            (if (friendly-occupied? next-pos)
-              (recur (+ sr dr) (+ sc dc) (inc hops))
-              {:dest next-pos :hops (inc hops) :attack true})))))))
+          (let [cell (get-in (sa/current-world) next-pos)]
+            (if-not (occupied? next-pos)
+              {:dest next-pos :hops (inc hops)}
+              (if (friendly-occupied? next-pos)
+                (recur (+ sr dr) (+ sc dc) (inc hops))
+                (when (attackable-enemy-cell? cell)
+                  {:dest next-pos :hops (inc hops) :attack true})))))))))
 
 (defn- hop-or-sidestep
   [pos target best passable]
@@ -115,32 +126,39 @@
   [pos]
   (let [game-map (sa/current-world)]
     (first (filter (fn [neighbor]
-                     (let [cell (get-in game-map neighbor)
-                           unit (:contents cell)]
-                       (and (not= :city (:type cell))
-                            unit
-                            (= :player (:owner unit))
-                            (not= :satellite (:type unit)))))
+                     (attackable-enemy-cell? (get-in game-map neighbor)))
                    (core/get-neighbors pos)))))
+
+(defn- ensure-hits
+  [unit]
+  (cond-> unit
+    (and unit (nil? (:hits unit)))
+    (assoc :hits (dispatcher/hits (:type unit)))))
 
 (defn attack-enemy
   [fighter-pos enemy-pos]
-  (let [attacker (get-in (sa/current-world) (conj fighter-pos :contents))
-        defender (get-in (sa/current-world) (conj enemy-pos :contents))
-        result (combat/resolve-combat attacker defender)]
-    ;; Remove attacker from original position
-    (sa/update-world! update-in fighter-pos dissoc :contents)
-    (if (= :attacker (:winner result))
-      ;; Attacker won - move to enemy position
-      (do
-        (sa/update-world! assoc-in (conj enemy-pos :contents) (:survivor result))
-        (update-cell-visibility! fighter-pos :computer)
-        (update-cell-visibility! enemy-pos :computer)
-        enemy-pos)
-      ;; Attacker lost
-      (do
-        (update-cell-visibility! fighter-pos :computer)
-        nil))))
+  (let [world (sa/current-world)
+        attacker (ensure-hits (get-in world (conj fighter-pos :contents)))
+        target-cell (get-in world enemy-pos)
+        defender (ensure-hits (:contents target-cell))]
+    (when (and attacker
+               (attackable-enemy-cell? target-cell)
+               (number? (:hits attacker))
+               (number? (:hits defender)))
+      (let [result (combat/resolve-combat attacker defender)]
+        ;; Remove attacker from original position
+        (sa/update-world! update-in fighter-pos dissoc :contents)
+        (if (= :attacker (:winner result))
+          ;; Attacker won - move to enemy position
+          (do
+            (sa/update-world! assoc-in (conj enemy-pos :contents) (:survivor result))
+            (update-cell-visibility! fighter-pos :computer)
+            (update-cell-visibility! enemy-pos :computer)
+            enemy-pos)
+          ;; Attacker lost
+          (do
+            (update-cell-visibility! fighter-pos :computer)
+            nil))))))
 
 (defn find-nearest-refueling-site
   [pos]

@@ -7,7 +7,7 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map
                                        set-test-unit
-                                       get-test-unit reset-all-atoms! set-test-computer-map! set-test-world!]]))
+                                       get-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
 (describe "fighter-movement-primitives"
   (before (reset-all-atoms!))
@@ -52,6 +52,13 @@
       (let [result (fm/hop-over-friendly [0 0] [0 2])]
         (should (:attack result))
         (should= 2 (:hops result))))
+
+    (it "does not mark attack when the hop chain ends at a city occupant"
+      (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer}}
+                         {:type :land :contents {:type :army :owner :computer :hits 1}}
+                         {:type :city :city-status :player
+                          :contents {:type :fighter :owner :player :hits 1}}]])
+      (should-be-nil (fm/hop-over-friendly [0 0] [0 2])))
 
     (it "returns nil when neighbor is enemy not friendly"
       (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer}}
@@ -132,6 +139,12 @@
           (should-be-nil (get-test-unit (test-utils/game-map-atom) "f"))
           (should= :player (get-in (test-utils/read-test-state :game-map) [1 0 :contents :owner]))))))
 
+    (it "returns nil when the defender has no combat hits"
+      (set-test-world! (build-test-map ["fA"]))
+      (update-test-world! assoc-in [1 0 :contents] {:type :mystery :owner :player})
+      (should-be-nil (fm/attack-enemy [0 0] [1 0]))
+      (should= :fighter (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
+
   (context "fuel boundary (L175)"
     (it "fighter with fuel 2 survives one consume step"
       (set-test-world! (build-test-map ["f#X"]))
@@ -188,4 +201,4 @@
                                                "..f"]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [2 2 :contents])]
         (fighter/process-fighter [2 2] unit)
-        (should (< (get-in (test-utils/read-test-state :game-map) [2 2 :contents :fuel] 0) 20))))))
+        (should (< (get-in (test-utils/read-test-state :game-map) [2 2 :contents :fuel] 0) 20)))))
