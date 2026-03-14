@@ -5,6 +5,7 @@
             [empire.computer.core :as core]
             [empire.computer.fighter-movement :as fighter-movement]
             [empire.computer.oscillation :as oscillation]
+            [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.country-defense :as country-defense]
             [empire.computer.threat-response.invasion-decision :as invasion-decision]
             [empire.computer.threat-response.invasion-state :as invasion-state]
@@ -190,14 +191,10 @@
   (let [t (:type unit)]
     (cond
       (= :fighter t)
-      (sa/update-world! update-in (conj pos :contents)
-                        assoc :major-invasion true
-                        :major-invasion-target (nearest-major-target pos))
+      (major-invasion/apply-major-invasion-assignment! (invasion-ctx) pos unit)
 
       (major-invasion-ship-types t)
-      (sa/update-world! update-in (conj pos :contents)
-                        assoc :major-invasion true
-                        :major-invasion-target (nearest-major-ship-target pos))
+      (major-invasion/apply-major-invasion-assignment! (invasion-ctx) pos unit)
 
       (= :transport t)
       (prepare-transport-major-invasion! pos unit)
@@ -225,7 +222,15 @@
 
 (defn- clear-major-invasion-from-unit
   [unit]
-  (let [base (dissoc unit :major-invasion :major-invasion-target)]
+  (let [base (dissoc unit :major-invasion
+                     :major-invasion-target
+                     :kamikazee
+                     :kamikazee-targets
+                     :kamikazee-route
+                     :kamikazee-terminal-site
+                     :kamikazee-stage
+                     :kamikazee-wait-site
+                     :kamikazee-trail)]
     (if (= :transport (:type base))
       (let [transport (-> base
                           (dissoc :major-invasion-find-armies-round
@@ -375,6 +380,10 @@
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
+  (when (and (major-invasion-active?)
+             (= :army (get-in game-cell [:contents :type]))
+             (= :player (get-in game-cell [:contents :owner])))
+    (kamikazee/record-army-target! (invasion-ctx) pos))
   (case (threat-policy/detection-trigger game-cell)
     :fighter-detected (handle-fighter-detection! pos)
     :ship-detected (handle-ship-detection! pos)
@@ -389,9 +398,15 @@
   (when (major-invasion-active?)
     (let [units (find-computer-unit-positions (constantly true))
           world (sa/current-world)]
+      (update-major-invasion-state! assoc :kamikazee-terminal-sites #{})
       (doseq [pos units
               :let [unit (get-in world (conj pos :contents))]
-              :when unit]
+              :when (= :fighter (:type unit))]
+        (apply-major-invasion-assignment! pos unit))
+      (kamikazee/refresh-army-targets! (invasion-ctx))
+      (doseq [pos units
+              :let [unit (get-in world (conj pos :contents))]
+              :when (and unit (not= :fighter (:type unit)))]
         (apply-major-invasion-assignment! pos unit)))))
 
 (defn on-round-start!
@@ -408,6 +423,7 @@
   (when (major-invasion-active?)
     (recompute-major-invasion-target-land!)
     (recompute-sea-reachable-detection-points!)
+    (kamikazee/refresh-army-targets! (invasion-ctx))
     (maybe-handle-unsustainable-losses!)
     (when (major-invasion-active?)
       (refresh-major-invasion-assignments!)))
@@ -442,17 +458,27 @@
   (when (or (= :fighter-sweep (:threat-mission unit))
             (= :country-defense (:threat-mission unit))
             (:major-invasion unit))
-    (if (oscillation/in-random-walk? unit)
-      (processing/process-fighter-random-walk-round
-       {:current-world sa/current-world
-        :update-game-map! sa/update-world!}
-       pos)
+    (if (:kamikazee unit)
       (loop [current pos
              remaining fighter-movement/fighter-speed]
         (when (pos? remaining)
           (when-let [{:keys [pos steps-used]}
-                     (fighter-step-threat current (get-in (sa/current-world) (conj current :contents)))]
-            (recur pos (- remaining steps-used))))))
+                     (kamikazee/process-kamikazee-fighter
+                      (invasion-ctx)
+                      current
+                      (get-in (sa/current-world) (conj current :contents)))]
+            (recur pos (- remaining steps-used)))))
+      (if (oscillation/in-random-walk? unit)
+        (processing/process-fighter-random-walk-round
+         {:current-world sa/current-world
+          :update-game-map! sa/update-world!}
+         pos)
+        (loop [current pos
+               remaining fighter-movement/fighter-speed]
+          (when (pos? remaining)
+            (when-let [{:keys [pos steps-used]}
+                       (fighter-step-threat current (get-in (sa/current-world) (conj current :contents)))]
+              (recur pos (- remaining steps-used)))))))
     true))
 
 (defn process-ship-threat

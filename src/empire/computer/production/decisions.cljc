@@ -4,7 +4,8 @@
             [empire.config.core :as config]
             [empire.computer.early-game.strategy :as opening]
             [empire.computer.production.stats :as stats]
-            [empire.computer.ship :as ship]))
+            [empire.computer.ship :as ship]
+            [empire.computer.threat-response.kamikazee :as kamikazee]))
 
 
 (defn country-city-producing?
@@ -122,7 +123,8 @@
         country-id (:country-id city-cell)
         coastal? (stats/city-is-coastal? city-pos)
         unit-counts (stats/count-computer-units)]
-    (or (opening-production city-pos)
+    (or (kamikazee/invasion-production-override city-pos)
+        (opening-production city-pos)
         (when country-id
           (or (decide-country-production city-pos country-id coastal? unit-counts)
               (decide-global-production coastal? unit-counts)))

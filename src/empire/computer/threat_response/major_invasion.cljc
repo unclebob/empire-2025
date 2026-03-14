@@ -2,8 +2,10 @@
   "Major invasion planning and assignment helpers."
   (:require [empire.computer.army.coastal :as army-coastal]
             [empire.computer.core :as core]
+            [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.invasion-state :as invasion-state]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.movement :as computer-movement]
+            [empire.state.api :as sa]))
 
 (def ^:private major-invasion-unload-radius 2)
 (def ^:private max-invasion-coastal-candidates 24)
@@ -247,14 +249,44 @@
   (let [t (:type unit)]
     (cond
       (= :fighter t)
-      ((:update-game-map! ctx) update-in (conj pos :contents)
-       assoc :major-invasion true
-       :major-invasion-target ((:nearest-major-target ctx) pos))
+      (let [state (or (when-let [load-major-invasion-state (:load-major-invasion-state ctx)]
+                        (load-major-invasion-state))
+                      {})
+            world (or (when-let [current-world (:current-world ctx)]
+                        (current-world))
+                      (sa/current-world))
+            targets (kamikazee/ordered-army-target-positions state
+                                                             (kamikazee/current-round ctx)
+                                                             world)
+            plan (kamikazee/plan-route world
+                                       pos
+                                       (:fuel unit 32)
+                                       (or (seq targets)
+                                           (:detection-points state)
+                                           (:target-land-set state)))]
+        ((:update-game-map! ctx) update-in (conj pos :contents)
+         #(-> %
+              (assoc :major-invasion true
+                     :kamikazee true
+                     :major-invasion-target (when-let [nearest-major-target (:nearest-major-target ctx)]
+                                              (nearest-major-target pos))
+                     :kamikazee-targets targets
+                     :kamikazee-route (:route plan)
+                     :kamikazee-terminal-site (:terminal-site plan)
+                     :kamikazee-stage (if (seq (:route plan)) :route :hunt))
+              (dissoc :threat-mission :threat-center :threat-radius :threat-rounds-left)))
+        (when-let [terminal-site (:terminal-site plan)]
+          (when-let [update-major-invasion-state! (:update-major-invasion-state! ctx)]
+            (update-major-invasion-state! update :kamikazee-terminal-sites (fnil conj #{}) terminal-site))))
 
       ((:major-invasion-ship-types ctx) t)
-      ((:update-game-map! ctx) update-in (conj pos :contents)
-       assoc :major-invasion true
-       :major-invasion-target (nearest-major-ship-target ctx pos))
+      (let [target (if (= :carrier t)
+                     (or (kamikazee/carrier-support-target ctx pos)
+                         (nearest-major-ship-target ctx pos))
+                     (nearest-major-ship-target ctx pos))]
+        ((:update-game-map! ctx) update-in (conj pos :contents)
+         assoc :major-invasion true
+         :major-invasion-target target))
 
       (= :transport t)
       (prepare-transport-major-invasion! ctx pos unit)

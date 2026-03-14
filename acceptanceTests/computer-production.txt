@@ -66,6 +66,30 @@ WHEN the computer chooses production at X.
 THEN production at X is army.
 
 ;===============================================================
+; Major invasion forces fighter production while a loaded transport remains.
+;===============================================================
+GIVEN game map
+  X~t~
+  ##O#
+  X###
+GIVEN X1 belongs to country 1.
+GIVEN X2 belongs to country 2.
+GIVEN territory around X2 belongs to country 2.
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  ....
+  ....
+  ....
+
+WHEN cell visibility updates for t.
+WHEN the computer chooses production at X1.
+WHEN the computer chooses production at X2.
+
+THEN production at X1 is fighter.
+THEN production at X2 is fighter.
+
+;===============================================================
 ; Country produces transport at coastal city after 6 armies.
 ; 6 armies on map (not aboard transport), no transport yet.
 ;===============================================================

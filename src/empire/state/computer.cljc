@@ -22,6 +22,8 @@
                           :failure-reason nil
                           :next-review-round nil
                           :detection-points #{}
+                          :kamikazee-army-targets []
+                          :kamikazee-terminal-sites #{}
                           :target-land-set #{}
                           :started-round nil
                           :first-landing-round nil}

@@ -66,7 +66,45 @@ WHEN a new round starts.
 
 THEN t has major-invasion true.
 THEN t has transport-mission unloading.
-THEN t has invasion-target [2 1].
+
+;===============================================================
+; Major invasion assigns fighters to kamikazee mission.
+;===============================================================
+GIVEN game map
+  f~t~
+  ##O#
+  ~~~~
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  ....
+  ....
+  ....
+
+WHEN cell visibility updates for t.
+
+THEN f has major-invasion true.
+THEN f has kamikazee true.
+
+;===============================================================
+; New enemy army detections update kamikazee fighter targets.
+;===============================================================
+GIVEN game map
+  f~t~~~~
+  ##O##p~
+  ######A
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  .......
+  .......
+  .......
+
+WHEN cell visibility updates for t.
+WHEN cell visibility updates for p.
+
+THEN f has kamikazee true.
+THEN f has kamikazee-targets [[6 2]].
 
 ;===============================================================
 ; No sea path defers invasion and patrol boats explore.
