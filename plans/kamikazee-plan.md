@@ -2,16 +2,21 @@
 
 ## Goal
 
-Extend major invasion so fighters become persistent kamikazee army hunters supported by carriers and invasion production overrides.
+Extend major invasion so fighters become persistent kamikazee army hunters routed by a city-based forward graph, with limited carrier bridging and invasion production overrides.
 
 ## Behavior
 
 - When major invasion starts, every computer fighter enters a kamikazee invasion mission.
-- Each fighter computes the shortest legal refuel chain through computer cities and carriers.
-- The route goal is a terminal refuel site from which the target area is reachable within one full fighter fuel load.
-- Newly captured computer cities are valid refuel sites immediately.
-- If no complete chain exists, the fighter moves to the closest reachable refuel site and waits for a continuation opportunity.
-- Carriers reposition to sea cells between the terminal refuel sites and the target area.
+- Build a reverse routing graph over computer cities only.
+- Choose one computer city closest to the invasion target area as the root city.
+- Working backward from the root, mark every city that can reach an already-marked city within one full fighter fuel load.
+- Each marked city stores the next hop toward the root city.
+- Fighters in a city follow that stored next-hop chain.
+- Fighters not in a city first fly to a marked city they can reach, then join the chain.
+- If an otherwise unreachable city can connect to the marked graph using a single carrier bridge, add that carrier as the next hop.
+- Carriers used as city bridges are put into sentry mode and left fixed in place.
+- At the root city, fighters check for a carrier closer to the target than the root city; if reachable, they refuel at that carrier before continuing toward the target.
+- Rebuild the fighter routing graph whenever the computer conquers a new city.
 - Fighters keep a dynamic target list of detected player armies during the invasion.
 - New army detections update that list immediately, including while fighters are still en route.
 - Fighter targets are chosen randomly from the list with a bias toward newer detections.
@@ -24,16 +29,16 @@ Extend major invasion so fighters become persistent kamikazee army hunters suppo
 
 ## Implementation Order
 
-1. Add acceptance scenarios for fighter routing, dynamic target updates, carrier support, and production overrides.
-2. Add invasion fighter mission state and dynamic army-target registry to threat-response state.
-3. Implement fighter refuel-chain planning and waiting-at-forward-site behavior.
-4. Implement persistent army-hunt execution with non-backtracking random walk and recency-biased target choice.
-5. Implement carrier forward positioning for fighter support.
-6. Implement major-invasion production override and restoration when loaded transports are gone.
+1. Add acceptance scenarios for city-hop routing, carrier bridging, dynamic target updates, and production overrides.
+2. Add invasion fighter routing-graph state to major-invasion state.
+3. Implement reverse city graph construction rooted at the forward-most city.
+4. Implement single-carrier bridge insertion and forward-carrier launch from the root city.
+5. Retarget fighter execution to follow city and carrier next hops before entering hunt behavior.
+6. Rebuild the graph on computer city conquest.
 7. Run acceptance pipeline and targeted specs, then close any gaps with additional unit tests.
 
 ## Risks
 
-- The current fighter threat executor assumes patrol and refuel-return behavior; kamikazee mode will need a separate movement path.
-- Carrier positioning must not break existing carrier refuel semantics.
-- Production override must layer on top of normal strategy without permanently corrupting city intent after invasion conditions change.
+- The current fighter executor assumes free-form refuel search; converting it to graph-following needs to preserve existing hunt behavior after arrival.
+- Carrier bridge selection must stay limited to a single fixed carrier and must not steal arbitrary carriers away from other roles.
+- Rebuilding the graph on conquest must happen after the city actually flips to computer ownership.

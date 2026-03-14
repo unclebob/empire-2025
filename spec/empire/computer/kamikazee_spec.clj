@@ -1,6 +1,6 @@
 (ns empire.computer.kamikazee-spec
   (:require [speclj.core :refer :all]
-            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-world!]]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! set-test-state! update-test-world!]]
             [empire.test.utils :as test-utils]
             [empire.computer.threat-response :as threat-response]
             [empire.computer.threat-response.kamikazee :as kamikazee]
@@ -59,4 +59,44 @@
                   {:kamikazee-army-targets [{:pos [0 0] :seen-round 1}
                                             {:pos [2 0] :seen-round 5}]}
                   5
-                  world))))))
+                  world)))))
+
+  (it "builds city next hops back from the root city"
+    (let [world (build-test-map ["X~~~O"
+                                 "~~~~~"
+                                 "~~X~~"])
+          state {:detection-points #{[4 0]}}
+          graph (#'empire.computer.threat-response.kamikazee-routing/rebuild-routing-graph world state)]
+      (should= [0 0] (:kamikazee-root-city graph))
+      (should= [0 0] (get (:kamikazee-city-next-hops graph) [2 2]))))
+
+  (it "uses a single carrier bridge when cities are otherwise out of range"
+    (let [world (build-test-map ["XO~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+                                 "~~~~~~~~~~~~~~~~~c~~~~~~~~~~~~~~~~~"
+                                 "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"])
+          state {:detection-points #{[1 0]}}
+          graph (#'empire.computer.threat-response.kamikazee-routing/rebuild-routing-graph world state)]
+      (should= [0 0] (:kamikazee-root-city graph))
+      (should= [17 1] (get (:kamikazee-city-next-hops graph) [34 2]))
+      (should= [0 0] (get (:kamikazee-carrier-next-hops graph) [17 1]))
+      (should= #{[17 1]} (:kamikazee-bridge-carriers graph))))
+
+  (it "keeps a fixed invasion carrier in place during ship processing"
+    (let [world (build-test-map ["XO~~~~"
+                                 "~~c~~~"
+                                 "~~~~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state
+                       {:active? true
+                        :kamikazee-bridge-carriers #{[2 1]}})
+      (update-test-world! update-in [2 1 :contents]
+                          merge
+                          {:major-invasion true
+                           :mode :sentry
+                           :major-invasion-target [2 1]})
+      (threat-response/process-ship-threat [2 1] :carrier (get-in (test-utils/read-test-state :game-map) [2 1 :contents]))
+      (should= :carrier (get-in (test-utils/read-test-state :game-map) [2 1 :contents :type]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [2 2 :contents])))))

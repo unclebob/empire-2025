@@ -398,7 +398,7 @@
   (when (major-invasion-active?)
     (let [units (find-computer-unit-positions (constantly true))
           world (sa/current-world)]
-      (update-major-invasion-state! assoc :kamikazee-terminal-sites #{})
+      (kamikazee/rebuild-routing-graph! (invasion-ctx))
       (doseq [pos units
               :let [unit (get-in world (conj pos :contents))]
               :when (= :fighter (:type unit))]
@@ -408,6 +408,12 @@
               :let [unit (get-in world (conj pos :contents))]
               :when (and unit (not= :fighter (:type unit)))]
         (apply-major-invasion-assignment! pos unit)))))
+
+(defn rebuild-kamikazee-routing!
+  []
+  (when (major-invasion-active?)
+    (kamikazee/rebuild-routing-graph! (invasion-ctx))
+    (refresh-major-invasion-assignments!)))
 
 (defn on-round-start!
   "Round-start maintenance for threat responses."
@@ -462,12 +468,12 @@
       (loop [current pos
              remaining fighter-movement/fighter-speed]
         (when (pos? remaining)
-          (when-let [{:keys [pos steps-used]}
+          (when-let [{:keys [pos steps-used hops]}
                      (kamikazee/process-kamikazee-fighter
                       (invasion-ctx)
                       current
                       (get-in (sa/current-world) (conj current :contents)))]
-            (recur pos (- remaining steps-used)))))
+            (recur pos (- remaining (or steps-used hops 1))))))
       (if (oscillation/in-random-walk? unit)
         (processing/process-fighter-random-walk-round
          {:current-world sa/current-world
@@ -485,15 +491,19 @@
   "Overrides regular ship logic for sea-scout and major-invasion missions.
    Returns true when handled."
   [pos ship-type unit]
-  (processing/process-ship-threat
-   {:current-world sa/current-world
-    :update-game-map! sa/update-world!
-    :nearest-major-target nearest-major-ship-target
-    :threat-radius (threat-radius)}
-   pos
-   ship-type
-   unit))
+  (if (and (= :carrier ship-type)
+           (:major-invasion unit)
+           (kamikazee/fixed-carrier? (load-major-invasion-state) pos))
+    true
+    (processing/process-ship-threat
+     {:current-world sa/current-world
+      :update-game-map! sa/update-world!
+      :nearest-major-target nearest-major-ship-target
+      :threat-radius (threat-radius)}
+     pos
+     ship-type
+     unit)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:58:36.790138-05:00", :module-hash "-1014450785", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "1114461074"} {:id "defn-/threat-radius", :kind "defn-", :line 16, :end-line 17, :hash "-686955032"} {:id "def/major-invasion-ship-types", :kind "def", :line 19, :end-line 20, :hash "893313069"} {:id "def/computer-sea-unit-types", :kind "def", :line 22, :end-line 23, :hash "-100623827"} {:id "def/max-invasion-coastal-candidates", :kind "def", :line 24, :end-line 24, :hash "-329358744"} {:id "def/preferred-invasion-landing-distance", :kind "def", :line 25, :end-line 25, :hash "-1028129861"} {:id "defn-/load-major-invasion-state", :kind "defn-", :line 27, :end-line 29, :hash "531746481"} {:id "defn-/save-major-invasion-state!", :kind "defn-", :line 31, :end-line 33, :hash "-397333665"} {:id "defn-/update-major-invasion-state!", :kind "defn-", :line 35, :end-line 39, :hash "-1902839705"} {:id "defn-/major-invasion-active?", :kind "defn-", :line 41, :end-line 43, :hash "-647526333"} {:id "defn-/major-invasion-detection-points", :kind "defn-", :line 45, :end-line 47, :hash "-1902808775"} {:id "defn/major-invasion-target-land?", :kind "defn", :line 49, :end-line 51, :hash "-92232189"} {:id "defn-/recompute-major-invasion-target-land!", :kind "defn-", :line 53, :end-line 66, :hash "1763848680"} {:id "defn-/find-computer-unit-positions", :kind "defn-", :line 68, :end-line 77, :hash "-1221492359"} {:id "defn-/assign-threat-mission!", :kind "defn-", :line 79, :end-line 82, :hash "-123381551"} {:id "defn-/closest-positions", :kind "defn-", :line 84, :end-line 88, :hash "1452837897"} {:id "defn-/nearest-major-target", :kind "defn-", :line 90, :end-line 92, :hash "439735275"} {:id "defn-/invasion-ctx", :kind "defn-", :line 94, :end-line 103, :hash "963265871"} {:id "defn-/nearest-major-ship-target", :kind "defn-", :line 105, :end-line 108, :hash "-974514867"} {:id "defn-/recompute-sea-reachable-detection-points!", :kind "defn-", :line 110, :end-line 112, :hash "176490866"} {:id "defn/major-invasion-target-revision", :kind "defn", :line 114, :end-line 116, :hash "320153715"} {:id "defn-/dec-threat-rounds", :kind "defn-", :line 118, :end-line 120, :hash "-276107214"} {:id "defn-/homeland-defense-unit?", :kind "defn-", :line 122, :end-line 127, :hash "267565727"} {:id "defn-/refresh-country-defense!", :kind "defn-", :line 129, :end-line 143, :hash "2043575809"} {:id "defn-/nearest-major-sea-target", :kind "defn-", :line 145, :end-line 147, :hash "-2031328092"} {:id "defn-/connected-coastal-candidates", :kind "defn-", :line 149, :end-line 151, :hash "1188740324"} {:id "defn-/best-invasion-target-and-path", :kind "defn-", :line 153, :end-line 177, :hash "-1865847068"} {:id "defn-/prepare-transport-major-invasion!", :kind "defn-", :line 179, :end-line 186, :hash "2095088921"} {:id "defn-/apply-major-invasion-assignment!", :kind "defn-", :line 188, :end-line 208, :hash "1270595669"} {:id "defn-/current-round", :kind "defn-", :line 210, :end-line 212, :hash "-266289192"} {:id "defn-/next-review-round", :kind "defn-", :line 214, :end-line 216, :hash "-638599933"} {:id "defn-/mission-needs-reset?", :kind "defn-", :line 218, :end-line 222, :hash "2076506354"} {:id "form/32/declare", :kind "declare", :line 224, :end-line 224, :hash "11733860"} {:id "defn-/clear-major-invasion-from-unit", :kind "defn-", :line 226, :end-line 241, :hash "-1397595053"} {:id "defn-/stand-down-major-invasion!", :kind "defn-", :line 243, :end-line 259, :hash "-1206086988"} {:id "defn-/force-patrol-boat-exploration!", :kind "defn-", :line 261, :end-line 267, :hash "577731169"} {:id "defn-/evaluate-major-invasion-start!", :kind "defn-", :line 269, :end-line 297, :hash "-906560618"} {:id "defn-/maybe-record-major-invasion-detection!", :kind "defn-", :line 299, :end-line 312, :hash "-1852301740"} {:id "defn-/handle-major-invasion-detection!", :kind "defn-", :line 314, :end-line 323, :hash "1674406168"} {:id "defn-/maybe-handle-unsustainable-losses!", :kind "defn-", :line 325, :end-line 343, :hash "102341245"} {:id "defn-/maybe-review-deferred-major-invasion!", :kind "defn-", :line 345, :end-line 353, :hash "1879271684"} {:id "defn-/handle-fighter-detection!", :kind "defn-", :line 355, :end-line 360, :hash "261704964"} {:id "defn-/handle-ship-detection!", :kind "defn-", :line 362, :end-line 369, :hash "-475811477"} {:id "defn-/handle-country-defense-detection!", :kind "defn-", :line 371, :end-line 373, :hash "1864857964"} {:id "defn/handle-detection!", :kind "defn", :line 375, :end-line 384, :hash "-630652861"} {:id "defn/refresh-major-invasion-assignments!", :kind "defn", :line 386, :end-line 395, :hash "280362517"} {:id "defn/on-round-start!", :kind "defn", :line 397, :end-line 417, :hash "2076254402"} {:id "defn/prepare-transport!", :kind "defn", :line 419, :end-line 426, :hash "-1674860881"} {:id "defn-/fighter-step-threat", :kind "defn-", :line 428, :end-line 436, :hash "1016079261"} {:id "defn/process-fighter-threat", :kind "defn", :line 438, :end-line 456, :hash "-1415314909"} {:id "defn/process-ship-threat", :kind "defn", :line 458, :end-line 469, :hash "-656962398"}]}
+;; {:version 1, :tested-at "2026-03-14T09:59:45.405274-05:00", :module-hash "-150252247", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 15, :hash "1983289607"} {:id "defn-/threat-radius", :kind "defn-", :line 17, :end-line 18, :hash "-686955032"} {:id "def/major-invasion-ship-types", :kind "def", :line 20, :end-line 21, :hash "893313069"} {:id "def/computer-sea-unit-types", :kind "def", :line 23, :end-line 24, :hash "-100623827"} {:id "def/max-invasion-coastal-candidates", :kind "def", :line 25, :end-line 25, :hash "-329358744"} {:id "def/preferred-invasion-landing-distance", :kind "def", :line 26, :end-line 26, :hash "-1028129861"} {:id "defn-/load-major-invasion-state", :kind "defn-", :line 28, :end-line 30, :hash "531746481"} {:id "defn-/save-major-invasion-state!", :kind "defn-", :line 32, :end-line 34, :hash "-397333665"} {:id "defn-/update-major-invasion-state!", :kind "defn-", :line 36, :end-line 40, :hash "-1902839705"} {:id "defn-/major-invasion-active?", :kind "defn-", :line 42, :end-line 44, :hash "-647526333"} {:id "defn-/major-invasion-detection-points", :kind "defn-", :line 46, :end-line 48, :hash "-1902808775"} {:id "defn/major-invasion-target-land?", :kind "defn", :line 50, :end-line 52, :hash "-92232189"} {:id "defn-/recompute-major-invasion-target-land!", :kind "defn-", :line 54, :end-line 67, :hash "1763848680"} {:id "defn-/find-computer-unit-positions", :kind "defn-", :line 69, :end-line 78, :hash "-1221492359"} {:id "defn-/assign-threat-mission!", :kind "defn-", :line 80, :end-line 83, :hash "-123381551"} {:id "defn-/closest-positions", :kind "defn-", :line 85, :end-line 89, :hash "1752103799"} {:id "defn-/nearest-major-target", :kind "defn-", :line 91, :end-line 93, :hash "439735275"} {:id "defn-/invasion-ctx", :kind "defn-", :line 95, :end-line 104, :hash "963265871"} {:id "defn-/nearest-major-ship-target", :kind "defn-", :line 106, :end-line 109, :hash "-974514867"} {:id "defn-/recompute-sea-reachable-detection-points!", :kind "defn-", :line 111, :end-line 113, :hash "176490866"} {:id "defn/major-invasion-target-revision", :kind "defn", :line 115, :end-line 117, :hash "320153715"} {:id "defn-/dec-threat-rounds", :kind "defn-", :line 119, :end-line 121, :hash "-276107214"} {:id "defn-/homeland-defense-unit?", :kind "defn-", :line 123, :end-line 128, :hash "267565727"} {:id "defn-/refresh-country-defense!", :kind "defn-", :line 130, :end-line 144, :hash "-1399606863"} {:id "defn-/nearest-major-sea-target", :kind "defn-", :line 146, :end-line 148, :hash "-2031328092"} {:id "defn-/connected-coastal-candidates", :kind "defn-", :line 150, :end-line 152, :hash "1188740324"} {:id "defn-/best-invasion-target-and-path", :kind "defn-", :line 154, :end-line 178, :hash "29262809"} {:id "defn-/prepare-transport-major-invasion!", :kind "defn-", :line 180, :end-line 187, :hash "2095088921"} {:id "defn-/apply-major-invasion-assignment!", :kind "defn-", :line 189, :end-line 205, :hash "45768367"} {:id "defn-/current-round", :kind "defn-", :line 207, :end-line 209, :hash "-266289192"} {:id "defn-/next-review-round", :kind "defn-", :line 211, :end-line 213, :hash "-638599933"} {:id "defn-/mission-needs-reset?", :kind "defn-", :line 215, :end-line 219, :hash "2076506354"} {:id "form/32/declare", :kind "declare", :line 221, :end-line 221, :hash "11733860"} {:id "defn-/clear-major-invasion-from-unit", :kind "defn-", :line 223, :end-line 246, :hash "135932616"} {:id "defn-/stand-down-major-invasion!", :kind "defn-", :line 248, :end-line 264, :hash "-1206086988"} {:id "defn-/force-patrol-boat-exploration!", :kind "defn-", :line 266, :end-line 272, :hash "149305451"} {:id "defn-/evaluate-major-invasion-start!", :kind "defn-", :line 274, :end-line 302, :hash "-906560618"} {:id "defn-/maybe-record-major-invasion-detection!", :kind "defn-", :line 304, :end-line 317, :hash "-598161838"} {:id "defn-/handle-major-invasion-detection!", :kind "defn-", :line 319, :end-line 328, :hash "1674406168"} {:id "defn-/maybe-handle-unsustainable-losses!", :kind "defn-", :line 330, :end-line 348, :hash "102341245"} {:id "defn-/maybe-review-deferred-major-invasion!", :kind "defn-", :line 350, :end-line 358, :hash "1879271684"} {:id "defn-/handle-fighter-detection!", :kind "defn-", :line 360, :end-line 365, :hash "1391993297"} {:id "defn-/handle-ship-detection!", :kind "defn-", :line 367, :end-line 374, :hash "1603435148"} {:id "defn-/handle-country-defense-detection!", :kind "defn-", :line 376, :end-line 378, :hash "1864857964"} {:id "defn/handle-detection!", :kind "defn", :line 380, :end-line 393, :hash "244876381"} {:id "defn/refresh-major-invasion-assignments!", :kind "defn", :line 395, :end-line 410, :hash "964273905"} {:id "defn/rebuild-kamikazee-routing!", :kind "defn", :line 412, :end-line 416, :hash "913979195"} {:id "defn/on-round-start!", :kind "defn", :line 418, :end-line 439, :hash "706861735"} {:id "defn/prepare-transport!", :kind "defn", :line 441, :end-line 448, :hash "-1674860881"} {:id "defn-/fighter-step-threat", :kind "defn-", :line 450, :end-line 458, :hash "1016079261"} {:id "defn/process-fighter-threat", :kind "defn", :line 460, :end-line 488, :hash "-431065369"} {:id "defn/process-ship-threat", :kind "defn", :line 490, :end-line 505, :hash "-354486157"}]}
 ;; clj-mutate-manifest-end

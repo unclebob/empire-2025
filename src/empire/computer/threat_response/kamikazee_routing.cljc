@@ -5,9 +5,14 @@
             [empire.config.core :as config]
             [empire.state.api :as sa]))
 
-(defn- carrier-site?
+(defn carrier-site?
   [world pos]
   (= :carrier (get-in world (conj pos :contents :type))))
+
+(defn city-site?
+  [world pos]
+  (and (= :city (get-in world (conj pos :type)))
+       (= :computer (get-in world (conj pos :city-status)))))
 
 (defn site-distance
   [a b]
@@ -29,86 +34,185 @@
   [from to fuel-budget]
   (<= (site-distance from to) fuel-budget))
 
-(defn- terminal-score
-  [site goal-points]
-  (apply min (map #(site-distance site %) goal-points)))
+(defn- target-distance
+  [pos goal-points]
+  (apply min (map #(core/distance pos %) goal-points)))
+
+(defn- computer-city-positions
+  [world]
+  (->> (for [i (range (count world))
+             j (range (count (first world)))
+             :when (city-site? world [i j])]
+         [i j])
+       sort
+       vec))
+
+(defn- computer-carriers
+  [world]
+  (->> (for [i (range (count world))
+             j (range (count (first world)))
+             :when (carrier-site? world [i j])]
+         [i j])
+       sort
+       vec))
+
+(defn- reachable-marked-city
+  [city marked-cities]
+  (first (sort-by (fn [marked]
+                    [(site-distance city marked) marked])
+                  (filter #(edge-reachable? city % config/fighter-fuel) marked-cities))))
+
+(defn- bridging-carrier
+  [city marked-cities carriers]
+  (first
+   (sort-by (fn [[carrier marked]]
+              [(site-distance city carrier)
+               (site-distance carrier marked)
+               carrier
+               marked])
+            (for [carrier carriers
+                  marked marked-cities
+                  :when (and (edge-reachable? city carrier config/fighter-fuel)
+                             (edge-reachable? carrier marked config/fighter-fuel))]
+              [carrier marked]))))
+
+(defn- pick-root-city
+  [cities goal-points]
+  (when (and (seq cities) (seq goal-points))
+    (first (sort-by #(vector (target-distance % goal-points) %) cities))))
+
+(defn- choose-forward-carrier
+  [root-city carriers goal-points]
+  (let [root-distance (target-distance root-city goal-points)]
+    (first (sort-by (fn [carrier]
+                      [(target-distance carrier goal-points)
+                       (site-distance root-city carrier)
+                       carrier])
+                    (filter #(and (edge-reachable? root-city % config/fighter-fuel)
+                                  (< (target-distance % goal-points) root-distance))
+                            carriers)))))
+
+(defn rebuild-routing-graph
+  [world state]
+  (let [goal-points (vec (targets/invasion-target-points state world))
+        cities (computer-city-positions world)
+        carriers (computer-carriers world)
+        root-city (pick-root-city cities goal-points)]
+    (if-not root-city
+      {:kamikazee-root-city nil
+       :kamikazee-city-next-hops {}
+       :kamikazee-carrier-next-hops {}
+       :kamikazee-bridge-carriers #{}
+       :kamikazee-forward-carrier nil
+       :kamikazee-terminal-sites #{}}
+      (loop [marked-cities #{root-city}
+             city-next-hops {}
+             carrier-next-hops {}
+             bridge-carriers #{}
+             pending (disj (set cities) root-city)]
+        (let [additions
+              (->> pending
+                   (keep (fn [city]
+                           (if-let [marked (reachable-marked-city city marked-cities)]
+                             {:city city :next-hop marked}
+                             (when-let [[carrier marked] (bridging-carrier city marked-cities carriers)]
+                               {:city city :next-hop carrier :carrier carrier :carrier-next marked})))))
+              next-marked-cities (into marked-cities (map :city additions))
+              next-city-next-hops (reduce (fn [acc {:keys [city next-hop]}]
+                                            (assoc acc city next-hop))
+                                          city-next-hops
+                                          additions)
+              next-carrier-next-hops (reduce (fn [acc {:keys [carrier carrier-next]}]
+                                               (cond-> acc
+                                                 carrier (assoc carrier carrier-next)))
+                                             carrier-next-hops
+                                             additions)
+              next-bridge-carriers (into bridge-carriers (keep :carrier additions))]
+          (if (empty? additions)
+            (let [forward-carrier (when (seq goal-points)
+                                    (choose-forward-carrier root-city carriers goal-points))
+                  final-city-next-hops (cond-> next-city-next-hops
+                                         forward-carrier (assoc root-city forward-carrier))
+                  terminal-sites (cond-> #{root-city}
+                                   forward-carrier (conj forward-carrier))]
+              {:kamikazee-root-city root-city
+               :kamikazee-city-next-hops final-city-next-hops
+               :kamikazee-carrier-next-hops next-carrier-next-hops
+               :kamikazee-bridge-carriers next-bridge-carriers
+               :kamikazee-forward-carrier forward-carrier
+               :kamikazee-terminal-sites terminal-sites})
+            (recur next-marked-cities
+                   next-city-next-hops
+                   next-carrier-next-hops
+                   next-bridge-carriers
+                   (apply disj pending (map :city additions)))))))))
+
+(defn rebuild-routing-graph!
+  [ctx]
+  (let [world ((:current-world ctx))
+        state ((:load-major-invasion-state ctx))
+        graph (rebuild-routing-graph world state)]
+    ((:update-major-invasion-state! ctx) merge graph)
+    graph))
+
+(defn fixed-carrier?
+  [state pos]
+  (or (contains? (:kamikazee-bridge-carriers state) pos)
+      (= (:kamikazee-forward-carrier state) pos)))
+
+(defn- next-hop
+  [state pos]
+  (or (get (:kamikazee-city-next-hops state) pos)
+      (get (:kamikazee-carrier-next-hops state) pos)))
+
+(defn- route-from-node
+  [state start]
+  (loop [node start
+         visited #{}
+         route []]
+    (if-let [hop (and (not (visited node))
+                      (next-hop state node))]
+      (recur hop (conj visited node) (conj route hop))
+      route)))
+
+(defn- route-from-reachable-city
+  [state pos fuel]
+  (let [marked-cities (cond-> (set (keys (:kamikazee-city-next-hops state)))
+                        (:kamikazee-root-city state) (conj (:kamikazee-root-city state)))
+        goal-points (or (seq (:target-land-set state))
+                        (seq (:detection-points state))
+                        [pos])]
+    (when-let [city (first (sort-by (fn [city]
+                                      [(site-distance pos city)
+                                       (target-distance city goal-points)
+                                       city])
+                                    (filter #(edge-reachable? pos % fuel)
+                                            marked-cities)))]
+      (vec (cons city (route-from-node state city))))))
 
 (defn plan-route
-  [world pos fuel goal-points]
-  (let [sites (available-refueling-sites)
-        goal-points (vec goal-points)
-        full-fuel config/fighter-fuel
-        start-budget (if (some #(at-site? world pos %) sites) full-fuel fuel)
-        direct? (some #(<= (site-distance pos %) full-fuel) goal-points)
-        goal-site? (fn [site] (some #(<= (site-distance site %) full-fuel) goal-points))
-        start-sites (vec (distinct (concat
-                                    (filter #(at-site? world pos %) sites)
-                                    (filter #(edge-reachable? pos % start-budget) sites))))]
-    (cond
-      (or direct? (empty? goal-points))
-      {:route [] :terminal-site pos :complete? true}
+  [state world pos fuel]
+  (let [route (cond
+                (city-site? world pos)
+                (route-from-node state pos)
 
-      (empty? start-sites)
-      {:route [] :terminal-site nil :complete? false}
+                (carrier-site? world pos)
+                (route-from-node state pos)
 
-      :else
-      (loop [queue (into clojure.lang.PersistentQueue/EMPTY
-                         (map (fn [site] [site [site]]) start-sites))
-             visited (set start-sites)
-             best-partial nil]
-        (if (empty? queue)
-          (if best-partial
-            {:route (:path best-partial)
-             :terminal-site (:site best-partial)
-             :complete? false}
-            {:route [] :terminal-site nil :complete? false})
-          (let [[site path] (peek queue)
-                partial-record {:site site
-                                :path path
-                                :score [(terminal-score site goal-points)
-                                        (count path)
-                                        site]}
-                best-partial (if (or (nil? best-partial)
-                                     (neg? (compare (:score partial-record)
-                                                    (:score best-partial))))
-                               partial-record
-                               best-partial)]
-            (if (goal-site? site)
-              {:route (if (at-site? world pos (first path)) (vec (rest path)) (vec path))
-               :terminal-site site
-               :complete? true}
-              (let [neighbors (->> sites
-                                   (remove visited)
-                                   (filter #(edge-reachable? site % full-fuel))
-                                   (sort-by (fn [candidate]
-                                              [(terminal-score candidate goal-points) candidate])))]
-                (recur (reduce #(conj %1 [%2 (conj path %2)]) (pop queue) neighbors)
-                       (into visited neighbors)
-                       best-partial)))))))))
+                :else
+                (route-from-reachable-city state pos fuel))
+        terminal-site (or (peek route)
+                          (when (contains? (:kamikazee-terminal-sites state) pos) pos))]
+    {:route (vec route)
+     :terminal-site terminal-site
+     :complete? (boolean (or (seq route)
+                             (contains? (:kamikazee-terminal-sites state) pos)))}))
 
 (defn carrier-support-target
   [ctx pos]
-  (let [world ((:current-world ctx))
-        state ((:load-major-invasion-state ctx))
-        support-sites (targets/fighter-support-targets state)
-        target-point (targets/choose-major-target state world pos)
-        sea-candidates (for [i (range (count world))
-                             j (range (count (first world)))
-                             :let [cell (get-in world [i j])]
-                             :when (and (= :sea (:type cell))
-                                        (or (nil? (:contents cell))
-                                            (= pos [i j])))]
-                         [i j])]
-    (when (and (seq support-sites) target-point (seq sea-candidates))
-      (let [site (apply min-key #(core/distance pos %) support-sites)
-            midpoint [(quot (+ (first site) (first target-point)) 2)
-                      (quot (+ (second site) (second target-point)) 2)]]
-        (first (sort-by (fn [cand]
-                          [(core/distance cand midpoint)
-                           (+ (core/distance cand site)
-                              (core/distance cand target-point))
-                           cand])
-                        sea-candidates))))))
+  (let [state ((:load-major-invasion-state ctx))]
+    (when (fixed-carrier? state pos)
+      pos)))
 
 (defn invasion-production-override
   [city-pos]
@@ -137,5 +241,5 @@
         :else nil))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-14T08:35:47.562018-05:00", :module-hash "-449972455", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2116081666"} {:id "defn-/carrier-site?", :kind "defn-", :line 8, :end-line 10, :hash "-128511322"} {:id "defn/site-distance", :kind "defn", :line 12, :end-line 14, :hash "1551245603"} {:id "defn/at-site?", :kind "defn", :line 16, :end-line 20, :hash "-1499854197"} {:id "defn/available-refueling-sites", :kind "defn", :line 22, :end-line 26, :hash "-1085587931"} {:id "defn-/edge-reachable?", :kind "defn-", :line 28, :end-line 30, :hash "1619735915"} {:id "defn-/terminal-score", :kind "defn-", :line 32, :end-line 34, :hash "-953728457"} {:id "defn/plan-route", :kind "defn", :line 36, :end-line 87, :hash "-98391357"} {:id "defn/carrier-support-target", :kind "defn", :line 89, :end-line 111, :hash "1583931107"} {:id "defn/invasion-production-override", :kind "defn", :line 113, :end-line 137, :hash "109214244"}]}
+;; {:version 1, :tested-at "2026-03-14T10:05:09.816873-05:00", :module-hash "-332387105", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2116081666"} {:id "defn/carrier-site?", :kind "defn", :line 8, :end-line 10, :hash "-642704688"} {:id "defn/city-site?", :kind "defn", :line 12, :end-line 15, :hash "878576996"} {:id "defn/site-distance", :kind "defn", :line 17, :end-line 19, :hash "1551245603"} {:id "defn/at-site?", :kind "defn", :line 21, :end-line 25, :hash "-1499854197"} {:id "defn/available-refueling-sites", :kind "defn", :line 27, :end-line 31, :hash "-1085587931"} {:id "defn-/edge-reachable?", :kind "defn-", :line 33, :end-line 35, :hash "1619735915"} {:id "defn-/target-distance", :kind "defn-", :line 37, :end-line 39, :hash "-1588550186"} {:id "defn-/computer-city-positions", :kind "defn-", :line 41, :end-line 48, :hash "-33793779"} {:id "defn-/computer-carriers", :kind "defn-", :line 50, :end-line 57, :hash "2071859718"} {:id "defn-/reachable-marked-city", :kind "defn-", :line 59, :end-line 63, :hash "343051173"} {:id "defn-/bridging-carrier", :kind "defn-", :line 65, :end-line 77, :hash "-1066173304"} {:id "defn-/pick-root-city", :kind "defn-", :line 79, :end-line 82, :hash "1757221937"} {:id "defn-/choose-forward-carrier", :kind "defn-", :line 84, :end-line 93, :hash "746269383"} {:id "defn/rebuild-routing-graph", :kind "defn", :line 95, :end-line 148, :hash "2125941602"} {:id "defn/rebuild-routing-graph!", :kind "defn", :line 150, :end-line 156, :hash "-1690621996"} {:id "defn/fixed-carrier?", :kind "defn", :line 158, :end-line 161, :hash "1253731980"} {:id "defn-/next-hop", :kind "defn-", :line 163, :end-line 166, :hash "1670891984"} {:id "defn-/route-from-node", :kind "defn-", :line 168, :end-line 176, :hash "-1672535525"} {:id "defn-/route-from-reachable-city", :kind "defn-", :line 178, :end-line 191, :hash "-1244797622"} {:id "defn/plan-route", :kind "defn", :line 193, :end-line 209, :hash "283588680"} {:id "defn/carrier-support-target", :kind "defn", :line 211, :end-line 215, :hash "1550006344"} {:id "defn/invasion-production-override", :kind "defn", :line 217, :end-line 241, :hash "589623714"}]}
 ;; clj-mutate-manifest-end

@@ -87,6 +87,46 @@ THEN f has major-invasion true.
 THEN f has kamikazee true.
 
 ;===============================================================
+; Major invasion assigns fighters a city-hop route to the forward root city.
+;===============================================================
+GIVEN game map
+  X~t~~
+  ##O#X
+  f~~~~
+  ~~~~~
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  .....
+  .....
+  .....
+  .....
+
+WHEN cell visibility updates for t.
+
+THEN f has kamikazee-route [[0 0] [4 1]].
+
+;===============================================================
+; Major invasion uses a single carrier bridge between cities.
+;===============================================================
+GIVEN game map
+  X~t~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ##O#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X
+  ~~~~~~~~~~~~~~~~~c~~~~~~~~~~~~~~~~~
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GIVEN t has transport-mission sailing.
+GIVEN t has 4 armies.
+GIVEN computer map
+  ...................................
+  ...................................
+  ...................................
+  ...................................
+
+WHEN cell visibility updates for t.
+
+THEN c has mode sentry.
+
+;===============================================================
 ; New enemy army detections update kamikazee fighter targets.
 ;===============================================================
 GIVEN game map

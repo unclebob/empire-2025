@@ -258,12 +258,10 @@
             targets (kamikazee/ordered-army-target-positions state
                                                              (kamikazee/current-round ctx)
                                                              world)
-            plan (kamikazee/plan-route world
+            plan (kamikazee/plan-route state
+                                       world
                                        pos
-                                       (:fuel unit 32)
-                                       (or (seq targets)
-                                           (:detection-points state)
-                                           (:target-land-set state)))]
+                                       (:fuel unit 32))]
         ((:update-game-map! ctx) update-in (conj pos :contents)
          #(-> %
               (assoc :major-invasion true
@@ -274,19 +272,21 @@
                      :kamikazee-route (:route plan)
                      :kamikazee-terminal-site (:terminal-site plan)
                      :kamikazee-stage (if (seq (:route plan)) :route :hunt))
-              (dissoc :threat-mission :threat-center :threat-radius :threat-rounds-left)))
-        (when-let [terminal-site (:terminal-site plan)]
-          (when-let [update-major-invasion-state! (:update-major-invasion-state! ctx)]
-            (update-major-invasion-state! update :kamikazee-terminal-sites (fnil conj #{}) terminal-site))))
+              (dissoc :threat-mission :threat-center :threat-radius :threat-rounds-left))))
 
       ((:major-invasion-ship-types ctx) t)
-      (let [target (if (= :carrier t)
-                     (or (kamikazee/carrier-support-target ctx pos)
-                         (nearest-major-ship-target ctx pos))
-                     (nearest-major-ship-target ctx pos))]
+      (if (= :carrier t)
+        (if (kamikazee/carrier-support-target ctx pos)
+          ((:update-game-map! ctx) update-in (conj pos :contents)
+           assoc :major-invasion true
+           :mode :sentry
+           :major-invasion-target pos)
+          ((:update-game-map! ctx) update-in (conj pos :contents)
+           assoc :major-invasion true
+           :major-invasion-target (nearest-major-ship-target ctx pos)))
         ((:update-game-map! ctx) update-in (conj pos :contents)
          assoc :major-invasion true
-         :major-invasion-target target))
+         :major-invasion-target (nearest-major-ship-target ctx pos)))
 
       (= :transport t)
       (prepare-transport-major-invasion! ctx pos unit)
@@ -323,5 +323,5 @@
           ((:update-game-map! ctx) assoc-in (conj pos :contents :major-invasion-find-armies-round) start-round))))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:58:47.861438-05:00", :module-hash "-636882144", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1360578220"} {:id "def/major-invasion-unload-radius", :kind "def", :line 8, :end-line 8, :hash "-1532793606"} {:id "def/max-invasion-coastal-candidates", :kind "def", :line 9, :end-line 9, :hash "-329358744"} {:id "def/preferred-invasion-landing-distance", :kind "def", :line 10, :end-line 10, :hash "-1028129861"} {:id "def/invasion-load-timeout-rounds", :kind "def", :line 11, :end-line 11, :hash "1973653881"} {:id "defn-/target-land-candidates-within-radius*", :kind "defn-", :line 13, :end-line 19, :hash "1029596520"} {:id "defn-/coastal-land?", :kind "defn-", :line 21, :end-line 25, :hash "-1736933564"} {:id "defn-/connected-target-land", :kind "defn-", :line 27, :end-line 30, :hash "-2128426892"} {:id "defn/connected-coastal-candidates", :kind "defn", :line 32, :end-line 38, :hash "1660593060"} {:id "defn-/flood-sea-reachable", :kind "defn-", :line 40, :end-line 55, :hash "-1962794039"} {:id "defn-/reachable-sea-set", :kind "defn-", :line 57, :end-line 69, :hash "-222811944"} {:id "defn-/land-has-reachable-sea-neighbor?", :kind "defn-", :line 71, :end-line 78, :hash "-26578749"} {:id "defn-/sea-reachable-detection-points", :kind "defn-", :line 80, :end-line 88, :hash "-1833589159"} {:id "defn/recompute-sea-reachable-detection-points!", :kind "defn", :line 90, :end-line 95, :hash "-1397968623"} {:id "defn/nearest-major-sea-target", :kind "defn", :line 97, :end-line 108, :hash "1890090278"} {:id "defn-/best-invasion-target-and-path", :kind "defn-", :line 110, :end-line 134, :hash "714001741"} {:id "defn-/current-target-land-revision", :kind "defn-", :line 136, :end-line 138, :hash "1736132922"} {:id "defn/major-invasion-target-revision", :kind "defn", :line 140, :end-line 142, :hash "1485306651"} {:id "defn-/valid-invasion-plan?", :kind "defn-", :line 144, :end-line 149, :hash "40176473"} {:id "defn-/stamp-transport-major-invasion-target!", :kind "defn-", :line 151, :end-line 156, :hash "1929681846"} {:id "defn-/should-plan-invasion-route?", :kind "defn-", :line 158, :end-line 164, :hash "738456503"} {:id "defn-/update-transport-invasion-route!", :kind "defn-", :line 166, :end-line 185, :hash "763781411"} {:id "defn-/clear-stale-invasion-routing!", :kind "defn-", :line 187, :end-line 200, :hash "-1068287357"} {:id "defn-/maybe-mark-find-armies-for-invasion!", :kind "defn-", :line 202, :end-line 210, :hash "-690300027"} {:id "defn-/nearest-major-ship-target", :kind "defn-", :line 212, :end-line 217, :hash "-472358978"} {:id "defn/prepare-transport-major-invasion!", :kind "defn", :line 219, :end-line 233, :hash "708545281"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 235, :end-line 243, :hash "110476110"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 245, :end-line 265, :hash "486389824"} {:id "defn/trim-stale-find-armies-missions!", :kind "defn", :line 267, :end-line 291, :hash "825223317"}]}
+;; {:version 1, :tested-at "2026-03-14T10:08:42.851404-05:00", :module-hash "-1001541697", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1510895066"} {:id "def/major-invasion-unload-radius", :kind "def", :line 10, :end-line 10, :hash "-1532793606"} {:id "def/max-invasion-coastal-candidates", :kind "def", :line 11, :end-line 11, :hash "-329358744"} {:id "def/preferred-invasion-landing-distance", :kind "def", :line 12, :end-line 12, :hash "-1028129861"} {:id "def/invasion-load-timeout-rounds", :kind "def", :line 13, :end-line 13, :hash "1973653881"} {:id "defn-/target-land-candidates-within-radius*", :kind "defn-", :line 15, :end-line 21, :hash "-827635081"} {:id "defn-/coastal-land?", :kind "defn-", :line 23, :end-line 27, :hash "-1736933564"} {:id "defn-/connected-target-land", :kind "defn-", :line 29, :end-line 32, :hash "-2128426892"} {:id "defn/connected-coastal-candidates", :kind "defn", :line 34, :end-line 40, :hash "1763371992"} {:id "defn-/flood-sea-reachable", :kind "defn-", :line 42, :end-line 57, :hash "-1962794039"} {:id "defn-/reachable-sea-set", :kind "defn-", :line 59, :end-line 71, :hash "-222811944"} {:id "defn-/land-has-reachable-sea-neighbor?", :kind "defn-", :line 73, :end-line 80, :hash "-26578749"} {:id "defn-/sea-reachable-detection-points", :kind "defn-", :line 82, :end-line 90, :hash "620253926"} {:id "defn/recompute-sea-reachable-detection-points!", :kind "defn", :line 92, :end-line 97, :hash "-1397968623"} {:id "defn/nearest-major-sea-target", :kind "defn", :line 99, :end-line 110, :hash "1073025441"} {:id "defn-/best-invasion-target-and-path", :kind "defn-", :line 112, :end-line 136, :hash "1427558764"} {:id "defn-/current-target-land-revision", :kind "defn-", :line 138, :end-line 140, :hash "1736132922"} {:id "defn/major-invasion-target-revision", :kind "defn", :line 142, :end-line 144, :hash "1485306651"} {:id "defn-/valid-invasion-plan?", :kind "defn-", :line 146, :end-line 151, :hash "40176473"} {:id "defn-/stamp-transport-major-invasion-target!", :kind "defn-", :line 153, :end-line 158, :hash "934394738"} {:id "defn-/should-plan-invasion-route?", :kind "defn-", :line 160, :end-line 166, :hash "738456503"} {:id "defn-/update-transport-invasion-route!", :kind "defn-", :line 168, :end-line 187, :hash "763781411"} {:id "defn-/clear-stale-invasion-routing!", :kind "defn-", :line 189, :end-line 202, :hash "-1068287357"} {:id "defn-/maybe-mark-find-armies-for-invasion!", :kind "defn-", :line 204, :end-line 212, :hash "-690300027"} {:id "defn-/nearest-major-ship-target", :kind "defn-", :line 214, :end-line 219, :hash "-472358978"} {:id "defn/prepare-transport-major-invasion!", :kind "defn", :line 221, :end-line 235, :hash "708545281"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 237, :end-line 245, :hash "1480260381"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 247, :end-line 297, :hash "204897230"} {:id "defn/trim-stale-find-armies-missions!", :kind "defn", :line 299, :end-line 323, :hash "-498020734"}]}
 ;; clj-mutate-manifest-end

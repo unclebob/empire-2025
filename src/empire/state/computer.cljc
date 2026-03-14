@@ -23,6 +23,11 @@
                           :next-review-round nil
                           :detection-points #{}
                           :kamikazee-army-targets []
+                          :kamikazee-root-city nil
+                          :kamikazee-city-next-hops {}
+                          :kamikazee-carrier-next-hops {}
+                          :kamikazee-bridge-carriers #{}
+                          :kamikazee-forward-carrier nil
                           :kamikazee-terminal-sites #{}
                           :target-land-set #{}
                           :started-round nil
