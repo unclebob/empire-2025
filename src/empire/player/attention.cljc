@@ -4,7 +4,8 @@
             [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.config.core :as config]
             [empire.config.domain.core.unit-metrics :as unit-metrics]
-            [empire.game-mechanics.containers.helpers :as uc]))
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.player.attention-decisions :as decisions]))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."
@@ -29,57 +30,22 @@
   [i j]
   (let [player-map (sa/read-state :player-map)
         production (sa/read-state :production)
-        cell (get-in player-map [i j])
-        unit (:contents cell)
-        mode (:mode unit)
-        satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
-        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
-        has-awake-army-aboard? (pos? (:awake-armies unit 0))
-        has-awake-carrier-fighter? (and (= (:type unit) :carrier)
-                                        (uc/has-awake? unit :awake-fighters))]
-    (and (not satellite-with-target?)
-         (or (= (:city-status cell) :player)
-             (= (:owner unit) :player)
-             has-awake-airport-fighter?
-             has-awake-carrier-fighter?)
-         (or (= mode :awake)
-             has-awake-airport-fighter?
-             has-awake-army-aboard?
-             has-awake-carrier-fighter?
-             (and (= (:type cell) :city)
-                  (not (production [i j])))))))
+        cell (get-in player-map [i j])]
+    (decisions/player-map-cell-needs-attention? cell (production [i j]))))
 
 (defn cells-needing-attention
   "Returns coordinates of player's units and cities with no production."
   []
   (let [player-map (sa/read-state :player-map)]
-    (for [i (range (count player-map))
-          j (range (count (first player-map)))
-        :when (needs-attention? i j)]
-      [i j])))
+    (decisions/attention-coords player-map (sa/read-state :production))))
 
 (defn item-needs-attention?
   "Returns true if the item at coords needs user input.
    Satellites only need attention when they have no target."
   [coords]
   (let [cell (get-in (sa/current-world) coords)
-        production (sa/read-state :production)
-        unit (:contents cell)
-        player-owned-unit? (= (:owner unit) :player)
-        satellite-with-target? (and (= (:type unit) :satellite) (:target unit))
-        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
-        has-awake-army-aboard? (pos? (:awake-armies unit 0))
-        has-awake-carrier-fighter? (and (= (:type unit) :carrier)
-                                        player-owned-unit?
-                                        (uc/has-awake? unit :awake-fighters))]
-    (and (not satellite-with-target?)
-         (or (and player-owned-unit? (= (:mode unit) :awake))
-             has-awake-airport-fighter?
-             has-awake-army-aboard?
-             has-awake-carrier-fighter?
-             (and (= (:type cell) :city)
-                  (= (:city-status cell) :player)
-                  (not (production coords)))))))
+        production (sa/read-state :production)]
+    (decisions/world-item-needs-attention? cell (production coords))))
 
 ;; Returns true if an army at coords has an adjacent hostile city it could attack.
 ;; Used to set the attention reason to :army-found-city when no other reason exists.
@@ -163,5 +129,5 @@
                             (:city-needs-attention config/messages)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:02:31.526464-05:00", :module-hash "-1423655796", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1222643075"} {:id "defn/is-unit-needing-attention?", :kind "defn", :line 9, :end-line 17, :hash "-1931873458"} {:id "defn/is-city-needing-attention?", :kind "defn", :line 19, :end-line 24, :hash "733558512"} {:id "defn/needs-attention?", :kind "defn", :line 26, :end-line 50, :hash "303007721"} {:id "defn/cells-needing-attention", :kind "defn", :line 52, :end-line 59, :hash "-85158594"} {:id "defn/item-needs-attention?", :kind "defn", :line 61, :end-line 80, :hash "-1534984960"} {:id "defn-/army-adjacent-to-enemy-city?", :kind "defn-", :line 84, :end-line 92, :hash "1339912166"} {:id "defn-/cargo-string", :kind "defn-", :line 96, :end-line 100, :hash "-531062870"} {:id "defn-/reason-string", :kind "defn-", :line 104, :end-line 108, :hash "-270678909"} {:id "defn-/fuel-string", :kind "defn-", :line 111, :end-line 113, :hash "-835329319"} {:id "defn-/ship-hits-string", :kind "defn-", :line 115, :end-line 120, :hash "67812064"} {:id "defn-/active-unit-attention-message", :kind "defn-", :line 124, :end-line 138, :hash "1849029674"} {:id "defn/set-attention-message", :kind "defn", :line 140, :end-line 161, :hash "-1242166375"}]}
+;; {:version 1, :tested-at "2026-03-15T15:53:24.35184-05:00", :module-hash "-97465693", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "-2081511259"} {:id "defn/is-unit-needing-attention?", :kind "defn", :line 10, :end-line 18, :hash "-1931873458"} {:id "defn/is-city-needing-attention?", :kind "defn", :line 20, :end-line 25, :hash "733558512"} {:id "defn/needs-attention?", :kind "defn", :line 27, :end-line 34, :hash "-2039746276"} {:id "defn/cells-needing-attention", :kind "defn", :line 36, :end-line 40, :hash "-561589124"} {:id "defn/item-needs-attention?", :kind "defn", :line 42, :end-line 48, :hash "-779795582"} {:id "defn-/army-adjacent-to-enemy-city?", :kind "defn-", :line 52, :end-line 60, :hash "1339912166"} {:id "defn-/cargo-string", :kind "defn-", :line 64, :end-line 68, :hash "-531062870"} {:id "defn-/reason-string", :kind "defn-", :line 72, :end-line 76, :hash "-270678909"} {:id "defn-/fuel-string", :kind "defn-", :line 79, :end-line 81, :hash "-835329319"} {:id "defn-/ship-hits-string", :kind "defn-", :line 83, :end-line 88, :hash "67812064"} {:id "defn-/active-unit-attention-message", :kind "defn-", :line 92, :end-line 106, :hash "1849029674"} {:id "defn/set-attention-message", :kind "defn", :line 108, :end-line 129, :hash "-1242166375"}]}
 ;; clj-mutate-manifest-end

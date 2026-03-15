@@ -1,6 +1,7 @@
 (ns empire.computer.transport-mission-handlers
   (:require [empire.computer.core :as core]
             [empire.computer.land-objectives :as land-objectives]
+            [empire.computer.transport-decisions :as decisions]
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]))
@@ -157,10 +158,18 @@
         started (or (:invasion-load-since transport) now)
         elapsed (- now started)
         timed-out? (>= elapsed invasion-load-timeout-rounds)
-        has-armies? (pos? army-count)]
-    (if has-armies?
-      (process-load-for-invasion-with-armies deps pos transport major-target in-unload-zone? timed-out?)
-      (process-load-for-invasion-empty update-game-map! transition-to-loading pos timed-out?))))
+        has-armies? (pos? army-count)
+        action (decisions/load-for-invasion-action
+                {:has-armies? has-armies?
+                 :in-unload-zone? in-unload-zone?
+                 :timed-out? timed-out?
+                 :nearby-unloadable-land? (and has-armies? ((:has-nearby-unloadable-land? deps) pos transport 5))})]
+    (case action
+      :unload ((:transition-to-unloading deps) pos major-target)
+      :sail ((:transition-to-sailing deps) pos)
+      :revert-loading (process-load-for-invasion-empty update-game-map! transition-to-loading pos timed-out?)
+      (when has-armies?
+        nil))))
 
 (defn process-loading-mission
   [{:keys [current-world
@@ -178,14 +187,11 @@
   (clear-pickup-continent-if-arrived pos)
   (let [transport' (get-in (current-world) (conj pos :contents))
         army-count' (:army-count transport' 0)]
-    (cond
-      (should-start-sailing? pos transport' army-count')
-      (start-sailing pos transport')
-
-      (loading-stale? transport')
-      (handle-stale-loading pos transport' army-count')
-
-      :else
+    (case (decisions/loading-mission-action
+           {:should-start-sailing? (should-start-sailing? pos transport' army-count')
+            :loading-stale? (loading-stale? transport')})
+      :start-sailing (start-sailing pos transport')
+      :handle-stale (handle-stale-loading pos transport' army-count')
       (loading-crawl-move pos))))
 
 (defn- take-second-unloading-step
@@ -225,8 +231,8 @@
            transition-to-loading]
     :as deps}
   pos army-count]
-  (if (zero? army-count)
-    (transition-to-loading pos)
+  (case (decisions/unloading-mission-action {:army-count army-count})
+    :transition-to-loading (transition-to-loading pos)
     (let [transport (get-in (current-world) (conj pos :contents))]
       (process-unloading-with-armies deps pos transport))))
 
@@ -299,5 +305,5 @@
         true))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:59:00.020516-05:00", :module-hash "846092511", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1075384054"} {:id "def/invasion-army-search-max-distance", :kind "def", :line 8, :end-line 8, :hash "-644390678"} {:id "def/invasion-load-timeout-rounds", :kind "def", :line 9, :end-line 9, :hash "1973653881"} {:id "defn/load-for-invasion-start!", :kind "defn", :line 11, :end-line 15, :hash "-810401784"} {:id "defn-/loadable-army-neighbor?", :kind "defn-", :line 17, :end-line 24, :hash "-1760752950"} {:id "defn/passable-sea-cell?", :kind "defn", :line 26, :end-line 30, :hash "-618562919"} {:id "defn/sea-load-points", :kind "defn", :line 32, :end-line 40, :hash "1374456034"} {:id "defn-/coastal-army?", :kind "defn-", :line 42, :end-line 46, :hash "-1829698076"} {:id "defn-/candidate-coastal-armies", :kind "defn-", :line 48, :end-line 60, :hash "2124573952"} {:id "defn-/nearest-reachable-coastal-army", :kind "defn-", :line 62, :end-line 75, :hash "358071700"} {:id "defn-/move-to-sea-step", :kind "defn-", :line 77, :end-line 83, :hash "-49456250"} {:id "defn/process-find-armies-for-invasion", :kind "defn", :line 85, :end-line 116, :hash "849554544"} {:id "defn/process-load-for-invasion-with-armies", :kind "defn", :line 118, :end-line 133, :hash "-709718108"} {:id "defn/process-load-for-invasion-empty", :kind "defn", :line 135, :end-line 140, :hash "1323918587"} {:id "defn/process-load-for-invasion", :kind "defn", :line 142, :end-line 163, :hash "539265230"} {:id "defn/process-loading-mission", :kind "defn", :line 165, :end-line 189, :hash "-1860935783"} {:id "defn-/take-second-unloading-step", :kind "defn-", :line 191, :end-line 205, :hash "-1531560164"} {:id "defn-/process-unloading-with-armies", :kind "defn-", :line 207, :end-line 221, :hash "842924283"} {:id "defn/process-unloading-mission", :kind "defn", :line 223, :end-line 231, :hash "-1681456668"} {:id "defn/park-lake-transport-if-empty", :kind "defn", :line 233, :end-line 254, :hash "-1035280194"} {:id "defn/process-land-locked-mission", :kind "defn", :line 256, :end-line 271, :hash "-1454317422"} {:id "defn/fix-idle-mission", :kind "defn", :line 273, :end-line 276, :hash "-346291120"} {:id "defn/maybe-handle-lake-transport", :kind "defn", :line 278, :end-line 299, :hash "-664804461"}]}
+;; {:version 1, :tested-at "2026-03-15T15:54:36.734152-05:00", :module-hash "-42292458", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "980126051"} {:id "def/invasion-army-search-max-distance", :kind "def", :line 9, :end-line 9, :hash "-644390678"} {:id "def/invasion-load-timeout-rounds", :kind "def", :line 10, :end-line 10, :hash "1973653881"} {:id "defn/load-for-invasion-start!", :kind "defn", :line 12, :end-line 16, :hash "1657335532"} {:id "defn-/loadable-army-neighbor?", :kind "defn-", :line 18, :end-line 25, :hash "-1760752950"} {:id "defn/passable-sea-cell?", :kind "defn", :line 27, :end-line 31, :hash "-618562919"} {:id "defn/sea-load-points", :kind "defn", :line 33, :end-line 41, :hash "1374456034"} {:id "defn-/coastal-army?", :kind "defn-", :line 43, :end-line 47, :hash "-1829698076"} {:id "defn-/candidate-coastal-armies", :kind "defn-", :line 49, :end-line 61, :hash "2124573952"} {:id "defn-/nearest-reachable-coastal-army", :kind "defn-", :line 63, :end-line 76, :hash "358071700"} {:id "defn-/move-to-sea-step", :kind "defn-", :line 78, :end-line 84, :hash "-49456250"} {:id "defn/process-find-armies-for-invasion", :kind "defn", :line 86, :end-line 117, :hash "778029330"} {:id "defn/process-load-for-invasion-with-armies", :kind "defn", :line 119, :end-line 134, :hash "-709718108"} {:id "defn/process-load-for-invasion-empty", :kind "defn", :line 136, :end-line 141, :hash "1323918587"} {:id "defn/process-load-for-invasion", :kind "defn", :line 143, :end-line 172, :hash "-1036328156"} {:id "defn/process-loading-mission", :kind "defn", :line 174, :end-line 195, :hash "1991527787"} {:id "defn-/take-second-unloading-step", :kind "defn-", :line 197, :end-line 211, :hash "-1531560164"} {:id "defn-/process-unloading-with-armies", :kind "defn-", :line 213, :end-line 227, :hash "842924283"} {:id "defn/process-unloading-mission", :kind "defn", :line 229, :end-line 237, :hash "1747391872"} {:id "defn/park-lake-transport-if-empty", :kind "defn", :line 239, :end-line 260, :hash "8083485"} {:id "defn/process-land-locked-mission", :kind "defn", :line 262, :end-line 277, :hash "-1454317422"} {:id "defn/fix-idle-mission", :kind "defn", :line 279, :end-line 282, :hash "-346291120"} {:id "defn/maybe-handle-lake-transport", :kind "defn", :line 284, :end-line 305, :hash "-664804461"}]}
 ;; clj-mutate-manifest-end

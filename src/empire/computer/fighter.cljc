@@ -5,6 +5,7 @@
             [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]
             [empire.config.core :as config]
+            [empire.computer.fighter-decisions :as decisions]
             [empire.computer.fighter-flight-plan :as flight-plan]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]
@@ -122,25 +123,18 @@
   "Non-combat movement priorities: explore/drone > arrival > low fuel > navigate > patrol. CC=5."
   [pos unit]
   (let [fuel (:fuel unit config/fighter-fuel)
-        target (:flight-target-site unit)]
-    (cond
-      ;; Priority: Exploration sortie or drone in progress
-      (or (exploring? unit) (= :drone (:flight-mode unit)))
-      (handle-exploration-or-drone pos unit)
-
-      ;; Arrived at target refueling site
-      (and target (at-flight-target? pos target))
-      (handle-arrival pos unit)
-
-      ;; Low fuel → return to nearest refueling site
-      (fm/should-return-to-refuel? pos fuel)
-      (handle-low-fuel pos)
-
-      ;; Navigate toward target
-      target
-      (navigate-toward-target pos target fuel)
-
-      :else
+        target (:flight-target-site unit)
+        action (decisions/objective-action
+                {:exploring? (exploring? unit)
+                 :drone? (= :drone (:flight-mode unit))
+                 :at-flight-target? (and target (at-flight-target? pos target))
+                 :low-fuel? (fm/should-return-to-refuel? pos fuel)
+                 :has-target? (boolean target)})]
+    (case action
+      :explore (handle-exploration-or-drone pos unit)
+      :arrive (handle-arrival pos unit)
+      :low-fuel (handle-low-fuel pos)
+      :navigate (navigate-toward-target pos target fuel)
       (handle-patrol pos))))
 
 (defn- move-fighter-once
@@ -148,10 +142,10 @@
    Returns {:pos p :hops n}, :landed, or nil (died/stuck)."
   [pos unit]
   (let [enemy-pos (fm/find-adjacent-enemy pos)]
-    (if enemy-pos
-      (when-let [new-pos (fm/attack-enemy pos enemy-pos)]
-        (when (fm/consume-fighter-fuel new-pos)
-          {:pos new-pos :hops 1}))
+    (case (decisions/fighter-step-action enemy-pos :objective)
+      :attack (when-let [new-pos (fm/attack-enemy pos enemy-pos)]
+                (when (fm/consume-fighter-fuel new-pos)
+                  {:pos new-pos :hops 1}))
       (move-fighter-toward-objective pos unit))))
 
 (defn- fighter-at?
@@ -208,5 +202,5 @@
   nil)
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:36.580593-05:00", :module-hash "-1465759747", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 11, :hash "1325050826"} {:id "defn-/ensure-flight-target", :kind "defn-", :line 15, :end-line 17, :hash "1637502047"} {:id "defn-/at-flight-target?", :kind "defn-", :line 19, :end-line 21, :hash "1502384376"} {:id "defn-/assign-exploration-flight", :kind "defn-", :line 23, :end-line 25, :hash "1061413541"} {:id "defn-/handle-arrival", :kind "defn-", :line 27, :end-line 29, :hash "905536671"} {:id "defn-/select-best-navigation-target", :kind "defn-", :line 31, :end-line 39, :hash "-990323845"} {:id "defn-/navigate-toward-target", :kind "defn-", :line 41, :end-line 59, :hash "639683001"} {:id "defn-/refuel-at-site", :kind "defn-", :line 61, :end-line 67, :hash "1041119285"} {:id "defn-/move-and-consume-toward", :kind "defn-", :line 69, :end-line 75, :hash "-1274531809"} {:id "defn-/adjacent-to-city-site?", :kind "defn-", :line 77, :end-line 80, :hash "49227538"} {:id "defn-/adjacent-to-site?", :kind "defn-", :line 82, :end-line 83, :hash "-82053016"} {:id "defn-/desperate-patrol", :kind "defn-", :line 85, :end-line 88, :hash "-471602302"} {:id "defn-/handle-low-fuel", :kind "defn-", :line 90, :end-line 99, :hash "-786913424"} {:id "defn-/handle-patrol", :kind "defn-", :line 101, :end-line 106, :hash "632345729"} {:id "defn-/exploring?", :kind "defn-", :line 108, :end-line 112, :hash "-2145013931"} {:id "defn-/handle-exploration-or-drone", :kind "defn-", :line 114, :end-line 119, :hash "683756139"} {:id "defn-/move-fighter-toward-objective", :kind "defn-", :line 121, :end-line 144, :hash "889029962"} {:id "defn-/move-fighter-once", :kind "defn-", :line 146, :end-line 155, :hash "2138439358"} {:id "defn-/fighter-at?", :kind "defn-", :line 157, :end-line 160, :hash "-1409954566"} {:id "defn-/burn-stuck-fuel", :kind "defn-", :line 162, :end-line 166, :hash "-826225124"} {:id "defn-/step-fighter", :kind "defn-", :line 168, :end-line 178, :hash "246828647"} {:id "defn-/computer-fighter?", :kind "defn-", :line 180, :end-line 184, :hash "-388940705"} {:id "defn-/process-threat-fighter?", :kind "defn-", :line 186, :end-line 188, :hash "376643004"} {:id "defn-/run-fighter-steps!", :kind "defn-", :line 190, :end-line 197, :hash "135973802"} {:id "defn/process-fighter", :kind "defn", :line 199, :end-line 208, :hash "-1975436729"}]}
+;; {:version 1, :tested-at "2026-03-15T15:53:58.586285-05:00", :module-hash "-1413109470", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 12, :hash "-1042295489"} {:id "defn-/ensure-flight-target", :kind "defn-", :line 16, :end-line 18, :hash "1637502047"} {:id "defn-/at-flight-target?", :kind "defn-", :line 20, :end-line 22, :hash "1502384376"} {:id "defn-/assign-exploration-flight", :kind "defn-", :line 24, :end-line 26, :hash "1061413541"} {:id "defn-/handle-arrival", :kind "defn-", :line 28, :end-line 30, :hash "905536671"} {:id "defn-/select-best-navigation-target", :kind "defn-", :line 32, :end-line 40, :hash "-722523704"} {:id "defn-/navigate-toward-target", :kind "defn-", :line 42, :end-line 60, :hash "639683001"} {:id "defn-/refuel-at-site", :kind "defn-", :line 62, :end-line 68, :hash "1041119285"} {:id "defn-/move-and-consume-toward", :kind "defn-", :line 70, :end-line 76, :hash "-1274531809"} {:id "defn-/adjacent-to-city-site?", :kind "defn-", :line 78, :end-line 81, :hash "49227538"} {:id "defn-/adjacent-to-site?", :kind "defn-", :line 83, :end-line 84, :hash "-82053016"} {:id "defn-/desperate-patrol", :kind "defn-", :line 86, :end-line 89, :hash "-471602302"} {:id "defn-/handle-low-fuel", :kind "defn-", :line 91, :end-line 100, :hash "-786913424"} {:id "defn-/handle-patrol", :kind "defn-", :line 102, :end-line 107, :hash "632345729"} {:id "defn-/exploring?", :kind "defn-", :line 109, :end-line 113, :hash "-2145013931"} {:id "defn-/handle-exploration-or-drone", :kind "defn-", :line 115, :end-line 120, :hash "683756139"} {:id "defn-/move-fighter-toward-objective", :kind "defn-", :line 122, :end-line 138, :hash "-1800952099"} {:id "defn-/move-fighter-once", :kind "defn-", :line 140, :end-line 149, :hash "403808442"} {:id "defn-/fighter-at?", :kind "defn-", :line 151, :end-line 154, :hash "-1409954566"} {:id "defn-/burn-stuck-fuel", :kind "defn-", :line 156, :end-line 160, :hash "-826225124"} {:id "defn-/step-fighter", :kind "defn-", :line 162, :end-line 172, :hash "246828647"} {:id "defn-/computer-fighter?", :kind "defn-", :line 174, :end-line 178, :hash "-388940705"} {:id "defn-/process-threat-fighter?", :kind "defn-", :line 180, :end-line 182, :hash "376643004"} {:id "defn-/run-fighter-steps!", :kind "defn-", :line 184, :end-line 191, :hash "135973802"} {:id "defn/process-fighter", :kind "defn", :line 193, :end-line 202, :hash "-1975436729"}]}
 ;; clj-mutate-manifest-end

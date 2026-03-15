@@ -1,0 +1,35 @@
+(ns empire.player.attention-decisions-spec
+  (:require [empire.player.attention-decisions :as decisions]
+            [speclj.core :refer :all]))
+
+(describe "player-map-cell-needs-attention?"
+  (it "returns true for awake player unit"
+    (should (decisions/player-map-cell-needs-attention?
+             {:contents {:type :army :owner :player :mode :awake}}
+             nil)))
+
+  (it "returns true for player city without production"
+    (should (decisions/player-map-cell-needs-attention?
+             {:type :city :city-status :player}
+             nil)))
+
+  (it "returns false for targeted satellite"
+    (should-not (decisions/player-map-cell-needs-attention?
+                 {:contents {:type :satellite :owner :player :mode :awake :target [1 1]}}
+                 nil))))
+
+(describe "world-item-needs-attention?"
+  (it "returns false for awake computer unit in player city"
+    (should-not (decisions/world-item-needs-attention?
+                 {:type :city :city-status :player :contents {:type :fighter :owner :computer :mode :awake}}
+                 :army))))
+
+(describe "attention-coords"
+  (it "collects matching coordinates"
+    (should= [[0 0] [1 0]]
+             (vec (decisions/attention-coords
+                   [[{:contents {:type :army :owner :player :mode :awake}}
+                     {:type :land}]
+                    [{:type :city :city-status :player}
+                     {:type :city :city-status :player}]]
+                   {[1 1] {:item :army}})))))
