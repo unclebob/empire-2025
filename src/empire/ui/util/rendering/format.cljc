@@ -9,6 +9,10 @@
   [paused pause-requested]
   (or paused pause-requested))
 
+(defn- safe-name
+  [x fallback]
+  (if (keyword? x) (name x) fallback))
+
 (defn- unit-fuel-str [unit]
   (when (= (:type unit) :fighter)
     (str " fuel:" (:fuel unit))))
@@ -44,16 +48,17 @@
   "Formats status string for a unit."
   [unit]
   (let [max-hits (config/item-hits (:type unit))
-        hits (or (:hits unit) max-hits)]
-    (str (name (:owner unit)) " " (name (:type unit))
-         " [" hits "/" max-hits "]"
+        hits (or (:hits unit) max-hits "?")
+        max-hits-str (or max-hits "?")]
+    (str (safe-name (:owner unit) "unknown") " " (safe-name (:type unit) "unit")
+         " [" hits "/" max-hits-str "]"
          (unit-fuel-str unit)
          (unit-cargo-str unit)
          (transport-mission-str unit)
          (army-mission-str unit)
          (patrol-mode-str unit)
          (unit-orders-str unit)
-         " " (name (:mode unit)))))
+         " " (safe-name (:mode unit) "unknown"))))
 
 (defn- format-ship-for-dock
   "Formats a single ship for dock display: T[2/3] for type[hits/max]"

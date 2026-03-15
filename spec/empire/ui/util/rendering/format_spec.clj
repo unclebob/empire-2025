@@ -56,7 +56,12 @@
 
   (it "formats destroyer with no patrol mode"
     (let [unit {:type :destroyer :hits 3 :mode :sentry :owner :player}]
-      (should= "player destroyer [3/3] sentry" (fmt/format-unit-status unit)))))
+      (should= "player destroyer [3/3] sentry" (fmt/format-unit-status unit))))
+
+  (it "falls back to unknown labels for malformed units"
+    (let [unit {:hits nil :owner nil :type :fighter :mode nil :fuel 7}]
+      (should= "unknown fighter [1/1] fuel:7 unknown"
+               (fmt/format-unit-status unit)))))
 
 (describe "format-city-status"
   (it "formats player city with production"
@@ -167,7 +172,12 @@
 
   (it "returns waypoint status for waypoint with no orders"
     (let [cell {:type :land :waypoint {}}]
-      (should= "[0,0] waypoint (no orders)" (fmt/format-hover-status [0 0] cell nil)))))
+      (should= "[0,0] waypoint (no orders)" (fmt/format-hover-status [0 0] cell nil))))
+
+  (it "does not crash on malformed unit hover data"
+    (let [cell {:contents {:type :fighter :fuel 7 :hits nil :owner nil :mode nil}}]
+      (should= "[2,3] unknown fighter [1/1] fuel:7 unknown"
+               (fmt/format-hover-status [2 3] cell nil)))))
 
 (describe "split-hover-status"
   (it "splits a unit hover message into summary and detail"
