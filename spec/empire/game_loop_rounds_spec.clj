@@ -2,6 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.debug.integrity :as integrity]
             [empire.config.core :as config]
             [empire.game-mechanics.movement.api :as movement]
             [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
@@ -48,6 +49,14 @@
     (it "clears cells-needing-attention"
       (game-loop/start-new-round)
       (should= [] (test-utils/read-test-state :cells-needing-attention)))
+
+    (it "checks world integrity once per round"
+      (let [calls (atom 0)]
+        (with-redefs [integrity/check-world-integrity! (fn []
+                                                         (swap! calls inc)
+                                                         nil)]
+          (game-loop/start-new-round)
+          (should= 1 @calls))))
 
     (it "does not wake carrier fighters - they stay asleep until u is pressed"
       (set-test-world! (-> (build-test-map ["C"])

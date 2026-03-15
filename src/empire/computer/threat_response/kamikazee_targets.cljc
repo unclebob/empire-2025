@@ -4,6 +4,16 @@
 
 (def ^:private target-choice-width 3)
 
+(defn- kamikazee-target-writeable-unit?
+  [ctx pos]
+  (let [world (or (when-let [current-world (:current-world ctx)]
+                    (current-world))
+                  (sa/current-world))
+        unit (get-in world (conj pos :contents))]
+    (and (= :fighter (:type unit))
+         (= :computer (:owner unit))
+         (:kamikazee unit))))
+
 (defn current-round
   [ctx]
   (if-let [read-runtime-state (:read-runtime-state ctx)]
@@ -61,7 +71,8 @@
                          (= :computer (:owner unit))
                          (= :fighter (:type unit))
                          (:kamikazee unit))]
-        ((:update-game-map! ctx) assoc-in [i j :contents :kamikazee-targets] targets)))))
+        (when (kamikazee-target-writeable-unit? ctx [i j])
+          ((:update-game-map! ctx) assoc-in [i j :contents :kamikazee-targets] targets))))))
 
 (defn record-army-target!
   [ctx pos]

@@ -2,6 +2,7 @@
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.game.production-status :as production-status]
+            [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -155,8 +156,9 @@
   (sa/write-state! :attention-message "")
   (sa/write-state! :cells-needing-attention [])
   (sa/write-state! :production-status
-                        (production-status/format-production-status (sa/current-world)
-                                                                    (sa/read-state :player-map))))
+                   (production-status/format-production-status (sa/current-world)
+                                                               (sa/read-state :player-map)))
+  (integrity/check-world-integrity!))
 
 (defn- both-lists-empty? []
   (and (empty? (sa/read-state :player-items))

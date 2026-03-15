@@ -238,6 +238,36 @@
       (should= 4 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :fuel]))
       (should= :hunt (get-in (test-utils/read-test-state :game-map) [1 0 :contents :kamikazee-stage]))))
 
+  (it "does not create phantom contents when a hunt step destination is stale"
+    (let [world (build-test-map ["f~~"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {:detection-points #{[2 0]}})
+      (update-test-world! update-in [0 0 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :hunt
+                           :fuel 6})
+      (with-redefs [rand-nth first
+                    empire.computer.core/move-unit-to (fn [_ _]
+                                                        (update-test-world! update-in [0 0] dissoc :contents)
+                                                        [1 0])]
+        (#'mission/process-kamikazee-fighter (mission-ctx)
+                                             [0 0]
+                                             (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
+
+  (it "stops processing cleanly when the kamikazee fighter is already gone"
+    (let [world (build-test-map ["~~~"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {:detection-points #{[2 0]}})
+      (should= nil (#'mission/process-kamikazee-fighter (mission-ctx) [1 1] nil))))
+
   (it "attacks adjacent player armies while hunting"
     (let [world (build-test-map ["fA"])]
       (set-test-world! world)
@@ -254,4 +284,27 @@
                                              [0 0]
                                              (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
       (should= :computer (get-in (test-utils/read-test-state :game-map) [1 0 :contents :owner]))
-      (should= :fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type])))))
+      (should= :fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))))
+
+  (it "does not fall through into a hunt move after losing an adjacent army combat"
+    (let [world (build-test-map ["fA~"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (set-test-state! :major-invasion-state {})
+      (update-test-world! update-in [0 0 :contents]
+                          merge
+                          {:major-invasion true
+                           :kamikazee true
+                           :kamikazee-stage :hunt
+                           :fuel 20})
+      (with-redefs [empire.computer.fighter-movement/attack-enemy
+                    (fn [from _]
+                      (update-test-world! update-in from dissoc :contents)
+                      nil)]
+        (#'mission/process-kamikazee-fighter (mission-ctx)
+                                             [0 0]
+                                             (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents])))))
