@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [empire.state.api :as sa]
             [empire.config.core :as config]
+            [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
@@ -18,6 +19,20 @@
     (let [[r g b] config/production-color]
       (q/fill r g b))
     (q/text prod-char (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset))))
+
+(defn- attention-airport-fighter?
+  [col row cell attention-coords]
+  (and (= :city (:type cell))
+       (nil? (:contents cell))
+       (uc/has-awake? cell :awake-fighters)
+       (= [col row] (first attention-coords))))
+
+(defn- city-production-overrides-airport?
+  [cell production-indicator]
+  (and (= :city (:type cell))
+       (nil? (:contents cell))
+       (pos? (uc/get-count cell :fighter-count))
+       production-indicator))
 
 (defn- draw-unit
   "Draws a unit on the map cell, handling attention blinking for contained units.
@@ -97,8 +112,15 @@
     (q/text-font (sa/read-state :production-char-font))
     (doseq [[_ cells] cells-by-color]
       (doseq [{:keys [col row cell]} cells]
-        (draw-production-indicators row col cell cell-w cell-h production map-to-display)
-        (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit?)
+        (let [production-indicator (display/production-indicator-data row col cell production map-to-display)
+              attention-airport? (attention-airport-fighter? col row cell attention-coords)
+              hide-production? attention-airport?
+              hide-airport-unit? (and (not attention-airport?)
+                                      (city-production-overrides-airport? cell production-indicator))]
+          (when-not hide-production?
+            (draw-production-indicators row col cell cell-w cell-h production map-to-display))
+          (when-not hide-airport-unit?
+            (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit?)))
         (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))))
 
 ;; clj-mutate-manifest-begin

@@ -244,6 +244,18 @@
       (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
       (should= false (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])))
 
+    (it "returns false when attacker has nil hits"
+      (set-test-world! (build-test-map ["Aa"]))
+      (set-test-unit (test-utils/game-map-atom) "A" :hits nil)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
+      (should= false (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])))
+
+    (it "returns false when defender has nil hits"
+      (set-test-world! (build-test-map ["Aa"]))
+      (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
+      (set-test-unit (test-utils/game-map-atom) "a" :hits nil)
+      (should= false (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0])))
+
     (it "returns a result map when attacking enemy unit"
       (set-test-world! (build-test-map ["Aa"]))
       (set-test-unit (test-utils/game-map-atom) "A" :hits 1)

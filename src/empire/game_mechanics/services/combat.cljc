@@ -242,14 +242,20 @@
   [unit owner]
   (domain-combat/hostile-unit? unit owner))
 
+(defn- valid-combatant?
+  [unit]
+  (and unit
+       (:type unit)
+       (number? (:hits unit))))
+
 (defn attempt-attack
   [world attacker-coords target-coords]
   (let [attacker-cell (get-in world attacker-coords)
         target-cell (get-in world target-coords)
         attacker (:contents attacker-cell)
         defender (:contents target-cell)]
-    (if (or (nil? attacker)
-            (nil? defender)
+    (if (or (not (valid-combatant? attacker))
+            (not (valid-combatant? defender))
             (= :satellite (:type attacker))
             (= :satellite (:type defender))
             (not (hostile-unit? defender (:owner attacker))))
