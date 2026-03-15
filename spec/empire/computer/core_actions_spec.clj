@@ -1,145 +1,8 @@
-(ns empire.computer.core-spec
-  (:require [empire.test.utils :as test-utils]
-            [speclj.core :refer :all]
-            [empire.computer.core :as core]
-            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]))
-
-(describe "distance"
-  (it "returns 0 for same position"
-    (should= 0 (core/distance [3 3] [3 3])))
-
-  (it "returns Manhattan distance"
-    (should= 5 (core/distance [0 0] [3 2])))
-
-  (it "handles negative direction"
-    (should= 7 (core/distance [5 5] [2 1])))
-
-  (it "computes positive x distance correctly"
-    (should= 5 (core/distance [0 0] [5 0])))
-
-  (it "computes positive y distance correctly"
-    (should= 3 (core/distance [0 0] [0 3]))))
-
-(describe "chebyshev-distance"
-  (it "returns 0 for same position"
-    (should= 0 (core/chebyshev-distance [3 3] [3 3])))
-
-  (it "returns max of row/col differences"
-    (should= 3 (core/chebyshev-distance [0 0] [3 2])))
-
-  (it "handles negative direction"
-    (should= 4 (core/chebyshev-distance [5 5] [1 2])))
-
-  (it "computes positive row distance"
-    (should= 5 (core/chebyshev-distance [0 0] [5 0])))
-
-  (it "computes positive col distance"
-    (should= 3 (core/chebyshev-distance [0 0] [0 3]))))
-
-(describe "attackable-target?"
-  (it "returns true for player city"
-    (should (core/attackable-target? {:type :city :city-status :player})))
-
-  (it "returns true for free city"
-    (should (core/attackable-target? {:type :city :city-status :free})))
-
-  (it "returns false for computer city"
-    (should-not (core/attackable-target? {:type :city :city-status :computer})))
-
-  (it "returns true for player unit"
-    (should (core/attackable-target? {:contents {:owner :player}})))
-
-  (it "returns false for computer unit"
-    (should-not (core/attackable-target? {:contents {:owner :computer}})))
-
-  (it "returns false for empty cell"
-    (should-not (core/attackable-target? {:type :sea})))
-
-  (it "returns false for land cell without contents"
-    (should-not (core/attackable-target? {:type :land}))))
-
-(describe "move-toward"
-  (it "returns the neighbor closest to target"
-    (should= [2 0] (core/move-toward [1 0] [3 0] [[0 0] [2 0]])))
-
-  (it "returns nil when no passable neighbors"
-    (should-be-nil (core/move-toward [1 0] [3 0] [])))
-
-  (it "returns nil when passable-neighbors is nil"
-    (should-be-nil (core/move-toward [1 0] [3 0] nil))))
-
-(describe "find-visible-cities"
-  (before (reset-all-atoms!))
-
-  (it "finds computer cities"
-    (set-test-computer-map!
-            [[{:type :city :city-status :computer} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
-    (should= [[0 0]] (core/find-visible-cities #{:computer})))
-
-  (it "finds player cities with predicate"
-    (set-test-computer-map!
-            [[{:type :city :city-status :player} {:type :sea}]
-             [{:type :sea} {:type :city :city-status :computer}]])
-    (should= [[0 0]] (core/find-visible-cities #{:player})))
-
-  (it "returns empty when no matching cities"
-    (set-test-computer-map!
-            [[{:type :sea} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
-    (should= [] (core/find-visible-cities #{:computer}))))
-
-(describe "adjacent-to-computer-unexplored?"
-  (before (reset-all-atoms!))
-
-  (it "returns true when neighbor is nil (unexplored)"
-    (set-test-computer-map!
-            [[{:type :sea} nil]
-             [{:type :sea} {:type :sea}]])
-    (set-test-world! [[{:type :sea} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
-    (should (core/adjacent-to-computer-unexplored? [0 0])))
-
-  (it "returns false when all neighbors explored"
-    (set-test-computer-map!
-            [[{:type :sea} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
-    (set-test-world! [[{:type :sea} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
-    (should-not (core/adjacent-to-computer-unexplored? [0 0]))))
-
-(describe "stamp-territory"
-  (before (reset-all-atoms!))
-
-  (it "stamps land cell with army's country-id"
-    (set-test-world! (build-test-map ["#"]))
-    (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
-    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "stamps city cell with army's country-id"
-    (set-test-world! (build-test-map ["X"]))
-    (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 5})
-    (should= 5 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "does not stamp sea cell"
-    (set-test-world! (build-test-map ["~"]))
-    (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
-    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "does not stamp for player army"
-    (set-test-world! (build-test-map ["#"]))
-    (core/stamp-territory [0 0] {:type :army :owner :player :country-id 3})
-    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "does not stamp for non-army unit"
-    (set-test-world! (build-test-map ["#"]))
-    (core/stamp-territory [0 0] {:type :transport :owner :computer :country-id 3})
-    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "does not stamp when army has no country-id"
-    (set-test-world! (build-test-map ["#"]))
-    (core/stamp-territory [0 0] {:type :army :owner :computer})
-    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))))
+(ns empire.computer.core-actions-spec
+  (:require [empire.computer.core :as core]
+            [empire.test.utils :as test-utils]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]
+            [speclj.core :refer :all]))
 
 (describe "move-unit-to"
   (before (reset-all-atoms!))
@@ -220,7 +83,6 @@
   (it "does not change discovered free city on player-map when computer conquers it"
     (set-test-world! (build-test-map ["a+"]))
     (set-test-computer-map! (build-test-map ["a+"]))
-    ;; Player already discovered the free city.
     (set-test-player-map! (build-test-map ["a+"]))
     (with-redefs [rand (constantly 0.1)]
       (core/attempt-conquest-computer [0 0] [1 0])
@@ -275,14 +137,11 @@
         (should= 0 woken))))
 
   (it "wakes sentry at exact chebyshev distance = radius"
-    ;; 5x5 map; sentry at [0,2], pos at [2,2], radius 2
-    ;; chebyshev = max(|0-2|,|2-2|) = 2 = radius
-    ;; Kills <= -> < on L151
     (set-test-world! (build-test-map ["~~#~~"
-                                            "~~#~~"
-                                            "a~#~#"
-                                            "~~#~~"
-                                            "~~#~~"]))
+                                      "~~#~~"
+                                      "a~#~#"
+                                      "~~#~~"
+                                      "~~#~~"]))
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [2 2] 2)]
@@ -290,11 +149,9 @@
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))))))
 
   (it "wakes sentries at row 0 and last row boundaries"
-    ;; 5x3 map; sentries at [2,0] and [2,2], pos at [2,1], radius 1
-    ;; Kills 0->1 and 1->0 range bound mutations on r range
     (set-test-world! (build-test-map ["~~a~~"
-                                            "~~#~~"
-                                            "~~a~~"]))
+                                      "~~#~~"
+                                      "~~a~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (update-test-world! assoc-in [2 2 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
@@ -304,13 +161,11 @@
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))))))
 
   (it "sets direction pointing away from trigger with negative dc"
-    ;; Sentry at [0,2], pos at [2,2]: dc = signum(0-2) = -1
-    ;; Kills - -> + on Integer/signum (L152)
     (set-test-world! (build-test-map ["~~#~~"
-                                            "~~#~~"
-                                            "a~#~~"
-                                            "~~#~~"
-                                            "~~#~~"]))
+                                      "~~#~~"
+                                      "a~#~~"
+                                      "~~#~~"
+                                      "~~#~~"]))
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
@@ -318,13 +173,11 @@
         (should= -1 (first dir)))))
 
   (it "sets direction pointing away from trigger with negative dr"
-    ;; Sentry at [2,0], pos at [2,2]: dr = signum(0-2) = -1
-    ;; Kills - -> + on Integer/signum (L153)
     (set-test-world! (build-test-map ["~~a~~"
-                                            "~~~~~"
-                                            "~~#~~"
-                                            "~~~~~"
-                                            "~~~~~"]))
+                                      "~~~~~"
+                                      "~~#~~"
+                                      "~~~~~"
+                                      "~~~~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
@@ -332,14 +185,11 @@
         (should= -1 (second dir)))))
 
   (it "uses random direction when dc is zero"
-    ;; Sentry at [2,0], pos at [2,2]: dc = signum(2-2) = 0
-    ;; With rand=0.3 (< 0.5), random branch picks -1
-    ;; Kills if -> if-not on outer dc check (L154)
     (set-test-world! (build-test-map ["~~a~~"
-                                            "~~~~~"
-                                            "~~#~~"
-                                            "~~~~~"
-                                            "~~~~~"]))
+                                      "~~~~~"
+                                      "~~#~~"
+                                      "~~~~~"
+                                      "~~~~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
@@ -347,14 +197,11 @@
         (should= -1 (first dir)))))
 
   (it "uses random direction when dr is zero"
-    ;; Sentry at [0,2], pos at [2,2]: dr = signum(2-2) = 0
-    ;; With rand=0.3 (< 0.5), random branch picks -1
-    ;; Kills if -> if-not on outer dr check (L155)
     (set-test-world! (build-test-map ["~~#~~"
-                                            "~~#~~"
-                                            "a~#~~"
-                                            "~~#~~"
-                                            "~~#~~"]))
+                                      "~~#~~"
+                                      "a~#~~"
+                                      "~~#~~"
+                                      "~~#~~"]))
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
@@ -362,13 +209,11 @@
         (should= -1 (second dir)))))
 
   (it "random direction picks 1 when rand >= 0.5"
-    ;; dc=0, rand=0.7 (>= 0.5), should pick 1
-    ;; Kills 1 -> 0 on L154
     (set-test-world! (build-test-map ["~~a~~"
-                                            "~~~~~"
-                                            "~~#~~"
-                                            "~~~~~"
-                                            "~~~~~"]))
+                                      "~~~~~"
+                                      "~~#~~"
+                                      "~~~~~"
+                                      "~~~~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.7)]
       (core/wake-nearby-sentries [2 2] 2)
@@ -376,13 +221,10 @@
         (should= 1 (first dir)))))
 
   (it "wakes sentry at c range upper boundary"
-    ;; pos=[1,1], radius=2. c range: (range 0 (min 4 (+ 1 2 1))) = (range 0 4)
-    ;; With 1->0: (range 0 (min 4 3)) = (range 0 3) — excludes column 3
-    ;; Sentry at [3,1], chebyshev distance = max(|3-1|,|1-1|) = 2 = radius
     (set-test-world! (build-test-map ["~~~~"
-                                            "~#~a"
-                                            "~~~~"
-                                            "~~~~"]))
+                                      "~#~a"
+                                      "~~~~"
+                                      "~~~~"]))
     (update-test-world! assoc-in [3 1 :contents :mode] :sentry)
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [1 1] 2)]
@@ -407,12 +249,10 @@
     (should-throw (core/board-transport [0 0] [2 0])))
 
   (it "loads army at non-zero positions (kills - -> + in adjacent?)"
-    ;; Army at [2,3], transport at [3,3] — both coords > 0
-    ;; With mutation - -> + in adjacent?: |3+3|=6 > 1, not adjacent — throws
     (set-test-world! (build-test-map ["~~~~"
-                                            "~~~~"
-                                            "~~~~"
-                                            "~~at"]))
+                                      "~~~~"
+                                      "~~~~"
+                                      "~~at"]))
     (update-test-world! assoc-in [3 3 :contents :transport-mission] :loading)
     (update-test-world! assoc-in [3 3 :contents :army-count] 0)
     (core/board-transport [2 3] [3 3])
@@ -427,12 +267,10 @@
     (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
   (it "loads army diagonally adjacent (kills <= -> < on dc in adjacent?)"
-    ;; Army at [2,2], transport at [3,3]: dr=1, dc=1 (diagonal)
-    ;; With <= -> < on dc: (< 1 1) = false, not adjacent, throws
     (set-test-world! (build-test-map ["~~~~"
-                                            "~~~~"
-                                            "~~a~"
-                                            "~~~t"]))
+                                      "~~~~"
+                                      "~~a~"
+                                      "~~~t"]))
     (update-test-world! assoc-in [3 3 :contents :transport-mission] :loading)
     (update-test-world! assoc-in [3 3 :contents :army-count] 0)
     (core/board-transport [2 2] [3 3])
@@ -444,19 +282,19 @@
 
   (it "finds player units on computer map"
     (set-test-computer-map!
-            [[{:type :sea :contents {:type :army :owner :player}} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
+     [[{:type :sea :contents {:type :army :owner :player}} {:type :sea}]
+      [{:type :sea} {:type :sea}]])
     (should= [[0 0]] (core/find-visible-player-units)))
 
   (it "ignores computer units"
     (set-test-computer-map!
-            [[{:type :sea :contents {:type :army :owner :computer}} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
+     [[{:type :sea :contents {:type :army :owner :computer}} {:type :sea}]
+      [{:type :sea} {:type :sea}]])
     (should= [] (core/find-visible-player-units)))
 
   (it "returns empty when no units"
     (set-test-computer-map!
-            [[{:type :sea} {:type :sea}]])
+     [[{:type :sea} {:type :sea}]])
     (should= [] (core/find-visible-player-units))))
 
 (describe "find-loading-transport"
@@ -464,34 +302,34 @@
 
   (it "finds a loading transport with room"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 2}}]])
+                                              :transport-mission :loading :army-count 2}}]])
     (should= [0 0] (core/find-loading-transport)))
 
   (it "skips full transports"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 6}}]])
+                                              :transport-mission :loading :army-count 6}}]])
     (should-be-nil (core/find-loading-transport)))
 
   (it "skips non-loading transports"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :sailing :army-count 0}}]])
+                                              :transport-mission :sailing :army-count 0}}]])
     (should-be-nil (core/find-loading-transport)))
 
   (it "skips player transports"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :player
-                                     :transport-mission :loading :army-count 0}}]])
+                                              :transport-mission :loading :army-count 0}}]])
     (should-be-nil (core/find-loading-transport)))
 
   (it "excludes transport with matching unload-event-id"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 0
-                                     :unload-event-id 42}}]])
+                                              :transport-mission :loading :army-count 0
+                                              :unload-event-id 42}}]])
     (should-be-nil (core/find-loading-transport 42)))
 
   (it "includes transport with different unload-event-id"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 0
-                                     :unload-event-id 42}}]])
+                                              :transport-mission :loading :army-count 0
+                                              :unload-event-id 42}}]])
     (should= [0 0] (core/find-loading-transport 99))))
 
 (describe "find-adjacent-loading-transport"
@@ -499,26 +337,26 @@
 
   (it "finds adjacent loading transport"
     (set-test-world! [[{:type :land} {:type :sea}]
-             [{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 0}} {:type :sea}]])
+                      [{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :loading :army-count 0}} {:type :sea}]])
     (should= [1 0] (core/find-adjacent-loading-transport [0 0])))
 
   (it "returns nil when no adjacent transport"
     (set-test-world! [[{:type :land} {:type :sea}]
-             [{:type :sea} {:type :sea}]])
+                      [{:type :sea} {:type :sea}]])
     (should-be-nil (core/find-adjacent-loading-transport [0 0])))
 
   (it "skips full adjacent transports"
     (set-test-world! [[{:type :land} {:type :sea}]
-             [{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 6}} {:type :sea}]])
+                      [{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :loading :army-count 6}} {:type :sea}]])
     (should-be-nil (core/find-adjacent-loading-transport [0 0])))
 
   (it "excludes transport with matching unload-event-id"
     (set-test-world! [[{:type :land} {:type :sea}]
-             [{:type :sea :contents {:type :transport :owner :computer
-                                     :transport-mission :loading :army-count 0
-                                     :unload-event-id 42}} {:type :sea}]])
+                      [{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :loading :army-count 0
+                                              :unload-event-id 42}} {:type :sea}]])
     (should-be-nil (core/find-adjacent-loading-transport [0 0] 42))))
 
 (describe "computer core"
