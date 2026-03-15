@@ -63,11 +63,44 @@
     (let [calls (atom [])]
       (with-redefs [q/fill (fn [& args] (swap! calls conj [:fill args]))
                     q/text (fn [& args] (swap! calls conj [:text args]))]
-        (#'map-render/draw-waypoint 1 2 {:waypoint true} 10 12)
+        (#'map-render/draw-waypoint 1 2 {:type :land} {:waypoint true} 10 12)
         (should-contain [:fill (vec config/waypoint-color)] @calls)
         (should-contain [:text ["*"
                                 (+ 10 config/cell-char-x-offset)
-                                (+ 24 config/cell-char-y-offset)]] @calls)))))
+                                (+ 24 config/cell-char-y-offset)]] @calls))))
+
+  (it "does not draw on unexplored display cells even if the world has a waypoint"
+    (let [calls (atom [])]
+      (with-redefs [q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (#'map-render/draw-waypoint 1 2 {:type :unexplored} {:waypoint true} 10 12)
+        (should= [] @calls)))))
+
+(describe "draw-map"
+  (before (reset-all-atoms!))
+
+  (it "draws waypoint markers from the world map when the display map is stale"
+    (let [calls (atom [])]
+      (sa/write-state! :map-screen-dimensions [20 20])
+      (sa/write-state! :production {})
+      (sa/write-state! :map-to-display :player-map)
+      (sa/write-state! :cells-needing-attention [])
+      (sa/write-state! :production-char-font :fake-font)
+      (sa/write-state! :game-map [[{:type :land :waypoint true}]])
+      (with-redefs [empire.ui.util.rendering.display/group-cells-by-color
+                    (fn [& _] {[139 69 19] [{:col 0 :row 0 :cell {:type :land}}]})
+                    empire.ui.util.rendering.display/production-indicator-data (fn [& _] nil)
+                    empire.ui.util.rendering.display/determine-display-unit (fn [& _] nil)
+                    map-render/draw-production-indicators (fn [& _] nil)
+                    q/no-stroke (fn [& _] nil)
+                    q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/rect (fn [& _] nil)
+                    q/stroke (fn [& _] nil)
+                    q/line (fn [& _] nil)
+                    q/text-font (fn [& _] nil)
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (map-render/draw-map [[{:type :land}]])
+        (should-contain [:text ["*" config/cell-char-x-offset config/cell-char-y-offset]] @calls)))))
 
 (describe "draw-debug-selection-rectangle"
   (before (reset-all-atoms!))

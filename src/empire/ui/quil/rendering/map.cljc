@@ -33,8 +33,10 @@
 (defn- draw-waypoint
   "Draws a waypoint marker on the map cell if it has a waypoint and no contents.
    Assumes font is already set."
-  [col row cell cell-w cell-h]
-  (when (and (:waypoint cell) (nil? (:contents cell)))
+  [col row display-cell world-cell cell-w cell-h]
+  (when (and (not= :unexplored (:type display-cell))
+             (:waypoint world-cell)
+             (nil? (:contents display-cell)))
     (let [[r g b] config/waypoint-color]
       (q/fill r g b)
       (q/text "*" (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))))
@@ -61,6 +63,7 @@
   "Draws the map on the screen."
   [the-map]
   (let [[map-w map-h] (sa/read-state :map-screen-dimensions)
+        world (sa/read-state :game-map)
         cols (count the-map)
         rows (count (first the-map))
         cell-w (/ map-w cols)
@@ -96,7 +99,7 @@
       (doseq [{:keys [col row cell]} cells]
         (draw-production-indicators row col cell cell-w cell-h production map-to-display)
         (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit?)
-        (draw-waypoint col row cell cell-w cell-h)))))
+        (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-12T13:53:45.052163-05:00", :module-hash "-1024084162", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1169683959"} {:id "defn/draw-production-indicators", :kind "defn", :line 9, :end-line 20, :hash "1768886334"} {:id "defn-/draw-unit", :kind "defn-", :line 22, :end-line 31, :hash "429368515"} {:id "defn-/draw-waypoint", :kind "defn-", :line 33, :end-line 40, :hash "1569607689"} {:id "defn/draw-debug-selection-rectangle", :kind "defn", :line 42, :end-line 58, :hash "251657802"} {:id "defn/draw-map", :kind "defn", :line 60, :end-line 99, :hash "-915592608"}]}
