@@ -210,13 +210,22 @@
 (defn consume-fighter-fuel
   [pos]
   (let [unit (get-in (sa/current-world) (conj pos :contents))
+        valid-fighter? (and (= :fighter (:type unit))
+                            (= :computer (:owner unit)))
         new-fuel (dec (:fuel unit config/fighter-fuel))]
-    (if (<= new-fuel 0)
-      (do (sa/update-world! update-in pos dissoc :contents)
-          (update-cell-visibility! pos :computer)
-          false)
-      (do (sa/update-world! assoc-in (conj pos :contents :fuel) new-fuel)
-          true))))
+    (if-not valid-fighter?
+      (do
+        (binding [*out* *err*]
+          (println "Invalid fighter fuel update at" pos "contents:" unit)
+          (.printStackTrace (Throwable. (str "consume-fighter-fuel called on non-computer-fighter at " pos))
+                            ^java.io.PrintWriter *err*))
+        false)
+      (if (<= new-fuel 0)
+        (do (sa/update-world! update-in pos dissoc :contents)
+            (update-cell-visibility! pos :computer)
+            false)
+        (do (sa/update-world! assoc-in (conj pos :contents :fuel) new-fuel)
+            true)))))
 
 (defn consume-hop-fuel
   [pos hops]

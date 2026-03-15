@@ -134,11 +134,25 @@
                      :coastline-follow (move-coastline-unit coords)
                      :moving (move-current-unit coords)
                      nil)]
-    (when (= :player (:owner unit))
+    (when (and (= :player (:owner unit))
+               (vector? (sa/read-state :player-map))
+               (= (count (sa/read-state :player-map)) (count (sa/current-world)))
+               (= (count (first (sa/read-state :player-map)))
+                  (count (first (sa/current-world)))))
       (visibility/update-combatant-map :player-map :player))
     (if new-coords
       (do (sa/update-state! :player-items #(cons new-coords (rest %))) :continue)
       (do (sa/update-state! :player-items rest) :done))))
+
+(defn- normalize-item-queue
+  [items]
+  (cond
+    (and (vector? items)
+         (= 2 (count items))
+         (every? number? items))
+    [items]
+
+    :else items))
 
 (defn- satellite-with-target? [unit]
   (and (= (:type unit) :satellite) (:target unit)))
@@ -150,6 +164,7 @@
 (defn- process-one-item
   "Processes a single player item. Returns :done, :continue, or :waiting."
   []
+  (sa/update-state! :player-items normalize-item-queue)
   (let [coords (first (sa/read-state :player-items))
         cell (get-in (sa/current-world) coords)
         unit (:contents cell)

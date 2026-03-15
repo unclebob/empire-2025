@@ -12,7 +12,7 @@
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing.computer-items :as computer-items]
             [empire.game-mechanics.containers.ops :as container-ops]
-            [empire.test.utils :refer [reset-all-atoms! set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]))
 
 (defn- land-cell [] {:type :land})
 (defn- sea-cell [] {:type :sea})
@@ -847,6 +847,19 @@
       ;; nil mode → not in auto-mode set, not needing attention → else branch
       ;; process-auto-movement with nil mode → case returns nil → item removed
       (should (empty? (test-utils/read-test-state :player-items))))))
+
+(describe "process-player-items-batch raw coord queue"
+  (before (reset-all-atoms!))
+
+  (it "normalizes a flat [x y] player-items queue before processing"
+    (set-test-world! [[{:type :land :contents {:type :army :owner :player
+                                                      :mode :awake :hits 1}}]])
+    (test-utils/set-test-state! :player-items [0 0])
+    (with-redefs [attention/item-needs-attention? (fn [_] true)
+                  attention/set-attention-message (fn [_] nil)]
+      (ip/process-player-items-batch)
+      (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention))
+      (should= true (test-utils/read-test-state :waiting-for-input)))))
 
 (describe "process-player-items-batch loop (mutation coverage)"
   (before (reset-all-atoms!))

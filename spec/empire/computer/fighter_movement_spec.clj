@@ -100,6 +100,17 @@
         ;; Fighter should NOT be on the map as a unit
         (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
 
+    (it "logs and skips fuel burn when position no longer contains a computer fighter"
+      (set-test-world! [[{:type :land}]])
+      (let [err (java.io.StringWriter.)
+            err-writer (java.io.PrintWriter. err)]
+        (binding [*err* err-writer]
+          (should-not-throw (fm/consume-fighter-fuel [0 0]))
+          (.flush err-writer)
+          (should-contain "Invalid fighter fuel update at [0 0]" (str err))
+          (should-contain "consume-fighter-fuel called on non-computer-fighter at [0 0]" (str err))
+          (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))))
+
   (context "patrol behavior"
     (it "patrols toward player units when fuel allows"
       ;; Wide map so fighter patrols toward player unit
@@ -222,5 +233,3 @@
         (fighter/process-fighter [1 1] unit)
         ;; Fighter should be dead - fuel burned to 0 while stuck
         (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
-
-  )
