@@ -2,7 +2,8 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.wake-conditions :as wake]
             [empire.config.core :as config]
-            [empire.game-mechanics.services.round-setup :as domain-round-setup]))
+            [empire.game-mechanics.services.round-setup :as domain-round-setup]
+            [empire.game.loop.round-setup.fuel-decisions :as decisions]))
 
 (defn- world-ref [world] (atom world))
 
@@ -16,9 +17,6 @@
     (domain-round-setup/bingo-fuel?
      new-fuel
      (wake/friendly-city-in-range? pos new-fuel (world-ref world)))))
-
-(defn- fuel-action [new-fuel pos]
-  (domain-round-setup/fuel-action new-fuel (bingo-fuel? pos new-fuel)))
 
 (defn- apply-fuel-action [pos action new-fuel]
   (case action
@@ -34,16 +32,13 @@
   "Consumes fuel for sentry fighters each round, applying fuel warnings."
   []
   (let [world (sa/current-world)]
-    (doseq [i (range (count world))
-            j (range (count (first world)))
-            :let [cell (get-in world [i j])
-                  unit (:contents cell)]
-            :when (and unit
-                       (= :fighter (:type unit))
-                       (= :sentry (:mode unit)))]
-      (let [new-fuel (dec (:fuel unit config/fighter-fuel))]
-        (apply-fuel-action [i j] (fuel-action new-fuel [i j]) new-fuel)))))
+    (doseq [{:keys [pos update]}
+            (decisions/sentry-fighter-fuel-actions
+             world
+             config/fighter-fuel
+             (fn [pos new-fuel] (bingo-fuel? pos new-fuel)))]
+      (apply-fuel-action pos (:action update) (:fuel update)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:00:10.34683-05:00", :module-hash "2071655665", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1067048952"} {:id "defn-/world-ref", :kind "defn-", :line 7, :end-line 7, :hash "-1351735972"} {:id "defn-/set-error-message!", :kind "defn-", :line 9, :end-line 12, :hash "-369960802"} {:id "defn-/bingo-fuel?", :kind "defn-", :line 14, :end-line 18, :hash "-1488368327"} {:id "defn-/fuel-action", :kind "defn-", :line 20, :end-line 21, :hash "-1364834926"} {:id "defn-/apply-fuel-action", :kind "defn-", :line 23, :end-line 31, :hash "1684615316"} {:id "defn/consume-sentry-fighter-fuel", :kind "defn", :line 33, :end-line 45, :hash "-1721693425"}]}
+;; {:version 1, :tested-at "2026-03-15T16:29:35.096075-05:00", :module-hash "1006523654", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-253992843"} {:id "defn-/world-ref", :kind "defn-", :line 8, :end-line 8, :hash "-1351735972"} {:id "defn-/set-error-message!", :kind "defn-", :line 10, :end-line 13, :hash "-369960802"} {:id "defn-/bingo-fuel?", :kind "defn-", :line 15, :end-line 19, :hash "-1488368327"} {:id "defn-/apply-fuel-action", :kind "defn-", :line 21, :end-line 29, :hash "428394125"} {:id "defn/consume-sentry-fighter-fuel", :kind "defn", :line 31, :end-line 40, :hash "816435690"}]}
 ;; clj-mutate-manifest-end

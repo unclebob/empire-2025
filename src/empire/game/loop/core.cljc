@@ -15,7 +15,8 @@
             [empire.computer.threat-response :as threat-response]
             [empire.game.loop.round-setup :as round-setup]
             [empire.game.loop.item-processing :as item-processing]
-            [empire.player.production :as player-production]))
+            [empire.player.production :as player-production]
+            [empire.game.loop.control-decisions :as decisions]))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -75,32 +76,24 @@
 
 (defn- handicap-active?
   []
-  (pos? (or (sa/read-state :handicap-rounds-remaining) 0)))
+  (decisions/handicap-active? (sa/read-state :handicap-rounds-remaining)))
 
 (defn- current-player-items
   []
-  (if (handicap-active?)
-    []
-    (vec (build-player-items))))
-
-(defn- count-down-handicap!
-  [remaining]
-  (let [next-remaining (dec remaining)]
-    (sa/write-state! :handicap-rounds-remaining next-remaining)
-    (sa/write-state! :handicap-display-rounds next-remaining)))
-
-(defn- handicap-display-expired?
-  [remaining display]
-  (= [0 0] [(or remaining 0) display]))
+  (decisions/current-player-items (sa/read-state :handicap-rounds-remaining)
+                                  (build-player-items)))
 
 (defn- update-handicap-before-round!
   []
   (let [remaining (sa/read-state :handicap-rounds-remaining)
-        display (sa/read-state :handicap-display-rounds)]
-    (if (pos? (or remaining 0))
-      (count-down-handicap! remaining)
-      (when (handicap-display-expired? remaining display)
-        (sa/write-state! :handicap-display-rounds nil)))))
+        display (sa/read-state :handicap-display-rounds)
+        decision (decisions/handicap-update remaining display)]
+    (case (:action decision)
+      :count-down (do
+                    (sa/write-state! :handicap-rounds-remaining (:remaining decision))
+                    (sa/write-state! :handicap-display-rounds (:display decision)))
+      :clear-display (sa/write-state! :handicap-display-rounds nil)
+      nil)))
 
 ;; Delegate round-setup functions for backward compatibility
 (def remove-dead-units round-setup/remove-dead-units)
@@ -146,15 +139,11 @@
     (sa/write-state! :computer-items computer-items)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
-    (when (sa/read-state :game-over-check-enabled)
-      (cond
-        (and (empty? player-items) (not (handicap-active?)))
-        (declare-game-over! "****GAME OVER*****  You Lose")
-
-        (empty? computer-items)
-        (declare-game-over! "****GAME OVER*****  I Resign  YOU WIN!")
-
-        :else nil)))
+    (when-let [game-over (decisions/game-over-action (sa/read-state :game-over-check-enabled)
+                                                     player-items
+                                                     computer-items
+                                                     (sa/read-state :handicap-rounds-remaining))]
+      (declare-game-over! (:message game-over))))
   (sa/write-state! :waiting-for-input false)
   (sa/write-state! :attention-message "")
   (sa/write-state! :cells-needing-attention [])
@@ -167,27 +156,27 @@
   (and (empty? (sa/read-state :player-items))
        (empty? (sa/read-state :computer-items))))
 
-(defn- handle-pause-or-new-round []
-  (if (sa/read-state :pause-requested)
-    (do (sa/write-state! :paused true)
-        (sa/write-state! :pause-requested false))
-    (do
-      (when (pos? (sa/read-state :round-number))
-        (update-handicap-before-round!))
-      (start-new-round))))
-
 (defn advance-game
   "Advances the game by processing player items, then computer items.
    Processes multiple non-attention items per frame for faster rounds."
   []
-  (cond
-    (sa/read-state :load-menu-open) nil
-    (sa/read-state :save-menu-open) nil
-    (sa/read-state :paused) nil
-    (both-lists-empty?) (handle-pause-or-new-round)
-    (sa/read-state :waiting-for-input) nil
-    (seq (sa/read-state :player-items)) (item-processing/process-player-items-batch)
-    :else (item-processing/process-computer-items)))
+  (case (decisions/advance-game-action {:load-menu-open (sa/read-state :load-menu-open)
+                                        :save-menu-open (sa/read-state :save-menu-open)
+                                        :paused (sa/read-state :paused)
+                                        :both-lists-empty? (both-lists-empty?)
+                                        :pause-requested (sa/read-state :pause-requested)
+                                        :waiting-for-input (sa/read-state :waiting-for-input)
+                                        :player-items (sa/read-state :player-items)})
+    :pause (do
+             (sa/write-state! :paused true)
+             (sa/write-state! :pause-requested false))
+    :new-round (do
+                 (when (pos? (sa/read-state :round-number))
+                   (update-handicap-before-round!))
+                 (start-new-round))
+    :process-player (item-processing/process-player-items-batch)
+    :process-computer (item-processing/process-computer-items)
+    nil))
 
 (defn advance-game-batch
   "Calls advance-game up to advances-per-frame times per frame.
@@ -196,11 +185,11 @@
   (loop [remaining config/advances-per-frame]
     (when (pos? remaining)
       (advance-game)
-      (when (and (> remaining 1)
-                 (not (sa/read-state :paused))
-                 (not (sa/read-state :waiting-for-input))
-                 (or (seq (sa/read-state :player-items))
-                     (seq (sa/read-state :computer-items))))
+      (when (decisions/continue-batch? remaining
+                                       (sa/read-state :paused)
+                                       (sa/read-state :waiting-for-input)
+                                       (sa/read-state :player-items)
+                                       (sa/read-state :computer-items))
         (recur (dec remaining))))))
 
 (defn toggle-pause
@@ -231,5 +220,5 @@
   (advance-game))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:00:03.546677-05:00", :module-hash "-1360302862", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 17, :hash "-153605337"} {:id "defn/update-player-map", :kind "defn", :line 19, :end-line 26, :hash "2102522450"} {:id "defn/update-computer-map", :kind "defn", :line 28, :end-line 35, :hash "-1953237338"} {:id "defn/build-player-items", :kind "defn", :line 37, :end-line 46, :hash "1741102605"} {:id "defn/build-computer-items", :kind "defn", :line 48, :end-line 57, :hash "-1394268341"} {:id "defn-/declare-game-over!", :kind "defn-", :line 59, :end-line 66, :hash "1518773855"} {:id "defn/item-processed", :kind "defn", :line 68, :end-line 73, :hash "-1477047071"} {:id "def/remove-dead-units", :kind "def", :line 76, :end-line 76, :hash "2048804574"} {:id "def/reset-steps-remaining", :kind "def", :line 77, :end-line 77, :hash "-2073169805"} {:id "def/wake-airport-fighters", :kind "def", :line 78, :end-line 78, :hash "879726790"} {:id "def/wake-carrier-fighters", :kind "def", :line 79, :end-line 79, :hash "840162374"} {:id "def/consume-sentry-fighter-fuel", :kind "def", :line 80, :end-line 80, :hash "-647149942"} {:id "def/wake-sentries-seeing-enemy", :kind "def", :line 81, :end-line 81, :hash "-1383325288"} {:id "def/move-satellites", :kind "def", :line 82, :end-line 82, :hash "493297701"} {:id "def/repair-damaged-ships", :kind "def", :line 83, :end-line 83, :hash "2109716449"} {:id "def/move-current-unit", :kind "def", :line 86, :end-line 86, :hash "122457069"} {:id "def/move-explore-unit", :kind "def", :line 87, :end-line 87, :hash "-1327293082"} {:id "def/move-coastline-unit", :kind "def", :line 88, :end-line 88, :hash "-314642053"} {:id "defn/start-new-round", :kind "defn", :line 90, :end-line 133, :hash "-271215164"} {:id "defn-/both-lists-empty?", :kind "defn-", :line 135, :end-line 137, :hash "-2026920266"} {:id "defn-/handle-pause-or-new-round", :kind "defn-", :line 139, :end-line 143, :hash "641553017"} {:id "defn/advance-game", :kind "defn", :line 145, :end-line 156, :hash "310765398"} {:id "defn/advance-game-batch", :kind "defn", :line 158, :end-line 170, :hash "-782026222"} {:id "defn/toggle-pause", :kind "defn", :line 172, :end-line 180, :hash "1938644392"} {:id "defn/step-one-round", :kind "defn", :line 182, :end-line 190, :hash "-1584583582"} {:id "defn/update-map", :kind "defn", :line 192, :end-line 197, :hash "-297625781"}]}
+;; {:version 1, :tested-at "2026-03-15T16:30:07.477367-05:00", :module-hash "1787457006", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 19, :hash "-333995231"} {:id "defn/update-player-map", :kind "defn", :line 21, :end-line 28, :hash "2102522450"} {:id "defn/update-computer-map", :kind "defn", :line 30, :end-line 37, :hash "-1953237338"} {:id "defn/build-player-items", :kind "defn", :line 39, :end-line 48, :hash "1741102605"} {:id "defn/build-computer-items", :kind "defn", :line 50, :end-line 59, :hash "-1394268341"} {:id "defn-/declare-game-over!", :kind "defn-", :line 61, :end-line 68, :hash "1518773855"} {:id "defn/item-processed", :kind "defn", :line 70, :end-line 75, :hash "-1477047071"} {:id "defn-/handicap-active?", :kind "defn-", :line 77, :end-line 79, :hash "-1620006900"} {:id "defn-/current-player-items", :kind "defn-", :line 81, :end-line 84, :hash "461726394"} {:id "defn-/update-handicap-before-round!", :kind "defn-", :line 86, :end-line 96, :hash "-293884731"} {:id "def/remove-dead-units", :kind "def", :line 99, :end-line 99, :hash "2048804574"} {:id "def/reset-steps-remaining", :kind "def", :line 100, :end-line 100, :hash "-2073169805"} {:id "def/wake-airport-fighters", :kind "def", :line 101, :end-line 101, :hash "879726790"} {:id "def/wake-carrier-fighters", :kind "def", :line 102, :end-line 102, :hash "840162374"} {:id "def/consume-sentry-fighter-fuel", :kind "def", :line 103, :end-line 103, :hash "-647149942"} {:id "def/wake-sentries-seeing-enemy", :kind "def", :line 104, :end-line 104, :hash "-1383325288"} {:id "def/move-satellites", :kind "def", :line 105, :end-line 105, :hash "493297701"} {:id "def/repair-damaged-ships", :kind "def", :line 106, :end-line 106, :hash "2109716449"} {:id "def/move-current-unit", :kind "def", :line 109, :end-line 109, :hash "122457069"} {:id "def/move-explore-unit", :kind "def", :line 110, :end-line 110, :hash "-1327293082"} {:id "def/move-coastline-unit", :kind "def", :line 111, :end-line 111, :hash "-314642053"} {:id "defn/start-new-round", :kind "defn", :line 113, :end-line 153, :hash "-1228699986"} {:id "defn-/both-lists-empty?", :kind "defn-", :line 155, :end-line 157, :hash "-2026920266"} {:id "defn/advance-game", :kind "defn", :line 159, :end-line 179, :hash "1975527481"} {:id "defn/advance-game-batch", :kind "defn", :line 181, :end-line 193, :hash "1612417613"} {:id "defn/toggle-pause", :kind "defn", :line 195, :end-line 203, :hash "1938644392"} {:id "defn/step-one-round", :kind "defn", :line 205, :end-line 213, :hash "-1584583582"} {:id "defn/update-map", :kind "defn", :line 215, :end-line 220, :hash "-297625781"}]}
 ;; clj-mutate-manifest-end

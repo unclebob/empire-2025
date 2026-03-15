@@ -3,14 +3,12 @@
   "Extracted unit action handlers for player command processing."
   (:require [empire.game-mechanics.movement.explore :as explore]
             [empire.game-mechanics.movement.coastline :as coastline]
-            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.game-mechanics.movement.api :as movement-api]
             [empire.player.attention :as attention]
             [empire.game-mechanics.services.combat :as combat]
             [empire.game-mechanics.containers.ops :as container-ops]
-            [empire.game-mechanics.containers.helpers :as uc]
-            [empire.config.core :as config]
+            [empire.player.commands-action-decisions :as decisions]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- current-world [ctx]
@@ -34,146 +32,85 @@
 
 (defn handle-space-key [ctx coords]
   (let [cell (get-in (current-world ctx) coords)
-        unit (:contents cell)]
-    (when unit
-      (if (= :fighter (:type unit))
-        (let [current-fuel (:fuel unit config/fighter-fuel)
-              fuel-cost (config/unit-speed :fighter)
-              new-fuel (- current-fuel fuel-cost)]
-          (if (<= new-fuel 0)
-            (do
-              (update-game-map! ctx assoc-in (conj coords :contents :hits) 0)
-              (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round))
-            (do
-              (update-game-map! ctx assoc-in (conj coords :contents :fuel) new-fuel)
-              (update-game-map! ctx assoc-in (conj coords :contents :reason) (str "Skipping this round. Fuel: " new-fuel)))))
-        (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round))))
+        unit (:contents cell)
+        decision (decisions/space-key-action unit)]
+    (case (:action decision)
+      :skip-and-destroy
+      (do
+        (update-game-map! ctx assoc-in (conj coords :contents :hits) 0)
+        (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round))
+
+      :skip-and-burn-fuel
+      (do
+        (update-game-map! ctx assoc-in (conj coords :contents :fuel) (:fuel decision))
+        (update-game-map! ctx assoc-in (conj coords :contents :reason) (:reason decision)))
+
+      :skip
+      (update-game-map! ctx assoc-in (conj coords :contents :reason) :skipping-this-round)
+
+      nil))
   (update-runtime-state! ctx :player-items rest)
   (item-processed! ctx)
   true)
 
 (defn handle-unload-key [ctx coords cell]
-  (let [contents (:contents cell)]
-    (cond
-      (uc/transport-with-armies? contents)
+  (case (:action (decisions/unload-key-action (:contents cell)))
+      :wake-armies-on-transport
       (do (container-ops/wake-armies-on-transport coords)
           (item-processed! ctx)
           true)
 
-      (uc/carrier-with-fighters? contents)
+      :wake-fighters-on-carrier
       (do (container-ops/wake-fighters-on-carrier coords)
           (item-processed! ctx)
           true)
 
-      :else nil)))
+      nil))
 
 (defn handle-sentry-key [ctx coords cell active-unit]
-  (let [is-army-aboard? (movement-state/is-army-aboard-transport? active-unit)
-        is-carrier-fighter? (movement-state/is-fighter-from-carrier? active-unit)
-        is-airport-fighter? (movement-state/is-fighter-from-airport? active-unit)]
-    (cond
-      is-army-aboard?
+  (case (:action (decisions/sentry-key-action cell active-unit))
+      :sleep-armies-on-transport
       (do (container-ops/sleep-armies-on-transport coords)
           (item-processed! ctx)
           true)
 
-      is-carrier-fighter?
+      :sleep-fighters-on-carrier
       (do (container-ops/sleep-fighters-on-carrier coords)
           (item-processed! ctx)
           true)
 
-      (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
+      :set-sentry-mode
       (do (movement-state/set-unit-mode coords :sentry)
           (item-processed! ctx)
           true)
 
-      :else nil)))
-
-(defn- find-adjacent-land [ctx coords]
-  (let [[x y] coords]
-    (first (for [dx [-1 0 1] dy [-1 0 1]
-                 :when (not (and (zero? dx) (zero? dy)))
-                 :let [target [(+ x dx) (+ y dy)]
-                       tcell (get-in (current-world ctx) target)]
-                 :when (and tcell (= :land (:type tcell)) (not (:contents tcell)))]
-             target))))
-
-(defn- free-army? [active-unit is-army-aboard?]
-  (and (= :army (:type active-unit)) (not is-army-aboard?)))
+      nil))
 
 (defn handle-look-around-key [ctx coords _cell active-unit]
-  (let [is-army-aboard? (movement-state/is-army-aboard-transport? active-unit)
-        near-coast? (map-utils/any-neighbor-matches?
-                     coords (current-world ctx) map-utils/neighbor-offsets
-                     #(= :land (:type %)))
-        rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
-    (cond
-      (free-army? active-unit is-army-aboard?)
+  (let [decision (decisions/look-around-action (current-world ctx) coords active-unit)]
+    (case (:action decision)
+      :set-explore-mode
       (do (explore/set-explore-mode coords)
           (item-processed! ctx)
           true)
 
-      is-army-aboard?
-      (do (when-let [valid-target (find-adjacent-land ctx coords)]
-            (container-ops/disembark-army-to-explore coords valid-target)
-            (item-processed! ctx))
+      :disembark-army-to-explore
+      (do (container-ops/disembark-army-to-explore coords (:target decision))
+          (item-processed! ctx)
           true)
 
-      (coastline/coastline-follow-eligible? active-unit near-coast?)
+      :no-op true
+
+      :set-coastline-follow-mode
       (do (coastline/set-coastline-follow-mode coords)
           (item-processed! ctx)
           true)
 
-      rejection-reason
-      (do (write-runtime-state! ctx :attention-message (rejection-reason config/messages))
+      :reject
+      (do (write-runtime-state! ctx :attention-message (:message decision))
           true)
 
-      :else nil)))
-
-(defn- adjacent-coords? [c1 c2]
-  (let [[ax ay] c1 [cx cy] c2]
-    (and (<= (abs (- ax cx)) 1) (<= (abs (- ay cy)) 1))))
-
-(defn- click-army-aboard [ctx attn-coords clicked-coords target-cell]
-  (when (and (adjacent-coords? attn-coords clicked-coords)
-             (= (:type target-cell) :land)
-             (not (:contents target-cell)))
-    (container-ops/disembark-army-from-transport attn-coords clicked-coords)
-    (item-processed! ctx)))
-
-(defn- coastal-army-attack?
-  [attn-coords clicked-coords unit-type target-cell target-unit]
-  (and (adjacent-coords? attn-coords clicked-coords)
-       (= unit-type :army)
-       (= :sea (:type target-cell))
-       (map-utils/on-coast? (first attn-coords) (second attn-coords))
-       (combat/hostile-unit? target-unit :player)))
-
-(defn- adjacent-hostile-city?
-  [world attn-coords clicked-coords]
-  (and (adjacent-coords? attn-coords clicked-coords)
-       (combat/hostile-city? world clicked-coords)))
-
-(defn- perform-click-combat!
-  [world attn-coords clicked-coords unit-type]
-  (case unit-type
-    :army (combat/apply-combat-result! (combat/attempt-conquest world attn-coords clicked-coords))
-    :fighter (combat/apply-combat-result! (combat/attempt-fighter-overfly world attn-coords clicked-coords))
-    (movement-api/set-unit-movement attn-coords clicked-coords)))
-
-(defn- click-standard-unit [ctx attn-coords clicked-coords unit-type]
-  (let [world (current-world ctx)
-        target-cell (get-in world clicked-coords)
-        target-unit (:contents target-cell)]
-    (cond
-      (coastal-army-attack? attn-coords clicked-coords unit-type target-cell target-unit)
-      (combat/apply-combat-result! (combat/attempt-coastal-army-attack world attn-coords clicked-coords))
-
-      (adjacent-hostile-city? world attn-coords clicked-coords)
-      (perform-click-combat! world attn-coords clicked-coords unit-type)
-
-      :else
-      (movement-api/set-unit-movement attn-coords clicked-coords))))
+      nil)))
 
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
@@ -181,13 +118,31 @@
   (let [attn-coords (first attention-coords)
         attn-cell (get-in (current-world ctx) attn-coords)
         active-unit (movement-state/get-active-unit attn-cell)
-        target-cell (get-in (current-world ctx) clicked-coords)
-        context (movement-state/movement-context attn-cell active-unit)]
-    (case context
-      :airport-fighter ((:launch-fighter-and-update ctx)
-                        container-ops/launch-fighter-from-airport attn-coords clicked-coords)
-      :army-aboard (click-army-aboard ctx attn-coords clicked-coords target-cell)
-      (click-standard-unit ctx attn-coords clicked-coords (:type active-unit)))
+        context (movement-state/movement-context attn-cell active-unit)
+        decision (decisions/click-action (current-world ctx) attn-coords clicked-coords context active-unit)]
+    (case (:action decision)
+      :launch-fighter-from-airport
+      ((:launch-fighter-and-update ctx)
+       container-ops/launch-fighter-from-airport
+       attn-coords
+       (:target decision))
+
+      :disembark-army-from-transport
+      (container-ops/disembark-army-from-transport attn-coords (:target decision))
+
+      :coastal-army-attack
+      (combat/apply-combat-result! (combat/attempt-coastal-army-attack (current-world ctx) attn-coords (:target decision)))
+
+      :attempt-conquest
+      (combat/apply-combat-result! (combat/attempt-conquest (current-world ctx) attn-coords (:target decision)))
+
+      :attempt-fighter-overfly
+      (combat/apply-combat-result! (combat/attempt-fighter-overfly (current-world ctx) attn-coords (:target decision)))
+
+      :set-unit-movement
+      (movement-api/set-unit-movement attn-coords (:target decision))
+
+      nil)
     (item-processed! ctx)))
 
 (defn handle-cell-click
@@ -199,5 +154,5 @@
       (handle-unit-click ctx clicked-coords attention-coords))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:53:53.246474-05:00", :module-hash "315869154", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 14, :hash "-1201154000"} {:id "defn-/current-world", :kind "defn-", :line 16, :end-line 17, :hash "1933317035"} {:id "defn-/update-game-map!", :kind "defn-", :line 19, :end-line 20, :hash "416575166"} {:id "defn-/read-runtime-state", :kind "defn-", :line 22, :end-line 23, :hash "1884179192"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 25, :end-line 26, :hash "-908984863"} {:id "defn-/update-runtime-state!", :kind "defn-", :line 28, :end-line 29, :hash "1255797596"} {:id "defn-/item-processed!", :kind "defn-", :line 31, :end-line 33, :hash "821174700"} {:id "defn/handle-space-key", :kind "defn", :line 35, :end-line 53, :hash "-1241509164"} {:id "defn/handle-unload-key", :kind "defn", :line 55, :end-line 68, :hash "-1602274805"} {:id "defn/handle-sentry-key", :kind "defn", :line 70, :end-line 90, :hash "-289112769"} {:id "defn-/find-adjacent-land", :kind "defn-", :line 92, :end-line 99, :hash "509949162"} {:id "defn-/free-army?", :kind "defn-", :line 101, :end-line 102, :hash "-735145983"} {:id "defn/handle-look-around-key", :kind "defn", :line 104, :end-line 131, :hash "540040820"} {:id "defn-/adjacent-coords?", :kind "defn-", :line 133, :end-line 135, :hash "-832019639"} {:id "defn-/click-army-aboard", :kind "defn-", :line 137, :end-line 142, :hash "1908320977"} {:id "defn-/coastal-army-attack?", :kind "defn-", :line 144, :end-line 150, :hash "-152204549"} {:id "defn-/adjacent-hostile-city?", :kind "defn-", :line 152, :end-line 155, :hash "-1488161818"} {:id "defn-/perform-click-combat!", :kind "defn-", :line 157, :end-line 162, :hash "622775798"} {:id "defn-/click-standard-unit", :kind "defn-", :line 164, :end-line 176, :hash "757037716"} {:id "defn/handle-unit-click", :kind "defn", :line 178, :end-line 191, :hash "-1630868591"} {:id "defn/handle-cell-click", :kind "defn", :line 193, :end-line 199, :hash "-1491182524"}]}
+;; {:version 1, :tested-at "2026-03-15T16:27:53.168331-05:00", :module-hash "756213941", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 12, :hash "873119974"} {:id "defn-/current-world", :kind "defn-", :line 14, :end-line 15, :hash "1933317035"} {:id "defn-/update-game-map!", :kind "defn-", :line 17, :end-line 18, :hash "416575166"} {:id "defn-/read-runtime-state", :kind "defn-", :line 20, :end-line 21, :hash "1884179192"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 23, :end-line 24, :hash "-908984863"} {:id "defn-/update-runtime-state!", :kind "defn-", :line 26, :end-line 27, :hash "1255797596"} {:id "defn-/item-processed!", :kind "defn-", :line 29, :end-line 31, :hash "821174700"} {:id "defn/handle-space-key", :kind "defn", :line 33, :end-line 54, :hash "796398857"} {:id "defn/handle-unload-key", :kind "defn", :line 56, :end-line 68, :hash "668889817"} {:id "defn/handle-sentry-key", :kind "defn", :line 70, :end-line 87, :hash "2108290207"} {:id "defn/handle-look-around-key", :kind "defn", :line 89, :end-line 113, :hash "-1046653750"} {:id "defn/handle-unit-click", :kind "defn", :line 115, :end-line 146, :hash "114957027"} {:id "defn/handle-cell-click", :kind "defn", :line 148, :end-line 154, :hash "-1491182524"}]}
 ;; clj-mutate-manifest-end

@@ -1,5 +1,6 @@
 (ns empire.game-loop-pause-spec
   (:require [empire.game.loop.core :as game-loop]
+            [empire.game.loop.control-decisions :as control-decisions]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-unit set-test-world!]]
             [speclj.core :refer :all]))
@@ -66,8 +67,8 @@
     (should= nil (test-utils/read-test-state :handicap-display-rounds)))
 
   (it "treats a nil remaining count as expired only when display is zero"
-    (should (#'game-loop/handicap-display-expired? nil 0))
-    (should-not (#'game-loop/handicap-display-expired? nil nil)))
+    (should= {:action :clear-display} (control-decisions/handicap-update nil 0))
+    (should-be-nil (control-decisions/handicap-update nil nil)))
 
 (describe "update-map"
   (before
