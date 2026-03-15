@@ -210,6 +210,11 @@
   [round-number]
   (str "R" round-number))
 
+(defn- handicap-label
+  [handicap-display-rounds]
+  (when (some? handicap-display-rounds)
+    (str "HC" handicap-display-rounds)))
+
 (defn- ellipsize
   [s max-len]
   (when (seq s)
@@ -262,10 +267,11 @@
 
 (defn resolve-status-line
   "Builds the compact left/center/right status line fields for the redesigned HUD."
-  [round-number paused pause-requested map-to-display destination production-status current-world attention-coords]
+  [round-number handicap-display-rounds paused pause-requested map-to-display destination production-status current-world attention-coords]
   (let [map-label (map-display-label map-to-display)
         left-parts (remove nil? [(when (fmt/should-show-paused? paused pause-requested) "PAUSED")
                                  (round-label round-number)
+                                 (handicap-label handicap-display-rounds)
                                  map-label])
         center (or (when destination
                      (str "Dest " (format-coords destination)))

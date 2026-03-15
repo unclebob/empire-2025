@@ -72,6 +72,32 @@
   (sa/write-state! :waiting-for-input false)
   (sa/write-state! :cells-needing-attention []))
 
+(defn- handicap-active?
+  []
+  (pos? (or (sa/read-state :handicap-rounds-remaining) 0)))
+
+(defn- current-player-items
+  []
+  (if (handicap-active?)
+    []
+    (vec (build-player-items))))
+
+(defn- update-handicap-before-round!
+  []
+  (let [remaining (sa/read-state :handicap-rounds-remaining)
+        display (sa/read-state :handicap-display-rounds)]
+    (cond
+      (pos? (or remaining 0))
+      (let [next-remaining (dec remaining)]
+        (sa/write-state! :handicap-rounds-remaining next-remaining)
+        (sa/write-state! :handicap-display-rounds next-remaining))
+
+      (zero? (or remaining 0))
+      (when (zero? (or display -1))
+        (sa/write-state! :handicap-display-rounds nil))
+
+      :else nil)))
+
 ;; Delegate round-setup functions for backward compatibility
 (def remove-dead-units round-setup/remove-dead-units)
 (def reset-steps-remaining round-setup/reset-steps-remaining)
@@ -110,7 +136,7 @@
   (sa/write-state! :claimed-transport-targets #{})
   (sa/write-state! :claimed-patrol-targets #{})
   (land-ho/assign-land-ho-invasion)
-  (let [player-items (vec (build-player-items))
+  (let [player-items (current-player-items)
         computer-items (vec (build-computer-items))]
     (sa/write-state! :player-items player-items)
     (sa/write-state! :computer-items computer-items)
@@ -118,7 +144,7 @@
     (army/assign-city-attacks)
     (when (sa/read-state :game-over-check-enabled)
       (cond
-        (empty? player-items)
+        (and (empty? player-items) (not (handicap-active?)))
         (declare-game-over! "****GAME OVER*****  You Lose")
 
         (empty? computer-items)
@@ -140,7 +166,10 @@
   (if (sa/read-state :pause-requested)
     (do (sa/write-state! :paused true)
         (sa/write-state! :pause-requested false))
-    (start-new-round)))
+    (do
+      (when (pos? (sa/read-state :round-number))
+        (update-handicap-before-round!))
+      (start-new-round))))
 
 (defn advance-game
   "Advances the game by processing player items, then computer items.

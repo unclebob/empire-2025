@@ -33,16 +33,38 @@
     (sa/write-state! :map-screen-dimensions (:map-screen-dimensions dims))
     (sa/write-state! :text-area-dimensions (:text-area-dimensions dims))))
 
+(defn help-requested?
+  [args]
+  (boolean (some #{"--help" "-h"} args)))
+
+(defn usage-text
+  []
+  (str "Usage: clj -M:run [options] [cols rows]\n"
+       "\n"
+       "Options:\n"
+       "  --help, -h        Print this help and exit.\n"
+       "  --seed=N          Use N as the random seed.\n"
+       "  --handicap=N      Let the computer play N rounds before the\n"
+       "                    player gets the first turn. Default: 50.\n"
+       "\n"
+       "Arguments:\n"
+       "  cols rows         Optional map size. Default: 100 60.\n"))
+
 (defn parse-args
-  "Parses command-line args into a map of {:cols :rows :seed :window-w :window-h}.
+  "Parses command-line args into a map of {:cols :rows :seed :handicap :window-w :window-h}.
    Throws ex-info if map exceeds screen bounds."
   [args screen-w screen-h]
   (let [seed (some #(when (.startsWith ^String % "--seed=")
                       (Long/parseLong (subs % 7))) args)
-        non-seed (remove #(.startsWith ^String % "--seed=") args)
-        [cols rows] (if (>= (count non-seed) 2)
-                      [(Integer/parseInt (first non-seed))
-                       (Integer/parseInt (second non-seed))]
+        handicap (or (some #(when (.startsWith ^String % "--handicap=")
+                              (Long/parseLong (subs % 11))) args)
+                     50)
+        non-options (remove #(or (.startsWith ^String % "--seed=")
+                                 (.startsWith ^String % "--handicap="))
+                            args)
+        [cols rows] (if (>= (count non-options) 2)
+                      [(Integer/parseInt (first non-options))
+                       (Integer/parseInt (second non-options))]
                       config/default-map-size)
         [cell-w cell-h] config/cell-size
         text-area-h (* config/text-area-rows cell-h)
@@ -54,7 +76,7 @@
       (throw (ex-info "Map exceeds monitor bounds"
                       {:cols cols :rows rows :screen-w screen-w :screen-h screen-h
                        :max-cols max-cols :max-rows max-rows})))
-    {:cols cols :rows rows :seed seed :window-w window-w :window-h window-h}))
+    {:cols cols :rows rows :seed seed :handicap handicap :window-w window-w :window-h window-h}))
 
 (defn key-released [_ _]
   (sa/write-state! :last-key nil))

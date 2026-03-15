@@ -138,6 +138,7 @@
   [text-x text-y text-w]
   (let [{:keys [left center right]}
         (display/resolve-status-line (sa/read-state :round-number)
+                                     (sa/read-state :handicap-display-rounds)
                                      (sa/read-state :paused)
                                      (sa/read-state :pause-requested)
                                      (sa/read-state :map-to-display)
@@ -182,6 +183,7 @@
         banner-separator-y (+ text-y rendering/msg-banner-separator-y)
         {:keys [left center right]}
         (display/resolve-status-line (sa/read-state :round-number)
+                                     (sa/read-state :handicap-display-rounds)
                                      (sa/read-state :paused)
                                      (sa/read-state :pause-requested)
                                      (sa/read-state :map-to-display)

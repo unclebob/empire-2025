@@ -5,6 +5,8 @@
    :map-size [0 0]
    :map-size-constants {}
    :round-number 0
+   :handicap-rounds-remaining 0
+   :handicap-display-rounds nil
    :production {}
    :game-map nil
    :player-map {}

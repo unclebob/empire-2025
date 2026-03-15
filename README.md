@@ -14,15 +14,23 @@ You lose if all your cities and units are destroyed. The game ends with "GAME OV
 
 ## Running the Game
 
-    clj -M:run [cols rows]
+    clj -M:run [options] [cols rows]
+
+Options:
+
+- `--help` or `-h` prints usage to stdout and exits.
+- `--seed=N` starts the game with a fixed random seed.
+- `--handicap=N` lets the computer play `N` full rounds before the player gets the first turn. The default is `50`.
 
 The optional `cols` and `rows` arguments specify the map size. The default is 100 columns by 60 rows. If the specified size exceeds your monitor's dimensions, the game will display the maximum allowable size and exit.
 
 Examples:
 
-    clj -M:run              # Default 100x60 map
-    clj -M:run 80 50        # Smaller 80x50 map
-    clj -M:run 120 70       # Larger 120x70 map (if monitor permits)
+    clj -M:run                          # Default 100x60 map, handicap 50
+    clj -M:run --help                   # Print usage
+    clj -M:run --seed=42                # Default map with fixed seed
+    clj -M:run --handicap=0 80 50       # Smaller 80x50 map, no handicap
+    clj -M:run 120 70                   # Larger 120x70 map (if monitor permits)
 
 ## Testing
 

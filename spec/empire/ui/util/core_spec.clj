@@ -70,7 +70,8 @@
   (it "returns default map size when no args"
     (let [result (util-core/parse-args [] 2000 2000)]
       (should= 100 (:cols result))
-      (should= 60 (:rows result))))
+      (should= 60 (:rows result))
+      (should= 50 (:handicap result))))
 
   (it "parses cols and rows from positional args"
     (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
@@ -80,6 +81,10 @@
   (it "extracts --seed=N"
     (let [result (util-core/parse-args ["--seed=42"] 2000 2000)]
       (should= 42 (:seed result))))
+
+  (it "extracts --handicap=N"
+    (let [result (util-core/parse-args ["--handicap=12"] 2000 2000)]
+      (should= 12 (:handicap result))))
 
   (it "returns nil seed when no seed arg"
     (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
@@ -107,4 +112,28 @@
     (let [result (util-core/parse-args ["--seed=99" "50" "30"] 2000 2000)]
       (should= 50 (:cols result))
       (should= 30 (:rows result))
-      (should= 99 (:seed result)))))
+      (should= 99 (:seed result))))
+
+  (it "ignores handicap arg when computing dimensions"
+    (let [result (util-core/parse-args ["--handicap=7" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= 7 (:handicap result)))))
+
+(describe "help-requested?"
+  (it "returns true for --help"
+    (should (util-core/help-requested? ["--help"])))
+
+  (it "returns true for -h"
+    (should (util-core/help-requested? ["-h"])))
+
+  (it "returns false when help is absent"
+    (should-not (util-core/help-requested? ["--seed=42"]))))
+
+(describe "usage-text"
+  (it "documents help handicap and seed options"
+    (let [usage (util-core/usage-text)]
+      (should-contain "--help" usage)
+      (should-contain "--seed=N" usage)
+      (should-contain "--handicap=N" usage)
+      (should-contain "Default: 50" usage))))

@@ -114,36 +114,40 @@
 
 (declare empire)
 (defn -main [& args]
-  (let [[screen-w screen-h] (screen-dimensions)
-        {:keys [cols rows seed window-w window-h]}
-        (try (util-core/parse-args args screen-w screen-h)
-             (catch clojure.lang.ExceptionInfo e
-               (let [{:keys [cols rows screen-w screen-h max-cols max-rows]} (ex-data e)]
-                 (println (format "Map size [%d %d] exceeds monitor bounds (%dx%d pixels)."
-                                  cols rows screen-w screen-h))
-                 (println (format "Maximum map size for this monitor: [%d %d]"
-                                  max-cols max-rows))
-                 (System/exit 1))))]
-    (let [effective-seed (or seed (System/currentTimeMillis))]
-      (sa/write-state! :random-seed effective-seed)
-      (sa/write-state! :map-size [cols rows])
-      (sa/write-state! :map-size-constants (config/compute-size-constants cols rows))
-      (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows effective-seed))
-      (q/defsketch empire
-                   :title "Empire: Global Conquest"
-                   :size [window-w window-h]
-                   :setup setup
-                   :update update-state
-                   :draw draw-state
-                   :key-pressed key-pressed
-                   :key-released util-core/key-released
-                   :mouse-pressed mouse-pressed
-                   :mouse-dragged mouse-dragged
-                   :mouse-released mouse-released
-                   :features []
-                   :middleware [m/fun-mode]
-                   :on-close on-close
-                   :host "empire"))))
+  (if (util-core/help-requested? args)
+    (println (util-core/usage-text))
+    (let [[screen-w screen-h] (screen-dimensions)
+          {:keys [cols rows seed handicap window-w window-h]}
+          (try (util-core/parse-args args screen-w screen-h)
+               (catch clojure.lang.ExceptionInfo e
+                 (let [{:keys [cols rows screen-w screen-h max-cols max-rows]} (ex-data e)]
+                   (println (format "Map size [%d %d] exceeds monitor bounds (%dx%d pixels)."
+                                    cols rows screen-w screen-h))
+                   (println (format "Maximum map size for this monitor: [%d %d]"
+                                    max-cols max-rows))
+                   (System/exit 1))))]
+      (let [effective-seed (or seed (System/currentTimeMillis))]
+        (sa/write-state! :random-seed effective-seed)
+        (sa/write-state! :map-size [cols rows])
+        (sa/write-state! :map-size-constants (config/compute-size-constants cols rows))
+        (sa/write-state! :handicap-rounds-remaining handicap)
+        (sa/write-state! :handicap-display-rounds (when (pos? handicap) handicap))
+        (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows effective-seed))
+        (q/defsketch empire
+                     :title "Empire: Global Conquest"
+                     :size [window-w window-h]
+                     :setup setup
+                     :update update-state
+                     :draw draw-state
+                     :key-pressed key-pressed
+                     :key-released util-core/key-released
+                     :mouse-pressed mouse-pressed
+                     :mouse-dragged mouse-dragged
+                     :mouse-released mouse-released
+                     :features []
+                     :middleware [m/fun-mode]
+                     :on-close on-close
+                     :host "empire")))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-12T12:02:59.65257-05:00", :module-hash "133900371", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-182943859"} {:id "defn/create-fonts", :kind "defn", :line 16, :end-line 20, :hash "1956119937"} {:id "defn/setup", :kind "defn", :line 22, :end-line 38, :hash "-470041702"} {:id "defn/update-state", :kind "defn", :line 40, :end-line 47, :hash "476676615"} {:id "defn/draw-state", :kind "defn", :line 49, :end-line 61, :hash "-52211456"} {:id "defn/key-pressed", :kind "defn", :line 63, :end-line 76, :hash "1427502277"} {:id "defn-/get-modifiers", :kind "defn-", :line 78, :end-line 84, :hash "808258936"} {:id "defn/mouse-pressed", :kind "defn", :line 86, :end-line 95, :hash "-624125753"} {:id "defn/mouse-dragged", :kind "defn", :line 97, :end-line 99, :hash "1314545681"} {:id "defn/mouse-released", :kind "defn", :line 101, :end-line 103, :hash "206586691"} {:id "defn/on-close", :kind "defn", :line 105, :end-line 109, :hash "1221335354"} {:id "defn-/screen-dimensions", :kind "defn-", :line 111, :end-line 113, :hash "1572516113"} {:id "form/12/declare", :kind "declare", :line 115, :end-line 115, :hash "2146718225"} {:id "defn/-main", :kind "defn", :line 116, :end-line 146, :hash "-258464563"}]}

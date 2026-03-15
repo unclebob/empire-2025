@@ -341,7 +341,7 @@
     (should= {:left "PAUSED  R17  Comp"
               :center "Dest 12,7"
               :right "A1 F2 | 75%"}
-             (display/resolve-status-line 17 true false :computer-map [12 7]
+             (display/resolve-status-line 17 nil true false :computer-map [12 7]
                                           "A:1 F:2 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 75%"
                                           [] [])))
 
@@ -349,13 +349,13 @@
     (should= {:left "R3"
               :center nil
               :right nil}
-             (display/resolve-status-line 3 false false :player-map nil "" [] [])))
+             (display/resolve-status-line 3 nil false false :player-map nil "" [] [])))
 
   (it "shows actual-map label when appropriate"
     (should= {:left "R9  Actual"
               :center nil
               :right "0 units | 4%"}
-             (display/resolve-status-line 9 false false :actual-map nil
+             (display/resolve-status-line 9 nil false false :actual-map nil
                                           "A:0 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 4%"
                                           [] [])))
 
@@ -363,7 +363,7 @@
     (should= {:left "R7"
               :center "Dest 1234567890..."
               :right "A12 F9 D3 | 100%"}
-             (display/resolve-status-line 7 false false :player-map [123456789012 999]
+             (display/resolve-status-line 7 nil false false :player-map [123456789012 999]
                                           "A:12 F:9 T:0 D:3 S:0 P:0 C:0 B:0 Z:0 | 100%"
                                           [] [])))
 
@@ -371,7 +371,7 @@
     (should= {:left "R11"
               :center "Lookaround"
               :right nil}
-             (display/resolve-status-line 11 false false :player-map nil ""
+             (display/resolve-status-line 11 nil false false :player-map nil ""
                                           [[{:type :city :city-status :player
                                               :marching-orders :lookaround}]]
                                           [[0 0]])))
@@ -380,7 +380,7 @@
     (should= {:left "R5"
               :center "March 8,3"
               :right nil}
-             (display/resolve-status-line 5 false false :player-map nil ""
+             (display/resolve-status-line 5 nil false false :player-map nil ""
                                           [[{:type :sea
                                              :contents {:type :transport
                                                         :owner :player
@@ -391,12 +391,18 @@
     (should= {:left "R6"
               :center "Flight 9,4"
               :right nil}
-             (display/resolve-status-line 6 false false :player-map nil ""
+             (display/resolve-status-line 6 nil false false :player-map nil ""
                                           [[{:type :sea
                                              :contents {:type :carrier
                                                         :owner :player
                                                         :flight-path [9 4]}}]]
                                           [[0 0]])))
+
+  (it "shows handicap countdown on the left"
+    (should= {:left "R4  HC12"
+              :center nil
+              :right nil}
+             (display/resolve-status-line 4 12 false false :player-map nil "" [] [])))
   )
 
 (describe "resolve-inspector-lines"
