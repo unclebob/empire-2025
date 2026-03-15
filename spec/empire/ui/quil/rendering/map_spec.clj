@@ -77,6 +77,28 @@
         (#'map-render/draw-waypoint 1 2 {:type :unexplored} {:waypoint true} 10 12)
         (should= [] @calls)))))
 
+(describe "draw-attention-ring"
+  (it "draws a white circle centered on the attention cell once per second"
+    (let [calls (atom [])]
+      (with-redefs [q/frame-count (fn [] 60)
+                    q/no-fill (fn [] (swap! calls conj :no-fill))
+                    q/stroke (fn [& args] (swap! calls conj [:stroke args]))
+                    q/stroke-weight (fn [& args] (swap! calls conj [:stroke-weight args]))
+                    q/ellipse (fn [& args] (swap! calls conj [:ellipse args]))]
+        (#'map-render/draw-attention-ring [[2 3]] 10 12)
+        (should-contain :no-fill @calls)
+        (should-contain [:stroke [255 255 255]] @calls)
+        (should-contain [:stroke-weight [2]] @calls)
+        (should-contain [:ellipse [25.0 42.0 24.0 24.0]] @calls)
+        (should-contain [:stroke-weight [1]] @calls))))
+
+  (it "does not draw on non-flash frames"
+    (let [calls (atom [])]
+      (with-redefs [q/frame-count (fn [] 61)
+                    q/ellipse (fn [& args] (swap! calls conj args))]
+        (#'map-render/draw-attention-ring [[2 3]] 10 12)
+        (should= [] @calls)))))
+
 (describe "draw-map"
   (before (reset-all-atoms!))
 

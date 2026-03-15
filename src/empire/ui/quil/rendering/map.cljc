@@ -56,6 +56,26 @@
       (q/fill r g b)
       (q/text "*" (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))))
 
+(defn- attention-ring-visible?
+  []
+  (try
+    (zero? (mod (q/frame-count) 30))
+    (catch Throwable _
+      false)))
+
+(defn- draw-attention-ring
+  [attention-coords cell-w cell-h]
+  (when-let [[col row] (first attention-coords)]
+    (when (attention-ring-visible?)
+      (let [center-x (+ (* col cell-w) (/ cell-w 2.0))
+            center-y (+ (* row cell-h) (/ cell-h 2.0))
+            diameter (* 2.0 cell-h)]
+        (q/no-fill)
+        (q/stroke 255 255 255)
+        (q/stroke-weight 2)
+        (q/ellipse center-x center-y diameter diameter)
+        (q/stroke-weight 1)))))
+
 (defn draw-debug-selection-rectangle
   "Draws the debug selection rectangle if a drag is active.
    Uses screen coordinates from debug-drag-start and debug-drag-current atoms."
@@ -121,7 +141,8 @@
             (draw-production-indicators row col cell cell-w cell-h production map-to-display))
           (when-not hide-airport-unit?
             (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit?)))
-        (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))))
+        (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))
+    (draw-attention-ring attention-coords cell-w cell-h)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-12T13:53:45.052163-05:00", :module-hash "-1024084162", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1169683959"} {:id "defn/draw-production-indicators", :kind "defn", :line 9, :end-line 20, :hash "1768886334"} {:id "defn-/draw-unit", :kind "defn-", :line 22, :end-line 31, :hash "429368515"} {:id "defn-/draw-waypoint", :kind "defn-", :line 33, :end-line 40, :hash "1569607689"} {:id "defn/draw-debug-selection-rectangle", :kind "defn", :line 42, :end-line 58, :hash "251657802"} {:id "defn/draw-map", :kind "defn", :line 60, :end-line 99, :hash "-915592608"}]}
