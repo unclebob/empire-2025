@@ -1,79 +1,254 @@
 (ns empire.computer.threat-response-processing-spec
-  (:require [speclj.core :refer :all]
-            [empire.computer.threat-response.processing :as processing]
-            [empire.computer.fighter-movement :as fm]))
+  (:require [empire.computer.core :as core]
+            [empire.computer.threat-response :as threat-response]
+            [empire.config.core :as config]
+            [empire.test.utils :as test-utils]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
+            [speclj.core :refer :all]))
 
-(defn- fighter-world
-  []
-  [[{:type :sea
-     :contents {:type :fighter
-                :owner :computer
-                :threat-mission :fighter-sweep
-                :fuel 8}}]])
+(describe "fighter-step-threat"
+  (before (reset-all-atoms!))
 
-(describe "process-fighter-threat (processing)"
-  (it "returns nil when unit is not on fighter-sweep mission"
-    (let [calls (atom 0)
-          ctx {:current-world fighter-world}]
-      (with-redefs [processing/fighter-step-threat (fn [& _] (swap! calls inc) nil)]
-        (should-be-nil (processing/process-fighter-threat ctx [0 0] {:threat-mission :none}))
-        (should= 0 @calls))))
+  (it "attacks adjacent enemy and consumes one fuel step"
+    (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (fn [_] [1 2])
+                  empire.computer.fighter-movement/attack-enemy (fn [_ _] [1 1])
+                  empire.computer.fighter-movement/consume-fighter-fuel (fn [_] true)]
+      (should= {:pos [1 1] :steps-used 1}
+               (@#'threat-response/fighter-step-threat [1 0] {:threat-center [1 0]
+                                                               :threat-radius 5}))))
 
-  (it "iterates until fighter-step-threat returns nil"
-    (let [calls (atom [])
-          ctx {:current-world fighter-world}]
-      (with-redefs [processing/fighter-step-threat
-                    (fn [_ pos unit]
-                      (swap! calls conj {:pos pos :unit unit})
-                      (if (= 1 (count @calls))
+  (it "lands at city when refuel is needed and city is adjacent"
+    (set-test-world! (build-test-map ["#O#"]))
+    (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
+                  empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] true)
+                  empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [1 0])
+                  empire.computer.fighter-movement/distance-to (fn [_ _] 1)
+                  empire.computer.fighter-movement/land-at-city (fn [_ _] :landed)]
+      (should-be-nil
+       (@#'threat-response/fighter-step-threat [0 0] {:fuel 1 :threat-center [0 0]}))))
+
+  (it "refuels in place when adjacent refuel site is not a city"
+    (set-test-world! (build-test-map ["~~~"]))
+    (update-test-world! assoc-in [0 0 :contents] {:type :fighter :owner :computer :fuel 1})
+    (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
+                  empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] true)
+                  empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [1 0])
+                  empire.computer.fighter-movement/distance-to (fn [_ _] 1)]
+      (should= {:pos [0 0] :steps-used 1}
+               (@#'threat-response/fighter-step-threat [0 0] {:fuel 1 :threat-center [0 0]}))
+      (should= config/fighter-fuel
+               (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))))
+
+  (it "moves back toward threat center when outside radius"
+    (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
+                  empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] false)
+                  empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [0 0])
+                  empire.computer.fighter-movement/distance-to (fn [_ _] 1)
+                  empire.computer.fighter-movement/hop-over-friendly (fn [_ _] {:dest [2 2] :hops 2})
+                  empire.computer.fighter-movement/execute-hop (fn [_ _] {:pos [2 2] :hops 2})
+                  empire.computer.fighter-movement/consume-fighter-fuel (fn [_] true)]
+      (should= {:pos [2 2] :steps-used 2}
+               (@#'threat-response/fighter-step-threat [0 0] {:threat-center [4 4]
+                                                               :threat-radius 1}))))
+
+  (it "patrols when in-radius and no higher-priority action applies"
+    (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
+                  empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] false)
+                  empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [0 0])
+                  empire.computer.fighter-movement/distance-to (fn [_ _] 1)
+                  empire.computer.fighter-movement/do-patrol (fn [_] {:pos [0 1] :hops 1})
+                  empire.computer.fighter-movement/consume-fighter-fuel (fn [_] true)]
+      (should= {:pos [0 1] :steps-used 1}
+               (@#'threat-response/fighter-step-threat [0 0] {:fuel 10
+                                                               :threat-center [0 0]
+                                                               :threat-radius 5})))))
+
+(describe "process-ship-threat"
+  (before (reset-all-atoms!))
+
+  (it "returns false when unit has no threat mission"
+    (should-not
+     (threat-response/process-ship-threat [0 0] :patrol-boat {})))
+
+  (it "handles sea-scout by attacking adjacent enemy first"
+    (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (fn [_] [1 0])
+                  empire.computer.ship-core/attack-enemy (fn [_ _] :attacked)
+                  empire.computer.ship-core/move-toward (fn [_ _] (throw (ex-info "should not move" {})))
+                  empire.computer.ship-core/explore-sea (fn [_ _] (throw (ex-info "should not explore" {})))]
+      (should
+       (threat-response/process-ship-threat
+        [0 0] :patrol-boat {:threat-mission :sea-scout :threat-center [5 5] :threat-radius 1}))))
+
+  (it "handles sea-scout by moving toward center when out of radius"
+    (let [moved-target (atom nil)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ target] (reset! moved-target target) :moved)
+                    empire.computer.ship-core/explore-sea (fn [_ _] :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :patrol-boat {:threat-mission :sea-scout :threat-center [4 4] :threat-radius 1}))
+        (should= [4 4] @moved-target))))
+
+  (it "handles sea-scout by exploring when in radius and no enemy"
+    (let [explored? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ _] (throw (ex-info "should not move" {})))
+                    empire.computer.ship-core/explore-sea (fn [_ _] (reset! explored? true) :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :patrol-boat {:threat-mission :sea-scout :threat-center [0 0] :threat-radius 5}))
+        (should @explored?))))
+
+  (it "handles major invasion by moving toward nearest detection point"
+    (test-utils/set-test-state! :major-invasion-state {:active? true :detection-points [[3 3]] :target-land-set #{} :started-round 1})
+    (let [moved-target (atom nil)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ target] (reset! moved-target target) :moved)
+                    empire.computer.ship-core/explore-sea (fn [_ _] :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :destroyer {:major-invasion true}))
+        (should= [3 3] @moved-target))))
+
+  (it "moves major-invasion patrol boat at patrol speed (4 steps)"
+    (set-test-world! (build-test-map ["p~~~~~~~~~"]))
+    (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                  rand-nth (fn [xs] (first xs))]
+      (should
+       (threat-response/process-ship-threat
+        [0 0] :patrol-boat {:major-invasion true :major-invasion-target [9 0]}))
+      (should= :patrol-boat (get-in (test-utils/read-test-state :game-map) [4 0 :contents :type]))))
+
+  (it "handles major invasion by exploring when no target exists"
+    (test-utils/set-test-state! :major-invasion-state {:active? true :detection-points [] :target-land-set #{} :started-round 1})
+    (let [explored? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ _] nil)
+                    empire.computer.ship-core/explore-sea (fn [_ _] (reset! explored? true) :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :destroyer {:major-invasion true}))
+        (should @explored?))))
+
+  (it "moves major-invasion ship toward detection point even when direct sea access is unavailable"
+    (test-utils/set-test-state! :major-invasion-state {:active? true
+                                                       :detection-points [[3 3]]
+                                                       :sea-reachable-detection-points #{}
+                                                       :target-land-set #{}
+                                                       :started-round 1})
+    (let [moved? (atom false)
+          explored? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ _] (reset! moved? true) :moved)
+                    empire.computer.ship-core/explore-sea (fn [_ _] (reset! explored? true) :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :destroyer {:major-invasion true :major-invasion-target [3 3]}))
+        (should @moved?)
+        (should-not @explored?))))
+
+  (it "starts random walk for blocked major-invasion ships when sidestep is unavailable"
+    (set-test-world! (build-test-map ["d"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (should
+     (threat-response/process-ship-threat
+      [0 0] :destroyer {:major-invasion true :major-invasion-target [3 3]}))
+    (should= 5 (get-in (test-utils/read-test-state :game-map)
+                       [0 0 :contents :oscillation-random-walk-rounds-left])))
+
+  (it "makes patrol boats yield away from nearby invading transports"
+    (set-test-world! (build-test-map ["~~~"
+                                      "tp~"
+                                      "~~~"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [0 1 :contents :major-invasion] true)
+    (update-test-world! assoc-in [0 1 :contents :transport-mission] :invading)
+    (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                  rand-nth (fn [xs] (first xs))]
+      (should
+       (threat-response/process-ship-threat
+        [1 1] :patrol-boat {:major-invasion true :major-invasion-target [1 1]})))
+    (let [patrol-pos (first (for [x (range 3)
+                                  y (range 3)
+                                  :when (= :patrol-boat (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                              [x y]))]
+      (should-not= [1 1] patrol-pos)
+      (should (> (core/distance patrol-pos [0 1]) 1))))
+
+  (it "keeps invading patrol boats within 10 cells of invasion point"
+    (set-test-world! (build-test-map ["~~~~~~~p~~~~~~~"]))
+    (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                  rand-nth (fn [xs] (first xs))]
+      (should
+       (threat-response/process-ship-threat
+        [7 0] :patrol-boat {:major-invasion true :major-invasion-target [0 0]}))
+      (let [patrol-pos (first (for [x (range 15)
+                                    :when (= :patrol-boat (get-in (test-utils/read-test-state :game-map) [x 0 :contents :type]))]
+                                [x 0]))]
+        (should (<= (core/distance patrol-pos [0 0]) 10)))))
+
+  (it "does not run explore BFS for major-invasion patrol boats when move fails"
+    (let [explored? (atom false)]
+      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
+                    empire.computer.ship-core/move-toward (fn [_ _] nil)
+                    empire.computer.ship-core/explore-sea (fn [& _] (reset! explored? true) :explored)]
+        (should
+         (threat-response/process-ship-threat
+          [0 0] :patrol-boat {:major-invasion true :major-invasion-target [0 0]}))
+        (should-not @explored?)))))
+
+(describe "process-fighter-threat"
+  (before (reset-all-atoms!))
+
+  (it "returns nil when unit is not on fighter-sweep or major-invasion mission"
+    (should-be-nil (threat-response/process-fighter-threat [0 0] {:threat-mission :none})))
+
+  (it "returns true and iterates while fighter-step-threat yields moves"
+    (set-test-world! (build-test-map ["f"]))
+    (let [calls (atom 0)]
+      (with-redefs [empire.computer.threat-response/fighter-step-threat
+                    (fn [_ _]
+                      (swap! calls inc)
+                      (if (= 1 @calls)
                         {:pos [0 0] :steps-used 2}
-                        nil))
-                    fm/fighter-speed 4]
-        (should (processing/process-fighter-threat ctx [0 0] {:threat-mission :fighter-sweep}))
-        (should= 2 (count @calls))
-        (should= [0 0] (:pos (first @calls)))
-        (should= :fighter (get-in (first @calls) [:unit :type])))))
+                        nil))]
+        (should (threat-response/process-fighter-threat [0 0] {:threat-mission :fighter-sweep}))
+        (should= 2 @calls))))
 
-  (it "stops when remaining speed is consumed"
-    (let [calls (atom 0)
-          ctx {:current-world fighter-world}]
-      (with-redefs [processing/fighter-step-threat (fn [& _] (swap! calls inc) {:pos [0 0] :steps-used 3})
-                    fm/fighter-speed 3]
-        (should (processing/process-fighter-threat ctx [0 0] {:threat-mission :fighter-sweep}))
+  (it "returns true for major-invasion fighters"
+    (set-test-world! (build-test-map ["f"]))
+    (let [calls (atom 0)]
+      (with-redefs [empire.computer.threat-response/fighter-step-threat
+                    (fn [_ _]
+                      (swap! calls inc)
+                      nil)]
+        (should (threat-response/process-fighter-threat
+                 [0 0] {:major-invasion true :major-invasion-target [3 3]}))
         (should= 1 @calls))))
 
-  (it "returns true when sweep mission is active even if no step executes"
-    (let [ctx {:current-world fighter-world}]
-      (with-redefs [processing/fighter-step-threat (fn [& _] nil)
-                    fm/fighter-speed 2]
-        (should (processing/process-fighter-threat ctx [0 0] {:threat-mission :fighter-sweep})))))
+  (it "defaults a missing fighter step cost to one"
+    (set-test-world! (build-test-map ["f"]))
+    (let [calls (atom 0)]
+      (with-redefs [empire.computer.threat-response/fighter-step-threat
+                    (fn [_ _]
+                      (swap! calls inc)
+                      (when (= 1 @calls)
+                        {:pos [0 0] :steps-used nil :hops nil}))]
+        (should (threat-response/process-fighter-threat [0 0] {:threat-mission :fighter-sweep}))
+        (should= 2 @calls))))
 
-  (it "returns true when major invasion mission is active"
-    (let [calls (atom 0)
-          ctx {:current-world fighter-world
-               :nearest-major-target (fn [_] [3 3])}]
-      (with-redefs [processing/fighter-step-threat (fn [& _] (swap! calls inc) nil)
-                    fm/fighter-speed 2]
-        (should (processing/process-fighter-threat
-                 ctx [0 0] {:major-invasion true :major-invasion-target [3 3]}))
-        (should= 1 @calls)))))
-
-(describe "move-hop-consume refuel range guard"
-  (it "blocks hop when resulting position would be out of refueling range"
-    (let [executed? (atom false)]
-      (with-redefs [fm/hop-over-friendly (constantly {:dest [3 0] :hops 2})
-                    fm/find-nearest-refueling-site (constantly [0 0])
-                    fm/execute-hop (fn [& _] (reset! executed? true) {:pos [3 0] :hops 2})
-                    fm/consume-fighter-fuel (constantly true)]
-        (should-be-nil (@#'processing/move-hop-consume [0 0] [4 0] 3))
-        (should-not @executed?))))
-
-  (it "allows hop when resulting position stays in refueling range"
-    (let [executed? (atom false)]
-      (with-redefs [fm/hop-over-friendly (constantly {:dest [2 0] :hops 2})
-                    fm/find-nearest-refueling-site (constantly [0 0])
-                    fm/execute-hop (fn [& _] (reset! executed? true) {:pos [2 0] :hops 2})
-                    fm/consume-fighter-fuel (constantly true)]
-        (should= {:pos [2 0] :steps-used 2}
-                 (@#'processing/move-hop-consume [0 0] [4 0] 5))
-        (should @executed?)))))
+  (it "starts random walk for blocked major-invasion fighters when sidestep is unavailable"
+    (set-test-world! (build-test-map ["f"]))
+    (update-test-world! update-in [0 0 :contents] merge
+                        {:major-invasion true
+                         :major-invasion-target [3 3]
+                         :threat-radius 0
+                         :fuel 10})
+    (with-redefs [empire.computer.fighter-movement/should-return-to-refuel? (constantly false)
+                  empire.computer.fighter-movement/hop-over-friendly (constantly nil)
+                  empire.computer.fighter-movement/get-passable-neighbors (constantly [])]
+      (should
+       (threat-response/process-fighter-threat
+        [0 0] (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
+    (should= 5 (get-in (test-utils/read-test-state :game-map)
+                       [0 0 :contents :oscillation-random-walk-rounds-left]))))

@@ -1,11 +1,10 @@
-(ns empire.debug-spec
-  (:require [empire.test.utils :as test-utils]
-            [speclj.core :refer :all]
+(ns empire.debug-dump-spec
+  (:require [clojure.string :as str]
             [empire.game-mechanics.debug.dump :as debug-dump]
-            [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.debug.logging :as debug-logging]
-            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world!]]
-            [clojure.string :as str]))
+            [empire.test.utils :as test-utils]
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world!]]
+            [speclj.core :refer :all]))
 
 (describe "format-cell handles nil contents fields"
   (before (reset-all-atoms!))
@@ -63,103 +62,6 @@
     (let [result (debug-dump/format-cell [7 12] {:type :sea})]
       (should-contain "[7,12]" result))))
 
-(describe "log-player-movement!"
-  (before (reset-all-atoms!))
-
-  (it "appends movement entry to log"
-    (debug-logging/log-player-movement! :army [1 2] [1 3] :moving :move nil)
-    (should= 1 (count (test-utils/read-test-state :player-movement-log)))
-    (let [entry (first (test-utils/read-test-state :player-movement-log))]
-      (should= :army (:unit-type entry))
-      (should= [1 2] (:from entry))
-      (should= [1 3] (:to entry))
-      (should= :move (:event entry))))
-
-  (it "includes round number"
-    (test-utils/set-test-state! :round-number 5)
-    (debug-logging/log-player-movement! :army [0 0] [0 1] :explore :move nil)
-    (should= 5 (:round (first (test-utils/read-test-state :player-movement-log)))))
-
-  (it "keeps exactly 500 entries without truncating"
-    (dotimes [_ 500]
-      (debug-logging/log-player-movement! :army [0 0] [0 1] :moving :move nil))
-    (should= 500 (count (test-utils/read-test-state :player-movement-log))))
-
-  (it "truncates to 500 when exceeding limit"
-    (dotimes [_ 501]
-      (debug-logging/log-player-movement! :army [0 0] [0 1] :moving :move nil))
-    (should= 500 (count (test-utils/read-test-state :player-movement-log))))
-
-  (it "includes wake reason"
-    (debug-logging/log-player-movement! :army [0 0] [0 1] :explore :wake :steps-exhausted)
-    (should= :steps-exhausted (:reason (first (test-utils/read-test-state :player-movement-log))))))
-
-(describe "log-action!"
-  (before (reset-all-atoms!))
-
-  (it "appends action to log"
-    (debug-logging/log-action! [:move :army [4 6] [4 7]])
-    (should= 1 (count (test-utils/read-test-state :action-log)))
-    (should= [:move :army [4 6] [4 7]] (:action (first (test-utils/read-test-state :action-log)))))
-
-  (it "includes timestamp"
-    (debug-logging/log-action! [:test])
-    (should (number? (:timestamp (first (test-utils/read-test-state :action-log))))))
-
-  (it "caps log at 100 entries"
-    (dotimes [i 110]
-      (debug-logging/log-action! [:action i]))
-    (should= 100 (count (test-utils/read-test-state :action-log)))))
-
-(describe "log-computer-event!"
-  (before (reset-all-atoms!))
-
-  (it "appends computer event entry"
-    (debug-logging/log-computer-event! :army-move [1 2] {:to [1 3]})
-    (should= 1 (count (test-utils/read-test-state :computer-event-log)))
-    (let [entry (first (test-utils/read-test-state :computer-event-log))]
-      (should= :army-move (:event entry))
-      (should= [1 2] (:pos entry))
-      (should= [1 3] (:to entry))))
-
-  (it "caps computer event log at 2000 entries"
-    (dotimes [i 2001]
-      (debug-logging/log-computer-event! :tick [0 i] {:n i}))
-    (should= 2000 (count (test-utils/read-test-state :computer-event-log)))))
-
-(describe "world integrity validation"
-  (before (reset-all-atoms!))
-
-  (it "detects malformed contents with missing type or owner"
-    (let [invalids (integrity/invalid-cells [[{:type :land}
-                                              {:type :sea :contents {:fuel 31}}]])]
-      (should= 1 (count invalids))
-      (should= [0 1] (:pos (first invalids)))))
-
-  (it "formats round diagnostics into the integrity report"
-    (test-utils/set-test-state! :round-number 7)
-    (test-utils/set-test-state! :action-log [{:timestamp 12 :action [:move :fighter [1 1] [1 2]]}])
-    (test-utils/set-test-state! :computer-event-log [{:round 7 :event :fighter-move :pos [1 2] :to [1 3]}])
-    (test-utils/set-test-state! :player-movement-log [{:round 7 :unit-type :army :from [2 2] :to [2 3] :mode :moving :event :move :reason nil}])
-    (let [report (integrity/format-integrity-report
-                  [{:pos [3 4]
-                    :cell {:type :sea :contents {:fuel 31}}
-                    :explain-data {:problem :bad-cell}}])]
-      (should-contain "Empire Integrity Error" report)
-      (should-contain "Position: [3 4]" report)
-      (should-contain "Actions (last 50)" report)
-      (should-contain "fighter-move" report)
-      (should-contain "army [2 2]->[2 3]" report)))
-
-  (it "writes an error log when the world contains malformed cells"
-    (set-test-world! [[{:type :land :contents {:fuel 31}}]])
-    (let [captured (atom nil)]
-      (with-redefs [integrity/write-integrity-error-log! (fn [invalids]
-                                                           (reset! captured invalids)
-                                                           "error-test.log")]
-        (should= "error-test.log" (integrity/check-world-integrity!))
-        (should= 1 (count @captured))))))
-
 (describe "dump-region"
   (before (reset-all-atoms!))
 
@@ -168,16 +70,15 @@
                                       "###"
                                       "###"]))
     (set-test-player-map! (build-test-map ["###"
-                                               "###"
-                                               "###"]))
+                                           "###"
+                                           "###"]))
     (set-test-computer-map! (build-test-map ["###"
-                                                 "###"
-                                                 "###"]))
+                                             "###"
+                                             "###"]))
     (let [result (debug-dump/dump-region [0 0] [1 1])]
       (should (map? (:game-map result)))
       (should (map? (:player-map result)))
       (should (map? (:computer-map result)))
-      ;; Should have 4 cells in range [0 0] to [1 1]
       (should= 4 (count (:game-map result)))))
 
   (it "handles empty maps gracefully"
@@ -235,7 +136,6 @@
 
   (it "contains date pattern"
     (let [filename (debug-dump/generate-dump-filename)]
-      ;; Should match debug-YYYY-MM-DD-HHMMSS.txt
       (should (re-find #"debug-\d{4}-\d{2}-\d{2}-\d{6}\.txt" filename)))))
 
 (describe "format-movement-entry"

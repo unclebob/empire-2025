@@ -63,6 +63,33 @@
   [f & args]
   (apply update-test-state! :computer-map f args))
 
+(defn mission-ctx []
+  {:current-world read-test-world
+   :update-game-map! update-test-world!
+   :load-major-invasion-state #(read-test-state :major-invasion-state)})
+
+(defn set-major-invasion-state!
+  [state]
+  (set-test-state! :major-invasion-state state))
+
+(defn set-kamikazee-fighter!
+  [pos attrs]
+  (update-test-world! update-in (conj pos :contents)
+                      merge
+                      {:type :fighter
+                       :owner :computer
+                       :hits 1
+                       :major-invasion true
+                       :kamikazee true}
+                      attrs))
+
+(defn seed-airport-kamikazees!
+  [city-pos total awake]
+  (update-test-world! assoc-in (conj city-pos :fighter-count) total)
+  (update-test-world! assoc-in (conj city-pos :awake-fighters) awake)
+  (update-test-world! assoc-in (conj city-pos :kamikazee-fighter-count) total)
+  (update-test-world! assoc-in (conj city-pos :awake-kamikazee-fighters) awake))
+
 (defn- update-map-atom!
   [map-source f & args]
   (cond
