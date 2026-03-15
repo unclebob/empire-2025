@@ -29,9 +29,18 @@
 
   (it "writes an error log when the world contains malformed cells"
     (test-utils/set-test-world! [[{:type :land :contents {:fuel 31}}]])
+    (test-utils/set-test-state! :integrity-check-enabled true)
     (let [captured (atom nil)]
       (with-redefs [integrity/write-integrity-error-log! (fn [invalids]
                                                            (reset! captured invalids)
                                                            "error-test.log")]
         (should= "error-test.log" (integrity/check-world-integrity!))
-        (should= 1 (count @captured))))))
+        (should= 1 (count @captured)))))
+
+  (it "does nothing when integrity checking is disabled"
+    (test-utils/set-test-world! [[{:type :land :contents {:fuel 31}}]])
+    (test-utils/set-test-state! :integrity-check-enabled false)
+    (with-redefs [integrity/write-integrity-error-log! (fn [_]
+                                                         (should-not "should not write a log")
+                                                         "error-test.log")]
+      (should-be-nil (integrity/check-world-integrity!)))))

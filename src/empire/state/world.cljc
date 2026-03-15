@@ -13,6 +13,7 @@
    :computer-map {}
    :continent-groups {}
    :next-country-id 1
+   :integrity-check-enabled true
    :game-over-check-enabled true})
 
 (def state (atom defaults))

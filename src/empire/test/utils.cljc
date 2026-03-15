@@ -304,6 +304,7 @@
   (reset! player-state/state player-state/defaults)
   (reset! ui-state/state ui-state/defaults)
   (sa/write-state! :game-over-check-enabled false)
+  (sa/write-state! :integrity-check-enabled false)
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)

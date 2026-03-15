@@ -107,10 +107,11 @@
 
 (defn check-world-integrity!
   []
-  (let [world (sa/current-world)
-        invalids (when (seq world) (invalid-cells world))]
-    (when (seq invalids)
-      (let [filename (write-integrity-error-log! invalids)]
-        (binding [*out* *err*]
-          (println "World integrity violation; wrote" filename))
-        filename))))
+  (when (sa/read-state :integrity-check-enabled)
+    (let [world (sa/current-world)
+          invalids (when (seq world) (invalid-cells world))]
+      (when (seq invalids)
+        (let [filename (write-integrity-error-log! invalids)]
+          (binding [*out* *err*]
+            (println "World integrity violation; wrote" filename))
+          filename)))))

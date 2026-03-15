@@ -125,7 +125,7 @@ THEN production at O is army with 5 rounds remaining.
 GIVEN game map
   O#
 GIVEN production at O is army with 1 round remaining.
-GIVEN cell [0 0] has contents army.
+GIVEN O has a player army.
 
 WHEN a new round starts.
 
