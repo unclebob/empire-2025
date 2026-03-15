@@ -43,6 +43,18 @@
   [world]
   (sa/write-state! :game-map world))
 
+(defn set-test-cell!
+  [pos cell]
+  (sa/update-world! assoc-in pos cell))
+
+(defn set-test-contents!
+  [pos unit]
+  (sa/update-world! assoc-in (conj pos :contents) unit))
+
+(defn clear-test-contents!
+  [pos]
+  (sa/update-world! assoc-in (conj pos :contents) nil))
+
 (defn update-test-world!
   [f & args]
   (apply sa/update-world! f args))
