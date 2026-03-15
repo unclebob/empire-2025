@@ -147,6 +147,11 @@
 (defn- normalize-item-queue
   [items]
   (cond
+    (and (sequential? items)
+         (even? (count items))
+         (every? number? items))
+    (mapv vec (partition 2 items))
+
     (and (vector? items)
          (= 2 (count items))
          (every? number? items))
