@@ -28,6 +28,53 @@
       (should= 1 (get-in (test-utils/read-test-state :game-map) [2 0 :kamikazee-fighter-count]))
       (should= 1 (get-in (test-utils/read-test-state :game-map) [2 0 :awake-kamikazee-fighters]))))
 
+  (it "finishes a route node in place at a carrier site"
+    (let [world (build-test-map ["fc~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (test-utils/set-major-invasion-state! {})
+      (test-utils/set-kamikazee-fighter! [0 0]
+                                         {:kamikazee-stage :route
+                                          :kamikazee-route [[1 0]]
+                                          :fuel 7})
+      (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
+                                           [0 0]
+                                           (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+      (should= :hunt (get-in (test-utils/read-test-state :game-map) [0 0 :contents :kamikazee-stage]))
+      (should= [] (get-in (test-utils/read-test-state :game-map) [0 0 :contents :kamikazee-route]))
+      (should= [1 0] (get-in (test-utils/read-test-state :game-map) [0 0 :contents :kamikazee-terminal-site]))
+      (should= 32 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel]))))
+
+  (it "enters hunt once it is close enough to the final target without a route"
+    (let [world (build-test-map ["f+"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (test-utils/set-major-invasion-state! {:target-land-set #{[1 0]}})
+      (test-utils/set-kamikazee-fighter! [0 0]
+                                         {:kamikazee-stage :route
+                                          :kamikazee-route []})
+      (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
+                                           [0 0]
+                                           (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+      (should= :hunt (get-in (test-utils/read-test-state :game-map) [0 0 :contents :kamikazee-stage]))))
+
+  (it "falls back to non-backtracking movement when route movement toward the goal fails"
+    (let [world (build-test-map ["f~~A"
+                                 "~~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (test-utils/set-major-invasion-state! {:kamikazee-army-targets [{:pos [3 0] :seen-round 2}]})
+      (test-utils/set-kamikazee-fighter! [0 0]
+                                         {:kamikazee-stage :route
+                                          :kamikazee-route []
+                                          :fuel 8})
+      (with-redefs [rand-nth first
+                    empire.computer.fighter-movement/hop-over-friendly (constantly nil)]
+        (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
+                                             [0 0]
+                                             (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
+      (should= :fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))))
+
   (it "relaunches a kamikazee fighter from a computer city airport in hunt mode at the root city"
     (let [world (build-test-map ["X~~A"
                                  "~~~~"])]
@@ -139,6 +186,21 @@
                                              (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
       (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
       (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
+
+  (it "removes a kamikazee fighter when the hunt step burns the last fuel point"
+    (let [world (build-test-map ["f~~"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (test-utils/set-major-invasion-state! {:detection-points #{[2 0]}})
+      (test-utils/set-kamikazee-fighter! [0 0]
+                                         {:kamikazee-stage :hunt
+                                          :fuel 1})
+      (with-redefs [rand-nth first]
+        (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
+                                             [0 0]
+                                             (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))))
 
   (it "stops processing cleanly when the kamikazee fighter is already gone"
     (let [world (build-test-map ["~~~"

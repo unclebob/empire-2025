@@ -83,21 +83,24 @@
     []
     (vec (build-player-items))))
 
+(defn- count-down-handicap!
+  [remaining]
+  (let [next-remaining (dec remaining)]
+    (sa/write-state! :handicap-rounds-remaining next-remaining)
+    (sa/write-state! :handicap-display-rounds next-remaining)))
+
+(defn- handicap-display-expired?
+  [remaining display]
+  (= [0 0] [(or remaining 0) display]))
+
 (defn- update-handicap-before-round!
   []
   (let [remaining (sa/read-state :handicap-rounds-remaining)
         display (sa/read-state :handicap-display-rounds)]
-    (cond
-      (pos? (or remaining 0))
-      (let [next-remaining (dec remaining)]
-        (sa/write-state! :handicap-rounds-remaining next-remaining)
-        (sa/write-state! :handicap-display-rounds next-remaining))
-
-      (zero? (or remaining 0))
-      (when (zero? (or display -1))
-        (sa/write-state! :handicap-display-rounds nil))
-
-      :else nil)))
+    (if (pos? (or remaining 0))
+      (count-down-handicap! remaining)
+      (when (handicap-display-expired? remaining display)
+        (sa/write-state! :handicap-display-rounds nil)))))
 
 ;; Delegate round-setup functions for backward compatibility
 (def remove-dead-units round-setup/remove-dead-units)

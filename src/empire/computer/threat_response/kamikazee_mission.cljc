@@ -29,6 +29,8 @@
   (when (kamikazee-writeable-unit? ctx pos)
     ((:update-game-map! ctx) update-in (conj pos :contents) f)))
 
+(declare process-kamikazee-fighter)
+
 (defn- player-army-at?
   [world pos]
   (let [unit (get-in world (conj pos :contents))]
@@ -54,50 +56,53 @@
   (when-let [hop (fm/hop-over-friendly pos target)]
     (fm/execute-hop pos hop)))
 
+(defn- backtracking-candidates
+  [pos target min-target-distance trail]
+  (let [current-distance (if target (core/distance pos target) 0)
+        far-enough? (fn [cand]
+                      (or (nil? target)
+                          (<= min-target-distance (core/distance cand target))))
+        passable (fm/get-passable-neighbors pos)
+        sorted-candidates (fn [cells]
+                            (sort-by (fn [cand]
+                                       [(if target (core/distance cand target) current-distance)
+                                        cand])
+                                     cells))]
+    (or (seq (sorted-candidates (->> passable
+                                     (remove fm/occupied?)
+                                     (remove trail)
+                                     (filter far-enough?))))
+        (seq (sorted-candidates (->> passable
+                                     (remove fm/occupied?)
+                                     (filter far-enough?)))))))
+
+(defn- apply-hunt-step
+  [ctx pos moved-pos unit]
+  (let [moved-unit (get-in ((:current-world ctx)) (conj moved-pos :contents))
+        next-fuel (dec (:fuel moved-unit config/fighter-fuel))]
+    (when (kamikazee-writeable-unit? ctx moved-pos)
+      (if (<= next-fuel 0)
+        (do
+          ((:update-game-map! ctx) update-in moved-pos dissoc :contents)
+          {:pos moved-pos :steps-used 1})
+        (do
+          ((:update-game-map! ctx) update-in (conj moved-pos :contents)
+           #(assoc %
+                   :fuel next-fuel
+                   :kamikazee-trail
+                   (vec (take-last hunt-trail-length (conj (:kamikazee-trail unit []) pos)))))
+          {:pos moved-pos :steps-used 1})))))
+
 (defn- non-backtracking-step
   [ctx pos target min-target-distance]
   (when (kamikazee-writeable-unit? ctx pos)
     (let [world ((:current-world ctx))
           unit (get-in world (conj pos :contents))
           trail (set (:kamikazee-trail unit))
-          current-distance (if target (core/distance pos target) 0)
-          far-enough? (fn [cand]
-                        (or (nil? target)
-                            (<= min-target-distance (core/distance cand target))))
-          candidates (->> (fm/get-passable-neighbors pos)
-                          (remove fm/occupied?)
-                          (remove trail)
-                          (filter far-enough?)
-                          (sort-by (fn [cand]
-                                     [(if target (core/distance cand target) current-distance)
-                                      cand])))
-          choices (vec (if (seq candidates)
-                         candidates
-                         (->> (fm/get-passable-neighbors pos)
-                              (remove fm/occupied?)
-                              (filter far-enough?)
-                              vec)))]
+          choices (vec (backtracking-candidates pos target min-target-distance trail))]
       (when-let [choice (when (seq choices) (rand-nth choices))]
         (when-let [moved-pos (core/move-unit-to pos choice)]
-          (let [moved-unit (get-in ((:current-world ctx)) (conj moved-pos :contents))
-                next-fuel (dec (:fuel moved-unit config/fighter-fuel))]
-            (cond
-              (not (kamikazee-writeable-unit? ctx moved-pos))
-              nil
-
-              (<= next-fuel 0)
-              (do
-                ((:update-game-map! ctx) update-in moved-pos dissoc :contents)
-                {:pos moved-pos :steps-used 1})
-
-              :else
-              (do
-                ((:update-game-map! ctx) update-in (conj moved-pos :contents)
-                 #(assoc %
-                         :fuel next-fuel
-                         :kamikazee-trail
-                         (vec (take-last hunt-trail-length (conj (:kamikazee-trail unit []) pos)))))
-                {:pos moved-pos :steps-used 1}))))))))
+          (apply-hunt-step ctx pos moved-pos unit))))))
 
 (defn- enter-hunt!
   [ctx pos unit]
@@ -138,6 +143,32 @@
       ;; into hunt movement after the attacker has already been destroyed.
       {:pos pos :steps-used 1})))
 
+(defn- process-refuel-stage
+  [ctx pos wait-site]
+  (if (routing/at-site? ((:current-world ctx)) pos wait-site)
+    (do
+      (fill-fuel! ctx pos wait-site)
+      (update-kamikazee-unit! ctx pos
+                              #(-> %
+                                   (assoc :kamikazee-stage :return)
+                                   (dissoc :kamikazee-wait-site)))
+      {:pos pos :steps-used 1})
+    (move-toward! pos wait-site)))
+
+(defn- process-return-stage
+  [ctx pos unit resume-pos]
+  (if (= pos resume-pos)
+    (process-kamikazee-fighter ctx pos (enter-hunt! ctx pos unit))
+    (move-toward! pos resume-pos)))
+
+(defn- process-active-hunt
+  [ctx pos unit current-goal refuel-sites fuel]
+  (or (attack-adjacent-player-army pos ((:current-world ctx)))
+      (when (<= fuel hunt-refuel-threshold)
+        (when-let [site (choose-hunt-refuel-site pos fuel refuel-sites)]
+          (process-kamikazee-fighter ctx pos (start-hunt-refuel! ctx pos unit site))))
+      (non-backtracking-step ctx pos current-goal 1)))
+
 (defn- airport-kamikazee-ready?
   [cell]
   (pos? (:awake-kamikazee-fighters cell 0)))
@@ -150,6 +181,32 @@
         (update :awake-fighters dec-count)
         (update :kamikazee-fighter-count dec-count)
         (update :awake-kamikazee-fighters dec-count))))
+
+(defn- open-launch-position
+  [world city-pos route major-target]
+  (some (fn [candidate]
+          (let [candidate-cell (get-in world candidate)]
+            (when (and candidate-cell (nil? (:contents candidate-cell)))
+              candidate)))
+        (containers/launch-steps-toward city-pos
+                                        (or (first route)
+                                            major-target
+                                            city-pos))))
+
+(defn- build-launched-fighter
+  [major-target targets plan]
+  {:type :fighter
+   :owner :computer
+   :mode :awake
+   :hits 1
+   :fuel config/fighter-fuel
+   :major-invasion true
+   :kamikazee true
+   :major-invasion-target major-target
+   :kamikazee-targets targets
+   :kamikazee-route (:route plan)
+   :kamikazee-terminal-site (:terminal-site plan)
+   :kamikazee-stage (if (seq (:route plan)) :route :hunt)})
 
 (defn launch-kamikazee-from-airport!
   [ctx city-pos]
@@ -166,26 +223,8 @@
             major-target (targets/choose-major-target state world city-pos)
             next-route-city (when (routing/city-site? world (first (:route plan)))
                               (first (:route plan)))
-            launch-pos (some (fn [candidate]
-                               (let [candidate-cell (get-in world candidate)]
-                                 (when (and candidate-cell (nil? (:contents candidate-cell)))
-                                   candidate)))
-                             (containers/launch-steps-toward city-pos
-                                                             (or (first (:route plan))
-                                                                 major-target
-                                                                 city-pos)))
-            launched-fighter {:type :fighter
-                              :owner :computer
-                              :mode :awake
-                              :hits 1
-                              :fuel config/fighter-fuel
-                              :major-invasion true
-                              :kamikazee true
-                              :major-invasion-target major-target
-                              :kamikazee-targets targets
-                              :kamikazee-route (:route plan)
-                              :kamikazee-terminal-site (:terminal-site plan)
-                              :kamikazee-stage (if (seq (:route plan)) :route :hunt)}]
+            launch-pos (open-launch-position world city-pos (:route plan) major-target)
+            launched-fighter (build-launched-fighter major-target targets plan)]
         (when (and launch-pos
                    (or (nil? next-route-city)
                        (routing/city-has-launch-capacity? world
@@ -195,38 +234,68 @@
           ((:update-game-map! ctx) assoc-in (conj launch-pos :contents) launched-fighter)
           launch-pos)))))
 
-(declare process-kamikazee-fighter)
-
 (defn- process-hunt-step
   [ctx pos unit current-goal refuel-sites]
-  (let [world ((:current-world ctx))
-        stage (:kamikazee-stage unit)
+  (let [stage (:kamikazee-stage unit)
         wait-site (:kamikazee-wait-site unit)
         resume-pos (:kamikazee-hunt-resume-pos unit)
         fuel (:fuel unit config/fighter-fuel)]
     (cond
       (and (= :refuel stage) wait-site)
-      (if (routing/at-site? world pos wait-site)
-        (do
-          (fill-fuel! ctx pos wait-site)
-          (update-kamikazee-unit! ctx pos
-                                  #(-> %
-                                       (assoc :kamikazee-stage :return)
-                                       (dissoc :kamikazee-wait-site)))
-          {:pos pos :steps-used 1})
-        (move-toward! pos wait-site))
+      (process-refuel-stage ctx pos wait-site)
 
       (and (= :return stage) resume-pos)
-      (if (= pos resume-pos)
-        (process-kamikazee-fighter ctx pos (enter-hunt! ctx pos unit))
-        (move-toward! pos resume-pos))
+      (process-return-stage ctx pos unit resume-pos)
 
       :else
-      (or (attack-adjacent-player-army pos world)
-          (when (<= fuel hunt-refuel-threshold)
-            (when-let [site (choose-hunt-refuel-site pos fuel refuel-sites)]
-              (process-kamikazee-fighter ctx pos (start-hunt-refuel! ctx pos unit site))))
-          (non-backtracking-step ctx pos current-goal 1)))))
+      (process-active-hunt ctx pos unit current-goal refuel-sites fuel))))
+
+(defn- finish-route-node!
+  [ctx pos route next-site]
+  (let [next-stage (if (= 1 (count route)) :hunt :route)
+        remaining-route (vec (rest route))]
+    (fill-fuel! ctx pos next-site)
+    (update-kamikazee-unit! ctx pos
+     #(-> %
+          (assoc :kamikazee-terminal-site (or (:kamikazee-terminal-site %) next-site))
+          (assoc :kamikazee-stage next-stage)
+          (assoc :kamikazee-route remaining-route)
+          (dissoc :kamikazee-wait-site
+                  :kamikazee-hunt-resume-pos))))
+  {:pos pos :steps-used 1})
+
+(defn- adjacent-route-city?
+  [world pos next-site]
+  (and next-site
+       (computer-city-site? world next-site)
+       (<= (routing/site-distance pos next-site) 1)))
+
+(defn- move-from-route
+  [ctx pos current-goal]
+  (if current-goal
+    (or (move-toward! pos current-goal)
+        (non-backtracking-step ctx pos current-goal 0))
+    (non-backtracking-step ctx pos nil 0)))
+
+(defn- process-route-stage
+  [ctx pos world unit route next-site current-goal]
+  (cond
+    (adjacent-route-city? world pos next-site)
+    (do
+      (fm/land-at-city pos next-site)
+      nil)
+
+    (and next-site (routing/at-site? world pos next-site))
+    (finish-route-node! ctx pos route next-site)
+
+    next-site
+    (move-toward! pos next-site)
+
+    (close-enough-to-hunt? pos current-goal)
+    (process-kamikazee-fighter ctx pos (enter-hunt! ctx pos unit))
+
+    :else
+    (move-from-route ctx pos current-goal)))
 
 (defn process-kamikazee-fighter
   [ctx pos unit]
@@ -243,38 +312,8 @@
       (cond
         (#{:hunt :refuel :return} (:kamikazee-stage unit))
         (process-hunt-step ctx pos unit current-goal refuel-sites)
-
-        (and next-site
-             (computer-city-site? world next-site)
-             (<= (routing/site-distance pos next-site) 1))
-        (do
-          (fm/land-at-city pos next-site)
-          nil)
-
-        (and next-site (routing/at-site? world pos next-site))
-        (do
-          (fill-fuel! ctx pos next-site)
-          (update-kamikazee-unit! ctx pos
-           #(-> %
-                (assoc :kamikazee-terminal-site (or (:kamikazee-terminal-site %) next-site))
-                (assoc :kamikazee-stage (if (= 1 (count route)) :hunt :route))
-                (assoc :kamikazee-route (vec (rest route)))
-                (dissoc :kamikazee-wait-site
-                        :kamikazee-hunt-resume-pos)))
-          {:pos pos :steps-used 1})
-
-        next-site
-        (move-toward! pos next-site)
-
-        (close-enough-to-hunt? pos current-goal)
-        (process-kamikazee-fighter ctx pos (enter-hunt! ctx pos unit))
-
-        current-goal
-        (or (move-toward! pos current-goal)
-            (non-backtracking-step ctx pos current-goal 0))
-
         :else
-        (non-backtracking-step ctx pos nil 0)))))
+        (process-route-stage ctx pos world unit route next-site current-goal)))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-14T08:36:44.110152-05:00", :module-hash "362437439", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1755399322"} {:id "def/hunt-trail-length", :kind "def", :line 8, :end-line 8, :hash "608106012"} {:id "defn-/refuel-at-site!", :kind "defn-", :line 10, :end-line 14, :hash "2037084067"} {:id "defn-/move-toward!", :kind "defn-", :line 16, :end-line 19, :hash "178636244"} {:id "defn-/non-backtracking-step", :kind "defn-", :line 21, :end-line 43, :hash "-1495100354"} {:id "defn/process-kamikazee-fighter", :kind "defn", :line 45, :end-line 90, :hash "250974694"}]}

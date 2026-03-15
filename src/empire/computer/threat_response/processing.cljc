@@ -92,8 +92,7 @@
 
 (defn- fighter-random-walk-step
   [pos]
-  (let [passable (fm/get-passable-neighbors pos)
-        candidates (vec (remove fm/occupied? passable))]
+  (let [candidates (vec (remove fm/occupied? (fm/get-passable-neighbors pos)))]
     (if-let [target (when (seq candidates) (rand-nth candidates))]
       (if (core/move-unit-to pos target)
         (when (fm/consume-fighter-fuel target)
@@ -101,16 +100,37 @@
         pos)
       pos)))
 
+(defn- update-fighter-random-walk!
+  [ctx final-pos]
+  (when (get-in ((:current-world ctx)) (conj final-pos :contents))
+    ((:update-game-map! ctx) update-in (conj final-pos :contents)
+     #(-> %
+          oscillation/dec-random-walk
+          oscillation/maybe-restore))))
+
 (defn process-fighter-random-walk-round
   [ctx pos]
-  (let [final-pos (or (fighter-random-walk-step pos) pos)
-        unit (get-in ((:current-world ctx)) (conj final-pos :contents))]
-    (when unit
-      ((:update-game-map! ctx) update-in (conj final-pos :contents)
-       #(-> %
-            oscillation/dec-random-walk
-            oscillation/maybe-restore))))
+  (let [final-pos (or (fighter-random-walk-step pos) pos)]
+    (update-fighter-random-walk! ctx final-pos))
   true)
+
+(declare fighter-step-threat)
+
+(defn- outside-radius-step
+  [ctx pos center fuel unit]
+  (or (move-hop-consume pos center fuel)
+      (when center (fighter-sidestep-consume pos center))
+      (when (:major-invasion unit)
+        (start-fighter-congestion-random-walk! ctx pos)
+        nil)))
+
+(defn- next-fighter-threat-state
+  [ctx current remaining]
+  (when (pos? remaining)
+    (when-let [{:keys [pos steps-used]}
+               (fighter-step-threat ctx current (get-in ((:current-world ctx)) (conj current :contents)))]
+      {:pos pos
+       :remaining (- remaining steps-used)})))
 
 (defn fighter-step-threat
   [ctx pos unit]
@@ -129,28 +149,30 @@
       (refuel-threat-step ctx pos)
 
       (out-of-threat-radius? pos center radius)
-      (or (move-hop-consume pos center fuel)
-          (when center (fighter-sidestep-consume pos center))
-          (when (:major-invasion unit)
-            (start-fighter-congestion-random-walk! ctx pos)
-            nil))
+      (outside-radius-step ctx pos center fuel unit)
 
       :else
       (patrol-threat-step pos center radius fuel))))
+
+(defn- run-fighter-threat-round
+  [ctx pos]
+  (loop [current pos
+         remaining fm/fighter-speed]
+    (when-let [{:keys [pos remaining]} (next-fighter-threat-state ctx current remaining)]
+      (recur pos remaining))))
+
+(defn- run-active-fighter-threat
+  [ctx pos unit]
+  (if (oscillation/in-random-walk? unit)
+    (process-fighter-random-walk-round ctx pos)
+    (run-fighter-threat-round ctx pos)))
 
 (defn process-fighter-threat
   "Overrides regular fighter logic while fighter-sweep threat mission is active.
    Returns true when handled."
   [ctx pos unit]
   (when (fighter-threat-active? unit)
-    (if (oscillation/in-random-walk? unit)
-      (process-fighter-random-walk-round ctx pos)
-    (loop [current pos
-           remaining fm/fighter-speed]
-      (when (pos? remaining)
-        (when-let [{:keys [pos steps-used]}
-                   (fighter-step-threat ctx current (get-in ((:current-world ctx)) (conj current :contents)))]
-            (recur pos (- remaining steps-used))))))
+    (run-active-fighter-threat ctx pos unit)
     true))
 
 (defn- ship-threat-action

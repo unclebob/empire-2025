@@ -35,4 +35,40 @@
       (should= [0 0] (:kamikazee-root-city graph))
       (should= [17 1] (get (:kamikazee-city-next-hops graph) [34 2]))
       (should= [0 0] (get (:kamikazee-carrier-next-hops graph) [17 1]))
-      (should= #{[17 1]} (:kamikazee-bridge-carriers graph)))))
+      (should= #{[17 1]} (:kamikazee-bridge-carriers graph))))
+
+  (it "chooses fighters for cities that can already reach the invasion target"
+    (let [world (build-test-map ["X~~~A"])
+          state {:active? true
+                 :detection-points #{[4 0]}
+                 :target-land-set #{[4 0]}}]
+      (with-redefs [empire.state.api/current-world (constantly world)
+                    empire.state.api/read-state (fn [k]
+                                                  (when (= k :major-invasion-state)
+                                                    state))]
+        (should= :fighter
+                 (routing/invasion-production-override [0 0])))))
+
+  (it "chooses fighters when loaded invasion transports exist"
+    (let [world (build-test-map ["X~~"
+                                 "t~~"])]
+      (with-redefs [empire.state.api/current-world (constantly (assoc-in world [0 1 :contents]
+                                                                         {:type :transport
+                                                                          :owner :computer
+                                                                          :major-invasion true
+                                                                          :army-count 1}))
+                    empire.state.api/read-state (fn [k]
+                                                  (when (= k :major-invasion-state)
+                                                    {:active? true
+                                                     :detection-points #{}
+                                                     :target-land-set #{}}))]
+        (should= :fighter
+                 (routing/invasion-production-override [0 0])))))
+
+  (it "returns nil for invasion production when the invasion is inactive"
+    (with-redefs [empire.state.api/read-state (fn [k]
+                                                (when (= k :major-invasion-state)
+                                                  {:active? false}))
+                  empire.state.api/current-world (constantly (build-test-map ["X"]))]
+      (should= nil
+               (routing/invasion-production-override [0 0])))))

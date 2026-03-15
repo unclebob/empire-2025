@@ -50,15 +50,19 @@
   (when-let [ep (ship-core/find-adjacent-enemy-ship pos)]
     (ship-core/attack-enemy pos ep)))
 
+(defn- major-invasion-neighbor-target
+  [pos]
+  (first (for [n (core/get-neighbors pos)
+               :let [target (:contents (get-in (sa/current-world) n))]
+               :when (and target
+                          (= :player (:owner target))
+                          (not= :transport (:type target))
+                          (not= :satellite (:type target)))]
+           n)))
+
 (defn- try-major-invasion-attack [pos]
   (or (try-attack-adjacent pos)
-      (when-let [ep (first (for [n (core/get-neighbors pos)
-                                 :let [target (:contents (get-in (sa/current-world) n))]
-                                 :when (and target
-                                            (= :player (:owner target))
-                                            (not= :transport (:type target))
-                                            (not= :satellite (:type target)))]
-                             n))]
+      (when-let [ep (major-invasion-neighbor-target pos)]
         (ship-core/attack-enemy pos ep))))
 
 (defn- try-escort [pos ship-type unit]
@@ -83,28 +87,36 @@
   (when-let [sighting (ship-core/find-player-ship-sighting pos)]
     (ship-core/move-toward pos sighting)))
 
+(defn- patrol-boat-action
+  [pos unit]
+  (if (:major-invasion unit)
+    (or (try-major-invasion-attack pos)
+        (patrol/process-patrol-boat pos))
+    (patrol/process-patrol-boat pos)))
+
+(defn- standard-ship-action
+  [pos ship-type unit]
+  (or (try-dock pos unit)
+      (try-retreat pos unit)
+      (try-attack-adjacent pos)
+      (try-escort pos ship-type unit)
+      (try-escort-transport pos ship-type)
+      (try-hunt-player-ship pos)
+      (ship-core/explore-sea pos ship-type)))
+
 (defn- dispatch-ship-action [pos ship-type unit]
   (cond
     (threat-response/process-ship-threat pos ship-type unit)
     true
 
     (= :patrol-boat ship-type)
-    (if (:major-invasion unit)
-      (or (try-major-invasion-attack pos)
-          (patrol/process-patrol-boat pos))
-      (patrol/process-patrol-boat pos))
+    (patrol-boat-action pos unit)
 
     (and (= :carrier ship-type) (:carrier-mode unit))
     (carrier/process-carrier pos)
 
     :else
-    (or (try-dock pos unit)
-        (try-retreat pos unit)
-        (try-attack-adjacent pos)
-        (try-escort pos ship-type unit)
-        (try-escort-transport pos ship-type)
-        (try-hunt-player-ship pos)
-        (ship-core/explore-sea pos ship-type))))
+    (standard-ship-action pos ship-type unit)))
 
 (defn- maybe-handle-lake-ship
   [pos unit]

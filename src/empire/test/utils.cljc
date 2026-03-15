@@ -102,16 +102,23 @@
   (update-test-world! assoc-in (conj city-pos :kamikazee-fighter-count) total)
   (update-test-world! assoc-in (conj city-pos :awake-kamikazee-fighters) awake))
 
+(defn- keyword-map-updater
+  [map-source]
+  (or (when (or (= map-source :game-map)
+                (identical? map-source (game-map-atom)))
+        update-test-world!)
+      (when (or (= map-source :player-map)
+                (identical? map-source (player-map-atom)))
+        update-test-player-map!)
+      (when (or (= map-source :computer-map)
+                (identical? map-source (computer-map-atom)))
+        update-test-computer-map!)))
+
 (defn- update-map-atom!
   [map-source f & args]
-  (cond
-    (= map-source :game-map) (apply update-test-world! f args)
-    (= map-source :player-map) (apply update-test-player-map! f args)
-    (= map-source :computer-map) (apply update-test-computer-map! f args)
-    (identical? map-source (game-map-atom)) (apply update-test-world! f args)
-    (identical? map-source (player-map-atom)) (apply update-test-player-map! f args)
-    (identical? map-source (computer-map-atom)) (apply update-test-computer-map! f args)
-    :else (apply swap! map-source f args)))
+  (if-let [updater (keyword-map-updater map-source)]
+    (apply updater f args)
+    (apply swap! map-source f args)))
 
 (defn- map-value
   [game-map-source]

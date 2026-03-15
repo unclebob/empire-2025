@@ -53,6 +53,22 @@
     (should= 5 (test-utils/read-test-state :round-number))
     (should= [[0 0]] (test-utils/read-test-state :player-items))))
 
+  (it "clears handicap display once the countdown has already reached zero"
+    (test-utils/set-test-state! :handicap-rounds-remaining 0)
+    (test-utils/set-test-state! :handicap-display-rounds 0)
+    (#'game-loop/update-handicap-before-round!)
+    (should= nil (test-utils/read-test-state :handicap-display-rounds)))
+
+  (it "leaves handicap display untouched when it is already nil"
+    (test-utils/set-test-state! :handicap-rounds-remaining 0)
+    (test-utils/set-test-state! :handicap-display-rounds nil)
+    (#'game-loop/update-handicap-before-round!)
+    (should= nil (test-utils/read-test-state :handicap-display-rounds)))
+
+  (it "treats a nil remaining count as expired only when display is zero"
+    (should (#'game-loop/handicap-display-expired? nil 0))
+    (should-not (#'game-loop/handicap-display-expired? nil nil)))
+
 (describe "update-map"
   (before
     (reset-all-atoms!)

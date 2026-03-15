@@ -62,12 +62,10 @@
    Returns sea path excluding start; for land targets, ends adjacent."
   [start target computer-map]
   (let [passable-sea? (fn [pos] (= :sea (:type (get-in computer-map pos))))]
-    (cond
-      (= start target) []
-      (not (passable-sea? start)) nil
-      (and (not= :sea (:type (get-in computer-map target)))
-           (adjacent? start target)) []
-      :else
+    (when (and (not= start target)
+               (passable-sea? start)
+               (not (and (not= :sea (:type (get-in computer-map target)))
+                         (adjacent? start target))))
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
              visited #{start}
              came-from {}]

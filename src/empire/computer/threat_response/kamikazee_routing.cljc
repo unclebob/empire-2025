@@ -102,6 +102,43 @@
                                   (< (target-distance % goal-points) root-distance))
                             carriers)))))
 
+(defn- build-routing-additions
+  [pending marked-cities carriers]
+  (->> pending
+       (keep (fn [city]
+               (if-let [marked (reachable-marked-city city marked-cities)]
+                 {:city city :next-hop marked}
+                 (when-let [[carrier marked] (bridging-carrier city marked-cities carriers)]
+                   {:city city :next-hop carrier :carrier carrier :carrier-next marked}))))))
+
+(defn- merge-routing-additions
+  [city-next-hops carrier-next-hops bridge-carriers additions]
+  {:city-next-hops (reduce (fn [acc {:keys [city next-hop]}]
+                             (assoc acc city next-hop))
+                           city-next-hops
+                           additions)
+   :carrier-next-hops (reduce (fn [acc {:keys [carrier carrier-next]}]
+                                (cond-> acc
+                                  carrier (assoc carrier carrier-next)))
+                              carrier-next-hops
+                              additions)
+   :bridge-carriers (into bridge-carriers (keep :carrier additions))})
+
+(defn- finalize-routing-graph
+  [root-city carriers goal-points city-next-hops carrier-next-hops bridge-carriers]
+  (let [forward-carrier (when (seq goal-points)
+                          (choose-forward-carrier root-city carriers goal-points))
+        final-city-next-hops (cond-> city-next-hops
+                               forward-carrier (assoc root-city forward-carrier))
+        terminal-sites (cond-> #{root-city}
+                         forward-carrier (conj forward-carrier))]
+    {:kamikazee-root-city root-city
+     :kamikazee-city-next-hops final-city-next-hops
+     :kamikazee-carrier-next-hops carrier-next-hops
+     :kamikazee-bridge-carriers bridge-carriers
+     :kamikazee-forward-carrier forward-carrier
+     :kamikazee-terminal-sites terminal-sites}))
+
 (defn rebuild-routing-graph
   [world state]
   (let [goal-points (vec (targets/invasion-target-points state world))
@@ -120,41 +157,21 @@
              carrier-next-hops {}
              bridge-carriers #{}
              pending (disj (set cities) root-city)]
-        (let [additions
-              (->> pending
-                   (keep (fn [city]
-                           (if-let [marked (reachable-marked-city city marked-cities)]
-                             {:city city :next-hop marked}
-                             (when-let [[carrier marked] (bridging-carrier city marked-cities carriers)]
-                               {:city city :next-hop carrier :carrier carrier :carrier-next marked})))))
+        (let [additions (build-routing-additions pending marked-cities carriers)
               next-marked-cities (into marked-cities (map :city additions))
-              next-city-next-hops (reduce (fn [acc {:keys [city next-hop]}]
-                                            (assoc acc city next-hop))
-                                          city-next-hops
-                                          additions)
-              next-carrier-next-hops (reduce (fn [acc {:keys [carrier carrier-next]}]
-                                               (cond-> acc
-                                                 carrier (assoc carrier carrier-next)))
-                                             carrier-next-hops
-                                             additions)
-              next-bridge-carriers (into bridge-carriers (keep :carrier additions))]
+              {:keys [city-next-hops carrier-next-hops bridge-carriers]}
+              (merge-routing-additions city-next-hops carrier-next-hops bridge-carriers additions)]
           (if (empty? additions)
-            (let [forward-carrier (when (seq goal-points)
-                                    (choose-forward-carrier root-city carriers goal-points))
-                  final-city-next-hops (cond-> next-city-next-hops
-                                         forward-carrier (assoc root-city forward-carrier))
-                  terminal-sites (cond-> #{root-city}
-                                   forward-carrier (conj forward-carrier))]
-              {:kamikazee-root-city root-city
-               :kamikazee-city-next-hops final-city-next-hops
-               :kamikazee-carrier-next-hops next-carrier-next-hops
-               :kamikazee-bridge-carriers next-bridge-carriers
-               :kamikazee-forward-carrier forward-carrier
-               :kamikazee-terminal-sites terminal-sites})
+            (finalize-routing-graph root-city
+                                    carriers
+                                    goal-points
+                                    city-next-hops
+                                    carrier-next-hops
+                                    bridge-carriers)
             (recur next-marked-cities
-                   next-city-next-hops
-                   next-carrier-next-hops
-                   next-bridge-carriers
+                   city-next-hops
+                   carrier-next-hops
+                   bridge-carriers
                    (apply disj pending (map :city additions)))))))))
 
 (defn rebuild-routing-graph!

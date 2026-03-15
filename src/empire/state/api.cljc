@@ -14,13 +14,15 @@
     (zipmap (keys player/defaults) (repeat ::player))
     (zipmap (keys ui/defaults) (repeat ::ui))))
 
+(def ^:private group->atom
+  {::world world/state
+   ::computer computer/state
+   ::player player/state
+   ::ui ui/state})
+
 (defn- group-atom [k]
-  (case (or (get key->group k)
-            (throw (ex-info (str "Unknown state key: " k) {:key k})))
-    ::world world/state
-    ::computer computer/state
-    ::player player/state
-    ::ui ui/state))
+  (or (some-> k key->group group->atom)
+      (throw (ex-info (str "Unknown state key: " k) {:key k}))))
 
 (defn current-world [] (:game-map @world/state))
 

@@ -49,30 +49,38 @@
                   [(- seen-round) pos]))
        (mapv :pos)))
 
+(defn- trim-dead-army-targets!
+  [ctx world]
+  (when-let [update-major-invasion-state! (:update-major-invasion-state! ctx)]
+    (update-major-invasion-state!
+     (fn [state]
+       (assoc state :kamikazee-army-targets
+              (alive-targets world (:kamikazee-army-targets state)))))))
+
+(defn- write-fighter-targets!
+  [ctx world targets]
+  (doseq [i (range (count world))
+          j (range (count (first world)))
+          :let [unit (get-in world [i j :contents])]
+          :when (and unit
+                     (= :computer (:owner unit))
+                     (= :fighter (:type unit))
+                     (:kamikazee unit))]
+    (when (kamikazee-target-writeable-unit? ctx [i j])
+      ((:update-game-map! ctx) assoc-in [i j :contents :kamikazee-targets] targets))))
+
 (defn refresh-army-targets!
   [ctx]
   (let [world (or (when-let [current-world (:current-world ctx)]
                     (current-world))
                   (sa/current-world))
         round-number (current-round ctx)]
-    (when-let [update-major-invasion-state! (:update-major-invasion-state! ctx)]
-      (update-major-invasion-state!
-       (fn [state]
-         (assoc state :kamikazee-army-targets
-                (alive-targets world (:kamikazee-army-targets state))))))
+    (trim-dead-army-targets! ctx world)
     (let [state (or (when-let [load-major-invasion-state (:load-major-invasion-state ctx)]
                       (load-major-invasion-state))
                     (sa/read-state :major-invasion-state))
           targets (ordered-army-target-positions state round-number world)]
-      (doseq [i (range (count world))
-              j (range (count (first world)))
-              :let [unit (get-in world [i j :contents])]
-              :when (and unit
-                         (= :computer (:owner unit))
-                         (= :fighter (:type unit))
-                         (:kamikazee unit))]
-        (when (kamikazee-target-writeable-unit? ctx [i j])
-          ((:update-game-map! ctx) assoc-in [i j :contents :kamikazee-targets] targets))))))
+      (write-fighter-targets! ctx world targets))))
 
 (defn record-army-target!
   [ctx pos]

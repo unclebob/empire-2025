@@ -39,6 +39,30 @@
     (spit temp-file (str (pr-str config) "\n"))
     (.getPath temp-file)))
 
+(defn- installed-checker?
+  [checker-home]
+  (.exists (io/file checker-home "deps.edn")))
+
+(defn- missing-checker-status
+  [checker-home]
+  (binding [*out* *err*]
+    (println (str "External dependency checker not found at " checker-home))
+    (println "Set DEPENDENCY_CHECKER_HOME or install it at ~/projects/clojure/dependency-checker."))
+  2)
+
+(defn- run-external-checker!
+  [checker-home cmd]
+  (let [pb (doto (ProcessBuilder. ^java.util.List cmd)
+             (.directory (io/file checker-home))
+             (.inheritIO))
+        proc (.start pb)]
+    (.waitFor proc)))
+
+(defn- delete-temp-config!
+  [config-for-checker config-abs]
+  (when (not= config-for-checker config-abs)
+    (.delete (io/file config-for-checker))))
+
 (defn- run-checker!
   [checker-home project-root args]
   (let [[config-path options] (parse-args args)
@@ -46,22 +70,13 @@
         config-for-checker (if (.exists (io/file config-abs))
                              (rewrite-config-file-for-external-checker! project-root config-abs)
                              config-abs)
-        cmd (vec (concat ["clj" "-M:check-dependencies" config-for-checker] options))
-        pb (doto (ProcessBuilder. ^java.util.List cmd)
-             (.directory (io/file checker-home))
-             (.inheritIO))]
+        cmd (vec (concat ["clj" "-M:check-dependencies" config-for-checker] options))]
     (try
-      (if (.exists (io/file checker-home "deps.edn"))
-        (let [proc (.start pb)]
-          (.waitFor proc))
-        (do
-          (binding [*out* *err*]
-            (println (str "External dependency checker not found at " checker-home))
-            (println "Set DEPENDENCY_CHECKER_HOME or install it at ~/projects/clojure/dependency-checker."))
-          2))
+      (if (installed-checker? checker-home)
+        (run-external-checker! checker-home cmd)
+        (missing-checker-status checker-home))
       (finally
-        (when (not= config-for-checker config-abs)
-          (.delete (io/file config-for-checker)))))))
+        (delete-temp-config! config-for-checker config-abs)))))
 
 (defn -main
   [& args]

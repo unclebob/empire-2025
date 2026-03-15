@@ -214,49 +214,63 @@
   [pos transport]
   (mission-handlers/maybe-handle-lake-transport (mission-handler-deps) pos transport))
 
+(def ^:private transport-random-walk-restore-keys
+  [:transport-mission
+   :sail-path
+   :pickup-continent-pos
+   :loading-since
+   :invasion-target
+   :invasion-path
+   :invasion-path-origin
+   :invasion-plan-revision
+   :invasion-load-since
+   :major-invasion-find-armies-round
+   :major-invasion-skip-revision])
+
+(defn- maybe-enter-transport-random-walk!
+  [pos]
+  (sa/update-world! update-in (conj pos :contents)
+                    #(oscillation/maybe-enter-random-walk % transport-random-walk-restore-keys
+                                                          {:unit-type :transport
+                                                           :pos pos})))
+
+(defn- process-transport-random-walk
+  [pos]
+  (let [passable (tc/get-passable-sea-neighbors pos)
+        empty-passable (filter #(nil? (:contents (get-in (sa/current-world) %))) passable)
+        final-pos (if-let [target (when (seq empty-passable) (rand-nth empty-passable))]
+                    (if (core/move-unit-to pos target)
+                      (do
+                        (visibility/update-cell-visibility pos :computer)
+                        (visibility/update-cell-visibility target :computer)
+                        target)
+                      pos)
+                    pos)]
+    (sa/update-world! update-in (conj final-pos :contents)
+                      #(-> %
+                           oscillation/dec-random-walk
+                           oscillation/maybe-restore))))
+
+(defn- process-active-transport
+  [pos transport]
+  (when-not (or (= :sentry (:mode transport))
+                (maybe-handle-lake-transport pos transport))
+    (threat-response/prepare-transport! pos)
+    (dispatch-transport-mission pos (:contents (get-in (sa/current-world) pos)))))
+
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
   [pos]
-  (let [restore-keys [:transport-mission
-                      :sail-path
-                      :pickup-continent-pos
-                      :loading-since
-                      :invasion-target
-                      :invasion-path
-                      :invasion-path-origin
-                      :invasion-plan-revision
-                      :invasion-load-since
-                      :major-invasion-find-armies-round
-                      :major-invasion-skip-revision]
-        transport (:contents (get-in (sa/current-world) pos))]
+  (let [transport (:contents (get-in (sa/current-world) pos))]
     (when (and transport
                (= :computer (:owner transport))
                (= :transport (:type transport)))
-      (sa/update-world! update-in (conj pos :contents)
-                        #(oscillation/maybe-enter-random-walk % restore-keys
-                                                              {:unit-type :transport
-                                                               :pos pos}))
+      (maybe-enter-transport-random-walk! pos)
       (let [transport (get-in (sa/current-world) (conj pos :contents))]
         (if (oscillation/in-random-walk? transport)
-          (let [passable (tc/get-passable-sea-neighbors pos)
-                empty-passable (filter #(nil? (:contents (get-in (sa/current-world) %))) passable)
-                final-pos (if-let [target (when (seq empty-passable) (rand-nth empty-passable))]
-                            (if (core/move-unit-to pos target)
-                              (do
-                                (visibility/update-cell-visibility pos :computer)
-                                (visibility/update-cell-visibility target :computer)
-                                target)
-                              pos)
-                            pos)]
-            (sa/update-world! update-in (conj final-pos :contents)
-                              #(-> %
-                                   oscillation/dec-random-walk
-                                   oscillation/maybe-restore)))
-          (when-not (or (= :sentry (:mode transport))
-                        (maybe-handle-lake-transport pos transport))
-            (threat-response/prepare-transport! pos)
-            (dispatch-transport-mission pos (:contents (get-in (sa/current-world) pos))))))))
+          (process-transport-random-walk pos)
+          (process-active-transport pos transport)))))
   nil)
 
 ;; clj-mutate-manifest-begin

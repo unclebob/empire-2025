@@ -37,6 +37,29 @@
 (defn awake-unit? [contents]
   (and contents (= (:mode contents) :awake)))
 
+(defn- active-transport-army
+  [contents]
+  (when (and (= :player (:owner contents))
+             (transport-with-awake-armies? contents))
+    {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}))
+
+(defn- active-carrier-fighter
+  [contents]
+  (when (and (= :player (:owner contents))
+             (carrier-with-awake-fighters? contents))
+    {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}))
+
+(defn- active-awake-player-unit
+  [contents]
+  (when (and (= :player (:owner contents))
+             (awake-unit? contents))
+    contents))
+
+(defn- active-airport-fighter
+  [cell]
+  (when (uc/has-awake? cell :awake-fighters)
+    {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}))
+
 (defn get-active-unit
   "Returns the unit currently needing attention: awake army aboard transport, awake fighter on carrier,
    then awake contents, then awake airport fighter.
@@ -45,22 +68,10 @@
    For fighters in airport, returns a synthetic fighter map with :from-airport true."
   [cell]
   (let [contents (:contents cell)]
-    (cond
-      (and (= :player (:owner contents))
-           (transport-with-awake-armies? contents))
-      {:type :army :mode :awake :owner (:owner contents) :aboard-transport true}
-
-      (and (= :player (:owner contents))
-           (carrier-with-awake-fighters? contents))
-      {:type :fighter :mode :awake :owner (:owner contents) :fuel config/fighter-fuel :from-carrier true}
-
-      (and (= :player (:owner contents))
-           (awake-unit? contents)) contents
-
-      (uc/has-awake? cell :awake-fighters)
-      {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}
-
-      :else nil)))
+    (or (active-transport-army contents)
+        (active-carrier-fighter contents)
+        (active-awake-player-unit contents)
+        (active-airport-fighter cell))))
 
 (defn is-army-aboard-transport?
   "Returns true if the active unit is an army aboard a transport."
