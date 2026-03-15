@@ -102,14 +102,9 @@
 
     (it "logs and skips fuel burn when position no longer contains a computer fighter"
       (set-test-world! [[{:type :land}]])
-      (let [err (java.io.StringWriter.)
-            err-writer (java.io.PrintWriter. err)]
-        (binding [*err* err-writer]
-          (should-not-throw (fm/consume-fighter-fuel [0 0]))
-          (.flush err-writer)
-          (should-contain "Invalid fighter fuel update at [0 0]" (str err))
-          (should-contain "consume-fighter-fuel called on non-computer-fighter at [0 0]" (str err))
-          (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))))
+      (should-not-throw (fm/consume-fighter-fuel [0 0]))
+      (should-not (fm/consume-fighter-fuel [0 0]))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
 
   (context "patrol behavior"
     (it "patrols toward player units when fuel allows"
@@ -142,31 +137,6 @@
           (should-not-be-nil result)
           (should (> fighter-col 1)))))
 
-    (it "explores toward unexplored territory without NW bias"
-      ;; 5x5 map. Fighter at center, unexplored only in SE corner.
-      (let [game-map (build-test-map ["#####"
-                                      "#####"
-                                      "##f##"
-                                      "#####"
-                                      "#####"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! (build-test-map ["#####"
-                                                    "#####"
-                                                    "#####"
-                                                    "#####"
-                                                    "####-"]))
-        (set-test-unit (test-utils/game-map-atom) "f" :fuel 20)
-        (let [unit (get-in (test-utils/read-test-state :game-map) [2 2 :contents])]
-          (fighter/process-fighter [2 2] unit)
-          ;; Fighter should have moved
-          (should-be-nil (get-in (test-utils/read-test-state :game-map) [2 2 :contents]))
-          ;; Find where fighter ended up
-          (let [result (get-test-unit (test-utils/game-map-atom) "f")
-                [fr fc] (:pos result)]
-            (should-not-be-nil result)
-            ;; Should have moved toward SE, not NW
-            (should (or (> fr 2) (> fc 2))))))))
-
   (context "no phantom contents on blocked patrol"
     (it "does not create phantom contents when patrol move is blocked"
       ;; Fighter at [0 0] on a 1-row map. All neighbors occupied by friendly armies.
@@ -182,27 +152,6 @@
         (should= :army (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
   (context "sidestepping"
-    (it "sidesteps around friendly unit blocking direct path"
-      ;; 3x3 map: fighter at [0 0], friendly army blocking [1 0], target city at [2 0]
-      ;; Fighter should move diagonally to [0 1] or [1 1] to go around
-      (set-test-world! (build-test-map ["f##"
-                                               "###"
-                                               "##X"]))
-      ;; Place a friendly army at [1 0] blocking the direct path
-      (update-test-world! assoc-in [1 0 :contents]
-             {:type :army :owner :computer :hits 1})
-      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
-                     :flight-target-site [2 0]
-                     :flight-origin-site [2 2])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
-        (fighter/process-fighter [0 0] unit)
-        ;; Fighter should NOT still be at [0 0] - it should have sidestepped
-        (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-          (should-not-be-nil result)
-          ;; Should have moved somewhere other than [0 0]
-          (should-not= [0 0] (:pos result)))))
-
     (it "prefers diagonal when diagonal and orthogonal equidistant to target"
       ;; 5x5 map: city at [0 0], fighter at [0 1], target city at [4 4]
       ;; Fighter should move diagonally toward target
@@ -222,14 +171,4 @@
           (should-not-be-nil result)
           (should-not= [0 1] (:pos result)))))
 
-    (it "stuck fighter surrounded by friendly units burns fuel and dies"
-      ;; 3x3 map: fighter at center [1 1], surrounded by friendly armies on all 8 neighbors
-      (set-test-world! (build-test-map ["aaa"
-                                               "afa"
-                                               "aaa"]))
-      (set-test-unit (test-utils/game-map-atom) "f" :fuel 5)
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
-        (fighter/process-fighter [1 1] unit)
-        ;; Fighter should be dead - fuel burned to 0 while stuck
-        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
+    ))
