@@ -1,4 +1,4 @@
-(ns empire.game-mechanics.movement.movement-spec
+(ns empire.game-mechanics.movement.move-current-spec
   (:require [empire.test.utils :as test-utils]
     [empire.config.core :as config]
     [empire.game.loop.core :as game-loop]
@@ -351,68 +351,3 @@
     )
   )
 
-(describe "movement-context"
-  (before (reset-all-atoms!))
-  (it "returns :airport-fighter for fighter from airport"
-    (let [cell {:type :city :awake-fighters 1}
-          unit {:type :fighter :from-airport true}]
-      (should= :airport-fighter (movement-context cell unit))))
-
-  (it "returns :carrier-fighter for fighter from carrier"
-    (let [cell {:contents {:type :carrier}}
-          unit {:type :fighter :from-carrier true}]
-      (should= :carrier-fighter (movement-context cell unit))))
-
-  (it "returns :army-aboard for army aboard transport"
-    (let [cell {:contents {:type :transport}}
-          unit {:type :army :aboard-transport true}]
-      (should= :army-aboard (movement-context cell unit))))
-
-  (it "returns :standard-unit for regular unit"
-    (let [cell {:contents {:type :army}}
-          unit {:type :army :mode :awake}]
-      (should= :standard-unit (movement-context cell unit))))
-
-  (it "returns :standard-unit for nil unit"
-    (should= :standard-unit (movement-context {} nil))))
-
-(describe "add-unit-at"
-  (before
-    (reset-all-atoms!)
-    (set-test-world! (build-test-map ["###" "###" "###"])))
-
-  (it "adds army unit at empty cell"
-    (add-unit-at [1 1] :army)
-    (let [contents (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
-      (should= :army (:type contents))
-      (should= :player (:owner contents))
-      (should= :awake (:mode contents))
-      (should= (config/item-hits :army) (:hits contents))))
-
-  (it "adds fighter with fuel"
-    (add-unit-at [1 1] :fighter)
-    (let [contents (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
-      (should= :fighter (:type contents))
-      (should= config/fighter-fuel (:fuel contents))))
-
-  (it "does not add unit if cell has contents"
-    (update-test-world! assoc-in [1 1 :contents] {:type :army :owner :computer})
-    (add-unit-at [1 1] :carrier)
-    (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type])))
-
-  (it "adds computer-owned army when owner is :computer"
-    (add-unit-at [1 1] :army :computer)
-    (let [contents (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
-      (should= :army (:type contents))
-      (should= :computer (:owner contents))
-      (should= :awake (:mode contents))))
-
-  (it "adds computer-owned destroyer when owner is :computer"
-    (add-unit-at [2 2] :destroyer :computer)
-    (let [contents (get-in (test-utils/read-test-state :game-map) [2 2 :contents])]
-      (should= :destroyer (:type contents))
-      (should= :computer (:owner contents))))
-
-  (it "defaults to player owner when not specified"
-    (add-unit-at [0 0] :transport)
-    (should= :player (get-in (test-utils/read-test-state :game-map) [0 0 :contents :owner]))))

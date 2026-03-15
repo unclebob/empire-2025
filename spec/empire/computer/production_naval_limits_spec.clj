@@ -1,4 +1,4 @@
-(ns empire.computer.production-naval-spec
+(ns empire.computer.production-naval-limits-spec
   "Tests for VMS Empire style computer production."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
@@ -78,179 +78,10 @@
   (saturate-fighter-limit)
   (production/rebuild-country-stats!))
 
-;; ===== 5. naval and air production gates =====
-
 (describe "naval and air production gates"
   (before
     (reset-all-atoms!)
     (disable-opening!))
-
-  (context "destroyer escort production"
-
-    (it "produces destroyer when country has unadopted transport and global cap allows"
-      ;; 2-row: armies fill coastal cells, unadopted transport, 4 patrol boats
-      (set-test-world! (build-test-map ["~Xaat~pppp"
-                                               "~~~~~~~~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (update-test-world! assoc-in [1 0 :country-id] 1)
-      (doseq [col [2 3]]
-        (update-test-world! assoc-in [col 0 :country-id] 1)
-        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
-      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
-      (update-test-world! assoc-in [4 0 :contents :transport-id] 1)
-      (doseq [col [6 7 8 9]]
-        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
-      (rebuild!)
-      (should= :destroyer (production/decide-production [1 0])))
-
-    (it "does not produce destroyer when global cap reached"
-      ;; 2-row: same but 1 destroyer already → destroyers >= transports
-      (set-test-world! (build-test-map ["~Xaat~ppppd"
-                                               "~~~~~~~~~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (update-test-world! assoc-in [1 0 :country-id] 1)
-      (doseq [col [2 3]]
-        (update-test-world! assoc-in [col 0 :country-id] 1)
-        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
-      (update-test-world! assoc-in [4 0 :contents :country-id] 1)
-      (update-test-world! assoc-in [4 0 :contents :transport-id] 1)
-      (doseq [col [6 7 8 9]]
-        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
-      (rebuild!)
-      (should-not= :destroyer (production/decide-production [1 0]))))
-
-  (context "carrier production gate"
-
-    (it "produces carrier when >10 cities, <2 producing, valid position exists"
-      ;; 12 cities: 6 at j=0,2,4,6,8,10 and 6 at j=50,52,54,56,58,60
-      ;; Distance 0 to 50 = 50 > 32, creating a distant pair that needs carrier
-      (let [cells (vec (for [j (range 80)]
-                          (cond
-                            (and (even? j) (<= j 10)) {:type :city :city-status :computer}
-                            (<= j 10) {:type :land}
-                            (and (even? j) (>= j 50) (<= j 60)) {:type :city :city-status :computer}
-                            (and (>= j 50) (<= j 60)) {:type :land}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 10)
-        (ship/update-distant-city-pairs!)
-        (should= :carrier (production/decide-production [0 10]))))
-
-    (it "does not produce carrier when <=10 cities"
-      (let [cells (vec (for [j (range 50)]
-                          (cond
-                            (and (even? j) (<= j 18)) {:type :city :city-status :computer}
-                            (<= j 18) {:type :land}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 18)
-        (should-not= :carrier (production/decide-production [0 18]))))
-
-    (it "does not produce carrier when 2 already producing"
-      (let [cells (vec (for [j (range 60)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
-                                  [0 2] {:item :carrier :remaining-rounds 10}})
-        (should-not= :carrier (production/decide-production [0 22]))))
-
-    (it "does not produce carrier when 8 already exist"
-      (let [cells (vec (for [j (range 80)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            (<= 30 j 37) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (should-not= :carrier (production/decide-production [0 22]))))
-
-    (it "does not produce carrier when no valid position exists"
-      (let [cells (vec (for [j (range 44)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (should-not= :carrier (production/decide-production [0 22])))))
-
-  (context "battleship production gate"
-
-    (it "produces battleship when battleships < carriers"
-      (let [cells (vec (for [j (range 60)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            (= j 48) {:type :sea :contents {:type :carrier :owner :computer :hits 8
-                                                             :carrier-id 1 :carrier-mode :holding
-                                                             :group-battleship-id nil
-                                                             :group-submarine-ids []}}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
-                                  [0 2] {:item :carrier :remaining-rounds 10}})
-        (should= :battleship (production/decide-production [0 22]))))
-
-    (it "does not produce battleship when battleships >= carriers"
-      (let [cells (vec (for [j (range 60)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            (= j 30) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
-                            (= j 31) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
-                                  [0 2] {:item :carrier :remaining-rounds 10}})
-        (should-not= :battleship (production/decide-production [0 22])))))
-
-  (context "submarine production gate"
-
-    (it "produces submarine when submarines < 2 * carriers"
-      (let [cells (vec (for [j (range 60)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            (= j 30) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
-                            (= j 31) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
-                                  [0 2] {:item :carrier :remaining-rounds 10}})
-        (should= :submarine (production/decide-production [0 22]))))
-
-    (it "does not produce submarine when submarines >= 2 * carriers"
-      (let [cells (vec (for [j (range 60)]
-                          (cond
-                            (and (even? j) (<= j 22)) {:type :city :city-status :computer}
-                            (<= j 22) {:type :land}
-                            (= j 30) {:type :sea :contents {:type :carrier :owner :computer :hits 8}}
-                            (= j 31) {:type :sea :contents {:type :battleship :owner :computer :hits 8}}
-                            (= j 32) {:type :sea :contents {:type :submarine :owner :computer :hits 2}}
-                            (= j 33) {:type :sea :contents {:type :submarine :owner :computer :hits 2}}
-                            :else {:type :sea})))]
-        (set-test-world! [cells])
-        (set-test-computer-map! [cells])
-        (satisfy-coastal-per-country 22)
-        (test-utils/set-test-state! :production {[0 0] {:item :carrier :remaining-rounds 10}
-                                  [0 2] {:item :carrier :remaining-rounds 10}})
-        (should-not= :submarine (production/decide-production [0 22])))))
 
   (context "fighter global production limit"
 
@@ -464,5 +295,3 @@
         (production/rebuild-country-stats!)
         ;; No carriers → submarines should not be produced (0 < 2*0 = 0 is false)
         (should-not= :submarine (production/decide-production [0 22]))))))
-
-(run-specs)
