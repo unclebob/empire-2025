@@ -148,22 +148,27 @@
   (it "explains production count tokens on the status line"
     (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
       (should= "3 armies."
-               (messages-render/hud-tooltip 223 140 0 100 300 "R1" nil "A3 | 20%"))))
+               (messages-render/hud-tooltip 223 140 0 100 300 "R1" nil "A3 | 20%" "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"))))
 
   (it "still explains the token when the mouse is anywhere inside the status band"
     (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
       (should= "3 armies."
-               (messages-render/hud-tooltip 223 150 0 100 300 "R1" nil "A3 | 20%"))))
+               (messages-render/hud-tooltip 223 150 0 100 300 "R1" nil "A3 | 20%" "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"))))
+
+  (it "explains hidden counts for the +n token"
+    (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
+      (should= "Hidden counts: D1 C1."
+               (messages-render/hud-tooltip 230 140 0 100 300 "R1" nil "A2 F1 T1 +2 | 75%" "A:2 F:1 T:1 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%"))))
 
   (it "explains exploration percentages on the status line"
     (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
       (should= "20% of the map has been explored by the player."
-               (messages-render/hud-tooltip 263 140 0 100 300 "R1" nil "A3 | 20%"))))
+               (messages-render/hud-tooltip 263 140 0 100 300 "R1" nil "A3 | 20%" "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"))))
 
   (it "returns nil when the mouse is not over the status row"
     (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
       (should-be-nil
-       (messages-render/hud-tooltip 223 170 0 100 300 "R1" nil "A3 | 20%")))))
+       (messages-render/hud-tooltip 223 170 0 100 300 "R1" nil "A3 | 20%" "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%")))))
 
 (describe "tooltip-box-position"
   (it "places the tooltip down and right when there is room"

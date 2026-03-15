@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game.save-load :as save-load]
-            [empire.test.utils :refer [reset-all-atoms! set-test-world!]]))
+            [empire.test.utils :refer [reset-all-atoms! set-test-player-map! set-test-world!]]))
 
 (describe "load menu atoms"
   (before (reset-all-atoms!))
@@ -169,6 +169,23 @@
         (let [filename (save-load/save-game! dir)]
           (save-load/load-game! dir filename)
           (should= false (test-utils/read-test-state :load-menu-open)))
+        (finally
+          (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
+          (.delete (java.io.File. dir))))))
+
+  (it "rebuilds production-status after loading"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
+      (set-test-world! [[{:type :land :contents {:type :army :owner :player}}]])
+      (set-test-player-map! [[{:type :land}]])
+      (test-utils/set-test-state! :production-status "")
+      (try
+        (let [filename (save-load/save-game! dir)]
+          (set-test-world! [[{:type :land}]])
+          (set-test-player-map! [[{:type :land}]])
+          (test-utils/set-test-state! :production-status "")
+          (save-load/load-game! dir filename)
+          (should= "A:1 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 100%"
+                   (test-utils/read-test-state :production-status)))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir)))))))

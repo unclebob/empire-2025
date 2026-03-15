@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as string]
             [empire.config.domain.core.messages :as messages]
+            [empire.game.production-status :as production-status]
             [empire.state.api :as sa]))
 
 (def saveable-atoms
@@ -107,6 +108,10 @@
      (sa/write-state! :load-menu-files [])
      (sa/write-state! :load-menu-hovered nil)
      (sa/rebuild-refueling-caches!)
+     (sa/write-state! :production-status
+                      (production-status/format-production-status
+                       (sa/current-world)
+                       (sa/read-state :player-map)))
      (sa/write-state! :turn-message (str "Loaded " filename))
      (sa/write-state! :turn-message-until
                       (messages/expires-at (System/currentTimeMillis) 3000)))))

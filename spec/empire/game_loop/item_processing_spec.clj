@@ -161,6 +161,23 @@
       ;; With default 1: dec→0. With mutant default 0: dec→-1.
       (should= 0 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :steps-remaining])))))
 
+(describe "player visibility refresh after auto-movement"
+  (before (reset-all-atoms!))
+
+  (it "reveals a newly spotted enemy on the player map in the same processing pass"
+    (set-test-world! (build-test-map ["A#a"]))
+    (test-utils/set-test-unit (test-utils/game-map-atom) "A"
+                              :mode :moving
+                              :target [1 0]
+                              :steps-remaining 1)
+    (test-utils/set-test-player-map! (test-utils/make-initial-test-map 1 3 nil))
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (ip/process-player-items-batch)
+    (should= :enemy-spotted
+             (get-in (test-utils/read-test-state :game-map) [1 0 :contents :reason]))
+    (should= :computer
+             (get-in (test-utils/read-test-state :player-map) [2 0 :contents :owner]))))
+
 ;; ===== move-current-unit: sidestep branch (L56-64) =====
 
 (describe "move-current-unit sidestep"

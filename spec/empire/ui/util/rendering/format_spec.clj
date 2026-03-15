@@ -301,6 +301,17 @@
     (should= nil
              (fmt/compact-production-status ""))))
 
+(describe "hidden-production-status"
+  (it "returns omitted non-zero counts beyond the first three"
+    (should= "D1 C1"
+             (fmt/hidden-production-status
+              "A:2 F:1 T:1 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%")))
+
+  (it "returns nil when nothing is hidden"
+    (should-be-nil
+     (fmt/hidden-production-status
+      "A:2 F:1 T:1 D:0 S:0 P:0 C:0 B:0 Z:0 | 75%"))))
+
 (describe "should-show-paused?"
   (it "returns true when paused is true"
     (should (fmt/should-show-paused? true false)))

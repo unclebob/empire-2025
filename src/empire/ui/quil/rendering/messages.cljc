@@ -67,7 +67,7 @@
 
 (defn hud-tooltip
   "Returns tooltip text for a recognized status-row token under the mouse."
-  [mouse-x mouse-y text-x text-y text-w left center right]
+  [mouse-x mouse-y text-x text-y text-w left center right production-status]
   (let [row-top (+ text-y rendering/msg-banner-separator-y)
         row-bottom (+ text-y config/msg-line-3-y)
         right-edge (- (+ text-x text-w) rendering/status-right-padding)
@@ -80,7 +80,7 @@
                (token-spans center center-start row-top row-bottom)
                (token-spans right right-start row-top row-bottom))]
     (some-> (hovered-token mouse-x mouse-y spans)
-            (hud-tooltips/status-token-tooltip))))
+            (hud-tooltips/status-token-tooltip production-status))))
 
 (defn tooltip-box-position
   "Places the tooltip inside the current window bounds."
@@ -191,9 +191,10 @@
                                      (sa/read-state :production-status)
                                      (sa/current-world)
                                      (sa/read-state :cells-needing-attention))
+        production-status (sa/read-state :production-status)
         mouse-x (q/mouse-x)
         mouse-y (q/mouse-y)
-        tooltip (hud-tooltip mouse-x mouse-y text-x text-y text-w left center right)]
+        tooltip (hud-tooltip mouse-x mouse-y text-x text-y text-w left center right production-status)]
     (q/no-stroke)
     (apply q/fill rendering/hud-background-color)
     (q/rect text-x text-y text-w text-h)
