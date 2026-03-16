@@ -1,6 +1,7 @@
 (ns empire.computer.army.coastal-invasion
   "Invasion embarkation target selection and coastal movement helpers."
   (:require [empire.computer.core :as core]
+            [empire.computer.army.coastal-invasion-decisions :as decisions]
             [empire.computer.army.movement :as movement]))
 
  (defn- coastal-cell?
@@ -94,13 +95,13 @@
   ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target))
 
 (defn- resolve-coast-target [ctx unit pos country-id]
-  (or (:coast-target unit)
-      ((:find-coast-target-once ctx) pos country-id)))
+  (decisions/resolve-coast-target (:coast-target unit)
+                                  ((:find-coast-target-once ctx) pos country-id)))
 
 (defn- retry-repath-now? [ctx unit]
   (let [now (or ((:read-runtime-state ctx) :round-number) 0)
         retry-at (:coast-repath-after-round unit)]
-    (when (or (nil? retry-at) (<= retry-at now))
+    (when (decisions/retry-repath-now? now retry-at)
       ((:update-game-map! ctx) assoc-in (conj (:pos unit) :contents :coast-repath-after-round)
        (+ now local-coast-repath-interval-rounds))
       now)))
@@ -117,18 +118,31 @@
   (or (movement/move-toward-objective pos target country-id)
       (maybe-repath-local-target ctx pos country-id unit)))
 
+(defn- plan-coast-target-step
+  [ctx pos country-id unit target]
+  (let [cheap-step (when (:lake-retask? unit)
+                     (step-toward-target-cheap pos target country-id))
+        move-step (when-not (:lake-retask? unit)
+                    (movement/move-toward-objective pos target country-id))
+        repath-step (when-not (or (:lake-retask? unit) move-step)
+                      (maybe-repath-local-target ctx pos country-id unit))
+        action (decisions/coast-step-action {:pos pos
+                                             :target target
+                                             :lake-retask? (:lake-retask? unit)
+                                             :cheap-step? cheap-step
+                                             :move-step? move-step
+                                             :repath-step? repath-step})]
+    action))
+
 (defn- execute-coast-target-step
   [ctx pos country-id unit target]
-  (cond
-    (= pos target)
-    (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos)
-
-    (:lake-retask? unit)
-    (or (step-toward-target-cheap pos target country-id)
-        (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos))
-
-    :else
-    (move-toward-coast-target ctx pos country-id unit target)))
+  (let [action (plan-coast-target-step ctx pos country-id unit target)]
+    (case (:action action)
+      :settle (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos)
+      :cheap-step (:target action)
+      :move (:target action)
+      :repath (:target action)
+      nil)))
 
 (defn process-move-to-coast-for-invasion
   "Move an army toward its cached coast target for pickup."
@@ -146,5 +160,5 @@
         (execute-coast-target-step ctx pos country-id unit target)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:14.454353-05:00", :module-hash "1675257817", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "36182858"} {:id "defn-/coastal-cell?", :kind "defn-", :line 6, :end-line 10, :hash "-308990903"} {:id "defn/empty-coastal-cell?", :kind "defn", :line 12, :end-line 16, :hash "-935405407"} {:id "defn-/bfs-land-distances", :kind "defn-", :line 18, :end-line 30, :hash "-702595219"} {:id "defn-/closest-staging-cell", :kind "defn-", :line 32, :end-line 46, :hash "-552429092"} {:id "defn/find-coast-target-once", :kind "defn", :line 48, :end-line 57, :hash "-876050566"} {:id "defn/local-empty-coast-target", :kind "defn", :line 59, :end-line 73, :hash "-1500944447"} {:id "def/local-coast-repath-interval-rounds", :kind "def", :line 75, :end-line 75, :hash "1825849599"} {:id "defn-/settle-at-coast-target!", :kind "defn-", :line 77, :end-line 82, :hash "-1412082256"} {:id "defn-/step-toward-target-cheap", :kind "defn-", :line 84, :end-line 91, :hash "-193395722"} {:id "defn-/set-coast-target!", :kind "defn-", :line 93, :end-line 94, :hash "-1760347742"} {:id "defn-/resolve-coast-target", :kind "defn-", :line 96, :end-line 98, :hash "1906314702"} {:id "defn-/retry-repath-now?", :kind "defn-", :line 100, :end-line 106, :hash "-1900661975"} {:id "defn-/maybe-repath-local-target", :kind "defn-", :line 108, :end-line 113, :hash "918333870"} {:id "defn-/move-toward-coast-target", :kind "defn-", :line 115, :end-line 118, :hash "928392083"} {:id "defn-/execute-coast-target-step", :kind "defn-", :line 120, :end-line 131, :hash "1707271765"} {:id "defn/process-move-to-coast-for-invasion", :kind "defn", :line 133, :end-line 146, :hash "-1263077659"}]}
+;; {:version 1, :tested-at "2026-03-15T16:56:17.104264-05:00", :module-hash "-400258597", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "1115790238"} {:id "defn-/coastal-cell?", :kind "defn-", :line 7, :end-line 11, :hash "-308990903"} {:id "defn/empty-coastal-cell?", :kind "defn", :line 13, :end-line 17, :hash "-935405407"} {:id "defn-/bfs-land-distances", :kind "defn-", :line 19, :end-line 31, :hash "-702595219"} {:id "defn-/closest-staging-cell", :kind "defn-", :line 33, :end-line 47, :hash "1335816473"} {:id "defn/find-coast-target-once", :kind "defn", :line 49, :end-line 58, :hash "1909238643"} {:id "defn/local-empty-coast-target", :kind "defn", :line 60, :end-line 74, :hash "-447623782"} {:id "def/local-coast-repath-interval-rounds", :kind "def", :line 76, :end-line 76, :hash "1825849599"} {:id "defn-/settle-at-coast-target!", :kind "defn-", :line 78, :end-line 83, :hash "-855297685"} {:id "defn-/step-toward-target-cheap", :kind "defn-", :line 85, :end-line 92, :hash "1071279685"} {:id "defn-/set-coast-target!", :kind "defn-", :line 94, :end-line 95, :hash "-1760347742"} {:id "defn-/resolve-coast-target", :kind "defn-", :line 97, :end-line 99, :hash "-114205102"} {:id "defn-/retry-repath-now?", :kind "defn-", :line 101, :end-line 107, :hash "-1896130787"} {:id "defn-/maybe-repath-local-target", :kind "defn-", :line 109, :end-line 114, :hash "918333870"} {:id "defn-/move-toward-coast-target", :kind "defn-", :line 116, :end-line 119, :hash "928392083"} {:id "defn-/plan-coast-target-step", :kind "defn-", :line 121, :end-line 135, :hash "1097036474"} {:id "defn-/execute-coast-target-step", :kind "defn-", :line 137, :end-line 145, :hash "1565108873"} {:id "defn/process-move-to-coast-for-invasion", :kind "defn", :line 147, :end-line 160, :hash "-742693444"}]}
 ;; clj-mutate-manifest-end

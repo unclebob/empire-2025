@@ -2,6 +2,7 @@
   "Attack-target assignment for computer armies."
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.computer.army.assignment-decisions :as decisions]
             [empire.computer.land-objectives :as land-objectives]))
 
 (defn- find-assignable-armies
@@ -36,16 +37,15 @@
   []
   (let [cities (find-visible-target-cities)
         armies (find-assignable-armies)
-        assigned (atom #{})]
-    (doseq [city cities]
-        (let [city-continent (land-objectives/flood-fill-continent city)
-            available (remove #(contains? @assigned (:pos %)) armies)
-            reachable (filter #(contains? city-continent (:pos %)) available)
-            closest (take 6 (sort-by #(core/distance (:pos %) city) reachable))]
-        (doseq [{:keys [pos]} closest]
-          (sa/update-world! assoc-in (conj pos :contents :attack-target) city)
-          (swap! assigned conj pos))))))
+        assignments (:assignments
+                     (decisions/city-attack-assignments cities
+                                                        armies
+                                                        contains?
+                                                        land-objectives/flood-fill-continent
+                                                        core/distance))]
+    (doseq [{:keys [pos target]} assignments]
+      (sa/update-world! assoc-in (conj pos :contents :attack-target) target))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:09.256671-05:00", :module-hash "1492647378", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1934577566"} {:id "defn-/find-assignable-armies", :kind "defn-", :line 7, :end-line 19, :hash "-102020325"} {:id "defn-/find-visible-target-cities", :kind "defn-", :line 21, :end-line 32, :hash "-1927185487"} {:id "defn/assign-city-attacks", :kind "defn", :line 34, :end-line 47, :hash "-1372810118"}]}
+;; {:version 1, :tested-at "2026-03-15T16:53:15.107864-05:00", :module-hash "-982490196", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-72483662"} {:id "defn-/find-assignable-armies", :kind "defn-", :line 8, :end-line 20, :hash "-102020325"} {:id "defn-/find-visible-target-cities", :kind "defn-", :line 22, :end-line 33, :hash "-1927185487"} {:id "defn/assign-city-attacks", :kind "defn", :line 35, :end-line 47, :hash "2000790922"}]}
 ;; clj-mutate-manifest-end

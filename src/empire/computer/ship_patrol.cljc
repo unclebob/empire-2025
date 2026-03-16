@@ -5,6 +5,7 @@
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.oscillation :as oscillation]
+            [empire.computer.ship-patrol-decisions :as decisions]
             [empire.computer.ship-core :as ship-core]))
 
 (defn- update-cell-visibility!
@@ -14,26 +15,20 @@
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
   [pos]
-  (let [game-map (sa/current-world)]
-    (first (filter (fn [neighbor]
-                     (let [cell (get-in game-map neighbor)
-                           unit (:contents cell)]
-                       (and unit
-                            (= :player (:owner unit))
-                            (= :transport (:type unit)))))
-                   (core/get-neighbors pos)))))
+  (let [game-map (sa/current-world)
+        neighbors (map (fn [neighbor]
+                         (assoc (:contents (get-in game-map neighbor)) :pos neighbor))
+                       (core/get-neighbors pos))]
+    (:pos (decisions/adjacent-player-transport neighbors))))
 
 (defn- find-adjacent-non-transport-enemy
   "Finds an adjacent player unit that is not a transport."
   [pos]
-  (let [game-map (sa/current-world)]
-    (first (filter (fn [neighbor]
-                     (let [cell (get-in game-map neighbor)
-                           unit (:contents cell)]
-                       (and unit
-                            (= :player (:owner unit))
-                            (not= :transport (:type unit)))))
-                   (core/get-neighbors pos)))))
+  (let [game-map (sa/current-world)
+        neighbors (map (fn [neighbor]
+                         (assoc (:contents (get-in game-map neighbor)) :pos neighbor))
+                       (core/get-neighbors pos))]
+    (:pos (decisions/adjacent-non-transport-enemy neighbors))))
 
 (defn- adjacent-to-land?
   "Returns true if the given position has at least one adjacent land or city cell."
@@ -175,17 +170,23 @@
 
 (defn- major-invasion-step
   [pos]
-  (if-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
-    (ship-core/attack-enemy pos enemy-pos)
-    (patrol-mode-step pos)))
+  (let [{:keys [action target]} (decisions/patrol-action {:major-invasion true
+                                                          :adjacent-enemy-ship (ship-core/find-adjacent-enemy-ship pos)})]
+    (case action
+      :attack (ship-core/attack-enemy pos target)
+      :patrol (patrol-mode-step pos)
+      nil)))
 
 (defn- non-invasion-step
   [pos]
-  (or (when-let [transport-pos (find-adjacent-player-transport pos)]
-        (ship-core/attack-enemy pos transport-pos))
-      (when-let [enemy-pos (find-adjacent-non-transport-enemy pos)]
-        (flee-from pos enemy-pos))
-      (patrol-mode-step pos)))
+  (let [{:keys [action target]} (decisions/patrol-action {:major-invasion false
+                                                          :adjacent-transport (find-adjacent-player-transport pos)
+                                                          :adjacent-enemy (find-adjacent-non-transport-enemy pos)})]
+    (case action
+      :attack (ship-core/attack-enemy pos target)
+      :flee (flee-from pos target)
+      :patrol (patrol-mode-step pos)
+      nil)))
 
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
@@ -253,5 +254,5 @@
       (process-standard-patrol pos))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:58:27.948086-05:00", :module-hash "-655861476", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1898398778"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 10, :end-line 12, :hash "-1102586575"} {:id "defn-/find-adjacent-player-transport", :kind "defn-", :line 14, :end-line 24, :hash "1563452575"} {:id "defn-/find-adjacent-non-transport-enemy", :kind "defn-", :line 26, :end-line 36, :hash "-1921282721"} {:id "defn-/adjacent-to-land?", :kind "defn-", :line 38, :end-line 45, :hash "-1700771999"} {:id "defn-/flee-from", :kind "defn-", :line 47, :end-line 59, :hash "-826184541"} {:id "defn/patrol-crawl-step", :kind "defn", :line 61, :end-line 83, :hash "1931910733"} {:id "defn-/arrived-at-unseen-coast?", :kind "defn-", :line 85, :end-line 92, :hash "-414765874"} {:id "defn-/run-bfs-and-store-path", :kind "defn-", :line 94, :end-line 106, :hash "-1691419451"} {:id "defn-/switch-to-crawling", :kind "defn-", :line 108, :end-line 112, :hash "-2033427846"} {:id "defn-/follow-explore-path", :kind "defn-", :line 114, :end-line 129, :hash "-865251015"} {:id "defn-/generate-random-sea-walk", :kind "defn-", :line 131, :end-line 142, :hash "-1068655937"} {:id "defn-/store-random-walk", :kind "defn-", :line 144, :end-line 150, :hash "-731934508"} {:id "defn/patrol-explore-step", :kind "defn", :line 152, :end-line 166, :hash "-389736091"} {:id "defn-/patrol-mode-step", :kind "defn-", :line 168, :end-line 174, :hash "-53768473"} {:id "defn-/major-invasion-step", :kind "defn-", :line 176, :end-line 180, :hash "-214934784"} {:id "defn-/non-invasion-step", :kind "defn-", :line 182, :end-line 188, :hash "668836354"} {:id "defn-/patrol-boat-step", :kind "defn-", :line 190, :end-line 196, :hash "-1795611871"} {:id "defn/process-patrol-boat", :kind "defn", :line 198, :end-line 236, :hash "-1826718201"}]}
+;; {:version 1, :tested-at "2026-03-15T16:53:37.259427-05:00", :module-hash "613465120", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "2132455298"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 11, :end-line 13, :hash "-1102586575"} {:id "defn-/find-adjacent-player-transport", :kind "defn-", :line 15, :end-line 22, :hash "-1314512096"} {:id "defn-/find-adjacent-non-transport-enemy", :kind "defn-", :line 24, :end-line 31, :hash "147016519"} {:id "defn-/adjacent-to-land?", :kind "defn-", :line 33, :end-line 40, :hash "-1700771999"} {:id "defn-/flee-from", :kind "defn-", :line 42, :end-line 54, :hash "-826184541"} {:id "defn/patrol-crawl-step", :kind "defn", :line 56, :end-line 78, :hash "-1482926849"} {:id "defn-/arrived-at-unseen-coast?", :kind "defn-", :line 80, :end-line 87, :hash "-414765874"} {:id "defn-/run-bfs-and-store-path", :kind "defn-", :line 89, :end-line 101, :hash "-1691419451"} {:id "defn-/switch-to-crawling", :kind "defn-", :line 103, :end-line 107, :hash "842111692"} {:id "defn-/follow-explore-path", :kind "defn-", :line 109, :end-line 124, :hash "-865251015"} {:id "defn-/generate-random-sea-walk", :kind "defn-", :line 126, :end-line 137, :hash "-197687084"} {:id "defn-/store-random-walk", :kind "defn-", :line 139, :end-line 145, :hash "-731934508"} {:id "defn/patrol-explore-step", :kind "defn", :line 147, :end-line 161, :hash "-389736091"} {:id "defn-/patrol-mode-step", :kind "defn-", :line 163, :end-line 169, :hash "-53768473"} {:id "defn-/major-invasion-step", :kind "defn-", :line 171, :end-line 178, :hash "691060817"} {:id "defn-/non-invasion-step", :kind "defn-", :line 180, :end-line 189, :hash "-1045237069"} {:id "defn-/patrol-boat-step", :kind "defn-", :line 191, :end-line 197, :hash "-1795611871"} {:id "defn-/patrol-random-walk-step", :kind "defn-", :line 199, :end-line 209, :hash "1488646946"} {:id "defn-/process-random-walk-patrol", :kind "defn-", :line 211, :end-line 223, :hash "1412742770"} {:id "defn-/attacking-major-invasion-patrol?", :kind "defn-", :line 225, :end-line 228, :hash "-369145064"} {:id "defn-/process-standard-patrol", :kind "defn-", :line 230, :end-line 240, :hash "401771249"} {:id "defn/process-patrol-boat", :kind "defn", :line 242, :end-line 254, :hash "415532834"}]}
 ;; clj-mutate-manifest-end
