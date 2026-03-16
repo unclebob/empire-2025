@@ -53,4 +53,21 @@
                          {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [patrol/patrol-crawl-step (fn [_] [0 1])]
-        (should= [0 1] (@#'patrol/patrol-boat-step [0 0]))))))
+        (should= [0 1] (@#'patrol/patrol-boat-step [0 0])))))
+
+  (context "random walk and major invasion hold branches"
+    (it "takes an empty random-walk step when one exists"
+      (set-test-world! [[{:type :sea}
+                         {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
+                         {:type :sea}]])
+      (with-redefs [ship-core/get-passable-sea-neighbors (fn [_] [[0 0] [2 0]])
+                    empire.computer.core/move-unit-to (fn [_ to] to)
+                    rand-nth (fn [xs] (last xs))]
+        (should= [2 0] (@#'patrol/patrol-random-walk-step [1 0]))))
+
+    (it "holds position when a major-invasion attack opportunity produces no move"
+      (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
+                                                 :major-invasion true}}]])
+      (with-redefs [ship-core/find-adjacent-enemy-ship (fn [_] [1 0])
+                    patrol/major-invasion-step (fn [_] nil)]
+        (should= [0 0] (@#'patrol/process-standard-patrol [0 0]))))))
