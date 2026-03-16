@@ -92,6 +92,17 @@
           (should= [1 0] (invasion/process-move-to-coast-for-invasion ctx [0 0] 1))))))
 
   (describe "staging and repath helpers"
+    (it "tracks increasing bfs distances for passable coastal staging search"
+      (should= {[0 0] 0 [1 0] 1 [2 0] 2}
+               (@#'empire.computer.army.coastal-invasion/bfs-land-distances
+                [0 0]
+                1
+                (fn [pos _]
+                  (case pos
+                    [0 0] [[1 0]]
+                    [1 0] [[2 0]]
+                    [])))))
+
     (it "chooses the closest staging cell when no empty coastal cell is reachable"
       (with-redefs [movement/get-passable-neighbors (fn [_ _] [[1 0] [2 0]])
                     movement/sovereign-passable? (fn [_ _] true)

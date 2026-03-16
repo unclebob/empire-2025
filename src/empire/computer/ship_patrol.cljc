@@ -214,6 +214,8 @@
                          steps-left 4]
                     (if (zero? steps-left)
                       current-pos
+                      ;; LCOV currently omits this recur-arg line even when exercised,
+                      ;; so clj-mutate may report the dec site here as uncovered.
                       (recur (patrol-random-walk-step current-pos)
                              (dec steps-left))))]
     (sa/update-world! update-in (conj final-pos :contents)

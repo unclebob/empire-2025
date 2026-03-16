@@ -26,6 +26,8 @@
        (let [current (peek queue)
              depth (get distances current 0)
              nexts (remove visited (get-passable-neighbors current country-id))]
+         ;; LCOV currently omits this nested recur/reduce update line even when exercised,
+         ;; so clj-mutate may report the inc site here as uncovered.
          (recur (into (pop queue) nexts)
                 (into visited nexts)
                 (reduce (fn [m p] (assoc m p (inc depth))) distances nexts))))))

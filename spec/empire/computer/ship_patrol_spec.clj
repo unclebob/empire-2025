@@ -3,6 +3,8 @@
             [speclj.core :refer :all]
             [empire.computer.ship-patrol :as patrol]
             [empire.computer.ship-core :as ship-core]
+            [empire.state.api]
+            [empire.state.world :as world]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-computer-map!]]))
 
 (describe "ship-patrol"
@@ -71,3 +73,19 @@
       (with-redefs [ship-core/find-adjacent-enemy-ship (fn [_] [1 0])
                     patrol/major-invasion-step (fn [_] nil)]
         (should= [0 0] (@#'patrol/process-standard-patrol [0 0]))))))
+
+  (context "random walk loop bookkeeping"
+    (it "decrements steps-left while chaining random-walk patrol steps"
+      (set-test-world! [[{:type :sea}
+                         {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
+                         {:type :sea}]])
+      (let [calls (atom [])]
+        (with-redefs [patrol/patrol-random-walk-step (fn [pos]
+                                                       (swap! calls conj pos)
+                                                       [0 1])
+                      empire.state.api/update-world! (fn [f & args]
+                                                       (apply swap! world/state update :game-map f args))
+                      empire.computer.oscillation/dec-random-walk identity
+                      empire.computer.oscillation/maybe-restore identity]
+          (should= [0 1] (@#'patrol/process-random-walk-patrol [0 1]))
+          (should= 4 (count @calls))))))
