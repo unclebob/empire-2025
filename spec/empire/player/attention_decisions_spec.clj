@@ -33,3 +33,19 @@
                     [{:type :city :city-status :player}
                      {:type :city :city-status :player}]]
                    {[1 1] {:item :army}})))))
+
+(describe "additional attention decisions"
+  (it "detects when the clicked city is the next attention item"
+    (should (decisions/city-needs-attention?
+             {:type :city :city-status :player}
+             [1 1]
+             [[1 1] [2 2]])))
+
+  (it "builds attention messages for active units"
+    (should-contain "destroyer needs attention"
+                    (decisions/attention-message
+                     {:world [[{:type :sea
+                                :contents {:type :destroyer :owner :player :mode :awake :hits 3}}]]
+                      :coords [0 0]
+                      :unit {:type :destroyer :owner :player :mode :awake :hits 3}
+                      :active-unit {:type :destroyer :owner :player :mode :awake :hits 3}}))))

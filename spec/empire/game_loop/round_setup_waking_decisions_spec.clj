@@ -23,4 +23,16 @@
       (let [world [[{:type :land
                      :contents {:type :army :owner :player :mode :sentry}}]]]
         (should= [{:pos [0 0] :reason :enemy-spotted}]
-                 (vec (decisions/sentry-enemy-wakes world)))))))
+                 (vec (decisions/sentry-enemy-wakes world))))))
+
+  (it "translates fighter wakes into assoc updates"
+    (should= [{:path [1 2 :awake-fighters] :value 3}]
+             (decisions/wake-updates :awake-fighters
+                                     [{:pos [1 2] :awake-fighters 3}])))
+
+  (it "translates sentry wakes into update operations"
+    (let [{:keys [path update-fn]} (first (decisions/sentry-wake-updates
+                                           [{:pos [2 3] :reason :enemy-spotted}]))]
+      (should= [2 3 :contents] path)
+      (should= {:mode :awake :reason :enemy-spotted}
+               (update-fn {})))))

@@ -25,4 +25,11 @@
              (sut/next-computer-items [[0 0] [2 2]]
                                       {:action :launch
                                        :requeue-city? true
-                                       :launched-pos [1 0]}))))
+                                       :launched-pos [1 0]})))
+
+  (it "produces the next queue and continue result from action"
+    (should= {:computer-items [[1 0] [2 2]]
+              :result :continue}
+             (sut/computer-item-state {:items [[0 0] [2 2]]
+                                       :action {:action :unit-continue
+                                                :new-coords [1 0]}}))))

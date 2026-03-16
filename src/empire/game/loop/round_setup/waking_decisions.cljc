@@ -40,6 +40,20 @@
       {:pos [i j]
        :reason :enemy-spotted})))
 
+(defn wake-updates
+  [wake-path wakes]
+  (mapv (fn [{:keys [pos awake-fighters]}]
+          {:path (into pos (if (sequential? wake-path) wake-path [wake-path]))
+           :value awake-fighters})
+        wakes))
+
+(defn sentry-wake-updates
+  [wakes]
+  (mapv (fn [{:keys [pos reason]}]
+          {:path (conj pos :contents)
+           :update-fn #(assoc % :mode :awake :reason reason)})
+        wakes))
+
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T08:20:07.916848-05:00", :module-hash "490244614", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-1441247639"} {:id "defn/airport-fighter-wakes", :kind "defn", :line 5, :end-line 14, :hash "-100017077"} {:id "defn/carrier-fighter-wakes", :kind "defn", :line 16, :end-line 27, :hash "1381565261"} {:id "defn/sentry-enemy-wakes", :kind "defn", :line 29, :end-line 41, :hash "1659630517"}]}
+;; {:version 1, :tested-at "2026-03-16T12:53:34.321312-05:00", :module-hash "-1214682990", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-1441247639"} {:id "defn/airport-fighter-wakes", :kind "defn", :line 5, :end-line 14, :hash "-100017077"} {:id "defn/carrier-fighter-wakes", :kind "defn", :line 16, :end-line 27, :hash "1381565261"} {:id "defn/sentry-enemy-wakes", :kind "defn", :line 29, :end-line 41, :hash "1659630517"} {:id "defn/wake-updates", :kind "defn", :line 43, :end-line 48, :hash "-1198401980"} {:id "defn/sentry-wake-updates", :kind "defn", :line 50, :end-line 55, :hash "-1989402569"}]}
 ;; clj-mutate-manifest-end

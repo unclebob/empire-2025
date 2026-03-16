@@ -1,5 +1,14 @@
 (ns empire.computer.threat-response.major-invasion-assignment-decisions)
 
+(defn assignment-action
+  [{:keys [type major-invasion-ship-types]}]
+  (cond
+    (= :fighter type) :fighter
+    (major-invasion-ship-types type) (if (= :carrier type) :carrier :ship)
+    (= :transport type) :transport
+    (= :army type) :army
+    :else nil))
+
 (defn fighter-assignment
   [{:keys [major-target targets plan]}]
   {:major-invasion true
@@ -37,5 +46,5 @@
     target (assoc :coast-target target)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T08:17:03.459569-05:00", :module-hash "1835854174", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-1490583764"} {:id "defn/fighter-assignment", :kind "defn", :line 3, :end-line 18, :hash "-1306102944"} {:id "defn/carrier-assignment", :kind "defn", :line 20, :end-line 27, :hash "363335845"} {:id "defn/ship-assignment", :kind "defn", :line 29, :end-line 32, :hash "70971833"} {:id "defn/army-coast-assignment", :kind "defn", :line 34, :end-line 37, :hash "-1725032098"}]}
+;; {:version 1, :tested-at "2026-03-16T12:50:22.522033-05:00", :module-hash "-251813118", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-1490583764"} {:id "defn/assignment-action", :kind "defn", :line 3, :end-line 10, :hash "-1930500708"} {:id "defn/fighter-assignment", :kind "defn", :line 12, :end-line 27, :hash "-1306102944"} {:id "defn/carrier-assignment", :kind "defn", :line 29, :end-line 36, :hash "363335845"} {:id "defn/ship-assignment", :kind "defn", :line 38, :end-line 41, :hash "70971833"} {:id "defn/army-coast-assignment", :kind "defn", :line 43, :end-line 46, :hash "-1725032098"}]}
 ;; clj-mutate-manifest-end

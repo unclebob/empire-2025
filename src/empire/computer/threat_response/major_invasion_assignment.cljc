@@ -57,24 +57,25 @@
 
 (defn apply-major-invasion-assignment!
   [ctx pos unit]
-  (let [t (:type unit)]
-    (cond
-      (= :fighter t)
+  (case (decisions/assignment-action {:type (:type unit)
+                                      :major-invasion-ship-types (:major-invasion-ship-types ctx)})
+    :fighter
       (assign-fighter-major-invasion! ctx pos unit)
 
-      ((:major-invasion-ship-types ctx) t)
-      (if (= :carrier t)
-        (assign-carrier-major-invasion! ctx pos)
-        (assign-ship-major-invasion! ctx pos))
+    :carrier
+    (assign-carrier-major-invasion! ctx pos)
 
-      (= :transport t)
-      ((:prepare-transport-major-invasion!-fn ctx) pos unit)
+    :ship
+    (assign-ship-major-invasion! ctx pos)
 
-      (= :army t)
-      (assign-army-invasion-embark! ctx pos unit)
+    :transport
+    ((:prepare-transport-major-invasion!-fn ctx) pos unit)
 
-      :else nil)))
+    :army
+    (assign-army-invasion-embark! ctx pos unit)
+
+    nil))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T08:21:12.474331-05:00", :module-hash "1035138530", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1441688851"} {:id "defn-/assign-fighter-major-invasion!", :kind "defn-", :line 8, :end-line 32, :hash "-211921025"} {:id "defn-/assign-carrier-major-invasion!", :kind "defn-", :line 34, :end-line 42, :hash "1752602620"} {:id "defn-/assign-ship-major-invasion!", :kind "defn-", :line 44, :end-line 47, :hash "2445993"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 49, :end-line 56, :hash "-1657237431"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 58, :end-line 76, :hash "-851692958"}]}
+;; {:version 1, :tested-at "2026-03-16T12:51:21.354365-05:00", :module-hash "1071852175", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1441688851"} {:id "defn-/assign-fighter-major-invasion!", :kind "defn-", :line 8, :end-line 32, :hash "-211921025"} {:id "defn-/assign-carrier-major-invasion!", :kind "defn-", :line 34, :end-line 42, :hash "1752602620"} {:id "defn-/assign-ship-major-invasion!", :kind "defn-", :line 44, :end-line 47, :hash "2445993"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 49, :end-line 56, :hash "-1657237431"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 58, :end-line 77, :hash "-1384849297"}]}
 ;; clj-mutate-manifest-end

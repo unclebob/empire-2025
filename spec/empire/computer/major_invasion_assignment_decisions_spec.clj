@@ -3,6 +3,11 @@
             [empire.computer.threat-response.major-invasion-assignment-decisions :as decisions]))
 
 (describe "major-invasion-assignment-decisions"
+  (it "classifies unit type into an assignment action"
+    (should= :carrier
+             (decisions/assignment-action {:type :carrier
+                                           :major-invasion-ship-types #{:carrier :destroyer}})))
+
   (it "clears transient threat and kamikazee fields for fighter assignment"
     (let [assignment (decisions/fighter-assignment {:major-target [9 9]
                                                     :targets [[9 9]]
