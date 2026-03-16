@@ -2,29 +2,26 @@
   "Computer AI coordinator - dispatches to specialized modules for unit processing."
   (:require [empire.state.api :as sa]
             [empire.computer.army :as army]
+            [empire.computer.coordinator-decisions :as decisions]
             [empire.computer.fighter :as fighter]
             [empire.computer.ship :as ship]
             [empire.computer.transport :as transport]))
 
-(defn- computer-unit? [unit]
-  (and unit (= (:owner unit) :computer)))
-
 (defn- dispatch-unit [pos unit]
-  (case (:type unit)
+  (case (decisions/dispatch-action unit)
     :army (army/process-army pos)
     :fighter (fighter/process-fighter pos unit)
     :transport (transport/process-transport pos)
-    (:destroyer :submarine :patrol-boat :carrier :battleship)
-    (ship/process-ship pos (:type unit))
+    :ship (ship/process-ship pos (:type unit))
     nil))
 
 (defn process-computer-unit
   "Processes a single computer unit's turn."
   [pos]
   (let [unit (:contents (get-in (sa/current-world) pos))]
-    (when (computer-unit? unit)
+    (when (decisions/computer-unit? unit)
       (dispatch-unit pos unit))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:27.899889-05:00", :module-hash "1021597229", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-942997730"} {:id "defn-/computer-unit?", :kind "defn-", :line 9, :end-line 10, :hash "-799138969"} {:id "defn-/dispatch-unit", :kind "defn-", :line 12, :end-line 19, :hash "1650727784"} {:id "defn/process-computer-unit", :kind "defn", :line 21, :end-line 26, :hash "938671659"}]}
+;; {:version 1, :tested-at "2026-03-16T10:17:00.078974-05:00", :module-hash "388074610", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "747665866"} {:id "defn-/dispatch-unit", :kind "defn-", :line 10, :end-line 16, :hash "-1803965644"} {:id "defn/process-computer-unit", :kind "defn", :line 18, :end-line 23, :hash "-2097295262"}]}
 ;; clj-mutate-manifest-end

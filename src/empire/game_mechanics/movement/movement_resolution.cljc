@@ -5,6 +5,7 @@
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.game-mechanics.movement.movement-resolution-decisions :as decisions]
             [empire.game-mechanics.movement.movement-execution :as execution]
             [empire.game-mechanics.movement.movement-pathing :as pathing]
             [empire.game-mechanics.movement.satellite :as satellite]
@@ -38,34 +39,23 @@
 (defn- normalize-target
   "Returns a safe in-bounds target. Falls back to from-coords when target is missing/malformed."
   [from-coords target-coords]
-  (if (and (vector? target-coords)
-           (= 2 (count target-coords))
-           (every? number? target-coords))
-    (clamp-to-map-bounds target-coords)
-    from-coords))
+  (decisions/normalize-target clamp-to-map-bounds from-coords target-coords))
 
 (defn- blocked-by-friendly?
   "Returns true if the next cell contains a friendly unit (same owner)."
   [unit next-cell]
-  (let [blocker (:contents next-cell)]
-    (and blocker
-         (= (:owner blocker) (:owner unit)))))
+  (decisions/blocked-by-friendly? unit next-cell))
 
 (defn- blocked-by-enemy?
   "Returns true if the next cell contains an enemy unit (different owner)."
   [unit next-cell]
-  (let [blocker (:contents next-cell)]
-    (and blocker
-         (not= (:owner blocker) (:owner unit)))))
+  (decisions/blocked-by-enemy? unit next-cell))
 
 (defn- can-attack-enemy?
   "Returns true if unit can attack the enemy in next-cell.
    The unit must be able to occupy the terrain (ignoring the enemy)."
   [unit next-cell]
-  (and (blocked-by-enemy? unit next-cell)
-       (not= :satellite (:type unit))
-       (not= :satellite (get-in next-cell [:contents :type]))
-       (dispatcher/can-move-to? (:type unit) (dissoc next-cell :contents))))
+  (decisions/can-attack-enemy? blocked-by-enemy? dispatcher/can-move-to? unit next-cell))
 
 (defn- handle-combat
   "Handles combat between unit at from-coords and enemy at next-pos.
@@ -82,17 +72,7 @@
   "Returns true if unit should sidestep around the city in next-cell.
    Armies sidestep friendly cities. Fighters sidestep all cities except their target."
   [unit next-cell next-pos]
-  (when (= :city (:type next-cell))
-    (cond
-      (and (= :army (:type unit))
-           (= :player (:city-status next-cell)))
-      true
-
-      (and (= :fighter (:type unit))
-           (not= next-pos (:target unit)))
-      true
-
-      :else false)))
+  (decisions/should-sidestep-city? unit next-cell next-pos))
 
 (defn- get-blocked-direction
   "Returns the direction [dx dy] from pos to next-pos."
@@ -149,23 +129,28 @@
    sidestep, engage in combat, wake up, or proceed with normal movement."
   [from-coords next-pos target-coords cell unit woken-unit woke? next-cell current-map]
   (let [blocked? (woke-and-blocked? woke? woken-unit)]
-    (cond
-      (should-sidestep-city? unit next-cell next-pos)
+    (case (decisions/movement-action
+           {:sidestep-city? (should-sidestep-city? unit next-cell next-pos)
+            :blocked? blocked?
+            :blocked-by-friendly? (blocked-by-friendly? unit next-cell)
+            :can-attack-enemy? (can-attack-enemy? unit next-cell)
+            :woke? woke?})
+      :sidestep-city
       (try-sidestep from-coords next-pos target-coords cell (wake-unit-for-city unit) current-map)
 
-      (and blocked? (blocked-by-friendly? unit next-cell))
+      :sidestep-friendly
       (try-sidestep from-coords next-pos target-coords cell woken-unit current-map)
 
-      (and blocked? (can-attack-enemy? unit next-cell))
+      :combat
       (handle-combat from-coords next-pos cell)
 
-      woke?
+      :woke
       (let [updated-cell (assoc cell :contents woken-unit)]
         (update-game-map! assoc-in from-coords updated-cell)
         (visibility/update-cell-visibility from-coords (:owner unit))
         {:result :woke :pos from-coords})
 
-      :else
+      :normal
       (let [final-unit (wake/wake-after-move unit from-coords next-pos current-map)]
         (execution/do-move from-coords next-pos cell final-unit)
         {:result :normal :pos next-pos}))))
@@ -206,5 +191,5 @@
      (update-game-map! assoc-in unit-coords (assoc first-cell :contents updated-contents)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:01:18.716858-05:00", :module-hash "1620829780", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "316750983"} {:id "defn-/update-game-map!", :kind "defn-", :line 15, :end-line 17, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 19, :end-line 21, :hash "-640438772"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 23, :end-line 25, :hash "1105581680"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 27, :end-line 36, :hash "1663727491"} {:id "defn-/normalize-target", :kind "defn-", :line 38, :end-line 45, :hash "985031462"} {:id "defn-/blocked-by-friendly?", :kind "defn-", :line 47, :end-line 52, :hash "1281932102"} {:id "defn-/blocked-by-enemy?", :kind "defn-", :line 54, :end-line 59, :hash "363411348"} {:id "defn-/can-attack-enemy?", :kind "defn-", :line 61, :end-line 68, :hash "1956538127"} {:id "defn-/handle-combat", :kind "defn-", :line 70, :end-line 79, :hash "-1444329373"} {:id "defn-/should-sidestep-city?", :kind "defn-", :line 81, :end-line 95, :hash "-2042468378"} {:id "defn-/get-blocked-direction", :kind "defn-", :line 97, :end-line 100, :hash "-997753313"} {:id "defn-/try-sidestep", :kind "defn-", :line 102, :end-line 116, :hash "-806743667"} {:id "defn-/wake-unit-for-city", :kind "defn-", :line 118, :end-line 121, :hash "-828913488"} {:id "defn-/dock-ship-for-repair", :kind "defn-", :line 123, :end-line 142, :hash "-1937915179"} {:id "defn-/woke-and-blocked?", :kind "defn-", :line 144, :end-line 145, :hash "1414423656"} {:id "defn-/handle-movement-result", :kind "defn-", :line 147, :end-line 171, :hash "-1999682375"} {:id "defn/move-unit", :kind "defn", :line 173, :end-line 191, :hash "-1855906636"} {:id "defn/set-unit-movement", :kind "defn", :line 193, :end-line 206, :hash "-1991903948"}]}
+;; {:version 1, :tested-at "2026-03-16T10:38:06.981915-05:00", :module-hash "-351832149", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "1565855507"} {:id "defn-/update-game-map!", :kind "defn-", :line 16, :end-line 18, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 20, :end-line 22, :hash "-640438772"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 24, :end-line 26, :hash "1105581680"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 28, :end-line 37, :hash "1663727491"} {:id "defn-/normalize-target", :kind "defn-", :line 39, :end-line 42, :hash "1079930249"} {:id "defn-/blocked-by-friendly?", :kind "defn-", :line 44, :end-line 47, :hash "-1760303407"} {:id "defn-/blocked-by-enemy?", :kind "defn-", :line 49, :end-line 52, :hash "-1822856815"} {:id "defn-/can-attack-enemy?", :kind "defn-", :line 54, :end-line 58, :hash "-966012541"} {:id "defn-/handle-combat", :kind "defn-", :line 60, :end-line 69, :hash "-1444329373"} {:id "defn-/should-sidestep-city?", :kind "defn-", :line 71, :end-line 75, :hash "522749880"} {:id "defn-/get-blocked-direction", :kind "defn-", :line 77, :end-line 80, :hash "-997753313"} {:id "defn-/try-sidestep", :kind "defn-", :line 82, :end-line 96, :hash "-806743667"} {:id "defn-/wake-unit-for-city", :kind "defn-", :line 98, :end-line 101, :hash "-828913488"} {:id "defn-/dock-ship-for-repair", :kind "defn-", :line 103, :end-line 122, :hash "-1937915179"} {:id "defn-/woke-and-blocked?", :kind "defn-", :line 124, :end-line 125, :hash "1414423656"} {:id "defn-/handle-movement-result", :kind "defn-", :line 127, :end-line 156, :hash "-1095388773"} {:id "defn/move-unit", :kind "defn", :line 158, :end-line 176, :hash "-1855906636"} {:id "defn/set-unit-movement", :kind "defn", :line 178, :end-line 191, :hash "-1991903948"}]}
 ;; clj-mutate-manifest-end

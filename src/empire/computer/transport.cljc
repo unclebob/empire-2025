@@ -11,6 +11,7 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.oscillation :as oscillation]
             [empire.computer.transport-decisions :as decisions]
+            [empire.computer.transport-process-decisions :as process-decisions]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-mission-handlers :as mission-handlers]
@@ -195,10 +196,13 @@
 (defn- dispatch-transport-mission
   [pos transport]
   (let [army-count (:army-count transport 0)
-        mission (:transport-mission transport)]
-    (fix-idle-mission pos mission)
-    (when (and (= :loading (or mission :loading))
-               (:never-reload? transport))
+        initial-mission (:transport-mission transport)
+        {:keys [fix-idle? force-sailing? mission]} (process-decisions/transport-mission-action
+                                                    {:mission initial-mission
+                                                     :never-reload? (:never-reload? transport)})]
+    (when fix-idle?
+      (fix-idle-mission pos mission))
+    (when force-sailing?
       (tc/set-transport-mission pos :sailing))
     (let [current-mission (or (:transport-mission (get-in (sa/current-world) (conj pos :contents)))
                               mission
@@ -254,17 +258,24 @@
 
 (defn- process-active-transport
   [pos transport]
-  (when-not (or (= :sentry (:mode transport))
-                (maybe-handle-lake-transport pos transport))
-    (threat-response/prepare-transport! pos)
-    (dispatch-transport-mission pos (:contents (get-in (sa/current-world) pos)))))
+  (case (process-decisions/active-transport-action
+         {:sentry? (= :sentry (:mode transport))
+          :lake-handled? (maybe-handle-lake-transport pos transport)})
+    :dispatch (do
+                (threat-response/prepare-transport! pos)
+                (dispatch-transport-mission pos (:contents (get-in (sa/current-world) pos))))
+    nil))
 
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
   [pos]
   (let [transport (:contents (get-in (sa/current-world) pos))]
-    (case (decisions/transport-process-action
+    (when (and (= :transport (:type transport))
+               (= :computer (:owner transport))
+               (nil? (:transport-mission transport)))
+      (tc/set-transport-mission pos :loading))
+    (case (process-decisions/transport-process-action
            {:transport? (= :transport (:type transport))
             :computer-owned? (= :computer (:owner transport))
             :random-walk? (do
@@ -279,5 +290,5 @@
   nil)
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T15:56:07.769071-05:00", :module-hash "2107879992", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 21, :hash "22319358"} {:id "def/find-unload-target", :kind "def", :line 22, :end-line 22, :hash "-818482077"} {:id "def/unload-armies", :kind "def", :line 23, :end-line 23, :hash "-1839983843"} {:id "defn-/move-toward-position", :kind "defn-", :line 25, :end-line 34, :hash "-438378926"} {:id "defn-/start-sailing", :kind "defn-", :line 36, :end-line 47, :hash "-552073504"} {:id "defn-/transition-to-loading", :kind "defn-", :line 49, :end-line 65, :hash "888261217"} {:id "defn-/load-for-invasion-start!", :kind "defn-", :line 67, :end-line 69, :hash "-1386709183"} {:id "defn-/passable-sea-cell?", :kind "defn-", :line 71, :end-line 73, :hash "-1121586364"} {:id "defn-/sea-load-points", :kind "defn-", :line 74, :end-line 77, :hash "-852838570"} {:id "form/9/declare", :kind "declare", :line 79, :end-line 79, :hash "2015927613"} {:id "defn-/transition-load-for-invasion-to-sailing!", :kind "defn-", :line 81, :end-line 84, :hash "-1240826066"} {:id "defn-/transition-load-for-invasion-to-unloading!", :kind "defn-", :line 86, :end-line 91, :hash "-769854038"} {:id "defn-/mission-handler-deps", :kind "defn-", :line 93, :end-line 120, :hash "754516218"} {:id "defn-/process-find-armies-for-invasion", :kind "defn-", :line 122, :end-line 124, :hash "-2079022115"} {:id "defn-/process-load-for-invasion-with-armies", :kind "defn-", :line 125, :end-line 128, :hash "-1658821931"} {:id "defn-/process-load-for-invasion-empty", :kind "defn-", :line 130, :end-line 132, :hash "532265959"} {:id "defn-/process-load-for-invasion", :kind "defn-", :line 133, :end-line 136, :hash "-849233059"} {:id "defn-/loading-crawl-move", :kind "defn-", :line 138, :end-line 148, :hash "1534227730"} {:id "defn-/handle-stale-loading", :kind "defn-", :line 150, :end-line 159, :hash "-565701435"} {:id "defn-/process-loading-mission", :kind "defn-", :line 160, :end-line 162, :hash "391544837"} {:id "defn-/process-unloading-mission", :kind "defn-", :line 164, :end-line 166, :hash "1988449558"} {:id "defn-/park-lake-transport-if-empty", :kind "defn-", :line 167, :end-line 169, :hash "77373283"} {:id "defn-/process-land-locked-mission", :kind "defn-", :line 171, :end-line 173, :hash "-1060592190"} {:id "defn-/fix-idle-mission", :kind "defn-", :line 175, :end-line 177, :hash "2095014349"} {:id "defn-/run-transport-mission", :kind "defn-", :line 179, :end-line 193, :hash "2030313739"} {:id "defn-/dispatch-transport-mission", :kind "defn-", :line 195, :end-line 212, :hash "-2057346255"} {:id "defn-/maybe-handle-lake-transport", :kind "defn-", :line 214, :end-line 216, :hash "-1517017432"} {:id "def/transport-random-walk-restore-keys", :kind "def", :line 218, :end-line 229, :hash "-1043576350"} {:id "defn-/maybe-enter-transport-random-walk!", :kind "defn-", :line 231, :end-line 236, :hash "-225889513"} {:id "defn-/process-transport-random-walk", :kind "defn-", :line 238, :end-line 253, :hash "1304261720"} {:id "defn-/process-active-transport", :kind "defn-", :line 255, :end-line 260, :hash "1682154097"} {:id "defn/process-transport", :kind "defn", :line 262, :end-line 279, :hash "-1569172787"}]}
+;; {:version 1, :tested-at "2026-03-16T10:27:09.613772-05:00", :module-hash "-887673206", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 22, :hash "-1762763673"} {:id "def/find-unload-target", :kind "def", :line 23, :end-line 23, :hash "-818482077"} {:id "def/unload-armies", :kind "def", :line 24, :end-line 24, :hash "-1839983843"} {:id "defn-/move-toward-position", :kind "defn-", :line 26, :end-line 35, :hash "-438378926"} {:id "defn-/start-sailing", :kind "defn-", :line 37, :end-line 48, :hash "-552073504"} {:id "defn-/transition-to-loading", :kind "defn-", :line 50, :end-line 66, :hash "888261217"} {:id "defn-/load-for-invasion-start!", :kind "defn-", :line 68, :end-line 70, :hash "-1386709183"} {:id "defn-/passable-sea-cell?", :kind "defn-", :line 72, :end-line 74, :hash "-1121586364"} {:id "defn-/sea-load-points", :kind "defn-", :line 75, :end-line 78, :hash "-852838570"} {:id "form/9/declare", :kind "declare", :line 80, :end-line 80, :hash "2015927613"} {:id "defn-/transition-load-for-invasion-to-sailing!", :kind "defn-", :line 82, :end-line 85, :hash "-1240826066"} {:id "defn-/transition-load-for-invasion-to-unloading!", :kind "defn-", :line 87, :end-line 92, :hash "-769854038"} {:id "defn-/mission-handler-deps", :kind "defn-", :line 94, :end-line 121, :hash "754516218"} {:id "defn-/process-find-armies-for-invasion", :kind "defn-", :line 123, :end-line 125, :hash "-2079022115"} {:id "defn-/process-load-for-invasion-with-armies", :kind "defn-", :line 126, :end-line 129, :hash "-1658821931"} {:id "defn-/process-load-for-invasion-empty", :kind "defn-", :line 131, :end-line 133, :hash "532265959"} {:id "defn-/process-load-for-invasion", :kind "defn-", :line 134, :end-line 137, :hash "-849233059"} {:id "defn-/loading-crawl-move", :kind "defn-", :line 139, :end-line 149, :hash "1534227730"} {:id "defn-/handle-stale-loading", :kind "defn-", :line 151, :end-line 160, :hash "-565701435"} {:id "defn-/process-loading-mission", :kind "defn-", :line 161, :end-line 163, :hash "391544837"} {:id "defn-/process-unloading-mission", :kind "defn-", :line 165, :end-line 167, :hash "1988449558"} {:id "defn-/park-lake-transport-if-empty", :kind "defn-", :line 168, :end-line 170, :hash "77373283"} {:id "defn-/process-land-locked-mission", :kind "defn-", :line 172, :end-line 174, :hash "-1060592190"} {:id "defn-/fix-idle-mission", :kind "defn-", :line 176, :end-line 178, :hash "2095014349"} {:id "defn-/run-transport-mission", :kind "defn-", :line 180, :end-line 194, :hash "2030313739"} {:id "defn-/dispatch-transport-mission", :kind "defn-", :line 196, :end-line 216, :hash "-1108005067"} {:id "defn-/maybe-handle-lake-transport", :kind "defn-", :line 218, :end-line 220, :hash "-1517017432"} {:id "def/transport-random-walk-restore-keys", :kind "def", :line 222, :end-line 233, :hash "-1043576350"} {:id "defn-/maybe-enter-transport-random-walk!", :kind "defn-", :line 235, :end-line 240, :hash "-225889513"} {:id "defn-/process-transport-random-walk", :kind "defn-", :line 242, :end-line 257, :hash "1304261720"} {:id "defn-/process-active-transport", :kind "defn-", :line 259, :end-line 267, :hash "-516527408"} {:id "defn/process-transport", :kind "defn", :line 269, :end-line 290, :hash "928187894"}]}
 ;; clj-mutate-manifest-end
