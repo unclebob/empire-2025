@@ -2,6 +2,7 @@
   (:require [empire.game-mechanics.containers.ops :as container-ops]
             [empire.game-mechanics.movement.api :as movement]
             [empire.game.loop.item-processing :as ip]
+            [empire.game.loop.item-processing-decisions :as decisions]
             [empire.player.attention :as attention]
             [empire.state.api :as sa]
             [empire.test.utils :as test-utils]
@@ -102,19 +103,19 @@
 
 (describe "satellite-with-target?"
   (it "returns truthy for satellite with target"
-    (should (#'empire.game.loop.item-processing/satellite-with-target?
+    (should (decisions/satellite-with-target?
              {:type :satellite :target [5 0]})))
 
   (it "returns falsy for satellite without target"
-    (should-not (#'empire.game.loop.item-processing/satellite-with-target?
+    (should-not (decisions/satellite-with-target?
                  {:type :satellite})))
 
   (it "returns falsy for non-satellite with target"
-    (should-not (#'empire.game.loop.item-processing/satellite-with-target?
+    (should-not (decisions/satellite-with-target?
                  {:type :army :target [5 0]})))
 
   (it "returns falsy for nil unit"
-    (should-not (#'empire.game.loop.item-processing/satellite-with-target? nil))))
+    (should-not (decisions/satellite-with-target? nil))))
 
 (describe "process-player-items-batch else branch"
   (before (reset-all-atoms!))

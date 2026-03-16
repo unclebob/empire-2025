@@ -9,6 +9,7 @@
             [empire.player.attention :as player-attention]
             [empire.game-mechanics.movement.explore :as explore]
             [empire.game-mechanics.movement.coastline :as coastline]
+            [empire.game.loop.item-processing-decisions :as decisions]
             [empire.game.loop.item-processing.computer-items :as computer-items]))
 
 (defn check-player-victory!
@@ -144,24 +145,6 @@
       (do (sa/update-state! :player-items #(cons new-coords (rest %))) :continue)
       (do (sa/update-state! :player-items rest) :done))))
 
-(defn- normalize-item-queue
-  [items]
-  (cond
-    (and (sequential? items)
-         (even? (count items))
-         (every? number? items))
-    (mapv vec (partition 2 items))
-
-    (and (vector? items)
-         (= 2 (count items))
-         (every? number? items))
-    [items]
-
-    :else items))
-
-(defn- satellite-with-target? [unit]
-  (and (= (:type unit) :satellite) (:target unit)))
-
 (defn- try-auto-launch-or-disembark [coords cell]
   (or (auto-launch-fighter coords cell)
       (auto-disembark-army coords cell)))
@@ -169,34 +152,35 @@
 (defn- process-one-item
   "Processes a single player item. Returns :done, :continue, or :waiting."
   []
-  (sa/update-state! :player-items normalize-item-queue)
+  (sa/update-state! :player-items decisions/normalize-item-queue)
   (let [coords (first (sa/read-state :player-items))
         cell (get-in (sa/current-world) coords)
         unit (:contents cell)
-        sat-moving? (satellite-with-target? unit)
-        unit-in-auto-mode? (#{:moving :explore :coastline-follow} (:mode unit))
-        auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))]
-    (cond
-      sat-moving?
+        sat-moving? (decisions/satellite-with-target? unit)
+        unit-in-auto-mode? (decisions/unit-auto-mode? unit)
+        auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))
+        action (decisions/player-item-action
+                {:sat-moving? sat-moving?
+                 :auto-coords auto-coords
+                 :unit-in-auto-mode? unit-in-auto-mode?
+                 :needs-attention? (player-attention/item-needs-attention? coords)})]
+    (case action
+      :skip-satellite
       (do (sa/update-state! :player-items rest) :done)
 
-      auto-coords
-      (do (sa/update-state! :player-items
-                            #(cond-> (cons auto-coords (rest %))
-                               (should-requeue-airport? coords) (cons coords)))
-          :continue)
+      :auto-move
+      (if auto-coords
+        (do (sa/update-state! :player-items
+                              #(cond-> (cons auto-coords (rest %))
+                                 (should-requeue-airport? coords) (cons coords)))
+            :continue)
+        (process-auto-movement coords unit))
 
-      unit-in-auto-mode?
-      (process-auto-movement coords unit)
-
-      (player-attention/item-needs-attention? coords)
+      :attention
       (do (sa/write-state! :cells-needing-attention [coords])
           (player-attention/set-attention-message coords)
           (sa/write-state! :waiting-for-input true)
-          :waiting)
-
-      :else
-      (process-auto-movement coords unit))))
+          :waiting))))
 
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."
@@ -220,5 +204,5 @@
           :done (recur (inc processed)))))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:16:04.721977-05:00", :module-hash "-148534857", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 11, :hash "674996277"} {:id "defn/check-player-victory!", :kind "defn", :line 13, :end-line 16, :hash "1003493917"} {:id "defn-/advance-step", :kind "defn-", :line 18, :end-line 25, :hash "-1281843861"} {:id "defn-/end-combat-move", :kind "defn-", :line 27, :end-line 39, :hash "-621370463"} {:id "defn-/resolve-move-result", :kind "defn-", :line 41, :end-line 54, :hash "321976992"} {:id "defn/move-current-unit", :kind "defn", :line 56, :end-line 69, :hash "367190430"} {:id "defn/move-explore-unit", :kind "defn", :line 71, :end-line 74, :hash "-703094186"} {:id "defn/move-coastline-unit", :kind "defn", :line 76, :end-line 79, :hash "-127782"} {:id "defn-/airport-flight-path", :kind "defn-", :line 81, :end-line 82, :hash "502978521"} {:id "defn-/awake-airport-fighter?", :kind "defn-", :line 84, :end-line 85, :hash "-358747613"} {:id "defn-/awake-carrier-fighter?", :kind "defn-", :line 87, :end-line 89, :hash "-230396723"} {:id "defn-/auto-launch-fighter", :kind "defn-", :line 91, :end-line 100, :hash "251699985"} {:id "defn-/auto-disembark-army", :kind "defn-", :line 102, :end-line 121, :hash "217231336"} {:id "defn-/process-auto-movement", :kind "defn-", :line 123, :end-line 131, :hash "-781362847"} {:id "defn-/satellite-with-target?", :kind "defn-", :line 133, :end-line 134, :hash "-1209035924"} {:id "defn-/try-auto-launch-or-disembark", :kind "defn-", :line 136, :end-line 138, :hash "1778439438"} {:id "defn-/process-one-item", :kind "defn-", :line 140, :end-line 166, :hash "-747283155"} {:id "defn/process-computer-items", :kind "defn", :line 168, :end-line 171, :hash "-1537801344"} {:id "defn-/batch-should-stop?", :kind "defn-", :line 173, :end-line 177, :hash "102333966"} {:id "defn/process-player-items-batch", :kind "defn", :line 179, :end-line 187, :hash "1662766734"}]}
+;; {:version 1, :tested-at "2026-03-16T09:31:39.48404-05:00", :module-hash "366772677", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "-1685282460"} {:id "defn/check-player-victory!", :kind "defn", :line 15, :end-line 18, :hash "1003493917"} {:id "defn-/advance-step", :kind "defn-", :line 20, :end-line 27, :hash "-1281843861"} {:id "defn-/end-combat-move", :kind "defn-", :line 29, :end-line 41, :hash "-1330459889"} {:id "defn-/resolve-move-result", :kind "defn-", :line 43, :end-line 56, :hash "321976992"} {:id "defn/move-current-unit", :kind "defn", :line 58, :end-line 71, :hash "367190430"} {:id "defn/move-explore-unit", :kind "defn", :line 73, :end-line 76, :hash "-703094186"} {:id "defn/move-coastline-unit", :kind "defn", :line 78, :end-line 81, :hash "-127782"} {:id "defn-/airport-flight-path", :kind "defn-", :line 83, :end-line 84, :hash "502978521"} {:id "defn-/awake-airport-fighter?", :kind "defn-", :line 86, :end-line 87, :hash "-358747613"} {:id "defn-/awake-carrier-fighter?", :kind "defn-", :line 89, :end-line 91, :hash "-230396723"} {:id "defn-/should-requeue-airport?", :kind "defn-", :line 93, :end-line 98, :hash "-431335550"} {:id "defn-/auto-launch-fighter", :kind "defn-", :line 100, :end-line 109, :hash "251699985"} {:id "defn-/auto-disembark-army", :kind "defn-", :line 111, :end-line 130, :hash "217231336"} {:id "defn-/process-auto-movement", :kind "defn-", :line 132, :end-line 146, :hash "-773956978"} {:id "defn-/try-auto-launch-or-disembark", :kind "defn-", :line 148, :end-line 150, :hash "1778439438"} {:id "defn-/process-one-item", :kind "defn-", :line 152, :end-line 183, :hash "1376545742"} {:id "defn/process-computer-items", :kind "defn", :line 185, :end-line 188, :hash "-1537801344"} {:id "defn-/batch-should-stop?", :kind "defn-", :line 190, :end-line 194, :hash "102333966"} {:id "defn/process-player-items-batch", :kind "defn", :line 196, :end-line 204, :hash "1662766734"}]}
 ;; clj-mutate-manifest-end

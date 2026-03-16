@@ -5,6 +5,7 @@
             [empire.computer.core :as core]
             [empire.computer.oscillation :as oscillation]
             [empire.computer.transport-core :as tc]
+            [empire.computer.transport-sailing-decisions :as decisions]
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-unloading :as unloading]))
 
@@ -150,15 +151,6 @@
       (maybe-unload-or-sail! sea-pos transport'))
     (maybe-unload-or-sail! pos transport)))
 
-(defn- sailing-state
-  [sail-path army-count never-reload?]
-  (or ({[true true false] :empty-reload
-        [true true true] :empty-never-reload
-        [true false false] :loaded-no-path
-        [true false true] :loaded-no-path}
-       [(empty? sail-path) (zero? army-count) (boolean never-reload?)])
-      (when (seq sail-path) :follow-path)))
-
 (defn- loaded-no-path-action
   [pos transport]
   (let [city-cell? (= :city (:type (get-in (sa/current-world) pos)))
@@ -166,10 +158,11 @@
                                (let [cell (get-in (sa/current-world) n)]
                                  (and cell (#{:land :city} (:type cell)))))
                              (core/get-neighbors pos))]
-    (cond
-      city-cell? (handle-loaded-transport-without-path! pos transport)
-      adjacent-land? (maybe-unload-or-sail! pos transport)
-      :else (set-unloading-and-try! pos))))
+    (case (decisions/loaded-no-path-state {:city-cell? city-cell?
+                                           :adjacent-land? adjacent-land?})
+      :launch-or-sail (handle-loaded-transport-without-path! pos transport)
+      :unload-or-sail (maybe-unload-or-sail! pos transport)
+      (set-unloading-and-try! pos))))
 
 (defn- follow-path-action
   [pos sail-path]
@@ -195,7 +188,7 @@
         sail-path (:sail-path transport)
         army-count (:army-count transport 0)
         never-reload? (:never-reload? transport)
-        state (sailing-state sail-path army-count never-reload?)]
+        state (decisions/sailing-state sail-path army-count never-reload?)]
     (when-let [handler (mission-handler state pos transport sail-path)]
       (handler))))
 
@@ -366,24 +359,37 @@
       (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from)
       chosen)))
 
+(defn- handle-blocked-invading-path!
+  [pos target]
+  (let [sidestep-succeeded? (boolean (invading-step pos target))]
+    (case (decisions/invading-state {:blocked? true
+                                     :sidestep-succeeded? sidestep-succeeded?})
+      :random-walk
+      (sa/update-world! update-in (conj pos :contents)
+                        #(oscillation/start-random-walk % transport-random-walk-restore-keys))
+      nil)))
+
 (defn process-invading-mission
   "Follow precomputed invasion path. Steps up to 2 cells per round.
    When path exhausted, transition to unloading with coast-crawl."
   [pos]
   (let [transport (get-in (sa/current-world) (conj pos :contents))
         path (:invasion-path transport)
-        target (or (:invasion-target transport) (:major-invasion-target transport))]
-      (if (handle-invasion-threat-near-target! pos target)
-      nil
-      (if (or (empty? path)
-              (use-direct-invasion-shortcut? pos target path))
-        (continue-invading-without-path! pos target #(invading-step % target))
-        (when (= :blocked (continue-invading-via-path! pos path))
-          ;; Blocked — sidestep toward target when possible, otherwise retry next round.
-          (when-not (invading-step pos target)
-            (sa/update-world! update-in (conj pos :contents)
-                              #(oscillation/start-random-walk % transport-random-walk-restore-keys))))))))
+        target (or (:invasion-target transport) (:major-invasion-target transport))
+        threat-near-target? (handle-invasion-threat-near-target! pos target)
+        empty-path? (empty? path)
+        direct-shortcut? (and (not empty-path?)
+                              (use-direct-invasion-shortcut? pos target path))
+        initial-state (decisions/invading-state {:threat-near-target? threat-near-target?
+                                                 :empty-path? empty-path?
+                                                 :direct-shortcut? direct-shortcut?})]
+    (case initial-state
+      :threat nil
+      :crawl (continue-invading-without-path! pos target #(invading-step % target))
+      :path (when (= :blocked (continue-invading-via-path! pos path))
+              (handle-blocked-invading-path! pos target))
+      nil)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T21:21:24.554641-05:00", :module-hash "-1523193541", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "1794177306"} {:id "def/invasion-unload-radius", :kind "def", :line 11, :end-line 11, :hash "244609358"} {:id "def/invasion-threat-unload-radius", :kind "def", :line 12, :end-line 12, :hash "1250298048"} {:id "def/invasion-threat-scan-radius", :kind "def", :line 13, :end-line 13, :hash "703933872"} {:id "def/sea-path-inflation-threshold", :kind "def", :line 14, :end-line 14, :hash "2026838488"} {:id "def/transport-random-walk-restore-keys", :kind "def", :line 16, :end-line 27, :hash "-1043576350"} {:id "def/player-ship-types", :kind "def", :line 29, :end-line 30, :hash "-889899963"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 32, :end-line 34, :hash "-1102586575"} {:id "defn-/enemy-ship-near-target?", :kind "defn-", :line 36, :end-line 51, :hash "-602155533"} {:id "defn/compute-sail-path", :kind "defn", :line 52, :end-line 58, :hash "837981545"} {:id "defn-/launch-from-city-to-sea", :kind "defn-", :line 60, :end-line 81, :hash "1399845645"} {:id "defn-/sail-retreat", :kind "defn-", :line 83, :end-line 92, :hash "-1024117299"} {:id "defn-/sail-take-second-step", :kind "defn-", :line 94, :end-line 110, :hash "-1338089990"} {:id "defn-/sail-follow-path", :kind "defn-", :line 112, :end-line 120, :hash "-247008828"} {:id "defn-/set-unloading-and-try!", :kind "defn-", :line 122, :end-line 125, :hash "76083743"} {:id "defn-/compute-and-follow-sail-path!", :kind "defn-", :line 127, :end-line 132, :hash "323874715"} {:id "defn-/maybe-unload-or-sail!", :kind "defn-", :line 134, :end-line 144, :hash "-321208773"} {:id "defn-/handle-loaded-transport-without-path!", :kind "defn-", :line 146, :end-line 151, :hash "689794971"} {:id "defn-/sailing-state", :kind "defn-", :line 153, :end-line 160, :hash "-1068608332"} {:id "defn-/loaded-no-path-action", :kind "defn-", :line 162, :end-line 172, :hash "1519400248"} {:id "defn-/follow-path-action", :kind "defn-", :line 174, :end-line 176, :hash "-482966761"} {:id "defn-/empty-never-reload-action", :kind "defn-", :line 178, :end-line 182, :hash "845185983"} {:id "defn-/mission-handler", :kind "defn-", :line 184, :end-line 190, :hash "1693608890"} {:id "defn/process-sailing-mission", :kind "defn", :line 192, :end-line 200, :hash "-1676663898"} {:id "defn-/clear-invasion-path!", :kind "defn-", :line 202, :end-line 205, :hash "-1817877579"} {:id "defn-/store-invasion-path!", :kind "defn-", :line 207, :end-line 211, :hash "-1045842145"} {:id "defn-/move-invasion-step!", :kind "defn-", :line 213, :end-line 218, :hash "1046491965"} {:id "defn-/finish-invading-at!", :kind "defn-", :line 220, :end-line 223, :hash "-207367400"} {:id "defn-/continue-invading-via-path!", :kind "defn-", :line 225, :end-line 239, :hash "-1602446716"} {:id "defn-/unload-zone?", :kind "defn-", :line 241, :end-line 247, :hash "81195251"} {:id "defn-/retreat-away-from-target!", :kind "defn-", :line 249, :end-line 262, :hash "-1615316895"} {:id "defn-/handle-invasion-threat-near-target!", :kind "defn-", :line 264, :end-line 272, :hash "-1110688253"} {:id "defn-/continue-invading-without-path!", :kind "defn-", :line 274, :end-line 287, :hash "-1095011885"} {:id "defn-/direct-step", :kind "defn-", :line 289, :end-line 295, :hash "1079454387"} {:id "defn-/between-cells", :kind "defn-", :line 297, :end-line 306, :hash "921171763"} {:id "defn-/sea-or-unexplored?", :kind "defn-", :line 308, :end-line 312, :hash "-1587463409"} {:id "defn-/direct-sea-corridor?", :kind "defn-", :line 314, :end-line 318, :hash "1347822806"} {:id "defn-/inflated-sea-path?", :kind "defn-", :line 320, :end-line 325, :hash "1727539098"} {:id "defn-/use-direct-invasion-shortcut?", :kind "defn-", :line 327, :end-line 332, :hash "481615785"} {:id "defn-/choose-invading-step", :kind "defn-", :line 334, :end-line 356, :hash "1294795839"} {:id "defn-/invading-step", :kind "defn-", :line 358, :end-line 367, :hash "586474682"} {:id "defn/process-invading-mission", :kind "defn", :line 369, :end-line 385, :hash "-1240658767"}]}
+;; {:version 1, :tested-at "2026-03-16T09:42:29.46132-05:00", :module-hash "1661589156", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "2070365168"} {:id "def/invasion-unload-radius", :kind "def", :line 12, :end-line 12, :hash "244609358"} {:id "def/invasion-threat-unload-radius", :kind "def", :line 13, :end-line 13, :hash "1250298048"} {:id "def/invasion-threat-scan-radius", :kind "def", :line 14, :end-line 14, :hash "703933872"} {:id "def/sea-path-inflation-threshold", :kind "def", :line 15, :end-line 15, :hash "2026838488"} {:id "def/transport-random-walk-restore-keys", :kind "def", :line 17, :end-line 28, :hash "-1043576350"} {:id "def/player-ship-types", :kind "def", :line 30, :end-line 31, :hash "-889899963"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 33, :end-line 35, :hash "-1102586575"} {:id "defn-/enemy-ship-near-target?", :kind "defn-", :line 37, :end-line 52, :hash "-602155533"} {:id "defn/compute-sail-path", :kind "defn", :line 53, :end-line 59, :hash "837981545"} {:id "defn-/launch-from-city-to-sea", :kind "defn-", :line 61, :end-line 82, :hash "1399845645"} {:id "defn-/sail-retreat", :kind "defn-", :line 84, :end-line 93, :hash "-1024117299"} {:id "defn-/sail-take-second-step", :kind "defn-", :line 95, :end-line 111, :hash "-1338089990"} {:id "defn-/sail-follow-path", :kind "defn-", :line 113, :end-line 121, :hash "-247008828"} {:id "defn-/set-unloading-and-try!", :kind "defn-", :line 123, :end-line 126, :hash "76083743"} {:id "defn-/compute-and-follow-sail-path!", :kind "defn-", :line 128, :end-line 133, :hash "323874715"} {:id "defn-/maybe-unload-or-sail!", :kind "defn-", :line 135, :end-line 145, :hash "-321208773"} {:id "defn-/handle-loaded-transport-without-path!", :kind "defn-", :line 147, :end-line 152, :hash "689794971"} {:id "defn-/loaded-no-path-action", :kind "defn-", :line 154, :end-line 165, :hash "1878768099"} {:id "defn-/follow-path-action", :kind "defn-", :line 167, :end-line 169, :hash "-482966761"} {:id "defn-/empty-never-reload-action", :kind "defn-", :line 171, :end-line 175, :hash "845185983"} {:id "defn-/mission-handler", :kind "defn-", :line 177, :end-line 183, :hash "1693608890"} {:id "defn/process-sailing-mission", :kind "defn", :line 185, :end-line 193, :hash "-1863508943"} {:id "defn-/clear-invasion-path!", :kind "defn-", :line 195, :end-line 198, :hash "-1817877579"} {:id "defn-/store-invasion-path!", :kind "defn-", :line 200, :end-line 204, :hash "-1045842145"} {:id "defn-/move-invasion-step!", :kind "defn-", :line 206, :end-line 211, :hash "1046491965"} {:id "defn-/finish-invading-at!", :kind "defn-", :line 213, :end-line 216, :hash "-207367400"} {:id "defn-/continue-invading-via-path!", :kind "defn-", :line 218, :end-line 232, :hash "-1602446716"} {:id "defn-/unload-zone?", :kind "defn-", :line 234, :end-line 240, :hash "81195251"} {:id "defn-/retreat-away-from-target!", :kind "defn-", :line 242, :end-line 255, :hash "1767021067"} {:id "defn-/handle-invasion-threat-near-target!", :kind "defn-", :line 257, :end-line 265, :hash "-1110688253"} {:id "defn-/continue-invading-without-path!", :kind "defn-", :line 267, :end-line 280, :hash "-377941133"} {:id "defn-/direct-step", :kind "defn-", :line 282, :end-line 288, :hash "1079454387"} {:id "defn-/between-cells", :kind "defn-", :line 290, :end-line 299, :hash "921171763"} {:id "defn-/sea-or-unexplored?", :kind "defn-", :line 301, :end-line 305, :hash "-1587463409"} {:id "defn-/direct-sea-corridor?", :kind "defn-", :line 307, :end-line 311, :hash "1347822806"} {:id "defn-/inflated-sea-path?", :kind "defn-", :line 313, :end-line 318, :hash "1727539098"} {:id "defn-/use-direct-invasion-shortcut?", :kind "defn-", :line 320, :end-line 325, :hash "481615785"} {:id "defn-/choose-invading-step", :kind "defn-", :line 327, :end-line 349, :hash "1732413921"} {:id "defn-/invading-step", :kind "defn-", :line 351, :end-line 360, :hash "586474682"} {:id "defn-/handle-blocked-invading-path!", :kind "defn-", :line 362, :end-line 370, :hash "581756898"} {:id "defn/process-invading-mission", :kind "defn", :line 372, :end-line 391, :hash "-788540729"}]}
 ;; clj-mutate-manifest-end

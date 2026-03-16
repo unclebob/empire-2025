@@ -3,6 +3,7 @@
   (:require [empire.computer.threat-response.invasion-decision :as invasion-decision]
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.kamikazee :as kamikazee]
+            [empire.computer.threat-response.major-invasion-manager-decisions :as decisions]
             [empire.computer.threat-response.major-invasion :as major-invasion]))
 
 (defn- computer-city-count
@@ -20,8 +21,7 @@
         state ((:load-major-invasion-state ctx))
         current-city-count (computer-city-count world)
         previous-city-count (:kamikazee-routing-city-count state)]
-    (when (or (nil? previous-city-count)
-              (> current-city-count previous-city-count))
+    (when (decisions/rebuild-routing? previous-city-count current-city-count)
       (kamikazee/rebuild-routing-graph! ctx)
       ((:update-major-invasion-state! ctx) assoc
        :kamikazee-routing-city-count current-city-count)
@@ -124,33 +124,29 @@
                      :computer-sea-unit-types (:computer-sea-unit-types ctx)})]
     (if (= :ready (:decision evaluation))
       (do
-        ((:update-major-invasion-state! ctx) assoc
-         :active? true
-         :decision :ready
-         :failure-reason nil
-         :next-review-round nil
-         :first-landing-round nil
-         :sea-reachable-detection-points (:sea-reachable-detection-points evaluation))
+        ((:update-major-invasion-state! ctx) merge
+         (decisions/invasion-start-update
+          {:decision (:decision evaluation)
+           :sea-reachable-detection-points (:sea-reachable-detection-points evaluation)}))
         (recompute-target-land! ctx)
         (recompute-sea-reachable! ctx)
         (rebuild-routing-if-needed! ctx)
         (refresh-major-invasion-assignments! ctx))
-      ((:update-major-invasion-state! ctx) assoc
-       :active? false
-       :decision :deferred
-       :failure-reason (:failure-reason evaluation)
-       :next-review-round ((:next-review-round-fn ctx))
-       :first-landing-round nil
-       :kamikazee-routing-city-count nil
-       :sea-reachable-detection-points (:sea-reachable-detection-points evaluation)))))
+      ((:update-major-invasion-state! ctx) merge
+       (decisions/invasion-start-update
+        {:decision (:decision evaluation)
+         :failure-reason (:failure-reason evaluation)
+         :sea-reachable-detection-points (:sea-reachable-detection-points evaluation)
+         :next-review-round ((:next-review-round-fn ctx))})))))
 
 (defn- maybe-record-major-invasion-detection!
   [ctx pos]
   (let [state ((:load-major-invasion-state ctx))
         nearby-existing? (some #(<= ((:chebyshev-distance-fn ctx) pos %) 2)
                                (:detection-points state))
-        should-add? (or (not (:active? state))
-                        (not nearby-existing?))]
+        should-add? (decisions/should-record-detection?
+                     {:active? (:active? state)
+                      :nearby-existing? nearby-existing?})]
     (when should-add?
       ((:update-major-invasion-state! ctx)
        (fn [s]
@@ -193,11 +189,11 @@
 (defn- maybe-review-deferred-major-invasion!
   [ctx]
   (let [state ((:load-major-invasion-state ctx))]
-    (when (and (= :deferred (:decision state))
-               (#{:no-sea-path :insufficient-resources :unsustainable-losses}
-                (:failure-reason state))
-               (number? (:next-review-round state))
-               (>= ((:current-round-fn ctx)) (:next-review-round state)))
+    (when (decisions/should-review-deferred?
+           {:decision (:decision state)
+            :failure-reason (:failure-reason state)
+            :next-review-round (:next-review-round state)
+            :current-round ((:current-round-fn ctx))})
       (evaluate-major-invasion-start! ctx))))
 
 (defn refresh-major-invasion-assignments!
@@ -257,5 +253,5 @@
   (finalize-round-start! ctx))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-14T11:10:36.720785-05:00", :module-hash "1170389015", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-329409651"} {:id "defn/recompute-major-invasion-target-land!", :kind "defn", :line 8, :end-line 21, :hash "1090175681"} {:id "defn-/recompute-target-land!", :kind "defn-", :line 23, :end-line 27, :hash "204964494"} {:id "defn-/recompute-sea-reachable!", :kind "defn-", :line 29, :end-line 33, :hash "-422920731"} {:id "defn-/mission-needs-reset?", :kind "defn-", :line 35, :end-line 39, :hash "2076506354"} {:id "defn-/clear-major-invasion-from-unit", :kind "defn-", :line 41, :end-line 64, :hash "135932616"} {:id "defn-/stand-down-major-invasion!", :kind "defn-", :line 66, :end-line 82, :hash "-913351683"} {:id "defn-/force-patrol-boat-exploration!", :kind "defn-", :line 84, :end-line 90, :hash "733963500"} {:id "form/8/declare", :kind "declare", :line 92, :end-line 92, :hash "11733860"} {:id "defn/evaluate-major-invasion-start!", :kind "defn", :line 94, :end-line 120, :hash "-1948405773"} {:id "defn-/maybe-record-major-invasion-detection!", :kind "defn-", :line 122, :end-line 135, :hash "-285504441"} {:id "defn/handle-major-invasion-detection!", :kind "defn", :line 137, :end-line 146, :hash "1599444521"} {:id "defn-/maybe-handle-unsustainable-losses!", :kind "defn-", :line 148, :end-line 166, :hash "1348944847"} {:id "defn-/maybe-review-deferred-major-invasion!", :kind "defn-", :line 168, :end-line 176, :hash "599877900"} {:id "defn/refresh-major-invasion-assignments!", :kind "defn", :line 178, :end-line 192, :hash "166179315"} {:id "defn/rebuild-kamikazee-routing!", :kind "defn", :line 194, :end-line 198, :hash "-1124454123"} {:id "defn-/dec-threat-rounds!", :kind "defn-", :line 200, :end-line 209, :hash "-1156496508"} {:id "defn-/refresh-active-major-invasion!", :kind "defn-", :line 211, :end-line 219, :hash "-1516483018"} {:id "defn-/finalize-round-start!", :kind "defn-", :line 221, :end-line 226, :hash "1428949634"} {:id "defn/on-round-start!", :kind "defn", :line 228, :end-line 232, :hash "-364680258"}]}
+;; {:version 1, :tested-at "2026-03-16T09:26:09.403425-05:00", :module-hash "-1878337321", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-159037560"} {:id "defn-/computer-city-count", :kind "defn-", :line 9, :end-line 16, :hash "1021744181"} {:id "defn-/rebuild-routing-if-needed!", :kind "defn-", :line 18, :end-line 28, :hash "-1979926472"} {:id "defn/recompute-major-invasion-target-land!", :kind "defn", :line 30, :end-line 43, :hash "1090175681"} {:id "defn-/recompute-target-land!", :kind "defn-", :line 45, :end-line 49, :hash "204964494"} {:id "defn-/recompute-sea-reachable!", :kind "defn-", :line 51, :end-line 55, :hash "-422920731"} {:id "defn-/mission-needs-reset?", :kind "defn-", :line 57, :end-line 61, :hash "2076506354"} {:id "defn-/clear-major-invasion-from-unit", :kind "defn-", :line 63, :end-line 87, :hash "-30374017"} {:id "defn-/stand-down-major-invasion!", :kind "defn-", :line 89, :end-line 105, :hash "-913351683"} {:id "defn-/force-patrol-boat-exploration!", :kind "defn-", :line 107, :end-line 113, :hash "733963500"} {:id "form/10/declare", :kind "declare", :line 115, :end-line 115, :hash "11733860"} {:id "defn/evaluate-major-invasion-start!", :kind "defn", :line 117, :end-line 140, :hash "662760004"} {:id "defn-/maybe-record-major-invasion-detection!", :kind "defn-", :line 142, :end-line 156, :hash "700769299"} {:id "defn/handle-major-invasion-detection!", :kind "defn", :line 158, :end-line 167, :hash "1599444521"} {:id "defn-/maybe-handle-unsustainable-losses!", :kind "defn-", :line 169, :end-line 187, :hash "1348944847"} {:id "defn-/maybe-review-deferred-major-invasion!", :kind "defn-", :line 189, :end-line 197, :hash "-2100257739"} {:id "defn/refresh-major-invasion-assignments!", :kind "defn", :line 199, :end-line 212, :hash "-26363854"} {:id "defn/rebuild-kamikazee-routing!", :kind "defn", :line 214, :end-line 218, :hash "-680401485"} {:id "defn-/dec-threat-rounds!", :kind "defn-", :line 220, :end-line 229, :hash "-1156496508"} {:id "defn-/refresh-active-major-invasion!", :kind "defn-", :line 231, :end-line 240, :hash "1093038917"} {:id "defn-/finalize-round-start!", :kind "defn-", :line 242, :end-line 247, :hash "1428949634"} {:id "defn/on-round-start!", :kind "defn", :line 249, :end-line 253, :hash "-364680258"}]}
 ;; clj-mutate-manifest-end
