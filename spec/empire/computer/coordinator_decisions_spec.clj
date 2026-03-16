@@ -11,4 +11,10 @@
 
   (it "returns nil for non-computer or unknown units"
     (should-be-nil (decisions/dispatch-action {:type :army :owner :player}))
-    (should-be-nil (decisions/dispatch-action {:type :city :owner :computer}))))
+    (should-be-nil (decisions/dispatch-action {:type :city :owner :computer})))
+
+  (it "builds a dispatch plan for routable computer units"
+    (should= {:action :ship :unit-type :destroyer}
+             (decisions/dispatch-plan {:type :destroyer :owner :computer}))
+    (should-be-nil
+      (decisions/dispatch-plan {:type :city :owner :computer}))))

@@ -22,4 +22,17 @@
   (it "defaults player step reset to one when effective speed is nil"
     (let [world [[{:contents {:type :army :owner :player :hits 1}}]]
           effects (vec (decisions/step-reset-effects world (fn [_ _] nil)))]
-      (should= [{:pos [0 0] :steps 1}] effects))))
+      (should= [{:pos [0 0] :steps 1}] effects)))
+
+  (it "passes through the satellite move collaborators unchanged"
+    (let [plan (decisions/move-satellites-plan {:current-world :world
+                                                :update-game-map! :update
+                                                :update-visibility! :vis
+                                                :move-satellite :move
+                                                :satellite-speed 4})]
+      (should= {:current-world :world
+                :update-game-map! :update
+                :update-visibility! :vis
+                :move-satellite :move
+                :satellite-speed 4}
+               plan))))

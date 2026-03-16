@@ -41,4 +41,26 @@
 
   (it "classifies move-unit phase"
     (should= :dock (decisions/move-unit-phase {:ship-can-dock? true}))
-    (should= :move (decisions/move-unit-phase {:ship-can-dock? false}))))
+    (should= :move (decisions/move-unit-phase {:ship-can-dock? false})))
+
+  (it "builds normalized movement result maps"
+    (should= {:result :normal :pos [1 2]}
+             (decisions/movement-result :normal [1 2])))
+
+  (it "builds combat visibility updates only when combat occurred"
+    (should= {:pos [2 2] :owner :player}
+             (decisions/combat-visibility-pos {:owner :player} [2 2] {:winner :player}))
+    (should-be-nil
+      (decisions/combat-visibility-pos {:owner :player} [2 2] nil)))
+
+  (it "updates target-bearing unit and cell state only when needed"
+    (let [unit {:type :army :target [1 1]}
+          cell {:contents unit}]
+      (should= unit
+               (decisions/target-unit-state unit [1 1]))
+      (should= {:type :army :target [2 2]}
+               (decisions/target-unit-state unit [2 2]))
+      (should= cell
+               (decisions/target-cell-state cell unit))
+      (should= {:contents {:type :army :target [2 2]}}
+               (decisions/target-cell-state cell {:type :army :target [2 2]})))))

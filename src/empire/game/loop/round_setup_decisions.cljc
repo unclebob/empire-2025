@@ -23,6 +23,18 @@
     {:pos [i j]
      :steps (or (effective-speed (:type unit) (:hits unit)) 1)}))
 
+(defn move-satellites-plan
+  [{:keys [current-world
+           update-game-map!
+           update-visibility!
+           move-satellite
+           satellite-speed]}]
+  {:current-world current-world
+   :update-game-map! update-game-map!
+   :update-visibility! update-visibility!
+   :move-satellite move-satellite
+   :satellite-speed satellite-speed})
+
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T10:44:15.949063-05:00", :module-hash "1429301019", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-374047007"} {:id "defn/dead-unit-effects", :kind "defn", :line 3, :end-line 14, :hash "-660057601"} {:id "defn/step-reset-effects", :kind "defn", :line 16, :end-line 24, :hash "-777105427"}]}
+;; {:version 1, :tested-at "2026-03-16T14:44:33.90609-05:00", :module-hash "1460240136", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-374047007"} {:id "defn/dead-unit-effects", :kind "defn", :line 3, :end-line 14, :hash "-660057601"} {:id "defn/step-reset-effects", :kind "defn", :line 16, :end-line 24, :hash "-777105427"} {:id "defn/move-satellites-plan", :kind "defn", :line 26, :end-line 36, :hash "-780402441"}]}
 ;; clj-mutate-manifest-end

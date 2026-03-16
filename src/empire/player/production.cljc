@@ -3,7 +3,6 @@
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
             [empire.game-mechanics.services.unit-stamping :as unit-stamping]
-            [empire.config.core :as config]
             [empire.player.production-decisions :as decisions]))
 
 (defn- stamp-computer-fields
@@ -66,11 +65,15 @@
   "Handles production completion: spawns unit and updates production state."
   [coords prod item]
   (let [cell (get-in (sa/current-world) coords)
-        owner (spawn-unit coords cell item)]
-    (if (= owner :computer)
+        owner (spawn-unit coords cell item)
+        decision (decisions/production-complete-action owner coords prod)]
+    (case (:action decision)
+      :clear-production
       (sa/update-state! :production dissoc coords)
-      (sa/update-state! :production assoc coords
-                             (assoc prod :remaining-rounds (config/item-cost item))))))
+
+      :reset-production
+      (sa/update-state! :production assoc coords (:production decision))
+      nil)))
 
 (defn- update-city-production
   "Updates production for a single city."
@@ -91,5 +94,5 @@
       (update-city-production coords prod))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T15:52:27.980175-05:00", :module-hash "-56941808", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "552785745"} {:id "defn-/stamp-computer-fields", :kind "defn-", :line 9, :end-line 11, :hash "1182657874"} {:id "defn-/apply-coast-walk-fields", :kind "defn-", :line 13, :end-line 15, :hash "2087648991"} {:id "defn-/apply-random-explore-fields", :kind "defn-", :line 17, :end-line 19, :hash "531005707"} {:id "defn/set-city-production", :kind "defn", :line 21, :end-line 24, :hash "781392752"} {:id "defn/stamp-unit-fields", :kind "defn", :line 26, :end-line 34, :hash "-1071172957"} {:id "defn-/stamp-adjacent-land", :kind "defn-", :line 36, :end-line 45, :hash "-2092654768"} {:id "defn-/spawn-unit", :kind "defn-", :line 47, :end-line 63, :hash "954807850"} {:id "defn-/handle-production-complete", :kind "defn-", :line 65, :end-line 73, :hash "1308681376"} {:id "defn-/update-city-production", :kind "defn-", :line 75, :end-line 84, :hash "394048806"} {:id "defn/update-production", :kind "defn", :line 86, :end-line 91, :hash "1482439119"}]}
+;; {:version 1, :tested-at "2026-03-16T14:47:23.587862-05:00", :module-hash "512402542", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2084959619"} {:id "defn-/stamp-computer-fields", :kind "defn-", :line 8, :end-line 10, :hash "1182657874"} {:id "defn-/apply-coast-walk-fields", :kind "defn-", :line 12, :end-line 14, :hash "2087648991"} {:id "defn-/apply-random-explore-fields", :kind "defn-", :line 16, :end-line 18, :hash "531005707"} {:id "defn/set-city-production", :kind "defn", :line 20, :end-line 23, :hash "781392752"} {:id "defn/stamp-unit-fields", :kind "defn", :line 25, :end-line 33, :hash "-1071172957"} {:id "defn-/stamp-adjacent-land", :kind "defn-", :line 35, :end-line 44, :hash "-2092654768"} {:id "defn-/spawn-unit", :kind "defn-", :line 46, :end-line 62, :hash "954807850"} {:id "defn-/handle-production-complete", :kind "defn-", :line 64, :end-line 76, :hash "369126627"} {:id "defn-/update-city-production", :kind "defn-", :line 78, :end-line 87, :hash "394048806"} {:id "defn/update-production", :kind "defn", :line 89, :end-line 94, :hash "1482439119"}]}
 ;; clj-mutate-manifest-end

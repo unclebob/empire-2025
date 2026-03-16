@@ -65,8 +65,9 @@
         result (combat/attempt-attack (current-world) from-coords next-pos)]
     (when result
       (combat/apply-combat-result! result)
-      (visibility/update-cell-visibility next-pos (:owner unit)))
-    {:result :combat :pos next-pos}))
+      (when-let [{:keys [pos owner]} (decisions/combat-visibility-pos unit next-pos result)]
+        (visibility/update-cell-visibility pos owner)))
+    (decisions/movement-result :combat next-pos)))
 
 (defn- should-sidestep-city?
   "Returns true if unit should sidestep around the city in next-cell.
@@ -89,11 +90,11 @@
     (if sidestep-pos
       (let [final-unit (wake/wake-after-move unit from-coords sidestep-pos current-map)]
         (execution/do-move from-coords sidestep-pos cell final-unit)
-        {:result :sidestep :pos sidestep-pos})
+        (decisions/movement-result :sidestep sidestep-pos))
       (let [updated-cell (assoc cell :contents woken-unit)]
         (update-game-map! assoc-in from-coords updated-cell)
         (visibility/update-cell-visibility from-coords (:owner unit))
-        {:result :woke :pos from-coords}))))
+        (decisions/movement-result :woke from-coords)))))
 
 (defn- wake-unit-for-city [unit]
   "Creates a woken unit with appropriate reason for city blocking."
@@ -119,7 +120,7 @@
                                                 type-name
                                                 current-hits
                                                 max-hits))
-    {:result :docked :pos city-coords}))
+    (decisions/movement-result :docked city-coords)))
 
 (defn- woke-and-blocked? [woke? woken-unit]
   (and woke? (= (:reason woken-unit) :somethings-in-the-way)))
@@ -148,12 +149,12 @@
       (let [updated-cell (assoc cell :contents woken-unit)]
         (update-game-map! assoc-in from-coords updated-cell)
         (visibility/update-cell-visibility from-coords (:owner unit))
-        {:result :woke :pos from-coords})
+        (decisions/movement-result :woke from-coords))
 
       :normal
       (let [final-unit (wake/wake-after-move unit from-coords next-pos current-map)]
         (execution/do-move from-coords next-pos cell final-unit)
-        {:result :normal :pos next-pos}))))
+        (decisions/movement-result :normal next-pos)))))
 
 (defn move-unit
   "Moves a unit one step toward target. Returns a map with:
@@ -162,12 +163,8 @@
   [from-coords target-coords cell current-map]
   (let [unit (:contents cell)
         safe-target (normalize-target from-coords target-coords)
-        safe-unit (if (= (:target unit) safe-target)
-                    unit
-                    (assoc unit :target safe-target))
-        safe-cell (if (= safe-unit unit)
-                    cell
-                    (assoc cell :contents safe-unit))
+        safe-unit (decisions/target-unit-state unit safe-target)
+        safe-cell (decisions/target-cell-state cell safe-unit)
         next-pos (pathing/next-step-pos from-coords safe-target)
         next-cell (get-in (map-utils/resolve-map-source current-map) next-pos)]
     (case (decisions/move-unit-phase
@@ -193,5 +190,5 @@
      (update-game-map! assoc-in unit-coords (assoc first-cell :contents updated-contents)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T11:31:05.505392-05:00", :module-hash "-242733569", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "1565855507"} {:id "defn-/update-game-map!", :kind "defn-", :line 16, :end-line 18, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 20, :end-line 22, :hash "-640438772"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 24, :end-line 26, :hash "1105581680"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 28, :end-line 37, :hash "1663727491"} {:id "defn-/normalize-target", :kind "defn-", :line 39, :end-line 42, :hash "1079930249"} {:id "defn-/blocked-by-friendly?", :kind "defn-", :line 44, :end-line 47, :hash "-1760303407"} {:id "defn-/blocked-by-enemy?", :kind "defn-", :line 49, :end-line 52, :hash "-1822856815"} {:id "defn-/can-attack-enemy?", :kind "defn-", :line 54, :end-line 58, :hash "-966012541"} {:id "defn-/handle-combat", :kind "defn-", :line 60, :end-line 69, :hash "-1444329373"} {:id "defn-/should-sidestep-city?", :kind "defn-", :line 71, :end-line 75, :hash "522749880"} {:id "defn-/get-blocked-direction", :kind "defn-", :line 77, :end-line 80, :hash "-997753313"} {:id "defn-/try-sidestep", :kind "defn-", :line 82, :end-line 96, :hash "-806743667"} {:id "defn-/wake-unit-for-city", :kind "defn-", :line 98, :end-line 101, :hash "-828913488"} {:id "defn-/dock-ship-for-repair", :kind "defn-", :line 103, :end-line 122, :hash "-1937915179"} {:id "defn-/woke-and-blocked?", :kind "defn-", :line 124, :end-line 125, :hash "1414423656"} {:id "defn-/handle-movement-result", :kind "defn-", :line 127, :end-line 156, :hash "-1095388773"} {:id "defn/move-unit", :kind "defn", :line 158, :end-line 178, :hash "1276751353"} {:id "defn/set-unit-movement", :kind "defn", :line 180, :end-line 193, :hash "-1991903948"}]}
+;; {:version 1, :tested-at "2026-03-16T14:46:12.042993-05:00", :module-hash "474524223", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "1565855507"} {:id "defn-/update-game-map!", :kind "defn-", :line 16, :end-line 18, :hash "1805137569"} {:id "defn-/current-world", :kind "defn-", :line 20, :end-line 22, :hash "-640438772"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 24, :end-line 26, :hash "1105581680"} {:id "defn-/clamp-to-map-bounds", :kind "defn-", :line 28, :end-line 37, :hash "1663727491"} {:id "defn-/normalize-target", :kind "defn-", :line 39, :end-line 42, :hash "1079930249"} {:id "defn-/blocked-by-friendly?", :kind "defn-", :line 44, :end-line 47, :hash "-1760303407"} {:id "defn-/blocked-by-enemy?", :kind "defn-", :line 49, :end-line 52, :hash "-1822856815"} {:id "defn-/can-attack-enemy?", :kind "defn-", :line 54, :end-line 58, :hash "-966012541"} {:id "defn-/handle-combat", :kind "defn-", :line 60, :end-line 70, :hash "1209332123"} {:id "defn-/should-sidestep-city?", :kind "defn-", :line 72, :end-line 76, :hash "522749880"} {:id "defn-/get-blocked-direction", :kind "defn-", :line 78, :end-line 81, :hash "-997753313"} {:id "defn-/try-sidestep", :kind "defn-", :line 83, :end-line 97, :hash "-1907502546"} {:id "defn-/wake-unit-for-city", :kind "defn-", :line 99, :end-line 102, :hash "-828913488"} {:id "defn-/dock-ship-for-repair", :kind "defn-", :line 104, :end-line 123, :hash "-1783696714"} {:id "defn-/woke-and-blocked?", :kind "defn-", :line 125, :end-line 126, :hash "1414423656"} {:id "defn-/handle-movement-result", :kind "defn-", :line 128, :end-line 157, :hash "-963629566"} {:id "defn/move-unit", :kind "defn", :line 159, :end-line 175, :hash "-862461006"} {:id "defn/set-unit-movement", :kind "defn", :line 177, :end-line 190, :hash "-1991903948"}]}
 ;; clj-mutate-manifest-end

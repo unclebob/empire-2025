@@ -27,3 +27,14 @@
   (it "marks complete when remaining reaches zero"
     (should= {:action :complete :item :army}
              (decisions/city-production-step {} {:item :army :remaining-rounds 1}))))
+
+(describe "production-complete-action"
+  (it "clears computer production after spawning"
+    (should= {:action :clear-production}
+             (decisions/production-complete-action :computer [0 0] {:item :army :remaining-rounds 1})))
+
+  (it "resets player production to full item cost after spawning"
+    (should= {:action :reset-production
+              :coords [0 0]
+              :production {:item :army :remaining-rounds 5}}
+             (decisions/production-complete-action :player [0 0] {:item :army :remaining-rounds 1}))))

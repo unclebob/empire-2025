@@ -42,6 +42,14 @@
         {:action :complete :item item}
         {:action :decrement :production (assoc prod :remaining-rounds remaining)}))))
 
+(defn production-complete-action
+  [owner coords prod]
+  (if (= owner :computer)
+    {:action :clear-production}
+    {:action :reset-production
+     :coords coords
+     :production (assoc prod :remaining-rounds (config/item-cost (:item prod)))}))
+
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T15:49:05.017639-05:00", :module-hash "-2040300023", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-122510373"} {:id "defn/create-base-unit", :kind "defn", :line 4, :end-line 6, :hash "221992479"} {:id "defn/apply-unit-type-attributes", :kind "defn", :line 8, :end-line 12, :hash "-884774356"} {:id "defn/apply-movement-orders", :kind "defn", :line 14, :end-line 26, :hash "-173663708"} {:id "defn/build-produced-unit", :kind "defn", :line 28, :end-line 32, :hash "-1450807009"} {:id "defn/city-production-step", :kind "defn", :line 34, :end-line 43, :hash "1523504390"}]}
+;; {:version 1, :tested-at "2026-03-16T14:46:49.838574-05:00", :module-hash "1177753980", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-122510373"} {:id "defn/create-base-unit", :kind "defn", :line 4, :end-line 6, :hash "221992479"} {:id "defn/apply-unit-type-attributes", :kind "defn", :line 8, :end-line 12, :hash "-884774356"} {:id "defn/apply-movement-orders", :kind "defn", :line 14, :end-line 26, :hash "-173663708"} {:id "defn/build-produced-unit", :kind "defn", :line 28, :end-line 32, :hash "-1450807009"} {:id "defn/city-production-step", :kind "defn", :line 34, :end-line 43, :hash "1523504390"} {:id "defn/production-complete-action", :kind "defn", :line 45, :end-line 51, :hash "1011809885"}]}
 ;; clj-mutate-manifest-end
