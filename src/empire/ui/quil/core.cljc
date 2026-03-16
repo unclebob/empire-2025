@@ -138,10 +138,11 @@
       (print-map-size-error-and-exit! e))))
 
 (defn- initialize-startup-state!
-  [{:keys [cols rows handicap]} effective-seed]
+  [{:keys [cols rows handicap self-play?]} effective-seed]
   (sa/write-state! :random-seed effective-seed)
   (sa/write-state! :map-size [cols rows])
   (sa/write-state! :map-size-constants (config/compute-size-constants cols rows))
+  (sa/write-state! :self-play? self-play?)
   (sa/write-state! :handicap-rounds-remaining handicap)
   (sa/write-state! :handicap-display-rounds (when (pos? handicap) handicap)))
 
@@ -175,5 +176,5 @@
         (start-sketch! startup)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:02:59.65257-05:00", :module-hash "133900371", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-182943859"} {:id "defn/create-fonts", :kind "defn", :line 16, :end-line 20, :hash "1956119937"} {:id "defn/setup", :kind "defn", :line 22, :end-line 38, :hash "-470041702"} {:id "defn/update-state", :kind "defn", :line 40, :end-line 47, :hash "476676615"} {:id "defn/draw-state", :kind "defn", :line 49, :end-line 61, :hash "-52211456"} {:id "defn/key-pressed", :kind "defn", :line 63, :end-line 76, :hash "1427502277"} {:id "defn-/get-modifiers", :kind "defn-", :line 78, :end-line 84, :hash "808258936"} {:id "defn/mouse-pressed", :kind "defn", :line 86, :end-line 95, :hash "-624125753"} {:id "defn/mouse-dragged", :kind "defn", :line 97, :end-line 99, :hash "1314545681"} {:id "defn/mouse-released", :kind "defn", :line 101, :end-line 103, :hash "206586691"} {:id "defn/on-close", :kind "defn", :line 105, :end-line 109, :hash "1221335354"} {:id "defn-/screen-dimensions", :kind "defn-", :line 111, :end-line 113, :hash "1572516113"} {:id "form/12/declare", :kind "declare", :line 115, :end-line 115, :hash "2146718225"} {:id "defn/-main", :kind "defn", :line 116, :end-line 146, :hash "-258464563"}]}
+;; {:version 1, :tested-at "2026-03-16T15:31:25.375489-05:00", :module-hash "820525299", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-182943859"} {:id "defn/create-fonts", :kind "defn", :line 16, :end-line 20, :hash "1956119937"} {:id "defn/setup", :kind "defn", :line 22, :end-line 38, :hash "-470041702"} {:id "defn/update-state", :kind "defn", :line 40, :end-line 47, :hash "476676615"} {:id "defn/draw-state", :kind "defn", :line 49, :end-line 61, :hash "-52211456"} {:id "defn-/normalize-key", :kind "defn-", :line 63, :end-line 70, :hash "-1064835850"} {:id "defn-/remember-key!", :kind "defn-", :line 72, :end-line 76, :hash "-236905863"} {:id "defn/key-pressed", :kind "defn", :line 78, :end-line 84, :hash "-1203340287"} {:id "defn-/get-modifiers", :kind "defn-", :line 86, :end-line 92, :hash "808258936"} {:id "defn/mouse-pressed", :kind "defn", :line 94, :end-line 103, :hash "-624125753"} {:id "defn/mouse-dragged", :kind "defn", :line 105, :end-line 107, :hash "1314545681"} {:id "defn/mouse-released", :kind "defn", :line 109, :end-line 111, :hash "206586691"} {:id "defn/on-close", :kind "defn", :line 113, :end-line 117, :hash "1221335354"} {:id "defn-/screen-dimensions", :kind "defn-", :line 119, :end-line 121, :hash "1572516113"} {:id "form/14/declare", :kind "declare", :line 123, :end-line 123, :hash "2146718225"} {:id "defn-/print-map-size-error-and-exit!", :kind "defn-", :line 124, :end-line 131, :hash "1515084806"} {:id "defn-/parse-startup-config", :kind "defn-", :line 133, :end-line 138, :hash "-1190224892"} {:id "defn-/initialize-startup-state!", :kind "defn-", :line 140, :end-line 147, :hash "-419380522"} {:id "defn-/start-sketch!", :kind "defn-", :line 149, :end-line 165, :hash "-347673216"} {:id "defn/-main", :kind "defn", :line 167, :end-line 176, :hash "871102357"}]}
 ;; clj-mutate-manifest-end

@@ -17,6 +17,18 @@
                (with-out-str
                  (quil-core/-main "--help"))))))
 
+(describe "initialize-startup-state!"
+  (before (reset-all-atoms!))
+
+  (it "stores self-play and handicap startup flags"
+    (#'quil-core/initialize-startup-state!
+     {:cols 80 :rows 40 :self-play? true :handicap 12}
+     12345)
+    (should= [80 40] (sa/read-state :map-size))
+    (should= 12345 (sa/read-state :random-seed))
+    (should (sa/read-state :self-play?))
+    (should= 12 (sa/read-state :handicap-rounds-remaining))))
+
 (describe "key-pressed"
   (before (reset-all-atoms!))
 

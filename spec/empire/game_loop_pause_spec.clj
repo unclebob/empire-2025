@@ -54,6 +54,22 @@
     (should= 5 (test-utils/read-test-state :round-number))
     (should= [[0 0]] (test-utils/read-test-state :player-items))))
 
+  (it "auto-processes player items during self-play without keeping attention state"
+    (set-test-world! (build-test-map ["A"]))
+    (set-test-player-map! (build-test-map ["#"]))
+    (set-test-computer-map! (build-test-map ["#"]))
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+    (test-utils/set-test-state! :production {})
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+    (test-utils/set-test-state! :waiting-for-input true)
+    (test-utils/set-test-state! :self-play? true)
+    (game-loop/advance-game)
+    (should-not (test-utils/read-test-state :waiting-for-input))
+    (should= [] (vec (test-utils/read-test-state :player-items)))
+    (should= [] (test-utils/read-test-state :cells-needing-attention))
+    (should= :player (get-in (test-utils/read-test-world) [0 0 :contents :owner])))
+
   (it "clears handicap display once the countdown has already reached zero"
     (test-utils/set-test-state! :handicap-rounds-remaining 0)
     (test-utils/set-test-state! :handicap-display-rounds 0)
