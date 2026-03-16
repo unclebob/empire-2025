@@ -1,5 +1,6 @@
 (ns empire.game-mechanics.movement.api
   (:require [empire.game-mechanics.movement.movement-execution :as execution]
+            [empire.game-mechanics.movement.api-decisions :as decisions]
             [empire.game-mechanics.movement.movement-pathing :as pathing]
             [empire.game-mechanics.movement.movement-resolution :as resolution]
             [empire.game-mechanics.movement.movement-state :as state]))
@@ -20,13 +21,16 @@
   (execution/do-move from-coords final-pos cell final-unit))
 
 (defn move-unit [from-coords target-coords cell current-map]
-  (resolution/move-unit from-coords target-coords cell current-map))
+  (decisions/move-unit-result
+   (resolution/move-unit from-coords target-coords cell current-map)))
 
 (defn set-unit-movement
   ([unit-coords target-coords]
-   (resolution/set-unit-movement unit-coords target-coords))
+   (let [{:keys [unit-coords target-coords]} (decisions/set-unit-movement-args unit-coords target-coords false)]
+     (resolution/set-unit-movement unit-coords target-coords)))
   ([unit-coords target-coords extended?]
-   (resolution/set-unit-movement unit-coords target-coords extended?)))
+   (let [{:keys [unit-coords target-coords extended?]} (decisions/set-unit-movement-args unit-coords target-coords extended?)]
+     (resolution/set-unit-movement unit-coords target-coords extended?))))
 
 (defn get-active-unit [cell]
   (state/get-active-unit cell))
@@ -54,5 +58,5 @@
   (state/wake-at coords))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:00:53.385753-05:00", :module-hash "-264178542", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "1298886392"} {:id "defn/next-step-pos", :kind "defn", :line 7, :end-line 8, :hash "-491111284"} {:id "defn/chebyshev-distance", :kind "defn", :line 10, :end-line 11, :hash "-637684582"} {:id "defn/find-best-sidestep", :kind "defn", :line 13, :end-line 14, :hash "-1241092376"} {:id "defn/process-consumables", :kind "defn", :line 16, :end-line 17, :hash "1918709833"} {:id "defn/do-move", :kind "defn", :line 19, :end-line 20, :hash "902977310"} {:id "defn/move-unit", :kind "defn", :line 22, :end-line 23, :hash "-1661276780"} {:id "defn/set-unit-movement", :kind "defn", :line 25, :end-line 29, :hash "-381067495"} {:id "defn/get-active-unit", :kind "defn", :line 31, :end-line 32, :hash "1442717894"} {:id "defn/is-army-aboard-transport?", :kind "defn", :line 34, :end-line 35, :hash "-508419173"} {:id "defn/is-fighter-from-airport?", :kind "defn", :line 37, :end-line 38, :hash "-451635816"} {:id "defn/is-fighter-from-carrier?", :kind "defn", :line 40, :end-line 41, :hash "1566329616"} {:id "defn/movement-context", :kind "defn", :line 43, :end-line 44, :hash "223762678"} {:id "defn/set-unit-mode", :kind "defn", :line 46, :end-line 47, :hash "-1314827645"} {:id "defn/add-unit-at", :kind "defn", :line 49, :end-line 51, :hash "-1072003234"} {:id "defn/wake-at", :kind "defn", :line 53, :end-line 54, :hash "1360757252"}]}
+;; {:version 1, :tested-at "2026-03-16T14:24:13.876342-05:00", :module-hash "1751391316", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "345019253"} {:id "defn/next-step-pos", :kind "defn", :line 8, :end-line 9, :hash "-491111284"} {:id "defn/chebyshev-distance", :kind "defn", :line 11, :end-line 12, :hash "-637684582"} {:id "defn/find-best-sidestep", :kind "defn", :line 14, :end-line 15, :hash "-1241092376"} {:id "defn/process-consumables", :kind "defn", :line 17, :end-line 18, :hash "1918709833"} {:id "defn/do-move", :kind "defn", :line 20, :end-line 21, :hash "902977310"} {:id "defn/move-unit", :kind "defn", :line 23, :end-line 25, :hash "1158174084"} {:id "defn/set-unit-movement", :kind "defn", :line 27, :end-line 33, :hash "-943335997"} {:id "defn/get-active-unit", :kind "defn", :line 35, :end-line 36, :hash "1442717894"} {:id "defn/is-army-aboard-transport?", :kind "defn", :line 38, :end-line 39, :hash "-508419173"} {:id "defn/is-fighter-from-airport?", :kind "defn", :line 41, :end-line 42, :hash "-451635816"} {:id "defn/is-fighter-from-carrier?", :kind "defn", :line 44, :end-line 45, :hash "1566329616"} {:id "defn/movement-context", :kind "defn", :line 47, :end-line 48, :hash "223762678"} {:id "defn/set-unit-mode", :kind "defn", :line 50, :end-line 51, :hash "-1314827645"} {:id "defn/add-unit-at", :kind "defn", :line 53, :end-line 55, :hash "-1072003234"} {:id "defn/wake-at", :kind "defn", :line 57, :end-line 58, :hash "1360757252"}]}
 ;; clj-mutate-manifest-end

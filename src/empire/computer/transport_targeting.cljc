@@ -2,7 +2,8 @@
   "Transport target selection — finding unload targets and pickup continents."
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
-            [empire.computer.land-objectives :as land-objectives]))
+            [empire.computer.land-objectives :as land-objectives]
+            [empire.computer.transport-targeting-decisions :as decisions]))
 
 
 (defn adjacent-to-pickup-continent?
@@ -51,16 +52,12 @@
                    free-cities)
         ;; Priority: player cities first
         priority-targets (if (seq player-off) player-off free-off)]
-    (when (seq priority-targets)
-      (let [claimed (or (sa/read-state :claimed-transport-targets) #{})
-            unclaimed (remove claimed priority-targets)
-            candidates (if (seq unclaimed) unclaimed priority-targets)
-            best (apply min-key
-                        #(score-target-city transport-pos %)
-                        candidates)]
-        (when best
-          (sa/write-state! :claimed-transport-targets (conj claimed best))
-          best)))))
+    (when-let [{:keys [best claimed]} (decisions/claimed-target-choice
+                                       priority-targets
+                                       (or (sa/read-state :claimed-transport-targets) #{})
+                                       #(score-target-city transport-pos %))]
+      (sa/write-state! :claimed-transport-targets claimed)
+      best)))
 
 (defn find-next-pickup-continent-pos
   "After unloading, find the nearest continent with enough computer armies,
@@ -86,13 +83,10 @@
             seen #{}
             continents []]
        (if (empty? remaining)
-         (let [qualifying (filter #(> (count (:armies %)) min-armies) continents)]
-           (when (seq qualifying)
-             (let [best (apply min-key
-                               (fn [{:keys [armies]}]
-                                 (apply min (map #(core/distance transport-pos %) armies)))
-                               qualifying)]
-               (apply min-key #(core/distance transport-pos %) (:armies best)))))
+         (decisions/pickup-continent-choice transport-pos
+                                            continents
+                                            min-armies
+                                            core/distance)
          (let [army-pos (first remaining)]
            (if (contains? seen army-pos)
              (recur (rest remaining) seen continents)
@@ -108,5 +102,5 @@
        (#{:sailing :unloading} mission)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:59:08.935081-05:00", :module-hash "391894956", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "491700917"} {:id "defn/adjacent-to-pickup-continent?", :kind "defn", :line 8, :end-line 22, :hash "-655962961"} {:id "defn-/score-target-city", :kind "defn-", :line 24, :end-line 36, :hash "1702347925"} {:id "defn/find-unload-target", :kind "defn", :line 38, :end-line 63, :hash "1751466011"} {:id "defn/find-next-pickup-continent-pos", :kind "defn", :line 65, :end-line 103, :hash "-1706719671"} {:id "defn/should-try-opportunistic-unload?", :kind "defn", :line 105, :end-line 108, :hash "2063591989"}]}
+;; {:version 1, :tested-at "2026-03-16T14:20:27.122733-05:00", :module-hash "-1275047669", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1919004257"} {:id "defn/adjacent-to-pickup-continent?", :kind "defn", :line 9, :end-line 23, :hash "-655962961"} {:id "defn-/score-target-city", :kind "defn-", :line 25, :end-line 37, :hash "1702347925"} {:id "defn/find-unload-target", :kind "defn", :line 39, :end-line 60, :hash "1436906733"} {:id "defn/find-next-pickup-continent-pos", :kind "defn", :line 62, :end-line 97, :hash "-523599609"} {:id "defn/should-try-opportunistic-unload?", :kind "defn", :line 99, :end-line 102, :hash "2063591989"}]}
 ;; clj-mutate-manifest-end

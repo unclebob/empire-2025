@@ -3,6 +3,11 @@
             [speclj.core :refer :all]))
 
 (describe "orders decisions"
+  (it "builds turn-message state with expiration"
+    (should= {:turn-message "x"
+              :turn-message-until 1200}
+             (sut/turn-message-state "x" 200 1000)))
+
   (it "returns a city marching-order action"
     (should= {:action :set-marching-orders
               :path [:marching-orders]
@@ -23,4 +28,11 @@
              (sut/marching-orders-by-direction-action [[{}]]
                                                      {:waypoint true}
                                                      [0 0]
-                                                     [1 0]))))
+                                                     [1 0])))
+
+  (it "builds marching-order state"
+    (should= {:path [:marching-orders]
+              :dest [7 8]
+              :clear-destination? true
+              :message "Marching orders set to 7,8"}
+             (sut/marching-orders-state [:marching-orders] [7 8]))))

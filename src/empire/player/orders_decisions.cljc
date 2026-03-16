@@ -22,6 +22,13 @@
   (when (= (:type cell) :city)
     {:action :claim-city}))
 
+(defn turn-message-state
+  [msg ms now]
+  {:turn-message msg
+   :turn-message-until (if (= ms Long/MAX_VALUE)
+                         Long/MAX_VALUE
+                         (+ now ms))})
+
 (defn city-lookaround-action
   [cell]
   (when (player-city? cell)
@@ -73,6 +80,20 @@
     (str "Waypoint placed at " (first coords) "," (second coords))
     (str "Waypoint removed from " (first coords) "," (second coords))))
 
+(defn marching-orders-state
+  [path dest]
+  {:path path
+   :dest dest
+   :clear-destination? true
+   :message (str "Marching orders set to " (first dest) "," (second dest))})
+
+(defn flight-path-state
+  [path dest]
+  {:path path
+   :dest dest
+   :clear-destination? true
+   :message (str "Flight path set to " (first dest) "," (second dest))})
+
 (defn project-to-edge
   [world [cx cy] [dx dy]]
   (let [cols (count world)
@@ -99,5 +120,5 @@
     :else nil))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T16:18:57.473216-05:00", :module-hash "-175057864", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-1363542895"} {:id "defn/clamp-to-map-bounds", :kind "defn", :line 3, :end-line 10, :hash "1279407928"} {:id "defn/player-city?", :kind "defn", :line 12, :end-line 14, :hash "-637112885"} {:id "defn/player-transport?", :kind "defn", :line 16, :end-line 18, :hash "711738148"} {:id "defn/own-city-action", :kind "defn", :line 20, :end-line 23, :hash "-1333830954"} {:id "defn/city-lookaround-action", :kind "defn", :line 25, :end-line 29, :hash "-620694156"} {:id "defn/marching-orders-action", :kind "defn", :line 31, :end-line 49, :hash "1531675460"} {:id "defn/flight-path-action", :kind "defn", :line 51, :end-line 68, :hash "1932598402"} {:id "defn/waypoint-message", :kind "defn", :line 70, :end-line 74, :hash "-1182131149"} {:id "defn/project-to-edge", :kind "defn", :line 76, :end-line 85, :hash "-350541431"} {:id "defn/marching-orders-by-direction-action", :kind "defn", :line 87, :end-line 99, :hash "-1629734525"}]}
+;; {:version 1, :tested-at "2026-03-16T14:25:37.958966-05:00", :module-hash "1137937525", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-1363542895"} {:id "defn/clamp-to-map-bounds", :kind "defn", :line 3, :end-line 10, :hash "1279407928"} {:id "defn/player-city?", :kind "defn", :line 12, :end-line 14, :hash "-637112885"} {:id "defn/player-transport?", :kind "defn", :line 16, :end-line 18, :hash "711738148"} {:id "defn/own-city-action", :kind "defn", :line 20, :end-line 23, :hash "-1333830954"} {:id "defn/turn-message-state", :kind "defn", :line 25, :end-line 30, :hash "723041161"} {:id "defn/city-lookaround-action", :kind "defn", :line 32, :end-line 36, :hash "-620694156"} {:id "defn/marching-orders-action", :kind "defn", :line 38, :end-line 56, :hash "1531675460"} {:id "defn/flight-path-action", :kind "defn", :line 58, :end-line 75, :hash "1932598402"} {:id "defn/waypoint-message", :kind "defn", :line 77, :end-line 81, :hash "-1182131149"} {:id "defn/marching-orders-state", :kind "defn", :line 83, :end-line 88, :hash "-1364786927"} {:id "defn/flight-path-state", :kind "defn", :line 90, :end-line 95, :hash "-52545009"} {:id "defn/project-to-edge", :kind "defn", :line 97, :end-line 106, :hash "-350541431"} {:id "defn/marching-orders-by-direction-action", :kind "defn", :line 108, :end-line 120, :hash "-1629734525"}]}
 ;; clj-mutate-manifest-end

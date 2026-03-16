@@ -9,10 +9,10 @@
 
 (defn- set-turn-message!
   [msg ms]
-  (sa/write-state! :turn-message msg)
-  (sa/write-state! :turn-message-until (if (= ms Long/MAX_VALUE)
-                                               Long/MAX_VALUE
-                                               (+ (System/currentTimeMillis) ms))))
+  (let [{:keys [turn-message turn-message-until]}
+        (decisions/turn-message-state msg ms (System/currentTimeMillis))]
+    (sa/write-state! :turn-message turn-message)
+    (sa/write-state! :turn-message-until turn-message-until)))
 
 (defn add-unit-at [coords unit-type owner]
   (movement-state/add-unit-at coords unit-type owner))
@@ -44,9 +44,12 @@
   true)
 
 (defn- apply-marching-orders [path dest]
-  (sa/update-world! assoc-in path dest)
-  (sa/write-state! :destination nil)
-  (set-turn-message! (str "Marching orders set to " (first dest) "," (second dest)) 2000)
+  (let [{:keys [path dest clear-destination? message]}
+        (decisions/marching-orders-state path dest)]
+    (sa/update-world! assoc-in path dest)
+    (when clear-destination?
+      (sa/write-state! :destination nil))
+    (set-turn-message! message 2000))
   true)
 
 (defn set-marching-orders-at
@@ -71,9 +74,12 @@
     (let [cell (get-in (sa/current-world) [cx cy])
           decision (decisions/flight-path-action (sa/current-world) cell dest)]
       (when (= :set-flight-path (:action decision))
-        (sa/update-world! assoc-in (into [cx cy] (:path decision)) (:dest decision))
-        (sa/write-state! :destination nil)
-        (set-turn-message! (str "Flight path set to " (first (:dest decision)) "," (second (:dest decision))) 2000)
+        (let [{:keys [path dest clear-destination? message]}
+              (decisions/flight-path-state (into [cx cy] (:path decision)) (:dest decision))]
+          (sa/update-world! assoc-in path dest)
+          (when clear-destination?
+            (sa/write-state! :destination nil))
+          (set-turn-message! message 2000))
         true))))
 
 (defn set-waypoint-at
@@ -103,5 +109,5 @@
         nil))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T16:26:46.671876-05:00", :module-hash "647768200", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "129682513"} {:id "defn-/set-turn-message!", :kind "defn-", :line 10, :end-line 15, :hash "961870185"} {:id "defn/add-unit-at", :kind "defn", :line 17, :end-line 18, :hash "813959733"} {:id "defn/wake-at", :kind "defn", :line 20, :end-line 21, :hash "779826581"} {:id "defn/own-city-at", :kind "defn", :line 23, :end-line 29, :hash "-962136880"} {:id "defn/set-city-lookaround", :kind "defn", :line 31, :end-line 38, :hash "-542328561"} {:id "defn/set-destination-at", :kind "defn", :line 40, :end-line 44, :hash "1747846993"} {:id "defn-/apply-marching-orders", :kind "defn-", :line 46, :end-line 50, :hash "778059583"} {:id "defn/set-marching-orders-at", :kind "defn", :line 52, :end-line 65, :hash "966461920"} {:id "defn/set-flight-path-at", :kind "defn", :line 67, :end-line 77, :hash "-24168768"} {:id "defn/set-waypoint-at", :kind "defn", :line 79, :end-line 85, :hash "1468860788"} {:id "defn/set-city-marching-orders-by-direction-at", :kind "defn", :line 87, :end-line 103, :hash "-1116187818"}]}
+;; {:version 1, :tested-at "2026-03-16T14:27:25.865897-05:00", :module-hash "-1958894766", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "129682513"} {:id "defn-/set-turn-message!", :kind "defn-", :line 10, :end-line 15, :hash "1119113768"} {:id "defn/add-unit-at", :kind "defn", :line 17, :end-line 18, :hash "813959733"} {:id "defn/wake-at", :kind "defn", :line 20, :end-line 21, :hash "779826581"} {:id "defn/own-city-at", :kind "defn", :line 23, :end-line 29, :hash "-962136880"} {:id "defn/set-city-lookaround", :kind "defn", :line 31, :end-line 38, :hash "-542328561"} {:id "defn/set-destination-at", :kind "defn", :line 40, :end-line 44, :hash "1747846993"} {:id "defn-/apply-marching-orders", :kind "defn-", :line 46, :end-line 53, :hash "1118731918"} {:id "defn/set-marching-orders-at", :kind "defn", :line 55, :end-line 68, :hash "966461920"} {:id "defn/set-flight-path-at", :kind "defn", :line 70, :end-line 83, :hash "443065763"} {:id "defn/set-waypoint-at", :kind "defn", :line 85, :end-line 91, :hash "1468860788"} {:id "defn/set-city-marching-orders-by-direction-at", :kind "defn", :line 93, :end-line 109, :hash "-1116187818"}]}
 ;; clj-mutate-manifest-end
