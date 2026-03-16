@@ -3,6 +3,12 @@
             [empire.computer.threat-response.kamikazee-mission-decisions :as decisions]))
 
 (describe "kamikazee-mission-decisions"
+  (it "classifies top-level kamikazee stage handling"
+    (should= :hunt-stage
+             (decisions/kamikazee-stage-action {:stage :hunt}))
+    (should= :route-stage
+             (decisions/kamikazee-stage-action {:stage :route})))
+
   (it "prefers attack during hunt when an adjacent player army exists"
     (should= :attack
              (decisions/hunt-stage-action {:stage :hunt
@@ -37,4 +43,23 @@
                                          [4 4]
                                          [3 4]
                                          4
-                                         32))))
+                                         32)))
+
+  (it "builds airport launch state with next-city capacity semantics"
+    (should= {:current-city-capacity? true
+              :next-route-city-capacity? true
+              :next-route-city [1 1]
+              :launch-pos [2 2]
+              :major-target [5 5]
+              :targets [[5 5]]
+              :plan {:route [[1 1]]}
+              :fighter-fuel 32}
+             (decisions/airport-launch-state
+              {:city-has-capacity? true
+               :next-route-city-capacity? true
+               :next-route-city [1 1]
+               :launch-pos [2 2]
+               :major-target [5 5]
+               :targets [[5 5]]
+               :plan {:route [[1 1]]}
+               :fighter-fuel 32}))))

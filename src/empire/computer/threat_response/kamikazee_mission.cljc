@@ -210,16 +210,16 @@
             next-route-city (when (routing/city-site? world (first (:route plan)))
                               (first (:route plan)))
             launch-pos (open-launch-position world city-pos (:route plan) major-target)
-            action (launch-decisions/launch-decision
-                    {:current-city-capacity? (routing/city-has-launch-capacity? world city-pos route-city-launch-buffer)
-                     :next-route-city-capacity? (or (nil? next-route-city)
-                                                    (routing/city-has-launch-capacity? world next-route-city route-city-launch-buffer))
-                     :next-route-city next-route-city
-                     :launch-pos launch-pos
-                     :major-target major-target
-                     :targets targets
-                     :plan plan
-                     :fighter-fuel config/fighter-fuel})]
+            launch-state (decisions/airport-launch-state
+                          {:city-has-capacity? (routing/city-has-launch-capacity? world city-pos route-city-launch-buffer)
+                           :next-route-city-capacity? (routing/city-has-launch-capacity? world next-route-city route-city-launch-buffer)
+                           :next-route-city next-route-city
+                           :launch-pos launch-pos
+                           :major-target major-target
+                           :targets targets
+                           :plan plan
+                           :fighter-fuel config/fighter-fuel})
+            action (launch-decisions/launch-decision launch-state)]
         (when (and action
                    (or (nil? next-route-city)
                        (routing/city-has-launch-capacity? world next-route-city route-city-launch-buffer)))
@@ -300,12 +300,10 @@
           route (:kamikazee-route unit)
           next-site (first route)
           refuel-sites (routing/available-refueling-sites)]
-      (cond
-        (#{:hunt :refuel :return} (:kamikazee-stage unit))
-        (process-hunt-step ctx pos unit current-goal refuel-sites)
-        :else
+      (case (decisions/kamikazee-stage-action {:stage (:kamikazee-stage unit)})
+        :hunt-stage (process-hunt-step ctx pos unit current-goal refuel-sites)
         (process-route-stage ctx pos world unit route next-site current-goal)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T08:21:47.225746-05:00", :module-hash "-463187672", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "-1465756470"} {:id "def/hunt-trail-length", :kind "def", :line 12, :end-line 12, :hash "608106012"} {:id "def/hunt-refuel-threshold", :kind "def", :line 13, :end-line 13, :hash "-1625190623"} {:id "def/route-city-launch-buffer", :kind "def", :line 14, :end-line 14, :hash "1942264726"} {:id "defn-/kamikazee-writeable-unit?", :kind "defn-", :line 16, :end-line 21, :hash "1900221379"} {:id "defn-/fill-fuel!", :kind "defn-", :line 23, :end-line 27, :hash "-91382987"} {:id "defn-/update-kamikazee-unit!", :kind "defn-", :line 29, :end-line 32, :hash "-315117894"} {:id "form/7/declare", :kind "declare", :line 34, :end-line 34, :hash "-1144547704"} {:id "defn-/player-army-at?", :kind "defn-", :line 36, :end-line 41, :hash "-1261804669"} {:id "defn-/computer-city-site?", :kind "defn-", :line 43, :end-line 46, :hash "-280839162"} {:id "defn-/adjacent-player-army", :kind "defn-", :line 48, :end-line 50, :hash "1436602471"} {:id "defn-/move-toward!", :kind "defn-", :line 52, :end-line 55, :hash "178636244"} {:id "defn-/backtracking-candidates", :kind "defn-", :line 57, :end-line 75, :hash "-1930704525"} {:id "defn-/apply-hunt-step", :kind "defn-", :line 77, :end-line 96, :hash "-1458732556"} {:id "defn-/non-backtracking-step", :kind "defn-", :line 98, :end-line 107, :hash "-2110455071"} {:id "defn-/enter-hunt!", :kind "defn-", :line 109, :end-line 116, :hash "638879639"} {:id "defn-/choose-hunt-refuel-site", :kind "defn-", :line 118, :end-line 121, :hash "-813573447"} {:id "defn-/start-hunt-refuel!", :kind "defn-", :line 123, :end-line 130, :hash "1161236971"} {:id "defn-/attack-adjacent-player-army", :kind "defn-", :line 132, :end-line 141, :hash "-1123602667"} {:id "defn-/process-refuel-stage", :kind "defn-", :line 143, :end-line 153, :hash "-590686010"} {:id "defn-/process-return-stage", :kind "defn-", :line 155, :end-line 159, :hash "1620256583"} {:id "defn-/process-active-hunt", :kind "defn-", :line 161, :end-line 175, :hash "-1462288368"} {:id "defn-/remove-airport-kamikazee!", :kind "defn-", :line 177, :end-line 184, :hash "-1081261902"} {:id "defn-/open-launch-position", :kind "defn-", :line 186, :end-line 195, :hash "50118627"} {:id "defn/launch-kamikazee-from-airport!", :kind "defn", :line 197, :end-line 228, :hash "2069853580"} {:id "defn-/process-hunt-step", :kind "defn-", :line 230, :end-line 244, :hash "1286237139"} {:id "defn-/finish-route-node!", :kind "defn-", :line 246, :end-line 258, :hash "-36865006"} {:id "defn-/adjacent-route-city?", :kind "defn-", :line 260, :end-line 264, :hash "1971017307"} {:id "defn-/move-from-route", :kind "defn-", :line 266, :end-line 271, :hash "1250423462"} {:id "defn-/process-route-stage", :kind "defn-", :line 273, :end-line 289, :hash "-1237850103"} {:id "defn/process-kamikazee-fighter", :kind "defn", :line 291, :end-line 307, :hash "1503701697"}]}
+;; {:version 1, :tested-at "2026-03-16T12:11:52.703831-05:00", :module-hash "640586749", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "-1465756470"} {:id "def/hunt-trail-length", :kind "def", :line 12, :end-line 12, :hash "608106012"} {:id "def/hunt-refuel-threshold", :kind "def", :line 13, :end-line 13, :hash "-1625190623"} {:id "def/route-city-launch-buffer", :kind "def", :line 14, :end-line 14, :hash "1942264726"} {:id "defn-/kamikazee-writeable-unit?", :kind "defn-", :line 16, :end-line 21, :hash "1900221379"} {:id "defn-/fill-fuel!", :kind "defn-", :line 23, :end-line 27, :hash "-91382987"} {:id "defn-/update-kamikazee-unit!", :kind "defn-", :line 29, :end-line 32, :hash "-315117894"} {:id "form/7/declare", :kind "declare", :line 34, :end-line 34, :hash "-1144547704"} {:id "defn-/player-army-at?", :kind "defn-", :line 36, :end-line 41, :hash "-1261804669"} {:id "defn-/computer-city-site?", :kind "defn-", :line 43, :end-line 46, :hash "-280839162"} {:id "defn-/adjacent-player-army", :kind "defn-", :line 48, :end-line 50, :hash "1436602471"} {:id "defn-/move-toward!", :kind "defn-", :line 52, :end-line 55, :hash "178636244"} {:id "defn-/backtracking-candidates", :kind "defn-", :line 57, :end-line 75, :hash "-1930704525"} {:id "defn-/apply-hunt-step", :kind "defn-", :line 77, :end-line 96, :hash "-1458732556"} {:id "defn-/non-backtracking-step", :kind "defn-", :line 98, :end-line 107, :hash "-2110455071"} {:id "defn-/enter-hunt!", :kind "defn-", :line 109, :end-line 116, :hash "638879639"} {:id "defn-/choose-hunt-refuel-site", :kind "defn-", :line 118, :end-line 121, :hash "-813573447"} {:id "defn-/start-hunt-refuel!", :kind "defn-", :line 123, :end-line 130, :hash "1161236971"} {:id "defn-/attack-adjacent-player-army", :kind "defn-", :line 132, :end-line 141, :hash "-1123602667"} {:id "defn-/process-refuel-stage", :kind "defn-", :line 143, :end-line 153, :hash "-590686010"} {:id "defn-/process-return-stage", :kind "defn-", :line 155, :end-line 159, :hash "1620256583"} {:id "defn-/process-active-hunt", :kind "defn-", :line 161, :end-line 175, :hash "-1462288368"} {:id "defn-/remove-airport-kamikazee!", :kind "defn-", :line 177, :end-line 184, :hash "-1081261902"} {:id "defn-/open-launch-position", :kind "defn-", :line 186, :end-line 195, :hash "50118627"} {:id "defn/launch-kamikazee-from-airport!", :kind "defn", :line 197, :end-line 228, :hash "-878201905"} {:id "defn-/process-hunt-step", :kind "defn-", :line 230, :end-line 244, :hash "1286237139"} {:id "defn-/finish-route-node!", :kind "defn-", :line 246, :end-line 258, :hash "-36865006"} {:id "defn-/adjacent-route-city?", :kind "defn-", :line 260, :end-line 264, :hash "1971017307"} {:id "defn-/move-from-route", :kind "defn-", :line 266, :end-line 271, :hash "1250423462"} {:id "defn-/process-route-stage", :kind "defn-", :line 273, :end-line 289, :hash "-1237850103"} {:id "defn/process-kamikazee-fighter", :kind "defn", :line 291, :end-line 305, :hash "-694224085"}]}
 ;; clj-mutate-manifest-end

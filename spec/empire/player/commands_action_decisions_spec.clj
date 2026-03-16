@@ -3,6 +3,14 @@
             [speclj.core :refer :all]))
 
 (describe "player command action decisions"
+  (it "classifies city production and movement context actions"
+    (should= {:action :reject-production :item :destroyer}
+             (sut/city-production-action {:naval? true :coastal? false :item :destroyer}))
+    (should= {:action :set-production :item :army}
+             (sut/city-production-action {:naval? false :coastal? false :item :army}))
+    (should= :launch-airport-fighter (sut/movement-context-action :airport-fighter))
+    (should= :standard-unit-movement (sut/movement-context-action :standard-unit)))
+
   (it "returns a fighter skip fuel action"
     (should= {:action :skip-and-burn-fuel
               :fuel 24

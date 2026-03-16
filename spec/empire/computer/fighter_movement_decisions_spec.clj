@@ -15,6 +15,12 @@
     (should= {:action :destroy}
              (decisions/fuel-action {:type :fighter :owner :computer :fuel 1} 32)))
 
+  (it "classifies attack and patrol follow-up"
+    (should= :occupy-target (decisions/attack-result-action :attacker))
+    (should= :attacker-lost (decisions/attack-result-action :defender))
+    (should= :execute-hop (decisions/patrol-action {:has-target? true :has-hop? true}))
+    (should-be-nil (decisions/patrol-action {:has-target? false :has-hop? false})))
+
   (it "builds an attackable combat context only for numeric-hits combatants"
     (let [world [[{:type :sea
                    :contents {:type :fighter :owner :computer :fuel 4}}

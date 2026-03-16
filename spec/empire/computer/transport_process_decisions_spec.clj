@@ -17,4 +17,9 @@
   (it "chooses overall transport process action"
     (should= :random-walk (decisions/transport-process-action {:transport? true :computer-owned? true :random-walk? true}))
     (should= :active (decisions/transport-process-action {:transport? true :computer-owned? true :random-walk? false}))
-    (should-be-nil (decisions/transport-process-action {:transport? false :computer-owned? true :random-walk? false}))))
+    (should-be-nil (decisions/transport-process-action {:transport? false :computer-owned? true :random-walk? false})))
+
+  (it "maps transport missions to concrete handlers"
+    (should= :loading (decisions/transport-mission-handler :loading))
+    (should= :sailing (decisions/transport-mission-handler :sailing))
+    (should-be-nil (decisions/transport-mission-handler :bogus))))

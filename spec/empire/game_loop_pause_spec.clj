@@ -116,6 +116,10 @@
     (test-utils/set-test-state! :handicap-display-rounds nil))
 
   (context "toggle-pause"
+    (it "has explicit toggle actions"
+      (should= :request-pause (control-decisions/toggle-pause-action false))
+      (should= :resume (control-decisions/toggle-pause-action true)))
+
     (it "sets pause-requested when game is running"
       (test-utils/set-test-state! :paused false)
       (game-loop/toggle-pause)
@@ -129,6 +133,11 @@
       (should-not (test-utils/read-test-state :pause-requested))))
 
   (context "step-one-round"
+    (it "has explicit step-one-round actions"
+      (should-be-nil (control-decisions/step-one-round-action {:paused? false :player-items [] :computer-items []}))
+      (should= :resume-one-round (control-decisions/step-one-round-action {:paused? true :player-items [[0 0]] :computer-items []}))
+      (should= :start-round (control-decisions/step-one-round-action {:paused? true :player-items [] :computer-items []})))
+
     (it "does nothing when not paused"
       (test-utils/set-test-state! :paused false)
       (test-utils/set-test-state! :round-number 5)

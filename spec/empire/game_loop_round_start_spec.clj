@@ -1,6 +1,7 @@
 (ns empire.game-loop-round-start-spec
   (:require [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game.loop.core :as game-loop]
+            [empire.game.loop.control-decisions :as control-decisions]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world!]]
             [speclj.core :refer :all]))
@@ -53,6 +54,19 @@
                                                        nil)]
         (game-loop/start-new-round)
         (should= 1 @calls))))
+
+  (it "builds explicit round-start state"
+    (should= {:player-items [[0 0]]
+              :computer-items [[1 1]]
+              :game-over nil
+              :waiting-for-input false
+              :attention-message ""
+              :cells-needing-attention []}
+             (control-decisions/round-start-state
+              {:handicap-rounds-remaining 0
+               :player-items [[0 0]]
+               :computer-items [[1 1]]
+               :game-over-check-enabled true})))
 
   (it "does not wake carrier fighters - they stay asleep until u is pressed"
     (set-test-world! (-> (build-test-map ["C"])

@@ -127,6 +127,25 @@
                       :target clicked-coords}))
     (standard-click-action world attn-coords clicked-coords active-unit)))
 
+(defn city-production-action
+  [{:keys [naval? coastal? item]}]
+  (cond
+    (and naval? (not coastal?))
+    {:action :reject-production
+     :item item}
+
+    :else
+    {:action :set-production
+     :item item}))
+
+(defn movement-context-action
+  [context]
+  (case context
+    :airport-fighter :launch-airport-fighter
+    :carrier-fighter :launch-carrier-fighter
+    :army-aboard :army-aboard-movement
+    :standard-unit :standard-unit-movement))
+
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T16:20:29.471941-05:00", :module-hash "-1204996330", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2127714231"} {:id "defn/space-key-action", :kind "defn", :line 9, :end-line 23, :hash "1796301992"} {:id "defn/unload-key-action", :kind "defn", :line 25, :end-line 30, :hash "-1403859322"} {:id "defn/sentry-key-action", :kind "defn", :line 32, :end-line 42, :hash "1809983247"} {:id "defn/adjacent-land-target", :kind "defn", :line 44, :end-line 53, :hash "-776962319"} {:id "defn/look-around-action", :kind "defn", :line 55, :end-line 79, :hash "-1104782613"} {:id "defn/adjacent-coords?", :kind "defn", :line 81, :end-line 86, :hash "-1207367948"} {:id "defn-/army-coastal-attack-action", :kind "defn-", :line 88, :end-line 96, :hash "431117189"} {:id "defn-/hostile-city-action", :kind "defn-", :line 98, :end-line 106, :hash "-855228636"} {:id "defn-/standard-click-action", :kind "defn-", :line 108, :end-line 115, :hash "-1668856625"} {:id "defn/click-action", :kind "defn", :line 117, :end-line 128, :hash "-1111911825"}]}
+;; {:version 1, :tested-at "2026-03-16T12:22:59.777085-05:00", :module-hash "1098321867", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "2127714231"} {:id "defn/space-key-action", :kind "defn", :line 9, :end-line 23, :hash "1796301992"} {:id "defn/unload-key-action", :kind "defn", :line 25, :end-line 30, :hash "-1403859322"} {:id "defn/sentry-key-action", :kind "defn", :line 32, :end-line 42, :hash "1809983247"} {:id "defn/adjacent-land-target", :kind "defn", :line 44, :end-line 53, :hash "-776962319"} {:id "defn/look-around-action", :kind "defn", :line 55, :end-line 79, :hash "-1104782613"} {:id "defn/adjacent-coords?", :kind "defn", :line 81, :end-line 86, :hash "-1207367948"} {:id "defn-/army-coastal-attack-action", :kind "defn-", :line 88, :end-line 96, :hash "431117189"} {:id "defn-/hostile-city-action", :kind "defn-", :line 98, :end-line 106, :hash "-855228636"} {:id "defn-/standard-click-action", :kind "defn-", :line 108, :end-line 115, :hash "-1668856625"} {:id "defn/click-action", :kind "defn", :line 117, :end-line 128, :hash "-1111911825"} {:id "defn/city-production-action", :kind "defn", :line 130, :end-line 139, :hash "1476259673"} {:id "defn/movement-context-action", :kind "defn", :line 141, :end-line 147, :hash "527198210"}]}
 ;; clj-mutate-manifest-end
