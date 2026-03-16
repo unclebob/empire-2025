@@ -1,9 +1,6 @@
 (ns empire.game.loop.round-setup.waking
   (:require [empire.state.api :as sa]
-            [empire.game-mechanics.movement.wake-conditions :as wake]
-            [empire.game-mechanics.containers.helpers :as uc]))
-
-(defn- world-ref [world] (atom world))
+            [empire.game.loop.round-setup.waking-decisions :as decisions]))
 
 (defn wake-airport-fighters
   "Wakes all fighters in player city airports at start of round.
@@ -11,14 +8,8 @@
    otherwise they will demand attention."
   []
   (let [world (sa/current-world)]
-    (doseq [i (range (count world))
-            j (range (count (first world)))
-            :let [cell (get-in world [i j])]
-            :when (and (= (:type cell) :city)
-                       (= (:city-status cell) :player)
-                       (pos? (uc/get-count cell :fighter-count)))]
-      (let [total (uc/get-count cell :fighter-count)]
-        (sa/update-world! assoc-in [i j :awake-fighters] total)))))
+    (doseq [{:keys [pos awake-fighters]} (decisions/airport-fighter-wakes world)]
+      (sa/update-world! assoc-in (conj pos :awake-fighters) awake-fighters))))
 
 (defn wake-carrier-fighters
   "Wakes all fighters on player carriers at start of round.
@@ -26,33 +17,18 @@
    otherwise they will demand attention."
   []
   (let [world (sa/current-world)]
-    (doseq [i (range (count world))
-            j (range (count (first world)))
-            :let [cell (get-in world [i j])
-                  unit (:contents cell)]
-            :when (and unit
-                       (= :carrier (:type unit))
-                       (= :player (:owner unit))
-                       (pos? (uc/get-count unit :fighter-count)))]
-      (let [total (uc/get-count unit :fighter-count)]
-        (sa/update-world! assoc-in [i j :contents :awake-fighters] total)))))
+    (doseq [{:keys [pos awake-fighters]} (decisions/carrier-fighter-wakes world)]
+      (sa/update-world! assoc-in (conj pos :contents :awake-fighters) awake-fighters))))
 
 (defn wake-sentries-seeing-enemy
   "Wakes player sentry units that can see an enemy unit."
   []
   (let [world (sa/current-world)
-        world-atom (world-ref world)]
-    (doseq [i (range (count world))
-            j (range (count (first world)))
-            :let [cell (get-in world [i j])
-                  unit (:contents cell)]
-            :when (and unit
-                       (= :player (:owner unit))
-                       (= :sentry (:mode unit))
-                       (wake/enemy-unit-visible? unit [i j] world-atom))]
-      (sa/update-world! update-in [i j :contents]
+        wakes (decisions/sentry-enemy-wakes world)]
+    (doseq [{:keys [pos reason]} wakes]
+      (sa/update-world! update-in (conj pos :contents)
                         #(assoc % :mode :awake :reason :enemy-spotted)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:00:21.418149-05:00", :module-hash "-1066347908", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1719980751"} {:id "defn-/world-ref", :kind "defn-", :line 6, :end-line 6, :hash "-1351735972"} {:id "defn/wake-airport-fighters", :kind "defn", :line 8, :end-line 21, :hash "116418176"} {:id "defn/wake-carrier-fighters", :kind "defn", :line 23, :end-line 38, :hash "825275198"} {:id "defn/wake-sentries-seeing-enemy", :kind "defn", :line 40, :end-line 54, :hash "241745160"}]}
+;; {:version 1, :tested-at "2026-03-16T08:25:05.06585-05:00", :module-hash "551265528", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-2050897319"} {:id "defn/wake-airport-fighters", :kind "defn", :line 5, :end-line 12, :hash "1224243406"} {:id "defn/wake-carrier-fighters", :kind "defn", :line 14, :end-line 21, :hash "413504483"} {:id "defn/wake-sentries-seeing-enemy", :kind "defn", :line 23, :end-line 30, :hash "174546867"}]}
 ;; clj-mutate-manifest-end

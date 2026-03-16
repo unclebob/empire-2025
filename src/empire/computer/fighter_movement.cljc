@@ -4,9 +4,9 @@
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.computer.fighter-movement-decisions :as decisions]
             [empire.computer.ship-carrier :as ship-carrier]
             [empire.game-mechanics.services.combat :as combat]
-            [empire.config.units.dispatcher :as dispatcher]
             [empire.config.core :as config]))
 
 (defn- update-cell-visibility!
@@ -129,22 +129,14 @@
                      (attackable-enemy-cell? (get-in game-map neighbor)))
                    (core/get-neighbors pos)))))
 
-(defn- ensure-hits
-  [unit]
-  (cond-> unit
-    (and unit (nil? (:hits unit)))
-    (assoc :hits (dispatcher/hits (:type unit)))))
-
 (defn attack-enemy
   [fighter-pos enemy-pos]
   (let [world (sa/current-world)
-        attacker (ensure-hits (get-in world (conj fighter-pos :contents)))
-        target-cell (get-in world enemy-pos)
-        defender (ensure-hits (:contents target-cell))]
-    (when (and attacker
-               (attackable-enemy-cell? target-cell)
-               (number? (:hits attacker))
-               (number? (:hits defender)))
+        {:keys [attacker defender attackable?]} (decisions/attack-context world
+                                                                          fighter-pos
+                                                                          enemy-pos
+                                                                          attackable-enemy-cell?)]
+    (when attackable?
       (let [result (combat/resolve-combat attacker defender)]
         ;; Remove attacker from original position
         (sa/update-world! update-in fighter-pos dissoc :contents)
@@ -210,18 +202,16 @@
 (defn consume-fighter-fuel
   [pos]
   (let [unit (get-in (sa/current-world) (conj pos :contents))
-        valid-fighter? (and (= :fighter (:type unit))
-                            (= :computer (:owner unit)))
-        new-fuel (dec (:fuel unit config/fighter-fuel))]
-    (if-not valid-fighter?
-      false
-      (if (<= new-fuel 0)
-        (do (sa/update-world! update-in pos dissoc :contents)
-            (update-cell-visibility! pos :computer)
-            false)
-        (do
-          (sa/update-world! assoc-in (conj pos :contents :fuel) new-fuel)
-          true)))))
+        action (decisions/fuel-action unit config/fighter-fuel)]
+    (case (:action action)
+      :invalid false
+      :destroy (do (sa/update-world! update-in pos dissoc :contents)
+                   (update-cell-visibility! pos :computer)
+                   false)
+      :update-fuel (do
+                     (sa/update-world! assoc-in (conj pos :contents :fuel) (:fuel action))
+                     true)
+      false)))
 
 (defn consume-hop-fuel
   [pos hops]
@@ -241,8 +231,9 @@
                     (update-cell-visibility! dest :computer)
                     dest))]
     (when new-pos
-      (when (consume-hop-fuel new-pos hops)
-        {:pos new-pos :hops hops}))))
+      (let [result (decisions/hop-result new-pos hops (consume-hop-fuel new-pos hops))]
+        (when (= :moved (:result result))
+          {:pos (:pos result) :hops (:hops result)})))))
 
 (defn do-patrol
   [pos]
@@ -251,5 +242,5 @@
       (execute-hop pos hop))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:46.559089-05:00", :module-hash "-534203623", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "-798324200"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 11, :end-line 15, :hash "907462422"} {:id "defn/get-passable-neighbors", :kind "defn", :line 17, :end-line 25, :hash "-616653474"} {:id "defn/occupied?", :kind "defn", :line 27, :end-line 29, :hash "-1460113126"} {:id "defn-/diagonal-move?", :kind "defn-", :line 31, :end-line 34, :hash "68518053"} {:id "defn/friendly-occupied?", :kind "defn", :line 36, :end-line 39, :hash "-774112230"} {:id "defn-/best-neighbor-toward", :kind "defn-", :line 41, :end-line 53, :hash "2138493857"} {:id "defn/direction-from", :kind "defn", :line 55, :end-line 57, :hash "991026287"} {:id "defn-/sidestep-around-blocker", :kind "defn-", :line 59, :end-line 75, :hash "535921844"} {:id "defn/in-bounds?", :kind "defn", :line 77, :end-line 83, :hash "-1890501250"} {:id "defn-/scan-friendly-hop-chain", :kind "defn-", :line 85, :end-line 96, :hash "1108247313"} {:id "defn-/hop-or-sidestep", :kind "defn-", :line 98, :end-line 102, :hash "1816122956"} {:id "defn/hop-over-friendly", :kind "defn", :line 104, :end-line 112, :hash "748504707"} {:id "defn/find-adjacent-enemy", :kind "defn", :line 114, :end-line 123, :hash "-1680420050"} {:id "defn/attack-enemy", :kind "defn", :line 125, :end-line 142, :hash "2054690730"} {:id "defn/find-nearest-refueling-site", :kind "defn", :line 144, :end-line 148, :hash "410620433"} {:id "defn/distance-to", :kind "defn", :line 150, :end-line 152, :hash "-384303346"} {:id "defn-/fuel-to-return", :kind "defn-", :line 154, :end-line 159, :hash "-1040089235"} {:id "defn/should-return-to-refuel?", :kind "defn", :line 161, :end-line 164, :hash "976392460"} {:id "defn-/find-patrol-target", :kind "defn-", :line 166, :end-line 173, :hash "1812154550"} {:id "def/fighter-speed", :kind "def", :line 175, :end-line 175, :hash "1924563297"} {:id "defn/land-at-city", :kind "defn", :line 177, :end-line 185, :hash "457630485"} {:id "defn/consume-fighter-fuel", :kind "defn", :line 187, :end-line 196, :hash "249638789"} {:id "defn/consume-hop-fuel", :kind "defn", :line 198, :end-line 205, :hash "1201016941"} {:id "defn/execute-hop", :kind "defn", :line 207, :end-line 217, :hash "533363632"} {:id "defn/do-patrol", :kind "defn", :line 219, :end-line 223, :hash "-1363119000"}]}
+;; {:version 1, :tested-at "2026-03-16T08:04:53.147464-05:00", :module-hash "-502825895", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "1934453474"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 12, :end-line 16, :hash "907462422"} {:id "defn/get-passable-neighbors", :kind "defn", :line 18, :end-line 26, :hash "-616653474"} {:id "defn/occupied?", :kind "defn", :line 28, :end-line 30, :hash "-1460113126"} {:id "defn-/diagonal-move?", :kind "defn-", :line 32, :end-line 35, :hash "68518053"} {:id "defn/friendly-occupied?", :kind "defn", :line 37, :end-line 40, :hash "-774112230"} {:id "defn-/attackable-enemy-cell?", :kind "defn-", :line 42, :end-line 48, :hash "301860701"} {:id "defn-/best-neighbor-toward", :kind "defn-", :line 50, :end-line 62, :hash "1798301840"} {:id "defn/direction-from", :kind "defn", :line 64, :end-line 66, :hash "991026287"} {:id "defn-/sidestep-around-blocker", :kind "defn-", :line 68, :end-line 84, :hash "1580573371"} {:id "defn/in-bounds?", :kind "defn", :line 86, :end-line 92, :hash "-1890501250"} {:id "defn-/scan-friendly-hop-chain", :kind "defn-", :line 94, :end-line 107, :hash "621153402"} {:id "defn-/hop-or-sidestep", :kind "defn-", :line 109, :end-line 113, :hash "1816122956"} {:id "defn/hop-over-friendly", :kind "defn", :line 115, :end-line 123, :hash "748504707"} {:id "defn/find-adjacent-enemy", :kind "defn", :line 125, :end-line 130, :hash "1188801027"} {:id "defn/attack-enemy", :kind "defn", :line 132, :end-line 153, :hash "-298868050"} {:id "defn/find-nearest-refueling-site", :kind "defn", :line 155, :end-line 159, :hash "410620433"} {:id "defn/distance-to", :kind "defn", :line 161, :end-line 163, :hash "-384303346"} {:id "defn-/fuel-to-return", :kind "defn-", :line 165, :end-line 170, :hash "-1040089235"} {:id "defn/should-return-to-refuel?", :kind "defn", :line 172, :end-line 175, :hash "976392460"} {:id "defn-/find-patrol-target", :kind "defn-", :line 177, :end-line 184, :hash "1812154550"} {:id "def/fighter-speed", :kind "def", :line 186, :end-line 186, :hash "1924563297"} {:id "defn/land-at-city", :kind "defn", :line 188, :end-line 200, :hash "2088911727"} {:id "defn/consume-fighter-fuel", :kind "defn", :line 202, :end-line 214, :hash "-279440253"} {:id "defn/consume-hop-fuel", :kind "defn", :line 216, :end-line 223, :hash "1201016941"} {:id "defn/execute-hop", :kind "defn", :line 225, :end-line 236, :hash "-1404398638"} {:id "defn/do-patrol", :kind "defn", :line 238, :end-line 242, :hash "-1363119000"}]}
 ;; clj-mutate-manifest-end

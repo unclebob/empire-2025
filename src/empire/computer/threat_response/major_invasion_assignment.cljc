@@ -1,6 +1,7 @@
 (ns empire.computer.threat-response.major-invasion-assignment
   "Major invasion unit assignment extracted from major-invasion."
   (:require [empire.computer.army.coastal :as army-coastal]
+            [empire.computer.threat-response.major-invasion-assignment-decisions :as decisions]
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.state.api :as sa]))
 
@@ -18,38 +19,32 @@
         plan (kamikazee/plan-route state
                                    world
                                    pos
-                                   (:fuel unit 32))]
+                                   (:fuel unit 32))
+        updates (decisions/fighter-assignment
+                 {:major-target (when-let [nearest-major-target (:nearest-major-target ctx)]
+                                  (nearest-major-target pos))
+                  :targets targets
+                  :plan plan})]
     ((:update-game-map! ctx) update-in (conj pos :contents)
-     #(-> %
-          (assoc :major-invasion true
-                 :kamikazee true
-                 :major-invasion-target (when-let [nearest-major-target (:nearest-major-target ctx)]
-                                          (nearest-major-target pos))
-                 :kamikazee-targets targets
-                 :kamikazee-route (:route plan)
-                 :kamikazee-terminal-site (:terminal-site plan)
-                 :kamikazee-stage (if (seq (:route plan)) :route :hunt))
-          (dissoc :kamikazee-wait-site
-                  :kamikazee-hunt-resume-pos
-                  :kamikazee-trail)
-          (dissoc :threat-mission :threat-center :threat-radius :threat-rounds-left)))))
+     (fn [current]
+       (apply dissoc
+              (merge current (dissoc updates :clear-keys))
+              (:clear-keys updates))))))
 
 (defn- assign-carrier-major-invasion!
   [ctx pos]
-  (if (kamikazee/carrier-support-target ctx pos)
+  (let [support-target (kamikazee/carrier-support-target ctx pos)
+        updates (decisions/carrier-assignment
+                 {:support-target support-target
+                  :ship-target (when-not support-target
+                                 ((:nearest-major-ship-target-fn ctx) pos))})]
     ((:update-game-map! ctx) update-in (conj pos :contents)
-     assoc :major-invasion true
-     :mode :sentry
-     :major-invasion-target pos)
-    ((:update-game-map! ctx) update-in (conj pos :contents)
-     assoc :major-invasion true
-     :major-invasion-target ((:nearest-major-ship-target-fn ctx) pos))))
+     merge updates)))
 
 (defn- assign-ship-major-invasion!
   [ctx pos]
   ((:update-game-map! ctx) update-in (conj pos :contents)
-   assoc :major-invasion true
-   :major-invasion-target ((:nearest-major-ship-target-fn ctx) pos)))
+   merge (decisions/ship-assignment ((:nearest-major-ship-target-fn ctx) pos))))
 
 (defn- assign-army-invasion-embark!
   [ctx pos unit]
@@ -58,8 +53,7 @@
       (let [target (or (:coast-target unit)
                        (army-coastal/find-coast-target-once pos country-id))]
         ((:update-game-map! ctx) update-in (conj pos :contents)
-         #(cond-> (assoc % :mode :move-to-coast-for-invasion)
-            target (assoc :coast-target target)))))))
+         #(merge % (decisions/army-coast-assignment target)))))))
 
 (defn apply-major-invasion-assignment!
   [ctx pos unit]
@@ -82,5 +76,5 @@
       :else nil)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-14T11:11:03.547295-05:00", :module-hash "-1407093608", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "696263856"} {:id "defn-/assign-fighter-major-invasion!", :kind "defn-", :line 7, :end-line 32, :hash "1635657189"} {:id "defn-/assign-carrier-major-invasion!", :kind "defn-", :line 34, :end-line 43, :hash "-1116661532"} {:id "defn-/assign-ship-major-invasion!", :kind "defn-", :line 45, :end-line 49, :hash "212256084"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 51, :end-line 59, :hash "1603379616"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 61, :end-line 79, :hash "-851692958"}]}
+;; {:version 1, :tested-at "2026-03-16T08:21:12.474331-05:00", :module-hash "1035138530", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1441688851"} {:id "defn-/assign-fighter-major-invasion!", :kind "defn-", :line 8, :end-line 32, :hash "-211921025"} {:id "defn-/assign-carrier-major-invasion!", :kind "defn-", :line 34, :end-line 42, :hash "1752602620"} {:id "defn-/assign-ship-major-invasion!", :kind "defn-", :line 44, :end-line 47, :hash "2445993"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 49, :end-line 56, :hash "-1657237431"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 58, :end-line 76, :hash "-851692958"}]}
 ;; clj-mutate-manifest-end
