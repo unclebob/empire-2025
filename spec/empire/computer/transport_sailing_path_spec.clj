@@ -5,6 +5,7 @@
             [empire.computer.core :as core]
             [empire.computer.transport :as transport]
             [empire.computer.transport-core :as tc]
+            [empire.computer.transport-sailing-support :as sailing-support]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -48,7 +49,7 @@
                           :transport-mission :sailing :army-count 3
                           :country-id 1
                           :sail-path []})
-      (with-redefs [empire.computer.transport-sailing/compute-sail-path (constantly nil)]
+      (with-redefs [sailing-support/compute-sail-path (constantly nil)]
         (transport/process-transport [0 0]))
       (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission])))
 
@@ -60,7 +61,7 @@
                          {:type :transport :owner :computer
                           :transport-mission :sailing :army-count 1
                           :sail-path []})
-      (with-redefs [empire.computer.transport-sailing/compute-sail-path (constantly nil)]
+      (with-redefs [sailing-support/compute-sail-path (constantly nil)]
         (transport/process-transport [1 0]))
       (let [tpos (first (for [c (range 3) r (range 2)
                               :when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
