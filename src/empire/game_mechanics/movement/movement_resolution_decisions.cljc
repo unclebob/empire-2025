@@ -54,6 +54,12 @@
     woke? :woke
     :else :normal))
 
+(defn move-unit-phase
+  [{:keys [ship-can-dock?]}]
+  (if ship-can-dock?
+    :dock
+    :move))
+
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T10:57:27.864175-05:00", :module-hash "-1921963722", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-146474826"} {:id "defn/normalize-target", :kind "defn", :line 3, :end-line 10, :hash "1545249409"} {:id "defn/blocked-by-friendly?", :kind "defn", :line 12, :end-line 17, :hash "-1563023550"} {:id "defn/blocked-by-enemy?", :kind "defn", :line 19, :end-line 24, :hash "1978022855"} {:id "defn/can-attack-enemy?", :kind "defn", :line 26, :end-line 32, :hash "1468265873"} {:id "defn/should-sidestep-city?", :kind "defn", :line 34, :end-line 41, :hash "-255452290"} {:id "defn/movement-action", :kind "defn", :line 43, :end-line 55, :hash "-1387063043"}]}
+;; {:version 1, :tested-at "2026-03-16T11:29:58.538384-05:00", :module-hash "302503400", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-146474826"} {:id "defn/normalize-target", :kind "defn", :line 3, :end-line 10, :hash "1545249409"} {:id "defn/blocked-by-friendly?", :kind "defn", :line 12, :end-line 17, :hash "-1563023550"} {:id "defn/blocked-by-enemy?", :kind "defn", :line 19, :end-line 24, :hash "1978022855"} {:id "defn/can-attack-enemy?", :kind "defn", :line 26, :end-line 32, :hash "1468265873"} {:id "defn/should-sidestep-city?", :kind "defn", :line 34, :end-line 41, :hash "-255452290"} {:id "defn/movement-action", :kind "defn", :line 43, :end-line 55, :hash "-1387063043"} {:id "defn/move-unit-phase", :kind "defn", :line 57, :end-line 61, :hash "1563863224"}]}
 ;; clj-mutate-manifest-end

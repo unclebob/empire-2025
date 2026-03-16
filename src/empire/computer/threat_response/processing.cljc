@@ -153,7 +153,9 @@
 
 (defn- run-active-fighter-threat
   [ctx pos unit]
-  (if (oscillation/in-random-walk? unit)
+  (case (decisions/fighter-threat-round-mode
+         {:random-walk? (oscillation/in-random-walk? unit)})
+    :random-walk
     (process-fighter-random-walk-round ctx pos)
     (run-fighter-threat-round ctx pos)))
 
@@ -299,12 +301,18 @@
 
 (defn- sea-scout-target
   [pos center radius]
-  (when (and center (> (core/distance pos center) radius))
-    center))
+  (decisions/sea-scout-move-target
+   {:pos pos
+    :center center
+    :radius radius
+    :distance-fn core/distance}))
 
 (defn- major-invasion-target
   [nearest-major-target pos center]
-  (or center (nearest-major-target pos)))
+  (decisions/major-invasion-move-target
+   {:center center
+    :nearest-major-target nearest-major-target
+    :pos pos}))
 
 (defn- occupied-position? [ctx pos]
   (some? (get-in ((:current-world ctx)) (conj pos :contents))))
@@ -360,19 +368,16 @@
   (let [center (or (:threat-center unit) (:major-invasion-target unit))
         radius (:threat-radius unit (:threat-radius ctx))
         nearest-major-target (:nearest-major-target ctx)
-        result (cond
-                 (and (:major-invasion unit) (oscillation/in-random-walk? unit))
-                 (process-ship-random-walk ctx pos)
-
-                 (= :sea-scout (:threat-mission unit))
-                 (handle-sea-scout-ship-threat pos ship-type center radius)
-
-                 (:major-invasion unit)
-                 (handle-major-invasion-ship-threat ctx nearest-major-target pos ship-type center)
-
-                 :else false)]
+        result (case (decisions/ship-threat-mode
+                      {:random-walk? (and (:major-invasion unit) (oscillation/in-random-walk? unit))
+                       :sea-scout? (= :sea-scout (:threat-mission unit))
+                       :major-invasion? (:major-invasion unit)})
+                 :random-walk (process-ship-random-walk ctx pos)
+                 :sea-scout (handle-sea-scout-ship-threat pos ship-type center radius)
+                 :major-invasion (handle-major-invasion-ship-threat ctx nearest-major-target pos ship-type center)
+                 false)]
     result))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T09:18:15.840519-05:00", :module-hash "438905545", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "18527141"} {:id "def/patrol-yield-radius", :kind "def", :line 11, :end-line 11, :hash "-2055166791"} {:id "def/patrol-max-invasion-distance", :kind "def", :line 12, :end-line 12, :hash "-1594233431"} {:id "def/fighter-refuel-safety-buffer", :kind "def", :line 14, :end-line 14, :hash "341204353"} {:id "def/congestion-random-walk-restore-keys", :kind "def", :line 15, :end-line 17, :hash "-695224494"} {:id "defn-/can-stay-in-refuel-range?", :kind "defn-", :line 19, :end-line 23, :hash "1863176686"} {:id "defn-/move-hop-consume", :kind "defn-", :line 25, :end-line 32, :hash "-879720438"} {:id "defn-/attack-threat-step", :kind "defn-", :line 34, :end-line 38, :hash "-1527541517"} {:id "defn-/refuel-at-adjacent-site", :kind "defn-", :line 40, :end-line 45, :hash "2001014465"} {:id "defn-/refuel-threat-step", :kind "defn-", :line 47, :end-line 53, :hash "-1301196289"} {:id "defn-/out-of-threat-radius?", :kind "defn-", :line 55, :end-line 57, :hash "-365756115"} {:id "defn-/patrol-threat-step", :kind "defn-", :line 59, :end-line 67, :hash "-713058374"} {:id "defn-/fighter-sidestep-consume", :kind "defn-", :line 69, :end-line 81, :hash "-1817054816"} {:id "defn-/start-fighter-congestion-random-walk!", :kind "defn-", :line 83, :end-line 86, :hash "435727451"} {:id "defn-/fighter-random-walk-step", :kind "defn-", :line 88, :end-line 96, :hash "783131758"} {:id "defn-/update-fighter-random-walk!", :kind "defn-", :line 98, :end-line 104, :hash "-1480771239"} {:id "defn/process-fighter-random-walk-round", :kind "defn", :line 106, :end-line 110, :hash "-1302042158"} {:id "form/17/declare", :kind "declare", :line 112, :end-line 112, :hash "-165607427"} {:id "defn-/outside-radius-step", :kind "defn-", :line 114, :end-line 120, :hash "650097571"} {:id "defn-/next-fighter-threat-state", :kind "defn-", :line 122, :end-line 126, :hash "425007148"} {:id "defn/fighter-step-threat", :kind "defn", :line 128, :end-line 145, :hash "1199744703"} {:id "defn-/run-fighter-threat-round", :kind "defn-", :line 147, :end-line 152, :hash "1297858482"} {:id "defn-/run-active-fighter-threat", :kind "defn-", :line 154, :end-line 158, :hash "-1079417595"} {:id "defn/process-fighter-threat", :kind "defn", :line 160, :end-line 166, :hash "1299266710"} {:id "defn-/ship-threat-action", :kind "defn-", :line 168, :end-line 174, :hash "-788810550"} {:id "defn-/ship-sidestep-toward", :kind "defn-", :line 176, :end-line 187, :hash "480281715"} {:id "defn-/start-ship-congestion-random-walk!", :kind "defn-", :line 189, :end-line 192, :hash "-813518478"} {:id "defn-/process-ship-random-walk", :kind "defn-", :line 194, :end-line 206, :hash "-2128338263"} {:id "defn-/nearby-invading-transports", :kind "defn-", :line 208, :end-line 222, :hash "-665750489"} {:id "defn-/land-at-distance?", :kind "defn-", :line 224, :end-line 233, :hash "1571837784"} {:id "defn-/shore-band-score", :kind "defn-", :line 235, :end-line 241, :hash "1418356482"} {:id "defn-/top-random-choice", :kind "defn-", :line 243, :end-line 248, :hash "-1448750480"} {:id "defn-/candidate-neighbors", :kind "defn-", :line 250, :end-line 256, :hash "841271764"} {:id "defn-/patrol-stand-off-step", :kind "defn-", :line 258, :end-line 269, :hash "973145326"} {:id "defn-/patrol-yield-to-transport", :kind "defn-", :line 271, :end-line 298, :hash "1319047782"} {:id "defn-/sea-scout-target", :kind "defn-", :line 300, :end-line 303, :hash "-703141168"} {:id "defn-/major-invasion-target", :kind "defn-", :line 305, :end-line 307, :hash "-323684001"} {:id "defn-/occupied-position?", :kind "defn-", :line 309, :end-line 310, :hash "-891381521"} {:id "defn-/patrol-major-invasion-step", :kind "defn-", :line 312, :end-line 317, :hash "-1636460924"} {:id "defn-/run-patrol-major-invasion", :kind "defn-", :line 319, :end-line 334, :hash "-1013881691"} {:id "defn-/handle-sea-scout-ship-threat", :kind "defn-", :line 336, :end-line 339, :hash "-1034473507"} {:id "defn-/handle-major-invasion-ship-threat", :kind "defn-", :line 341, :end-line 354, :hash "1385953586"} {:id "defn/process-ship-threat", :kind "defn", :line 356, :end-line 374, :hash "-1462215788"}]}
+;; {:version 1, :tested-at "2026-03-16T11:24:55.381467-05:00", :module-hash "1526369209", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "18527141"} {:id "def/patrol-yield-radius", :kind "def", :line 11, :end-line 11, :hash "-2055166791"} {:id "def/patrol-max-invasion-distance", :kind "def", :line 12, :end-line 12, :hash "-1594233431"} {:id "def/fighter-refuel-safety-buffer", :kind "def", :line 14, :end-line 14, :hash "341204353"} {:id "def/congestion-random-walk-restore-keys", :kind "def", :line 15, :end-line 17, :hash "-695224494"} {:id "defn-/can-stay-in-refuel-range?", :kind "defn-", :line 19, :end-line 23, :hash "1863176686"} {:id "defn-/move-hop-consume", :kind "defn-", :line 25, :end-line 32, :hash "-879720438"} {:id "defn-/attack-threat-step", :kind "defn-", :line 34, :end-line 38, :hash "-1527541517"} {:id "defn-/refuel-at-adjacent-site", :kind "defn-", :line 40, :end-line 45, :hash "2001014465"} {:id "defn-/refuel-threat-step", :kind "defn-", :line 47, :end-line 53, :hash "-1301196289"} {:id "defn-/out-of-threat-radius?", :kind "defn-", :line 55, :end-line 57, :hash "-365756115"} {:id "defn-/patrol-threat-step", :kind "defn-", :line 59, :end-line 67, :hash "-713058374"} {:id "defn-/fighter-sidestep-consume", :kind "defn-", :line 69, :end-line 81, :hash "-1817054816"} {:id "defn-/start-fighter-congestion-random-walk!", :kind "defn-", :line 83, :end-line 86, :hash "435727451"} {:id "defn-/fighter-random-walk-step", :kind "defn-", :line 88, :end-line 96, :hash "783131758"} {:id "defn-/update-fighter-random-walk!", :kind "defn-", :line 98, :end-line 104, :hash "-1480771239"} {:id "defn/process-fighter-random-walk-round", :kind "defn", :line 106, :end-line 110, :hash "-1302042158"} {:id "form/17/declare", :kind "declare", :line 112, :end-line 112, :hash "-165607427"} {:id "defn-/outside-radius-step", :kind "defn-", :line 114, :end-line 120, :hash "650097571"} {:id "defn-/next-fighter-threat-state", :kind "defn-", :line 122, :end-line 126, :hash "425007148"} {:id "defn/fighter-step-threat", :kind "defn", :line 128, :end-line 145, :hash "1199744703"} {:id "defn-/run-fighter-threat-round", :kind "defn-", :line 147, :end-line 152, :hash "1297858482"} {:id "defn-/run-active-fighter-threat", :kind "defn-", :line 154, :end-line 160, :hash "-1449690225"} {:id "defn/process-fighter-threat", :kind "defn", :line 162, :end-line 168, :hash "1299266710"} {:id "defn-/ship-threat-action", :kind "defn-", :line 170, :end-line 176, :hash "-788810550"} {:id "defn-/ship-sidestep-toward", :kind "defn-", :line 178, :end-line 189, :hash "480281715"} {:id "defn-/start-ship-congestion-random-walk!", :kind "defn-", :line 191, :end-line 194, :hash "-813518478"} {:id "defn-/process-ship-random-walk", :kind "defn-", :line 196, :end-line 208, :hash "-2128338263"} {:id "defn-/nearby-invading-transports", :kind "defn-", :line 210, :end-line 224, :hash "-665750489"} {:id "defn-/land-at-distance?", :kind "defn-", :line 226, :end-line 235, :hash "1571837784"} {:id "defn-/shore-band-score", :kind "defn-", :line 237, :end-line 243, :hash "1418356482"} {:id "defn-/top-random-choice", :kind "defn-", :line 245, :end-line 250, :hash "-1448750480"} {:id "defn-/candidate-neighbors", :kind "defn-", :line 252, :end-line 258, :hash "841271764"} {:id "defn-/patrol-stand-off-step", :kind "defn-", :line 260, :end-line 271, :hash "973145326"} {:id "defn-/patrol-yield-to-transport", :kind "defn-", :line 273, :end-line 300, :hash "1319047782"} {:id "defn-/sea-scout-target", :kind "defn-", :line 302, :end-line 308, :hash "611117311"} {:id "defn-/major-invasion-target", :kind "defn-", :line 310, :end-line 315, :hash "-937268983"} {:id "defn-/occupied-position?", :kind "defn-", :line 317, :end-line 318, :hash "-891381521"} {:id "defn-/patrol-major-invasion-step", :kind "defn-", :line 320, :end-line 325, :hash "-1636460924"} {:id "defn-/run-patrol-major-invasion", :kind "defn-", :line 327, :end-line 342, :hash "-1013881691"} {:id "defn-/handle-sea-scout-ship-threat", :kind "defn-", :line 344, :end-line 347, :hash "-1034473507"} {:id "defn-/handle-major-invasion-ship-threat", :kind "defn-", :line 349, :end-line 362, :hash "1385953586"} {:id "defn/process-ship-threat", :kind "defn", :line 364, :end-line 379, :hash "237353651"}]}
 ;; clj-mutate-manifest-end

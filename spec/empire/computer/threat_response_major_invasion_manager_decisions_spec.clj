@@ -35,4 +35,13 @@
     (should= :deferred
              (:decision (decisions/invasion-start-update {:decision :deferred
                                                           :failure-reason :no-sea-path
-                                                          :next-review-round 12})))))
+                                                          :next-review-round 12}))))
+
+  (it "classifies round-start manager actions"
+    (should= {:refresh-active? true
+              :review-deferred? false
+              :force-patrol-exploration? false}
+             (decisions/round-start-actions {:active? true :review-deferred? false :failure-reason nil}))
+    (should= true
+             (:force-patrol-exploration?
+              (decisions/round-start-actions {:active? false :review-deferred? true :failure-reason :no-sea-path})))))

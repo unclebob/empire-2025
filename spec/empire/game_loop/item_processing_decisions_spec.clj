@@ -19,4 +19,20 @@
     (should= :skip-satellite (decisions/player-item-action {:sat-moving? true}))
     (should= :auto-move (decisions/player-item-action {:auto-coords [1 1]}))
     (should= :attention (decisions/player-item-action {:needs-attention? true}))
-    (should= :auto-move (decisions/player-item-action {}))))
+    (should= :auto-move (decisions/player-item-action {})))
+
+  (it "classifies move-result follow-up"
+    (should= :advance-step (decisions/resolve-move-result-action {:result :normal}))
+    (should= :combat-stop (decisions/combat-move-result-action {:fighter? false :moved-owner-matches? true :fighter-has-steps? false}))
+    (should= :fighter-continue (decisions/resolve-move-result-action {:result :combat :fighter? true :moved-owner-matches? true :fighter-has-steps? true}))
+    (should= :combat-stop (decisions/resolve-move-result-action {:result :combat :fighter? false :moved-owner-matches? true :fighter-has-steps? false}))
+    (should= :stop (decisions/resolve-move-result-action {:result :combat :fighter? true :moved-owner-matches? false :fighter-has-steps? true}))
+    (should= :stay-put (decisions/resolve-move-result-action {:result :woke}))
+    (should= :stop (decisions/resolve-move-result-action {:result :docked})))
+
+  (it "stops batch processing on pause, empty queue, input wait, or safety limit"
+    (should (decisions/batch-stop? {:paused? true :processed 0}))
+    (should (decisions/batch-stop? {:no-player-items? true :processed 0}))
+    (should (decisions/batch-stop? {:waiting-for-input? true :processed 0}))
+    (should (decisions/batch-stop? {:processed 100}))
+    (should-not (decisions/batch-stop? {:processed 99}))))

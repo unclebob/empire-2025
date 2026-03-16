@@ -35,6 +35,12 @@
      :kamikazee-routing-city-count nil
      :sea-reachable-detection-points sea-reachable-detection-points}))
 
+(defn round-start-actions
+  [{:keys [active? review-deferred? failure-reason]}]
+  {:refresh-active? active?
+   :review-deferred? review-deferred?
+   :force-patrol-exploration? (= :no-sea-path failure-reason)})
+
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T09:22:12.853778-05:00", :module-hash "1571537808", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "210273764"} {:id "defn/rebuild-routing?", :kind "defn", :line 3, :end-line 6, :hash "1285485113"} {:id "defn/should-record-detection?", :kind "defn", :line 8, :end-line 11, :hash "1257358420"} {:id "defn/should-review-deferred?", :kind "defn", :line 13, :end-line 19, :hash "-1330267280"} {:id "defn/invasion-start-update", :kind "defn", :line 21, :end-line 36, :hash "-656557223"}]}
+;; {:version 1, :tested-at "2026-03-16T11:26:12.717601-05:00", :module-hash "-855683432", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "210273764"} {:id "defn/rebuild-routing?", :kind "defn", :line 3, :end-line 6, :hash "1285485113"} {:id "defn/should-record-detection?", :kind "defn", :line 8, :end-line 11, :hash "1257358420"} {:id "defn/should-review-deferred?", :kind "defn", :line 13, :end-line 19, :hash "-1330267280"} {:id "defn/invasion-start-update", :kind "defn", :line 21, :end-line 36, :hash "-656557223"} {:id "defn/round-start-actions", :kind "defn", :line 38, :end-line 42, :hash "1198327900"}]}
 ;; clj-mutate-manifest-end

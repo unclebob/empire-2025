@@ -37,4 +37,8 @@
     (should= :sidestep-friendly (decisions/movement-action {:sidestep-city? false :blocked? true :blocked-by-friendly? true :can-attack-enemy? false :woke? false}))
     (should= :combat (decisions/movement-action {:sidestep-city? false :blocked? true :blocked-by-friendly? false :can-attack-enemy? true :woke? false}))
     (should= :woke (decisions/movement-action {:sidestep-city? false :blocked? false :blocked-by-friendly? false :can-attack-enemy? false :woke? true}))
-    (should= :normal (decisions/movement-action {:sidestep-city? false :blocked? false :blocked-by-friendly? false :can-attack-enemy? false :woke? false}))))
+    (should= :normal (decisions/movement-action {:sidestep-city? false :blocked? false :blocked-by-friendly? false :can-attack-enemy? false :woke? false})))
+
+  (it "classifies move-unit phase"
+    (should= :dock (decisions/move-unit-phase {:ship-can-dock? true}))
+    (should= :move (decisions/move-unit-phase {:ship-can-dock? false}))))
