@@ -2,8 +2,7 @@
   "Invasion embarkation target selection and coastal movement helpers."
   (:require [empire.computer.core :as core]
             [empire.computer.army.coastal-invasion-decisions :as decisions]
-            [empire.computer.army.movement :as movement]
-            [empire.game-mechanics.debug.integrity :as integrity]))
+            [empire.computer.army.movement :as movement]))
 
  (defn- coastal-cell?
    [ctx pos country-id]
@@ -78,33 +77,17 @@
 
 (def ^:private local-coast-repath-interval-rounds 3)
 
-;; Temporary instrumentation for play-test corruption tracing.
-(defn- log-missing-army-contents!
-  [ctx reason context]
-  (integrity/write-stacktrace-error-log!
-   "army-error"
-   (merge {:reason reason} context)
-   (ex-info "Army sentry update attempted without unit contents"
-            (merge {:reason reason} context
-                   {:round (or ((:read-runtime-state ctx) :round-number) 0)}))))
-
 (defn- set-sentry-mode-if-unit!
-  [ctx pos context]
-  (if (get-in ((:current-world ctx)) (conj pos :contents))
+  [ctx pos]
+  (when (get-in ((:current-world ctx)) (conj pos :contents))
     ((:update-game-map! ctx) update-in (conj pos :contents)
      #(-> %
           (assoc :mode :sentry)
-          (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
-    (log-missing-army-contents! ctx
-                                :missing-contents-for-sentry
-                                (assoc context
-                                       :pos pos
-                                       :cell (get-in ((:current-world ctx)) pos)))))
+          (dissoc :coast-target :coast-repath-after-round :lake-retask?)))))
 
 (defn- settle-at-coast-target!
   [ctx pos]
-  ;; Temporary instrumentation wrapper; remove after the play-test sentry corruption is resolved.
-  (set-sentry-mode-if-unit! ctx pos {:operation :settle-at-coast-target}))
+  (set-sentry-mode-if-unit! ctx pos))
 
  (defn- step-toward-target-cheap
    [pos target country-id]
@@ -180,9 +163,7 @@
   [ctx pos country-id]
   (if ((:should-sentry-on-coast? ctx) pos country-id)
     (do
-      ;; Temporary instrumentation wrapper; remove after the play-test sentry corruption is resolved.
-      (set-sentry-mode-if-unit! ctx pos {:operation :process-move-to-coast-for-invasion
-                                         :country-id country-id})
+      (set-sentry-mode-if-unit! ctx pos)
       pos)
     (let [unit (get-in ((:current-world ctx)) (conj pos :contents))]
       (when-let [target (resolve-coast-target ctx unit pos country-id)]

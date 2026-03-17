@@ -22,10 +22,12 @@
       (should= result1 result2)))
 
   (it "caches unload BFS result for same target-continent"
-    (set-test-world! (build-test-map ["~~~"
-                                            "~~~"
-                                            "~~~"
-                                            "###"]))
+    (let [world (build-test-map ["~~~"
+                                 "~~~"
+                                 "~~~"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [target-continent #{[0 3] [1 3] [2 3]}
           result1 (pathfinding-bfs/find-nearest-unload-position [0 0] target-continent)
           result2 (pathfinding-bfs/find-nearest-unload-position [2 0] target-continent)]
@@ -73,12 +75,14 @@
   (before (reset-all-atoms!))
 
   (it "finds nearest sea cell adjacent to target-continent land"
-    (set-test-world! (build-test-map ["###"
-                                            "###"
-                                            "~~~"
-                                            "~~~"
-                                            "###"
-                                            "###"]))
+    (let [world (build-test-map ["###"
+                                 "###"
+                                 "~~~"
+                                 "~~~"
+                                 "###"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [target-continent #{[0 4] [1 4] [2 4] [0 5] [1 5] [2 5]}
           result (pathfinding-bfs/find-nearest-unload-position [1 2] target-continent)]
       ;; Should find a sea cell in row 3 adjacent to land in row 4
@@ -86,30 +90,36 @@
       (should= 3 (second result))))
 
   (it "returns nil when target-continent land is unreachable"
-    (set-test-world! (build-test-map ["###"
-                                            "~~~"
-                                            "~~~"]))
+    (let [world (build-test-map ["###"
+                                 "~~~"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [target-continent #{[10 10] [11 10]}
           result (pathfinding-bfs/find-nearest-unload-position [1 1] target-continent)]
       (should-be-nil result)))
 
   (it "ignores non-target-continent land"
-    (set-test-world! (build-test-map ["###"
-                                            "~~~"
-                                            "~~~"
-                                            "~~~"
-                                            "###"]))
+    (let [world (build-test-map ["###"
+                                 "~~~"
+                                 "~~~"
+                                 "~~~"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [target-continent #{[0 4] [1 4] [2 4]}
           result (pathfinding-bfs/find-nearest-unload-position [1 1] target-continent)]
       (should-not-be-nil result)
       (should= 3 (second result))))
 
   (it "skips occupied sea cells as unload destinations"
-    (set-test-world! (build-test-map ["###"
-                                            "~~~"
-                                            "~~~"
-                                            "~d~"
-                                            "###"]))
+    (let [world (build-test-map ["###"
+                                 "~~~"
+                                 "~~~"
+                                 "~d~"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [target-continent #{[0 4] [1 4] [2 4]}
           result (pathfinding-bfs/find-nearest-unload-position [1 2] target-continent)]
       (should-not-be-nil result)
@@ -117,21 +127,40 @@
       (should-not= [1 3] result)))
 
   (it "finds globally nearest position on target continent"
-    (set-test-world! (build-test-map ["~~~"
-                                            "~~~"
-                                            "~~~"
-                                            "~~~"
-                                            "O##"
-                                            "###"
-                                            "###"
-                                            "###"
-                                            "###"]))
+    (let [world (build-test-map ["~~~"
+                                 "~~~"
+                                 "~~~"
+                                 "~~~"
+                                 "O##"
+                                 "###"
+                                 "###"
+                                 "###"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [target-continent #{[0 4] [1 4] [2 4] [0 5] [1 5] [2 5]
                              [0 6] [1 6] [2 6] [0 7] [1 7] [2 7]
                              [0 8] [1 8] [2 8]}
           result (pathfinding-bfs/find-nearest-unload-position [1 2] target-continent)]
       (should-not-be-nil result)
-      (should= 3 (second result)))))
+      (should= 3 (second result))))
+
+  (it "does not use hidden target-continent land from the real map"
+    (let [world (build-test-map ["###"
+                                 "~~~"
+                                 "~~~"
+                                 "~~~"
+                                 "###"])
+          computer-map (build-test-map ["###"
+                                        "~~~"
+                                        "~~~"
+                                        "~~~"
+                                        "---"])]
+      (set-test-world! world)
+      (set-test-computer-map! computer-map)
+      (let [target-continent #{[0 4] [1 4] [2 4]}
+            result (pathfinding-bfs/find-nearest-unload-position [1 1] target-continent)]
+        (should-be-nil result)))))
 
 (describe "find-nearest-unexplored-coastline"
   (before (reset-all-atoms!))
@@ -203,15 +232,19 @@
   (context "find-nearest-unload-position start-skip"
     (it "does not return start even when start is valid unload position"
       ;; Start [0,0] is sea, empty, adjacent to target continent land [1,0]
-      (set-test-world! (build-test-map ["~#" "~#"]))
+      (let [world (build-test-map ["~#" "~#"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (let [target-continent #{[1 0] [1 1]}
             result (pathfinding-bfs/find-nearest-unload-position [0 0] target-continent)]
         (should-not-be-nil result)
         (should-not= [0 0] result)))
 
     (it "finds unload position adjacent to city on target continent"
-      (set-test-world! [[{:type :sea} {:type :city :city-status :free}]
-                               [{:type :sea} {:type :sea}]])
+      (let [world [[{:type :sea} {:type :city :city-status :free}]
+                   [{:type :sea} {:type :sea}]]]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (let [target-continent #{[0 1]}
             result (pathfinding-bfs/find-nearest-unload-position [1 0] target-continent)]
         (should-not-be-nil result)

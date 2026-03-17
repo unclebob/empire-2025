@@ -22,7 +22,7 @@
   "BFS from start over sea cells to find nearest empty sea cell adjacent
    to land on target-continent."
   [start target-continent]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
