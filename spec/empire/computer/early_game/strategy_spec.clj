@@ -38,6 +38,21 @@
     (test-utils/set-test-state! :round-number 30)
     (should= :CT (strategy/assigned-role [1 0])))
 
+  (it "does not treat hidden adjacent sea as usable coast"
+    (set-test-world! (build-test-map ["~Xaa"
+                                      "##aa"
+                                      "##Xa"
+                                      "##Xa"]))
+    (set-test-computer-map! (build-test-map ["#Xaa"
+                                             "##aa"
+                                             "##Xa"
+                                             "##Xa"]))
+    (doseq [pos [[1 0] [2 2] [2 3]]]
+      (update-test-world! assoc-in (conj pos :country-id) 1)
+      (test-utils/update-test-computer-map! assoc-in (conj pos :country-id) 1))
+    (test-utils/set-test-state! :round-number 30)
+    (should-not (strategy/city-usable-coastal? [1 0])))
+
   (it "builds fighters for C=0 landmasses only after six armies"
     (set-test-world! (build-test-map ["aaa"
                                       "aXa"

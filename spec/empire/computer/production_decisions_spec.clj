@@ -133,6 +133,24 @@
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 1])))
 
+    (it "hidden adjacent sea does not make a city produce naval units"
+      (set-test-world! (build-test-map ["~Xaaaaaa"
+                                               "~~~~~~~~"]))
+      (set-test-computer-map! (build-test-map ["#Xaaaaaa"
+                                                   "########"]))
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (doseq [col (range 2 8)]
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (test-utils/update-test-computer-map! assoc-in [1 0 :country-id] 1)
+      (doseq [col (range 2 8)]
+        (test-utils/update-test-computer-map! assoc-in [col 0 :country-id] 1)
+        (test-utils/update-test-computer-map! assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
+      (should-not (production/city-is-coastal? [1 0]))
+      (should-not (contains? #{:transport :patrol-boat :destroyer :carrier :battleship :submarine}
+                             (production/decide-production [1 0]))))
+
     (it "produces army when coastal cells not filled"
       ;; 2-row map: coastal city, 2 armies but unfilled coastal cells, 4 patrol boats
       ;; Row 0: ~ X # a a # # ~ p p p p
@@ -244,8 +262,10 @@
       ;; Place 4 armies -> 2/3 * 6 = 4, so limit reached
       (set-test-world! (build-test-map ["~X######~"
                                                "~~~~~~~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (doseq [col (range 2 8)]
-        (update-test-world! assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (test-utils/update-test-computer-map! assoc-in [col 0 :country-id] 1))
       (doseq [col (range 2 6)]
         (update-test-world! assoc-in [col 0 :contents]
                {:type :army :owner :computer :hits 1 :country-id 1}))
@@ -257,8 +277,10 @@
       ;; Place 3 armies -> 3 < 4, so limit NOT reached
       (set-test-world! (build-test-map ["~X######~"
                                                "~~~~~~~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (doseq [col (range 2 8)]
-        (update-test-world! assoc-in [col 0 :country-id] 1))
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (test-utils/update-test-computer-map! assoc-in [col 0 :country-id] 1))
       (doseq [col (range 2 5)]
         (update-test-world! assoc-in [col 0 :contents]
                {:type :army :owner :computer :hits 1 :country-id 1}))

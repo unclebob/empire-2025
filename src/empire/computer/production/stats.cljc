@@ -7,13 +7,14 @@
           (core/get-neighbors pos)))
 
 (defn city-is-coastal? [city-pos]
-  (some (fn [neighbor]
-          (= :sea (:type (get-in (sa/current-world) neighbor))))
-        (get-neighbors city-pos)))
+  (let [computer-map (sa/read-state :computer-map)]
+    (some (fn [neighbor]
+            (= :sea (:type (get-in computer-map neighbor))))
+          (get-neighbors city-pos))))
 
-(defn- coastal? [game-map pos]
-  (some (fn [n] (= :sea (:type (get-in game-map n))))
-        (filter #(some? (get-in game-map %))
+(defn- coastal? [visible-map pos]
+  (some (fn [n] (= :sea (:type (get-in visible-map n))))
+        (filter #(some? (get-in visible-map %))
                 (core/get-neighbors pos))))
 
 (defn- update-country [acc cid k f]
@@ -43,10 +44,11 @@
     (coastal-computer-city? cell-type cell)
     (update-in [cid :coastal-city-positions] (fnil conj #{}) [i j])))
 
-(defn- scan-cell-terrain [acc game-map comp-map i j cell]
-  (let [cid (:country-id cell)
+(defn- scan-cell-terrain [acc comp-map i j]
+  (let [cell (get-in comp-map [i j])
+        cid (:country-id cell)
         cell-type (:type cell)]
-    (if (and cid (land-or-city? cell-type) (coastal? game-map [i j]))
+    (if (and cell cid (land-or-city? cell-type) (coastal? comp-map [i j]))
       (accumulate-coastal-terrain acc cid comp-map i j cell-type cell)
       acc)))
 
@@ -61,16 +63,17 @@
   (-> (update-country acc ucid :army-count #(+ % (get unit :army-count 0)))
       (update-in [ucid :transports] (fnil conj []) unit)))
 
-(defn- coastal-land-or-city? [game-map cell-type pos]
-  (and (land-or-city? cell-type) (coastal? game-map pos)))
+(defn- coastal-land-or-city? [comp-map cell-type pos]
+  (and (land-or-city? cell-type) (coastal? comp-map pos)))
 
-(defn- scan-cell-unit [acc game-map i j cell]
-  (let [unit (:contents cell)
+(defn- scan-cell-unit [acc world-cell comp-map i j]
+  (let [unit (:contents world-cell)
         ucid (:country-id unit)]
     (if-not (computer-unit-with-country? unit)
       acc
-      (let [cell-type (:type cell)
-            is-coastal (coastal-land-or-city? game-map cell-type [i j])]
+      (let [cell-type (or (:type (get-in comp-map [i j]))
+                          (:type world-cell))
+            is-coastal (coastal-land-or-city? comp-map cell-type [i j])]
         (case (:type unit)
           :army (accumulate-army acc ucid cell-type is-coastal)
           :transport (accumulate-transport acc ucid unit)
@@ -78,10 +81,10 @@
           acc)))))
 
 (defn- scan-cell [acc game-map comp-map i j]
-  (let [cell (get-in game-map [i j])]
+  (let [world-cell (get-in game-map [i j])]
     (-> acc
-        (scan-cell-terrain game-map comp-map i j cell)
-        (scan-cell-unit game-map i j cell))))
+        (scan-cell-terrain comp-map i j)
+        (scan-cell-unit world-cell comp-map i j))))
 
 (defn- derive-stats [raw]
   (reduce-kv

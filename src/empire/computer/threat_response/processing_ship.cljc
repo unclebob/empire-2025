@@ -8,6 +8,12 @@
 (def patrol-yield-radius 4)
 (def patrol-max-invasion-distance 10)
 
+(defn- visible-world
+  [ctx]
+  (or (when-let [read-runtime-state (:read-runtime-state ctx)]
+        (read-runtime-state :computer-map))
+      (sa/read-state :computer-map)))
+
 (defn ship-threat-action
   [pos ship-type move-target]
   (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
@@ -18,7 +24,7 @@
 
 (defn ship-sidestep-toward
   [pos target]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         current-distance (core/distance pos target)
         candidates (->> (ship-core/get-passable-sea-neighbors pos)
                         (filter #(nil? (:contents (get-in world %))))
@@ -36,7 +42,7 @@
 
 (defn process-ship-random-walk
   [ctx pos]
-  (let [world ((:current-world ctx))
+  (let [world (visible-world ctx)
         candidates (vec (->> (ship-core/get-passable-sea-neighbors pos)
                              (filter #(nil? (:contents (get-in world %))))))
         final-pos (if-let [target (when (seq candidates) (rand-nth candidates))]
@@ -100,7 +106,7 @@
 
 (defn patrol-stand-off-step
   [ctx pos center]
-  (let [world ((:current-world ctx))
+  (let [world (visible-world ctx)
         candidates (candidate-neighbors world pos center)
         scored (for [cand candidates]
                  {:pos cand
@@ -112,10 +118,11 @@
 
 (defn patrol-yield-to-transport
   [ctx pos center]
-  (let [world ((:current-world ctx))]
+  (let [visible-map (visible-world ctx)
+        world ((:current-world ctx))]
     (let [transports (nearby-invading-transports world pos)]
       (when (seq transports)
-        (let [candidates (candidate-neighbors world pos center)
+        (let [candidates (candidate-neighbors visible-map pos center)
               scored (for [cand candidates
                            :let [clearance (apply min (map #(core/distance cand %) transports))
                                  center-bias (if center
@@ -123,7 +130,7 @@
                                                0)]]
                        {:pos cand
                         :score (+ (* 4 clearance)
-                                  (shore-band-score world cand)
+                                  (shore-band-score visible-map cand)
                                   (quot center-bias 4))})]
           (when-let [target (:pos (first (sort-by (fn [{:keys [score] :as cand}]
                                                     (let [cand-pos (:pos cand)

@@ -26,10 +26,10 @@
 
 (defn city-usable-coastal?
   [city-pos]
-  (let [world (sa/current-world)
+  (let [computer-map (sa/read-state :computer-map)
         lakes (lake-cells)]
     (some (fn [neighbor]
-            (let [cell (get-in world neighbor)]
+            (let [cell (get-in computer-map neighbor)]
               (and (= :sea (:type cell))
                    (not (contains? lakes neighbor)))))
           (core/get-neighbors city-pos))))

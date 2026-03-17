@@ -31,7 +31,7 @@
   [ctx]
   (let [state ((:load-major-invasion-state ctx))
         target-land (invasion-state/recompute-target-land
-                     ((:current-world ctx))
+                     ((:read-runtime-state ctx) :computer-map)
                      (:detection-points state))
         current-target-land (:target-land-set state)
         changed? (not= current-target-land target-land)

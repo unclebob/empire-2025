@@ -12,10 +12,17 @@
 
     (it "returns true when city has adjacent sea"
       (set-test-world! (build-test-map ["~X#"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (production/city-is-coastal? [1 0])))
 
     (it "returns false when city has no adjacent sea"
       (set-test-world! (build-test-map ["#X#"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should-not (production/city-is-coastal? [1 0])))
+
+    (it "ignores adjacent sea visible only on the game-map"
+      (set-test-world! (build-test-map ["~X#"]))
+      (set-test-computer-map! (build-test-map ["#X#"]))
       (should-not (production/city-is-coastal? [1 0]))))
 
   (context "count-computer-units"

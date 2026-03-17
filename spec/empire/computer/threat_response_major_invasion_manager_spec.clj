@@ -51,6 +51,24 @@
       (should= #{[0 0]} (:sea-reachable-detection-points @state))
       (should @refreshed?)))
 
+  (it "recomputes target land from the computer map instead of the game map"
+    (let [world (atom [[{:type :land} {:type :land}]])
+          computer-map (atom [[{:type :land} {:type :sea}]])
+          state (atom {:detection-points #{[0 0]}
+                       :target-land-set #{}
+                       :target-land-revision 0})
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [k]
+                                     (case k
+                                       :computer-map @computer-map
+                                       nil))
+               :update-game-map! (update-world-fn world)}]
+      (manager/recompute-major-invasion-target-land! ctx)
+      (should= #{[0 0]} (:target-land-set @state))
+      (should= 1 (:target-land-revision @state))))
+
   (it "records deferred evaluation state when invasion start is not ready"
     (let [world (atom [[{:type :sea}]])
           state (atom {:active? true

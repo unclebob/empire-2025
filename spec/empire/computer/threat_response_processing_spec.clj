@@ -2,6 +2,7 @@
   (:require [empire.computer.core :as core]
             [empire.computer.threat-response.processing :as processing]
             [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response.processing-ship :as processing-ship]
             [empire.config.core :as config]
             [empire.config.units.config :as units-config]
             [empire.test.utils :as test-utils]
@@ -207,6 +208,25 @@
                               [x y]))]
       (should-not= [1 1] patrol-pos)
       (should (> (core/distance patrol-pos [0 1]) 1))))
+
+  (it "ignores hidden coastline when scoring patrol stand-off positions"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~p~"
+                                      "#~~"]))
+    (set-test-computer-map! (build-test-map ["~~~"
+                                             "~p~"
+                                             "~~~"]))
+    (let [ctx (assoc (test-utils/mission-ctx)
+                     :read-runtime-state test-utils/read-test-state)]
+      (should= 0
+               (#'processing-ship/shore-band-score
+                (test-utils/read-test-state :computer-map)
+                [1 1]))
+      (should= -20
+               (#'processing-ship/shore-band-score
+                (test-utils/read-test-state :game-map)
+                [1 1]))
+      (should (#'processing-ship/patrol-stand-off-step ctx [1 1] nil))))
 
   (it "keeps invading patrol boats within 10 cells of invasion point"
     (set-test-world! (build-test-map ["~~~~~~~p~~~~~~~"]))
