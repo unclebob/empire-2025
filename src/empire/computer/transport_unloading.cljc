@@ -72,7 +72,7 @@
    not excluded by country-id or pickup continent."
   [pos transport max-depth]
   (let [game-map (sa/read-state :computer-map)
-        exclude-ids (pickup-exclude-ids (sa/current-world) transport)
+        exclude-ids (pickup-exclude-ids game-map transport)
         pickup-continent (pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
         has-unloadable-neighbor? (fn [p]

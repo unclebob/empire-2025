@@ -43,6 +43,29 @@
         (should (true? (get-in @world [0 0 :contents :major-invasion])))
         (should (true? (get-in @world [0 1 :contents :major-invasion]))))))
 
+    (it "does not assign hidden player armies as kamikazee fighter targets"
+      (let [world (atom [[{:type :land
+                           :contents {:type :fighter :owner :computer :fuel 32}}
+                          {:type :land}
+                          {:type :land
+                           :contents {:type :army :owner :player}}]])
+            computer-map [[{:type :land
+                            :contents {:type :fighter :owner :computer :fuel 32}}
+                           {:type :land}
+                           {:type :land}]]
+            state (atom {:kamikazee-army-targets [{:pos [0 2] :seen-round 1}]})
+            ctx {:update-game-map! (update-world-fn world)
+                 :load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map computer-map
+                                         :round-number 3
+                                         nil))
+                 :nearest-major-target (fn [_] [9 9])
+                 :major-invasion-ship-types #{:destroyer}}]
+        (assignment/apply-major-invasion-assignment! ctx [0 0] (get-in @world [0 0 :contents]))
+        (should= [] (get-in @world [0 0 :contents :kamikazee-targets]))))
+
     (it "freezes carrier bridge support in sentry mode"
       (let [world (atom [[{:type :sea
                            :contents {:type :carrier :owner :computer}}]])

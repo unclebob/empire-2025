@@ -206,5 +206,13 @@
     (let [target (pathfinding-bfs/find-nearest-unexplored [0 0] :fighter)]
       (should-not-be-nil target)
       ;; Should find a cell adjacent to [2,2]
-      (should (some #{target} [[1 1] [1 2] [2 1]])))))
+      (should (some #{target} [[1 1] [1 2] [2 1]]))))
 
+  (it "does not route through hidden real-map terrain"
+    (set-test-world! (build-test-map ["~~~"
+                                      "~~~"
+                                      "~~-"]))
+    (set-test-computer-map! [[{:type :sea} {:type :sea} {:type :sea}]
+                             [{:type :land} {:type :land} {:type :land}]
+                             [nil nil nil]])
+    (should-be-nil (pathfinding-bfs/find-nearest-unexplored [0 0] :transport))))

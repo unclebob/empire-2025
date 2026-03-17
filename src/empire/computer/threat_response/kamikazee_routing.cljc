@@ -245,7 +245,8 @@
   [city-pos]
   (let [state (sa/read-state :major-invasion-state)
         world (sa/current-world)
-        target-points (targets/invasion-target-points state world)
+        visible-world (or (sa/read-state :computer-map) world)
+        target-points (targets/invasion-target-points state visible-world)
         loaded-transports
         (for [i (range (count world))
               j (range (count (first world)))

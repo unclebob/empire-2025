@@ -47,8 +47,7 @@
 (defn- find-nearest-unexplored-uncached
   "BFS from start over passable cells to find nearest cell adjacent to unexplored."
   [start unit-type]
-  (let [game-map (sa/current-world)
-        computer-map (sa/read-state :computer-map)]
+  (let [computer-map (sa/read-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
@@ -58,7 +57,7 @@
                    (adjacent-to-unexplored? current computer-map))
             current
             (let [neighbors (remove visited
-                                    (map-utils/get-passable-neighbors current unit-type game-map))
+                                    (map-utils/get-passable-neighbors current unit-type computer-map))
                   new-visited (into visited neighbors)
                   new-queue (into rest-queue neighbors)]
               (recur new-queue new-visited))))))))
@@ -74,8 +73,7 @@
 (defn- find-nearest-unexplored-coastline-uncached
   "BFS from start over passable sea cells to find nearest coastal exploration frontier."
   [start unit-type]
-  (let [game-map (sa/current-world)
-        computer-map (sa/read-state :computer-map)]
+  (let [computer-map (sa/read-state :computer-map)]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
            visited #{start}]
       (when (seq queue)
@@ -85,7 +83,7 @@
                    (at-exploration-frontier? current computer-map))
             current
             (let [neighbors (remove visited
-                                    (map-utils/get-passable-neighbors current unit-type game-map))
+                                    (map-utils/get-passable-neighbors current unit-type computer-map))
                   new-visited (into visited neighbors)
                   new-queue (into rest-queue neighbors)]
               (recur new-queue new-visited))))))))

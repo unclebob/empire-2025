@@ -49,6 +49,22 @@
         (should= :fighter
                  (routing/invasion-production-override [0 0])))))
 
+  (it "ignores hidden army targets when deciding invasion fighter production"
+    (let [world (build-test-map ["X~~~A"])
+          computer-map (build-test-map ["X~~~~"])
+          state {:active? true
+                 :kamikazee-army-targets [{:pos [4 0] :seen-round 2}]
+                 :detection-points #{}
+                 :target-land-set #{}}]
+      (with-redefs [empire.state.api/current-world (constantly world)
+                    empire.state.api/read-state (fn [k]
+                                                  (case k
+                                                    :major-invasion-state state
+                                                    :computer-map computer-map
+                                                    nil))]
+        (should= nil
+                 (routing/invasion-production-override [0 0])))))
+
   (it "chooses fighters when loaded invasion transports exist"
     (let [world (build-test-map ["X~~"
                                  "t~~"])]

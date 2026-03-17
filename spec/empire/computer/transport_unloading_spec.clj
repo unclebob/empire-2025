@@ -90,7 +90,27 @@
                                 {:type :land :country-id 1}
                                 nil]])
       (let [transport {:type :transport :owner :computer :country-id 1}]
-        (should= false (unloading/has-nearby-unloadable-land? [0 1] transport 3)))))
+        (should= false (unloading/has-nearby-unloadable-land? [0 1] transport 3))))
+
+    (it "does not exclude a visible unload target based on hidden pickup country ownership"
+      (set-test-world! [[{:type :land :country-id 9}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :land :country-id 9}]
+                        [{:type :sea}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :sea}]])
+      (set-test-computer-map! [[{:type :land}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :land :country-id 9}]
+                               [{:type :sea}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}]])
+      (let [transport {:type :transport :owner :computer :pickup-continent-pos [0 0]}]
+        (should (unloading/has-nearby-unloadable-land? [0 1] transport 3)))))
 
   (context "unload-armies (L146)"
     (it "unloads armies onto adjacent empty land (L159)"

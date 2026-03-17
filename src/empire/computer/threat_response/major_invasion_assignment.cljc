@@ -10,14 +10,14 @@
   (let [state (or (when-let [load-major-invasion-state (:load-major-invasion-state ctx)]
                     (load-major-invasion-state))
                   {})
-        world (or (when-let [current-world (:current-world ctx)]
-                    (current-world))
-                  (sa/current-world))
+        visible-world (or (when-let [read-runtime-state (:read-runtime-state ctx)]
+                            (read-runtime-state :computer-map))
+                          (sa/read-state :computer-map))
         targets (kamikazee/ordered-army-target-positions state
                                                          (kamikazee/current-round ctx)
-                                                         world)
+                                                         visible-world)
         plan (kamikazee/plan-route state
-                                   world
+                                   visible-world
                                    pos
                                    (:fuel unit 32))
         updates (decisions/fighter-assignment
