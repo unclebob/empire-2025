@@ -51,6 +51,93 @@
     (should (sa/read-state :self-play?))
     (should= 12 (sa/read-state :handicap-rounds-remaining))))
 
+(describe "create-fonts"
+  (before (reset-all-atoms!))
+
+  (it "creates and stores both cached fonts"
+    (let [calls (atom [])]
+      (with-redefs [quil.core/create-font (fn [name size]
+                                            (swap! calls conj [name size])
+                                            [name size])]
+        (quil-core/create-fonts)
+        (should= [[empire.config.core/text-font-name empire.config.core/text-font-size]
+                  [empire.config.core/cell-char-font-name empire.config.core/cell-char-font-size]]
+                 @calls)
+        (should= [empire.config.core/text-font-name empire.config.core/text-font-size]
+                 (sa/read-state :text-font))
+        (should= [empire.config.core/cell-char-font-name empire.config.core/cell-char-font-size]
+                 (sa/read-state :production-char-font))))))
+
+(describe "setup"
+  (before (reset-all-atoms!))
+
+  (it "initializes fonts, dimensions, map, and frame rate without a seed"
+    (let [calls (atom [])]
+      (sa/write-state! :map-size [80 40])
+      (sa/write-state! :map-size-constants {:number-of-cities 12})
+      (with-redefs [empire.ui.quil.core/create-fonts (fn [] (swap! calls conj :fonts))
+                    empire.ui.util.core/calculate-screen-dimensions (fn [] (swap! calls conj :screen))
+                    empire.game.initialization/make-initial-map (fn [map-size smooth-count land-fraction num-cities min-city-distance]
+                                                                  (swap! calls conj [:map map-size smooth-count land-fraction num-cities min-city-distance]))
+                    quil.core/frame-rate (fn [fps] (swap! calls conj [:fps fps]))]
+        (should= {} (quil-core/setup))
+        (should= [:fonts
+                  :screen
+                  [:map [80 40]
+                   empire.config.core/smooth-count
+                   empire.config.core/land-fraction
+                   12
+                   empire.config.core/min-city-distance]
+                  [:fps 30]]
+                 @calls))))
+
+  (it "installs seeded random functions when random-seed is present"
+    (let [calls (atom [])
+          seeded-rand (atom nil)
+          seeded-rand-int (atom nil)]
+      (sa/write-state! :random-seed 123)
+      (sa/write-state! :map-size [60 30])
+      (sa/write-state! :map-size-constants {})
+      (with-redefs [empire.ui.quil.core/create-fonts (fn [] nil)
+                    empire.ui.util.core/calculate-screen-dimensions (fn [] nil)
+                    empire.game.initialization/make-initial-map (fn [& _] nil)
+                    quil.core/frame-rate (fn [_] nil)
+                    alter-var-root (fn [v f]
+                                     (swap! calls conj v)
+                                     (let [replacement (f ::ignored)]
+                                       (cond
+                                         (= v #'clojure.core/rand) (reset! seeded-rand replacement)
+                                         (= v #'clojure.core/rand-int) (reset! seeded-rand-int replacement)))
+                                     nil)]
+        (quil-core/setup)
+        (should= [#'clojure.core/rand #'clojure.core/rand-int] @calls)
+        (should (fn? @seeded-rand))
+        (should (fn? @seeded-rand-int))
+        (should (number? (@seeded-rand)))
+        (should (number? (@seeded-rand 5)))
+        (should (integer? (@seeded-rand-int 7)))))))
+
+(describe "parse-startup-config"
+  (it "returns parsed startup options on success"
+    (with-redefs [empire.ui.util.core/parse-args (fn [args screen-w screen-h]
+                                                   (should= ["80" "40"] args)
+                                                   (should= 1000 screen-w)
+                                                   (should= 800 screen-h)
+                                                   {:cols 80 :rows 40})]
+      (should= {:cols 80 :rows 40}
+               (#'quil-core/parse-startup-config ["80" "40"] 1000 800))))
+
+  (it "prints map size errors through the exit helper"
+    (let [error (ex-info "too big" {:cols 120 :rows 80})
+          captured (atom nil)]
+      (with-redefs [empire.ui.util.core/parse-args (fn [& _] (throw error))
+                    empire.ui.quil.core/print-map-size-error-and-exit! (fn [e]
+                                                                          (reset! captured e)
+                                                                          :exit)]
+        (should= :exit
+                 (#'quil-core/parse-startup-config ["120" "80"] 1000 800))
+        (should= error @captured)))))
+
 (describe "update-state"
   (it "runs the game-loop and hover update before returning state"
     (let [calls (atom [])]

@@ -68,4 +68,49 @@
     (set-test-world! (build-test-map ["X"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (test-utils/set-test-state! :round-number 1)
-    (should= :army (decisions/decide-production [0 0]))))
+    (should= :army (decisions/decide-production [0 0])))
+
+  (it "writes the last transport city when producing a transport"
+    (with-redefs [empire.computer.production.stats/count-country-armies (constantly empire.config.core/armies-before-transport)
+                  empire.computer.production.stats/country-has-waiting-armies? (constantly true)
+                  empire.computer.production.stats/country-has-other-coastal-city? (constantly false)]
+      (should= :transport (#'decisions/should-produce-transport? [4 4] 2 true))
+      (should= [4 4] (get (test-utils/read-test-state :last-transport-city) 2))))
+
+  (it "suppresses transport production when rotation would repeat the same city"
+    (test-utils/set-test-state! :last-transport-city {2 [4 4]})
+    (with-redefs [empire.computer.production.stats/count-country-armies (constantly empire.config.core/armies-before-transport)
+                  empire.computer.production.stats/country-has-waiting-armies? (constantly true)
+                  empire.computer.production.stats/country-has-other-coastal-city? (constantly true)]
+      (should-be-nil (#'decisions/should-produce-transport? [4 4] 2 true))))
+
+  (it "prefers battleships before submarines in global capital ship production"
+    (should= :battleship (#'decisions/decide-global-production true {:carrier 2 :battleship 1 :submarine 5 :satellite 0})))
+
+  (it "resets lake production and clears opening role when requested"
+    (let [calls (atom [])]
+      (with-redefs [empire.computer.early-game.strategy/should-reset-lake-production? (constantly true)
+                    empire.computer.production.decisions/decide-production (constantly :army)
+                    empire.computer.production-selection-decisions/process-city-action (fn [_]
+                                                                                         {:reset-lake-production? true
+                                                                                          :set-production? false})
+                    empire.state.api/update-state! (fn [& args] (swap! calls conj [:state args]))
+                    empire.state.api/update-world! (fn [& args] (swap! calls conj [:world args]))
+                    empire.game-mechanics.services.city-production/set-city-production (fn [& args] (swap! calls conj [:set args]))]
+        (decisions/process-computer-city [1 1])
+        (should= [[:state [:production dissoc [1 1]]]
+                  [:world [update-in [1 1] dissoc :opening-role]]]
+                 @calls))))
+
+  (it "sets city production when the selection action requests it"
+    (let [calls (atom [])]
+      (with-redefs [empire.computer.early-game.strategy/should-reset-lake-production? (constantly false)
+                    empire.computer.production.decisions/decide-production (constantly :fighter)
+                    empire.computer.production-selection-decisions/process-city-action (fn [_]
+                                                                                         {:reset-lake-production? false
+                                                                                          :set-production? true
+                                                                                          :unit-type :fighter})
+                    empire.game-mechanics.services.city-production/set-city-production (fn [pos unit-type]
+                                                                                          (swap! calls conj [pos unit-type]))]
+        (decisions/process-computer-city [3 2])
+        (should= [[[3 2] :fighter]] @calls)))))

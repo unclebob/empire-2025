@@ -67,4 +67,49 @@
     (let [points (set (@#'transport/sea-load-points))]
       (should (contains? points [1 0]))
       (should (contains? points [0 1]))
-      (should-not (contains? points [2 2])))))
+      (should-not (contains? points [2 2]))))
+
+  (it "move-toward-position updates visibility and loads adjacent armies after a move"
+    (let [calls (atom [])]
+      (with-redefs [empire.computer.transport-core/get-passable-sea-neighbors (fn [_] [[2 1]])
+                    empire.computer.core/move-toward (fn [pos target passable]
+                                                       (swap! calls conj [:toward pos target passable])
+                                                       [2 1])
+                    empire.computer.core/move-unit-to (fn [from to]
+                                                        (swap! calls conj [:move from to])
+                                                        true)
+                    empire.game-mechanics.movement.visibility/update-cell-visibility (fn [pos owner]
+                                                                                       (swap! calls conj [:visibility pos owner]))
+                    empire.computer.transport-loading/load-adjacent-armies (fn [pos]
+                                                                              (swap! calls conj [:load pos]))]
+        (should= [2 1] (@#'transport/move-toward-position [1 1] [4 4]))
+        (should= [[:toward [1 1] [4 4] [[2 1]]]
+                  [:move [1 1] [2 1]]
+                  [:visibility [1 1] :computer]
+                  [:visibility [2 1] :computer]
+                  [:load [2 1]]]
+                 @calls))))
+
+  (it "transition-to-loading keeps sailing when the transport should never reload"
+    (let [updates (atom [])]
+      (set-test-world! [[{:contents {:never-reload? true :unload-target-city [9 9] :pickup-continent-pos [1 1]}}]])
+      (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
+                                                                           (swap! updates conj [:mission pos mission]))
+                    empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
+        (@#'transport/transition-to-loading [0 0])
+        (should= [:mission [0 0] :sailing] (first @updates)))))
+
+  (it "transition-to-loading finds a new pickup continent for reloadable transports"
+    (let [updates (atom [])]
+      (set-test-world! [[{:contents {:unload-target-city [9 9]}}]])
+      (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
+                                                                           (swap! updates conj [:mission pos mission]))
+                    empire.computer.transport-core/find-adjacent-land-pos (constantly [1 1])
+                    empire.computer.land-objectives/flood-fill-continent (constantly #{[1 1] [1 2]})
+                    empire.computer.transport-targeting/find-next-pickup-continent-pos (fn [pos continent]
+                                                                                         (swap! updates conj [:pickup pos continent])
+                                                                                         [4 4])
+                    empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
+        (@#'transport/transition-to-loading [0 0])
+        (should= [:mission [0 0] :loading] (first @updates))
+        (should= [:pickup [0 0] #{[1 1] [1 2]}] (nth @updates 2))))))

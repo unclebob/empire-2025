@@ -67,6 +67,9 @@
       (should= [5 0] (satellite/extend-target-to-boundary [5 5] [5 3] 10 10))))
 
   (context "calculate-bounce-target"
+    (it "keeps the same target when not on an edge"
+      (should= [5 5] (satellite/calculate-bounce-target [5 5] 10 10)))
+
     (it "bounces from right edge to left edge"
       (let [target (satellite/calculate-bounce-target [5 9] 10 10)]
         (should= 0 (second target))))
@@ -141,12 +144,27 @@
     (it "does not move without target"
       (update-test-world! assoc-in [5 5 :contents]
                           {:type :satellite :owner :player :turns-remaining 50})
-      (should= [5 5] (:pos (satellite/move-one-step [5 5] (read-test-world)))))
+      (let [result (satellite/move-one-step [5 5] (read-test-world))]
+        (should= [5 5] (:pos result))
+        (should= [] (:world-updates result))))
 
     (it "moves toward target"
       (update-test-world! assoc-in [5 5 :contents]
                           {:type :satellite :owner :player :target [9 9] :turns-remaining 50})
-      (should= [6 6] (:pos (satellite/move-one-step [5 5] (read-test-world)))))
+      (let [result (satellite/move-one-step [5 5] (read-test-world))]
+        (should= [6 6] (:pos result))
+        (should= [[[5 5 :contents] nil]
+                  [[6 6 :contents] {:type :satellite :owner :player :target [9 9] :turns-remaining 50}]]
+                 (:world-updates result))))
+
+    (it "picks a new bounce target when already at the target"
+      (update-test-world! assoc-in [5 5 :contents]
+                          {:type :satellite :owner :player :target [5 5] :turns-remaining 50})
+      (with-redefs [empire.config.units.satellite/calculate-bounce-target (fn [& _] [0 9])]
+        (let [result (satellite/move-one-step [5 5] (read-test-world))]
+          (should= [5 5] (:pos result))
+          (should= [[[5 5 :contents] {:type :satellite :owner :player :target [0 9] :turns-remaining 50}]]
+                   (:world-updates result)))))
 
     (it "moves toward lower coordinates"
       (update-test-world! assoc-in [5 5 :contents]

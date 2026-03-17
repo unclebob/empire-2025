@@ -47,6 +47,17 @@
       ;; map-display-h = 41 * 24 = 984
       (should= 984 (second (:map-screen-dimensions result))))))
 
+(describe "calculate-screen-dimensions"
+  (before (reset-all-atoms!))
+
+  (it "stores derived dimensions in application state"
+    (test-utils/set-test-state! :map-size [80 40])
+    (util-core/calculate-screen-dimensions)
+    (should= [(* 80 11) (* 40 16)]
+             (test-utils/read-test-state :map-screen-dimensions))
+    (should= [0 (+ (* 40 16) 7) (* 80 11) (* 5 16)]
+             (test-utils/read-test-state :text-area-dimensions))))
+
 (describe "screen->cell"
   (it "converts screen center to correct cell"
     (should= [5 3] (util-core/screen->cell 55 48 110 160 10 10)))

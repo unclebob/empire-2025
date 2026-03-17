@@ -59,3 +59,22 @@
                   ["Checking architecture dependencies..." ["clj" "-M:check-dependencies"]]
                   ["Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"]]]
                  @calls)))))
+
+(describe "test pipeline -main"
+  (it "runs the full test pipeline steps in order"
+    (let [calls (atom [])]
+      (with-redefs [test-pipeline/run-step! (fn [label cmd]
+                                              (swap! calls conj [label cmd])
+                                              :ok)]
+        (should= "All tests passed.\n"
+                 (with-out-str
+                   (test-pipeline/-main)))
+        (should= [["Running unit specs..." ["clj" "-M:spec"]]
+                  ["Parsing acceptance scenarios..." ["clj" "-M:parse-tests"]]
+                  ["Generating acceptance specs..." ["clj" "-M:generate-specs"]]
+                  ["Checking acceptance boundaries..." ["bash" "scripts/check-acceptance-boundary.sh"]]
+                  ["Checking generated acceptance boundaries..." ["bash" "scripts/check-generated-acceptance-boundary.sh"]]
+                  ["Checking architecture dependencies..." ["clj" "-M:check-dependencies"]]
+                  ["Checking spec boundaries..." ["bash" "scripts/check-spec-boundary.sh"]]
+                  ["Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"]]]
+                 @calls)))))
