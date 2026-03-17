@@ -24,35 +24,56 @@
   (before (reset-all-atoms!))
 
   (it "returns true when sea cell is on edge"
-    (set-test-world! (build-test-map ["~~~"
-                                             "###"
-                                             "###"]))
+    (let [world (build-test-map ["~~~"
+                                 "###"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should (pathfinding-bfs/sea-reaches-edge? [0 0])))
 
   (it "returns true when sea connects to edge"
-    (set-test-world! (build-test-map ["###"
-                                             "#~#"
-                                             "#~~"]))
+    (let [world (build-test-map ["###"
+                                 "#~#"
+                                 "#~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     ;; [1 1] connects via [2 1] or [1 2] or [2 2] to edge
     (should (pathfinding-bfs/sea-reaches-edge? [1 1])))
 
   (it "returns false for landlocked sea"
-    (set-test-world! (build-test-map ["#####"
-                                             "#~~~#"
-                                             "#~~~#"
-                                             "#~~~#"
-                                             "#####"]))
+    (let [world (build-test-map ["#####"
+                                 "#~~~#"
+                                 "#~~~#"
+                                 "#~~~#"
+                                 "#####"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (pathfinding-bfs/sea-reaches-edge? [2 2])))
 
   (it "returns true for sea cell directly on edge"
-    (set-test-world! (build-test-map ["~#"
-                                             "#~"]))
+    (let [world (build-test-map ["~#"
+                                 "#~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should (pathfinding-bfs/sea-reaches-edge? [0 0])))
 
   (it "returns true for corner sea cell"
-    (set-test-world! (build-test-map ["##"
-                                             "#~"]))
-    (should (pathfinding-bfs/sea-reaches-edge? [1 1]))))
+    (let [world (build-test-map ["##"
+                                 "#~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
+    (should (pathfinding-bfs/sea-reaches-edge? [1 1])))
+
+  (it "does not treat a hidden real-map sea channel as edge-connected"
+    (set-test-world! (build-test-map ["~~~~"
+                                      "####"
+                                      "#~~#"
+                                      "####"]))
+    (set-test-computer-map! [[nil nil nil nil]
+                             [{:type :land} {:type :land} {:type :land} {:type :land}]
+                             [{:type :land} {:type :sea} {:type :sea} {:type :land}]
+                             [{:type :land} {:type :land} {:type :land} {:type :land}]])
+    (should-not (pathfinding-bfs/sea-reaches-edge? [2 1]))))
 
 (describe "available-for-target?"
   (it "returns true when deep enough, not start, not excluded"

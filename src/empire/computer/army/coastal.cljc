@@ -90,7 +90,7 @@
 
 (defn- adjacent-to-ocean?
   [pos]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         lakes (known-lake-cells)]
     (some (fn [neighbor]
             (let [cell (get-in world neighbor)]

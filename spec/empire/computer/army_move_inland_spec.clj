@@ -61,6 +61,18 @@
       (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
       (should= :move-inland (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
 
+    (it "switches to random explore when the sea is hidden on the computer map"
+      (set-test-world! (build-test-map ["~##"
+                                        "#a#"
+                                        "###"]))
+      (set-test-computer-map! [[nil {:type :land} {:type :land}]
+                               [{:type :land} {:type :land :contents {:type :army :owner :computer :mode :move-inland}} {:type :land}]
+                               [{:type :land} {:type :land} {:type :land}]])
+      (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (with-redefs [rand-nth (constantly [1 0])]
+        (army/process-army [1 1]))
+      (should= :random-explore (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
+
     (it "stays put when all inland neighbors are occupied"
       ;; col:  0     1     2     3
       ;; y=0:  sea   army  army  army

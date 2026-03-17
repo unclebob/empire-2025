@@ -18,26 +18,41 @@
     (disable-opening!))
 
   (it "returns true for coastal land with country-id, not city, not near computer city"
-    (set-test-world! (build-test-map ["#~"]))
+    (let [world (build-test-map ["#~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should (@#'army/should-sentry-on-coast? [0 0] 1)))
 
   (it "returns false when country-id is nil"
-    (set-test-world! (build-test-map ["#~"]))
+    (let [world (build-test-map ["#~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (@#'army/should-sentry-on-coast? [0 0] nil)))
 
   (it "returns false when not adjacent to sea"
-    (set-test-world! (build-test-map ["###"
-                                             "###"
-                                             "###"]))
+    (let [world (build-test-map ["###"
+                                 "###"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (@#'army/should-sentry-on-coast? [1 1] 1)))
 
   (it "returns false when position is a city"
-    (set-test-world! (build-test-map ["+~"]))
+    (let [world (build-test-map ["+~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (@#'army/should-sentry-on-coast? [0 0] 1)))
 
   (it "returns false when adjacent to computer city"
-    (set-test-world! (build-test-map ["#~"
-                                             "X#"]))
+    (let [world (build-test-map ["#~"
+                                 "X#"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
+    (should-not (@#'army/should-sentry-on-coast? [0 0] 1)))
+
+  (it "returns false when the sea is hidden on the computer map"
+    (set-test-world! (build-test-map ["#~"]))
+    (set-test-computer-map! [[{:type :land} nil]])
     (should-not (@#'army/should-sentry-on-coast? [0 0] 1))))
 
 (describe "can-settle-here?"
@@ -46,21 +61,29 @@
     (disable-opening!))
 
   (it "returns true for coastal land with country-id, not city"
-    (set-test-world! (build-test-map ["#~"]))
+    (let [world (build-test-map ["#~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should (@#'army/can-settle-here? [0 0] 1)))
 
   (it "returns false when country-id is nil"
-    (set-test-world! (build-test-map ["#~"]))
+    (let [world (build-test-map ["#~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (@#'army/can-settle-here? [0 0] nil)))
 
   (it "returns false when not adjacent to sea"
-    (set-test-world! (build-test-map ["###"
-                                             "###"
-                                             "###"]))
+    (let [world (build-test-map ["###"
+                                 "###"
+                                 "###"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (@#'army/can-settle-here? [1 1] 1)))
 
   (it "returns false when position is a city"
-    (set-test-world! (build-test-map ["+~"]))
+    (let [world (build-test-map ["+~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-not (@#'army/can-settle-here? [0 0] 1))))
 (describe "process-army"
   (before

@@ -39,7 +39,7 @@
 (defn- try-interior-move
   "Attempts to move in a direction, clearing direction if blocked or at coast."
   [pos target]
-  (let [target-cell (get-in (sa/current-world) target)]
+  (let [target-cell (get-in (sa/read-state :computer-map) target)]
     (if (and (movement/in-bounds? target)
              (#{:land :city} (:type target-cell))
              (not= :computer (:city-status target-cell))
@@ -81,8 +81,9 @@
                           :random-explore-direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
                           :random-explore-rounds 0)
         nil)
-    (let [candidates (filter (fn [n]
-                               (let [cell (get-in (sa/current-world) n)]
+    (let [computer-map (sa/read-state :computer-map)
+          candidates (filter (fn [n]
+                               (let [cell (get-in computer-map n)]
                                  (and (movement/sovereign-passable? country-id cell)
                                       (nil? (:contents cell))
                                       (not (movement/adjacent-to-sea? n)))))
@@ -102,10 +103,11 @@
 (defn- try-random-direction-move [pos country-id unit]
   (let [[dc dr] (:random-explore-direction unit)
         [c r] pos
-        target [(+ c dc) (+ r dr)]]
+        target [(+ c dc) (+ r dr)]
+        computer-map (sa/read-state :computer-map)]
     (when (and (movement/in-bounds? target)
-               (movement/sovereign-passable? country-id (get-in (sa/current-world) target))
-               (nil? (:contents (get-in (sa/current-world) target)))
+               (movement/sovereign-passable? country-id (get-in computer-map target))
+               (nil? (:contents (get-in computer-map target)))
                (movement/try-move pos target))
       (when (at-sea-coast? target)
         (set-sentry-mode-if-unit! target

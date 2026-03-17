@@ -8,9 +8,9 @@
 (defn sea-reaches-edge?
   "BFS flood-fill from pos over sea cells. Returns true if any reachable sea cell is on map edge."
   [pos]
-  (let [game-map (sa/current-world)
-        rows (count game-map)
-        cols (count (first game-map))]
+  (let [computer-map (sa/read-state :computer-map)
+        rows (count computer-map)
+        cols (count (first computer-map))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY pos)
            visited #{pos}]
       (if (empty? queue)
@@ -23,7 +23,7 @@
                                   :when (and (>= nr 0) (< nr rows)
                                              (>= nc 0) (< nc cols)
                                              (not (visited [nr nc]))
-                                             (= :sea (:type (get-in game-map [nr nc]))))]
+                                             (= :sea (:type (get-in computer-map [nr nc]))))]
                               [nr nc])
                   new-visited (into visited neighbors)]
               (recur (into (pop queue) neighbors) new-visited))))))))

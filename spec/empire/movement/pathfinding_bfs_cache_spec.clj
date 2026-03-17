@@ -252,19 +252,27 @@
 
   (context "sea-reaches-edge? edge isolation"
     (it "detects right edge only (kills dec-rows mutation)"
-      (set-test-world! (build-test-map ["###" "##~" "###"]))
+      (let [world (build-test-map ["###" "##~" "###"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (should (pathfinding-bfs/sea-reaches-edge? [2 1])))
 
     (it "detects bottom edge only (kills dec-cols mutation)"
-      (set-test-world! (build-test-map ["###" "#~#"]))
+      (let [world (build-test-map ["###" "#~#"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (should (pathfinding-bfs/sea-reaches-edge? [1 1])))
 
     (it "detects left edge only (kills zero-r mutation)"
-      (set-test-world! (build-test-map ["~###" "~###" "~###"]))
+      (let [world (build-test-map ["~###" "~###" "~###"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (should (pathfinding-bfs/sea-reaches-edge? [0 1])))
 
     (it "detects top edge only (kills zero-c mutation)"
-      (set-test-world! (build-test-map ["##~##" "##~##" "##~##"]))
+      (let [world (build-test-map ["##~##" "##~##" "##~##"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (should (pathfinding-bfs/sea-reaches-edge? [2 0]))))
 
   (context "find-nearest-unexplored-coastline start-skip"

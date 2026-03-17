@@ -71,6 +71,20 @@
       ;; Army should not have entered the computer city
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents])))
 
+    (it "does not go sentry on sea that is hidden on the computer map"
+      (set-test-world! (build-test-map ["~a##"]))
+      (set-test-computer-map! [[nil {:type :land :contents {:type :army :owner :computer :hits 1
+                                                            :mode :random-explore
+                                                            :random-explore-direction [1 0]
+                                                            :country-id 1}}
+                                {:type :land}
+                                {:type :land}]])
+      (update-test-world! assoc-in [1 0 :contents]
+                         {:type :army :owner :computer :hits 1
+                          :mode :random-explore :random-explore-direction [1 0] :country-id 1})
+      (army/process-army [1 0])
+      (should-not= :sentry (get-in (test-utils/read-test-state :game-map) [1 0 :contents :mode])))
+
     (it "clears mode to awake when blocked inland"
       ;; Army at [2 0] heading right [1 0] — would go off 3-col map
       (set-test-world! (build-test-map ["###"]))

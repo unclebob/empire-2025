@@ -16,7 +16,7 @@
 (defn adjacent-to-sea?
   [pos]
   (some (fn [neighbor]
-          (= :sea (:type (get-in (sa/current-world) neighbor))))
+          (= :sea (:type (get-in (sa/read-state :computer-map) neighbor))))
         (core/get-neighbors pos)))
 
 (defn- seed-coastal-registry
