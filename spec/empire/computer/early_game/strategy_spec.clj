@@ -53,6 +53,14 @@
     (test-utils/set-test-state! :round-number 30)
     (should-not (strategy/city-usable-coastal? [1 0])))
 
+  (it "keeps the opening active when invasion units are hidden on the computer map"
+    (set-test-world! (build-test-map ["tX"]))
+    (set-test-computer-map! [[nil {:type :city :city-status :computer :country-id 1}]])
+    (update-test-world! assoc-in [0 0 :contents :transport-mission] :invading)
+    (test-utils/set-test-state! :round-number 5)
+    (should-not (strategy/invasion-started?))
+    (should (strategy/opening-active?)))
+
   (it "builds fighters for C=0 landmasses only after six armies"
     (set-test-world! (build-test-map ["aaa"
                                       "aXa"

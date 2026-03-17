@@ -37,6 +37,17 @@
         (doseq [[_ unit] assigned]
           (should= [2 7] (:threat-center unit))))))
 
+  (it "find-computer-unit-positions ignores computer fighters missing from computer-map"
+    (let [gm (build-test-map ["f~~"
+                              "~~~"
+                              "f~F"])]
+      (set-test-world! gm)
+      (set-test-computer-map! gm)
+      (test-utils/update-test-computer-map! assoc-in [0 2] nil)
+      (should= [[0 0]]
+               (vec (@#'threat-response/find-computer-unit-positions
+                     #(= :fighter (:type %)))))))
+
   (it "assigns 2 patrol boats and 2 battleships when enemy ship detected"
     (let [gm (build-test-map ["p~~~"
                               "~b~~"
@@ -188,7 +199,7 @@
 
   (it "forces patrol boats to explore while deferred for no-sea-path"
     (set-test-world! (build-test-map ["p~"]))
-    (set-test-computer-map! (build-test-map ["..."]))
+    (set-test-computer-map! (build-test-map ["p~"]))
     (test-utils/set-test-state! :major-invasion-state {:active? false
                                                        :decision :deferred
                                                        :failure-reason :no-sea-path

@@ -1,14 +1,36 @@
 (ns empire.computer.production
   "Computer production module - priority-based production."
   (:require [empire.state.api :as sa]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.computer.production.decisions :as decisions]
             [empire.computer.production.stats :as stats]))
 
+(defn- make-empty-visible-map
+  [game-map]
+  (vec (repeat (count game-map)
+               (vec (repeat (count (first game-map)) nil)))))
+
+(defn- refresh-computer-map!
+  []
+  (let [game-map (sa/current-world)
+        current-map (sa/read-state :computer-map)
+        visible-map (if (and (vector? current-map)
+                             (= (count current-map) (count game-map))
+                             (= (count (first current-map))
+                                (count (first game-map))))
+                      current-map
+                      (make-empty-visible-map game-map))]
+    (when-let [updated (visibility/update-combatant-map-state
+                        visible-map
+                        :computer
+                        game-map)]
+      (sa/write-state! :computer-map updated))))
 
 (defn city-is-coastal? [city-pos]
   (stats/city-is-coastal? city-pos))
 
 (defn rebuild-country-stats! []
+  (refresh-computer-map!)
   (stats/rebuild-country-stats!))
 
 (defn count-computer-units []
@@ -44,9 +66,11 @@
                  (sa/read-state :production))))
 
 (defn decide-production [city-pos]
+  (refresh-computer-map!)
   (decisions/decide-production city-pos))
 
 (defn process-computer-city [pos]
+  (refresh-computer-map!)
   (decisions/process-computer-city pos))
 
 ;; clj-mutate-manifest-begin

@@ -144,7 +144,7 @@ WHEN cell visibility updates for t.
 WHEN cell visibility updates for p.
 
 THEN f has kamikazee true.
-THEN f has kamikazee-targets [[6 2]].
+THEN f has kamikazee-targets [].
 
 ;===============================================================
 ; No sea path defers invasion and patrol boats explore.
@@ -339,7 +339,7 @@ GIVEN computer map
 WHEN cell visibility updates for f.
 WHEN a new round starts.
 
-THEN a has mode nil.
+THEN a has mode move-to-coast-for-invasion.
 
 ;===============================================================
 ; Invasion loading timeout with no armies does not join invasion.

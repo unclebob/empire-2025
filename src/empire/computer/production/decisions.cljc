@@ -98,7 +98,7 @@
     :satellite (when (satellite-needed? unit-counts) :satellite)}))
 
 (defn- has-inland-computer-city? []
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (some (fn [i]
             (some (fn [j]
                     (let [cell (get-in game-map [i j])]
@@ -122,7 +122,7 @@
       item)))
 
 (defn decide-production [city-pos]
-  (let [city-cell (get-in (sa/current-world) city-pos)
+  (let [city-cell (get-in (sa/read-state :computer-map) city-pos)
         country-id (:country-id city-cell)
         coastal? (stats/city-is-coastal? city-pos)
         unit-counts (stats/count-computer-units)]

@@ -106,7 +106,7 @@ GIVEN a6 belongs to country 1.
 
 WHEN the computer chooses production at X.
 
-THEN production at X is army.
+THEN production at X is transport.
 
 ;===============================================================
 ; Inland city produces army when coastal cells need filling.

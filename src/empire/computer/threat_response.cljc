@@ -14,10 +14,32 @@
             [empire.computer.threat-response.major-invasion :as major-invasion]
             [empire.computer.threat-response.processing :as processing]
             [empire.game-mechanics.services.threat-policy :as threat-policy]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))
 
 (defn- threat-radius []
   (threat-policy/threat-radius))
+
+(defn- make-empty-visible-map
+  [game-map]
+  (vec (repeat (count game-map)
+               (vec (repeat (count (first game-map)) nil)))))
+
+(defn- refresh-computer-map!
+  []
+  (let [game-map (sa/current-world)
+        current-map (sa/read-state :computer-map)
+        visible-map (if (and (vector? current-map)
+                             (= (count current-map) (count game-map))
+                             (= (count (first current-map))
+                                (count (first game-map))))
+                      current-map
+                      (make-empty-visible-map game-map))]
+    (when-let [updated (visibility/update-combatant-map-state
+                        visible-map
+                        :computer
+                        game-map)]
+      (sa/write-state! :computer-map updated))))
 
 (declare manager-ctx)
 (declare current-round)
@@ -63,7 +85,7 @@
 
 (defn- find-computer-unit-positions
   [pred]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [unit (get-in game-map [i j :contents])]
@@ -126,7 +148,7 @@
   []
   (let [targets-by-country (country-defense/player-armies-by-country (sa/read-state :computer-map))
         radius (threat-radius)
-        game-map (sa/current-world)]
+        game-map (sa/read-state :computer-map)]
     (doseq [i (range (count game-map))
             j (range (count (first game-map)))
             :let [unit (get-in game-map [i j :contents])]
@@ -251,6 +273,7 @@
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
+  (refresh-computer-map!)
   (let [{:keys [record-army-target? trigger]}
         (decisions/detection-action
          {:record-army-target? (and (major-invasion-active?)
@@ -270,10 +293,12 @@
 (defn refresh-major-invasion-assignments!
   "Applies major-invasion tags/targets to all mobilized computer units."
   []
+  (refresh-computer-map!)
   (manager/refresh-major-invasion-assignments! (manager-ctx)))
 
 (defn rebuild-kamikazee-routing!
   []
+  (refresh-computer-map!)
   (manager/rebuild-kamikazee-routing! (manager-ctx)))
 
 (defn launch-kamikazee-from-airport!
@@ -283,6 +308,7 @@
 (defn on-round-start!
   "Round-start maintenance for threat responses."
   []
+  (refresh-computer-map!)
   (manager/on-round-start! (manager-ctx)))
 
 (defn prepare-transport!

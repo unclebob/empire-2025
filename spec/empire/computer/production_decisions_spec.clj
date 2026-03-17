@@ -133,23 +133,16 @@
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 1])))
 
-    (it "hidden adjacent sea does not make a city produce naval units"
-      (set-test-world! (build-test-map ["~Xaaaaaa"
-                                               "~~~~~~~~"]))
-      (set-test-computer-map! (build-test-map ["#Xaaaaaa"
-                                                   "########"]))
-      (update-test-world! assoc-in [1 0 :country-id] 1)
-      (doseq [col (range 2 8)]
-        (update-test-world! assoc-in [col 0 :country-id] 1)
-        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
-      (test-utils/update-test-computer-map! assoc-in [1 0 :country-id] 1)
-      (doseq [col (range 2 8)]
-        (test-utils/update-test-computer-map! assoc-in [col 0 :country-id] 1)
-        (test-utils/update-test-computer-map! assoc-in [col 0 :contents :country-id] 1))
-      (production/rebuild-country-stats!)
-      (should-not (production/city-is-coastal? [1 0]))
-      (should-not (contains? #{:transport :patrol-boat :destroyer :carrier :battleship :submarine}
-                             (production/decide-production [1 0]))))
+    (it "does not treat a hidden inland city as known inland support"
+      (set-test-world! (build-test-map ["###X#"
+                                        "#####"
+                                        "~X###"]))
+      (set-test-computer-map! [[{:type :land} {:type :land} {:type :land} nil {:type :land}]
+                               [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]
+                               [{:type :sea} {:type :city :city-status :computer :country-id 1} {:type :land} {:type :land} {:type :land}]])
+      (update-test-world! assoc-in [3 0 :country-id] 1)
+      (update-test-world! assoc-in [1 2 :country-id] 1)
+      (should-not (@#'empire.computer.production.decisions/has-inland-computer-city?)))
 
     (it "produces army when coastal cells not filled"
       ;; 2-row map: coastal city, 2 armies but unfilled coastal cells, 4 patrol boats

@@ -48,7 +48,7 @@
 
 (defn- city-info
   [pos]
-  (let [cell (get-in (sa/current-world) pos)
+  (let [cell (get-in (sa/read-state :computer-map) pos)
         production (get (sa/read-state :production) pos)
         opening-role (:opening-role cell)
         production-role (transport-item->role (:item production))
@@ -92,7 +92,7 @@
 
 (defn invasion-started?
   []
-  (let [world (sa/current-world)]
+  (let [world (sa/read-state :computer-map)]
     (boolean
      (or (some (fn [col]
                  (some (fn [cell]
@@ -114,7 +114,7 @@
 (defn theater-summary
   [start-pos]
   (let [positions (theater-positions start-pos)
-        world (sa/current-world)
+        world (sa/read-state :computer-map)
         city-infos (->> positions
                         (filter #(computer-city? (get-in world %)))
                         (map city-info)
