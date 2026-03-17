@@ -165,6 +165,11 @@
       (should= "20% of the map has been explored by the player."
                (messages-render/hud-tooltip 263 140 0 100 300 "R1" nil "A3 | 20%" "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"))))
 
+  (it "returns nil for unrecognized hovered tokens"
+    (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
+      (should-be-nil
+       (messages-render/hud-tooltip 18 140 0 100 300 "BOGUS" nil nil nil))))
+
   (it "returns nil when the mouse is not over the status row"
     (with-redefs [q/text-width (fn [text] (* 8 (count text)))]
       (should-be-nil
@@ -186,3 +191,37 @@
   (it "clamps the tooltip when it is wider than the screen"
     (should= [0 112]
              (messages-render/tooltip-box-position 100 100 500 24 400 300))))
+
+(describe "draw-message-area tooltip rendering"
+  (before (reset-all-atoms!))
+
+  (it "draws a tooltip box when hovering a recognized status token"
+    (let [calls (atom [])]
+      (sa/write-state! :text-area-dimensions [0 100 300 80])
+      (sa/write-state! :text-font :fake-font)
+      (sa/write-state! :error-message "")
+      (sa/write-state! :error-until 0)
+      (sa/write-state! :attention-message "")
+      (sa/write-state! :turn-message "")
+      (sa/write-state! :round-number 1)
+      (sa/write-state! :paused false)
+      (sa/write-state! :pause-requested false)
+      (sa/write-state! :map-to-display :player-map)
+      (sa/write-state! :destination nil)
+      (sa/write-state! :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%")
+      (sa/write-state! :hover-message "")
+      (with-redefs [q/no-stroke (fn [& _] nil)
+                    q/rect (fn [& args] (swap! calls conj [:rect args]))
+                    q/stroke (fn [& args] (swap! calls conj [:stroke args]))
+                    q/line (fn [& _] nil)
+                    q/text-font (fn [& _] nil)
+                    q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/text-width (fn [text] (* 8 (count text)))
+                    q/mouse-x (fn [] 223)
+                    q/mouse-y (fn [] 140)
+                    q/width (fn [] 400)
+                    q/height (fn [] 300)
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (messages-render/draw-message-area)
+        (should-contain [:stroke [70 64 40]] @calls)
+        (should-contain [:text ["3 armies." 241 168]] @calls)))))

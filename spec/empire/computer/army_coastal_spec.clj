@@ -163,3 +163,23 @@
                   sa/update-world! (fn [& _] nil)
                   movement/move-toward-objective (fn [& _] :should-not-run)]
       (should-be-nil (coastal/process-move-to-coast-for-invasion [0 0] 1)))))
+
+(describe "fill-coastal-cell"
+  (before (reset-all-atoms!))
+
+  (it "settles in place when already on a valid coast and no city blocks it"
+    (let [updates (atom [])]
+      (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
+                    sa/update-world! (fn [& args] (swap! updates conj args))
+                    empire.game-mechanics.debug.logging/log-computer-event! (fn [& _] nil)]
+        (should= [2 2] (coastal/fill-coastal-cell [2 2] 7))
+        (should= 1 (count @updates)))))
+
+  (it "wakes nearby sentries when no coastal move or queue target exists"
+    (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
+                  empire.computer.army.coastal/find-nearest-unoccupied-coastal-cell (fn [_ _] nil)
+                  coastal/can-settle-here? (fn [_ _] false)
+                  empire.computer.army.coastal/find-nearest-cell-close-to-coast (fn [_ _] nil)
+                  empire.computer.core/wake-nearby-sentries (fn [_ _] 2)
+                  empire.game-mechanics.debug.logging/log-computer-event! (fn [& _] nil)]
+      (should-be-nil (coastal/fill-coastal-cell [1 1] 1)))))

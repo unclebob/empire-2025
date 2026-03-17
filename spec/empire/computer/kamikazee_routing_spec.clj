@@ -71,4 +71,47 @@
                                                   {:active? false}))
                   empire.state.api/current-world (constantly (build-test-map ["X"]))]
       (should= nil
-               (routing/invasion-production-override [0 0])))))
+               (routing/invasion-production-override [0 0]))))
+
+  (it "deduplicates available refueling sites from cities and carriers"
+    (let [rebuilds (atom 0)]
+      (with-redefs [empire.state.api/rebuild-refueling-caches! (fn [] (swap! rebuilds inc))
+                    empire.state.api/read-state (fn [k]
+                                                  (case k
+                                                    :computer-city-positions [[0 0] [1 1]]
+                                                    :computer-carrier-positions [[1 1] [2 2]]
+                                                    nil))]
+        (should= [[0 0] [1 1] [2 2]]
+                 (routing/available-refueling-sites))
+        (should= 1 @rebuilds))))
+
+  (it "treats a fixed carrier as its own support target"
+    (let [ctx {:load-major-invasion-state (fn []
+                                            {:kamikazee-bridge-carriers #{[3 3]}
+                                             :kamikazee-forward-carrier [5 5]})}]
+      (should= [3 3] (routing/carrier-support-target ctx [3 3]))
+      (should= [5 5] (routing/carrier-support-target ctx [5 5]))
+      (should-be-nil (routing/carrier-support-target ctx [1 1]))))
+
+  (it "marks terminal sites complete even when no route remains"
+    (let [state {:kamikazee-terminal-sites #{[4 4]}}
+          route (routing/plan-route state {} [4 4] 3)]
+      (should= [] (:route route))
+      (should= [4 4] (:terminal-site route))
+      (should (:complete? route))))
+
+  (it "rebuild-routing-graph! merges the computed graph into state"
+    (let [updates (atom [])]
+      (with-redefs [routing/rebuild-routing-graph (fn [_ _]
+                                                    {:kamikazee-root-city [1 1]
+                                                     :kamikazee-terminal-sites #{[1 1]}})]
+        (should= {:kamikazee-root-city [1 1]
+                  :kamikazee-terminal-sites #{[1 1]}}
+                 (routing/rebuild-routing-graph!
+                  {:current-world (fn [] :world)
+                   :load-major-invasion-state (fn [] :state)
+                   :update-major-invasion-state! (fn [f graph]
+                                                   (swap! updates conj [f graph]))}))
+        (should= [[merge {:kamikazee-root-city [1 1]
+                          :kamikazee-terminal-sites #{[1 1]}}]]
+                 @updates)))))

@@ -138,6 +138,18 @@
     (let [filename (debug-dump/generate-dump-filename)]
       (should (re-find #"debug-\d{4}-\d{2}-\d{2}-\d{6}\.txt" filename)))))
 
+(describe "write-dump!"
+  (it "writes the formatted dump to the generated filename"
+    (let [writes (atom [])]
+      (with-redefs [debug-dump/generate-dump-filename (fn [] "debug-test.txt")
+                    debug-dump/format-dump (fn [start end]
+                                             (str "dump " start " " end))
+                    spit (fn [filename content]
+                           (swap! writes conj [filename content]))]
+        (should= "debug-test.txt" (debug-dump/write-dump! [1 2] [3 4]))
+        (should= [["debug-test.txt" "dump [1 2] [3 4]"]]
+                 @writes)))))
+
 (describe "format-movement-entry"
   (it "formats basic move entry"
     (let [entry {:unit-type :army :from [1 2] :to [1 3] :mode :moving :event :move :reason nil}
@@ -198,6 +210,16 @@
     (set-test-computer-map! (build-test-map ["##" "##"]))
     (let [result (debug-dump/format-dump [0 0] [1 1])]
       (should-contain "Production State" result)))
+
+  (it "shows empty actions and production sections when no state is present"
+    (set-test-world! (build-test-map ["##" "##"]))
+    (set-test-player-map! (build-test-map ["##" "##"]))
+    (set-test-computer-map! (build-test-map ["##" "##"]))
+    (test-utils/set-test-state! :action-log [])
+    (test-utils/set-test-state! :production {})
+    (let [result (debug-dump/format-dump [0 0] [1 1])]
+      (should-contain "(none)" result)
+      (should-contain "(no production)" result)))
 
   (it "contains recent actions section"
     (set-test-world! (build-test-map ["##" "##"]))

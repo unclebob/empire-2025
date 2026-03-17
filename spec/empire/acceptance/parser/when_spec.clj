@@ -132,6 +132,23 @@
         (should= [{:type :visibility-update}]
                  (:whens result))))
 
+    (it "parses game advances one batch"
+      (let [result (when-parser/parse-when ["WHEN the game advances one batch."] {})]
+        (should= [{:type :advance-game-batch}]
+                 (:whens result))))
+
+    (it "parses multiple typed keys"
+      (let [result (when-parser/parse-when ["WHEN the player types q w e."] {:has-waiting-for-input true})]
+        (should= [{:type :key-press :key :q :input-fn :handle-key}
+                  {:type :key-press :key :w :input-fn :handle-key}
+                  {:type :key-press :key :e :input-fn :handle-key}]
+                 (:whens result))))
+
+    (it "parses cell visibility update for a unit"
+      (let [result (when-parser/parse-when ["WHEN cell visibility updates for F."] {})]
+        (should= [{:type :cell-visibility-update :unit "F"}]
+                 (:whens result))))
+
     (it "parses mouse-at-key"
       (let [lines ["WHEN the mouse is at cell [0 1] and the player presses period."]
             result (when-parser/parse-when lines {})]
@@ -154,4 +171,25 @@
       (let [lines ["WHEN the computer chooses production at X."]
             result (when-parser/parse-when lines {})]
         (should= [{:type :evaluate-production :city "X"}]
+                 (:whens result))))
+
+    (it "parses computer unit processing and menu actions"
+      (let [result (when-parser/parse-when ["WHEN computer transport T is processed."
+                                            "WHEN computer fighter F is processed."
+                                            "WHEN computer destroyer D is processed."
+                                            "WHEN 3 computer rounds pass."
+                                            "WHEN the player saves the game."
+                                            "WHEN the player opens the load menu."]
+                                           {})]
+        (should= [{:type :process-computer-transport :unit "T"}
+                  {:type :process-computer-fighter :unit "F"}
+                  {:type :process-computer-ship :ship-type :destroyer :unit "D"}
+                  {:type :computer-rounds :count 3}
+                  {:type :save-game}
+                  {:type :open-load-menu}]
+                 (:whens result))))
+
+    (it "returns unrecognized when no WHEN pattern matches"
+      (let [result (when-parser/parse-when ["WHEN something bizarre happens."] {})]
+        (should= [{:type :unrecognized :text "WHEN something bizarre happens."}]
                  (:whens result)))))
