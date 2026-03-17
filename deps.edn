@@ -44,5 +44,9 @@
 						                       :git/sha "992a5dd41bb337a843c02fb4829a69af7bfcf595"}}
 						        :extra-paths ["spec"]
 						        :main-opts ["-m" "crap4clj.core"]}
+						 :scrap {:extra-deps {io.github.unclebob/scrap
+						                      {:git/url "https://github.com/unclebob/scrap"
+						                       :git/sha "f2b9aa8c83fc9a30014e98ca65b0e03a895c82ac"}}
+						         :main-opts ["-m" "scrap.core"]}
 				 }
 			 }
