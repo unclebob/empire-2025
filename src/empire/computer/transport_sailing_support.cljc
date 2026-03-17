@@ -34,7 +34,7 @@
 
 (defn enemy-ship-near-target?
   [target radius]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         [tx ty] target
         min-x (max 0 (- tx radius))
         max-x (min (dec (count world)) (+ tx radius))

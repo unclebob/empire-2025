@@ -9,7 +9,7 @@
 
 (defn- launch-from-city-to-sea
   [pos transport]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         cell-type (get-in world (conj pos :type))]
     (when (= :city cell-type)
       (let [target-ref (or (:invasion-target transport)
@@ -44,7 +44,7 @@
 (defn- sail-take-second-step
   [from-pos next-pos remaining]
   (let [step2 (or (first remaining)
-                  (sailing-path/continue-pos (sa/current-world) from-pos next-pos))
+                  (sailing-path/continue-pos (sa/read-state :computer-map) from-pos next-pos))
         remaining2 (if (seq remaining) (vec (rest remaining)) [])
         moved2 (when step2 (core/move-unit-to next-pos step2))]
     (if moved2
@@ -83,7 +83,7 @@
     (or (compute-and-follow-sail-path! pos)
         ;; No path and no adjacent coast at all: switch to unloading crawl mode.
         (when-not (some (fn [n]
-                          (let [cell (get-in (sa/current-world) n)]
+                          (let [cell (get-in (sa/read-state :computer-map) n)]
                             (and cell (#{:land :city} (:type cell)))))
                         (core/get-neighbors pos))
           (support/set-unloading-and-try! pos)))))
@@ -97,9 +97,10 @@
 
 (defn- loaded-no-path-action
   [pos transport]
-  (let [city-cell? (= :city (:type (get-in (sa/current-world) pos)))
+  (let [computer-map (sa/read-state :computer-map)
+        city-cell? (= :city (:type (get-in computer-map pos)))
         adjacent-land? (some (fn [n]
-                               (let [cell (get-in (sa/current-world) n)]
+                               (let [cell (get-in computer-map n)]
                                  (and cell (#{:land :city} (:type cell)))))
                              (core/get-neighbors pos))]
     (case (:action (decisions/loaded-no-path-action {:city-cell? city-cell?

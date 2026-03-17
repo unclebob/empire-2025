@@ -1,6 +1,7 @@
 (ns empire.computer.transport-sailing-regular-spec
   (:require [empire.computer.transport-sailing-regular :as regular]
-            [empire.test.utils :refer [reset-all-atoms! set-test-world!]]
+            [empire.computer.transport-sailing-support :as support]
+            [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "regular transport sailing"
@@ -10,6 +11,8 @@
     (let [calls (atom [])]
       (set-test-world! [[{:type :city :contents {:pickup-continent-pos [5 5]}} {:type :sea :contents nil}]
                         [{:type :sea :contents nil} {:type :sea :contents {:owner :computer}}]])
+      (set-test-computer-map! [[{:type :city :contents {:pickup-continent-pos [5 5]}} {:type :sea :contents nil}]
+                               [{:type :sea :contents nil} {:type :sea :contents {:owner :computer}}]])
       (with-redefs [empire.computer.core/get-neighbors (constantly [[1 0] [0 1]])
                     empire.computer.core/chebyshev-distance (fn [a b]
                                                               (swap! calls conj [:distance a b])
@@ -34,7 +37,23 @@
     (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
                   empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
                   empire.computer.core/get-neighbors (constantly [[1 0]])
-                  empire.state.api/current-world (constantly [[{:type :sea}] [{:type :sea}]])
+                  empire.state.api/read-state (fn [k] (when (= k :computer-map) [[{:type :sea}] [{:type :sea}]]))
+                  empire.computer.transport-sailing-support/set-unloading-and-try! (fn [pos] [:unload pos])]
+      (should= [:unload [0 0]]
+               (@#'regular/maybe-unload-or-sail! [0 0] {:army-count 1}))))
+
+  (it "does not launch from a city using sea visible only on game-map"
+    (set-test-world! [[{:type :city :contents {:pickup-continent-pos [5 5]}} {:type :sea}]])
+    (set-test-computer-map! [[{:type :city :contents {:pickup-continent-pos [5 5]}} nil]])
+    (should-be-nil (@#'regular/launch-from-city-to-sea [0 0] {:pickup-continent-pos [5 5]})))
+
+  (it "does not treat hidden adjacent land as a reason to stay sailing"
+    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer}}
+                       {:type :land}]])
+    (set-test-computer-map! [[{:type :sea :contents {:type :transport :owner :computer}}
+                              nil]])
+    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
                   empire.computer.transport-sailing-support/set-unloading-and-try! (fn [pos] [:unload pos])]
       (should= [:unload [0 0]]
                (@#'regular/maybe-unload-or-sail! [0 0] {:army-count 1}))))
@@ -44,4 +63,11 @@
     (with-redefs [empire.computer.transport-sailing-decisions/sailing-action (fn [_ _ _] {:action :follow-path})
                   empire.computer.transport-sailing-regular/follow-path-action (fn [pos sail-path] [:follow pos sail-path])]
       (should= [:follow [0 0] [[1 0]]]
-               (regular/process-sailing-mission [0 0])))))
+               (regular/process-sailing-mission [0 0]))))
+
+  (it "ignores enemy ships near target that are visible only on game-map"
+    (set-test-world! [[{:type :sea} {:type :sea}]
+                      [{:type :sea} {:type :sea :contents {:type :destroyer :owner :player}}]])
+    (set-test-computer-map! [[{:type :sea} {:type :sea}]
+                             [{:type :sea} nil]])
+    (should-not (support/enemy-ship-near-target? [0 0] 2))))
