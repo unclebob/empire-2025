@@ -42,3 +42,20 @@
     (assert-failure! @#'test-pipeline/run-step!))
 
   )
+
+(describe "acceptance pipeline -main"
+  (it "runs the acceptance steps in order"
+    (let [calls (atom [])]
+      (with-redefs [acceptance-pipeline/run-step! (fn [label cmd]
+                                                    (swap! calls conj [label cmd])
+                                                    :ok)]
+        (should= "Acceptance pipeline passed.\n"
+                 (with-out-str
+                   (acceptance-pipeline/-main)))
+        (should= [["Parsing acceptance scenarios..." ["clj" "-M:parse-tests"]]
+                  ["Generating acceptance specs..." ["clj" "-M:generate-specs"]]
+                  ["Checking acceptance boundaries..." ["bash" "scripts/check-acceptance-boundary.sh"]]
+                  ["Checking generated acceptance boundaries..." ["bash" "scripts/check-generated-acceptance-boundary.sh"]]
+                  ["Checking architecture dependencies..." ["clj" "-M:check-dependencies"]]
+                  ["Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"]]]
+                 @calls)))))

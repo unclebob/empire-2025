@@ -1,13 +1,22 @@
 (ns empire.computer.transport-decisions)
 
-(defn load-for-invasion-action
-  [{:keys [has-armies? in-unload-zone? timed-out? nearby-unloadable-land?]}]
+(defn- armed-invasion-action
+  [{:keys [in-unload-zone? timed-out? nearby-unloadable-land?]}]
   (cond
-    (and has-armies? in-unload-zone?) :unload
-    (and has-armies? timed-out?) :sail
-    (and has-armies? nearby-unloadable-land?) :sail
-    (and (not has-armies?) timed-out?) :revert-loading
+    in-unload-zone? :unload
+    (or timed-out? nearby-unloadable-land?) :sail
     :else nil))
+
+(defn- empty-invasion-action
+  [{:keys [timed-out?]}]
+  (when timed-out?
+    :revert-loading))
+
+(defn load-for-invasion-action
+  [{:keys [has-armies?] :as state}]
+  (if has-armies?
+    (armed-invasion-action state)
+    (empty-invasion-action state)))
 
 (defn loading-mission-action
   [{:keys [should-start-sailing? loading-stale?]}]
@@ -29,5 +38,5 @@
     :else :active))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T15:51:08.678597-05:00", :module-hash "-1655359473", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-589390891"} {:id "defn/load-for-invasion-action", :kind "defn", :line 3, :end-line 10, :hash "1286902489"} {:id "defn/loading-mission-action", :kind "defn", :line 12, :end-line 17, :hash "-328141758"} {:id "defn/unloading-mission-action", :kind "defn", :line 19, :end-line 21, :hash "-2113268860"} {:id "defn/transport-process-action", :kind "defn", :line 23, :end-line 29, :hash "1846781887"}]}
+;; {:version 1, :tested-at "2026-03-17T07:59:09.98278-05:00", :module-hash "-1883954645", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-589390891"} {:id "defn-/armed-invasion-action", :kind "defn-", :line 3, :end-line 8, :hash "-240659296"} {:id "defn-/empty-invasion-action", :kind "defn-", :line 10, :end-line 13, :hash "1572524468"} {:id "defn/load-for-invasion-action", :kind "defn", :line 15, :end-line 19, :hash "13805833"} {:id "defn/loading-mission-action", :kind "defn", :line 21, :end-line 26, :hash "-328141758"} {:id "defn/unloading-mission-action", :kind "defn", :line 28, :end-line 30, :hash "-2113268860"} {:id "defn/transport-process-action", :kind "defn", :line 32, :end-line 38, :hash "1846781887"}]}
 ;; clj-mutate-manifest-end

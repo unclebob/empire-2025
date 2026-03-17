@@ -19,6 +19,16 @@
     (should= {:item :fighter :remaining-rounds 5}
              (get (h/read-state :production) 2)))
 
+  (it "writes game-map through set-state!"
+    (let [world (h/build-test-map ["##"])]
+      (h/set-state! :game-map world)
+      (should= world (h/read-state :game-map))))
+
+  (it "updates game-map through update-state!"
+    (h/set-test-world! (h/build-test-map ["##"]))
+    (h/update-state! :game-map assoc-in [0 0 :visited] true)
+    (should (true? (:visited (h/cell-at [0 0])))))
+
   (it "sets and queries unit state through harness helpers"
     (h/set-test-world! (h/build-test-map ["A#"]))
     (h/set-unit! "A" :mode :sentry :fuel 11)
@@ -35,10 +45,79 @@
       (should= [1 0] (:pos sea-label))
       (should= [2 0] (:pos land-label))))
 
+  (it "reads alternate map keys through cell-at"
+    (h/set-state! :player-map [[:player-cell]])
+    (should= :player-cell (h/cell-at :player-map [0 0])))
+
+  (it "reads shipyard contents through shipyard-at"
+    (h/set-test-world! (h/build-test-map ["O"]))
+    (h/update-test-world! assoc-in [0 0 :shipyard] [{:type :destroyer :hits 2}])
+    (should= [{:type :destroyer :hits 2}] (h/shipyard-at [0 0])))
+
+  (it "counts computer armies on the map"
+    (h/set-test-world! (h/build-test-map ["###" "###"]))
+    (h/update-test-world! assoc-in [0 0 :contents] {:type :army :owner :computer})
+    (h/update-test-world! assoc-in [2 1 :contents] {:type :army :owner :computer})
+    (should= 2 (h/count-computer-armies)))
+
   (it "supports variadic update-test-world! operations"
     (h/set-test-world! (h/build-test-map ["##" "##"]))
     (h/update-test-world! assoc-in [1 0 :waypoint] true)
     (should (true? (:waypoint (h/cell-at [1 0])))))
+
+  (it "drains visibility detections into threat handling"
+    (let [calls (atom [])]
+      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility (fn [pos owner unit]
+                                                                                       (swap! calls conj [:update pos owner unit]))
+                    empire.game-mechanics.movement.visibility/drain-detections! (fn []
+                                                                                  [{:pos [1 2] :cell :first}
+                                                                                   {:pos [3 4] :cell :second}])
+                    empire.computer.threat-response/handle-detection! (fn [pos cell]
+                                                                        (swap! calls conj [:detect pos cell]))]
+        (h/update-cell-visibility! [0 0] :computer {:type :fighter})
+        (should= [[:update [0 0] :computer {:type :fighter}]
+                  [:detect [1 2] :first]
+                  [:detect [3 4] :second]]
+                 @calls))))
+
+  (it "forwards control wrappers to their underlying modules"
+    (let [calls (atom [])]
+      (with-redefs [empire.ui.util.input.dispatch/handle-key (fn [k] (swap! calls conj [:handle-key k]))
+                    empire.ui.util.input.dispatch/key-down (fn [k x y] (swap! calls conj [:key-down k x y]))
+                    empire.game.loop.core/start-new-round (fn [] (swap! calls conj :start-round))
+                    empire.game.loop.core/advance-game (fn [] (swap! calls conj :advance-game))
+                    empire.game.loop.item-processing/process-player-items-batch (fn [] (swap! calls conj :player-batch))
+                    empire.game.loop.core/update-player-map (fn [] (swap! calls conj :update-player-map))
+                    empire.computer.production/rebuild-country-stats! (fn [] (swap! calls conj :rebuild-stats))
+                    empire.computer.production/process-computer-city (fn [pos] (swap! calls conj [:computer-city pos]))
+                    empire.computer.transport/process-transport (fn [pos] (swap! calls conj [:transport pos]))
+                    empire.computer.fighter/process-fighter (fn [pos unit] (swap! calls conj [:fighter pos unit]))
+                    empire.computer.ship/process-ship (fn [pos ship-type] (swap! calls conj [:ship pos ship-type]))]
+        (h/handle-key! :a)
+        (h/key-down! :b)
+        (h/key-down-at! :c 7 8)
+        (h/start-new-round!)
+        (h/advance-game!)
+        (h/process-player-items-batch!)
+        (h/update-player-map!)
+        (h/evaluate-computer-production! [1 2])
+        (h/process-computer-transport! [3 4])
+        (h/process-computer-fighter! [5 6] {:type :fighter})
+        (h/process-computer-ship! [7 8] :destroyer)
+        (should= [[:handle-key :a]
+                  [:key-down :b 0 0]
+                  [:key-down :c 7 8]
+                  :start-round
+                  :advance-game
+                  :player-batch
+                  :update-player-map
+                  :rebuild-stats
+                  [:computer-city [1 2]]
+                  [:transport [3 4]]
+                  [:fighter [5 6] {:type :fighter}]
+                  [:ship [7 8] :destroyer]]
+                 @calls))
+      (should-be-nil (h/read-state :last-key))))
 
   (it "throws on unsupported set-state! key"
     (should-throw clojure.lang.ExceptionInfo

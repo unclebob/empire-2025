@@ -1,0 +1,58 @@
+Agent 2 Coverage Plan
+
+Shared workflow for every batch
+1. Read the source and current specs for the batch to find uncovered branches worth testing.
+2. Run the relevant existing specs first.
+3. Add tests for practical branches only. Prefer deterministic unit tests over broad integration setup.
+4. Run `clj -M:spec-structure-check` on every changed spec file before spec execution.
+5. Run the changed specs until green.
+6. If parser/generator code is touched, run the full acceptance pipeline:
+   `clj -M:parse-tests`
+   `clj -M:generate-specs`
+   `clj -M:spec generated-acceptance-specs/`
+7. Run `clj -M:cov` after each batch and record improvement.
+8. Do not edit acceptance `.txt` files and do not commit generated acceptance outputs.
+
+Batch 4
+Targets
+- `empire.acceptance.parser.given.directives`
+- `empire.game-mechanics.services.combat-visibility-port`
+- `empire.game-mechanics.movement.api`
+- `empire.ui.util.rendering.hud-tooltips`
+- `empire.game-mechanics.debug.integrity`
+
+Focus
+- `acceptance.parser.given.directives`: fill directive-pattern gaps with table-driven parser tests.
+- The two `*-port` and `movement.api` modules should be cheap adapter coverage.
+- `hud-tooltips` and `debug.integrity` should respond well to pure-input/output coverage.
+
+Batch 5
+Targets
+- `empire.computer.threat-response.kamikazee-routing`
+- `empire.computer.army.coastal`
+- `empire.ui.quil.rendering.messages`
+- `empire.computer.transport-mission-handlers`
+- `empire.game-mechanics.debug.dump`
+
+Focus
+- Favor direct behavior tests around routing, coastal decisions, and mission-handler branching.
+- For `ui.quil.rendering.messages`, cover formatting/render-call selection with redefs instead of GUI integration.
+- For `debug.dump`, cover shape/serialization choices, not logging side effects.
+
+Batch 6
+Targets
+- `empire.computer.threat-response.kamikazee-targets`
+- `empire.computer.early-game.strategy`
+- `empire.computer.threat-response.country-defense`
+- `empire.acceptance.parser.when`
+- `empire.computer.transport-sailing-invasion`
+
+Focus
+- `acceptance.parser.when`: add table-driven parsing coverage for remaining patterns and fallbacks.
+- For the AI modules, target decision branches with minimal world setup and explicit edge cases.
+- `country-defense` may already be high-form complexity but should still yield branch gains from targeted fixtures.
+
+Batch closeout
+1. Capture post-batch coverage deltas.
+2. Flag modules where more coverage would require non-practical integration work.
+3. Keep the worktree clean of generated acceptance files.

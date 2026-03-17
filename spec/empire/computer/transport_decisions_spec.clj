@@ -9,8 +9,14 @@
   (it "sails when timed out with armies"
     (should= :sail (decisions/load-for-invasion-action {:has-armies? true :timed-out? true})))
 
+  (it "sails when nearby unloadable land is found"
+    (should= :sail (decisions/load-for-invasion-action {:has-armies? true :nearby-unloadable-land? true})))
+
   (it "reverts loading when empty and timed out"
-    (should= :revert-loading (decisions/load-for-invasion-action {:has-armies? false :timed-out? true}))))
+    (should= :revert-loading (decisions/load-for-invasion-action {:has-armies? false :timed-out? true})))
+
+  (it "does nothing when still loading without armies"
+    (should-be-nil (decisions/load-for-invasion-action {:has-armies? false :timed-out? false}))))
 
 (describe "loading-mission-action"
   (it "starts sailing when full"

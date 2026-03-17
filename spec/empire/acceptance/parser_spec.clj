@@ -256,4 +256,67 @@
                      (parser/validate-config-keys
                        "test.txt"
                        [{:line 10 :thens [{:type :message-contains :area :attention :config-key :army-found-city}]}]))]
-        (should= "" output)))))
+        (should= "" output))))
+
+  (context "parse-test orchestration"
+    (it "passes givens context into when parsing"
+      (let [calls (atom nil)]
+        (with-redefs [empire.acceptance.parser.given/parse-given (fn [_ _]
+                                                                   {:givens [{:type :map :rows ["A~"]}
+                                                                             {:type :waiting-for-input :unit "A" :set-mode true}]
+                                                                    :context {:units-with-mode #{"A"}}})
+                      empire.acceptance.parser.when/parse-when (fn [lines ctx]
+                                                                 (reset! calls [lines ctx])
+                                                                 {:whens [{:type :advance-game}]})
+                      empire.acceptance.parser.then/parse-then (fn [_ _] {:thens [{:type :waiting-for-input :expected false}]})]
+          (let [result (parser/parse-test {:line 12
+                                           :description "desc"
+                                           :given-lines ["GIVEN A is waiting for input."]
+                                           :when-lines ["WHEN the game advances."]
+                                           :then-lines ["THEN not waiting-for-input."]})]
+            (should= ["WHEN the game advances."]
+                     (first @calls))
+            (should= {:has-waiting-for-input true
+                      :unit-types #{"A"}
+                      :units-with-mode #{"A"}}
+                     (second @calls))
+            (should= [{:type :advance-game}] (:whens result))
+            (should= [{:type :waiting-for-input :expected false}] (:thens result))))))
+
+  (context "parser cli"
+    (it "writes parsed edn files for txt inputs in sorted order"
+      (let [files [(proxy [java.io.File] ["/tmp/b.txt"]
+                     (getName [] "b.txt")
+                     (getPath [] "/tmp/b.txt"))
+                   (proxy [java.io.File] ["/tmp/a.txt"]
+                     (getName [] "a.txt")
+                     (getPath [] "/tmp/a.txt"))
+                   (proxy [java.io.File] ["/tmp/ignore.md"]
+                     (getName [] "ignore.md")
+                     (getPath [] "/tmp/ignore.md"))]
+            writes (atom [])]
+        (with-redefs [clojure.java.io/file (fn
+                                             ([path]
+                                              (if (= path "acc")
+                                                (proxy [java.io.File] [path]
+                                                  (listFiles [] (into-array java.io.File files)))
+                                                (java.io.File. path)))
+                                             ([parent child]
+                                              (java.io.File. parent child)))
+                      clojure.java.io/make-parents (fn [_] :ok)
+                      parser/parse-file (fn [path]
+                                          {:source (last (clojure.string/split path #"/"))
+                                           :tests [{:line 1 :description path}]})
+                      parser/validate-config-keys (fn [source tests]
+                                                    (swap! writes conj [:validate source (count tests)]))
+                      empire.acceptance.parser/write-edn (fn [path data]
+                                                           (swap! writes conj [:write path (:source data)]))]
+          (let [out (with-out-str
+                      (parser/-main "acc"))]
+            (should-contain "Parsing /tmp/a.txt -> acc/edn/a.edn" out)
+            (should-contain "Parsing /tmp/b.txt -> acc/edn/b.edn" out)
+            (should= [[:validate "a.txt" 1]
+                      [:write "acc/edn/a.edn" "a.txt"]
+                      [:validate "b.txt" 1]
+                      [:write "acc/edn/b.edn" "b.txt"]]
+                     @writes))))))))

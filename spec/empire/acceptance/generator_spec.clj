@@ -134,6 +134,12 @@
       (should-contain ":country-id" result)
       (should-contain "1" result)))
 
+  (it "generates unit-props given for city targets"
+    (let [result (gen/generate-given {:type :unit-props :unit "O" :props {:city-status :player}})]
+      (should-contain "h/get-city" result)
+      (should-contain ":city-status" result)
+      (should-contain ":player" result)))
+
   (it "generates production given"
     (let [result (gen/generate-given {:type :production :city "O" :item :army :remaining-rounds 10})]
       (should-contain "h/update-state! :production" result)
@@ -148,10 +154,55 @@
     (let [result (gen/generate-given {:type :destination :coords [3 4]})]
       (should= "    (h/set-state! :destination [3 4])" result)))
 
+  (it "generates no-production given"
+    (should= "    (h/set-state! :production {})"
+             (gen/generate-given {:type :no-production})))
+
+  (it "generates city-unit given"
+    (let [result (gen/generate-given {:type :city-unit :city "O" :unit-type :army :owner :player})]
+      (should-contain "assoc-in" result)
+      (should-contain ":army" result)
+      (should-contain ":player" result)))
+
+  (it "generates shipyard-state given"
+    (let [result (gen/generate-given {:type :shipyard-state :city "O" :ship-type :destroyer :hits 2})]
+      (should-contain ":shipyard" result)
+      (should-contain ":destroyer" result)
+      (should-contain ":hits 2" result)))
+
+  (it "generates territory-around given"
+    (let [result (gen/generate-given {:type :territory-around :city "O" :country-id 7})]
+      (should-contain "doseq" result)
+      (should-contain ":country-id" result)
+      (should-contain "7" result)))
+
+  (it "generates visible-to-computer given"
+    (let [result (gen/generate-given {:type :visible-to-computer :ref "A"})]
+      (should-contain ":computer-map" result)
+      (should-contain "make-initial-test-map" result)
+      (should-contain "assoc-in" result)))
+
+  (it "generates boolean and display state givens"
+    (should= "    (h/set-state! :game-over-check-enabled true)"
+             (gen/generate-given {:type :game-over-check-enabled}))
+    (should= "    (h/set-state! :paused true)"
+             (gen/generate-given {:type :game-paused}))
+    (should= "    (h/set-state! :pause-requested true)"
+             (gen/generate-given {:type :pause-requested}))
+    (should= "    (h/set-state! :load-menu-open true)"
+             (gen/generate-given {:type :load-menu-open}))
+    (should= "    (h/set-state! :map-to-display :computer-map)"
+             (gen/generate-given {:type :map-display-setup :value :computer-map})))
+
   (it "generates unrecognized given"
     (let [result (gen/generate-given {:type :unrecognized :text "something weird"})]
       (should-contain "pending" result)
       (should-contain "something weird" result))))
+
+  (it "generates unknown given type comment"
+    (let [result (gen/generate-given {:type :mystery})]
+      (should-contain "Unknown given type" result)
+      (should-contain ":mystery" result)))
 
 ;; --- generate-when tests ---
 
@@ -235,7 +286,44 @@
     (let [result (gen/generate-when {:type :evaluate-production :city "X"})]
       (should-contain "h/evaluate-computer-production!" result)
       (should-contain "h/get-city" result)
-      (should-contain "\"X\"" result))))
+      (should-contain "\"X\"" result)))
+
+  (it "generates cell-visibility-update when"
+    (let [result (gen/generate-when {:type :cell-visibility-update :unit "F"})]
+      (should-contain "update-cell-visibility!" result)
+      (should-contain ":contents" result)))
+
+  (it "generates transport, fighter, and ship processing whens"
+    (should-contain "h/process-computer-transport!"
+                    (gen/generate-when {:type :process-computer-transport :unit "T"}))
+    (should-contain "h/process-computer-fighter!"
+                    (gen/generate-when {:type :process-computer-fighter :unit "F"}))
+    (should-contain "h/process-computer-ship! (:pos (h/get-cell \"=\")) :destroyer"
+                    (gen/generate-when {:type :process-computer-ship :unit "=" :ship-type :destroyer})))
+
+  (it "generates computer-rounds when"
+    (let [result (gen/generate-when {:type :computer-rounds :count 2})]
+      (should-contain "dotimes [_ 2]" result)
+      (should-contain ":transport" result)
+      (should-contain "process-computer-transport!" result)))
+
+  (it "generates save-game and open-load-menu whens"
+    (should-contain "with-redefs [spit"
+                    (gen/generate-when {:type :save-game}))
+    (should-contain "(keyword \"^\")"
+                    (gen/generate-when {:type :open-load-menu})))
+
+  (it "generates advance-game-batch like advance-game"
+    (should= "    (h/advance-game!)"
+             (gen/generate-when {:type :advance-game-batch})))
+
+  (it "generates unrecognized and unknown when branches"
+    (let [pending-result (gen/generate-when {:type :unrecognized :text "weird"} [])
+          unknown-result (gen/generate-when {:type :mystery} [])]
+      (should-contain "pending" pending-result)
+      (should-contain "weird" pending-result)
+      (should-contain "Unknown when type" unknown-result)
+      (should-contain ":mystery" unknown-result))))
 
 ;; --- generate-ns-form tests ---
 

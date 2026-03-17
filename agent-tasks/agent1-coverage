@@ -1,0 +1,62 @@
+Agent 1 Coverage Plan
+
+Shared workflow for every batch
+1. Read the existing source and spec files for the batch before changing anything.
+2. Run the relevant existing specs first to establish a green baseline.
+3. Add targeted tests that exercise practical, deterministic branches first. Prefer table-driven tests where the module is branch-heavy.
+4. Before running changed specs, run `clj -M:spec-structure-check` on each changed spec file.
+5. Run the changed specs until green.
+6. If any acceptance parser/generator behavior is touched, run the full acceptance pipeline:
+   `clj -M:parse-tests`
+   `clj -M:generate-specs`
+   `clj -M:spec generated-acceptance-specs/`
+7. Run `clj -M:cov` after each batch and record the before/after line coverage for the batch modules.
+8. Do not modify acceptance `.txt` scenarios. Do not commit generated acceptance artifacts.
+
+Batch 1
+Targets
+- `empire.test.pipeline`
+- `empire.ui.quil.core`
+- `empire.architecture.dependency-checker-runner`
+- `empire.computer.movement`
+- `empire.computer.threat-response.invasion-state`
+
+Focus
+- `empire.test.pipeline`: cover CLI orchestration and unhappy-path branching.
+- `empire.ui.quil.core`: only take practical host-independent paths; avoid brittle GUI plumbing unless extracted behind helpers.
+- `empire.architecture.dependency-checker-runner`: cover process/report orchestration with `with-redefs`.
+- `empire.computer.movement`: add direct behavior specs for branchy movement decisions.
+- `empire.computer.threat-response.invasion-state`: cover state-transition and fallback cases.
+
+Batch 2
+Targets
+- `empire.computer.transport`
+- `empire.player.self-play`
+- `empire.computer.early-game.role-policy-two-coast`
+- `empire.computer.army.transport`
+- `empire.game-mechanics.containers.visibility-port`
+
+Focus
+- Prefer narrow unit tests over integration-heavy setup.
+- For transport and army transport modules, target dispatch branches and edge-case routing/load decisions.
+- For `player.self-play`, cover command sequencing, replay/control edges, and nil/empty-state handling.
+- For `visibility-port`, cover adapter behavior and argument forwarding completely.
+
+Batch 3
+Targets
+- `empire.computer.production.decisions`
+- `empire.ui.util.core`
+- `empire.ui.util.input.actions.production`
+- `empire.computer.transport-sailing-regular`
+- `empire.config.units.satellite`
+
+Focus
+- `production.decisions` and `actions.production`: table-drive the branch matrix.
+- `ui.util.core`: cover pure formatting/selection helpers first.
+- `transport-sailing-regular`: target path-choice and fallback branches.
+- `config.units.satellite`: complete the unit contract and edge behavior coverage.
+
+Batch closeout
+1. Capture post-batch coverage numbers.
+2. Note any modules blocked by low-value host integration or excessive fixture cost.
+3. Leave the worktree ready for review without generated artifacts.

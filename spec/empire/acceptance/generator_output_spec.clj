@@ -16,6 +16,11 @@
       (should-contain ":sentry" result)
       (should-contain ":mode" result)))
 
+  (it "generates unit-prop then for nil expectation"
+    (let [result (gen/generate-then {:type :unit-prop :unit "A" :property :target :expected :nil} [])]
+      (should-contain "should-be-nil" result)
+      (should-contain ":target" result)))
+
   (it "generates unit-absent then"
     (let [result (gen/generate-then {:type :unit-absent :unit "s"} [])]
       (should-contain "should-be-nil" result)
@@ -30,6 +35,11 @@
     (let [result (gen/generate-then {:type :unit-present :unit "A" :coords [0 0]} [])]
       (should-contain "should=" result)
       (should-contain "[0 0]" result)))
+
+  (it "generates unit-present then with named target"
+    (let [result (gen/generate-then {:type :unit-present :unit "A" :target "="} [])]
+      (should-contain "should-not-be-nil pos" result)
+      (should-contain "h/get-cell" result)))
 
   (it "generates unit-at-next-round then with timeout check"
     (let [result (gen/generate-then {:type :unit-at-next-round :unit "D" :target "="} [])]
@@ -162,6 +172,15 @@
       (should-contain ":player" result)
       (should-contain "[1 0]" result)))
 
+  (it "generates cell-prop then for computer-map"
+    (let [result (gen/generate-then {:type :cell-prop :coords [1 0] :property :city-status :expected :computer :target :computer-map} [])]
+      (should-contain "(h/cell-at :computer-map [1 0])" result)))
+
+  (it "generates cell-type then"
+    (let [result (gen/generate-then {:type :cell-type :coords [0 1] :expected :sea} [])]
+      (should-contain ":type" result)
+      (should-contain ":sea" result)))
+
   (it "generates waiting-for-input true then"
     (let [result (gen/generate-then {:type :waiting-for-input :expected true} [])]
       (should-contain "should (h/read-state :waiting-for-input)" result)))
@@ -254,6 +273,58 @@
       (should-contain ":army" result)
       (should-contain "h/get-city" result)
       (should-contain "(h/read-state :production)" result)))
+
+  (it "generates no-production then"
+    (let [result (gen/generate-then {:type :no-production :city "O"} [])]
+      (should-contain "nil? prod" result)
+      (should-contain "= :none prod" result)))
+
+  (it "generates game paused and game not paused thens"
+    (should-contain "(should (h/read-state :paused))"
+                    (gen/generate-then {:type :game-paused :expected true} []))
+    (should-contain "(should-not (h/read-state :paused))"
+                    (gen/generate-then {:type :game-not-paused} [])))
+
+  (it "generates round and destination thens"
+    (should-contain "(h/read-state :round-number)"
+                    (gen/generate-then {:type :round :expected 4} []))
+    (should-contain "(h/read-state :destination)"
+                    (gen/generate-then {:type :destination :expected [2 3]} [])))
+
+  (it "generates territory-map then"
+    (let [result (gen/generate-then {:type :territory-map :rows ["111" "101"]} [])]
+      (should-contain "build-territory-expected" result)
+      (should-contain "territory-mask" result)))
+
+  (it "generates no-unit-at and unit-prop-absent thens"
+    (should-contain ":contents" (gen/generate-then {:type :no-unit-at :coords [2 1]} []))
+    (should-contain "should-be-nil" (gen/generate-then {:type :unit-prop-absent :unit "T" :property :transport-mission} [])))
+
+  (it "generates computer-army-count then"
+    (let [result (gen/generate-then {:type :computer-army-count :expected 6} [])]
+      (should-contain "count-computer-armies" result)
+      (should-contain "6" result)))
+
+  (it "generates shipyard assertions"
+    (should-contain "some #" (gen/generate-then {:type :shipyard-has-ship :city "O" :ship-type :destroyer :hits 2} []))
+    (should-contain "should= [] shipyard" (gen/generate-then {:type :shipyard-empty :city "O"} [])))
+
+  (it "generates map-is and refueling-position-near thens"
+    (should-contain "doseq [col" (gen/generate-then {:type :map-is :expected "A#"} []))
+    (should-contain ":carrier-target" (gen/generate-then {:type :refueling-position-near :unit "F" :target "="} [])))
+
+  (it "generates map-display and load-menu-state thens"
+    (should-contain ":map-to-display" (gen/generate-then {:type :map-display :expected :computer-map} []))
+    (should-contain ":load-menu-open" (gen/generate-then {:type :load-menu-state :expected true} []))
+    (should-contain "should-not" (gen/generate-then {:type :load-menu-state :expected false} [])))
+
+  (it "generates unrecognized and unknown then branches"
+    (let [pending-result (gen/generate-then {:type :unrecognized :text "odd"} [])
+          unknown-result (gen/generate-then {:type :mystery} [])]
+      (should-contain "pending" pending-result)
+      (should-contain "odd" pending-result)
+      (should-contain "Unknown then type" unknown-result)
+      (should-contain ":mystery" unknown-result)))
 
   (it "generates stub given as empty string"
     (let [result (gen/generate-given {:type :stub
