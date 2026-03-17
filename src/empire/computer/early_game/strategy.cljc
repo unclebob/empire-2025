@@ -1,5 +1,6 @@
 (ns empire.computer.early-game.strategy
   (:require [empire.computer.core :as core]
+            [empire.config.ai :as ai]
             [empire.computer.early-game.roles :as roles]
             [empire.computer.early-game.theater :as theater]
             [empire.state.api :as sa]))
@@ -51,11 +52,7 @@
 (defn opening-exploration-profile
   [city-pos]
   (let [{:keys [coastal-count]} (theater-summary city-pos)]
-    (if (< coastal-count 3)
-      {:coast-walk-limit 3
-       :random-explore-chance 1/5}
-      {:coast-walk-limit 1
-       :random-explore-chance 1/2})))
+    (ai/opening-exploration-profile coastal-count)))
 
 (defn theater-loading-transports
   [start-pos]

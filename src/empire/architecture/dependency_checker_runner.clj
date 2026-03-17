@@ -4,10 +4,6 @@
             [clojure.java.io :as io]
             [clojure.string :as str]))
 
-(defn- default-checker-home
-  []
-  (str (System/getProperty "user.home") "/projects/clojure/dependency-checker"))
-
 (defn- absolute-path
   [base path]
   (let [f (io/file path)]
@@ -28,7 +24,7 @@
                   (mapv #(absolute-path project-root %) source-paths))
     config))
 
-(defn- rewrite-config-file-for-external-checker!
+(defn- rewrite-config-file-for-checker!
   [project-root config-path]
   (let [config (config-with-absolute-source-paths project-root
                                                   (-> config-path slurp edn/read-string))
@@ -39,21 +35,10 @@
     (spit temp-file (str (pr-str config) "\n"))
     (.getPath temp-file)))
 
-(defn- installed-checker?
-  [checker-home]
-  (.exists (io/file checker-home "deps.edn")))
-
-(defn- missing-checker-status
-  [checker-home]
-  (binding [*out* *err*]
-    (println (str "External dependency checker not found at " checker-home))
-    (println "Set DEPENDENCY_CHECKER_HOME or install it at ~/projects/clojure/dependency-checker."))
-  2)
-
-(defn- run-external-checker!
-  [checker-home cmd]
+(defn- run-checker-command!
+  [project-root cmd]
   (let [pb (doto (ProcessBuilder. ^java.util.List cmd)
-             (.directory (io/file checker-home))
+             (.directory (io/file project-root))
              (.inheritIO))
         proc (.start pb)]
     (.waitFor proc)))
@@ -64,24 +49,20 @@
     (.delete (io/file config-for-checker))))
 
 (defn- run-checker!
-  [checker-home project-root args]
+  [project-root args]
   (let [[config-path options] (parse-args args)
         config-abs (absolute-path project-root config-path)
         config-for-checker (if (.exists (io/file config-abs))
-                             (rewrite-config-file-for-external-checker! project-root config-abs)
+                             (rewrite-config-file-for-checker! project-root config-abs)
                              config-abs)
         cmd (vec (concat ["clj" "-M:check-dependencies" config-for-checker] options))]
     (try
-      (if (installed-checker? checker-home)
-        (run-external-checker! checker-home cmd)
-        (missing-checker-status checker-home))
+      (run-checker-command! project-root cmd)
       (finally
         (delete-temp-config! config-for-checker config-abs)))))
 
 (defn -main
   [& args]
   (let [project-root (System/getProperty "user.dir")
-        checker-home (or (System/getenv "DEPENDENCY_CHECKER_HOME")
-                         (default-checker-home))
-        status (run-checker! checker-home project-root args)]
+        status (run-checker! project-root args)]
     (System/exit status)))

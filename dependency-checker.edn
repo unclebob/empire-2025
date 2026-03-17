@@ -1,14 +1,14 @@
 {:allowed-dependencies
  {:computer [:config :game-mechanics :state],
   :architecture [],
-  :config [],
+  :config [:game-mechanics],
   :game [:computer :config :game-mechanics :player :state],
   :state [:config],
   :acceptance
   [:computer :config :game :game-mechanics :state :test :ui],
   :ui [:config :game :game-mechanics :player :state],
   :player [:config :game-mechanics :state],
-  :game-mechanics [:config :state],
+  :game-mechanics [:computer :config :state],
   :test [:computer :config :game-mechanics :state]},
  :fail-on-cycles true,
  :fail-on-violations true}

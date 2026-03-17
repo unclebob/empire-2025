@@ -3,6 +3,7 @@
             [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.containers.launch :as launch]
             [empire.game-mechanics.containers.visibility-port :as visibility-port]
             [empire.config.domain.model.containers :as domain-containers]
             [empire.game-mechanics.spatial.neighbors :as neighbors]
@@ -191,7 +192,7 @@
                            (let [candidate-cell (get-in world candidate)]
                              (when (and candidate-cell (nil? (:contents candidate-cell)))
                                candidate)))
-                         (domain-containers/launch-steps-toward city-coords target-coords))
+                         (launch/launch-steps-toward city-coords target-coords))
         target-cell (get-in world first-step)]
     (when first-step
       (let [after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)

@@ -6,7 +6,7 @@
             [empire.computer.threat-response.kamikazee-routing :as routing]
             [empire.computer.threat-response.kamikazee-targets :as targets]
             [empire.config.core :as config]
-            [empire.config.domain.model.containers :as containers]
+            [empire.game-mechanics.containers.launch :as launch]
             [empire.state.api :as sa]))
 
 (def ^:private hunt-trail-length 4)
@@ -189,10 +189,10 @@
           (let [candidate-cell (get-in world candidate)]
             (when (and candidate-cell (nil? (:contents candidate-cell)))
               candidate)))
-        (containers/launch-steps-toward city-pos
-                                        (or (first route)
-                                            major-target
-                                            city-pos))))
+        (launch/launch-steps-toward city-pos
+                                    (or (first route)
+                                        major-target
+                                        city-pos))))
 
 (defn launch-kamikazee-from-airport!
   [ctx city-pos]
