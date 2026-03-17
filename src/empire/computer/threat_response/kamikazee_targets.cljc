@@ -5,11 +5,23 @@
 
 (def ^:private target-choice-width 3)
 
+(defn- visible-world
+  [ctx]
+  (let [visible (when-let [read-runtime-state (:read-runtime-state ctx)]
+                  (read-runtime-state :computer-map))]
+    (if (vector? visible)
+      visible
+      (sa/read-state :computer-map))))
+
+(defn- writable-world
+  [ctx]
+  (or (when-let [current-world (:current-world ctx)]
+        (current-world))
+      (sa/current-world)))
+
 (defn- kamikazee-target-writeable-unit?
   [ctx pos]
-  (let [world (or (when-let [current-world (:current-world ctx)]
-                    (current-world))
-                  (sa/current-world))
+  (let [world (writable-world ctx)
         unit (get-in world (conj pos :contents))]
     (and (= :fighter (:type unit))
          (= :computer (:owner unit))
@@ -57,23 +69,22 @@
      #(decisions/trim-dead-army-targets-state world %))))
 
 (defn- write-fighter-targets!
-  [ctx world targets]
-  (doseq [{:keys [pos]} (decisions/fighter-target-writes world targets)]
+  [ctx writable-map targets]
+  (doseq [{:keys [pos]} (decisions/fighter-target-writes writable-map targets)]
     (when (kamikazee-target-writeable-unit? ctx pos)
       ((:update-game-map! ctx) assoc-in (conj pos :contents :kamikazee-targets) targets))))
 
 (defn refresh-army-targets!
   [ctx]
-  (let [world (or (when-let [current-world (:current-world ctx)]
-                    (current-world))
-                  (sa/current-world))
+  (let [world (visible-world ctx)
+        writable-map (writable-world ctx)
         round-number (current-round ctx)]
     (trim-dead-army-targets! ctx world)
     (let [state (or (when-let [load-major-invasion-state (:load-major-invasion-state ctx)]
                       (load-major-invasion-state))
                     (sa/read-state :major-invasion-state))
           targets (ordered-army-target-positions state round-number world)]
-      (write-fighter-targets! ctx world targets))))
+      (write-fighter-targets! ctx writable-map targets))))
 
 (defn record-army-target!
   [ctx pos]

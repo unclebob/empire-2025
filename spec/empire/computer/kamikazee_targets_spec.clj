@@ -43,6 +43,27 @@
       (should= [[1 1]]
                (get-in (test-utils/read-test-state :game-map) [0 0 :contents :kamikazee-targets]))))
 
+  (it "drops army targets hidden from the computer map"
+    (let [world (build-test-map ["f~~"
+                                 "~A~"
+                                 "~~~"])
+          computer-map (build-test-map ["f~~"
+                                        "~~~"
+                                        "~~~"])
+          state-atom (atom {:kamikazee-army-targets [{:pos [1 1] :seen-round 1}]})]
+      (set-test-world! world)
+      (set-test-computer-map! computer-map)
+      (test-utils/set-kamikazee-fighter! [0 0] {:kamikazee-stage :hunt})
+      (kamikazee/refresh-army-targets! {:current-world test-utils/read-test-world
+                                        :update-game-map! test-utils/update-test-world!
+                                        :load-major-invasion-state #(deref state-atom)
+                                        :update-major-invasion-state! #(swap! state-atom %)
+                                        :read-runtime-state test-utils/read-test-state})
+      (should= []
+               (:kamikazee-army-targets @state-atom))
+      (should= []
+               (get-in (test-utils/read-test-state :game-map) [0 0 :contents :kamikazee-targets]))))
+
   (it "records a new army target at the front and refreshes fighter targets"
     (let [state (atom {:kamikazee-army-targets [{:pos [1 1] :seen-round 2}]})
           refresh-calls (atom 0)]
