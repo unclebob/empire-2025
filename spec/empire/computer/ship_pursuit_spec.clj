@@ -212,6 +212,30 @@
         ;; Carrier should have switched to holding (no distant pairs)
         (should= :holding (get-in (test-utils/read-test-state :game-map) [0 1 :contents :carrier-mode]))))
 
+    (it "positioning carrier without revealed midpoint explores toward sea frontier"
+      (let [cells (vec (for [j (range 60)]
+                         (cond
+                           (= j 0) {:type :city :city-status :computer}
+                           (= j 5) {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                           :carrier-mode :positioning}}
+                           (= j 59) {:type :city :city-status :computer}
+                           :else {:type :sea})))
+            computer-cells (vec (map-indexed (fn [j cell]
+                                               (if (<= 11 j 48) nil cell))
+                                             cells))]
+        (set-test-world! [cells])
+        (set-test-computer-map! [computer-cells])
+        (ship/update-distant-city-pairs!)
+        (ship/process-ship [0 5] :carrier)
+        (let [carrier-pos (first (for [c (range 60)
+                                       :when (= :carrier (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
+                                   [0 c]))
+              unit (get-in (test-utils/read-test-state :game-map) (conj carrier-pos :contents))]
+          (should= [0 6] carrier-pos)
+          (should= :positioning (:carrier-mode unit))
+          (should= :explore (:refueling unit))
+          (should= [0 10] (:carrier-target unit)))))
+
     (it "carrier navigates around land using pathfinding"
       ;; Two distant cities, carrier at [0,10] with target [0,30], land at [0,11]
       (let [cells (vec (for [j (range 60)]

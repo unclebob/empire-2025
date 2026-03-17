@@ -24,6 +24,7 @@ GIVEN game map
 GIVEN b has escort-mode intercepting.
 GIVEN b has escort-carrier-id 1.
 GIVEN c has carrier-id 1.
+GIVEN c is visible to computer.
 
 WHEN computer battleship b is processed.
 
@@ -39,6 +40,7 @@ GIVEN game map
 GIVEN b has escort-mode orbiting.
 GIVEN b has escort-carrier-id 1.
 GIVEN c has carrier-id 1.
+GIVEN c is visible to computer.
 
 WHEN computer battleship b is processed.
 

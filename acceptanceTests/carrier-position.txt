@@ -33,9 +33,12 @@ THEN production at X1 is army.
 
 ;===============================================================
 ; Carrier spawns with refueling position targeting the calculated
-; midpoint between distant cities.
+; midpoint between distant cities when the sea path is revealed.
 ;===============================================================
 GIVEN game map
+  X~~~~~~~~~~~~~~~~~=~~~~~~~~~~~~~~~~~X
+  ######################################
+GIVEN computer map
   X~~~~~~~~~~~~~~~~~=~~~~~~~~~~~~~~~~~X
   ######################################
 GIVEN X1 belongs to country 1.
@@ -48,13 +51,15 @@ THEN there is a c at [1 0].
 THEN c has refueling position near =.
 
 ;===============================================================
-; Carrier finds position near land when midpoint is blocked.
-; The % marks land at the ideal midpoint; carrier finds adjacent sea.
-; The second row provides a sea path around the blocked cell.
+; Carrier does not target a hidden midpoint when the sea path is not
+; revealed. It explores toward the nearest visible sea frontier.
 ;===============================================================
 GIVEN game map
-  X~~~~~~~~~~~~~~~~~%~~~~~~~~~~~~~~~~~X
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  X~~~~~~~~~~~~~~~~~=~~~~~~~~~~~~~~~~~X
+  ######################################
+GIVEN computer map
+  X~~~................................X
+  ######################################
 GIVEN X1 belongs to country 1.
 GIVEN X2 belongs to country 1.
 GIVEN production at X1 is carrier with 1 round remaining.
@@ -62,7 +67,8 @@ GIVEN production at X1 is carrier with 1 round remaining.
 WHEN a new round starts.
 
 THEN there is a c at [1 0].
-THEN c has refueling position near %.
+THEN c has refueling explore.
+THEN c has carrier-target [3 0].
 
 ;===============================================================
 ; Computer does not produce carrier when no sea path exists

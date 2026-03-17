@@ -196,7 +196,20 @@
         (should= :sea (:type (get-in (test-utils/read-test-state :game-map) pos)))
         ;; Should be within fighter-fuel of both
         (should (<= (core/distance pos [0 0]) config/fighter-fuel))
-        (should (<= (core/distance pos [40 0]) config/fighter-fuel)))))
+        (should (<= (core/distance pos [40 0]) config/fighter-fuel))))
+
+    (it "returns nil when midpoint sea is hidden on computer-map"
+      (let [cells (vec (for [j (range 60)]
+                         (cond
+                           (= j 0) {:type :city :city-status :computer}
+                           (= j 59) {:type :city :city-status :computer}
+                           :else {:type :sea})))
+            computer-cells (vec (map-indexed (fn [j cell]
+                                               (if (<= 11 j 48) nil cell))
+                                             cells))]
+        (set-test-world! [cells])
+        (set-test-computer-map! [computer-cells])
+        (should-be-nil (ship/find-position-between-cities #{[0 0] [0 59]})))))
 
 ;; === Mutation-killing tests ===
 

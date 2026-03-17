@@ -67,12 +67,12 @@
   (let [[city1 city2] (vec city-pair)
         midpoint [(quot (+ (first city1) (first city2)) 2)
                   (quot (+ (second city1) (second city2)) 2)]
-        game-map (sa/current-world)
-        cols (count game-map)
-        rows (count (first game-map))
+        computer-map (sa/read-state :computer-map)
+        cols (count computer-map)
+        rows (count (first computer-map))
         candidates (for [i (range cols)
                          j (range rows)
-                         :let [cell (get-in game-map [i j])]
+                         :let [cell (get-in computer-map [i j])]
                          :when (and (= :sea (:type cell))
                                     (nil? (:contents cell))
                                     (<= (core/distance [i j] city1) config/fighter-fuel)
@@ -80,6 +80,37 @@
                      [i j])]
     (when (seq candidates)
       (apply min-key #(core/distance % midpoint) candidates))))
+
+(defn- frontier-sea-target
+  "Finds a visible sea frontier near the midpoint of a city pair.
+   Used when no revealed refueling midpoint exists yet."
+  [city-pair current-pos]
+  (let [[city1 city2] (vec city-pair)
+        midpoint [(quot (+ (first city1) (first city2)) 2)
+                  (quot (+ (second city1) (second city2)) 2)]
+        computer-map (sa/read-state :computer-map)
+        cols (count computer-map)
+        rows (count (first computer-map))
+        hidden-neighbor? (fn [pos]
+                           (some (fn [neighbor]
+                                   (let [cell (get-in computer-map neighbor)]
+                                     (or (nil? cell)
+                                         (= :unexplored (:type cell)))))
+                                 (core/get-neighbors pos)))
+        candidates (for [i (range cols)
+                         j (range rows)
+                         :let [pos [i j]
+                               cell (get-in computer-map pos)]
+                         :when (and (= :sea (:type cell))
+                                    (nil? (:contents cell))
+                                    (not= pos current-pos)
+                                    (hidden-neighbor? pos))]
+                     pos)]
+    (when (seq candidates)
+      (apply min-key #(+ (* 1000 (core/distance % midpoint))
+                         (core/distance % city1)
+                         (core/distance % city2))
+             candidates))))
 
 (defn find-refueling-sites
   "Returns positions of all computer cities and computer carriers."
@@ -100,7 +131,26 @@
     (when-let [pos (find-position-between-cities pair)]
       {:position pos :pair pair})))
 
+(defn- find-carrier-exploration-target
+  "Finds a frontier sea target for a known city pair when the midpoint is still unrevealed."
+  [current-pos]
+  (when-let [pair (find-unreserved-pair)]
+    (when-let [pos (frontier-sea-target pair current-pos)]
+      {:position pos :pair pair})))
+
 (declare position-carrier-without-target)
+
+(defn- assign-carrier-target-and-move
+  [pos position pair refueling]
+  (sa/update-world! update-in (conj pos :contents)
+                    assoc :carrier-target position :carrier-pair pair :refueling refueling)
+  (when-let [next-pos (computer-movement/next-step pos position :carrier)]
+    (core/move-unit-to pos next-pos)
+    (sa/update-state! :computer-carrier-positions disj pos)
+    (sa/update-state! :computer-carrier-positions (fnil conj #{}) next-pos)
+    (computer-movement/update-cell-visibility! pos :computer)
+    (computer-movement/update-cell-visibility! next-pos :computer)
+    next-pos))
 
 (defn- target-still-valid?
   "Returns true if the carrier target is still a valid sea cell."
@@ -112,53 +162,51 @@
 (defn- position-carrier-with-target
   "Handles carrier in positioning mode that has a target."
   [pos target]
-  (cond
-    (= pos target)
-    (sa/update-world! update-in (conj pos :contents)
-                      #(-> % (assoc :carrier-mode :holding) (dissoc :carrier-target)))
+  (let [unit (get-in (sa/current-world) (conj pos :contents))]
+    (cond
+      (= pos target)
+      (if (= :explore (:refueling unit))
+        (do
+          (sa/update-world! update-in (conj pos :contents) dissoc :carrier-target)
+          (position-carrier-without-target pos))
+        (sa/update-world! update-in (conj pos :contents)
+                          #(-> % (assoc :carrier-mode :holding) (dissoc :carrier-target))))
 
-    (not (target-still-valid? target))
+      (not (target-still-valid? target))
     (do (sa/update-world! update-in (conj pos :contents) dissoc :carrier-target)
         (position-carrier-without-target pos))
 
-    :else
-    (when-let [next-pos (computer-movement/next-step pos target :carrier)]
-      (core/move-unit-to pos next-pos)
-      (sa/update-state! :computer-carrier-positions disj pos)
-      (sa/update-state! :computer-carrier-positions (fnil conj #{}) next-pos)
-      (computer-movement/update-cell-visibility! pos :computer)
-      (computer-movement/update-cell-visibility! next-pos :computer)
-      next-pos)))
+      :else
+      (when-let [next-pos (computer-movement/next-step pos target :carrier)]
+        (core/move-unit-to pos next-pos)
+        (sa/update-state! :computer-carrier-positions disj pos)
+        (sa/update-state! :computer-carrier-positions (fnil conj #{}) next-pos)
+        (computer-movement/update-cell-visibility! pos :computer)
+        (computer-movement/update-cell-visibility! next-pos :computer)
+        next-pos))))
 
 (defn- position-carrier-without-target
   "Handles carrier in positioning mode without a target. Finds one or holds."
   [pos]
-  (if-let [{:keys [position pair]} (find-carrier-position)]
-    (do (sa/update-world! update-in (conj pos :contents)
-                          assoc :carrier-target position :carrier-pair pair :refueling :position)
-        (when-let [next-pos (computer-movement/next-step pos position :carrier)]
-          (core/move-unit-to pos next-pos)
-          (sa/update-state! :computer-carrier-positions disj pos)
-          (sa/update-state! :computer-carrier-positions (fnil conj #{}) next-pos)
-          (computer-movement/update-cell-visibility! pos :computer)
-          (computer-movement/update-cell-visibility! next-pos :computer)
-          next-pos))
+  (if-let [{:keys [position pair refueling]} (or (when-let [{:keys [position pair]} (find-carrier-position)]
+                                                   {:position position :pair pair :refueling :position})
+                                                 (when-let [{:keys [position pair]} (find-carrier-exploration-target pos)]
+                                                   {:position position :pair pair :refueling :explore}))]
+    (assign-carrier-target-and-move pos position pair refueling)
     (sa/update-world! update-in (conj pos :contents)
                       assoc :carrier-mode :holding)))
 
 (defn- reposition-carrier
   "Handles carrier in repositioning mode. Finds new position or holds."
   [pos]
-  (if-let [{:keys [position pair]} (find-carrier-position)]
-    (do (sa/update-world! update-in (conj pos :contents)
-                          assoc :carrier-mode :positioning :carrier-target position :carrier-pair pair :refueling :position)
-        (when-let [next-pos (computer-movement/next-step pos position :carrier)]
-          (core/move-unit-to pos next-pos)
-          (sa/update-state! :computer-carrier-positions disj pos)
-          (sa/update-state! :computer-carrier-positions (fnil conj #{}) next-pos)
-          (computer-movement/update-cell-visibility! pos :computer)
-          (computer-movement/update-cell-visibility! next-pos :computer)
-          next-pos))
+  (if-let [{:keys [position pair refueling]} (or (when-let [{:keys [position pair]} (find-carrier-position)]
+                                                   {:position position :pair pair :refueling :position})
+                                                 (when-let [{:keys [position pair]} (find-carrier-exploration-target pos)]
+                                                   {:position position :pair pair :refueling :explore}))]
+    (do
+      (sa/update-world! update-in (conj pos :contents)
+                        assoc :carrier-mode :positioning)
+      (assign-carrier-target-and-move pos position pair refueling))
     (sa/update-world! update-in (conj pos :contents)
                       assoc :carrier-mode :holding)))
 
