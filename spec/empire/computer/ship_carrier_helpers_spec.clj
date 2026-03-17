@@ -15,21 +15,25 @@
   (context "compute-distant-city-pairs"
     (it "returns empty set when no computer cities"
       (set-test-world! (build-test-map ["~~~" "###"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/compute-distant-city-pairs))))
 
     (it "returns empty set when only one computer city"
       (set-test-world! (build-test-map ["X~~" "###"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/compute-distant-city-pairs))))
 
     (it "returns empty set when cities are close (distance <= 32)"
       ;; Two cities 10 apart (< 32)
       (set-test-world! (build-test-map ["X~~~~~~~~~X" "###########"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/compute-distant-city-pairs))))
 
     (it "returns pair when cities are distant (distance > 32)"
       ;; X at 0, X at 36 = distance 36 > 32
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [pairs (ship/compute-distant-city-pairs)]
         (should= 1 (count pairs))
         (should= #{[0 0] [36 0]} (first pairs))))
@@ -39,6 +43,7 @@
       ;; Distances: 0-40=40, 40-79=39, 0-79=79 - all > 32
       (let [row (str "X" (apply str (repeat 39 \~)) "X" (apply str (repeat 38 \~)) "X")]
         (set-test-world! (build-test-map [row (apply str (repeat 80 \#))]))
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (let [pairs (ship/compute-distant-city-pairs)]
           (should= 3 (count pairs)))))
 
@@ -46,12 +51,14 @@
       ;; O is player city, X is computer city - only one computer city
       (set-test-world! (build-test-map ["O~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/compute-distant-city-pairs)))))
 
   (context "update-distant-city-pairs!"
     (it "updates the distant-city-pairs atom"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/update-distant-city-pairs!)
       (should= 1 (count (test-utils/read-test-state :distant-city-pairs)))
       (should= #{[0 0] [36 0]} (first (test-utils/read-test-state :distant-city-pairs)))))
@@ -100,12 +107,14 @@
   (context "find-unreserved-pair"
     (it "returns nil when no distant city pairs exist"
       (set-test-world! (build-test-map ["X~~~~~~~~~X" "###########"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/update-distant-city-pairs!)
       (should-be-nil (ship/find-unreserved-pair)))
 
     (it "returns a pair when distant pair exists and none reserved"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/update-distant-city-pairs!)
       (let [pair (ship/find-unreserved-pair)]
         (should= #{[0 0] [36 0]} pair)))
@@ -113,6 +122,7 @@
     (it "returns nil when all distant pairs are reserved"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Xc"
                                               "######################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
                      :carrier-pair #{[0 0] [35 0]})
       (ship/update-distant-city-pairs!)
@@ -123,6 +133,7 @@
       ;; Three pairs, reserve one
       (let [row (str "X" (apply str (repeat 39 \~)) "X" (apply str (repeat 37 \~)) "Xc")]
         (set-test-world! (build-test-map [row (apply str (repeat 81 \#))])))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
                      :carrier-pair #{[0 0] [40 0]})
       (ship/update-distant-city-pairs!)
@@ -135,6 +146,7 @@
       ;; X at 0, X at 36 - midpoint is 18
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "####################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [pos (ship/find-position-between-cities #{[0 0] [35 0]})]
         (should-not-be-nil pos)
         ;; Should be sea cell
@@ -148,12 +160,14 @@
       ;; Cities separated by land, no valid path
       (set-test-world! (build-test-map ["X####################################X"
                                               "######################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (ship/find-position-between-cities #{[0 0] [37 0]})))
 
     (it "finds position when midpoint is blocked by land"
       ;; X at 0, X at 40 - midpoint area has some land, should find nearby sea
       (let [row (str "X" (apply str (repeat 19 \~)) "#" (apply str (repeat 19 \~)) "X")]
         (set-test-world! (build-test-map [row (apply str (repeat 41 \#))])))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [pos (ship/find-position-between-cities #{[0 0] [40 0]})]
         (should-not-be-nil pos)
         (should= :sea (:type (get-in (test-utils/read-test-state :game-map) pos)))

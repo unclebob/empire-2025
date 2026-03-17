@@ -69,7 +69,7 @@
 (defn- valid-orbit-pos?
   "Returns true if pos is a valid empty sea cell on the game map."
   [pos]
-  (let [cell (get-in (sa/current-world) pos)]
+  (let [cell (get-in (sa/read-state :computer-map) pos)]
     (and cell (= :sea (:type cell)) (nil? (:contents cell)))))
 
 (defn- find-next-orbit-angle

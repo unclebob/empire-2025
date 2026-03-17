@@ -136,6 +136,12 @@
             (sa/update-world! assoc-in (conj pos :contents :mode) :sentry)
             true))))))
 
+(defn- refresh-ship-visibility?
+  [ship-type unit]
+  (or (= :carrier ship-type)
+      (:escort-mode unit)
+      (:escort-carrier-id unit)))
+
 (defn process-ship
   "Processes a computer ship using VMS Empire style logic.
    Returns nil after processing."
@@ -144,6 +150,8 @@
     (when (and unit
                (= :computer (:owner unit))
                (= ship-type (:type unit)))
+      (when (refresh-ship-visibility? ship-type unit)
+        (computer-movement/update-cell-visibility-with-unit! pos :computer unit))
       (when-not (maybe-handle-lake-ship pos unit)
         (dispatch-ship-action pos ship-type unit))))
   nil)

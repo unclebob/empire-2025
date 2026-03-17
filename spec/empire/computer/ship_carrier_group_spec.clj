@@ -104,14 +104,22 @@
     (let [valid-orbit-pos? #'empire.computer.ship-carrier-group/valid-orbit-pos?]
       (it "empty sea cell is valid"
         (set-test-world! [[{:type :sea}]])
+        (set-test-computer-map! [[{:type :sea}]])
         (should (valid-orbit-pos? [0 0])))
 
       (it "occupied sea cell is invalid"
         (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}]])
+        (set-test-computer-map! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}]])
         (should-not (valid-orbit-pos? [0 0])))
 
       (it "land cell is invalid"
         (set-test-world! [[{:type :land}]])
+        (set-test-computer-map! [[{:type :land}]])
+        (should-not (valid-orbit-pos? [0 0])))
+
+      (it "hidden sea on game-map is not a valid orbit position"
+        (set-test-world! [[{:type :sea}]])
+        (set-test-computer-map! [nil])
         (should-not (valid-orbit-pos? [0 0])))))
 
   (context "transition-to-orbiting nil orbit-angle (L102)"

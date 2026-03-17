@@ -28,6 +28,7 @@
     (it "initializes distant-city-pairs when nil"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
                                               "#####################################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (test-utils/set-test-state! :distant-city-pairs nil)
       (let [pair (ship/find-unreserved-pair)]
         (should-not-be-nil pair))))
@@ -41,6 +42,7 @@
                                (= c 50) {:type :city :city-status :computer}
                                :else {:type :sea})]))]
         (set-test-world! game-map)
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (let [pos (ship/find-position-between-cities #{[10 0] [50 0]})]
           (should-not-be-nil pos)
           ;; Should be near midpoint col 30, not near col 18
@@ -54,6 +56,7 @@
                          (= r 50) {:type :city :city-status :computer}
                          :else {:type :sea})))]
         (set-test-world! [col])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (let [pos (ship/find-position-between-cities #{[0 10] [0 50]})]
           (should-not-be-nil pos)
           ;; Should be near midpoint row 30, not near row 18
@@ -67,6 +70,7 @@
                          (= j (* 2 fuel)) {:type :city :city-status :computer}
                          :else {:type :sea})))]
         (set-test-world! [row])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (let [pos (ship/find-position-between-cities #{[0 0] [0 (* 2 fuel)]})]
           (should-not-be-nil pos)
           (should= [0 fuel] pos)))))
@@ -109,7 +113,23 @@
         (set-test-computer-map! [cells])
         (ship/update-distant-city-pairs!)
         (ship/process-ship [0 30] :carrier)
-        (should= :holding (get-in (test-utils/read-test-state :game-map) [0 30 :contents :carrier-mode])))))
+        (should= :holding (get-in (test-utils/read-test-state :game-map) [0 30 :contents :carrier-mode]))))
+
+    (it "holding carrier repositions when paired city is hidden on computer-map"
+      (let [cells (vec (for [j (range 60)]
+                         (cond
+                           (= j 0) {:type :city :city-status :computer}
+                           (= j 30) {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                            :carrier-mode :holding
+                                                            :carrier-pair #{[0 0] [0 59]}}}
+                           (= j 59) {:type :city :city-status :computer}
+                           :else {:type :sea})))]
+        (set-test-world! [cells])
+        (set-test-computer-map! [(vec (for [j (range 60)]
+                                        (if (= j 59) nil (nth cells j))))])
+        (ship/process-ship [0 30] :carrier)
+        (should= :repositioning
+                 (get-in (test-utils/read-test-state :game-map) [0 30 :contents :carrier-mode])))))
 
   (context "carrier submarine slot cap (L689)"
     (it "submarine does not adopt carrier with 2 existing subs"

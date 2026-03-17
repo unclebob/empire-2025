@@ -105,7 +105,7 @@
 (defn- target-still-valid?
   "Returns true if the carrier target is still a valid sea cell."
   [target]
-  (let [cell (get-in (sa/current-world) target)]
+  (let [cell (get-in (sa/read-state :computer-map) target)]
     (and (= :sea (:type cell))
          (nil? (:contents cell)))))
 
@@ -165,7 +165,7 @@
 (defn- pair-still-valid?
   "Returns true if both cities in the pair are still computer-owned."
   [pair]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (every? (fn [pos]
               (let [cell (get-in game-map pos)]
                 (and (= :city (:type cell))

@@ -339,4 +339,27 @@
           (should= :loading (:transport-mission transport))
           ;; pickup-continent-pos should be on the OTHER army continent (rows 4-5),
           ;; not on the unload continent (rows 0-1)
-          (should (>= (second (:pickup-continent-pos transport)) 4)))))))
+          (should (>= (second (:pickup-continent-pos transport)) 4)))))
+
+    (it "ignores hidden armies when selecting the next pickup continent"
+      (let [game-map (build-test-map ["##~"
+                                      "~t~"
+                                      "~~~"
+                                      "~~~"
+                                      "aaa"
+                                      "a##"])]
+        (set-test-world! game-map)
+        (set-test-computer-map! (build-test-map ["##~"
+                                                 "~t~"
+                                                 "~~~"
+                                                 "~~~"
+                                                 "..."
+                                                 ".##"]))
+        (update-test-world! assoc-in [1 1 :contents]
+               {:type :transport :owner :computer
+                :transport-mission :unloading :army-count 1
+                :pickup-continent-pos [2 5]})
+        (transport/process-transport [1 1])
+        (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [1 1]))]
+          (should= :loading (:transport-mission transport))
+          (should-be-nil (:pickup-continent-pos transport)))))))
