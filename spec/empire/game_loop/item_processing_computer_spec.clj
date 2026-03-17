@@ -108,6 +108,19 @@
         (ip/process-computer-items)
         (should @moved?))))
 
+  (it "refreshes computer-map before processing computer units"
+    (set-test-world! (test-utils/build-test-map ["~a"]))
+    (test-utils/set-test-state! :computer-items [[1 0]])
+    (let [seen-owner (atom nil)]
+      (with-redefs [computer/process-computer-unit
+                    (fn [_]
+                      (reset! seen-owner
+                              (get-in (test-utils/read-test-state :computer-map)
+                                      [1 0 :contents :owner]))
+                      nil)]
+        (ip/process-computer-items)
+        (should= :computer @seen-owner))))
+
   (it "continues processing when computer unit returns new coords (L199)"
     (set-test-world! [[{:type :land :contents {:type :army :owner :computer
                                                :mode :moving}}

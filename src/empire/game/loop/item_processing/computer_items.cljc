@@ -21,6 +21,27 @@
   []
   (first (normalize-computer-items)))
 
+(defn- make-empty-visible-map
+  [game-map]
+  (vec (repeat (count game-map)
+               (vec (repeat (count (first game-map)) nil)))))
+
+(defn- refresh-computer-map!
+  []
+  (let [game-map (sa/current-world)
+        current-map (sa/read-state :computer-map)
+        visible-map (if (and (vector? current-map)
+                             (= (count current-map) (count game-map))
+                             (= (count (first current-map))
+                                (count (first game-map))))
+                      current-map
+                      (make-empty-visible-map game-map))]
+    (when-let [updated (visibility/update-combatant-map-state
+                        visible-map
+                        :computer
+                        game-map)]
+      (sa/write-state! :computer-map updated))))
+
 (defn- process-one-computer-item
   "Processes a single computer item. Returns :done when item processed."
   []
@@ -50,6 +71,7 @@
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."
   []
+  (refresh-computer-map!)
   (loop [processed 0]
     (when (and (seq (normalize-computer-items)) (< processed 100))
       (process-one-computer-item)

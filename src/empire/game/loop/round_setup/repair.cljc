@@ -6,7 +6,7 @@
 
 (defn- repair-city-ships
   "Repairs all ships in a city's shipyard by 1 hit each.
-   Launches fully repaired ships to city cell or adjacent sea."
+   Launches fully repaired ships to adjacent sea when possible."
   [city-coords]
   (let [cell (get-in (sa/current-world) city-coords)
         shipyard (uc/get-shipyard-ships cell)]
@@ -22,9 +22,9 @@
           (let [current-cell (get-in (sa/current-world) city-coords)
                 ship (get-in current-cell [:shipyard i])]
             (when (uc/ship-fully-repaired? ship)
-              (let [launch-pos (if (nil? (:contents current-cell))
-                                 city-coords
-                                 (lakes/find-adjacent-empty-sea city-coords))]
+              (let [launch-pos (or (lakes/find-adjacent-empty-sea city-coords)
+                                   (when (nil? (:contents current-cell))
+                                     city-coords))]
                 (when launch-pos
                   (container-ops/launch-ship-from-shipyard city-coords i launch-pos))))))))))
 
