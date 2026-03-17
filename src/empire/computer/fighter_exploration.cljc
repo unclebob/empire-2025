@@ -14,9 +14,8 @@
   [pos]
   (let [computer-map (sa/read-state :computer-map)
         [r c] pos
-        game-map (sa/current-world)
-        height (count game-map)
-        width (count (first game-map))]
+        height (count computer-map)
+        width (count (first computer-map))]
     (count (filter (fn [[dr dc]]
                      (let [nr (+ r dr) nc (+ c dc)]
                        (and (>= nr 0) (< nr height)
@@ -29,9 +28,8 @@
    (including their visibility neighbors) along the ray."
   [start direction n]
   (let [computer-map (sa/read-state :computer-map)
-        game-map (sa/current-world)
-        height (count game-map)
-        width (count (first game-map))
+        height (count computer-map)
+        width (count (first computer-map))
         [dr dc] direction]
     (reduce (fn [total step]
               (let [pr (+ (first start) (* step dr))

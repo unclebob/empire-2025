@@ -107,4 +107,14 @@
         ;; Should move right (toward unexplored)
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
-          (should (> (first (:pos result)) 4)))))))
+          (should (> (first (:pos result)) 4)))))
+
+  (context "computer-map scoring"
+    (it "counts unexplored neighbors using computer-map bounds"
+      (set-test-world! (build-test-map ["#####"
+                                        "#####"
+                                        "#####"]))
+      (set-test-computer-map! [[{:type :land} nil]
+                               [{:type :land} {:type :land}]])
+      (should= 1
+               (#'empire.computer.fighter-exploration/count-unexplored-neighbors [0 0]))))))
