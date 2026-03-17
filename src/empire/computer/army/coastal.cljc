@@ -5,7 +5,23 @@
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
+            [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.debug.logging :as debug]))
+
+(defn- log-missing-army-contents!
+  [reason context]
+  (integrity/write-stacktrace-error-log!
+   "army-error"
+   (merge {:reason reason} context)
+   (ex-info "Army sentry update attempted without unit contents"
+            (merge {:reason reason} context))))
+
+(defn- set-sentry-mode-if-unit!
+  [pos context]
+  (if (get-in (sa/current-world) (conj pos :contents))
+    (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
+    (log-missing-army-contents! :missing-contents-for-sentry
+                                (assoc context :pos pos :cell (get-in (sa/current-world) pos)))))
 
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."
@@ -158,14 +174,19 @@
 (defn- try-settle-on-coast [pos country-id]
   (when (can-settle-here? pos country-id)
     (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
-    (sa/update-world! assoc-in (conj pos :contents :mode) :sentry)
+    (set-sentry-mode-if-unit! pos
+                              {:operation :try-settle-on-coast
+                               :country-id country-id})
     pos))
 
 (defn- try-queue-near-coast [pos country-id]
   (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
     (or (movement/move-toward-objective pos target country-id)
         (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
-            (sa/update-world! assoc-in (conj pos :contents :mode) :sentry)
+            (set-sentry-mode-if-unit! pos
+                                      {:operation :try-queue-near-coast
+                                       :country-id country-id
+                                       :target target})
             pos))))
 
 (defn- try-wake-nearby [pos]
@@ -181,7 +202,9 @@
   [pos country-id]
   (if (should-sentry-on-coast? pos country-id)
     (do (debug/log-computer-event! :army-sentry pos {:reason :coastal-fill :country-id country-id})
-        (sa/update-world! assoc-in (conj pos :contents :mode) :sentry)
+        (set-sentry-mode-if-unit! pos
+                                  {:operation :fill-coastal-cell
+                                   :country-id country-id})
         pos)
     (or (try-move-to-coastal-cell pos country-id)
         (try-settle-on-coast pos country-id)

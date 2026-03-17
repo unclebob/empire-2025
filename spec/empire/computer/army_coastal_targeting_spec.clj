@@ -62,14 +62,33 @@
                                   :can-settle? false
                                   :queue-target nil
                                   :wake-count 0
-                                  :current-world {[1 1] {:contents {}}}})
+                                  :current-world [[{:type :land} {:type :land} {:type :land}]
+                                                  [{:type :land} {:type :land :contents {}} {:type :land}]
+                                                  [{:type :land} {:type :land} {:type :land}]]})
           {wake-result :result}
           (run-fill-coastal-cell {:should-sentry? false
                                   :coastal-target nil
                                   :can-settle? false
                                   :queue-target nil
                                   :wake-count 2
-                                  :current-world {[1 1] {:contents {}}}})]
+                                  :current-world [[{:type :land} {:type :land} {:type :land}]
+                                                  [{:type :land} {:type :land :contents {}} {:type :land}]
+                                                  [{:type :land} {:type :land} {:type :land}]]})]
       (should= [1 1] settle-result)
       (should= 1 (count settle-updates))
       (should-be-nil wake-result))))
+
+  (it "logs and avoids creating malformed contents when coastal sentry write has no unit"
+    (let [logged (atom nil)]
+      (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
+                    sa/current-world (fn [] [[{:type :land} {:type :land} {:type :land}]
+                                             [{:type :land} {:type :land :country-id 1} {:type :land}]
+                                             [{:type :land} {:type :land} {:type :land}]])
+                    sa/update-world! (fn [& _] (should-not "should not write malformed contents"))
+                    empire.game-mechanics.debug.logging/log-computer-event! (fn [& _] nil)
+                    empire.game-mechanics.debug.integrity/write-stacktrace-error-log!
+                    (fn [_prefix context _throwable]
+                      (reset! logged context)
+                      "army-error123.log")]
+        (should= [1 1] (coastal/fill-coastal-cell [1 1] 1))
+        (should= :fill-coastal-cell (:operation @logged)))))

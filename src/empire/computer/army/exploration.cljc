@@ -2,7 +2,23 @@
   "Army exploration behaviors (interior, inland, random)."
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
-            [empire.computer.core :as core]))
+            [empire.computer.core :as core]
+            [empire.game-mechanics.debug.integrity :as integrity]))
+
+(defn- log-missing-army-contents!
+  [reason context]
+  (integrity/write-stacktrace-error-log!
+   "army-error"
+   (merge {:reason reason} context)
+   (ex-info "Army sentry update attempted without unit contents"
+            (merge {:reason reason} context))))
+
+(defn- set-sentry-mode-if-unit!
+  [pos context]
+  (if (get-in (sa/current-world) (conj pos :contents))
+    (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
+    (log-missing-army-contents! :missing-contents-for-sentry
+                                (assoc context :pos pos :cell (get-in (sa/current-world) pos)))))
 
 (defn explore-randomly
   "Move toward any unexplored territory adjacent to computer's explored area.
@@ -92,7 +108,11 @@
                (nil? (:contents (get-in (sa/current-world) target)))
                (movement/try-move pos target))
       (when (at-sea-coast? target)
-        (sa/update-world! assoc-in (conj target :contents :mode) :sentry))
+        (set-sentry-mode-if-unit! target
+                                  {:operation :try-random-direction-move
+                                   :from pos
+                                   :country-id country-id
+                                   :unit unit}))
       target)))
 
 (defn- handle-blocked-random-explore [pos country-id]
@@ -113,7 +133,11 @@
                             update :random-explore-rounds (fnil inc 0))
           (cond
             (at-sea-coast? pos)
-            (do (sa/update-world! assoc-in (conj pos :contents :mode) :sentry) pos)
+            (do (set-sentry-mode-if-unit! pos
+                                          {:operation :process-random-explore
+                                           :country-id country-id
+                                           :unit unit})
+                pos)
 
             :else
             (or (try-random-direction-move pos country-id unit)

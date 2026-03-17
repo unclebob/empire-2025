@@ -71,6 +71,19 @@
       (should= "World integrity violation; wrote error-test.log\n" (str err-buffer))
       (should= 1 (count @captured))))
 
+  (it "writes stacktrace error logs with a stdout message"
+    (let [out-buffer (java.io.StringWriter.)]
+      (binding [*out* (java.io.PrintWriter. out-buffer)]
+        (with-redefs [integrity/generate-prefixed-error-filename (fn [_] "army-error2026-03-17-140421123.log")
+                      clojure.core/spit (fn [& _] nil)]
+          (should= "army-error2026-03-17-140421123.log"
+                   (integrity/write-stacktrace-error-log!
+                    "army-error"
+                    {:operation :test}
+                    (ex-info "boom" {})))))
+      (should= "army-error was written to army-error2026-03-17-140421123.log\n"
+               (str out-buffer))))
+
   (it "does nothing when integrity checking is disabled"
     (test-utils/set-test-world! [[{:type :land :contents {:fuel 31}}]])
     (test-utils/set-test-state! :integrity-check-enabled false)
@@ -80,5 +93,9 @@
       (should-be-nil (integrity/check-world-integrity!))))
 
   (it "generates timestamped clj error log filenames"
-    (should (re-matches #"error-\d{4}-\d{2}-\d{2}-\d{6}\.log"
-                        (integrity/generate-error-filename)))))
+    (should (re-matches #"error-\d{4}-\d{2}-\d{2}-\d{9}\.log"
+                        (integrity/generate-error-filename))))
+
+  (it "generates timestamped prefixed error log filenames"
+    (should (re-matches #"army-error\d{4}-\d{2}-\d{2}-\d{9}\.log"
+                        (integrity/generate-prefixed-error-filename "army-error")))))

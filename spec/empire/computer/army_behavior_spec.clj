@@ -27,6 +27,25 @@
       (army/process-army [1 0])
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [1 0 :contents :mode])))
 
+    (it "logs and avoids creating malformed contents when coast sentry write has no unit"
+      (set-test-world! (build-test-map ["###"
+                                        "###"
+                                        "~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (update-test-world! assoc-in [1 0 :contents]
+                         {:type :army :owner :computer :hits 1
+                          :mode :random-explore :random-explore-direction [0 1] :country-id 1})
+      (let [logged (atom nil)]
+        (with-redefs [empire.computer.army.movement/try-move (fn [_ _] true)
+                      empire.game-mechanics.debug.integrity/write-stacktrace-error-log!
+                      (fn [_prefix context _throwable]
+                        (reset! logged context)
+                        "army-error123.log")]
+          (@#'empire.computer.army.exploration/try-random-direction-move
+           [1 0] 1 {:random-explore-direction [0 1] :country-id 1}))
+        (should= nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
+        (should= :try-random-direction-move (:operation @logged)))))
+
     (it "moves inland in stored direction"
       ;; 3x3 all-land, army at [1 1], direction [1 0] (right)
       (set-test-world! (build-test-map ["###"
@@ -332,5 +351,5 @@
                                [nil nil nil]])
       (with-redefs [rand (constantly 0.9)
                     rand-nth (fn [coll] (first coll))]
-        (@#'army/find-and-execute-land-action [1 1] nil))
-      (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents])))))
+        (@#'army/find-and-execute-land-action [1 1] nil)
+        (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents])))))

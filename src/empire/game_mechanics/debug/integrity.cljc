@@ -91,10 +91,67 @@
   []
   #?(:clj
      (let [now (LocalDateTime/now)
-           formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmss")]
+           formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmssSSS")]
        (str "error-" (.format now formatter) ".log"))
      :cljs
      "error.log"))
+
+(defn- timestamp-with-millis
+  []
+  #?(:clj
+     (let [now (LocalDateTime/now)
+           formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmssSSS")]
+       (.format now formatter))
+     :cljs
+     "cljs"))
+
+(defn generate-prefixed-error-filename
+  [prefix]
+  #?(:clj
+     (str prefix (timestamp-with-millis) ".log")
+     :cljs
+     (str prefix "cljs.log")))
+
+(defn- format-stacktrace-report
+  [context throwable]
+  #?(:clj
+     (let [round (sa/read-state :round-number)
+           actions (take-last 50 (or (sa/read-state :action-log) []))
+           player-moves (filter #(= round (:round %)) (or (sa/read-state :player-movement-log) []))
+           computer-events (filter #(= round (:round %)) (or (sa/read-state :computer-event-log) []))]
+       (str "=== Empire Error ===\n"
+            "Round: " round "\n"
+            "Timestamp: " (System/currentTimeMillis) "\n\n"
+            "=== Context ===\n"
+            (with-out-str (pprint/pprint context))
+            "\n=== Stack Trace ===\n"
+            (with-out-str (.printStackTrace throwable (java.io.PrintWriter. *out*)))
+            "\n=== Actions (last 50) ===\n"
+            (if (seq actions)
+              (str (str/join "\n" (map format-action-entry actions)) "\n")
+              "  (none)\n")
+            "\n=== Computer Events (this round) ===\n"
+            (if (seq computer-events)
+              (str (str/join "\n" (map format-computer-event-entry computer-events)) "\n")
+              "  (none)\n")
+            "\n=== Player Movements (this round) ===\n"
+            (if (seq player-moves)
+              (str (str/join "\n" (map format-movement-entry player-moves)) "\n")
+              "  (none)\n")))
+     :cljs
+     (str "=== Empire Error ===\n"
+          "Context: " (pr-str context) "\n"
+          "Throwable: " (pr-str throwable) "\n")))
+
+(defn write-stacktrace-error-log!
+  [prefix context throwable]
+  #?(:clj
+     (let [filename (generate-prefixed-error-filename prefix)]
+       (spit filename (format-stacktrace-report context throwable))
+       (println (str prefix " was written to " filename))
+       filename)
+     :cljs
+     nil))
 
 (defn write-integrity-error-log!
   [invalids]
