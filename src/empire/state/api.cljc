@@ -45,7 +45,7 @@
 
 (defn rebuild-refueling-caches! []
   (let [{:keys [cities carriers]}
-        (refueling/scan-refueling-positions (:game-map @world/state))]
+        (refueling/scan-refueling-positions (:computer-map @world/state))]
     (swap! computer/state assoc
            :computer-city-positions cities
            :computer-carrier-positions carriers)))

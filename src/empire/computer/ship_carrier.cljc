@@ -9,7 +9,7 @@
 (defn- find-computer-cities
   "Returns positions of all computer cities."
   []
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [cell (get-in game-map [i j])]
@@ -38,7 +38,7 @@
   "Returns set of city pairs already assigned to computer carriers.
    Includes carriers in :positioning and :holding modes."
   []
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (set (for [i (range (count game-map))
                j (range (count (first game-map)))
                :let [unit (get-in game-map [i j :contents])]

@@ -54,6 +54,15 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/compute-distant-city-pairs)))))
 
+    (it "ignores computer cities hidden from computer-map"
+      (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
+                                        "#####################################"]))
+      (set-test-computer-map! [(vec (concat [{:type :city :city-status :computer}]
+                                            (repeat 35 {:type :sea})
+                                            [nil]))
+                               (vec (repeat 37 {:type :land}))])
+      (should (empty? (ship/compute-distant-city-pairs)))))
+
   (context "update-distant-city-pairs!"
     (it "updates the distant-city-pairs atom"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~X"
@@ -66,17 +75,20 @@
   (context "find-reserved-pairs"
     (it "returns empty set when no carriers"
       (set-test-world! (build-test-map ["~~~" "###"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/find-reserved-pairs))))
 
     (it "returns empty set when carrier has no pair assigned"
       (set-test-world! (build-test-map ["~c~" "###"]))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :positioning)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/find-reserved-pairs))))
 
     (it "returns pair from positioning carrier"
       (set-test-world! (build-test-map ["~c~" "###"]))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :positioning
                      :carrier-pair #{[0 0] [50 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [pairs (ship/find-reserved-pairs)]
         (should= 1 (count pairs))
         (should= #{[0 0] [50 0]} (first pairs))))
@@ -85,6 +97,7 @@
       (set-test-world! (build-test-map ["~c~" "###"]))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
                      :carrier-pair #{[0 0] [50 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [pairs (ship/find-reserved-pairs)]
         (should= 1 (count pairs))
         (should= #{[0 0] [50 0]} (first pairs))))
@@ -95,6 +108,7 @@
                      :carrier-pair #{[0 0] [50 0]})
       (set-test-unit (test-utils/game-map-atom) "c2" :carrier-mode :positioning
                      :carrier-pair #{[10 0] [60 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [pairs (ship/find-reserved-pairs)]
         (should= 2 (count pairs))))
 
@@ -102,6 +116,15 @@
       (set-test-world! (build-test-map ["~C~" "###"]))
       (set-test-unit (test-utils/game-map-atom) "C" :carrier-mode :holding
                      :carrier-pair #{[0 0] [50 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should (empty? (ship/find-reserved-pairs))))
+
+    (it "ignores carriers hidden from computer-map"
+      (set-test-world! (build-test-map ["~c~" "###"]))
+      (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
+                     :carrier-pair #{[0 0] [50 0]})
+      (set-test-computer-map! [[{:type :sea} nil {:type :sea}]
+                               [{:type :land} {:type :land} {:type :land}]])
       (should (empty? (ship/find-reserved-pairs)))))
 
   (context "find-unreserved-pair"
@@ -122,9 +145,9 @@
     (it "returns nil when all distant pairs are reserved"
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Xc"
                                               "######################################"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
                      :carrier-pair #{[0 0] [35 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/update-distant-city-pairs!)
       (should-be-nil (ship/find-unreserved-pair)))
 
@@ -173,7 +196,7 @@
         (should= :sea (:type (get-in (test-utils/read-test-state :game-map) pos)))
         ;; Should be within fighter-fuel of both
         (should (<= (core/distance pos [0 0]) config/fighter-fuel))
-        (should (<= (core/distance pos [40 0]) config/fighter-fuel))))))
+        (should (<= (core/distance pos [40 0]) config/fighter-fuel)))))
 
 ;; === Mutation-killing tests ===
 

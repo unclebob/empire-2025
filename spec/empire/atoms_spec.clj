@@ -5,7 +5,7 @@
             [empire.config.core :as config]
             [empire.config.domain.core.messages :as messages]
             [empire.config.domain.core.refueling :as refueling]
-            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "set-error-message"
   (before (reset-all-atoms!))
@@ -57,21 +57,24 @@
 (describe "rebuild-refueling-caches!"
   (before (reset-all-atoms!))
 
-  (it "populates computer-city-positions from game map"
+  (it "populates computer-city-positions from computer map"
     (let [game-map (build-test-map ["X~O"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
       (should= #{[0 0]} (test-utils/read-test-state :computer-city-positions))))
 
-  (it "populates computer-carrier-positions from game map"
+  (it "populates computer-carrier-positions from computer map"
     (let [game-map (build-test-map ["c~C"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
       (should= #{[0 0]} (test-utils/read-test-state :computer-carrier-positions))))
 
   (it "finds both cities and carriers"
     (let [game-map (build-test-map ["X~c"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
       (should= #{[0 0]} (test-utils/read-test-state :computer-city-positions))
       (should= #{[2 0]} (test-utils/read-test-state :computer-carrier-positions))))
@@ -79,6 +82,7 @@
   (it "ignores player cities and carriers"
     (let [game-map (build-test-map ["O~C"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
       (should= #{} (test-utils/read-test-state :computer-city-positions))
       (should= #{} (test-utils/read-test-state :computer-carrier-positions))))
@@ -86,6 +90,7 @@
   (it "returns empty sets for empty map"
     (let [game-map (build-test-map ["~~"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
       (should= #{} (test-utils/read-test-state :computer-city-positions))
       (should= #{} (test-utils/read-test-state :computer-carrier-positions))))
@@ -93,14 +98,27 @@
   (it "finds multiple computer cities"
     (let [game-map (build-test-map ["X~X"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
       (should= #{[0 0] [2 0]} (test-utils/read-test-state :computer-city-positions))))
 
   (it "ignores free cities"
     (let [game-map (build-test-map ["+~X"])]
       (set-test-world! game-map)
+      (set-test-computer-map! game-map)
       (sa/rebuild-refueling-caches!)
-      (should= #{[2 0]} (test-utils/read-test-state :computer-city-positions)))))
+      (should= #{[2 0]} (test-utils/read-test-state :computer-city-positions))))
+
+  (it "ignores cities and carriers hidden from computer-map"
+    (let [game-map (build-test-map ["X~c"])
+          computer-map [[{:type :city :city-status :computer}
+                         {:type :sea}
+                         nil]]]
+      (set-test-world! game-map)
+      (set-test-computer-map! computer-map)
+      (sa/rebuild-refueling-caches!)
+      (should= #{[0 0]} (test-utils/read-test-state :computer-city-positions))
+      (should= #{} (test-utils/read-test-state :computer-carrier-positions)))))
 
 (describe "merge-continents!"
   (before (reset-all-atoms!))

@@ -17,7 +17,7 @@
 (defn- find-carrier-with-open-slot
   "Finds the nearest computer carrier with an open slot for the given unit type."
   [pos unit-type]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         candidates (for [i (range (count game-map))
                          j (range (count (first game-map)))
                          :let [cell (get-in game-map [i j])

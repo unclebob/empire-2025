@@ -199,7 +199,7 @@
 
 (defn find-computer-transports
   []
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (for [i (range (count game-map))
           j (range (count (first game-map)))
           :let [cell (get-in game-map [i j])

@@ -78,25 +78,30 @@
   (context "find-refueling-sites (L547-L551)"
     (it "includes computer cities"
       (set-test-world! [[{:type :city :city-status :computer} {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "excludes player cities"
       (set-test-world! [[{:type :city :city-status :player} {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/find-refueling-sites))))
 
     (it "includes holding computer carriers"
       (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer
                                                        :carrier-mode :holding}} {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "includes positioning computer carriers"
       (set-test-world! [[{:type :sea :contents {:type :carrier :owner :computer
                                                        :carrier-mode :positioning}} {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= [[0 0]] (ship/find-refueling-sites)))
 
     (it "excludes player carriers"
       (set-test-world! [[{:type :sea :contents {:type :carrier :owner :player
                                                        :carrier-mode :holding}} {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (empty? (ship/find-refueling-sites)))))
 
   (context "pair-still-valid? (L625, L626)"
@@ -223,6 +228,7 @@
                {:type :battleship :owner :computer :hits 8
                 :escort-id 1 :escort-mode :orbiting
                 :escort-carrier-id 1 :orbit-angle 2})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (ship/process-ship [1 3] :battleship)
         (let [bb (first (for [c (range 7) r (range 7)
                               :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]

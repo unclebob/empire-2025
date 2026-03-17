@@ -102,6 +102,7 @@
       (update-test-world! assoc-in [1 2 :contents]
              {:type :transport :owner :computer :hits 3
               :transport-id 1 :transport-mission :loading :army-count 0})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/process-ship [1 0] :destroyer)
       ;; All neighbors of [1 1] visible to group — pursuit ends
       (let [destroyer (first (for [c (range 3) r (range 3)
@@ -282,12 +283,14 @@
       (let [cells (vec (concat [{:type :city :city-status :computer}]
                                 (repeat 39 {:type :sea})))]
         (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (ship/update-distant-city-pairs!)
         (should-be-nil (ship/find-carrier-position))))
 
     (it "returns nil when cities are close (no distant pairs)"
       ;; Two cities 20 apart (< 32)
       (set-test-world! (build-test-map ["X~~~~~~~~~~~~~~~~~~X" "####################"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/update-distant-city-pairs!)
       (should-be-nil (ship/find-carrier-position)))
 
@@ -299,6 +302,7 @@
                            (= j 59) {:type :city :city-status :computer}
                            :else {:type :sea})))]
         (set-test-world! [cells])
+        (set-test-computer-map! [cells])
         (ship/update-distant-city-pairs!)
         (let [result (ship/find-carrier-position)]
           (should-not-be-nil result)
@@ -314,6 +318,7 @@
                                               "######################################"]))
       (set-test-unit (test-utils/game-map-atom) "c" :carrier-mode :holding
                      :carrier-pair #{[0 0] [36 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (ship/update-distant-city-pairs!)
       (should-be-nil (ship/find-carrier-position))))
 ) ;; end process-ship

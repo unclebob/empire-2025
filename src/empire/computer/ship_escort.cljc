@@ -9,7 +9,7 @@
 (defn find-carrier-by-id
   "Finds the position of a carrier with the given carrier-id."
   [carrier-id]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (first (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [cell (get-in game-map [i j])
@@ -22,7 +22,7 @@
 (defn- find-transport-by-id
   "Finds the position of a transport with the given transport-id."
   [transport-id]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (first (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [cell (get-in game-map [i j])
@@ -111,7 +111,7 @@
 (defn- find-unadopted-transport
   "Finds the nearest computer transport without an escort-destroyer-id."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         candidates (for [i (range (count game-map))
                          j (range (count (first game-map)))
                          :let [cell (get-in game-map [i j])

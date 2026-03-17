@@ -143,6 +143,7 @@
                             {:type :battleship :owner :computer :hits 8
                              :escort-id 1 :escort-mode :intercepting
                              :escort-carrier-id 1})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (cg/process-carrier-group-escort [2 2] :battleship)
         ;; orbit-angle 0 maps to offset [-2,-2] from [3,3] = [1,1]
         (let [bb (first (for [r (range 7) c (range 7)
@@ -172,6 +173,7 @@
                             {:type :battleship :owner :computer :hits 8
                              :escort-id 1 :escort-mode :orbiting
                              :escort-carrier-id 1})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (cg/process-carrier-group-escort [1 1] :battleship)
         ;; With nil orbit-angle defaulting to 0, inc(0)=1 -> angle 1 = [-2,-1] from [3,3] = [1,2]
         (let [bb (first (for [r (range 7) c (range 7)

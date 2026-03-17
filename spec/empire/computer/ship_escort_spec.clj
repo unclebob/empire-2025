@@ -115,6 +115,29 @@
         (should= 1 (:escort-transport-id destroyer))
         (should= 1 (:escort-destroyer-id transport))))
 
+    (it "seeking destroyer ignores transport hidden from computer-map"
+      (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                :destroyer-id 1 :escort-mode :seeking}}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :sea :contents {:type :transport :owner :computer :hits 3
+                                                :transport-id 1 :transport-mission :loading
+                                                :army-count 0}}]])
+      (set-test-computer-map! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                       :destroyer-id 1 :escort-mode :seeking}}
+                                {:type :sea}
+                                {:type :sea}
+                                nil]])
+      (ship/process-ship [0 0] :destroyer)
+      (let [destroyer (first (for [c (range 4)
+                                   :let [unit (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
+                                   :when (= :destroyer (:type unit))]
+                               unit))
+            transport (get-in (test-utils/read-test-state :game-map) [0 3 :contents])]
+        (should= :seeking (:escort-mode destroyer))
+        (should-be-nil (:escort-transport-id destroyer))
+        (should-be-nil (:escort-destroyer-id transport))))
+
     (it "intercepting destroyer transitions to escorting when adjacent"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
                                                        :destroyer-id 1 :escort-mode :intercepting

@@ -33,6 +33,30 @@
         (should= 1 (:escort-carrier-id bb))
         (should= 1 (:group-battleship-id carrier))))
 
+    (it "seeking battleship ignores carrier hidden from computer-map"
+      (set-test-world! [[{:type :sea :contents {:type :battleship :owner :computer :hits 8
+                                                :escort-id 1 :escort-mode :seeking}}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :sea :contents {:type :carrier :owner :computer :hits 8
+                                                :carrier-id 1 :carrier-mode :holding
+                                                :group-battleship-id nil
+                                                :group-submarine-ids []}}]])
+      (set-test-computer-map! [[{:type :sea :contents {:type :battleship :owner :computer :hits 8
+                                                       :escort-id 1 :escort-mode :seeking}}
+                                {:type :sea}
+                                {:type :sea}
+                                nil]])
+      (ship/process-ship [0 0] :battleship)
+      (let [bb (first (for [c (range 4)
+                            :let [unit (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
+                            :when (= :battleship (:type unit))]
+                        unit))
+            carrier (get-in (test-utils/read-test-state :game-map) [0 3 :contents])]
+        (should= :seeking (:escort-mode bb))
+        (should-be-nil (:escort-carrier-id bb))
+        (should-be-nil (:group-battleship-id carrier))))
+
     (it "intercepting escort transitions to orbiting when at radius 2"
       ;; Battleship at [0,0], carrier at [0,2] (Chebyshev distance 2)
       (set-test-world! [[{:type :sea :contents {:type :battleship :owner :computer :hits 8
@@ -66,6 +90,7 @@
                {:type :battleship :owner :computer :hits 8
                 :escort-id 1 :escort-mode :orbiting
                 :escort-carrier-id 1 :orbit-angle 0})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (ship/process-ship [0 0] :battleship)
         ;; Should have moved from [0,0] to next orbit position
         ;; Orbit angle 0 = [-2,-2] = [0,0] relative to carrier at [2,2]
@@ -158,6 +183,7 @@
                 :escort-id 1 :escort-mode :pursuing
                 :escort-carrier-id 1
                 :pursuit-target [4 4] :pursuit-steps-remaining 1})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (ship/process-ship [0 0] :battleship)
         (let [bb (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (should= :orbiting (:escort-mode bb))
