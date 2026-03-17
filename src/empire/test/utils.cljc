@@ -178,6 +178,23 @@
   (let [rows (mapv (fn [row-str] (mapv char->cell row-str)) strings)]
     (apply mapv vector rows)))
 
+(defn set-test-world-with-country!
+  [strings country-id]
+  (let [world (build-test-map strings)
+        width (count world)
+        height (count (first world))
+        world-with-country
+        (reduce (fn [m [col row]]
+                  (if (= :land (get-in m [col row :type]))
+                    (assoc-in m [col row :country-id] country-id)
+                    m))
+                world
+                (for [col (range width)
+                      row (range height)]
+                  [col row]))]
+    (set-test-world! world-with-country)
+    (set-test-computer-map! world-with-country)))
+
 (defn visibility-mask [grid]
   (mapv (fn [col] (mapv some? col)) grid))
 
