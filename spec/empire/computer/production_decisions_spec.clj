@@ -168,21 +168,42 @@
 
     (it "returns true when another city in country is producing the unit type"
       (set-test-world! (build-test-map ["~X~X~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (update-test-world! assoc-in [3 0 :country-id] 1)
+      (test-utils/update-test-computer-map! assoc-in [1 0 :country-id] 1)
+      (test-utils/update-test-computer-map! assoc-in [3 0 :country-id] 1)
       (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 10}})
       (should (production/country-city-producing? [3 0] 1 :transport)))
 
     (it "returns false when no other city in country is producing the unit type"
       (set-test-world! (build-test-map ["~X~X~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (update-test-world! assoc-in [3 0 :country-id] 1)
+      (test-utils/update-test-computer-map! assoc-in [1 0 :country-id] 1)
+      (test-utils/update-test-computer-map! assoc-in [3 0 :country-id] 1)
       (test-utils/set-test-state! :production {})
       (should-not (production/country-city-producing? [3 0] 1 :transport)))
 
     (it "returns false when city producing is from different country"
       (set-test-world! (build-test-map ["~X~X~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :country-id] 2)
+      (update-test-world! assoc-in [3 0 :country-id] 1)
+      (test-utils/update-test-computer-map! assoc-in [1 0 :country-id] 2)
+      (test-utils/update-test-computer-map! assoc-in [3 0 :country-id] 1)
+      (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 10}})
+      (should-not (production/country-city-producing? [3 0] 1 :transport)))
+
+    (it "ignores producing cities visible only on the game-map"
+      (set-test-world! (build-test-map ["~X~X~"]))
+      (set-test-computer-map! [[{:type :sea}
+                                {:type :city :city-status :computer :country-id 1}
+                                {:type :sea}
+                                nil
+                                {:type :sea}]])
+      (update-test-world! assoc-in [1 0 :country-id] 1)
       (update-test-world! assoc-in [3 0 :country-id] 1)
       (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 10}})
       (should-not (production/country-city-producing? [3 0] 1 :transport)))

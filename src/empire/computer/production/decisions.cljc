@@ -15,7 +15,7 @@
           (and (map? prod)
                (= unit-type (:item prod))
                (not= coords city-pos)
-               (let [cell (get-in (sa/current-world) coords)]
+               (let [cell (get-in (sa/read-state :computer-map) coords)]
                  (and (= :city (:type cell))
                       (= :computer (:city-status cell))
                       (= country-id (:country-id cell))))))
