@@ -102,6 +102,34 @@
              (strategy/desired-role-counts {:coastal-count 4
                                             :landlocked-count 3
                                             :army-count 6
-                                            :phase :phase-2}))))
+                                            :phase :phase-2})))
+
+  (it "returns nil for opening production when the opening is inactive"
+    (with-redefs [strategy/opening-active? (fn [] false)]
+      (should-be-nil (strategy/opening-production [0 0]))))
+
+  (it "resets lake production only for opening coastal roles that lost coast access"
+    (with-redefs [strategy/opening-active? (fn [] true)
+                  strategy/city-usable-coastal? (fn [_] false)
+                  empire.state.api/current-world (fn [] [[{:opening-role :CT}]])
+                  empire.state.api/read-state (fn [k]
+                                                (case k
+                                                  :production {[0 0] {:item :transport}}
+                                                  nil))]
+      (should (strategy/should-reset-lake-production? [0 0]))))
+
+  (it "does not reset lake production for non-coastal opening roles"
+    (with-redefs [strategy/opening-active? (fn [] true)
+                  strategy/city-usable-coastal? (fn [_] false)
+                  empire.state.api/current-world (fn [] [[{:opening-role :CA}]])
+                  empire.state.api/read-state (fn [k]
+                                                (case k
+                                                  :production {[0 0] {:item :army}}
+                                                  nil))]
+      (should-not (strategy/should-reset-lake-production? [0 0]))))
+
+  (it "allows coastal staging immediately when the opening is inactive"
+    (with-redefs [strategy/opening-active? (fn [] false)]
+      (should (strategy/allow-coastal-staging? [2 2])))))
 
 (run-specs)

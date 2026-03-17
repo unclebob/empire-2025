@@ -223,6 +223,12 @@
         (should= [{:type :waiting-for-input :unit "O" :set-mode true}]
                  (:givens result))))
 
+    (it "parses bare waiting-for-input state"
+      (let [lines ["GIVEN waiting-for-input."]
+            result (given/parse-given lines {})]
+        (should= [{:type :waiting-for-input-state}]
+                 (:givens result))))
+
     (it "parses 'the game is waiting for input' in GIVEN"
       (let [lines ["GIVEN the game is waiting for input."]
             result (given/parse-given lines {})]
@@ -257,6 +263,70 @@
       (let [lines ["t has army-count 6."]
             result (given/parse-given lines {})]
         (should= [{:type :unit-props :unit "t" :props {:army-count 6}}]
+                 (:givens result))))
+
+    (it "parses shipyard state"
+      (let [lines ["GIVEN O has a destroyer with 2 hits in its shipyard."]
+            result (given/parse-given lines {})]
+        (should= [{:type :shipyard-state :city "O" :ship-type :destroyer :hits 2}]
+                 (:givens result))))
+
+    (it "parses computer city-count stubs"
+      (let [lines ["GIVEN the computer controls 12 cities."]
+            result (given/parse-given lines {})]
+        (should= [{:type :stub
+                   :bindings [{:var "empire.computer.production/count-computer-cities"
+                               :value "(constantly 12)"}
+                              {:var "empire.computer.production.stats/count-computer-cities"
+                               :value "(constantly 12)"}]}]
+                 (:givens result))))
+
+    (it "parses valid carrier position stub"
+      (let [lines ["GIVEN a valid carrier position exists."]
+            result (given/parse-given lines {})]
+        (should= [{:type :stub
+                   :bindings [{:var "empire.computer.ship/find-carrier-position"
+                               :value "(constantly [0 0])"}]}]
+                 (:givens result))))
+
+    (it "parses visible-to-computer refs with symbol characters"
+      (let [lines ["GIVEN + is visible to computer."]
+            result (given/parse-given lines {})]
+        (should= [{:type :visible-to-computer :ref "+"}]
+                 (:givens result))))
+
+    (it "parses city-status only for city refs"
+      (let [result (given/parse-given ["GIVEN O has city-status player."
+                                       "GIVEN A has city-status player."]
+                                      {})]
+        (should= [{:type :city-prop :city "O" :prop :city-status :value :player}
+                  {:type :unit-props :unit "A" :props {:city-status :player}}]
+                 (:givens result))))
+
+    (it "parses territory and country ownership directives"
+      (let [result (given/parse-given ["GIVEN territory around O belongs to country 3."
+                                       "GIVEN O belongs to country 4."
+                                       "GIVEN a belongs to country 5."]
+                                      {})]
+        (should= [{:type :territory-around :city "O" :country-id 3}
+                  {:type :city-prop :city "O" :prop :country-id :value 4}
+                  {:type :unit-props :unit "a" :props {:country-id 5}}]
+                 (:givens result))))
+
+    (it "parses patrol, pause, load-menu, and map-display directives"
+      (let [result (given/parse-given ["GIVEN p patrols for country 5."
+                                       "GIVEN game-over-check enabled."
+                                       "GIVEN the game is paused."
+                                       "GIVEN pause requested."
+                                       "GIVEN load menu is open."
+                                       "GIVEN map display is computer-map."]
+                                      {})]
+        (should= [{:type :unit-props :unit "p" :props {:country-id 5 :patrol-mode :crawling}}
+                  {:type :game-over-check-enabled}
+                  {:type :game-paused}
+                  {:type :pause-requested}
+                  {:type :load-menu-open}
+                  {:type :map-display-setup :value :computer-map}]
                  (:givens result))))
 
     (it "parses generic unit property - boolean true"
