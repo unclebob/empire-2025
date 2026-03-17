@@ -3,7 +3,7 @@
             [speclj.core :refer :all]
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-core :as tc]
-            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world!]]))
+            [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "transport-loading"
   (before (reset-all-atoms!))
@@ -13,6 +13,7 @@
       (set-test-world! (build-test-map ["~~~"
                                         "~t~"
                                         "~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should= false (loading/has-nearby-loadable-armies? [1 1] transport 3))))
 
@@ -20,6 +21,7 @@
       (set-test-world! (build-test-map ["a~~"
                                         "~t~"
                                         "~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should (loading/has-nearby-loadable-armies? [1 1] transport 3))))
 
@@ -35,6 +37,7 @@
                          {:type :land}
                          {:type :land}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should (loading/has-nearby-loadable-armies? [0 1] transport 5))))
 
@@ -49,6 +52,7 @@
                          {:type :land}
                          {:type :land}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should= false (loading/has-nearby-loadable-armies? [0 1] transport 1))))
 
@@ -62,6 +66,7 @@
                          {:type :land}
                          {:type :land}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should (loading/has-nearby-loadable-armies? [0 1] transport 3))))
 
@@ -70,8 +75,29 @@
       (set-test-world! [[{:type :land :contents {:type :army :owner :computer
                                                   :unload-event-id 42}}
                          {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer :unload-event-id 42}]
-        (should= false (loading/has-nearby-loadable-armies? [0 1] transport 1)))))
+        (should= false (loading/has-nearby-loadable-armies? [0 1] transport 1))))
+
+    (it "ignores loadable armies reachable only via coast known on game-map"
+      (set-test-world! [[{:type :land}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :land :contents {:type :army :owner :computer}}]
+                        [{:type :land}
+                         {:type :land}
+                         {:type :land}
+                         {:type :land}]])
+      (set-test-computer-map! [[{:type :land}
+                                {:type :sea}
+                                {:type :sea}
+                                nil]
+                               [{:type :land}
+                                {:type :land}
+                                {:type :land}
+                                nil]])
+      (let [transport {:type :transport :owner :computer}]
+        (should= false (loading/has-nearby-loadable-armies? [0 1] transport 3)))))
 
   (context "load-adjacent-armies (L59)"
     (it "increments army-count from zero default (L87)"

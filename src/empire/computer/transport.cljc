@@ -272,6 +272,9 @@
   [pos]
   (let [transport (:contents (get-in (sa/current-world) pos))]
     (when (and (= :transport (:type transport))
+               (= :computer (:owner transport)))
+      (visibility/update-cell-visibility pos :computer transport))
+    (when (and (= :transport (:type transport))
                (= :computer (:owner transport))
                (nil? (:transport-mission transport)))
       (tc/set-transport-mission pos :loading))

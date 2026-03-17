@@ -86,12 +86,13 @@
    excluding cells visible to group members. Decrements steps remaining."
   [pos]
   (let [unit (get-in (sa/current-world) (conj pos :contents))
+        computer-map (sa/read-state :computer-map)
         target (:pursuit-target unit)
         steps (:pursuit-steps-remaining unit)
         group (group-positions pos)
         candidates (conj (set (core/get-neighbors target)) target)
         sea-candidates (filter (fn [c]
-                                 (let [cell (get-in (sa/current-world) c)]
+                                 (let [cell (get-in computer-map c)]
                                    (and cell
                                         (= :sea (:type cell))
                                         (not (visible-to-group? c group)))))

@@ -42,9 +42,10 @@
 (defn- flee-from
   "Move patrol boat away from the given enemy position."
   [pos enemy-pos]
-  (let [passable (ship-core/get-passable-sea-neighbors pos)
+  (let [computer-map (sa/read-state :computer-map)
+        passable (ship-core/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
-                                 (nil? (:contents (get-in (sa/current-world) n))))
+                                 (nil? (:contents (get-in computer-map n))))
                                passable)]
     (when (seq empty-passable)
       (let [farthest (apply max-key (partial core/distance enemy-pos) empty-passable)]
@@ -61,8 +62,9 @@
   [pos]
   (let [seen-coast (or (sa/read-state :seen-coast) #{})]
     (sa/write-state! :seen-coast (conj seen-coast pos)))
-  (let [passable (ship-core/get-passable-sea-neighbors pos)
-        empty-passable (filter #(nil? (:contents (get-in (sa/current-world) %))) passable)
+  (let [computer-map (sa/read-state :computer-map)
+        passable (ship-core/get-passable-sea-neighbors pos)
+        empty-passable (filter #(nil? (:contents (get-in computer-map %))) passable)
         coastal (filter adjacent-to-land? empty-passable)
         unseen (remove (or (sa/read-state :seen-coast) #{}) coastal)
         targets (if (seq unseen) unseen coastal)
@@ -129,8 +131,9 @@
   (loop [pos start steps n path []]
     (if (zero? steps)
       (when (seq path) path)
-      (let [neighbors (ship-core/get-passable-sea-neighbors pos)
-            empty-nbrs (filter #(nil? (:contents (get-in (sa/current-world) %))) neighbors)]
+      (let [computer-map (sa/read-state :computer-map)
+            neighbors (ship-core/get-passable-sea-neighbors pos)
+            empty-nbrs (filter #(nil? (:contents (get-in computer-map %))) neighbors)]
         (if (empty? empty-nbrs)
           (when (seq path) path)
           (let [next-pos (rand-nth empty-nbrs)]
@@ -198,8 +201,9 @@
 
 (defn- patrol-random-walk-step
   [current-pos]
-  (let [passable (ship-core/get-passable-sea-neighbors current-pos)
-        empty-passable (filter #(nil? (:contents (get-in (sa/current-world) %))) passable)]
+  (let [computer-map (sa/read-state :computer-map)
+        passable (ship-core/get-passable-sea-neighbors current-pos)
+        empty-passable (filter #(nil? (:contents (get-in computer-map %))) passable)]
     (if-let [target (when (seq empty-passable) (rand-nth empty-passable))]
       (do
         (core/move-unit-to current-pos target)

@@ -10,7 +10,7 @@
   "Returns true if any adjacent land cell shares a country-id with the cell
    at pickup-continent-pos. Cheap O(neighbors) alternative to flood-fill."
   [pos pickup-continent-pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         pcp-country-id (:country-id (get-in game-map pickup-continent-pos))]
     (if pcp-country-id
       (some (fn [n]

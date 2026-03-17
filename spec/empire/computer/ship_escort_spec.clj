@@ -234,7 +234,29 @@
                                    :let [unit (get-in (test-utils/read-test-state :game-map) [i j :contents])]
                                    :when (= :destroyer (:type unit))]
                                unit))]
-        (should-not-be-nil destroyer))))
+        (should-not-be-nil destroyer)))
+
+    (it "pursuit does not continue through sea known only on game-map"
+      (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                :destroyer-id 1 :escort-mode :pursuing
+                                                :escort-transport-id 1
+                                                :pursuit-target [1 1]
+                                                :pursuit-steps-remaining 3}}
+                         {:type :sea}]
+                        [{:type :sea}
+                         {:type :sea}]])
+      (set-test-computer-map! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                       :destroyer-id 1 :escort-mode :pursuing
+                                                       :escort-transport-id 1
+                                                       :pursuit-target [1 1]
+                                                       :pursuit-steps-remaining 3}}
+                                nil]
+                               [nil
+                                {:type :sea}]])
+      (ship/process-ship [0 0] :destroyer)
+      (let [destroyer (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+        (should= :escorting (:escort-mode destroyer))
+        (should-be-nil (:pursuit-target destroyer)))))
 
   (context "lake sentry behavior"
     (it "ship in known lake backs away from shore then enters sentry"

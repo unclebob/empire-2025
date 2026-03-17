@@ -19,6 +19,7 @@
         (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}]
                           [{:type :sea}]
                           [{:type :land}]])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (with-redefs [rand-nth first]
           (let [path (generate-random-sea-walk [0 0] 5)]
             (should-not-be-nil path)

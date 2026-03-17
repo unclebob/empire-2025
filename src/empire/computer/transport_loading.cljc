@@ -49,7 +49,7 @@
    Returns true if any adjacent land cell at any visited position
   has a loadable computer army."
   [pos transport max-depth]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         unloaded-countries (:unloaded-countries transport)
         unload-eid (:unload-event-id transport)
         check-neighbors (fn [p]
@@ -108,12 +108,12 @@
   "Moves transport to adjacent sea cell that is also adjacent to land.
    Avoids recent positions from crawl-history."
   [pos]
-  (let [game-map (sa/current-world)
-        unit (get-in game-map (conj pos :contents))
+  (let [computer-map (sa/read-state :computer-map)
+        unit (get-in (sa/current-world) (conj pos :contents))
         history (set (:crawl-history unit []))
         passable (tc/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
-                                 (nil? (:contents (get-in game-map n))))
+                                 (nil? (:contents (get-in computer-map n))))
                                passable)
         coastal-cells (filter tc/adjacent-to-land? empty-passable)
         preferred (remove history coastal-cells)

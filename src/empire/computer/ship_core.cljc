@@ -117,11 +117,12 @@
 
 (defn get-passable-sea-neighbors
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
-                (and cell
-                     (= :sea (:type cell))
+                (and (or (nil? cell)
+                         (= :sea (:type cell))
+                         (= :unexplored (:type cell)))
                      (or (nil? (:contents cell))
                          (= :player (:owner (:contents cell)))))))
             (core/get-neighbors pos))))

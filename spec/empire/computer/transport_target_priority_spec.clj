@@ -172,7 +172,9 @@
         (set-test-computer-map!
                 (vec (for [c (range 3)]
                        (vec (for [r (range 5)]
-                              (if (< r 4) (get-in game-map [c r]) nil))))))
+                              (if (< r 4)
+                                (get-in (test-utils/read-test-state :game-map) [c r])
+                                nil))))))
         (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6})
@@ -182,6 +184,41 @@
                              :when (= :transport (:type unit))]
                          unit))]
           (should= :sailing (:transport-mission t))
-          (should= 7 (:pickup-country-id t))))))
+          (should= 7 (:pickup-country-id t)))))
+
+    (it "does not treat hidden land as adjacent to pickup continent"
+      (set-test-world! [[{:type :land :country-id 7}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :sea}]
+                        [{:type :sea}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :sea}]
+                        [{:type :sea}
+                         {:type :sea}
+                         {:type :sea :contents {:type :transport :owner :computer}}
+                         {:type :land :country-id 7}]
+                        [{:type :sea}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :sea}]])
+      (set-test-computer-map! [[{:type :land :country-id 7}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}]
+                               [{:type :sea}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}]
+                               [{:type :sea}
+                                {:type :sea}
+                                {:type :sea :contents {:type :transport :owner :computer}}
+                                nil]
+                               [{:type :sea}
+                                {:type :sea}
+                                {:type :sea}
+                                {:type :sea}]])
+      (should-not (targeting/adjacent-to-pickup-continent? [2 2] [0 0]))))
 
 )

@@ -6,11 +6,12 @@
 
 (defn get-passable-sea-neighbors
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
-                (and cell
-                     (= :sea (:type cell))
+                (and (or (nil? cell)
+                         (= :sea (:type cell))
+                         (= :unexplored (:type cell)))
                      (or (nil? (:contents cell))
                          (= :computer (:owner (:contents cell)))))))
             (core/get-neighbors pos))))
@@ -22,14 +23,14 @@
 
 (defn adjacent-to-land?
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (some (fn [n]
-            (= :land (:type (get-in game-map n))))
+            (#{:land :city} (:type (get-in game-map n))))
           (core/get-neighbors pos))))
 
 (defn find-adjacent-land-pos
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (first (filter (fn [n]
                      (let [cell (get-in game-map n)]
                        (and cell (#{:land :city} (:type cell)))))
@@ -62,7 +63,7 @@
     (when-let [land-pos (find-adjacent-land-pos pos)]
       (sa/update-world! assoc-in
              (conj pos :contents :pickup-continent-pos) land-pos)
-      (when-let [cid (:country-id (get-in (sa/current-world) land-pos))]
+      (when-let [cid (:country-id (get-in (sa/read-state :computer-map) land-pos))]
         (sa/update-world! assoc-in
                (conj pos :contents :pickup-country-id) cid)))))
 

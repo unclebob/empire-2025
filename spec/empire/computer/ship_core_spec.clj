@@ -13,14 +13,24 @@
     (it "includes sea cell with player unit as passable"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                          {:type :sea :contents {:type :patrol-boat :owner :player :hits 1}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [neighbors (ship-core/get-passable-sea-neighbors [0 0])]
         (should (some #{[0 1]} neighbors))))
 
     (it "excludes sea cell with computer unit as passable"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                          {:type :sea :contents {:type :submarine :owner :computer :hits 2}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [neighbors (ship-core/get-passable-sea-neighbors [0 0])]
-        (should-not (some #{[0 1]} neighbors)))))
+        (should-not (some #{[0 1]} neighbors))))
+
+    (it "ignores hidden enemy occupancy when computer-map shows open sea"
+      (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
+                         {:type :sea :contents {:type :submarine :owner :player :hits 2}}]])
+      (set-test-computer-map! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
+                                {:type :sea}]])
+      (let [neighbors (ship-core/get-passable-sea-neighbors [0 0])]
+        (should (some #{[0 1]} neighbors)))))
 
   (context "attack-enemy carrier tracking (L48, L56)"
     (it "updates carrier-positions when carrier wins"
