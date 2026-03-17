@@ -56,6 +56,7 @@
                   ["Generating acceptance specs..." ["clj" "-M:generate-specs"]]
                   ["Checking acceptance boundaries..." ["bash" "scripts/check-acceptance-boundary.sh"]]
                   ["Checking generated acceptance boundaries..." ["bash" "scripts/check-generated-acceptance-boundary.sh"]]
+                  ["Auditing AI game-map access..." ["bash" "scripts/check-ai-map-access.sh"]]
                   ["Checking architecture dependencies..." ["clj" "-M:check-dependencies"]]
                   ["Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"]]]
                  @calls)))))
@@ -74,6 +75,7 @@
                   ["Generating acceptance specs..." ["clj" "-M:generate-specs"]]
                   ["Checking acceptance boundaries..." ["bash" "scripts/check-acceptance-boundary.sh"]]
                   ["Checking generated acceptance boundaries..." ["bash" "scripts/check-generated-acceptance-boundary.sh"]]
+                  ["Auditing AI game-map access..." ["bash" "scripts/check-ai-map-access.sh"]]
                   ["Checking architecture dependencies..." ["clj" "-M:check-dependencies"]]
                   ["Checking spec boundaries..." ["bash" "scripts/check-spec-boundary.sh"]]
                   ["Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"]]]
