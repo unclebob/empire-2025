@@ -39,3 +39,17 @@
     (test-utils/set-test-computer-map! (test-utils/build-test-map ["#"]))
     (@#'test-utils/update-map-atom! (test-utils/computer-map-atom) assoc-in [0 0 :marker] :ok)
     (should= :ok (get-in (test-utils/read-test-state :computer-map) [0 0 :marker]))))
+
+(describe "set-test-world-with-country!"
+  (before (test-utils/reset-all-atoms!))
+
+  (it "builds the world, assigns country-id to land cells, and mirrors the computer map"
+    (test-utils/set-test-world-with-country! ["~#"
+                                              "#X"]
+                                             7)
+    (should= :sea (get-in (test-utils/read-test-state :game-map) [0 0 :type]))
+    (should= 7 (get-in (test-utils/read-test-state :game-map) [1 0 :country-id]))
+    (should= 7 (get-in (test-utils/read-test-state :game-map) [0 1 :country-id]))
+    (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :country-id]))
+    (should= (test-utils/read-test-state :game-map)
+             (test-utils/read-test-state :computer-map))))
