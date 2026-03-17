@@ -44,7 +44,6 @@
        "Options:\n"
        "  --help, -h        Print this help and exit.\n"
        "  --seed=N          Use N as the random seed.\n"
-       "  --self-play       Let the game play both sides automatically.\n"
        "  --handicap=N      Let the computer play N rounds before the\n"
        "                    player gets the first turn. Default: 50.\n"
        "\n"
@@ -57,12 +56,10 @@
   [args screen-w screen-h]
   (let [seed (some #(when (.startsWith ^String % "--seed=")
                       (Long/parseLong (subs % 7))) args)
-        self-play? (boolean (some #{"--self-play"} args))
         handicap (or (some #(when (.startsWith ^String % "--handicap=")
                               (Long/parseLong (subs % 11))) args)
                      50)
         non-options (remove #(or (.startsWith ^String % "--seed=")
-                                 (= "--self-play" %)
                                  (.startsWith ^String % "--handicap="))
                             args)
         [cols rows] (if (>= (count non-options) 2)
@@ -82,7 +79,6 @@
     {:cols cols
      :rows rows
      :seed seed
-     :self-play? self-play?
      :handicap handicap
      :window-w window-w
      :window-h window-h}))

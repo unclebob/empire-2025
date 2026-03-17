@@ -5,7 +5,6 @@
    :map-size [0 0]
    :map-size-constants {}
    :round-number 0
-   :self-play? false
    :handicap-rounds-remaining 0
    :handicap-display-rounds nil
    :production {}

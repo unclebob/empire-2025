@@ -26,7 +26,7 @@
                                                                (should= ["--seed" "7"] args)
                                                                (should= 1920 screen-w)
                                                                (should= 1080 screen-h)
-                                                               {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :self-play? false :handicap 0})
+                                                               {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 0})
                     empire.ui.quil.core/initialize-startup-state! (fn [startup effective-seed]
                                                                      (reset! initialized [startup effective-seed]))
                     empire.ui.quil.core/start-sketch! (fn [startup]
@@ -34,21 +34,20 @@
         (should= "empire has begun. Map size: [80 40], seed: 7\n"
                  (with-out-str
                    (quil-core/-main "--seed" "7")))
-        (should= [{:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :self-play? false :handicap 0} 7]
+        (should= [{:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 0} 7]
                  @initialized)
-        (should= {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :self-play? false :handicap 0}
+        (should= {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 0}
                  @started)))))
 
 (describe "initialize-startup-state!"
   (before (reset-all-atoms!))
 
-  (it "stores self-play and handicap startup flags"
+  (it "stores handicap startup flags"
     (#'quil-core/initialize-startup-state!
-     {:cols 80 :rows 40 :self-play? true :handicap 12}
+     {:cols 80 :rows 40 :handicap 12}
      12345)
     (should= [80 40] (sa/read-state :map-size))
     (should= 12345 (sa/read-state :random-seed))
-    (should (sa/read-state :self-play?))
     (should= 12 (sa/read-state :handicap-rounds-remaining))))
 
 (describe "create-fonts"

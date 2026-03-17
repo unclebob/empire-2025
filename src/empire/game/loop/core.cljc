@@ -15,7 +15,6 @@
             [empire.computer.threat-response :as threat-response]
             [empire.game.loop.round-setup :as round-setup]
             [empire.game.loop.item-processing :as item-processing]
-            [empire.player.self-play :as self-play]
             [empire.player.production :as player-production]
             [empire.game.loop.control-decisions :as decisions]))
 
@@ -164,16 +163,9 @@
   (and (empty? (sa/read-state :player-items))
        (empty? (sa/read-state :computer-items))))
 
-(defn- self-play-waiting?
-  []
-  (and (sa/read-state :self-play?)
-       (sa/read-state :waiting-for-input)))
-
 (defn- process-player-action!
   []
-  (if (sa/read-state :self-play?)
-    (self-play/process-player-items-batch!)
-    (item-processing/process-player-items-batch)))
+  (item-processing/process-player-items-batch))
 
 (defn- apply-advance-game-action!
   [action]
@@ -193,16 +185,14 @@
   "Advances the game by processing player items, then computer items.
    Processes multiple non-attention items per frame for faster rounds."
   []
-  (if (self-play-waiting?)
-    (self-play/process-player-items-batch!)
-    (apply-advance-game-action!
-     (decisions/advance-game-action {:load-menu-open (sa/read-state :load-menu-open)
-                                     :save-menu-open (sa/read-state :save-menu-open)
-                                     :paused (sa/read-state :paused)
-                                     :both-lists-empty? (both-lists-empty?)
-                                     :pause-requested (sa/read-state :pause-requested)
-                                     :waiting-for-input (sa/read-state :waiting-for-input)
-                                     :player-items (sa/read-state :player-items)}))))
+  (apply-advance-game-action!
+   (decisions/advance-game-action {:load-menu-open (sa/read-state :load-menu-open)
+                                   :save-menu-open (sa/read-state :save-menu-open)
+                                   :paused (sa/read-state :paused)
+                                   :both-lists-empty? (both-lists-empty?)
+                                   :pause-requested (sa/read-state :pause-requested)
+                                   :waiting-for-input (sa/read-state :waiting-for-input)
+                                   :player-items (sa/read-state :player-items)})))
 
 (defn advance-game-batch
   "Calls advance-game up to advances-per-frame times per frame.

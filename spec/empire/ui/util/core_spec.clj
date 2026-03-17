@@ -97,10 +97,6 @@
     (let [result (util-core/parse-args ["--handicap=12"] 2000 2000)]
       (should= 12 (:handicap result))))
 
-  (it "extracts --self-play"
-    (let [result (util-core/parse-args ["--self-play"] 2000 2000)]
-      (should (:self-play? result))))
-
   (it "returns nil seed when no seed arg"
     (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
       (should-be-nil (:seed result))))
@@ -135,11 +131,7 @@
       (should= 30 (:rows result))
       (should= 7 (:handicap result))))
 
-  (it "ignores self-play when computing dimensions"
-    (let [result (util-core/parse-args ["--self-play" "50" "30"] 2000 2000)]
-      (should= 50 (:cols result))
-      (should= 30 (:rows result))
-      (should (:self-play? result)))))
+  )
 
 (describe "help-requested?"
   (it "returns true for --help"
@@ -156,6 +148,5 @@
     (let [usage (util-core/usage-text)]
       (should-contain "--help" usage)
       (should-contain "--seed=N" usage)
-      (should-contain "--self-play" usage)
       (should-contain "--handicap=N" usage)
       (should-contain "Default: 50" usage))))
