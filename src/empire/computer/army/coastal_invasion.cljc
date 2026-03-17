@@ -2,7 +2,8 @@
   "Invasion embarkation target selection and coastal movement helpers."
   (:require [empire.computer.core :as core]
             [empire.computer.army.coastal-invasion-decisions :as decisions]
-            [empire.computer.army.movement :as movement]))
+            [empire.computer.army.movement :as movement]
+            [empire.game-mechanics.debug.integrity :as integrity]))
 
  (defn- coastal-cell?
    [ctx pos country-id]
@@ -77,12 +78,33 @@
 
 (def ^:private local-coast-repath-interval-rounds 3)
 
- (defn- settle-at-coast-target!
-   [update-game-map! pos]
-   (update-game-map! update-in (conj pos :contents)
-                     #(-> %
-                          (assoc :mode :sentry)
-                          (dissoc :coast-target :coast-repath-after-round :lake-retask?))))
+;; Temporary instrumentation for play-test corruption tracing.
+(defn- log-missing-army-contents!
+  [ctx reason context]
+  (integrity/write-stacktrace-error-log!
+   "army-error"
+   (merge {:reason reason} context)
+   (ex-info "Army sentry update attempted without unit contents"
+            (merge {:reason reason} context
+                   {:round (or ((:read-runtime-state ctx) :round-number) 0)}))))
+
+(defn- set-sentry-mode-if-unit!
+  [ctx pos context]
+  (if (get-in ((:current-world ctx)) (conj pos :contents))
+    ((:update-game-map! ctx) update-in (conj pos :contents)
+     #(-> %
+          (assoc :mode :sentry)
+          (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
+    (log-missing-army-contents! ctx
+                                :missing-contents-for-sentry
+                                (assoc context
+                                       :pos pos
+                                       :cell (get-in ((:current-world ctx)) pos)))))
+
+(defn- settle-at-coast-target!
+  [ctx pos]
+  ;; Temporary instrumentation wrapper; remove after the play-test sentry corruption is resolved.
+  (set-sentry-mode-if-unit! ctx pos {:operation :settle-at-coast-target}))
 
  (defn- step-toward-target-cheap
    [pos target country-id]
@@ -122,25 +144,32 @@
 
 (defn- plan-coast-target-step
   [ctx pos country-id unit target]
-  (let [cheap-step (when (:lake-retask? unit)
-                     (step-toward-target-cheap pos target country-id))
-        move-step (when-not (:lake-retask? unit)
-                    (movement/move-toward-objective pos target country-id))
-        repath-step (when-not (or (:lake-retask? unit) move-step)
-                      (maybe-repath-local-target ctx pos country-id unit))
-        action (decisions/coast-step-action {:pos pos
-                                             :target target
-                                             :lake-retask? (:lake-retask? unit)
-                                             :cheap-step? cheap-step
-                                             :move-step? move-step
-                                             :repath-step? repath-step})]
+  (let [action (if (= pos target)
+                 (decisions/coast-step-action {:pos pos
+                                               :target target
+                                               :lake-retask? (:lake-retask? unit)
+                                               :cheap-step? nil
+                                               :move-step? nil
+                                               :repath-step? nil})
+                 (let [cheap-step (when (:lake-retask? unit)
+                                    (step-toward-target-cheap pos target country-id))
+                       move-step (when-not (:lake-retask? unit)
+                                   (movement/move-toward-objective pos target country-id))
+                       repath-step (when-not (or (:lake-retask? unit) move-step)
+                                     (maybe-repath-local-target ctx pos country-id unit))]
+                   (decisions/coast-step-action {:pos pos
+                                                 :target target
+                                                 :lake-retask? (:lake-retask? unit)
+                                                 :cheap-step? cheap-step
+                                                 :move-step? move-step
+                                                 :repath-step? repath-step})))]
     action))
 
 (defn- execute-coast-target-step
   [ctx pos country-id unit target]
   (let [action (plan-coast-target-step ctx pos country-id unit target)]
     (case (:action action)
-      :settle (do (settle-at-coast-target! (:update-game-map! ctx) pos) pos)
+      :settle (do (settle-at-coast-target! ctx pos) pos)
       :cheap-step (:target action)
       :move (:target action)
       :repath (:target action)
@@ -151,10 +180,9 @@
   [ctx pos country-id]
   (if ((:should-sentry-on-coast? ctx) pos country-id)
     (do
-      ((:update-game-map! ctx) update-in (conj pos :contents)
-       #(-> %
-            (assoc :mode :sentry)
-            (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
+      ;; Temporary instrumentation wrapper; remove after the play-test sentry corruption is resolved.
+      (set-sentry-mode-if-unit! ctx pos {:operation :process-move-to-coast-for-invasion
+                                         :country-id country-id})
       pos)
     (let [unit (get-in ((:current-world ctx)) (conj pos :contents))]
       (when-let [target (resolve-coast-target ctx unit pos country-id)]

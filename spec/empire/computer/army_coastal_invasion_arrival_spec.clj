@@ -45,6 +45,24 @@
     (let [updates (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
                     sa/update-world! (fn [& args] (swap! updates conj args))
-                    sa/current-world (fn [] {[0 0] {:contents {:mode :move-to-coast :coast-target [2 2]}}})]
+                    sa/current-world (fn [] [[{:type :land
+                                               :contents {:type :army
+                                                          :owner :computer
+                                                          :hits 1
+                                                          :mode :move-to-coast
+                                                          :coast-target [2 2]}}]])]
         (should= [0 0] (coastal/process-move-to-coast-for-invasion [0 0] 1))
-        (should= 1 (count @updates))))))
+        (should= 1 (count @updates)))))
+
+  (it "logs and avoids creating malformed contents when invasion arrival sentry write has no unit"
+    (let [logged (atom nil)]
+      (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
+                    sa/current-world (fn [] [[{:type :land :country-id 1}]])
+                    sa/update-world! (fn [& _] (should-not "should not write malformed contents"))
+                    empire.game-mechanics.debug.integrity/write-stacktrace-error-log!
+                    (fn [_prefix context _throwable]
+                      (reset! logged context)
+                      "army-error2026-03-17-150000123.log")]
+        (should= [0 0] (coastal/process-move-to-coast-for-invasion [0 0] 1))
+        (should= :process-move-to-coast-for-invasion (:operation @logged))
+        (should= [0 0] (:pos @logged))))))
