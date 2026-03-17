@@ -11,7 +11,7 @@
 (defn find-adjacent-enemy
   "Finds an adjacent enemy unit or city to attack."
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)]
                        (core/attackable-target? cell)))

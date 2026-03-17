@@ -94,8 +94,6 @@
         (should (some #(= :patrol-boat (get-in (test-utils/read-test-state :game-map) (conj % :contents :type)))
                       [[0 0] [0 1] [1 0]]))))
 
-)
-
   (context "destroyer escort behavior"
     (it "seeking destroyer adopts unadopted transport"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
@@ -178,6 +176,34 @@
                                    :when (= :destroyer (:type unit))]
                                unit))]
         (should= :pursuing (:escort-mode destroyer))))
+
+    (it "escorting destroyer ignores enemy seen only on game-map"
+      (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                :destroyer-id 1 :escort-mode :escorting
+                                                :escort-transport-id 1}}
+                         {:type :sea}
+                         {:type :sea :contents {:type :transport :owner :computer :hits 3
+                                                :transport-id 1 :escort-destroyer-id 1
+                                                :transport-mission :loading :army-count 0}}]
+                        [{:type :sea}
+                         {:type :sea}
+                         {:type :sea :contents {:type :submarine :owner :player :hits 2}}]])
+      (set-test-computer-map! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3
+                                                       :destroyer-id 1 :escort-mode :escorting
+                                                       :escort-transport-id 1}}
+                                {:type :sea}
+                                {:type :sea :contents {:type :transport :owner :computer :hits 3
+                                                       :transport-id 1 :escort-destroyer-id 1
+                                                       :transport-mission :loading :army-count 0}}]
+                               [{:type :sea}
+                                {:type :sea}
+                                nil]])
+      (ship/process-ship [0 0] :destroyer)
+      (let [destroyer (first (for [i (range 2) j (range 3)
+                                   :let [unit (get-in (test-utils/read-test-state :game-map) [i j :contents])]
+                                   :when (= :destroyer (:type unit))]
+                               unit))]
+        (should-not= :pursuing (:escort-mode destroyer)))))
 
     (it "intercepting destroyer reverts to seeking when transport destroyed"
       ;; Destroyer intercepting a transport that no longer exists
@@ -337,5 +363,4 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [ship-carrier/find-carrier-position (fn [] nil)]
         (ship/process-ship [0 0] :carrier))
-      (should= :holding (get-in (test-utils/read-test-state :game-map) [0 0 :contents :carrier-mode]))))
-) ;; end process-ship
+      (should= :holding (get-in (test-utils/read-test-state :game-map) [0 0 :contents :carrier-mode])))))

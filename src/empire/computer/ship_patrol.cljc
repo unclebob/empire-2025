@@ -15,7 +15,7 @@
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         neighbors (map (fn [neighbor]
                          (assoc (:contents (get-in game-map neighbor)) :pos neighbor))
                        (core/get-neighbors pos))]
@@ -24,7 +24,7 @@
 (defn- find-adjacent-non-transport-enemy
   "Finds an adjacent player unit that is not a transport."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         neighbors (map (fn [neighbor]
                          (assoc (:contents (get-in game-map neighbor)) :pos neighbor))
                        (core/get-neighbors pos))]
@@ -33,7 +33,7 @@
 (defn- adjacent-to-land?
   "Returns true if the given position has at least one adjacent land or city cell."
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (some (fn [neighbor]
             (let [cell (get-in game-map neighbor)]
               (and cell (#{:land :city} (:type cell)))))

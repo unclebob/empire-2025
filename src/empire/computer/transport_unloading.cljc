@@ -60,15 +60,19 @@
               (= :sea (:type cell))
               (or (nil? (:contents cell))
                   (= :computer (:owner (:contents cell))))
-              (tc/adjacent-to-land? pos)))))
+              (some (fn [neighbor]
+                      (let [neighbor-cell (get-in game-map neighbor)]
+                        (and neighbor-cell
+                             (#{:land :city} (:type neighbor-cell)))))
+                    (core/get-neighbors pos))))))
 
 (defn has-nearby-unloadable-land?
   "BFS along coastal sea cells up to max-depth hops from pos.
    Returns true if any visited position has adjacent empty land
    not excluded by country-id or pickup continent."
   [pos transport max-depth]
-  (let [game-map (sa/current-world)
-        exclude-ids (pickup-exclude-ids game-map transport)
+  (let [game-map (sa/read-state :computer-map)
+        exclude-ids (pickup-exclude-ids (sa/current-world) transport)
         pickup-continent (pickup-continent-if-needed transport)
         major-invasion? (:major-invasion transport)
         has-unloadable-neighbor? (fn [p]

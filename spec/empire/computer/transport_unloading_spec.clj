@@ -13,6 +13,7 @@
       (set-test-world! (build-test-map ["~~~"
                                         "~t~"
                                         "~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should= false (unloading/has-nearby-unloadable-land? [1 1] transport 3))))
 
@@ -21,6 +22,7 @@
       (set-test-world! (build-test-map ["#~~"
                                         "~t~"
                                         "~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer}]
         (should (unloading/has-nearby-unloadable-land? [1 1] transport 3))))
 
@@ -36,6 +38,7 @@
                          {:type :land :country-id 1}
                          {:type :land :country-id 1}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer :country-id 1}]
         (should (unloading/has-nearby-unloadable-land? [0 1] transport 3))))
 
@@ -51,6 +54,7 @@
                          {:type :land :country-id 1}
                          {:type :land :country-id 1}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer :country-id 1}]
         (should (unloading/has-nearby-unloadable-land? [0 1] transport 3))))
 
@@ -64,8 +68,29 @@
                          {:type :land :country-id 1}
                          {:type :land :country-id 1}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [transport {:type :transport :owner :computer :country-id 1}]
-        (should= false (unloading/has-nearby-unloadable-land? [0 1] transport 0)))))
+        (should= false (unloading/has-nearby-unloadable-land? [0 1] transport 0))))
+
+    (it "ignores unloadable land visible only on game-map"
+      (set-test-world! [[{:type :land :country-id 1}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :land}]
+                        [{:type :land :country-id 1}
+                         {:type :land :country-id 1}
+                         {:type :land :country-id 1}
+                         {:type :land}]])
+      (set-test-computer-map! [[{:type :land :country-id 1}
+                                {:type :sea}
+                                {:type :sea}
+                                nil]
+                               [{:type :land :country-id 1}
+                                {:type :land :country-id 1}
+                                {:type :land :country-id 1}
+                                nil]])
+      (let [transport {:type :transport :owner :computer :country-id 1}]
+        (should= false (unloading/has-nearby-unloadable-land? [0 1] transport 3)))))
 
   (context "unload-armies (L146)"
     (it "unloads armies onto adjacent empty land (L159)"

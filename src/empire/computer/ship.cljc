@@ -53,7 +53,7 @@
 (defn- major-invasion-neighbor-target
   [pos]
   (first (for [n (core/get-neighbors pos)
-               :let [target (:contents (get-in (sa/current-world) n))]
+               :let [target (:contents (get-in (sa/read-state :computer-map) n))]
                :when (and target
                           (= :player (:owner target))
                           (not= :transport (:type target))

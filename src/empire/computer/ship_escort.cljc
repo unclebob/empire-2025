@@ -36,7 +36,7 @@
   "Finds a player ship adjacent to any of the given positions.
    Returns enemy position or nil."
   [positions]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (first (for [gpos positions
                  neighbor (core/get-neighbors gpos)
                  :let [cell (get-in game-map neighbor)

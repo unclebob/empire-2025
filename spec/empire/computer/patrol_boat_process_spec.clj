@@ -21,6 +21,21 @@
           (should= :patrol-boat (:type unit))
           (should-not= [1 1] pos)))))
 
+  (it "does not crawl toward coastline known only on game-map"
+    (let [game-map (tu/build-test-map ["~~~~"
+                                       "~p~~"
+                                       "####"])
+          computer-map [[{:type :sea} {:type :sea} {:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}} {:type :sea} {:type :sea}]
+                        [nil nil nil nil]]]
+      (tu/set-test-world! game-map)
+      (tu/set-test-computer-map! computer-map)
+      (tu/set-test-unit (test-utils/game-map-atom) "p" :patrol-mode :crawling)
+      (with-redefs [rand-nth first]
+        (ship/process-ship [1 1] :patrol-boat)
+        (let [{:keys [pos]} (tu/get-test-unit (test-utils/game-map-atom) "p")]
+          (should-not= [1 2] pos)))))
+
   (it "explores toward coast when patrol-mode is :exploring"
     (let [game-map (tu/build-test-map ["~~~~~~~#"
                                        "~p~~~~~#"
@@ -131,7 +146,7 @@
         (ship/process-ship [1 1] :patrol-boat)
         (let [{:keys [pos]} (tu/get-test-unit (test-utils/game-map-atom) "p")]
           ;; Should have moved multiple steps (not just 1)
-          (should (> (Math/abs (- (first pos) 1)) 1)))))
+          (should (> (Math/abs (- (first pos) 1)) 1))))))
 
   (it "moves during random walk when an empty sea neighbor exists"
     (let [game-map (tu/build-test-map ["pp~"])]
@@ -148,4 +163,4 @@
       (tu/set-test-world! world)
       (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (fn [_] [1 0])
                     empire.computer.ship-patrol/major-invasion-step (fn [_] nil)]
-        (should= [0 0] (@#'empire.computer.ship-patrol/process-standard-patrol [0 0])))))))
+        (should= [0 0] (@#'empire.computer.ship-patrol/process-standard-patrol [0 0]))))))

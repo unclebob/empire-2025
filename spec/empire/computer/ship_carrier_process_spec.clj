@@ -128,6 +128,7 @@
                 :escort-carrier-id 1 :orbit-angle 0})
         (update-test-world! assoc-in [3 4 :contents]
                {:type :transport :owner :player :hits 3})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (ship/process-ship [1 1] :battleship)
         ;; Battleship should enter pursuit mode
         (let [bb (first (for [c (range 7) r (range 7)
@@ -190,4 +191,3 @@
       (ship/process-ship [0 1] :carrier)
       (should= :holding (get-in (test-utils/read-test-state :game-map) [0 1 :contents :carrier-mode]))))
 ) ;; end process-ship
-

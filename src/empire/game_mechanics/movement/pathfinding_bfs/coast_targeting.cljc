@@ -49,8 +49,8 @@
 
 (defn bfs-to-unowned-coast
   "BFS from start over explored sea cells on computer-map to find nearest
-   cell adjacent to non-computer land/city on game-map."
-  [start computer-map game-map]
+   cell adjacent to non-computer land/city on computer-map."
+  [start computer-map _game-map]
   (let [passable-sea? (fn [pos]
                         (let [cell (get-in computer-map pos)]
                           (and cell (= :sea (:type cell)))))]
@@ -62,7 +62,7 @@
           (let [current (peek queue)
                 rest-queue (pop queue)]
             (if (and (not= current start)
-                     (adjacent-to-unowned? current game-map))
+                     (adjacent-to-unowned? current computer-map))
               (vec (rest (map-utils/reconstruct-path came-from start current)))
               (let [[x y] current
                     neighbors (for [[dx dy] map-utils/neighbor-offsets

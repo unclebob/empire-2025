@@ -28,10 +28,12 @@
       (set-test-world! (build-test-map ["fO"]))
       (update-test-world! assoc-in [1 0 :contents]
              {:type :fighter :owner :player :fuel 20})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fighter-movement/find-adjacent-enemy [0 0])))
 
     (it "still targets adjacent player units outside cities"
       (set-test-world! (build-test-map ["fF"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= [1 0] (fighter-movement/find-adjacent-enemy [0 0]))))
 
   (context "leg-based coverage"

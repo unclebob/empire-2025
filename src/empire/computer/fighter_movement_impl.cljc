@@ -123,7 +123,7 @@
 
 (defn find-adjacent-enemy
   [pos]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (first (filter (fn [neighbor]
                      (attackable-enemy-cell? (get-in game-map neighbor)))
                    (core/get-neighbors pos)))))

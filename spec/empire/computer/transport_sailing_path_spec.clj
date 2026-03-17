@@ -44,6 +44,7 @@
       ;; Exclude all adjacent land by matching country-id.
       (doseq [c (range 3)]
         (update-test-world! assoc-in [c 1 :country-id] 1))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [0 0 :contents]
                          {:type :transport :owner :computer
                           :transport-mission :sailing :army-count 3

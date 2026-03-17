@@ -103,7 +103,7 @@
     (let [game-map [[{:type :sea}] [{:type :sea}]
                      [{:type :land :country-id 1}]]
           computer-map [[{:type :sea}] [{:type :sea}]
-                         [{:type :land}]]]
+                         [{:type :land :country-id 1}]]]
       (should-be-nil (pathfinding-bfs/bfs-to-unowned-coast [0 0] computer-map game-map))))
 
   (it "returns nil when start is not sea"
@@ -114,6 +114,12 @@
   (it "returns nil when no unowned land reachable"
     (let [game-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]
           computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
+      (should-be-nil (pathfinding-bfs/bfs-to-unowned-coast [0 0] computer-map game-map))))
+
+  (it "does not target coast revealed only on game-map"
+    (let [game-map [[{:type :sea}] [{:type :sea}]
+                    [{:type :city :city-status :free}]]
+          computer-map [[{:type :sea}] [{:type :sea}] [nil]]]
       (should-be-nil (pathfinding-bfs/bfs-to-unowned-coast [0 0] computer-map game-map)))))
 
 (describe "bfs-to-coast-target"
