@@ -259,8 +259,6 @@
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
             (city-production/set-city-production city-pos :army)))
-        (when-let [rebuild-kamikazee-routing! (requiring-resolve 'empire.computer.threat-response/rebuild-kamikazee-routing!)]
-          (rebuild-kamikazee-routing!))
         (update-cell-visibility! army-pos :computer)
         (update-cell-visibility! city-pos :computer)
         (when (and (sa/read-state :game-over-check-enabled)

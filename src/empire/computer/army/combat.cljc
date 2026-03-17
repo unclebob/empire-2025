@@ -4,6 +4,7 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
+            [empire.computer.threat-response :as threat-response]
             [empire.game-mechanics.debug.logging :as debug]
             [empire.computer.movement :as computer-movement]))
 
@@ -24,7 +25,9 @@
     (cond
       (= :city (:type enemy-cell))
       (do (debug/log-computer-event! :army-attack-city army-pos {:target enemy-pos})
-          (core/attempt-conquest-computer army-pos enemy-pos))
+          (core/attempt-conquest-computer army-pos enemy-pos)
+          (when (= :computer (:city-status (get-in (sa/current-world) enemy-pos)))
+            (threat-response/rebuild-kamikazee-routing!)))
 
       (:contents enemy-cell)
       (let [attacker (get-in game-map (conj army-pos :contents))
