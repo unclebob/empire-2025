@@ -9,7 +9,6 @@
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.computer.army :as army]
-            [empire.computer.land-ho :as land-ho]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.production :as computer-production]
             [empire.computer.threat-response :as threat-response]
@@ -142,7 +141,6 @@
   (sa/write-state! :claimed-objectives #{})
   (sa/write-state! :claimed-transport-targets #{})
   (sa/write-state! :claimed-patrol-targets #{})
-  (land-ho/assign-land-ho-invasion)
   (let [player-items (current-player-items)
         computer-items (vec (build-computer-items))
         round-state (decisions/round-start-state

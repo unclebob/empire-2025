@@ -30,7 +30,6 @@
    :fighter-leg-records true
    :coast-walkers-produced true
    :opening-satellite-produced? true
-   :land-ho-targets true
    :major-invasion-state true
    :transport-fully-loaded? true
    :early-patrol-boat-produced? true

@@ -147,12 +147,6 @@
         (merge-continents! stamp-id existing-cid)))
     (update-game-map! assoc-in [row col :country-id] stamp-id)))
 
-(defn- should-track-free-city?
-  "Returns true if owner is computer and unit is not an army."
-  [owner unit-type]
-  (and (= owner :computer)
-       (not= :army unit-type)))
-
 (defn- newly-discovered-free-city?
   "Returns true if game-cell is a free city and the same position
    on visible-map was unexplored."
@@ -180,17 +174,13 @@
   (swap! detection-queue conj {:pos coords :cell cell}))
 
 (defn- reveal-and-track!
-  "Reveals a single cell and tracks newly-discovered free cities."
-  [visible-map-source ni nj stamp-id track-cities? detect-threats? visible-map]
+  "Reveals a single cell and queues threat detections for newly visible cells."
+  [visible-map-source ni nj stamp-id detect-threats? visible-map]
   (let [game-cell (get-in (current-world) [ni nj])]
     (reveal-cell! visible-map-source ni nj game-cell stamp-id visible-map)
     (when (and detect-threats?
                (was-unexplored? visible-map ni nj))
-      (queue-detection! [ni nj] game-cell))
-    (when (and track-cities?
-               (newly-discovered-free-city? visible-map ni nj game-cell))
-      (let [targets (or (read-runtime-state :land-ho-targets) [])]
-        (write-runtime-state! :land-ho-targets (conj targets [ni nj]))))))
+      (queue-detection! [ni nj] game-cell))))
 
 (defn sync-ai-unit-to-computer-map!
   [pos]
@@ -229,7 +219,6 @@
          cell (get-in game-map pos)
          radius (cell-visibility-radius cell)
          stamp-id (should-stamp-country? unit)
-         track-cities? (should-track-free-city? owner (:type (:contents cell)))
          detect-threats? (= owner :computer)]
      (when-let [visible-map (read-runtime-state visible-map-key)]
        (let [[x y] pos
@@ -240,7 +229,7 @@
                  :let [ni (+ x di) nj (+ y dj)]
                  :when (in-bounds? ni nj height width)]
            (reveal-and-track! visible-map-key ni nj
-                              stamp-id track-cities? detect-threats? visible-map))
+                              stamp-id detect-threats? visible-map))
          nil)))))
 
 (defrecord MovementCombatVisibilityPort []

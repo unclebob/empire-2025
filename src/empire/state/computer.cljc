@@ -16,7 +16,6 @@
    :opening-satellite-produced? false
    :patrol-boats-produced {}
    :seen-coast #{}
-   :land-ho-targets []
    :major-invasion-state {:active? false
                           :decision nil
                           :failure-reason nil

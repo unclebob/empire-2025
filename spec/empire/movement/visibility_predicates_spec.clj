@@ -41,25 +41,6 @@
     (should-not (#'empire.game-mechanics.movement.visibility/should-stamp-country?
                   {:type :army :owner :computer}))))
 
-(describe "should-track-free-city?"
-  (it "returns true for computer non-army"
-    (should (#'empire.game-mechanics.movement.visibility/should-track-free-city? :computer :transport)))
-
-  (it "returns false for computer army"
-    (should-not (#'empire.game-mechanics.movement.visibility/should-track-free-city? :computer :army)))
-
-  (it "returns false for player non-army"
-    (should-not (#'empire.game-mechanics.movement.visibility/should-track-free-city? :player :transport)))
-
-  (it "returns false for player army"
-    (should-not (#'empire.game-mechanics.movement.visibility/should-track-free-city? :player :army)))
-
-  (it "returns true for computer fighter"
-    (should (#'empire.game-mechanics.movement.visibility/should-track-free-city? :computer :fighter)))
-
-  (it "returns true for computer with nil unit-type"
-    (should (#'empire.game-mechanics.movement.visibility/should-track-free-city? :computer nil))))
-
 (describe "was-unexplored?"
   (it "returns true for nil cell in visible map"
     (let [visible-map [[nil nil] [nil nil]]]
