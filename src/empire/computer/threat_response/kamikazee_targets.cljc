@@ -17,7 +17,7 @@
   [ctx]
   (or (when-let [current-world (:current-world ctx)]
         (current-world))
-      (sa/current-world)))
+      (sa/read-state :computer-map)))
 
 (defn- kamikazee-target-writeable-unit?
   [ctx pos]

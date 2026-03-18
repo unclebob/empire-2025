@@ -244,9 +244,8 @@
 (defn invasion-production-override
   [city-pos]
   (let [state (sa/read-state :major-invasion-state)
-        world (sa/current-world)
-        visible-world (or (sa/read-state :computer-map) world)
-        target-points (targets/invasion-target-points state visible-world)
+        world (sa/read-state :computer-map)
+        target-points (targets/invasion-target-points state world)
         loaded-transports
         (for [i (range (count world))
               j (range (count (first world)))

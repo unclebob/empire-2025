@@ -66,18 +66,21 @@
                  (routing/invasion-production-override [0 0])))))
 
   (it "chooses fighters when loaded invasion transports exist"
-    (let [world (build-test-map ["X~~"
-                                 "t~~"])]
-      (with-redefs [empire.state.api/current-world (constantly (assoc-in world [0 1 :contents]
-                                                                         {:type :transport
-                                                                          :owner :computer
-                                                                          :major-invasion true
-                                                                          :army-count 1}))
+    (let [computer-map (assoc-in (build-test-map ["X~~"
+                                                  "t~~"])
+                                 [0 1 :contents]
+                                 {:type :transport
+                                  :owner :computer
+                                  :major-invasion true
+                                  :army-count 1})]
+      (with-redefs [empire.state.api/current-world (constantly computer-map)
                     empire.state.api/read-state (fn [k]
-                                                  (when (= k :major-invasion-state)
-                                                    {:active? true
-                                                     :detection-points #{}
-                                                     :target-land-set #{}}))]
+                                                  (case k
+                                                    :major-invasion-state {:active? true
+                                                                           :detection-points #{}
+                                                                           :target-land-set #{}}
+                                                    :computer-map computer-map
+                                                    nil))]
         (should= :fighter
                  (routing/invasion-production-override [0 0])))))
 
