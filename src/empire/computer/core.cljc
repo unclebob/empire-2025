@@ -64,7 +64,7 @@
 
 (defn get-neighbors
   [pos]
-  (neighbors-in-map (sa/current-world) pos))
+  (neighbors-in-map (sa/read-state :computer-map) pos))
 
 (defn distance
   [[x1 y1] [x2 y2]]
@@ -224,7 +224,7 @@
 (defn find-loading-transport
   ([] (find-loading-transport nil))
   ([army-unload-event-id]
-   (let [world (sa/current-world)]
+   (let [world (sa/read-state :computer-map)]
      (first (for [i (range (count world))
                   j (range (count (first world)))
                   :let [unit (:contents (get-in world [i j]))]
@@ -235,7 +235,7 @@
   ([pos]
    (find-adjacent-loading-transport pos nil))
   ([pos army-unload-event-id]
-   (let [world (sa/current-world)]
+   (let [world (sa/read-state :computer-map)]
      (first (filter (fn [neighbor]
                       (loading-transport? (:contents (get-in world neighbor)) army-unload-event-id))
                     (get-neighbors pos))))))

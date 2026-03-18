@@ -8,25 +8,33 @@
   (before (reset-all-atoms!))
 
   (it "finds adjacent loading transport"
-    (set-test-world! [[{:type :land} {:type :sea}]
-                      [{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 0}} {:type :sea}]])
+    (let [world [[{:type :land} {:type :sea}]
+                 [{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 0}} {:type :sea}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should= [1 0] (core/find-adjacent-loading-transport [0 0])))
 
   (it "returns nil when no adjacent transport"
-    (set-test-world! [[{:type :land} {:type :sea}]
-                      [{:type :sea} {:type :sea}]])
+    (let [world [[{:type :land} {:type :sea}]
+                 [{:type :sea} {:type :sea}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-adjacent-loading-transport [0 0])))
 
   (it "skips full adjacent transports"
-    (set-test-world! [[{:type :land} {:type :sea}]
-                      [{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 6}} {:type :sea}]])
+    (let [world [[{:type :land} {:type :sea}]
+                 [{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 6}} {:type :sea}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-adjacent-loading-transport [0 0])))
 
   (it "excludes transport with matching unload-event-id"
-    (set-test-world! [[{:type :land} {:type :sea}]
-                      [{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 0
-                                              :unload-event-id 42}} {:type :sea}]])
+    (let [world [[{:type :land} {:type :sea}]
+                 [{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 0
+                                         :unload-event-id 42}} {:type :sea}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-adjacent-loading-transport [0 0] 42))))

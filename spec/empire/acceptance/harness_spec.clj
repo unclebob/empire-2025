@@ -119,6 +119,77 @@
                  @calls))
       (should-be-nil (h/read-state :last-key))))
 
+  (it "reveals a computer transport before processing it"
+    (let [calls (atom [])]
+      (h/set-test-world! (h/build-test-map ["t"]))
+      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+                    (fn [pos owner unit]
+                      (swap! calls conj [:update pos owner unit]))
+                    empire.game-mechanics.movement.visibility/drain-detections!
+                    (fn [] [])
+                    empire.computer.transport/process-transport
+                    (fn [pos]
+                      (swap! calls conj [:transport pos]))]
+        (h/process-computer-transport! [0 0])
+        (should= 2 (count @calls))
+        (should= :update (ffirst @calls))
+        (should= [0 0] (second (first @calls)))
+        (should= :computer (nth (first @calls) 2))
+        (should= :transport (get-in @calls [0 3 :type]))
+        (should= :computer (get-in @calls [0 3 :owner]))
+        (should= [:transport [0 0]] (second @calls)))))
+
+  (it "reveals a computer fighter before processing it"
+    (let [calls (atom [])
+          unit {:type :fighter :owner :computer}]
+      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+                    (fn [pos owner fighter]
+                      (swap! calls conj [:update pos owner fighter]))
+                    empire.game-mechanics.movement.visibility/drain-detections!
+                    (fn [] [])
+                    empire.computer.fighter/process-fighter
+                    (fn [pos fighter]
+                      (swap! calls conj [:fighter pos fighter]))]
+        (h/process-computer-fighter! [1 2] unit)
+        (should= [[:update [1 2] :computer unit]
+                  [:fighter [1 2] unit]]
+                 @calls))))
+
+  (it "reveals a computer ship before processing it"
+    (let [calls (atom [])]
+      (h/set-test-world! (h/build-test-map ["d"]))
+      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+                    (fn [pos owner unit]
+                      (swap! calls conj [:update pos owner unit]))
+                    empire.game-mechanics.movement.visibility/drain-detections!
+                    (fn [] [])
+                    empire.computer.ship/process-ship
+                    (fn [pos ship-type]
+                      (swap! calls conj [:ship pos ship-type]))]
+        (h/process-computer-ship! [0 0] :destroyer)
+        (should= 2 (count @calls))
+        (should= :update (ffirst @calls))
+        (should= [0 0] (second (first @calls)))
+        (should= :computer (nth (first @calls) 2))
+        (should= :destroyer (get-in @calls [0 3 :type]))
+        (should= :computer (get-in @calls [0 3 :owner]))
+        (should= [:ship [0 0] :destroyer] (second @calls)))))
+
+  (it "does not reveal non-computer fighters before processing them"
+    (let [calls (atom [])
+          unit {:type :fighter :owner :player}]
+      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+                    (fn [& args]
+                      (swap! calls conj args))
+                    empire.game-mechanics.movement.visibility/drain-detections!
+                    (fn [] [])
+                    empire.computer.fighter/process-fighter
+                    (fn [pos fighter]
+                      (swap! calls conj [:fighter pos fighter]))]
+        (h/process-computer-fighter! [1 2] unit)
+        (should= [[:fighter [1 2] unit]]
+                 @calls))))
+
   (it "throws on unsupported set-state! key"
     (should-throw clojure.lang.ExceptionInfo
                   (h/set-state! :unsupported-key 1)))

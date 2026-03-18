@@ -188,6 +188,11 @@
   (doseq [{:keys [pos cell]} (visibility/drain-detections!)]
     (threat-response/handle-detection! pos cell)))
 
+(defn- reveal-computer-unit!
+  [pos unit]
+  (when (= :computer (:owner unit))
+    (update-cell-visibility! pos :computer unit)))
+
 (defn evaluate-computer-production!
   [city-pos]
   (computer-production/rebuild-country-stats!)
@@ -195,14 +200,19 @@
 
 (defn process-computer-transport!
   [pos]
+  (when-let [unit (get-in (read-state :game-map) (conj pos :contents))]
+    (reveal-computer-unit! pos unit))
   (computer-transport/process-transport pos))
 
 (defn process-computer-fighter!
   [pos unit]
+  (reveal-computer-unit! pos unit)
   (computer-fighter/process-fighter pos unit))
 
 (defn process-computer-ship!
   [pos ship-type]
+  (when-let [unit (get-in (read-state :game-map) (conj pos :contents))]
+    (reveal-computer-unit! pos unit))
   (computer-ship/process-ship pos ship-type))
 
 ;; clj-mutate-manifest-begin

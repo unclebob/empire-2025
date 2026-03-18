@@ -8,33 +8,45 @@
   (before (reset-all-atoms!))
 
   (it "finds a loading transport with room"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 2}}]])
+    (let [world [[{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 2}}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should= [0 0] (core/find-loading-transport)))
 
   (it "skips full transports"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 6}}]])
+    (let [world [[{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 6}}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-loading-transport)))
 
   (it "skips non-loading transports"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :sailing :army-count 0}}]])
+    (let [world [[{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :sailing :army-count 0}}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-loading-transport)))
 
   (it "skips player transports"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :player
-                                              :transport-mission :loading :army-count 0}}]])
+    (let [world [[{:type :sea :contents {:type :transport :owner :player
+                                         :transport-mission :loading :army-count 0}}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-loading-transport)))
 
   (it "excludes transport with matching unload-event-id"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 0
-                                              :unload-event-id 42}}]])
+    (let [world [[{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 0
+                                         :unload-event-id 42}}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should-be-nil (core/find-loading-transport 42)))
 
   (it "includes transport with different unload-event-id"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                              :transport-mission :loading :army-count 0
-                                              :unload-event-id 42}}]])
+    (let [world [[{:type :sea :contents {:type :transport :owner :computer
+                                         :transport-mission :loading :army-count 0
+                                         :unload-event-id 42}}]]]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (should= [0 0] (core/find-loading-transport 99))))

@@ -145,7 +145,9 @@
         (should= [3 3] @moved-target))))
 
   (it "moves major-invasion patrol boat at patrol speed (4 steps)"
-    (set-test-world! (build-test-map ["p~~~~~~~~~"]))
+    (let [world (build-test-map ["p~~~~~~~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
                   rand-nth (fn [xs] (first xs))]
       (should

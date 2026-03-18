@@ -18,16 +18,20 @@
 
   (context "computer-core/get-neighbors"
     (it "returns neighbors for center position"
-      (set-test-world! (build-test-map ["###"
-                                               "###"
-                                               "###"]))
+      (let [world (build-test-map ["###"
+                                   "###"
+                                   "###"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (let [neighbors (computer-core/get-neighbors [1 1])]
         (should= 8 (count neighbors))))
 
     (it "returns fewer neighbors for corner position"
-      (set-test-world! (build-test-map ["###"
-                                               "###"
-                                               "###"]))
+      (let [world (build-test-map ["###"
+                                   "###"
+                                   "###"])]
+        (set-test-world! world)
+        (set-test-computer-map! world))
       (let [neighbors (computer-core/get-neighbors [0 0])]
         (should= 3 (count neighbors)))))
 
