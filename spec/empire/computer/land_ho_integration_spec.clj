@@ -33,6 +33,9 @@
       (update-test-world! assoc-in [0 3 :contents]
                           {:type :transport :owner :computer
                            :transport-mission :sailing :army-count 4})
+      (update-test-computer-map! assoc-in [0 3 :contents]
+                                 {:type :transport :owner :computer
+                                  :transport-mission :sailing :army-count 4})
 
       ;; Step 1: Patrol boat moves to [1 1] and discovers the free city
       ;; Simulate by updating visibility from [1 1]

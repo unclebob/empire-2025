@@ -4,13 +4,14 @@
    qualifying transport to invade each target."
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.movement :as computer-movement]
+            [empire.game-mechanics.movement.visibility :as visibility]))
 
 (defn- find-sailing-transports
   "Returns list of [pos transport] for computer transports in sailing mode
    with 4+ armies."
   []
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         height (count game-map)
         width (count (first game-map))]
     (for [r (range height)
@@ -51,6 +52,7 @@
                                 (conj tpos :contents :invasion-target) target)
               (sa/update-world! assoc-in
                                 (conj tpos :contents :invasion-path) (vec path))
+              (visibility/sync-ai-unit-to-computer-map! tpos)
               ;; Remove target from queue
               (sa/write-state! :land-ho-targets (vec (rest targets))))
             ;; BFS failed -- move target to end of queue

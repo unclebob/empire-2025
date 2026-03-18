@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.land-ho :as land-ho]
-            [empire.test.utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
+            [empire.test.utils :refer [reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-computer-map! update-test-world!]]))
 
 (defn make-map [height width cell-fn]
   (mapv (fn [r] (mapv (fn [c] (cell-fn r c)) (range width))) (range height)))
@@ -27,6 +27,9 @@
         (update-test-world! assoc-in [0 0 :contents]
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
+        (update-test-computer-map! assoc-in [0 0 :contents]
+                                   {:type :transport :owner :computer
+                                    :transport-mission :sailing :army-count 4})
         ;; Add target city
         (test-utils/set-test-state! :land-ho-targets [[2 1]])
         (land-ho/assign-land-ho-invasion)
@@ -66,6 +69,9 @@
         (update-test-world! assoc-in [0 0 :contents]
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
+        (update-test-computer-map! assoc-in [0 0 :contents]
+                                   {:type :transport :owner :computer
+                                    :transport-mission :sailing :army-count 4})
         ;; Unreachable target first, reachable target second
         (test-utils/set-test-state! :land-ho-targets [[2 4] [1 0]])
         (land-ho/assign-land-ho-invasion)
@@ -92,10 +98,16 @@
         (update-test-world! assoc-in [0 0 :contents]
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
+        (update-test-computer-map! assoc-in [0 0 :contents]
+                                   {:type :transport :owner :computer
+                                    :transport-mission :sailing :army-count 4})
         ;; Near transport at [3 2]
         (update-test-world! assoc-in [3 2 :contents]
                             {:type :transport :owner :computer
                              :transport-mission :sailing :army-count 4})
+        (update-test-computer-map! assoc-in [3 2 :contents]
+                                   {:type :transport :owner :computer
+                                    :transport-mission :sailing :army-count 4})
         (test-utils/set-test-state! :land-ho-targets [[4 2]])
         (land-ho/assign-land-ho-invasion)
         ;; Near transport should be assigned
