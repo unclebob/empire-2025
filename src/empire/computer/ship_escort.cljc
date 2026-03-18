@@ -3,7 +3,13 @@
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.movement :as computer-movement]
+            [empire.game-mechanics.movement.visibility :as visibility]))
+
+
+(defn- computer-unit-at
+  [pos]
+  (get-in (sa/read-state :computer-map) (conj pos :contents)))
 
 
 (defn find-carrier-by-id
@@ -50,7 +56,7 @@
 (defn- group-positions
   "Returns positions of all ships in the escort group (self + transport or carrier)."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         transport-pos (when (:escort-transport-id unit)
                         (find-transport-by-id (:escort-transport-id unit)))
         carrier-pos (when (:escort-carrier-id unit)
@@ -66,11 +72,12 @@
   "Reverts a pursuing ship back to its pre-pursuit mode.
    Destroyers return to :escorting, carrier group escorts to :orbiting."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         return-mode (if (:escort-carrier-id unit) :orbiting :escorting)]
     (sa/update-world! update-in (conj pos :contents)
                       #(-> % (assoc :escort-mode return-mode)
-                           (dissoc :pursuit-target :pursuit-steps-remaining)))))
+                           (dissoc :pursuit-target :pursuit-steps-remaining)))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn begin-pursuit
   "Switches an escort ship to pursuing mode, targeting the enemy."
@@ -79,13 +86,14 @@
                     assoc :escort-mode :pursuing
                     :pursuit-target enemy-pos
                     :pursuit-steps-remaining 5)
+  (visibility/sync-ai-unit-to-computer-map! pos)
   (ship-core/move-toward pos enemy-pos))
 
 (defn process-pursuit
   "Continues pursuit: move toward a cell the enemy could have gone to,
    excluding cells visible to group members. Decrements steps remaining."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         computer-map (sa/read-state :computer-map)
         target (:pursuit-target unit)
         steps (:pursuit-steps-remaining unit)
@@ -104,7 +112,8 @@
         (when new-pos
           (sa/update-world! update-in (conj new-pos :contents)
                             assoc :pursuit-target chosen
-                            :pursuit-steps-remaining (dec steps)))))))
+                            :pursuit-steps-remaining (dec steps))
+          (visibility/sync-ai-unit-to-computer-map! new-pos))))))
 
 ;; --- Destroyer-specific escort ---
 
@@ -127,19 +136,21 @@
 (defn- adopt-transport
   "Pairs a destroyer at pos with a transport at transport-pos."
   [pos transport-pos]
-  (let [destroyer (get-in (sa/current-world) (conj pos :contents))
-        transport (get-in (sa/current-world) (conj transport-pos :contents))
+  (let [destroyer (computer-unit-at pos)
+        transport (computer-unit-at transport-pos)
         d-id (:destroyer-id destroyer)
         t-id (:transport-id transport)]
     (sa/update-world! update-in (conj pos :contents)
                       #(assoc % :escort-transport-id t-id :escort-mode :intercepting))
     (sa/update-world! update-in (conj transport-pos :contents)
-                      #(assoc % :escort-destroyer-id d-id))))
+                      #(assoc % :escort-destroyer-id d-id))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (visibility/sync-ai-unit-to-computer-map! transport-pos)))
 
 (defn- find-enemy-near-destroyer-group
   "Finds a player ship adjacent to destroyer or its escorted transport."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         transport-pos (when (:escort-transport-id unit)
                         (find-transport-by-id (:escort-transport-id unit)))]
     (find-enemy-near-positions (filter some? [pos transport-pos]))))
@@ -150,6 +161,7 @@
   (sa/update-world! update-in (conj pos :contents)
                     #(-> % (assoc :escort-mode :seeking)
                          (dissoc :escort-transport-id)))
+  (visibility/sync-ai-unit-to-computer-map! pos)
   nil)
 
 (defn- process-destroyer-seeking [pos]
@@ -190,7 +202,7 @@
 (defn process-escort-destroyer
   "Processes a destroyer in escort mode."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         mode (:escort-mode unit)]
     (if-let [enemy-pos (escorting-enemy-pos pos mode)]
       (begin-pursuit pos enemy-pos)
