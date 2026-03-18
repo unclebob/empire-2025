@@ -70,6 +70,9 @@
       ;; Pre-store a path on the unit
       (tu/update-test-world! assoc-in [1 1 :contents :explore-path]
              [[2 1] [3 1] [4 1]])
+      (tu/update-test-state! :computer-map assoc-in [1 1 :contents :patrol-mode] :exploring)
+      (tu/update-test-state! :computer-map assoc-in [1 1 :contents :explore-path]
+                             [[2 1] [3 1] [4 1]])
       (let [bfs-call-count (atom 0)]
         (with-redefs [pathfinding-bfs/bfs-to-unseen-coast
                       (fn [& _] (swap! bfs-call-count inc) nil)]
@@ -89,6 +92,7 @@
       (tu/set-test-computer-map! game-map)
       ;; Path leads to [2,1] which is adjacent to land at [3,1]
       (tu/update-test-world! assoc-in [1 1 :contents :explore-path] [[2 1]])
+      (tu/update-test-state! :computer-map assoc-in [1 1 :contents :explore-path] [[2 1]])
       (let [result (ship/patrol-explore-step [1 1])
             unit (get-in (test-utils/read-test-state :game-map) (conj result :contents))]
         (should= [2 1] result)
@@ -103,6 +107,7 @@
       (tu/set-test-computer-map! game-map)
       ;; Path leads to [2,1] which is occupied by a computer destroyer
       (tu/update-test-world! assoc-in [1 1 :contents :explore-path] [[2 1]])
+      (tu/update-test-state! :computer-map assoc-in [1 1 :contents :explore-path] [[2 1]])
       (let [result (ship/patrol-explore-step [1 1])]
         (should-be-nil result)
         (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]

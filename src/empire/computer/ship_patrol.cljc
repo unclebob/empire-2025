@@ -12,6 +12,10 @@
   [pos owner]
   (visibility/update-cell-visibility pos owner))
 
+(defn- computer-unit-at
+  [pos]
+  (get-in (sa/read-state :computer-map) (conj pos :contents)))
+
 (defn- find-adjacent-player-transport
   "Finds an adjacent player transport to attack."
   [pos]
@@ -100,13 +104,15 @@
       (sa/write-state! :claimed-patrol-targets (conj claimed (last path))))
     (sa/update-world! assoc-in
                       (conj pos :contents :explore-path) (vec path))
+    (visibility/sync-ai-unit-to-computer-map! pos)
     path))
 
 (defn- switch-to-crawling [next-pos]
   "Switch patrol boat to crawling mode and clear explore state."
   (sa/update-world! update-in (conj next-pos :contents)
                     #(-> % (assoc :patrol-mode :crawling)
-                         (dissoc :explore-path))))
+                         (dissoc :explore-path)))
+  (visibility/sync-ai-unit-to-computer-map! next-pos))
 
 (defn- follow-explore-path
   "Take one step along stored BFS path. Returns new pos or nil."
@@ -118,11 +124,14 @@
           (update-cell-visibility! next-pos :computer)
           (if (arrived-at-unseen-coast? next-pos)
             (switch-to-crawling next-pos)
-            (sa/update-world! assoc-in
-                              (conj next-pos :contents :explore-path) rest-path))
+            (do
+              (sa/update-world! assoc-in
+                                (conj next-pos :contents :explore-path) rest-path)
+              (visibility/sync-ai-unit-to-computer-map! next-pos)))
           next-pos)
       (do (sa/update-world! update-in
                             (conj pos :contents) dissoc :explore-path)
+          (visibility/sync-ai-unit-to-computer-map! pos)
           nil))))
 
 (defn- generate-random-sea-walk
@@ -145,6 +154,7 @@
   (when-let [path (generate-random-sea-walk pos 10)]
     (sa/update-world! assoc-in
                       (conj pos :contents :explore-path) (vec path))
+    (visibility/sync-ai-unit-to-computer-map! pos)
     path))
 
 (defn patrol-explore-step
@@ -153,20 +163,19 @@
    Switches to crawling on arrival at unseen coast.
   Returns new position or nil."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         path (:explore-path unit)]
     (if (seq path)
       (follow-explore-path pos path)
       (when (or (run-bfs-and-store-path pos)
                 (store-random-walk pos))
-        (let [new-path (:explore-path
-                         (get-in (sa/current-world) (conj pos :contents)))]
+        (let [new-path (:explore-path (computer-unit-at pos))]
           (follow-explore-path pos new-path))))))
 
 (defn- patrol-mode-step
   "Execute one mode-based movement step. Returns new position or nil."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))]
+  (let [unit (computer-unit-at pos)]
     (case (or (:patrol-mode unit) :crawling)
       :crawling (patrol-crawl-step pos)
       :exploring (patrol-explore-step pos))))
@@ -194,7 +203,7 @@
 (defn- patrol-boat-step
   "Execute one step of patrol boat movement. Returns new position or nil."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))]
+  (let [unit (computer-unit-at pos)]
     (if (:major-invasion unit)
       (major-invasion-step pos)
       (non-invasion-step pos))))
@@ -226,18 +235,19 @@
                       #(-> %
                            oscillation/dec-random-walk
                            oscillation/maybe-restore))
+    (visibility/sync-ai-unit-to-computer-map! final-pos)
     final-pos))
 
 (defn- attacking-major-invasion-patrol?
   [current-pos]
-  (and (:major-invasion (get-in (sa/current-world) (conj current-pos :contents)))
+  (and (:major-invasion (computer-unit-at current-pos))
        (ship-core/find-adjacent-enemy-ship current-pos)))
 
 (defn- process-standard-patrol
   [pos]
   (loop [current-pos pos steps-left 4]
     (if (or (zero? steps-left)
-            (nil? (get-in (sa/current-world) (conj current-pos :contents))))
+            (nil? (computer-unit-at current-pos)))
       current-pos
       (if (attacking-major-invasion-patrol? current-pos)
         (or (major-invasion-step current-pos) current-pos)
@@ -255,7 +265,8 @@
                       #(oscillation/maybe-enter-random-walk % restore-keys
                                                             {:unit-type :patrol-boat
                                                              :pos pos}))
-    (if (oscillation/in-random-walk? (get-in (sa/current-world) (conj pos :contents)))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (if (oscillation/in-random-walk? (computer-unit-at pos))
       (process-random-walk-patrol pos)
       (process-standard-patrol pos))))
 
