@@ -82,6 +82,13 @@ All game state is stored in atoms defined in **atoms.cljc**:
 - `waiting-for-input`: Flag indicating we're waiting for user input
 - `backtick-pressed`: Modifier key state for prefixed commands (e.g., \`o for own-city)
 
+### Computer AI Visibility Rule
+
+- Code in `src/empire/computer/` that makes AI decisions must not read from `game-map`.
+- Computer AI decision code must read from `computer-map` so fog of war is preserved.
+- If the AI needs fresher information about its own units, update or sync `computer-map`; do not fall back to `game-map` reads in decision code.
+- Visibility/sync infrastructure outside AI decision code may read authoritative state only to project allowed information into `computer-map`.
+
 ### Key Modules
 
 - **movement/movement.cljc**: Unit movement logic, pathfinding, wake conditions, boarding/disembarking

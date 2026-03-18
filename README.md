@@ -38,7 +38,7 @@ Run all unit specs:
 
     clj -M:spec
 
-Run all tests (unit specs + acceptance pipeline):
+Run all tests (unit specs + acceptance pipeline + AI map access audit):
 
     clj -M:all-tests
 
@@ -67,6 +67,7 @@ Equivalent Clojure alias:
   - `scripts/check-spec-boundary.sh`
   - `scripts/check-acceptance-boundary.sh`
   - `scripts/check-generated-acceptance-boundary.sh`
+  - `scripts/check-ai-map-access.sh`
 
 ## The World
 
