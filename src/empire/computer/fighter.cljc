@@ -10,25 +10,38 @@
             [empire.computer.fighter-flight-plan :as flight-plan]
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]
-            [empire.computer.threat-response :as threat-response]))
+            [empire.computer.threat-response :as threat-response]
+            [empire.game-mechanics.movement.visibility :as visibility]))
+
+(defn- computer-unit-at
+  [pos]
+  (:contents (get-in (sa/read-state :computer-map) pos)))
+
+(defn- computer-cell-at
+  [pos]
+  (get-in (sa/read-state :computer-map) pos))
 
 ;; --- Leg-based coverage ---
 
 (defn- ensure-flight-target
   [pos]
-  (flight-plan/ensure-flight-target! sa/current-world sa/update-world! sa/read-state pos))
+  (flight-plan/ensure-flight-target! #(sa/read-state :computer-map) sa/update-world! sa/read-state pos)
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- at-flight-target?
   [pos target]
-  (flight-plan/at-flight-target? sa/current-world pos target))
+  (flight-plan/at-flight-target? #(sa/read-state :computer-map) pos target))
 
 (defn- assign-exploration-flight
   [pos site-pos]
-  (flight-plan/assign-exploration-flight! sa/update-world! (sa/current-world) pos site-pos))
+  (flight-plan/assign-exploration-flight! sa/update-world! (sa/read-state :computer-map) pos site-pos)
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- handle-arrival
   [pos unit]
-  (flight-plan/handle-arrival! sa/current-world sa/update-world! sa/read-state sa/write-state! pos unit))
+  (let [result (flight-plan/handle-arrival! #(sa/read-state :computer-map) sa/update-world! sa/read-state sa/write-state! pos unit)]
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    result))
 
 (defn- select-best-navigation-target
   "Score passable unoccupied neighbors by unexplored count, break ties by proximity."
@@ -78,7 +91,7 @@
 
 (defn- adjacent-to-city-site? [site pos]
   (and site
-       (= :city (:type (get-in (sa/current-world) site)))
+       (= :city (:type (computer-cell-at site)))
        (<= (fm/distance-to pos site) 1)))
 
 (defn- adjacent-to-site? [site pos]
@@ -152,7 +165,7 @@
 (defn- fighter-at?
   "Returns true if a fighter exists at pos on the game map."
   [pos]
-  (= :fighter (get-in (sa/current-world) (conj pos :contents :type))))
+  (= :fighter (get-in (sa/read-state :computer-map) (conj pos :contents :type))))
 
 (defn- burn-stuck-fuel
   "Burns fuel for a stuck fighter at pos. Returns pos if survived, nil if died."
@@ -164,7 +177,7 @@
   "Execute one step. Returns {:pos p :steps-used n} or nil (landed/died)."
   [current-pos]
   (when (fighter-at? current-pos)
-    (let [unit (get-in (sa/current-world) (conj current-pos :contents))
+    (let [unit (computer-unit-at current-pos)
           result (move-fighter-once current-pos unit)
           burned-pos (when (and (not= result :landed) (not (map? result)))
                        (burn-stuck-fuel current-pos))]

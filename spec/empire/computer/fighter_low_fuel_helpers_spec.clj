@@ -13,18 +13,22 @@
 
   (it "adjacent-to-city-site? returns true for adjacent city site"
     (set-test-world! (build-test-map ["Xf"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should (@#'fighter/adjacent-to-city-site? [0 0] [1 0])))
 
   (it "adjacent-to-city-site? returns false for nil site"
     (set-test-world! (build-test-map ["#f"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should-not (@#'fighter/adjacent-to-city-site? nil [1 0])))
 
   (it "adjacent-to-city-site? returns false for non-city site"
     (set-test-world! (build-test-map ["#f"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should-not (@#'fighter/adjacent-to-city-site? [0 0] [1 0])))
 
   (it "adjacent-to-city-site? returns false for distant city"
     (set-test-world! (build-test-map ["X#f"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should-not (@#'fighter/adjacent-to-city-site? [0 0] [2 0])))
 
   (it "adjacent-to-site? returns true for adjacent site"

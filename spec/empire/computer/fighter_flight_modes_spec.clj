@@ -107,12 +107,11 @@
                              ([] (let [v (first @rolls)] (swap! rolls rest) v))
                              ([_n] (let [v (first @rolls)] (swap! rolls rest) v)))
                       rand-nth first]
-          (let [unit (get-in (test-utils/read-test-state :game-map) [2 2 :contents])]
-            (fighter/process-fighter [2 2] unit)
-            ;; Fighter should have heading pointing east (dc > 0)
-            (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-              (should-not-be-nil result)
-              (should (pos? (first (:explore-heading (:unit result)))))))))))
+          ((ns-resolve 'empire.computer.fighter 'assign-exploration-flight) [2 2] [2 2])
+          ;; Fighter should have heading pointing east (dc > 0)
+          (let [result (get-in (test-utils/read-test-state :game-map) [2 2 :contents])]
+            (should-not-be-nil result)
+            (should (pos? (first (:explore-heading result))))))))))
 
   (context "exploration sortie movement"
     (it "sortie flies outbound with steps-remaining decreasing"
@@ -232,5 +231,3 @@
         (let [fighter (get-test-unit (test-utils/game-map-atom) "f")
               city-fighters (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0]))]
           (should (or fighter (and city-fighters (pos? city-fighters))))))))
-
-)

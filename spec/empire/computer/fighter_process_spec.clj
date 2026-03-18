@@ -261,6 +261,7 @@
       (set-test-world! (build-test-map ["X##"
                                         "###"
                                         "###"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
       (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))

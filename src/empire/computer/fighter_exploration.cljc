@@ -103,7 +103,8 @@
         (when (<= remaining 0)
           (sa/update-world! update-in (conj pos :contents)
                             assoc :flight-mode :regular
-                            :flight-target-site (:explore-origin unit))))
+                            :flight-target-site (:explore-origin unit)))
+        (computer-movement/update-cell-visibility! pos :computer))
       {:pos pos :hops hops})))
 
 (defn drone-step

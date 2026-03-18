@@ -202,6 +202,7 @@
                    false)
       :update-fuel (do
                      (sa/update-world! assoc-in (conj pos :contents :fuel) (:fuel action))
+                     (visibility/sync-ai-unit-to-computer-map! pos)
                      true)
       false)))
 
