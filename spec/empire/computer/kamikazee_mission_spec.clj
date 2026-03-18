@@ -89,6 +89,7 @@
         :kamikazee-city-next-hops {}
         :kamikazee-carrier-next-hops {}})
       (test-utils/seed-airport-kamikazees! [0 0] 2 1)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (threat-response/launch-kamikazee-from-airport! [0 0])
       (let [fighter (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :fighter (:type fighter))

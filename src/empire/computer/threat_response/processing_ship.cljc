@@ -38,7 +38,9 @@
 (defn start-ship-congestion-random-walk!
   [ctx pos congestion-random-walk-restore-keys]
   ((:update-game-map! ctx) update-in (conj pos :contents)
-   #(oscillation/start-random-walk % congestion-random-walk-restore-keys)))
+   #(oscillation/start-random-walk % congestion-random-walk-restore-keys))
+  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+    (sync-ai-unit! pos)))
 
 (defn process-ship-random-walk
   [ctx pos]
@@ -52,6 +54,8 @@
      #(-> %
           oscillation/dec-random-walk
           oscillation/maybe-restore))
+    (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+      (sync-ai-unit! final-pos))
     true))
 
 (defn nearby-invading-transports

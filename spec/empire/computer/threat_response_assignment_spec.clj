@@ -18,7 +18,9 @@
 
   (it "delegates to transport invasion prep and returns true"
     (test-utils/set-test-state! :major-invasion-state {:active? true :detection-points [[1 1]] :target-land-set #{}})
-    (set-test-world! (build-test-map ["t"]))
+    (let [world (build-test-map ["t"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (let [called (atom nil)]
       (with-redefs [empire.computer.threat-response/prepare-transport-major-invasion!
                     (fn [pos unit] (reset! called [pos (:type unit)]))]

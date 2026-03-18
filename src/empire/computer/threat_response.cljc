@@ -20,26 +20,9 @@
 (defn- threat-radius []
   (threat-policy/threat-radius))
 
-(defn- make-empty-visible-map
-  [game-map]
-  (vec (repeat (count game-map)
-               (vec (repeat (count (first game-map)) nil)))))
-
 (defn- refresh-computer-map!
   []
-  (let [game-map (sa/current-world)
-        current-map (sa/read-state :computer-map)
-        visible-map (if (and (vector? current-map)
-                             (= (count current-map) (count game-map))
-                             (= (count (first current-map))
-                                (count (first game-map))))
-                      current-map
-                      (make-empty-visible-map game-map))]
-    (when-let [updated (visibility/update-combatant-map-state
-                        visible-map
-                        :computer
-                        game-map)]
-      (sa/write-state! :computer-map updated))))
+  (visibility/refresh-visible-map! :computer))
 
 (declare manager-ctx)
 (declare current-round)
@@ -97,7 +80,8 @@
 (defn- assign-threat-mission!
   [positions mission-kv]
   (doseq [pos positions]
-    (sa/update-world! update-in (conj pos :contents) merge mission-kv)))
+    (sa/update-world! update-in (conj pos :contents) merge mission-kv)
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- closest-positions
   [origin positions n]
@@ -113,9 +97,10 @@
   []
   {:load-major-invasion-state load-major-invasion-state
    :update-major-invasion-state! update-major-invasion-state!
-   :current-world sa/current-world
+   :current-world #(sa/read-state :computer-map)
    :read-runtime-state sa/read-state
    :update-game-map! sa/update-world!
+   :sync-ai-unit! visibility/sync-ai-unit-to-computer-map!
    :nearest-major-target nearest-major-target
    :major-invasion-ship-types major-invasion-ship-types
    :computer-sea-unit-types computer-sea-unit-types})
@@ -158,7 +143,8 @@
         (sa/update-world! update-in [i j :contents]
                           (if (seq targets)
                             #(country-defense/apply-country-defense % [i j] targets radius)
-                            country-defense/clear-country-defense))))))
+                            country-defense/clear-country-defense))
+        (visibility/sync-ai-unit-to-computer-map! [i j])))))
 
 (defn- nearest-major-sea-target
   [pos]
@@ -314,19 +300,21 @@
 (defn prepare-transport!
   "Called by transport processing; applies major-invasion directives when active."
   [pos]
-  (when-let [unit (get-in (sa/current-world) (conj pos :contents))]
+  (when-let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))]
     (when (= :prepare-transport
              (decisions/prepare-transport-action
               {:major-invasion-active? (major-invasion-active?)
                :unit unit}))
       (prepare-transport-major-invasion! pos unit)
+      (visibility/sync-ai-unit-to-computer-map! pos)
       true)))
 
 (defn- fighter-step-threat
   [pos unit]
   (processing/fighter-step-threat
-   {:current-world sa/current-world
+   {:current-world #(sa/read-state :computer-map)
     :update-game-map! sa/update-world!
+    :sync-ai-unit! visibility/sync-ai-unit-to-computer-map!
     :nearest-major-target nearest-major-target
     :threat-radius (threat-radius)}
    pos
@@ -350,21 +338,22 @@
      (kamikazee/process-kamikazee-fighter
       (invasion-ctx)
       current
-      (get-in (sa/current-world) (conj current :contents))))))
+      (get-in (sa/read-state :computer-map) (conj current :contents))))))
 
 (defn- run-standard-threat-round
   [pos unit]
   (if (oscillation/in-random-walk? unit)
     (processing/process-fighter-random-walk-round
-     {:current-world sa/current-world
-      :update-game-map! sa/update-world!}
+     {:current-world #(sa/read-state :computer-map)
+      :update-game-map! sa/update-world!
+      :sync-ai-unit! visibility/sync-ai-unit-to-computer-map!}
      pos)
     (run-fighter-steps
      pos
      fighter-movement/fighter-speed
      (fn [current]
        (fighter-step-threat current
-                            (get-in (sa/current-world) (conj current :contents)))))))
+                            (get-in (sa/read-state :computer-map) (conj current :contents)))))))
 
 (defn process-fighter-threat
   "Overrides regular fighter logic while fighter-sweep/country-defense or major-invasion mission is active.
@@ -386,8 +375,10 @@
           :fixed-carrier? (kamikazee/fixed-carrier? (load-major-invasion-state) pos)})
     :hold true
     (processing/process-ship-threat
-     {:current-world sa/current-world
+     {:current-world #(sa/read-state :computer-map)
       :update-game-map! sa/update-world!
+      :read-runtime-state sa/read-state
+      :sync-ai-unit! visibility/sync-ai-unit-to-computer-map!
       :nearest-major-target nearest-major-ship-target
       :threat-radius (threat-radius)}
      pos

@@ -31,6 +31,8 @@
   (if (= :city (:type (get-in ((:current-world ctx)) site)))
     (do (fm/land-at-city pos site) nil)
     (do ((:update-game-map! ctx) assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+        (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+          (sync-ai-unit! pos))
         {:pos pos :steps-used 1})))
 
 (defn refuel-threat-step
@@ -72,7 +74,9 @@
 (defn start-fighter-congestion-random-walk!
   [ctx pos congestion-random-walk-restore-keys]
   ((:update-game-map! ctx) update-in (conj pos :contents)
-   #(oscillation/start-random-walk % congestion-random-walk-restore-keys)))
+   #(oscillation/start-random-walk % congestion-random-walk-restore-keys))
+  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+    (sync-ai-unit! pos)))
 
 (defn fighter-random-walk-step
   [pos]
@@ -90,7 +94,9 @@
     ((:update-game-map! ctx) update-in (conj final-pos :contents)
      #(-> %
           oscillation/dec-random-walk
-          oscillation/maybe-restore))))
+          oscillation/maybe-restore))
+    (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+      (sync-ai-unit! final-pos))))
 
 (defn process-fighter-random-walk-round
   [ctx pos]

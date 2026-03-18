@@ -21,7 +21,9 @@
                                                                :threat-radius 5}))))
 
   (it "lands at city when refuel is needed and city is adjacent"
-    (set-test-world! (build-test-map ["#O#"]))
+    (let [world (build-test-map ["#O#"])]
+      (set-test-world! world)
+      (set-test-computer-map! world))
     (with-redefs [empire.computer.fighter-movement/find-adjacent-enemy (constantly nil)
                   empire.computer.fighter-movement/should-return-to-refuel? (fn [_ _] true)
                   empire.computer.fighter-movement/find-nearest-refueling-site (fn [_] [1 0])
@@ -89,6 +91,7 @@
     (update-test-world! assoc-in [0 0 :contents :oscillation-random-walk-rounds-left] 1)
     (update-test-world! assoc-in [0 0 :contents :threat-mission] :fighter-sweep)
     (update-test-world! assoc-in [0 0 :contents :threat-center] [0 0])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [empire.computer.fighter-movement/get-passable-neighbors (constantly [])
                   empire.computer.fighter-movement/occupied? (constantly false)]
       (should
@@ -299,6 +302,7 @@
                          :major-invasion-target [3 3]
                          :threat-radius 0
                          :fuel 10})
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [empire.computer.fighter-movement/should-return-to-refuel? (constantly false)
                   empire.computer.fighter-movement/hop-over-friendly (constantly nil)
                   empire.computer.fighter-movement/get-passable-neighbors (constantly [])]

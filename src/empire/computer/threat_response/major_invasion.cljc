@@ -155,7 +155,9 @@
   ((:update-game-map! ctx) update-in (conj pos :contents)
    #(cond-> (assoc % :major-invasion true :major-invasion-target target)
       (not= target-revision (:major-invasion-skip-revision %))
-      (dissoc :major-invasion-skip-revision))))
+      (dissoc :major-invasion-skip-revision)))
+  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+    (sync-ai-unit! pos)))
 
 (defn- should-plan-invasion-route?
   [pos unit army-count mission opted-out? target-revision]
@@ -184,7 +186,9 @@
          :invasion-target actual-target
          :invasion-path path
          :invasion-plan-revision target-revision
-         :invasion-path-origin pos)))))
+         :invasion-path-origin pos))
+      (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+        (sync-ai-unit! pos)))))
 
 (defn- clear-stale-invasion-routing!
   [ctx pos]
@@ -199,7 +203,9 @@
                                   :invasion-path-origin))]
        (if (= :invading (:transport-mission transport'))
          (assoc transport' :transport-mission :sailing)
-         transport')))))
+         transport'))))
+  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+    (sync-ai-unit! pos)))
 
 (defn- maybe-mark-find-armies-for-invasion!
   [ctx pos army-count target-revision]
@@ -209,7 +215,9 @@
        (if (or (= :load-for-invasion (:transport-mission transport))
                (= target-revision (:major-invasion-skip-revision transport)))
          transport
-         (assoc transport :transport-mission :find-armies-for-invasion))))))
+         (assoc transport :transport-mission :find-armies-for-invasion))))
+    (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+      (sync-ai-unit! pos))))
 
 (defn- nearest-major-ship-target
   [ctx pos]
