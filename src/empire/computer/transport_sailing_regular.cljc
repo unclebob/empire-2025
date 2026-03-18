@@ -5,6 +5,7 @@
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-sailing-support :as support]
             [empire.computer.transport-unloading :as unloading]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]))
 
 (defn- launch-from-city-to-sea
@@ -28,7 +29,7 @@
           (when (core/move-unit-to pos sea-pos)
             (support/update-cell-visibility! pos :computer)
             (support/update-cell-visibility! sea-pos :computer)
-            (tc/sync-transport-to-computer-map! sea-pos)
+            (visibility/sync-ai-unit-to-computer-map! sea-pos)
             sea-pos))))))
 
 (defn- sail-retreat
@@ -40,7 +41,7 @@
       (sa/update-world! assoc-in
                         (conj retreat :contents :sail-path)
                         (vec (cons pos sail-path)))
-      (tc/sync-transport-to-computer-map! retreat)
+      (visibility/sync-ai-unit-to-computer-map! retreat)
       retreat)))
 
 (defn- sail-take-second-step
@@ -54,12 +55,12 @@
           (support/update-cell-visibility! step2 :computer)
           (sa/update-world! assoc-in
                             (conj step2 :contents :sail-path) remaining2)
-          (tc/sync-transport-to-computer-map! step2)
+          (visibility/sync-ai-unit-to-computer-map! step2)
           (unloading/try-opportunistic-unload step2)
           step2)
       (do (sa/update-world! assoc-in
                             (conj next-pos :contents :sail-path) remaining)
-          (tc/sync-transport-to-computer-map! next-pos)
+          (visibility/sync-ai-unit-to-computer-map! next-pos)
           (unloading/try-opportunistic-unload next-pos)
           next-pos))))
 
@@ -78,7 +79,7 @@
   (when-let [new-path (seq (support/compute-sail-path pos))]
     (let [sail-path (vec new-path)]
       (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
-      (tc/sync-transport-to-computer-map! pos)
+      (visibility/sync-ai-unit-to-computer-map! pos)
       (sail-follow-path pos sail-path))))
 
 (defn- maybe-unload-or-sail!
@@ -122,7 +123,7 @@
   [pos]
   (when-let [new-path (seq (support/compute-sail-path pos))]
     (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec new-path))
-    (tc/sync-transport-to-computer-map! pos)
+    (visibility/sync-ai-unit-to-computer-map! pos)
     (sail-follow-path pos (vec new-path))))
 
 (defn- mission-handler

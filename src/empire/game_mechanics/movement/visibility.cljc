@@ -192,6 +192,17 @@
       (let [targets (or (read-runtime-state :land-ho-targets) [])]
         (write-runtime-state! :land-ho-targets (conj targets [ni nj]))))))
 
+(defn sync-ai-unit-to-computer-map!
+  [pos]
+  (let [computer-map (read-runtime-state :computer-map)
+        cell (get-in (current-world) pos)
+        unit (:contents cell)]
+    (when (and computer-map
+               cell
+               unit
+               (= :computer (:owner unit)))
+      (update-visible-map! :computer-map assoc-in pos cell))))
+
 (defn update-cell-visibility
   "Updates visibility around a specific cell for the given owner.
    Satellites reveal two rectangular rings (distances 1 and 2).

@@ -5,20 +5,21 @@
             [empire.computer.transport-sailing-decisions :as decisions]
             [empire.computer.transport-sailing-support :as support]
             [empire.computer.transport-unloading :as unloading]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]))
 
 (defn- clear-invasion-path!
   [pos]
   (sa/update-world! update-in (conj pos :contents)
                     dissoc :invasion-path :invasion-path-origin)
-  (tc/sync-transport-to-computer-map! pos))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- store-invasion-path!
   [pos remaining]
   (sa/update-world! update-in (conj pos :contents)
                     assoc :invasion-path remaining
                     :invasion-path-origin pos)
-  (tc/sync-transport-to-computer-map! pos))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- move-invasion-step!
   [from to]
@@ -69,7 +70,7 @@
     (when (and chosen (core/move-unit-to pos chosen))
       (support/update-cell-visibility! pos :computer)
       (support/update-cell-visibility! chosen :computer)
-      (tc/sync-transport-to-computer-map! chosen)
+      (visibility/sync-ai-unit-to-computer-map! chosen)
       chosen)))
 
 (defn- handle-invasion-threat-near-target!
@@ -98,7 +99,7 @@
       (when (:start-random-walk? follow-up)
         (sa/update-world! update-in (conj pos :contents)
                           #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
-        (tc/sync-transport-to-computer-map! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos))
       (when-let [mission (:set-mission follow-up)]
         (tc/set-transport-mission pos2 mission)))
     (when-let [mission (:set-mission (decisions/crawl-follow-up {:target? false}))]
@@ -151,7 +152,7 @@
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
       (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from)
-      (tc/sync-transport-to-computer-map! chosen)
+      (visibility/sync-ai-unit-to-computer-map! chosen)
       chosen)))
 
 (defn- handle-blocked-invading-path!
@@ -160,13 +161,13 @@
     (when (:start-random-walk? (decisions/blocked-path-follow-up sidestep-succeeded?))
       (sa/update-world! update-in (conj pos :contents)
                         #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
-      (tc/sync-transport-to-computer-map! pos))))
+      (visibility/sync-ai-unit-to-computer-map! pos))))
 
 (defn process-invading-mission
   "Follow precomputed invasion path. Steps up to 2 cells per round.
    When path exhausted, transition to unloading with coast-crawl."
   [pos]
-  (tc/sync-transport-to-computer-map! pos)
+  (visibility/sync-ai-unit-to-computer-map! pos)
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         path (:invasion-path transport)
         target (or (:invasion-target transport) (:major-invasion-target transport))

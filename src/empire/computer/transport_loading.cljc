@@ -99,7 +99,7 @@
         (update-cell-visibility! army-pos :computer))
       (when (pos? to-load)
         (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
-        (tc/sync-transport-to-computer-map! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos))
       ;; Wake nearby sentries to advance the transport queue
       (doseq [army-pos loaded-positions]
         (core/wake-nearby-sentries army-pos 3))

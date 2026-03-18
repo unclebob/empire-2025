@@ -7,6 +7,7 @@
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.threat-response :as threat-response]
             [empire.game-mechanics.debug.logging :as debug]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))
 
 
@@ -104,7 +105,7 @@
         (tc/set-transport-mission pos :sailing)
         (sa/update-world! update-in (conj pos :contents)
                           dissoc :unload-target-city :pickup-continent-pos)
-        (tc/sync-transport-to-computer-map! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos))
       (do
         (tc/set-transport-mission pos :loading)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
@@ -113,7 +114,7 @@
               next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
           (sa/update-world! assoc-in
                             (conj pos :contents :pickup-continent-pos) next-pickup)
-          (tc/sync-transport-to-computer-map! pos))))))
+          (visibility/sync-ai-unit-to-computer-map! pos))))))
 
 (defn- unload-army-template
   [transport]
@@ -139,12 +140,12 @@
     (when unloaded-cid
       (sa/update-world! update-in (conj pos :contents :unloaded-countries)
                         assoc unloaded-cid (or (sa/read-state :round-number) 0))
-      (tc/sync-transport-to-computer-map! pos))))
+      (visibility/sync-ai-unit-to-computer-map! pos))))
 
 (defn- finish-unload!
   [pos army-count to-unload]
   (sa/update-world! update-in (conj pos :contents :army-count) - to-unload)
-  (tc/sync-transport-to-computer-map! pos)
+  (visibility/sync-ai-unit-to-computer-map! pos)
   (when (<= (- army-count to-unload) 0)
     (transition-to-loading-inline pos)))
 
@@ -252,7 +253,7 @@
         (computer-movement/update-cell-visibility! target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
           (sa/update-world! assoc-in (conj target :contents :crawl-history) new-history))
-        (tc/sync-transport-to-computer-map! target)
+        (visibility/sync-ai-unit-to-computer-map! target)
         target))))
 
 ;; clj-mutate-manifest-begin

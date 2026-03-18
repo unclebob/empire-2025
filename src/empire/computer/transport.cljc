@@ -46,7 +46,7 @@
   (when-let [path (sailing/compute-sail-path pos)]
     (sa/update-world! assoc-in
                       (conj pos :contents :sail-path) path)
-    (tc/sync-transport-to-computer-map! pos)))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."
@@ -57,7 +57,7 @@
         (tc/set-transport-mission pos :sailing)
         (sa/update-world! update-in (conj pos :contents)
                           dissoc :unload-target-city :pickup-continent-pos)
-        (tc/sync-transport-to-computer-map! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos))
       (do
         (tc/set-transport-mission pos :loading)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
@@ -66,7 +66,7 @@
               next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
           (sa/update-world! assoc-in
                             (conj pos :contents :pickup-continent-pos) next-pickup)
-          (tc/sync-transport-to-computer-map! pos))))))
+          (visibility/sync-ai-unit-to-computer-map! pos))))))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -93,14 +93,14 @@
                     #(assoc % :transport-mission :unloading
                               :invasion-target (or (:invasion-target %)
                                                    major-target)))
-  (tc/sync-transport-to-computer-map! pos))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- mission-handler-deps
   []
   {:read-computer-map #(sa/read-state :computer-map)
    :read-runtime-state sa/read-state
    :update-game-map! sa/update-world!
-   :sync-transport! tc/sync-transport-to-computer-map!
+   :sync-transport! visibility/sync-ai-unit-to-computer-map!
    :update-cell-visibility! visibility/update-cell-visibility
    :bfs-to-land-ho-target pathfinding-bfs/bfs-to-land-ho-target
    :get-neighbors core/get-neighbors
@@ -162,7 +162,7 @@
       (sa/update-world! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
       (sa/update-world! assoc-in (conj pos :contents :loading-since)
                         (or (sa/read-state :round-number) 0))
-      (tc/sync-transport-to-computer-map! pos)
+      (visibility/sync-ai-unit-to-computer-map! pos)
       (loading-crawl-move pos))))
 (defn- process-loading-mission
   [pos]
@@ -244,7 +244,7 @@
                     #(oscillation/maybe-enter-random-walk % transport-random-walk-restore-keys
                                                           {:unit-type :transport
                                                            :pos pos}))
-  (tc/sync-transport-to-computer-map! pos))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- process-transport-random-walk
   [pos]
@@ -256,7 +256,7 @@
                       (do
                         (visibility/update-cell-visibility pos :computer)
                         (visibility/update-cell-visibility target :computer)
-                        (tc/sync-transport-to-computer-map! target)
+                        (visibility/sync-ai-unit-to-computer-map! target)
                         target)
                       pos)
                     pos)]
@@ -264,7 +264,7 @@
                       #(-> %
                            oscillation/dec-random-walk
                            oscillation/maybe-restore))
-    (tc/sync-transport-to-computer-map! final-pos)))
+    (visibility/sync-ai-unit-to-computer-map! final-pos)))
 
 (defn- process-active-transport
   [pos transport]
@@ -273,7 +273,7 @@
           :lake-handled? (maybe-handle-lake-transport pos transport)})
     :dispatch (do
                 (threat-response/prepare-transport! pos)
-                (tc/sync-transport-to-computer-map! pos)
+                (visibility/sync-ai-unit-to-computer-map! pos)
                 (dispatch-transport-mission pos (:contents (get-in (sa/read-state :computer-map) pos))))
     nil))
 
@@ -282,7 +282,7 @@
    Returns nil after processing — transports only move once per round."
   [pos]
   (visibility/update-cell-visibility pos :computer)
-  (tc/sync-transport-to-computer-map! pos)
+  (visibility/sync-ai-unit-to-computer-map! pos)
   (let [transport (:contents (get-in (sa/read-state :computer-map) pos))]
     (when (and (= :transport (:type transport))
                (= :computer (:owner transport))
