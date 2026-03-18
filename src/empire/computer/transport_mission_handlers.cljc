@@ -10,11 +10,17 @@
 (def ^:private invasion-army-search-max-distance 6)
 (def ^:private invasion-load-timeout-rounds 5)
 
+(defn- noop-sync!
+  [_])
+
 (defn load-for-invasion-start!
-  [update-game-map! read-runtime-state pos]
-  (update-game-map! update-in (conj pos :contents)
-                    #(assoc % :transport-mission :load-for-invasion
-                              :invasion-load-since (or (read-runtime-state :round-number) 0))))
+  ([update-game-map! read-runtime-state pos]
+   (load-for-invasion-start! update-game-map! read-runtime-state noop-sync! pos))
+  ([update-game-map! read-runtime-state sync-transport! pos]
+   (update-game-map! update-in (conj pos :contents)
+                     #(assoc % :transport-mission :load-for-invasion
+                               :invasion-load-since (or (read-runtime-state :round-number) 0)))
+   (sync-transport! pos)))
 
 (defn- loadable-army-neighbor?
   [world get-neighbors transport-pos]
@@ -86,8 +92,10 @@
 
 (defn process-find-armies-for-invasion
   [{:keys [current-world
+           read-computer-map
            read-runtime-state
            update-game-map!
+           sync-transport!
            get-neighbors
            update-cell-visibility!
            bfs-to-land-ho-target
@@ -95,7 +103,9 @@
            coastal-crawl-move
            move-unit-to]} pos]
   (load-adjacent-armies pos)
-  (let [world (current-world)
+  (let [read-map (or read-computer-map current-world)
+        sync-transport! (or sync-transport! noop-sync!)
+        world (read-map)
         transport (get-in world (conj pos :contents))
         army-count (:army-count transport 0)
         nearest-army (nearest-reachable-coastal-army world read-runtime-state get-neighbors bfs-to-land-ho-target pos)]
@@ -104,19 +114,22 @@
             :loadable-neighbor? (loadable-army-neighbor? world get-neighbors pos)
             :reachable-path? (boolean nearest-army)})
       :start-load-for-invasion
-      (load-for-invasion-start! update-game-map! read-runtime-state pos)
+      (load-for-invasion-start! update-game-map! read-runtime-state sync-transport! pos)
       :follow-path
       (if-let [{:keys [path]} nearest-army]
         (if (seq path)
           (or (move-to-sea-step move-unit-to update-cell-visibility! load-adjacent-armies pos (first path))
               (coastal-crawl-move pos))
-          (load-for-invasion-start! update-game-map! read-runtime-state pos))
+          (load-for-invasion-start! update-game-map! read-runtime-state sync-transport! pos))
         nil)
-      (update-game-map! update-in (conj pos :contents)
-                        #(assoc %
-                                :transport-mission :loading
-                                :major-invasion-skip-revision
-                                (threat-response/major-invasion-target-revision))))))
+      :revert-loading
+      (do
+        (update-game-map! update-in (conj pos :contents)
+                          #(assoc %
+                                  :transport-mission :loading
+                                  :major-invasion-skip-revision
+                                  (threat-response/major-invasion-target-revision)))
+        (sync-transport! pos)))))
 
 (defn process-load-for-invasion-with-armies
   [{:keys [transition-to-sailing
@@ -136,11 +149,14 @@
     :else nil))
 
 (defn process-load-for-invasion-empty
-  [update-game-map! transition-to-loading pos timed-out?]
-  (when timed-out?
-    (transition-to-loading pos)
-    (update-game-map! update-in (conj pos :contents)
-                      dissoc :invasion-load-since)))
+  ([update-game-map! transition-to-loading pos timed-out?]
+   (process-load-for-invasion-empty update-game-map! transition-to-loading noop-sync! pos timed-out?))
+  ([update-game-map! transition-to-loading sync-transport! pos timed-out?]
+   (when timed-out?
+     (transition-to-loading pos)
+     (update-game-map! update-in (conj pos :contents)
+                       dissoc :invasion-load-since)
+     (sync-transport! pos))))
 
 (defn- load-for-invasion-context
   [deps pos transport]
@@ -167,11 +183,17 @@
   (case (handler-decisions/load-for-invasion-action load-state)
     :unload ((:transition-to-unloading deps) pos major-target)
     :sail ((:transition-to-sailing deps) pos)
-    :revert-loading (process-load-for-invasion-empty update-game-map! transition-to-loading pos timed-out?)
+    :revert-loading (process-load-for-invasion-empty
+                     update-game-map!
+                     transition-to-loading
+                     (:sync-transport! deps)
+                     pos
+                     timed-out?)
     (when (:has-armies? load-state) nil)))
 
 (defn process-load-for-invasion
   [{:keys [current-world
+           read-computer-map
            read-runtime-state
            load-adjacent-armies]
     :as deps}
@@ -179,7 +201,8 @@
    transition-to-loading
    pos]
   (load-adjacent-armies pos)
-  (let [transport (get-in (current-world) (conj pos :contents))]
+  (let [read-map (or read-computer-map current-world)
+        transport (get-in (read-map) (conj pos :contents))]
     (apply-load-for-invasion-action
      deps
      update-game-map!
@@ -189,6 +212,7 @@
 
 (defn process-loading-mission
   [{:keys [current-world
+           read-computer-map
            read-runtime-state
            update-game-map!
            load-adjacent-armies
@@ -201,7 +225,8 @@
    pos]
   (load-adjacent-armies pos)
   (clear-pickup-continent-if-arrived pos)
-  (let [transport' (get-in (current-world) (conj pos :contents))
+  (let [read-map (or read-computer-map current-world)
+        transport' (get-in (read-map) (conj pos :contents))
         army-count' (:army-count transport' 0)]
     (case (decisions/loading-mission-action
            {:should-start-sailing? (should-start-sailing? pos transport' army-count')
@@ -211,8 +236,8 @@
       (loading-crawl-move pos))))
 
 (defn- take-second-unloading-step
-  [current-world process-unloading-crawl try-opportunistic-unload pos1 after-first]
-  (let [unit1 (get-in (current-world) (conj pos1 :contents))
+  [read-computer-map process-unloading-crawl try-opportunistic-unload pos1 after-first]
+  (let [unit1 (get-in (read-computer-map) (conj pos1 :contents))
         can-second? (and unit1
                          (= :unloading (:transport-mission unit1))
                          (not after-first))]
@@ -220,7 +245,7 @@
       (if-let [pos2 (process-unloading-crawl pos1)]
         (do
           (when (= :unloading
-                   (:transport-mission (get-in (current-world) (conj pos2 :contents))))
+                   (:transport-mission (get-in (read-computer-map) (conj pos2 :contents))))
             (try-opportunistic-unload pos2))
           pos2)
         pos1)
@@ -228,64 +253,79 @@
 
 (defn- process-unloading-with-armies
   [{:keys [current-world
+           read-computer-map
            has-nearby-unloadable-land?
            process-unloading-crawl
            try-opportunistic-unload
            start-sailing]} pos transport]
-  (case (handler-decisions/unloading-with-armies-action
+  (let [read-map (or read-computer-map current-world)]
+    (case (handler-decisions/unloading-with-armies-action
          {:nearby-unloadable-land? (has-nearby-unloadable-land? pos transport 5)})
-    :crawl-and-unload
-    (if-let [pos1 (process-unloading-crawl pos)]
-      (let [after-first (or (when (= :unloading
-                                   (:transport-mission (get-in (current-world) (conj pos1 :contents))))
-                              (try-opportunistic-unload pos1))
-                            false)]
-        (take-second-unloading-step current-world process-unloading-crawl try-opportunistic-unload pos1 after-first))
-      (start-sailing pos transport))
-    (start-sailing pos transport)))
+      :crawl-and-unload
+      (if-let [pos1 (process-unloading-crawl pos)]
+        (let [after-first (or (when (= :unloading
+                                     (:transport-mission (get-in (read-map) (conj pos1 :contents))))
+                                (try-opportunistic-unload pos1))
+                              false)]
+          (take-second-unloading-step read-map process-unloading-crawl try-opportunistic-unload pos1 after-first))
+        (start-sailing pos transport))
+      (start-sailing pos transport))))
 
 (defn process-unloading-mission
   [{:keys [current-world
+           read-computer-map
            transition-to-loading]
     :as deps}
   pos army-count]
   (case (decisions/unloading-mission-action {:army-count army-count})
     :transition-to-loading (transition-to-loading pos)
-    (let [transport (get-in (current-world) (conj pos :contents))]
+    (let [read-map (or read-computer-map current-world)
+          transport (get-in (read-map) (conj pos :contents))]
       (process-unloading-with-armies deps pos transport))))
 
 (defn park-lake-transport-if-empty
   [{:keys [current-world
+           read-computer-map
            update-game-map!
+           sync-transport!
            move-unit-to
            retreat-step-from-shore
            deep-water?]}
    pos lake-cells-set]
-  (let [unit (get-in (current-world) (conj pos :contents))]
+  (let [read-map (or read-computer-map current-world)
+        sync-transport! (or sync-transport! noop-sync!)
+        unit (get-in (read-map) (conj pos :contents))]
     (if (zero? (:army-count unit 0))
-      (if-let [step (retreat-step-from-shore (current-world) lake-cells-set pos)]
+      (if-let [step (retreat-step-from-shore (read-map) lake-cells-set pos)]
         (if (move-unit-to pos step)
-          (when (deep-water? (current-world) step)
+          (when (deep-water? (read-map) step)
             (update-game-map! update-in (conj step :contents)
                               #(assoc % :mode :sentry
-                                      :transport-mission :land-locked)))
+                                      :transport-mission :land-locked))
+            (sync-transport! step))
+          (do
+            (update-game-map! update-in (conj pos :contents)
+                              #(assoc % :mode :sentry
+                                      :transport-mission :land-locked))
+            (sync-transport! pos)))
+        (do
           (update-game-map! update-in (conj pos :contents)
                             #(assoc % :mode :sentry
-                                    :transport-mission :land-locked)))
-        (update-game-map! update-in (conj pos :contents)
-                          #(assoc % :mode :sentry
-                                  :transport-mission :land-locked)))
+                                    :transport-mission :land-locked))
+          (sync-transport! pos)))
       false)))
 
 (defn process-land-locked-mission
   [{:keys [current-world
+           read-computer-map
            process-unloading-crawl
            try-opportunistic-unload-any-land]
     :as deps}
    pos lake-cells-set]
   (let [unloaded-now? (boolean (try-opportunistic-unload-any-land pos))]
     (or (park-lake-transport-if-empty deps pos lake-cells-set)
-        (let [unit (get-in (current-world) (conj pos :contents))
+        (let [read-map (or read-computer-map current-world)
+              unit (get-in (read-map) (conj pos :contents))
               army-count (:army-count unit 0)]
           (when (pos? army-count)
             (if-let [next-pos (process-unloading-crawl pos)]
@@ -301,8 +341,10 @@
 
 (defn maybe-handle-lake-transport
   [{:keys [current-world
+           read-computer-map
            read-runtime-state
            update-game-map!
+           sync-transport!
            set-transport-mission
            lake-cells]
     :as deps}
@@ -313,10 +355,13 @@
           :has-armies? (pos? (:army-count transport 0))})
     :already-handled true
     (:land-locked-unload :park-empty)
-      (let [lake-cells-set (lake-cells (read-runtime-state :computer-map)
+      (let [read-map (or read-computer-map current-world)
+            sync-transport! (or sync-transport! noop-sync!)
+            lake-cells-set (lake-cells (read-runtime-state :computer-map)
                                        (read-runtime-state :lake-max-cells))]
         (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
-        (let [unit (get-in (current-world) (conj pos :contents))
+        (sync-transport! pos)
+        (let [unit (get-in (read-map) (conj pos :contents))
               army-count (:army-count unit 0)]
           (if (pos? army-count)
             (do

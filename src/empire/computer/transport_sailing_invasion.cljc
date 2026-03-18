@@ -58,7 +58,7 @@
 
 (defn- retreat-away-from-target!
   [pos target]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         current-distance (core/chebyshev-distance pos target)
         candidates (->> (tc/get-passable-sea-neighbors pos)
                         (filter #(nil? (get-in world (conj % :contents))))
@@ -69,6 +69,7 @@
     (when (and chosen (core/move-unit-to pos chosen))
       (support/update-cell-visibility! pos :computer)
       (support/update-cell-visibility! chosen :computer)
+      (tc/sync-transport-to-computer-map! chosen)
       chosen)))
 
 (defn- handle-invasion-threat-near-target!
@@ -88,7 +89,7 @@
           pos1 (or moved1 pos)
           moved2 (invading-step pos1)
           pos2 (or moved2 pos1)
-          transport2 (get-in (sa/current-world) (conj pos2 :contents))
+          transport2 (get-in (sa/read-state :computer-map) (conj pos2 :contents))
           follow-up (decisions/crawl-follow-up
                      {:target? (boolean target)
                       :moved1? (boolean moved1)
@@ -96,7 +97,8 @@
                       :unload-zone? (unload-zone? pos2 target transport2)})]
       (when (:start-random-walk? follow-up)
         (sa/update-world! update-in (conj pos :contents)
-                          #(oscillation/start-random-walk % support/transport-random-walk-restore-keys)))
+                          #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
+        (tc/sync-transport-to-computer-map! pos))
       (when-let [mission (:set-mission follow-up)]
         (tc/set-transport-mission pos2 mission)))
     (when-let [mission (:set-mission (decisions/crawl-follow-up {:target? false}))]
@@ -118,7 +120,7 @@
 
 (defn- choose-invading-step
   [from target]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         transport (get-in world (conj from :contents))
         last-pos (:invasion-last-pos transport)
         neighbors (->> (tc/get-passable-sea-neighbors from)
@@ -157,13 +159,15 @@
   (let [sidestep-succeeded? (boolean (invading-step pos target))]
     (when (:start-random-walk? (decisions/blocked-path-follow-up sidestep-succeeded?))
       (sa/update-world! update-in (conj pos :contents)
-                        #(oscillation/start-random-walk % support/transport-random-walk-restore-keys)))))
+                        #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
+      (tc/sync-transport-to-computer-map! pos))))
 
 (defn process-invading-mission
   "Follow precomputed invasion path. Steps up to 2 cells per round.
    When path exhausted, transition to unloading with coast-crawl."
   [pos]
-  (let [transport (get-in (sa/current-world) (conj pos :contents))
+  (tc/sync-transport-to-computer-map! pos)
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         path (:invasion-path transport)
         target (or (:invasion-target transport) (:major-invasion-target transport))
         threat-near-target? (handle-invasion-threat-near-target! pos target)

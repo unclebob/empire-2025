@@ -103,7 +103,8 @@
       (do
         (tc/set-transport-mission pos :sailing)
         (sa/update-world! update-in (conj pos :contents)
-                          dissoc :unload-target-city :pickup-continent-pos))
+                          dissoc :unload-target-city :pickup-continent-pos)
+        (tc/sync-transport-to-computer-map! pos))
       (do
         (tc/set-transport-mission pos :loading)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
@@ -111,7 +112,8 @@
                                   (land-objectives/flood-fill-continent lp))
               next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
           (sa/update-world! assoc-in
-                            (conj pos :contents :pickup-continent-pos) next-pickup))))))
+                            (conj pos :contents :pickup-continent-pos) next-pickup)
+          (tc/sync-transport-to-computer-map! pos))))))
 
 (defn- unload-army-template
   [transport]
@@ -132,7 +134,7 @@
 (defn- record-unloaded-country!
   [pos targets]
   (let [unloaded-cid (->> targets
-                          (keep #(:country-id (get-in (sa/current-world) %)))
+                          (keep #(:country-id (get-in (sa/read-state :computer-map) %)))
                           first)]
     (when unloaded-cid
       (sa/update-world! update-in (conj pos :contents :unloaded-countries)
@@ -233,7 +235,7 @@
   "Moves unloading transport to adjacent coastal sea cell to find empty land.
    Like coastal-crawl-move but without auto-loading armies."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         unit (get-in game-map (conj pos :contents))
         history (set (:crawl-history unit []))
         passable (tc/get-passable-sea-neighbors pos)

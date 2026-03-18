@@ -28,6 +28,7 @@
           (when (core/move-unit-to pos sea-pos)
             (support/update-cell-visibility! pos :computer)
             (support/update-cell-visibility! sea-pos :computer)
+            (tc/sync-transport-to-computer-map! sea-pos)
             sea-pos))))))
 
 (defn- sail-retreat
@@ -39,6 +40,7 @@
       (sa/update-world! assoc-in
                         (conj retreat :contents :sail-path)
                         (vec (cons pos sail-path)))
+      (tc/sync-transport-to-computer-map! retreat)
       retreat)))
 
 (defn- sail-take-second-step
@@ -94,7 +96,7 @@
 (defn- handle-loaded-transport-without-path!
   [pos transport]
   (if-let [sea-pos (launch-from-city-to-sea pos transport)]
-    (let [transport' (get-in (sa/current-world) (conj sea-pos :contents))]
+    (let [transport' (get-in (sa/read-state :computer-map) (conj sea-pos :contents))]
       (maybe-unload-or-sail! sea-pos transport'))
     (maybe-unload-or-sail! pos transport)))
 
