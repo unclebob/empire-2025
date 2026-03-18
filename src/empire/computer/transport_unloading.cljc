@@ -98,7 +98,7 @@
 (defn- transition-to-loading-inline
   "Inline loading transition — avoids circular dep with facade."
   [pos]
-  (let [transport (get-in (sa/current-world) (conj pos :contents))]
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))]
     (if (:never-reload? transport)
       (do
         (tc/set-transport-mission pos :sailing)
@@ -136,17 +136,19 @@
                           first)]
     (when unloaded-cid
       (sa/update-world! update-in (conj pos :contents :unloaded-countries)
-                        assoc unloaded-cid (or (sa/read-state :round-number) 0)))))
+                        assoc unloaded-cid (or (sa/read-state :round-number) 0))
+      (tc/sync-transport-to-computer-map! pos))))
 
 (defn- finish-unload!
   [pos army-count to-unload]
   (sa/update-world! update-in (conj pos :contents :army-count) - to-unload)
+  (tc/sync-transport-to-computer-map! pos)
   (when (<= (- army-count to-unload) 0)
     (transition-to-loading-inline pos)))
 
 (defn- adjacent-unloadable-neighbors
   [pos pickup-continent]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (and cell
@@ -169,7 +171,7 @@
   "If transport has armies and there is adjacent unclaimed land,
    unload all possible armies onto targets. Returns true if any unloaded."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
         exclude-ids (pickup-exclude-ids game-map transport)
@@ -196,7 +198,7 @@
   "Lake-locked transport unload: drop armies on any adjacent empty land/city.
    Ignores major-invasion target filtering and pickup exclusions."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
         targets (when (pos? army-count)
@@ -213,7 +215,7 @@
 (defn unload-armies
   "Unload armies onto adjacent land, excluding pickup continent. Returns true if any unloaded."
   [pos pickup-continent]
-  (let [transport (get-in (sa/current-world) (conj pos :contents))
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         army-count (:army-count transport 0)]
     (when (pos? army-count)
       (let [land-neighbors (adjacent-unloadable-neighbors pos pickup-continent)
@@ -248,6 +250,7 @@
         (computer-movement/update-cell-visibility! target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
           (sa/update-world! assoc-in (conj target :contents :crawl-history) new-history))
+        (tc/sync-transport-to-computer-map! target)
         target))))
 
 ;; clj-mutate-manifest-begin

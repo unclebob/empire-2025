@@ -45,17 +45,19 @@
   (tc/record-pickup-continent-pos pos transport)
   (when-let [path (sailing/compute-sail-path pos)]
     (sa/update-world! assoc-in
-                      (conj pos :contents :sail-path) path)))
+                      (conj pos :contents :sail-path) path)
+    (tc/sync-transport-to-computer-map! pos)))
 
 (defn- transition-to-loading
   "Switch an empty transport to loading mode and find next pickup continent."
   [pos]
-  (let [transport (get-in (sa/current-world) (conj pos :contents))]
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))]
     (if (:never-reload? transport)
       (do
         (tc/set-transport-mission pos :sailing)
         (sa/update-world! update-in (conj pos :contents)
-                          dissoc :unload-target-city :pickup-continent-pos))
+                          dissoc :unload-target-city :pickup-continent-pos)
+        (tc/sync-transport-to-computer-map! pos))
       (do
         (tc/set-transport-mission pos :loading)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
@@ -63,7 +65,8 @@
                                   (land-objectives/flood-fill-continent lp))
               next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
           (sa/update-world! assoc-in
-                            (conj pos :contents :pickup-continent-pos) next-pickup))))))
+                            (conj pos :contents :pickup-continent-pos) next-pickup)
+          (tc/sync-transport-to-computer-map! pos))))))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -75,7 +78,7 @@
 (defn- sea-load-points
   "All passable sea cells adjacent to at least one computer army."
   []
-  (mission-handlers/sea-load-points (sa/current-world) core/get-neighbors))
+  (mission-handlers/sea-load-points (sa/read-state :computer-map) core/get-neighbors))
 
 (declare loading-crawl-move handle-stale-loading)
 
@@ -89,7 +92,8 @@
   (sa/update-world! update-in (conj pos :contents)
                     #(assoc % :transport-mission :unloading
                               :invasion-target (or (:invasion-target %)
-                                                   major-target))))
+                                                   major-target)))
+  (tc/sync-transport-to-computer-map! pos))
 
 (defn- mission-handler-deps
   []
@@ -157,6 +161,7 @@
       (sa/update-world! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
       (sa/update-world! assoc-in (conj pos :contents :loading-since)
                         (or (sa/read-state :round-number) 0))
+      (tc/sync-transport-to-computer-map! pos)
       (loading-crawl-move pos))))
 (defn- process-loading-mission
   [pos]
@@ -270,26 +275,28 @@
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
   [pos]
-  (let [transport (:contents (get-in (sa/current-world) pos))]
-    (when (and (= :transport (:type transport))
-               (= :computer (:owner transport)))
-      (visibility/update-cell-visibility pos :computer transport))
-    (when (and (= :transport (:type transport))
-               (= :computer (:owner transport))
-               (nil? (:transport-mission transport)))
-      (tc/set-transport-mission pos :loading))
-    (case (process-decisions/transport-process-action
-           {:transport? (= :transport (:type transport))
-            :computer-owned? (= :computer (:owner transport))
-            :random-walk? (do
-                            (when (and transport
-                                       (= :computer (:owner transport))
-                                       (= :transport (:type transport)))
-                              (maybe-enter-transport-random-walk! pos))
-                            (oscillation/in-random-walk? (get-in (sa/current-world) (conj pos :contents))))})
-      :random-walk (process-transport-random-walk pos)
-      :active (process-active-transport pos (get-in (sa/current-world) (conj pos :contents)))
-      nil))
+  (let [world-transport (:contents (get-in (sa/current-world) pos))]
+    (when (and (= :transport (:type world-transport))
+               (= :computer (:owner world-transport)))
+      (visibility/update-cell-visibility pos :computer world-transport)
+      (tc/sync-transport-to-computer-map! pos))
+    (let [transport (:contents (get-in (sa/read-state :computer-map) pos))]
+      (when (and (= :transport (:type transport))
+                 (= :computer (:owner transport))
+                 (nil? (:transport-mission transport)))
+        (tc/set-transport-mission pos :loading))
+      (case (process-decisions/transport-process-action
+             {:transport? (= :transport (:type transport))
+              :computer-owned? (= :computer (:owner transport))
+              :random-walk? (do
+                              (when (and transport
+                                         (= :computer (:owner transport))
+                                         (= :transport (:type transport)))
+                                (maybe-enter-transport-random-walk! pos))
+                              (oscillation/in-random-walk? (get-in (sa/current-world) (conj pos :contents))))})
+        :random-walk (process-transport-random-walk pos)
+        :active (process-active-transport pos (get-in (sa/current-world) (conj pos :contents)))
+        nil)))
   nil)
 
 ;; clj-mutate-manifest-begin

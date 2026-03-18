@@ -10,13 +10,15 @@
 (defn- clear-invasion-path!
   [pos]
   (sa/update-world! update-in (conj pos :contents)
-                    dissoc :invasion-path :invasion-path-origin))
+                    dissoc :invasion-path :invasion-path-origin)
+  (tc/sync-transport-to-computer-map! pos))
 
 (defn- store-invasion-path!
   [pos remaining]
   (sa/update-world! update-in (conj pos :contents)
                     assoc :invasion-path remaining
-                    :invasion-path-origin pos))
+                    :invasion-path-origin pos)
+  (tc/sync-transport-to-computer-map! pos))
 
 (defn- move-invasion-step!
   [from to]
@@ -147,6 +149,7 @@
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
       (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from)
+      (tc/sync-transport-to-computer-map! chosen)
       chosen)))
 
 (defn- handle-blocked-invading-path!

@@ -52,10 +52,12 @@
           (support/update-cell-visibility! step2 :computer)
           (sa/update-world! assoc-in
                             (conj step2 :contents :sail-path) remaining2)
+          (tc/sync-transport-to-computer-map! step2)
           (unloading/try-opportunistic-unload step2)
           step2)
       (do (sa/update-world! assoc-in
                             (conj next-pos :contents :sail-path) remaining)
+          (tc/sync-transport-to-computer-map! next-pos)
           (unloading/try-opportunistic-unload next-pos)
           next-pos))))
 
@@ -74,6 +76,7 @@
   (when-let [new-path (seq (support/compute-sail-path pos))]
     (let [sail-path (vec new-path)]
       (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
+      (tc/sync-transport-to-computer-map! pos)
       (sail-follow-path pos sail-path))))
 
 (defn- maybe-unload-or-sail!
@@ -117,6 +120,7 @@
   [pos]
   (when-let [new-path (seq (support/compute-sail-path pos))]
     (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec new-path))
+    (tc/sync-transport-to-computer-map! pos)
     (sail-follow-path pos (vec new-path))))
 
 (defn- mission-handler
@@ -129,7 +133,7 @@
 
 (defn process-sailing-mission
   [pos]
-  (let [transport (get-in (sa/current-world) (conj pos :contents))
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         sail-path (:sail-path transport)
         army-count (:army-count transport 0)
         never-reload? (:never-reload? transport)
