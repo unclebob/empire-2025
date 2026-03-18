@@ -76,6 +76,7 @@
     (set-test-world! (build-test-map ["X"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (update-test-world! assoc-in [0 0 :country-id] 1)
+    (test-utils/update-test-computer-map! assoc-in [0 0 :country-id] 1)
     (test-utils/set-test-state! :round-number 51)
     (should= :army (strategy/opening-production [0 0])))
 
@@ -83,6 +84,7 @@
     (set-test-world! (build-test-map ["X"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (update-test-world! assoc-in [0 0 :country-id] 2)
+    (test-utils/update-test-computer-map! assoc-in [0 0 :country-id] 2)
     (test-utils/set-test-state! :round-number 51)
     (should= :satellite (strategy/opening-production [0 0])))
 
@@ -134,9 +136,9 @@
   (it "resets lake production only for opening coastal roles that lost coast access"
     (with-redefs [strategy/opening-active? (fn [] true)
                   strategy/city-usable-coastal? (fn [_] false)
-                  empire.state.api/current-world (fn [] [[{:opening-role :CT}]])
                   empire.state.api/read-state (fn [k]
                                                 (case k
+                                                  :computer-map [[{:opening-role :CT}]]
                                                   :production {[0 0] {:item :transport}}
                                                   nil))]
       (should (strategy/should-reset-lake-production? [0 0]))))
@@ -144,9 +146,9 @@
   (it "does not reset lake production for non-coastal opening roles"
     (with-redefs [strategy/opening-active? (fn [] true)
                   strategy/city-usable-coastal? (fn [_] false)
-                  empire.state.api/current-world (fn [] [[{:opening-role :CA}]])
                   empire.state.api/read-state (fn [k]
                                                 (case k
+                                                  :computer-map [[{:opening-role :CA}]]
                                                   :production {[0 0] {:item :army}}
                                                   nil))]
       (should-not (strategy/should-reset-lake-production? [0 0]))))

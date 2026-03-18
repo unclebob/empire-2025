@@ -18,7 +18,7 @@
 
 (defn- original-continent-city?
   [city-pos]
-  (= 1 (:country-id (get-in (sa/current-world) city-pos))))
+  (= 1 (:country-id (get-in (sa/read-state :computer-map) city-pos))))
 
 (defn- opening-satellite-ready?
   [city-pos assigned-role]
@@ -41,7 +41,7 @@
 
 (defn should-reset-lake-production?
   [city-pos]
-  (let [cell (get-in (sa/current-world) city-pos)
+  (let [cell (get-in (sa/read-state :computer-map) city-pos)
         production (get (sa/read-state :production) city-pos)
         role (:opening-role cell)]
     (and (opening-active?)
@@ -57,7 +57,7 @@
 (defn theater-loading-transports
   [start-pos]
   (let [positions (:positions (theater-summary start-pos))
-        world (sa/current-world)]
+        world (sa/read-state :computer-map)]
     (for [pos positions
           :let [unit (get-in world (conj pos :contents))]
           :when (and (= :transport (:type unit))
