@@ -17,6 +17,7 @@
                            :army-count 2
                            :sail-path [[4 0] [5 0]]
                            :oscillation-history oscillating-history})
+      (set-test-computer-map! (tu/read-test-state :game-map))
 
       (transport/process-transport [0 0])
       (should= 4 (get-in (tu/read-test-state :game-map) [0 0 :contents :oscillation-random-walk-rounds-left]))

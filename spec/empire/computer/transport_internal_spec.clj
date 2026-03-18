@@ -93,6 +93,7 @@
   (it "transition-to-loading keeps sailing when the transport should never reload"
     (let [updates (atom [])]
       (set-test-world! [[{:contents {:never-reload? true :unload-target-city [9 9] :pickup-continent-pos [1 1]}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
                                                                            (swap! updates conj [:mission pos mission]))
                     empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
@@ -102,6 +103,7 @@
   (it "transition-to-loading finds a new pickup continent for reloadable transports"
     (let [updates (atom [])]
       (set-test-world! [[{:contents {:unload-target-city [9 9]}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
                                                                            (swap! updates conj [:mission pos mission]))
                     empire.computer.transport-core/find-adjacent-land-pos (constantly [1 1])

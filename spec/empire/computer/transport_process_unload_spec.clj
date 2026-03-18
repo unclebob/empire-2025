@@ -40,6 +40,7 @@
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 2
                 :pickup-continent-pos [0 0]})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (let [pickup-continent (land-objectives/flood-fill-continent [0 0])]
           (transport/unload-armies [1 1] pickup-continent)
           ;; Armies should NOT appear on origin continent (col 0)
@@ -69,6 +70,11 @@
       (update-test-world! assoc-in [1 2 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 0})
+      (set-test-computer-map!
+              (assoc-in (test-utils/read-test-state :computer-map)
+                        [1 2 :contents]
+                        {:type :transport :owner :computer
+                         :transport-mission :loading :army-count 0}))
       (transport/process-transport [1 2])
       ;; Transport should have moved toward the coastline, not toward [0,0]
       (let [transport-pos (first (for [r (range 5) c (range 3)
@@ -89,6 +95,11 @@
       (update-test-world! assoc-in [1 1 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 0})
+      (set-test-computer-map!
+              (assoc-in (test-utils/read-test-state :computer-map)
+                        [1 1 :contents]
+                        {:type :transport :owner :computer
+                         :transport-mission :loading :army-count 0}))
       (transport/process-transport [1 1])
       ;; Empty loading transport with no coastal crawl targets stays put
       (should= :transport (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))))
@@ -116,6 +127,12 @@
                {:type :transport :owner :computer
                 :transport-mission :sailing :army-count 6
                 :sail-path [[3 2]]})
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [2 2 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :sailing :army-count 6
+                           :sail-path [[3 2]]}))
         (transport/process-transport [2 2])
         ;; Transport should move to [3 2] and unload to 3 adjacent land cells
         (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [3 2]))]
@@ -142,6 +159,7 @@
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
                 :pickup-continent-pos [1 0]})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (transport/process-transport [1 2])
         ;; No armies should be unloaded onto the origin continent
         (let [armies-on-land (count (for [r (range 2) c (range 3)

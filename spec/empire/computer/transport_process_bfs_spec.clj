@@ -128,6 +128,7 @@
               :transport-mission :unloading :army-count 2
               :country-id 1
               :pickup-country-id 1})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [rand (constantly 0.0)]
         (transport/process-transport [1 1]))
       ;; Transport should have crawled rightward (speed 2)
@@ -151,6 +152,7 @@
                           :transport-mission :unloading :army-count 1
                           :country-id 1
                           :pickup-country-id 1})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
       ;; Same round unload should happen at [2,0] after first crawl step.
       (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
@@ -173,6 +175,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 2
               :sail-path [[1 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       ;; Should have moved to [1,0] then continued to [2,0]
       (should= :transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))))
@@ -215,6 +218,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 2
               :sail-path [[1 0] [2 0] [3 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       ;; After 2 steps, transport at [2,0] with remaining [[3,0]]
       (should= :transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))

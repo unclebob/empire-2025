@@ -60,6 +60,7 @@
 
   (it "dispatches process-sailing-mission through the selected mission handler"
     (set-test-world! [[{:contents {:sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
+    (set-test-computer-map! [[{:contents {:sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
     (with-redefs [empire.computer.transport-sailing-decisions/sailing-action (fn [_ _ _] {:action :follow-path})
                   empire.computer.transport-sailing-regular/follow-path-action (fn [pos sail-path] [:follow pos sail-path])]
       (should= [:follow [0 0] [[1 0]]]

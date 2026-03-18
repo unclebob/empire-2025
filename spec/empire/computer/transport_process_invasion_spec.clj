@@ -278,6 +278,7 @@
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 3
               :country-id 1 :loading-since 1})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 1])
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -298,6 +299,7 @@
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 0
               :loading-since 1})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 2])
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -330,6 +332,7 @@
                                           :target-land-revision 1})
       (update-test-world! assoc-in [0 0 :contents :transport-mission] :sailing)
       (update-test-world! assoc-in [0 0 :contents :army-count] 0)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -348,6 +351,7 @@
                           :major-invasion true
                           :invasion-load-since 0
                           :army-count 0})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 0])
       (should= :loading (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission])))
 
@@ -369,6 +373,7 @@
                           :major-invasion-target [1 2]
                           :invasion-load-since 0
                           :army-count 1})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 0])
       (should (#{:invading :unloading}
                (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission]))))

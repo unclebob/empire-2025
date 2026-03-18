@@ -34,6 +34,7 @@
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :pickup-continent-pos [0 1]})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (transport/process-transport [3 2])
         (let [transport-pos (first (for [c (range 5) r (range 12)
                                         :when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
@@ -63,6 +64,13 @@
                 :transport-mission :unloading :army-count 6
                 :country-id 1
                 :pickup-continent-pos [2 1]})
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [2 2 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :unloading :army-count 6
+                           :country-id 1
+                           :pickup-continent-pos [2 1]}))
         (transport/process-transport [2 2])
         (let [t (first (for [c (range 5) r (range 5)
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -85,6 +93,12 @@
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :unload-target-city [0 5]})
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [2 1 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :unloading :army-count 6
+                           :unload-target-city [0 5]}))
         (transport/process-transport [2 1])
         (let [t (first (for [c (range 5) r (range 3)
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -125,6 +139,12 @@
                {:type :transport :owner :computer
                 :transport-mission :unloading :army-count 6
                 :pickup-continent-pos [0 1]})
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [2 2 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :unloading :army-count 6
+                           :pickup-continent-pos [0 1]}))
         (transport/process-transport [2 2])
         ;; Transport should switch to sailing and try to move
         (let [t (first (for [c (range 5) r (range 5)
@@ -150,6 +170,11 @@
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
 })
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [2 2 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :loading :army-count 6}))
         (transport/process-transport [2 2])
         (let [t (first (for [c (range 5) r (range 5)
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -177,6 +202,11 @@
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
 })
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [1 3 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :loading :army-count 6}))
         (transport/process-transport [1 3])
         ;; Transport should have explored toward unexplored
         (let [t (first (for [c (range 3) r (range 5)

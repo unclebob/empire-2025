@@ -118,6 +118,7 @@
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :army-count 2}}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (unloading/unload-armies [0 1] nil))
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 2 :contents :type]))
@@ -128,6 +129,7 @@
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :army-count 2}}
                          {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (unloading/unload-armies [0 1] nil)))
 
     (it "never-reload transport transitions to sailing after full unload"
@@ -137,6 +139,7 @@
                                                 :army-count 1
                                                 :never-reload? true}}
                          {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (unloading/unload-armies [0 1] nil))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))
       (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 1 :contents :transport-mission]))

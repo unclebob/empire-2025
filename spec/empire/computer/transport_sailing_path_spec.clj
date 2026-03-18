@@ -18,6 +18,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 0
               :sail-path []})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [2 0])
       (let [t (first (for [c (range 4) r (range 1)
                            :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -32,6 +33,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path [[1 0] [2 0] [3 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
         (should= :transport (:type t))
@@ -50,6 +52,7 @@
                           :transport-mission :sailing :army-count 3
                           :country-id 1
                           :sail-path []})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [sailing-support/compute-sail-path (constantly nil)]
         (transport/process-transport [0 0]))
       (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission])))
@@ -62,6 +65,7 @@
                          {:type :transport :owner :computer
                           :transport-mission :sailing :army-count 1
                           :sail-path []})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [sailing-support/compute-sail-path (constantly nil)]
         (transport/process-transport [1 0]))
       (let [tpos (first (for [c (range 3) r (range 2)
@@ -80,6 +84,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path [[1 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
         (should= :transport (:type t))
@@ -94,6 +99,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path [[1 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       (let [t (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
         (should= :transport (:type t))
@@ -108,6 +114,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path [[3 0] [4 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [2 0])
       (let [t (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
         (should= :transport (:type t))
@@ -121,6 +128,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path []})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [2 0])
       (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))]
         (should= 5 (:army-count t))
@@ -139,6 +147,11 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 6})
+      (set-test-computer-map!
+              (assoc-in (test-utils/read-test-state :computer-map)
+                        [0 0 :contents]
+                        {:type :transport :owner :computer
+                         :transport-mission :loading :army-count 6}))
       (transport/process-transport [0 0])
       (let [t (first (for [c (range 9)
                            :let [unit (get-in (test-utils/read-test-state :game-map) [c 0 :contents])]
@@ -162,6 +175,12 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path []})
+      (set-test-computer-map!
+              (assoc-in (test-utils/read-test-state :computer-map)
+                        [4 0 :contents]
+                        {:type :transport :owner :computer
+                         :transport-mission :sailing :army-count 6
+                         :sail-path []}))
       (transport/process-transport [4 0])
       (let [t-pos (first (for [c (range 9)
                                :let [u (get-in (test-utils/read-test-state :game-map) [c 0 :contents])]
@@ -188,6 +207,7 @@
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 0
                 :pickup-continent-pos [4 0]})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (transport/process-transport [1 1])
         ;; Army at [0,0] should be loaded (adjacent to start pos)
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
@@ -220,6 +240,7 @@
                           :invasion-path []
                           :invasion-target [6 0]
                           :army-count 4})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       ;; Should advance toward target and remain in invading mode (not forced unloading).
       (should= :transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
@@ -240,6 +261,7 @@
                           :invasion-path []
                           :invasion-target [4 1]
                           :army-count 3})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
       ;; It may end the round back at origin after two steps, but it should
       ;; not stall; a move stamps invasion-last-pos.
@@ -255,6 +277,7 @@
               :transport-mission :invading
               :invasion-path [[0 1] [0 2]]
               :army-count 4})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       (should= :unloading (get-in (test-utils/read-test-state :game-map) [0 2 :contents :transport-mission]))
       (should-be-nil (:invasion-path (get-in (test-utils/read-test-state :game-map) [0 2 :contents]))))
@@ -270,6 +293,7 @@
              {:type :transport :owner :computer
               :transport-mission :sailing :army-count 6
               :sail-path [[0 1]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
       ;; Should have moved to [0 1], then continued to [0 2] (computer-occupied passable)
       ;; or stopped at [0 1] if computer unit blocks move. Either way, moved past [0 0].
@@ -287,6 +311,7 @@
                           :invasion-path []
                           :invasion-target [4 0]
                           :army-count 4})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [2 0])
       (let [transport-pos (first (for [c (range 7)
                                        r (range 2)

@@ -22,6 +22,7 @@
                              :invasion-target [0 4]
                              :invasion-path [[0 1] [0 2] [0 3]]
                              :army-count 4})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (transport/process-transport [0 0])
         ;; Should have moved 2 steps to [0 2]
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
@@ -47,6 +48,7 @@
                              :invasion-target [1 1]
                              :invasion-path [[0 1]]
                              :army-count 4})
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (transport/process-transport [0 0])
         ;; Should have moved to [0 1] and transitioned to unloading
         (let [transport (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
@@ -73,6 +75,14 @@
                              :invasion-target [4 2]
                              :invasion-path [[0 1] [0 0] [1 0] [2 0] [3 0] [4 0] [4 1] [3 2]]
                              :army-count 4})
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [0 2 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :invading
+                           :invasion-target [4 2]
+                           :invasion-path [[0 1] [0 0] [1 0] [2 0] [3 0] [4 0] [4 1] [3 2]]
+                           :army-count 4}))
         (transport/process-transport [0 2])
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))
         (let [transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents])]

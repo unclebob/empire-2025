@@ -82,6 +82,7 @@
                           :major-invasion true
                           :army-count 1 :mode :awake
                           :lake-locked? true})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 1])
       (let [tpos (first (for [c (range 3) r (range 3)
                               :when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
@@ -108,6 +109,7 @@
                           :invasion-target [2 1]
                           :invasion-path [[1 1] [2 1]]
                           :invasion-path-origin [0 1]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
       (should= :transport (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))))
@@ -133,6 +135,11 @@
         (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6})
+        (set-test-computer-map!
+                (assoc-in (test-utils/read-test-state :computer-map)
+                          [1 1 :contents]
+                          {:type :transport :owner :computer
+                           :transport-mission :loading :army-count 6}))
         (transport/process-transport [1 1])
         (let [t (first (for [c (range 3) r (range 5)
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
