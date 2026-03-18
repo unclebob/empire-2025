@@ -4,7 +4,13 @@
             [empire.computer.core :as core]
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.movement :as computer-movement]
+            [empire.game-mechanics.movement.visibility :as visibility]))
+
+
+(defn- computer-unit-at
+  [pos]
+  (get-in (sa/read-state :computer-map) (conj pos :contents)))
 
 
 (def orbit-ring
@@ -43,8 +49,8 @@
 (defn- adopt-carrier-escort
   "Pairs a battleship or submarine escort with a carrier."
   [pos carrier-pos unit-type]
-  (let [escort-unit (get-in (sa/current-world) (conj pos :contents))
-        carrier (get-in (sa/current-world) (conj carrier-pos :contents))
+  (let [escort-unit (computer-unit-at pos)
+        carrier (computer-unit-at carrier-pos)
         carrier-id (:carrier-id carrier)
         escort-id (:escort-id escort-unit)
         angle (initial-orbit-angle unit-type carrier)]
@@ -58,7 +64,9 @@
                         assoc :group-battleship-id escort-id)
       :submarine
       (sa/update-world! update-in (conj carrier-pos :contents)
-                        update :group-submarine-ids conj escort-id))))
+                        update :group-submarine-ids conj escort-id))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (visibility/sync-ai-unit-to-computer-map! carrier-pos)))
 
 (defn- orbit-target-pos
   "Computes the absolute position for an orbit angle around carrier."
@@ -87,7 +95,8 @@
   [pos]
   (sa/update-world! update-in (conj pos :contents)
                     #(-> % (assoc :escort-mode :seeking)
-                         (dissoc :escort-carrier-id :orbit-angle))))
+                         (dissoc :escort-carrier-id :orbit-angle)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- process-escort-seeking
   "Escort seeking: find a carrier with an open slot and adopt it."
@@ -107,14 +116,17 @@
           (ship-core/move-toward pos target))
         (sa/update-world! update-in
                           (conj (or (when (not= pos target) target) pos) :contents)
-                          assoc :escort-mode :orbiting :orbit-angle valid-angle))
-      (sa/update-world! update-in (conj pos :contents)
-                        assoc :escort-mode :orbiting))))
+                          assoc :escort-mode :orbiting :orbit-angle valid-angle)
+        (visibility/sync-ai-unit-to-computer-map! (or (when (not= pos target) target) pos)))
+      (do
+        (sa/update-world! update-in (conj pos :contents)
+                          assoc :escort-mode :orbiting)
+        (visibility/sync-ai-unit-to-computer-map! pos)))))
 
 (defn- process-escort-intercepting
   "Escort intercepting: move toward carrier, transition to orbiting at radius 2."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))]
+  (let [unit (computer-unit-at pos)]
     (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
       (if (<= (core/chebyshev-distance pos carrier-pos) 2)
         (transition-to-orbiting pos carrier-pos unit)
@@ -124,28 +136,31 @@
 (defn- process-escort-orbiting
   "Escort orbiting: advance one step along the orbit ring."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))]
+  (let [unit (computer-unit-at pos)]
     (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
       (let [current-angle (or (:orbit-angle unit) 0)
             next-angle (find-next-orbit-angle carrier-pos (inc current-angle))]
         (if next-angle
           (let [target (orbit-target-pos carrier-pos next-angle)]
             (if (= pos target)
-              (sa/update-world! update-in (conj pos :contents)
-                                assoc :orbit-angle next-angle)
+              (do
+                (sa/update-world! update-in (conj pos :contents)
+                                  assoc :orbit-angle next-angle)
+                (visibility/sync-ai-unit-to-computer-map! pos))
               (when (valid-orbit-pos? target)
                 (core/move-unit-to pos target)
                 (computer-movement/update-cell-visibility! pos :computer)
                 (computer-movement/update-cell-visibility! target :computer)
                 (sa/update-world! update-in (conj target :contents)
-                                  assoc :orbit-angle next-angle))))
+                                  assoc :orbit-angle next-angle)
+                (visibility/sync-ai-unit-to-computer-map! target))))
           nil))
       (revert-escort-to-seeking pos))))
 
 (defn- find-enemy-near-carrier-group
   "Finds a player ship adjacent to escort or its carrier."
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         carrier-pos (when (:escort-carrier-id unit)
                       (escort/find-carrier-by-id (:escort-carrier-id unit)))]
     (escort/find-enemy-near-positions (filter some? [pos carrier-pos]))))
@@ -169,7 +184,7 @@
 (defn process-carrier-group-escort
   "Processes a battleship or submarine in carrier group escort mode."
   [pos unit-type]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (computer-unit-at pos)
         mode (:escort-mode unit)]
     (if-let [enemy-pos (orbiting-enemy-pos pos mode)]
       (escort/begin-pursuit pos enemy-pos)
