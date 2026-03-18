@@ -95,9 +95,7 @@
   (if (unloading/has-nearby-unloadable-land? pos transport 5)
     (support/set-unloading-and-try! pos)
     (or (compute-and-follow-sail-path! pos (:army-count transport 0))
-        (compute-and-follow-random-sail-path! pos)
-        (throw (ex-info "Loaded transport has no unclaimed target or safe random sail path"
-                        {:pos pos :transport transport})))))
+        (compute-and-follow-random-sail-path! pos))))
 
 (defn- handle-loaded-transport-without-path!
   [pos transport]
@@ -118,9 +116,7 @@
                                                      :adjacent-land? adjacent-land?}))
       :launch-or-sail (handle-loaded-transport-without-path! pos transport)
       :unload-or-sail (maybe-unload-or-sail! pos transport)
-      (or (compute-and-follow-random-sail-path! pos)
-          (throw (ex-info "Loaded transport has no unclaimed target or safe random sail path"
-                          {:pos pos :transport transport})))))) 
+      (maybe-unload-or-sail! pos transport)))) 
 
 (defn- follow-path-action
   [pos sail-path]

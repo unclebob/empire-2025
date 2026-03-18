@@ -66,6 +66,13 @@
       (should= [1 0]
                (@#'regular/maybe-unload-or-sail! [0 0] {:army-count 1}))))
 
+  (it "keeps sailing when no loaded target or safe random sail path exists"
+    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
+                  empire.computer.transport-sailing-support/random-sail-path (constantly nil)]
+      (should-be-nil
+       (@#'regular/maybe-unload-or-sail! [3 4] {:army-count 1}))))
+
   (it "dispatches process-sailing-mission through the selected mission handler"
     (set-test-world! [[{:contents {:sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
     (set-test-computer-map! [[{:contents {:sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
@@ -73,6 +80,16 @@
                   empire.computer.transport-sailing-regular/follow-path-action (fn [pos sail-path] [:follow pos sail-path])]
       (should= [:follow [0 0] [[1 0]]]
                (regular/process-sailing-mission [0 0]))))
+
+  (it "processes loaded-no-path without crashing when no target exists"
+    (set-test-world! [[{:contents {:sail-path [] :army-count 1 :never-reload? false}}]])
+    (set-test-computer-map! [[{:contents {:sail-path [] :army-count 1 :never-reload? false}}]])
+    (with-redefs [empire.computer.transport-sailing-decisions/sailing-action (fn [_ _ _] {:action :loaded-no-path})
+                  empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
+                  empire.computer.transport-sailing-support/random-sail-path (constantly nil)]
+      (should-be-nil
+       (regular/process-sailing-mission [0 0]))))
 
   (it "ignores enemy ships near target that are visible only on game-map"
     (set-test-world! [[{:type :sea} {:type :sea}]
