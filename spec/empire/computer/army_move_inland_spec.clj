@@ -4,6 +4,10 @@
             [empire.computer.army :as army]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))
 
+(defn- sync-computer-map!
+  []
+  (set-test-computer-map! (test-utils/read-test-state :game-map)))
+
 (describe "process-move-inland"
   (before (reset-all-atoms!))
 
@@ -14,6 +18,7 @@
                                         "###"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (sync-computer-map!)
       (with-redefs [rand-nth (constantly [1 0])]
         (army/process-army [1 1]))
       (should= :random-explore (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
@@ -24,6 +29,7 @@
                                         "###"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (sync-computer-map!)
       (with-redefs [rand-nth (constantly [-1 1])]
         (army/process-army [1 1]))
       (should= [-1 1] (get-in (test-utils/read-test-state :game-map) [1 1 :contents :random-explore-direction]))))
@@ -40,6 +46,7 @@
                                         "~####"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (sync-computer-map!)
       (with-redefs [rand-nth (fn [v] (first v))]
         (army/process-army [1 1]))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
@@ -57,6 +64,7 @@
                                         "~~~"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (sync-computer-map!)
       (army/process-army [1 1])
       (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
       (should= :move-inland (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
@@ -69,6 +77,7 @@
                                [{:type :land} {:type :land :contents {:type :army :owner :computer :mode :move-inland}} {:type :land}]
                                [{:type :land} {:type :land} {:type :land}]])
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (test-utils/update-test-state! :computer-map assoc-in [1 1 :contents :mode] :move-inland)
       (with-redefs [rand-nth (constantly [1 0])]
         (army/process-army [1 1]))
       (should= :random-explore (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))
@@ -83,6 +92,7 @@
                                         "~aaa"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 1 :contents :mode] :move-inland)
+      (sync-computer-map!)
       (army/process-army [1 1])
       (should= :army (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
       (should= :move-inland (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode])))))

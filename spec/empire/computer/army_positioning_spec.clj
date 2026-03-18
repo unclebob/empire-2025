@@ -12,6 +12,10 @@
 (defn- disable-opening!
   []
   (test-utils/set-test-state! :round-number nil))
+
+(defn- sync-computer-map!
+  []
+  (set-test-computer-map! (test-utils/read-test-state :game-map)))
 (describe "should-sentry-on-coast?"
   (before
     (reset-all-atoms!)
@@ -121,6 +125,7 @@
       (set-test-world! (build-test-map ["a#+"]))
       (set-test-computer-map! (build-test-map ["a#+"]))
       (update-test-world! assoc-in [0 0 :contents :mode] :sentry)
+      (test-utils/update-test-state! :computer-map assoc-in [0 0 :contents :mode] :sentry)
       (army/process-army [0 0])
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode])))
@@ -175,7 +180,10 @@
                                                         :mode :awake :attack-target [2 0]}}
                                 {:type :land}
                                 {:type :city :city-status :free}]])
-      (set-test-computer-map! [[{:type :land} {:type :land} nil]])
+      (set-test-computer-map! [[{:type :land :contents {:type :army :owner :computer :hits 1
+                                                        :mode :awake :attack-target [2 0]}}
+                                {:type :land}
+                                nil]])
       (army/process-army [0 0])
       ;; Target should be cleared (not visible on computer-map)
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents :attack-target]))))
@@ -188,6 +196,7 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :computer :hits 1
               :mode :awake :country-id 1})
+      (sync-computer-map!)
       (army/process-army [0 0])
       ;; Army should have left the city
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))

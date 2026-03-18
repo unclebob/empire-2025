@@ -68,7 +68,7 @@
   "If army is in a city, move to an empty passable neighbor.
    Returns new position, or original pos if unable to exit."
   [pos country-id]
-  (let [cell (get-in (sa/current-world) pos)]
+  (let [cell (get-in (sa/read-state :computer-map) pos)]
     (if (= :city (:type cell))
       (if-let [exit (first (movement/get-empty-passable-neighbors pos country-id))]
         (or (movement/try-move pos exit) pos)
@@ -94,12 +94,12 @@
    Priority: Exit city > Attack > Attack-target > Coast-walk > Random-explore > Coastal fill
    Returns nil after processing - armies only move once per round."
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         cell (get-in game-map pos)
         unit (:contents cell)]
     (when (and unit (= :computer (:owner unit)) (= :army (:type unit)))
       (let [pos (exit-city pos (:country-id unit))
-            cell (get-in (sa/current-world) pos)
+            cell (get-in (sa/read-state :computer-map) pos)
             unit (:contents cell)
             enemy-pos (army-combat/find-adjacent-enemy pos)
             country-id (:country-id unit)

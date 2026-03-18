@@ -271,6 +271,7 @@
       (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [0 1] :country-id 1})
+      (test-utils/set-test-state! :computer-map (test-utils/read-test-state :game-map))
       (army/process-army [1 0])
       ;; Army moved to [1 1] which is coastal → should be sentry
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]

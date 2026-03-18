@@ -9,6 +9,10 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
+(defn- sync-computer-map!
+  []
+  (set-test-computer-map! (test-utils/read-test-state :game-map)))
+
 (defn- disable-opening!
   []
   (test-utils/set-test-state! :round-number nil))
@@ -72,6 +76,7 @@
       (update-test-world! assoc-in [4 0 :contents :country-id] 1)
       (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      (sync-computer-map!)
       ;; Round 1: army leaves city
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [2 0]))
@@ -98,6 +103,7 @@
                {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}))
       (update-test-world! assoc-in [2 1 :contents :mode] :awake)
       (update-test-world! assoc-in [2 1 :contents :country-id] 1)
+      (sync-computer-map!)
       (with-redefs [rand (constantly 0.5)
                     rand-nth first]
         (army/process-army [2 1]))
@@ -222,6 +228,7 @@
                 :coast-start [13 0]
                 :coast-visited [[99 0] [98 0] [97 0] [96 0] [95 0]
                                 [94 0] [93 0] [92 0] [91 0] [90 0]]})
+        (sync-computer-map!)
         ;; Move once — should add to visited and trim to 10
         (army/process-army [0 0])
         (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]

@@ -12,6 +12,10 @@
 (defn- disable-opening!
   []
   (test-utils/set-test-state! :round-number nil))
+
+(defn- sync-computer-map!
+  []
+  (set-test-computer-map! (test-utils/read-test-state :game-map)))
 (describe "process-army"
   (before
     (reset-all-atoms!)
@@ -117,6 +121,7 @@
         (update-test-world! assoc-in [col 0 :country-id] 1))
       (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      (sync-computer-map!)
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [1 0]))
       ;; Army should go sentry - already on coastal cell, nothing else to do
@@ -137,6 +142,7 @@
         (update-test-world! assoc-in [col row :country-id] 1))
       (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1})
+      (sync-computer-map!)
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [1 0]))
       ;; Army should have moved toward coastal cell (row 2)
@@ -158,6 +164,7 @@
       (update-test-world! assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
               :interior-explore-direction [0 -1]})
+      (sync-computer-map!)
       (army/process-army [1 1])
       ;; Army should have moved north to [1 0]
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
@@ -176,6 +183,7 @@
       (update-test-world! assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
               :interior-explore-direction [0 1]})
+      (sync-computer-map!)
       (army/process-army [1 1])
       ;; Army at [1 2] (coastal) should have direction cleared
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 2 :contents])]
@@ -194,9 +202,9 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake :country-id 1
               :interior-explore-direction [0 -1]})
+      (sync-computer-map!)
       (army/process-army [0 0])
       ;; Army should still be at [0 0] but direction cleared
       (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
         (should= :army (:type unit))
         (should-be-nil (:interior-explore-direction unit))))))
-

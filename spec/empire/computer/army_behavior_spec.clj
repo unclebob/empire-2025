@@ -12,6 +12,11 @@
 (defn- disable-opening!
   []
   (test-utils/set-test-state! :round-number nil))
+
+(defn- sync-computer-map!
+  []
+  (set-test-computer-map! (test-utils/read-test-state :game-map)))
+
 (describe "process-army"
   (before
     (reset-all-atoms!)
@@ -24,6 +29,7 @@
       (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [1 0] :country-id 1})
+      (sync-computer-map!)
       (army/process-army [1 0])
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [1 0 :contents :mode])))
 
@@ -55,6 +61,7 @@
       (update-test-world! assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [1 0] :country-id 1})
+      (sync-computer-map!)
       (army/process-army [1 1])
       ;; Should move right to [2 1]
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [1 1])))
@@ -92,6 +99,7 @@
       (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [1 0] :country-id 1})
+      (sync-computer-map!)
       (army/process-army [2 0])
       ;; Army stays, mode cleared to awake so it redirects to coast next round
       (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
@@ -109,6 +117,7 @@
       (update-test-world! assoc-in [1 1 :contents]
              {:type :army :owner :computer :hits 1
               :mode :move-inland :country-id 1})
+      (sync-computer-map!)
       (army/process-army [1 1])
       ;; Should now be in random-explore mode with rounds initialized to 0
       (should= :random-explore (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode]))
@@ -124,6 +133,7 @@
              {:type :army :owner :computer :hits 1
               :mode :random-explore :random-explore-direction [0 1]
               :random-explore-rounds 10 :country-id 1})
+      (sync-computer-map!)
       (army/process-army [1 1])
       ;; Should have timed out: mode awake, no random-explore fields
       (should= :awake (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode]))
@@ -175,6 +185,7 @@
              {:type :army :owner :computer :hits 1
               :mode :coast-walk :coast-direction :clockwise
               :coast-start [0 0] :coast-visited [[0 0] [1 1]]})
+      (sync-computer-map!)
       (army/process-army [1 1])
       ;; Should have terminated - switched to sentry mode
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
@@ -191,6 +202,7 @@
              {:type :army :owner :computer :hits 1
               :mode :coast-walk :coast-direction :clockwise
               :coast-start [1 0] :coast-visited [[0 0]]})
+      (sync-computer-map!)
       (army/process-army [0 0])
       ;; Army should have moved to [1 0] (coast-start) and terminated
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
@@ -213,6 +225,10 @@
              {:type :army :owner :computer :hits 1
               :mode :coast-walk :coast-direction :clockwise
               :coast-start [4 0] :coast-visited [[2 0]]})
+      (test-utils/update-test-state! :computer-map assoc-in [2 0 :contents]
+                                     {:type :army :owner :computer :hits 1
+                                      :mode :coast-walk :coast-direction :clockwise
+                                      :coast-start [4 0] :coast-visited [[2 0]]})
       (army/process-army [2 0])
       ;; Should move toward [1 0] which has unexplored neighbor [0 0]
       (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type])))
@@ -226,6 +242,7 @@
              {:type :army :owner :computer :hits 1
               :mode :coast-walk :coast-direction :clockwise
               :coast-start [0 0] :coast-visited [[0 0] [1 0]]})
+      (sync-computer-map!)
       (army/process-army [1 0])
       ;; Should avoid [0 0] (in visited) and go to [2 0]
       (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type])))
