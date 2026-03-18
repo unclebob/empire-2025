@@ -9,37 +9,14 @@
             [empire.computer.army.exploration :as exploration]
             [empire.computer.army.movement :as movement]
             [empire.computer.army.transport :as transport]
-            [empire.computer.core :as core]
-            [empire.computer.land-objectives :as land-objectives]
             [empire.game-mechanics.debug.logging :as debug]))
-
-(defn- find-city-objective
-  "Find a city objective not already claimed by another army.
-   Targets player and free cities only (not unexplored territory)."
-  [pos]
-  (let [cont-positions (land-objectives/flood-fill-continent pos)
-        all-objectives (land-objectives/find-all-objectives-on-continent cont-positions)
-        comp-map (sa/read-state :computer-map)
-        player-cities (filter #(= :player (:city-status (get-in comp-map %))) all-objectives)
-        free-cities (filter #(= :free (:city-status (get-in comp-map %))) all-objectives)
-        cities (concat player-cities free-cities)
-        target (or (movement/find-nearest-unclaimed player-cities pos)
-                   (movement/find-nearest-unclaimed free-cities pos)
-                   (when (seq cities)
-                     (apply min-key #(core/distance pos %) cities)))]
-    (when target
-      (sa/write-state! :claimed-objectives
-                            (conj (or (sa/read-state :claimed-objectives) #{}) target))
-      target)))
 
 (defn- process-sentry-in-city [pos country-id cell]
   (when (= :city (:type cell))
     (coastal/fill-coastal-cell pos country-id)))
 
 (defn- process-unowned-army [pos]
-  (or (when-let [obj (find-city-objective pos)]
-        (movement/move-toward-objective pos obj nil))
-      (exploration/explore-randomly pos nil)))
+  (exploration/explore-randomly pos nil))
 
 (defn- should-sentry-on-coast? [pos country-id]
   (coastal/should-sentry-on-coast? pos country-id))
@@ -55,9 +32,7 @@
   (opening/allow-coastal-staging? pos))
 
 (defn- find-and-execute-land-action [pos country-id]
-  (or (when-let [objective (find-city-objective pos)]
-        (movement/move-toward-objective pos objective country-id))
-      (when (and country-id (< (rand) 1/3))
+  (or (when (and country-id (< (rand) 1/3))
         (start-interior-exploration pos country-id))
       (when (should-stage-for-opening-transport? pos)
         (or (coastal/fill-coastal-cell pos country-id)
