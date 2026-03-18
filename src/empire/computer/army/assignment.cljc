@@ -9,7 +9,7 @@
   "Scans computer-map for visible free/player cities and assigns up to 6 closest armies each."
   []
   (let [cities (decisions/visible-target-cities (sa/read-state :computer-map))
-        armies (decisions/assignable-armies (sa/current-world))
+        armies (decisions/assignable-armies (sa/read-state :computer-map))
         assignments (decisions/assignment-updates cities
                                                   armies
                                                   contains?

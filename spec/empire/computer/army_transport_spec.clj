@@ -1,6 +1,6 @@
 (ns empire.computer.army-transport-spec
   (:require [empire.computer.army.transport :as army-transport]
-            [empire.test.utils :refer [reset-all-atoms! set-test-world!]]
+            [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]
             [speclj.core :refer :all]))
 
 (describe "army transport boarding"
@@ -9,6 +9,7 @@
   (it "boards an adjacent loading transport and updates visibility"
     (let [calls (atom [])]
       (set-test-world! [[{:contents {:type :army :owner :computer :unload-event-id 8}}]])
+      (set-test-computer-map! [[{:contents {:type :army :owner :computer :unload-event-id 8}}]])
       (with-redefs [empire.computer.core/find-adjacent-loading-transport (fn [pos unload-id]
                                                                            (swap! calls conj [:adjacent pos unload-id])
                                                                            [1 0])
@@ -26,6 +27,7 @@
 
   (it "moves toward a distant loading transport when none are adjacent"
     (set-test-world! [[{:contents {:type :army :owner :computer :unload-event-id 5}}]])
+    (set-test-computer-map! [[{:contents {:type :army :owner :computer :unload-event-id 5}}]])
     (with-redefs [empire.computer.core/find-adjacent-loading-transport (constantly nil)
                   empire.computer.core/find-loading-transport (fn [unload-id]
                                                                 (should= 5 unload-id)
@@ -40,6 +42,7 @@
 
   (it "returns nil when no loading transport exists"
     (set-test-world! [[{:contents {:type :army :owner :computer :unload-event-id 5}}]])
+    (set-test-computer-map! [[{:contents {:type :army :owner :computer :unload-event-id 5}}]])
     (with-redefs [empire.computer.core/find-adjacent-loading-transport (constantly nil)
                   empire.computer.core/find-loading-transport (constantly nil)]
       (should-be-nil

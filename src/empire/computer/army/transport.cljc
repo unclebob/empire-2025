@@ -11,7 +11,7 @@
    Excludes transports with matching unload-event-id to prevent
    re-boarding the same transport that unloaded this army."
   [pos country-id]
-  (let [army (get-in (sa/current-world) (conj pos :contents))
+  (let [army (get-in (sa/read-state :computer-map) (conj pos :contents))
         army-unload-id (:unload-event-id army)]
     (if-let [transport-pos (core/find-adjacent-loading-transport pos army-unload-id)]
       (do
