@@ -43,9 +43,9 @@
     (should-be-nil (@#'fighter/desperate-patrol [0 0])))
 
   (it "desperate-patrol returns result when patrol succeeds"
-    (set-test-world! (build-test-map ["f##"]))
+    (set-test-world! (build-test-map ["f#A"]))
     (set-test-unit (test-utils/game-map-atom) "f" :fuel 5)
-    (set-test-computer-map! (build-test-map ["f--"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (@#'fighter/desperate-patrol [0 0])]
       (should-not-be-nil result)
       (should (contains? result :pos))

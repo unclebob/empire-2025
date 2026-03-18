@@ -38,9 +38,12 @@ THEN t has transport-mission loading.
 GIVEN game map
   ~~~t
   ####
+GIVEN computer map
+  ~~~t
+  ####
 GIVEN t has transport-mission loading.
 
-WHEN a new round starts.
+WHEN computer transport t is processed.
 
 THEN t is at [1 0].
 

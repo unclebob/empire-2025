@@ -29,20 +29,23 @@
 
   (context "VMS fighter module"
     (it "process-fighter patrols when fuel allows"
-      (let [row (vec (concat [{:type :city :city-status :computer}
-                               {:type :land :contents {:type :fighter :owner :computer
-                                                        :fuel 20 :hits 1}}]
-                              (repeat 10 {:type :land})))]
-        (set-test-world! [row])
-        ;; Computer map has unexplored cells to the right, giving patrol direction
-        (set-test-computer-map! [(vec (concat [{:type :city :city-status :computer}
-                                                   {:type :land :contents {:type :fighter :owner :computer
-                                                                            :fuel 20 :hits 1}}]
-                                                  (repeat 10 nil)))])
-        (let [unit (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
-          (fighter/process-fighter [0 1] unit)
-          ;; Fighter should have moved from [0 1] toward unexplored territory
-          (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))))))
+      (set-test-world! (build-test-map ["Xf##########A"]))
+      (update-test-world! assoc-in [1 0 :contents]
+                         {:type :fighter :owner :computer :fuel 20 :hits 1})
+      ;; The player army is visible, so patrol has a concrete eastward target.
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (test-utils/update-test-computer-map! assoc-in [1 0 :contents]
+                                            {:type :fighter :owner :computer :fuel 20 :hits 1})
+      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
+        (fighter/process-fighter [1 0] unit)
+        (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
+        (let [fighter-pos (first (for [c (range 13)
+                                       :when (= :fighter (get-in (test-utils/read-test-state :game-map)
+                                                                 [c 0 :contents :type]))]
+                                   c))]
+          (should-not-be-nil fighter-pos)
+          (should (> fighter-pos 1))
+          (should (< fighter-pos 12))))))
 
   (context "VMS ship module"
     (it "process-ship stays put when all sea explored"

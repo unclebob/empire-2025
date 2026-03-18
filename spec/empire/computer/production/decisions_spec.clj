@@ -28,6 +28,7 @@
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should= :fighter (#'decisions/decide-country-production [0 0] 1 false {:transport 0 :destroyer 0}))
     (update-test-world! assoc-in [1 0] {:type :sea :contents {:type :fighter :owner :computer}})
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should-not= :fighter (#'decisions/decide-country-production [0 0] 1 false {:transport 0 :destroyer 0})))
 
   (it "chooses submarine in global production when carrier ratio requires it"

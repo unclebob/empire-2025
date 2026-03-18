@@ -80,8 +80,8 @@
                      :explore-steps-remaining 5
                      :flight-target-site [15 0]
                      :flight-origin-site [0 0])
-      ;; Unexplored territory to the right
-      (set-test-computer-map! (build-test-map ["X#####f........."]))
+      ;; Unexplored territory to the right, with the blocking army still visible
+      (set-test-computer-map! (build-test-map ["X#####fa........"]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [6 0 :contents])]
         (fighter/process-fighter [6 0] unit)
         ;; Fighter should have moved past the friendly army

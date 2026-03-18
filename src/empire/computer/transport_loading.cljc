@@ -125,6 +125,10 @@
         (update-cell-visibility! target :computer)
         (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
           (sa/update-world! assoc-in (conj target :contents :crawl-history) new-history))
+        ;; Keep the visible transport state aligned with the authoritative unit so a second crawl
+        ;; step in the same round can avoid immediately backtracking.
+        (sa/update-state! :computer-map assoc-in (conj target :contents :crawl-history)
+                          (vec (take-last 3 (conj (:crawl-history unit []) pos))))
         ;; Auto-load armies from adjacent land at new position
         (load-adjacent-armies target)
         target))))

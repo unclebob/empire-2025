@@ -190,8 +190,9 @@
                        {:type :sea}]
                       [{:type :land :country-id 1}
                        {:type :sea}]])
-    ;; computer-map is {} so land at [1 0] is unexplored → coastal cells not explored
-    (computer-production/rebuild-country-stats!)
+    (test-utils/set-test-state! :country-stats
+                                {1 {:coastal-explored? false
+                                    :coastal-city-positions #{[0 0]}}})
     (test-utils/update-test-state! :production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
@@ -206,7 +207,9 @@
                        {:type :sea}]
                       [{:type :land :country-id 1}
                        {:type :sea}]])
-    (computer-production/rebuild-country-stats!)
+    (test-utils/set-test-state! :country-stats
+                                {1 {:coastal-explored? false
+                                    :coastal-city-positions #{[0 0]}}})
     (test-utils/update-test-state! :production assoc [0 0] {:item :army :remaining-rounds 1})
     (production/update-production)
     (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]

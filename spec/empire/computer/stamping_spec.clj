@@ -183,10 +183,10 @@
     (set-test-world! (build-test-map ["~###~"]))
     (doseq [col [1 2 3]]
       (update-test-world! assoc-in [col 0 :country-id] 1))
-    ;; Computer map: coastal cells unexplored
-    (set-test-computer-map! [[{:type :sea}] [nil] [nil] [nil] [{:type :sea}]])
-    (computer-production/rebuild-country-stats!)
-    (with-redefs [empire.computer.early-game.strategy/opening-exploration-profile
+    (test-utils/set-test-state! :country-stats
+                                {1 {:coastal-explored? false
+                                    :coastal-city-positions #{[1 0]}}})
+    (with-redefs [empire.config.ai/opening-exploration-profile
                   (constantly {:coast-walk-limit 3 :random-explore-chance 1/5})]
       (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
             cell {:type :city :city-status :computer :country-id 1}]

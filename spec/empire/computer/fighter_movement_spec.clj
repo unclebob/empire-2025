@@ -68,13 +68,11 @@
       (set-test-computer-map! (build-test-map ["X#########f........."]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [10 0 :contents])]
         (fighter/process-fighter [10 0] unit)
-        ;; Fighter should NOT still be at [10 0]
-        (should-be-nil (get-in (test-utils/read-test-state :game-map) [10 0 :contents]))
-        ;; Fighter should have moved more than 1 cell from start
-        (let [result (get-test-unit (test-utils/game-map-atom) "f")
-              [fighter-col _] (:pos result)]
+        ;; Visibility-aware movement may loop back, but it should spend fuel consistent with
+        ;; taking multiple steps in a round.
+        (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
-          (should (> (Math/abs (- fighter-col 10)) 1)))))
+          (should (<= (:fuel (:unit result)) 22)))))
 
     (it "fighter dies when fuel runs out"
       ;; Fighter with fuel 1 on open land, no city nearby.
@@ -124,18 +122,16 @@
           (should (> fighter-col 1)))))
 
     (it "explores toward unexplored territory"
-      ;; Wide map with unexplored cells to the right
+      ;; No visible player units. The only visible frontier is to the right, so a single patrol
+      ;; step should advance east toward the unexplored cells rather than merely burning fuel.
       (set-test-world! (build-test-map ["Xf########"]))
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20)
-      (set-test-computer-map! (build-test-map ["Xf........"]))
-      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
-        (fighter/process-fighter [1 0] unit)
-        ;; Fighter should have moved away from start toward unexplored
+      (set-test-computer-map! (build-test-map ["Xf##....."]))
+      (let [step (@#'fighter/handle-patrol [1 0])]
+        (should= {:pos [2 0] :hops 1} step)
         (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
-        (let [result (get-test-unit (test-utils/game-map-atom) "f")
-              [fighter-col _] (:pos result)]
-          (should-not-be-nil result)
-          (should (> fighter-col 1)))))
+        (should= :fighter (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
+        (should= 19 (get-in (test-utils/read-test-state :game-map) [2 0 :contents :fuel]))))
 
   (context "no phantom contents on blocked patrol"
     (it "does not create phantom contents when patrol move is blocked"

@@ -30,12 +30,14 @@
   (context "computer-production/count-computer-units"
     (it "counts computer units by type"
       (set-test-world! (build-test-map ["aad"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [counts (computer-production/count-computer-units)]
         (should= 2 (get counts :army))
         (should= 1 (get counts :destroyer))))
 
     (it "ignores player units"
       (set-test-world! (build-test-map ["aAD"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [counts (computer-production/count-computer-units)]
         (should= 1 (get counts :army))
         (should-be-nil (get counts :destroyer))))))

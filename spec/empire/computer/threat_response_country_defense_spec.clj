@@ -32,11 +32,13 @@
       (update-test-world! assoc-in [0 0 :contents :threat-radius] 4)
       (update-test-world! assoc-in [0 0 :contents :threat-rounds-left] 3)
       (update-test-world! assoc-in [1 0 :country-id] 1)
-      (update-test-computer-map! assoc-in [1 0 :country-id] 1)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (threat-response/handle-detection! [1 0] (get-in (test-utils/read-test-state :game-map) [1 0]))
       (should= :country-defense (get-in (test-utils/read-test-state :game-map) [0 0 :contents :threat-mission]))
 
+      (update-test-world! assoc-in [1 0] {:type :land :country-id 1})
       (set-test-computer-map! (build-test-map ["f#"]))
+      (update-test-computer-map! assoc-in [0 0 :contents :country-id] 1)
       (update-test-computer-map! assoc-in [1 0 :country-id] 1)
       (threat-response/on-round-start!)
 

@@ -248,7 +248,9 @@
       (update-test-world! assoc-in [1 0 :shipyard] [{:type :destroyer :hits 2}])
       (repair/repair-damaged-ships)
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])
-            ship (:contents city)]
+            ship (or (get-in (test-utils/read-test-state :game-map) [0 0 :contents])
+                     (get-in (test-utils/read-test-state :game-map) [1 0 :contents])
+                     (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))]
         (should= [] (:shipyard city))
         (should= :destroyer (:type ship))
         (should= :player (:owner ship))

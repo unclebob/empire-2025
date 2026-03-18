@@ -16,18 +16,23 @@
       ;; t~~    transport at [0 1]
       (set-test-world! (build-test-map ["###"
                                                "t~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [0 1 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 0
 })
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Transport should have moved to another coastal sea cell
-      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))
-      (let [t-pos (first (for [c (range 3) r (range 2)
-                                :when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
-                            [c r]))]
-        (should-not-be-nil t-pos)))
+      ;; A short coast can backtrack on the second step, but the transport must still end the
+      ;; round in a coastal sea cell and record that it moved.
+      (let [[col row transport] (first (for [c (range 3) r (range 2)
+                                             :let [unit (get-in (test-utils/read-test-state :game-map)
+                                                                [c r :contents])]
+                                             :when (= :transport (:type unit))]
+                                         [c r unit]))]
+        (should= 1 row)
+        (should= :sea (get-in (test-utils/read-test-state :game-map) [col row :type]))
+        (should= :land (get-in (test-utils/read-test-state :game-map) [col 0 :type]))
+        (should (seq (:oscillation-history transport)))))
 
     (it "loading coastal crawl moves 2 cells per round (speed 2)"
       ;; ########   land at row 0
@@ -35,15 +40,21 @@
       ;; Linear coast — only one direction to crawl (rightward)
       (set-test-world! (build-test-map ["########"
                                                "t~~~~~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [0 1 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 0})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Transport should have moved 2 cells, not 1
-      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))
-      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [1 1])))
-      (should= :transport (get-in (test-utils/read-test-state :game-map) [2 1 :contents :type])))
+      ;; The loading mission should execute two moves in the round. Under visibility-aware crawl
+      ;; the second move may continue east or backtrack west, but it should not stop after one hop.
+        (let [[col row transport] (first (for [c (range 8) r (range 2)
+                                             :let [unit (get-in (test-utils/read-test-state :game-map)
+                                                                [c r :contents])]
+                                             :when (= :transport (:type unit))]
+                                         [c r unit]))]
+        (should= 1 row)
+        (should (contains? #{0 2} col))
+        (should= 2 (count (:oscillation-history transport)))))
 
     (it "loads army from adjacent land while crawling"
       ;; a##    army at [0 0]

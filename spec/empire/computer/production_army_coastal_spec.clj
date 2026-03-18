@@ -22,6 +22,7 @@
       (set-test-world! (build-test-map ["~###~"]))
       (doseq [col [1 2 3]]
         (update-test-world! assoc-in [col 0 :country-id] 1))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (production/rebuild-country-stats!)
       (should= 2 (production/count-country-coastal-cells 1)))
 
@@ -30,6 +31,7 @@
       (update-test-world! assoc-in [1 0 :country-id] 1)
       (update-test-world! assoc-in [2 0 :country-id] 2)
       (update-test-world! assoc-in [3 0 :country-id] 1)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (production/rebuild-country-stats!)
       (should= 2 (production/count-country-coastal-cells 1)))
 
@@ -75,6 +77,7 @@
       (update-test-world! assoc-in [1 0 :contents :country-id] 1)
       (update-test-world! assoc-in [3 0 :contents :country-id] 1)
       (update-test-world! assoc-in [3 0 :contents :army-count] 3)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (production/rebuild-country-stats!)
       (should= 5 (production/count-country-armies 1)))
 
@@ -85,6 +88,7 @@
       (update-test-world! assoc-in [1 0 :contents :country-id] 1)
       (update-test-world! assoc-in [3 0 :contents :country-id] 2)
       (update-test-world! assoc-in [3 0 :contents :army-count] 3)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (production/rebuild-country-stats!)
       (should= 2 (production/count-country-armies 1))))
 

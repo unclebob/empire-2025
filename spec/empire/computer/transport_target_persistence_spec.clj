@@ -291,6 +291,8 @@
                                       "~t~"
                                       "~~~"])]
         (set-test-world! game-map)
+        ;; The only unexplored cell is the southeast corner; the two visible armies belong to
+        ;; a recently unloaded country and must be ignored as pickup targets.
         (set-test-computer-map! (build-test-map ["a~a"
                                                     "~t~"
                                                     "~~-"]))
@@ -305,4 +307,5 @@
                                          :when (= :transport (get-in (test-utils/read-test-state :game-map) [r c :contents :type]))]
                                      [r c]))]
           (should-not-be-nil transport-pos)
-          (should-not= [1 1] transport-pos))))))
+          (should-not= [1 1] transport-pos)
+          (should= :sea (get-in (test-utils/read-test-state :game-map) (conj transport-pos :type))))))))
