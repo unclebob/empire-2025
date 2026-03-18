@@ -21,8 +21,12 @@
                   coastal/can-settle-here? (fn [_ _] can-settle?)
                   empire.computer.army.coastal/find-nearest-cell-close-to-coast (fn [_ _] queue-target)
                   empire.computer.core/wake-nearby-sentries (fn [_ _] wake-count)
-                  sa/current-world (fn [] current-world)
+                  sa/read-state (fn [k]
+                                  (when (= k :computer-map)
+                                    current-world))
                   sa/update-world! (fn [& args] (swap! updates conj args))
+                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map!
+                  (fn [_] nil)
                   empire.game-mechanics.debug.logging/log-computer-event! (fn [& _] nil)]
       {:result (coastal/fill-coastal-cell [1 1] 1)
        :updates @updates})))
@@ -81,9 +85,11 @@
   (it "logs and avoids creating malformed contents when coastal sentry write has no unit"
     (let [logged (atom nil)]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
-                    sa/current-world (fn [] [[{:type :land} {:type :land} {:type :land}]
-                                             [{:type :land} {:type :land :country-id 1} {:type :land}]
-                                             [{:type :land} {:type :land} {:type :land}]])
+                    sa/read-state (fn [k]
+                                    (when (= k :computer-map)
+                                      [[{:type :land} {:type :land} {:type :land}]
+                                       [{:type :land} {:type :land :country-id 1} {:type :land}]
+                                       [{:type :land} {:type :land} {:type :land}]]))
                     sa/update-world! (fn [& _] (should-not "should not write malformed contents"))
                     empire.game-mechanics.debug.logging/log-computer-event! (fn [& _] nil)
                     empire.game-mechanics.debug.integrity/write-stacktrace-error-log!

@@ -83,7 +83,8 @@
     ((:update-game-map! ctx) update-in (conj pos :contents)
      #(-> %
           (assoc :mode :sentry)
-          (dissoc :coast-target :coast-repath-after-round :lake-retask?)))))
+          (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
+    ((:sync-ai-unit! ctx) pos)))
 
 (defn- settle-at-coast-target!
   [ctx pos]
@@ -99,7 +100,8 @@
        (movement/try-move pos best))))
 
 (defn- set-coast-target! [ctx pos target]
-  ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target))
+  ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target)
+  ((:sync-ai-unit! ctx) pos))
 
 (defn- resolve-coast-target [ctx unit pos country-id]
   (decisions/resolve-coast-target (:coast-target unit)
@@ -111,6 +113,7 @@
     (when (decisions/retry-repath-now? now retry-at)
       ((:update-game-map! ctx) assoc-in (conj (:pos unit) :contents :coast-repath-after-round)
        (+ now local-coast-repath-interval-rounds))
+      ((:sync-ai-unit! ctx) (:pos unit))
       now)))
 
 (defn- maybe-repath-local-target

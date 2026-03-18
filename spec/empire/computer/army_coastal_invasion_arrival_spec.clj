@@ -21,6 +21,7 @@
                          :mode :move-to-coast-for-invasion
                          :country-id 1
                          :coast-target [2 3]})
+    (test-utils/set-test-state! :computer-map (test-utils/read-test-state :game-map))
     (coastal/process-move-to-coast-for-invasion [2 3] 1)
     (should= :sentry (get-in (test-utils/read-test-state :game-map) [2 3 :contents :mode])))
 
@@ -38,6 +39,7 @@
     (doseq [p [[1 1] [2 1] [3 1] [1 2] [3 2]]]
       (update-test-world! assoc-in (conj p :contents)
                           {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}))
+    (test-utils/set-test-state! :computer-map (test-utils/read-test-state :game-map))
     (coastal/process-move-to-coast-for-invasion [2 2] 1)
     (should= :sentry (get-in (test-utils/read-test-state :game-map) [2 2 :contents :mode])))
 
@@ -45,17 +47,23 @@
     (let [updates (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
                     sa/update-world! (fn [& args] (swap! updates conj args))
-                    sa/current-world (fn [] [[{:type :land
-                                               :contents {:type :army
-                                                          :owner :computer
-                                                          :hits 1
-                                                          :mode :move-to-coast
-                                                          :coast-target [2 2]}}]])]
+                    sa/read-state (fn [k]
+                                    (when (= k :computer-map)
+                                      [[{:type :land
+                                         :contents {:type :army
+                                                    :owner :computer
+                                                    :hits 1
+                                                    :mode :move-to-coast
+                                                    :coast-target [2 2]}}]]))
+                    empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map!
+                    (fn [_] nil)]
         (should= [0 0] (coastal/process-move-to-coast-for-invasion [0 0] 1))
         (should= 1 (count @updates)))))
 
   (it "avoids creating malformed contents when invasion arrival sentry write has no unit"
     (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] true)
-                  sa/current-world (fn [] [[{:type :land :country-id 1}]])
+                  sa/read-state (fn [k]
+                                  (when (= k :computer-map)
+                                    [[{:type :land :country-id 1}]]))
                   sa/update-world! (fn [& _] (should-not "should not write malformed contents"))]
       (should= [0 0] (coastal/process-move-to-coast-for-invasion [0 0] 1)))))

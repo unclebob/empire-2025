@@ -5,6 +5,7 @@
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.debug.logging :as debug]))
 
@@ -18,10 +19,12 @@
 
 (defn- set-sentry-mode-if-unit!
   [pos context]
-  (if (get-in (sa/current-world) (conj pos :contents))
-    (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
+  (if (get-in (sa/read-state :computer-map) (conj pos :contents))
+    (do
+      (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
+      (visibility/sync-ai-unit-to-computer-map! pos))
     (log-missing-army-contents! :missing-contents-for-sentry
-                                (assoc context :pos pos :cell (get-in (sa/current-world) pos)))))
+                                (assoc context :pos pos :cell (get-in (sa/read-state :computer-map) pos)))))
 
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."
@@ -41,10 +44,11 @@
 (defn- terminate-coast-walk
   "Switches army from coast-walk to sentry (or awake if in a city)."
   [pos]
-  (let [mode (if (= :city (:type (get-in (sa/current-world) pos))) :awake :sentry)]
+  (let [mode (if (= :city (:type (get-in (sa/read-state :computer-map) pos))) :awake :sentry)]
     (sa/update-world! update-in (conj pos :contents)
                       #(-> % (assoc :mode mode)
-                           (dissoc :coast-direction :coast-start :coast-visited)))))
+                           (dissoc :coast-direction :coast-start :coast-visited)))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- coast-walk-candidates
   "Returns empty land/city neighbors that are adjacent to sea."
@@ -55,7 +59,7 @@
 (defn process-coast-walk
   "Handles coast-walk movement. Returns new position or nil."
   [pos country-id]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         coast-start (:coast-start unit)
         visited (set (:coast-visited unit))
         candidates (coast-walk-candidates pos country-id)]
@@ -70,6 +74,7 @@
         (when (movement/try-move pos target)
           (sa/update-world! update-in (conj target :contents)
                             #(assoc % :coast-visited (update-backtrack (:coast-visited %) target)))
+          (visibility/sync-ai-unit-to-computer-map! target)
           (if (= target coast-start)
             (do (terminate-coast-walk target) target)
             target))))))
@@ -78,7 +83,7 @@
   "Returns true if position has an adjacent computer city."
   [pos]
   (some (fn [neighbor]
-          (let [cell (get-in (sa/current-world) neighbor)]
+          (let [cell (get-in (sa/read-state :computer-map) neighbor)]
             (and (= :city (:type cell))
                  (= :computer (:city-status cell)))))
         (core/get-neighbors pos)))
@@ -105,7 +110,7 @@
   (when country-id
     (movement/ensure-coastal-registry country-id)
     (let [coastal (get (sa/read-state :coastal-cells-by-country) country-id)
-          game-map (sa/current-world)
+          game-map (sa/read-state :computer-map)
           candidates (filter (fn [p]
                                (let [cell (get-in game-map p)]
                                  (and (= :land (:type cell))
@@ -140,7 +145,7 @@
                                (get (sa/read-state :coastal-cells-by-country) country-id)))]
       (when (seq coastal)
         (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
-              game-map (sa/current-world)
+              game-map (sa/read-state :computer-map)
               candidates (filter #(empty-land-for-country? (get-in game-map %) country-id)
                                  expanded)
               with-coast-dist (keep (fn [c]
@@ -156,13 +161,13 @@
 (defn should-sentry-on-coast? [pos country-id]
   (and country-id
        (adjacent-to-ocean? pos)
-       (not= :city (:type (get-in (sa/current-world) pos)))
+       (not= :city (:type (get-in (sa/read-state :computer-map) pos)))
        (not (adjacent-to-computer-city? pos))))
 
 (defn can-settle-here? [pos country-id]
   (and country-id
        (adjacent-to-ocean? pos)
-       (not= :city (:type (get-in (sa/current-world) pos)))))
+       (not= :city (:type (get-in (sa/read-state :computer-map) pos)))))
 
 (declare find-coast-target-once)
 (declare empty-coastal-cell?)
@@ -213,9 +218,10 @@
 
 (defn- invasion-ctx
   []
-  {:current-world sa/current-world
+  {:current-world #(sa/read-state :computer-map)
    :update-game-map! sa/update-world!
    :read-runtime-state sa/read-state
+   :sync-ai-unit! visibility/sync-ai-unit-to-computer-map!
    :adjacent-to-ocean? adjacent-to-ocean?
    :should-sentry-on-coast? should-sentry-on-coast?
    :find-coast-target-once find-coast-target-once})
@@ -252,7 +258,8 @@
   (sa/update-world! update-in (conj pos :contents)
                     #(-> %
                          (assoc :mode :sentry)
-                         (dissoc :coast-target :coast-repath-after-round :lake-retask?))))
+                         (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- step-toward-target-cheap
   [pos target country-id]
