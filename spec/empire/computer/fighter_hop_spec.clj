@@ -17,48 +17,56 @@
     (it "returns best neighbor when it is unoccupied"
       ;; Fighter at [0 0], target at [2 0], neighbor [1 0] is empty land
       (set-test-world! (build-test-map ["f##"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [2 0])]
         (should= {:dest [1 0] :hops 1} result)))
 
     (it "returns nil when no passable neighbors exist"
       ;; 1x1 map: fighter alone, no neighbors
       (set-test-world! (build-test-map ["f"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [0 0]))))
 
   (context "basic single-unit hop"
     (it "hops over one friendly unit to land on empty cell beyond"
       ;; Fighter at [0 0], friendly army at [1 0], empty land at [2 0], target at [3 0]
       (set-test-world! (build-test-map ["fa##"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [3 0])]
         (should= {:dest [2 0] :hops 2} result)))
 
     (it "returns nil when friendly unit blocks and cell beyond is off-map"
       ;; Fighter at [0 0], friendly army at [1 0], nothing beyond
       (set-test-world! (build-test-map ["fa"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [1 0]))))
 
   (context "multi-unit hop"
     (it "hops over two consecutive friendly units"
       ;; Fighter at [0 0], armies at [1 0] and [2 0], empty at [3 0], target at [4 0]
       (set-test-world! (build-test-map ["faa##"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [4 0])]
         (should= {:dest [3 0] :hops 3} result)))
 
     (it "hops over three consecutive friendly units"
       ;; Fighter at [0 0], armies at [1 0], [2 0], [3 0], empty at [4 0], target at [5 0]
       (set-test-world! (build-test-map ["faaa##"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [5 0])]
         (should= {:dest [4 0] :hops 4} result)))
 
     (it "returns nil when all consecutive friendly units lead off-map"
       ;; Fighter at [0 0], armies fill the rest of the map
       (set-test-world! (build-test-map ["faaa"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [3 0])))
 
     (it "returns nil when two friendly units lead off-map"
       ;; 3x1 map: fighter at [0,0], armies at [1,0] and [2,0], target at [5,0]
       ;; Scan goes past [2,0] to [3,0] which is off-map
       (set-test-world! (build-test-map ["faa"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [5 0])))
 
     (it "hops diagonally over one friendly unit"
@@ -67,6 +75,7 @@
                                                "#a##"
                                                "##*#"
                                                "###*"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [3 3])]
         (should= {:dest [2 2] :hops 2} result)))
 
@@ -75,12 +84,14 @@
       ;; Diagonal direction from [0 0] -> [1 1] is [1 1]. Next hop [2 2] is off-map.
       (set-test-world! (build-test-map ["f#"
                                                "#a"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= {:dest [0 1] :hops 1}
                (fm/hop-over-friendly [0 0] [2 2])))
 
     (it "returns attack result when chain of friendly units ends at enemy"
       ;; Fighter at [0 0], two friendly armies, then player army at [3 0]
       (set-test-world! (build-test-map ["faaA"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= {:dest [3 0] :hops 3 :attack true}
                (fm/hop-over-friendly [0 0] [3 0]))))
 
@@ -88,6 +99,7 @@
     (it "returns attack when single friendly then enemy"
       ;; Fighter at [0 0], friendly army at [1 0], player army at [2 0], target at [4 0]
       (set-test-world! (build-test-map ["faA##"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= {:dest [2 0] :hops 2 :attack true}
                (fm/hop-over-friendly [0 0] [4 0])))
 
@@ -97,6 +109,7 @@
       ;; was previously nil. After the change, it should still be nil because the
       ;; initial occupied check only enters hop-over when the first cell IS friendly.
       (set-test-world! (build-test-map ["fA##"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [3 0])))))
 
 (describe "step-fighter return format"

@@ -17,6 +17,7 @@
       (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer}}
                          {:type :land}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= {:dest [0 1] :hops 1}
                (fm/hop-over-friendly [0 0] [0 2])))
 
@@ -25,6 +26,7 @@
                          {:type :land :contents {:type :army :owner :computer :hits 1}}
                          {:type :land}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [0 3])]
         (should= 2 (:hops result))
         (should= [0 2] (:dest result))))
@@ -34,6 +36,7 @@
                          {:type :land :contents {:type :army :owner :computer :hits 1}}
                          {:type :land :contents {:type :army :owner :computer :hits 1}}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= 3 (:hops (fm/hop-over-friendly [0 0] [0 3]))))
 
     (it "scans forward not backward (L84, L89 + -> -)"
@@ -41,6 +44,7 @@
                         [{:type :land :contents {:type :fighter :owner :computer}}]
                         [{:type :land :contents {:type :army :owner :computer :hits 1}}]
                         [{:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [1 0] [3 0])]
         (should= [3 0] (:dest result))
         (should= 2 (:hops result))))
@@ -49,6 +53,7 @@
       (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer}}
                          {:type :land :contents {:type :army :owner :computer :hits 1}}
                          {:type :land :contents {:type :army :owner :player :hits 1}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [0 2])]
         (should (:attack result))
         (should= 2 (:hops result))))
@@ -58,18 +63,31 @@
                          {:type :land :contents {:type :army :owner :computer :hits 1}}
                          {:type :city :city-status :player
                           :contents {:type :fighter :owner :player :hits 1}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [0 2])))
 
     (it "returns nil when neighbor is enemy not friendly"
       (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer}}
                          {:type :land :contents {:type :army :owner :player :hits 1}}
                          {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (fm/hop-over-friendly [0 0] [0 2])))
+
+    (it "does not hop over friendly units visible only on the game map"
+      (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer}}
+                         {:type :land :contents {:type :army :owner :computer :hits 1}}
+                         {:type :land}]])
+      (set-test-computer-map! [[{:type :land :contents {:type :fighter :owner :computer}}
+                                {:type :land}
+                                {:type :land}]])
+      (should= {:dest [0 1] :hops 1}
+               (fm/hop-over-friendly [0 0] [0 2])))
 
     (it "hops backward when target is behind (L58 - -> +)"
       (set-test-world! [[{:type :land}]
                         [{:type :land :contents {:type :army :owner :computer :hits 1}}]
                         [{:type :land :contents {:type :fighter :owner :computer}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [2 0] [0 0])]
         (should= [0 0] (:dest result))
         (should= 2 (:hops result))))
@@ -84,6 +102,7 @@
                                            (and (= r 2) (= c 2)))
                                        {:type :land :contents {:type :army :owner :computer :hits 1}}
                                        :else {:type :land}))))))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [0 0] [3 3])]
         (should= [3 3] (:dest result))
         (should= 3 (:hops result))))
@@ -92,6 +111,7 @@
       (set-test-world! (build-test-map ["###"
                                         "#fa"
                                         "###"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [result (fm/hop-over-friendly [1 1] [4 1])]
         (should-not-be-nil result)
         (should= 1 (:hops result))

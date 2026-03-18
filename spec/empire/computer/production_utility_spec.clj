@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.production :as production]
+            [empire.computer.production.stats :as stats]
             [empire.computer.ship :as ship]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 (describe "utility functions"
@@ -29,12 +30,23 @@
 
     (it "counts computer units by type"
       (set-test-world! (build-test-map ["aad"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [counts (production/count-computer-units)]
         (should= 2 (get counts :army))
         (should= 1 (get counts :destroyer))))
 
     (it "ignores player units"
       (set-test-world! (build-test-map ["aAD"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [counts (production/count-computer-units)]
+        (should= 1 (get counts :army))
+        (should-be-nil (get counts :destroyer))))
+
+    (it "ignores computer units hidden from the computer map"
+      (set-test-world! (build-test-map ["aad"]))
+      (set-test-computer-map! [[{:type :land :contents {:type :army :owner :computer}}
+                                nil
+                                nil]])
       (let [counts (production/count-computer-units)]
         (should= 1 (get counts :army))
         (should-be-nil (get counts :destroyer)))))
@@ -43,10 +55,21 @@
 
     (it "counts computer cities"
       (set-test-world! (build-test-map ["X#X~O"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= 2 (production/count-computer-cities)))
 
     (it "ignores player and free cities"
       (set-test-world! (build-test-map ["O+X"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should= 1 (production/count-computer-cities)))
+
+    (it "ignores computer cities hidden from the computer map"
+      (set-test-world! (build-test-map ["X#X~O"]))
+      (set-test-computer-map! [[{:type :city :city-status :computer}
+                                {:type :land}
+                                nil
+                                nil
+                                nil]])
       (should= 1 (production/count-computer-cities))))
 
   (context "count-country-armies default army-count (L79)"
@@ -57,8 +80,17 @@
       (update-test-world! assoc-in [1 0 :contents :country-id] 1)
       (update-test-world! assoc-in [1 0 :contents :army-count] nil)
       (update-test-world! update-in [1 0 :contents] dissoc :army-count)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (production/rebuild-country-stats!)
-      (should= 0 (production/count-country-armies 1)))))
+      (should= 0 (production/count-country-armies 1))))
+
+    (it "ignores country armies hidden from the computer map"
+      (set-test-world! (build-test-map ["~a"]))
+      (update-test-world! assoc-in [1 0 :contents :country-id] 1)
+      (set-test-computer-map! [[{:type :sea}
+                                nil]])
+      (stats/rebuild-country-stats!)
+      (should= 0 (production/count-country-armies 1))))
 
 ;; ===== 2. production decisions =====
 

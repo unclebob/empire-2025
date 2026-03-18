@@ -3,7 +3,7 @@
             [empire.computer.core :as core]))
 
 (defn- get-neighbors [pos]
-  (filter #(some? (get-in (sa/current-world) %))
+  (filter #(some? (get-in (sa/read-state :computer-map) %))
           (core/get-neighbors pos)))
 
 (defn city-is-coastal? [city-pos]
@@ -66,13 +66,13 @@
 (defn- coastal-land-or-city? [comp-map cell-type pos]
   (and (land-or-city? cell-type) (coastal? comp-map pos)))
 
-(defn- scan-cell-unit [acc world-cell comp-map i j]
-  (let [unit (:contents world-cell)
+(defn- scan-cell-unit [acc comp-map i j]
+  (let [unit (:contents (get-in comp-map [i j]))
         ucid (:country-id unit)]
     (if-not (computer-unit-with-country? unit)
       acc
       (let [cell-type (or (:type (get-in comp-map [i j]))
-                          (:type world-cell))
+                          :unexplored)
             is-coastal (coastal-land-or-city? comp-map cell-type [i j])]
         (case (:type unit)
           :army (accumulate-army acc ucid cell-type is-coastal)
@@ -80,11 +80,10 @@
           :patrol-boat (update-country acc ucid :patrol-boat-count inc)
           acc)))))
 
-(defn- scan-cell [acc game-map comp-map i j]
-  (let [world-cell (get-in game-map [i j])]
-    (-> acc
-        (scan-cell-terrain comp-map i j)
-        (scan-cell-unit world-cell comp-map i j))))
+(defn- scan-cell [acc comp-map i j]
+  (-> acc
+      (scan-cell-terrain comp-map i j)
+      (scan-cell-unit comp-map i j)))
 
 (defn- derive-stats [raw]
   (reduce-kv
@@ -110,19 +109,18 @@
     {} raw))
 
 (defn rebuild-country-stats! []
-  (let [game-map (sa/current-world)
-        comp-map (sa/read-state :computer-map)
-        rows (count (first game-map))
-        cols (count game-map)
+  (let [comp-map (sa/read-state :computer-map)
+        rows (count (first comp-map))
+        cols (count comp-map)
         raw (reduce (fn [acc i]
                       (reduce (fn [acc j]
-                                (scan-cell acc game-map comp-map i j))
+                                (scan-cell acc comp-map i j))
                               acc (range rows)))
                     {} (range cols))]
     (sa/write-state! :country-stats (derive-stats raw))))
 
 (defn count-computer-units []
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         units (for [i (range (count game-map))
                     j (range (count (first game-map)))
                     :let [unit (:contents (get-in game-map [i j]))]
@@ -131,7 +129,7 @@
     (frequencies units)))
 
 (defn count-computer-cities []
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (count (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [cell (get-in game-map [i j])]
@@ -153,7 +151,7 @@
                    [country-id :has-waiting-armies?])))
 
 (defn count-all-computer-fighters []
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (count (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [unit (:contents (get-in game-map [i j]))]

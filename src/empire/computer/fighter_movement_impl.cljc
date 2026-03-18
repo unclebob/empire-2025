@@ -16,7 +16,7 @@
 
 (defn get-passable-neighbors
   [pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         height (count game-map)
         width (count (first game-map))]
     (filter (fn [[r c]]
@@ -26,7 +26,7 @@
 
 (defn occupied?
   [pos]
-  (some? (get-in (sa/current-world) (conj pos :contents))))
+  (some? (get-in (sa/read-state :computer-map) (conj pos :contents))))
 
 (defn diagonal-move?
   [[r1 c1] [r2 c2]]
@@ -34,7 +34,7 @@
 
 (defn friendly-occupied?
   [pos]
-  (let [contents (get-in (sa/current-world) (conj pos :contents))]
+  (let [contents (get-in (sa/read-state :computer-map) (conj pos :contents))]
     (and (some? contents) (= :computer (:owner contents)))))
 
 (defn attackable-enemy-cell?
@@ -79,7 +79,7 @@
 
 (defn in-bounds?
   [[r c]]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         height (count game-map)
         width (count (first game-map))]
     (and (>= r 0) (< r height)
@@ -92,7 +92,7 @@
     (loop [sr br sc bc hops 1]
       (let [next-pos [(+ sr dr) (+ sc dc)]]
         (when (in-bounds?-fn next-pos)
-          (let [cell (get-in (sa/current-world) next-pos)]
+          (let [cell (get-in (sa/read-state :computer-map) next-pos)]
             (if-not (occupied?-fn next-pos)
               {:dest next-pos :hops (inc hops)}
               (if (friendly-occupied?-fn next-pos)

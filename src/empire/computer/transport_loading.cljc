@@ -72,14 +72,14 @@
   "Loads computer armies from adjacent land cells. Returns number loaded.
    Skips armies from recently unloaded countries."
   [pos]
-  (let [game-map (sa/current-world)
-        transport (get-in game-map (conj pos :contents))
+  (let [computer-map (sa/read-state :computer-map)
+        transport (get-in computer-map (conj pos :contents))
         army-count (:army-count transport 0)
         capacity (- 6 army-count)
         unloaded-countries (:unloaded-countries transport)
         neighbors (core/get-neighbors pos)
         armies (filter (fn [n]
-                         (let [cell (get-in game-map n)
+                         (let [cell (get-in computer-map n)
                                unit (:contents cell)
                                invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
                            (and unit
@@ -109,7 +109,7 @@
    Avoids recent positions from crawl-history."
   [pos]
   (let [computer-map (sa/read-state :computer-map)
-        unit (get-in (sa/current-world) (conj pos :contents))
+        unit (get-in computer-map (conj pos :contents))
         history (set (:crawl-history unit []))
         passable (tc/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
@@ -137,7 +137,7 @@
 
 (defn clear-pickup-continent-if-arrived
   [pos]
-  (let [transport (get-in (sa/current-world) (conj pos :contents))
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         pcp (:pickup-continent-pos transport)]
     (when (and pcp
                (tc/adjacent-to-land? pos)

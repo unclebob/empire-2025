@@ -104,6 +104,7 @@
       (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1}}
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :army-count 0}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= 1 (loading/load-adjacent-armies [0 1]))
       (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
 
@@ -115,9 +116,21 @@
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :army-count 0
                                                 :unloaded-countries {130 15}}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should= 1 (loading/load-adjacent-armies [0 1]))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
-      (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))))
+      (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
+
+    (it "does not load adjacent armies hidden from the computer map"
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1}}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :army-count 0}}]])
+      (set-test-computer-map! [[nil
+                                {:type :sea :contents {:type :transport :owner :computer
+                                                       :army-count 0}}]])
+      (should= 0 (loading/load-adjacent-armies [0 1]))
+      (should-not-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))))
 
   (context "loading-stale? (L135)"
     (it "returns true when loading exceeds max rounds (L138)"
