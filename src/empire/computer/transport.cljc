@@ -163,7 +163,9 @@
       (sa/update-world! assoc-in (conj pos :contents :loading-since)
                         (or (sa/read-state :round-number) 0))
       (visibility/sync-ai-unit-to-computer-map! pos)
-      (loading-crawl-move pos))))
+      (or (loading-crawl-move pos)
+          (when-not new-pcp
+            (start-sailing pos (get-in (sa/read-state :computer-map) (conj pos :contents))))))))
 (defn- process-loading-mission
   [pos]
   (mission-handlers/process-loading-mission (mission-handler-deps) pos))
