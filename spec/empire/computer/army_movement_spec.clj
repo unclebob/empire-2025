@@ -13,9 +13,11 @@
 
   (it "merges adjacent foreign country ids"
     (let [merged (atom [])]
-      (with-redefs [sa/current-world (fn [] [[{:type :land :country-id 1}]
-                                                   [{:type :land :country-id 2}]])
-                    sa/read-state (fn [_] {})
+      (with-redefs [sa/read-state (fn [k]
+                                    (case k
+                                      :computer-map [[{:type :land :country-id 1}]
+                                                     [{:type :land :country-id 2}]]
+                                      {}))
                     sa/write-state! (fn [& _])
                     movement/adjacent-to-sea? (fn [_] false)
                     core/get-neighbors (fn [_] [[1 0]])
@@ -25,13 +27,13 @@
 
   (it "registers local coastal cells into country registry"
     (let [written (atom nil)]
-      (with-redefs [sa/current-world (fn [] [[{:type :land :country-id 1}]
-                                                   [{:type :land :country-id 1}]
-                                                   [{:type :sea}]])
-                    sa/read-state (fn [k]
-                                                  (case k
-                                                    :coastal-cells-by-country {1 #{[9 9]}}
-                                                    nil))
+      (with-redefs [sa/read-state (fn [k]
+                                    (case k
+                                      :computer-map [[{:type :land :country-id 1}]
+                                                     [{:type :land :country-id 1}]
+                                                     [{:type :sea}]]
+                                      :coastal-cells-by-country {1 #{[9 9]}}
+                                      nil))
                     sa/write-state! (fn [k v] (reset! written [k v]))
                     movement/adjacent-to-sea? (fn [p] (contains? #{[0 0] [1 0]} p))
                     movement/merge-continents! (fn [& _])
@@ -43,8 +45,10 @@
 
   (it "does not write registry when no coastal land cells are found"
     (let [writes (atom 0)]
-      (with-redefs [sa/current-world (fn [] [[{:type :land :country-id 1}]])
-                    sa/read-state (fn [_] {})
+      (with-redefs [sa/read-state (fn [k]
+                                    (case k
+                                      :computer-map [[{:type :land :country-id 1}]]
+                                      {}))
                     sa/write-state! (fn [& _] (swap! writes inc))
                     movement/adjacent-to-sea? (fn [_] false)
                     movement/merge-continents! (fn [& _])

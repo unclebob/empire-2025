@@ -23,7 +23,7 @@
   "One-time full-map scan to populate coastal cell registry for country-id.
    Called only when the registry is empty for that country."
   [country-id]
-  (let [gm (sa/current-world)
+  (let [gm (sa/read-state :computer-map)
         coastal (for [i (range (count gm))
                       j (range (count (first gm)))
                       :let [cell (get-in gm [i j])]
@@ -69,7 +69,7 @@
 (defn register-coastal-cells
   [pos country-id]
   (when country-id
-    (let [game-map (sa/current-world)
+    (let [game-map (sa/read-state :computer-map)
           all-pos (cons pos (core/get-neighbors pos))]
       (merge-neighbor-continents! all-pos country-id game-map)
       (let [coastal (local-coastal-cells all-pos country-id game-map)]
@@ -88,14 +88,14 @@
 
 (defn get-passable-neighbors
   [pos country-id]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (filter (fn [neighbor]
               (sovereign-passable? country-id (get-in game-map neighbor)))
             (core/get-neighbors pos))))
 
 (defn get-empty-passable-neighbors
   [pos country-id]
-  (let [game-map (sa/current-world)]
+  (let [game-map (sa/read-state :computer-map)]
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (nil? (:contents cell))))
@@ -124,7 +124,7 @@
     (computer-movement/update-cell-visibility! pos :computer)
     (computer-movement/update-cell-visibility! target :computer)
     (register-coastal-cells target
-                            (:country-id (get-in (sa/current-world) (conj target :contents))))
+                            (:country-id (get-in (sa/read-state :computer-map) (conj target :contents))))
     target))
 
 (defn- sovereignty-passability-fn
@@ -134,7 +134,7 @@
 
 (defn move-toward-objective
   [pos objective country-id]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         history (set (:move-history unit))
         pass-fn (when country-id (sovereignty-passability-fn country-id))
         preferred (computer-movement/next-step pos objective :army pass-fn country-id)]
@@ -149,7 +149,7 @@
 (defn in-bounds?
   [pos]
   (let [[c r] pos
-        game-map (sa/current-world)]
+        game-map (sa/read-state :computer-map)]
     (and (>= c 0) (>= r 0)
          (< c (count game-map))
          (< r (count (first game-map))))))

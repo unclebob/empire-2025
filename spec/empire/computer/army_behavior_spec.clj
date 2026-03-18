@@ -213,11 +213,11 @@
     (it "prefers unexplored territory"
       ;; 2x5 map: land on top, sea on bottom. Army at [2 0].
       ;; Computer-map has [0 0] and [1 0] unexplored (nil).
-      ;; Candidate [1 0] has unexplored neighbor [0 0], candidate [3 0] does not.
+      ;; Candidate [1 0] is visible land with unexplored neighbor [0 0], candidate [3 0] does not.
       (set-test-world! (build-test-map ["#####"
                                                "~~~~~"]))
       (set-test-computer-map! [[nil {:type :sea}]
-                                   [nil {:type :sea}]
+                                   [{:type :land} {:type :sea}]
                                    [{:type :land} {:type :sea}]
                                    [{:type :land} {:type :sea}]
                                    [{:type :land} {:type :sea}]])
@@ -227,8 +227,10 @@
               :coast-start [4 0] :coast-visited [[2 0]]})
       (test-utils/update-test-state! :computer-map assoc-in [2 0 :contents]
                                      {:type :army :owner :computer :hits 1
-                                      :mode :coast-walk :coast-direction :clockwise
+                                      :mode :coast-walk :country-id 1
+                                      :coast-direction :clockwise
                                       :coast-start [4 0] :coast-visited [[2 0]]})
+      (test-utils/update-test-state! :computer-map assoc-in [2 0 :country-id] 1)
       (army/process-army [2 0])
       ;; Should move toward [1 0] which has unexplored neighbor [0 0]
       (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type])))
@@ -368,18 +370,20 @@
 
     (it "army explores randomly as last resort"
       ;; Use nil country-id so fill-coastal-cell returns nil. No transports.
-      ;; 3x3 all-land game-map. computer-map all nil except army cell.
-      ;; Army at [1 1]. explore-randomly finds unexplored neighbors.
+      ;; 3x3 all-land game-map. computer-map knows adjacent land cells but still has
+      ;; unexplored fringe beyond them, so explore-randomly has legal visible moves.
       (set-test-world! [[{:type :land} {:type :land} {:type :land}]
                         [{:type :land}
                          {:type :land :contents {:type :army :owner :computer
                                                  :hits 1 :mode :awake}}
                          {:type :land}]
                         [{:type :land} {:type :land} {:type :land}]])
-      (set-test-computer-map! [[nil nil nil]
-                               [nil {:type :land :contents {:type :army :owner :computer
-                                                            :hits 1 :mode :awake}} nil]
-                               [nil nil nil]])
+      (set-test-computer-map! [[nil {:type :land} nil]
+                               [{:type :land}
+                                {:type :land :contents {:type :army :owner :computer
+                                                        :hits 1 :mode :awake}}
+                                {:type :land}]
+                               [nil {:type :land} nil]])
       (with-redefs [rand (constantly 0.9)
                     rand-nth (fn [coll] (first coll))]
         (@#'army/find-and-execute-land-action [1 1] nil)

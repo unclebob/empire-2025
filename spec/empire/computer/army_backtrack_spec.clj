@@ -150,6 +150,7 @@
         (update-test-world! assoc-in [col 2 :contents]
                {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1}))
       (update-test-world! assoc-in [2 1 :contents :country-id] 1)
+      (sync-computer-map!)
       (with-redefs [rand (constantly 0.5)]
         (army/process-army [2 1]))
       ;; Army should have moved toward coast or gone sentry (queued)

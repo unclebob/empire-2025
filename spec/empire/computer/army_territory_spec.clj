@@ -165,6 +165,7 @@
       (update-test-world! assoc-in [1 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake
               :attack-target [3 0] :move-history [[2 0]]})
+      (test-utils/set-test-state! :computer-map (test-utils/read-test-state :game-map))
       (army/process-army [1 0])
       ;; Army should have moved to [0 0] (history blocks [2 0])
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
