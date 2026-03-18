@@ -1,7 +1,6 @@
 (ns empire.state.api
   "Direct atom-backed state access. Public boundary for all game state."
-  (:require [clojure.string :as str]
-            [empire.state.world :as world]
+  (:require [empire.state.world :as world]
             [empire.state.computer :as computer]
             [empire.state.player :as player]
             [empire.state.ui :as ui]
@@ -21,79 +20,17 @@
    ::player player/state
    ::ui ui/state})
 
-(def ^:private ai-game-map-access-log-path
-  "target/ai-game-map-access-violations.log")
-
-(defonce ^:private seen-ai-game-map-violations (atom #{}))
-
 (defn- group-atom [k]
   (or (some-> k key->group group->atom)
       (throw (ex-info (str "Unknown state key: " k) {:key k}))))
 
-(defn- current-stacktrace []
-  (.getStackTrace (Throwable.)))
-
-(defn- normalize-class-name
-  [class-name]
-  (when class-name
-    (first (str/split class-name #"\$"))))
-
-(defn- app-frame-class-name
-  [frames]
-  (->> frames
-       (map #(.getClassName ^StackTraceElement %))
-       (map normalize-class-name)
-       (filter #(and %
-                     (str/starts-with? % "empire.")
-                     (not= % "empire.state.api")))
-       first))
-
-(defn- ai-game-map-violation
-  [access-kind frames]
-  (when-let [frame (app-frame-class-name frames)]
-    (when (str/starts-with? frame "empire.computer.")
-      {:access-kind access-kind
-       :frame frame})))
-
-(defn- append-ai-game-map-violation-log!
-  [{:keys [access-kind frame]} frames]
-  (.mkdirs (java.io.File. "target"))
-  (let [header (format "AI game-map access violation: %s via %s%n"
-                       (name access-kind)
-                       frame)
-        stack-lines (->> frames
-                         (map (fn [^StackTraceElement element]
-                                (str "  at " element)))
-                         (str/join "\n"))
-        report (str header stack-lines "\n\n")]
-    (binding [*out* *err*]
-      (print header))
-    (spit ai-game-map-access-log-path report :append true)))
-
-(defn- maybe-log-ai-game-map-violation!
-  [access-kind]
-  (when (:integrity-check-enabled @world/state)
-    (let [frames (current-stacktrace)]
-      (when-let [{:keys [frame] :as violation} (ai-game-map-violation access-kind frames)]
-        (let [signature [access-kind frame]]
-          (when-not (contains? @seen-ai-game-map-violations signature)
-            (swap! seen-ai-game-map-violations conj signature)
-            (append-ai-game-map-violation-log! violation frames)))))))
-
-(defn- clear-ai-game-map-access-violations!
-  []
-  (reset! seen-ai-game-map-violations #{}))
-
 (defn current-world []
-  (maybe-log-ai-game-map-violation! :current-world)
   (:game-map @world/state))
 
 (defn update-world! [f & args]
   (apply swap! world/state update :game-map f args))
 
 (defn read-state [k]
-  (when (= k :game-map)
-    (maybe-log-ai-game-map-violation! :read-state-game-map))
   (get @(group-atom k) k))
 
 (defn write-state! [k v] (swap! (group-atom k) assoc k v))
