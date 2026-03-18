@@ -18,7 +18,7 @@
 (defn process-computer-unit
   "Processes a single computer unit's turn."
   [pos]
-  (let [unit (:contents (get-in (sa/current-world) pos))]
+  (let [unit (:contents (get-in (sa/read-state :computer-map) pos))]
     (when (decisions/dispatch-plan unit)
       (dispatch-unit pos unit))))
 

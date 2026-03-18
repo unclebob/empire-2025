@@ -203,6 +203,21 @@
                (= :computer (:owner unit)))
       (update-visible-map! :computer-map assoc-in pos cell))))
 
+(defn refresh-visible-map!
+  [owner]
+  (let [game-map (current-world)
+        visible-map-key (visible-map-key-for owner)
+        current-map (read-runtime-state visible-map-key)
+        visible-map (if (and (vector? current-map)
+                             (= (count current-map) (count game-map))
+                             (= (count (first current-map))
+                                (count (first game-map))))
+                      current-map
+                      (vec (repeat (count game-map)
+                                   (vec (repeat (count (first game-map)) nil)))))]
+    (when-let [updated (update-combatant-map-state visible-map owner game-map)]
+      (write-runtime-state! visible-map-key updated))))
+
 (defn update-cell-visibility
   "Updates visibility around a specific cell for the given owner.
    Satellites reveal two rectangular rings (distances 1 and 2).
