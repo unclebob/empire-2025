@@ -125,39 +125,43 @@
 (describe "bfs-to-coast-target"
   (before (reset-all-atoms!))
 
-  (it "prefers unowned coast over nearer unexplored"
+  (it "targets unclaimed land for loaded transports"
     (let [computer-map [[{:type :sea}] [{:type :sea}]
                          [{:type :sea}] [{:type :sea}]
-                         [{:type :city :city-status :free}]]]
+                         [{:type :land}]]]
       (let [path (pathfinding-bfs/bfs-to-coast-target
-                   [0 0] computer-map)]
+                   [0 0] computer-map 3)]
         (should= [3 0] (last path)))))
 
-  (it "falls back to unexplored when no unowned within lookahead"
-    ;; Only unexplored territory (nil), no unowned land at all
-    (let [computer-map [[{:type :sea}] [{:type :sea}] [nil]]]
+  (it "ignores cities as coast targets for loaded transports"
+    (let [computer-map [[{:type :sea}] [{:type :sea}]
+                         [{:type :sea}] [{:type :city :city-status :free}]]]
+      (should-be-nil (pathfinding-bfs/bfs-to-coast-target
+                      [0 0] computer-map 4))))
+
+  (it "targets claimed land outside radius 4 for empty transports"
+    (let [computer-map (vec (for [r (range 7)]
+                              [(cond
+                                 (= r 6) {:type :land :country-id 9}
+                                 :else {:type :sea})]))]
       (let [path (pathfinding-bfs/bfs-to-coast-target
-                   [0 0] computer-map)]
-        (should= [[1 0]] path))))
+                   [0 0] computer-map 0)]
+        (should= [5 0] (last path)))))
 
   (it "returns nil when no targets exist"
     (let [computer-map [[{:type :sea}] [{:type :sea}] [{:type :sea}]]]
       (should-be-nil (pathfinding-bfs/bfs-to-coast-target
-                       [0 0] computer-map))))
+                       [0 0] computer-map 2))))
 
   (it "returns nil when start is not sea"
     (let [computer-map [[{:type :land}] [{:type :sea}] [nil]]]
       (should-be-nil (pathfinding-bfs/bfs-to-coast-target
-                       [0 0] computer-map))))
+                       [0 0] computer-map 2))))
 
-  (it "does not look past lookahead limit"
-    ;; Unexplored at depth 1 (nil at row 2), unowned at depth 6 (beyond 1+4=5)
-    ;; Should pick unexplored since unowned is too far past first hit
-    (let [computer-map (vec (for [r (range 8)]
-                              [(cond (= r 2) nil
-                                     (= r 7) {:type :city :city-status :free}
-                                     :else {:type :sea})]))]
-      (let [path (pathfinding-bfs/bfs-to-coast-target
-                   [0 0] computer-map)]
-        ;; Unexplored at row 2, so path ends at [1,0]
-        (should= [1 0] (last path))))))
+  (it "does not target claimed land within radius 4 for empty transports"
+    (let [computer-map (vec (for [r (range 5)]
+                              [(cond
+                                 (= r 4) {:type :land :country-id 9}
+                                 :else {:type :sea})]))]
+      (should-be-nil (pathfinding-bfs/bfs-to-coast-target
+                      [0 0] computer-map 0)))))

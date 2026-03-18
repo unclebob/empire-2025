@@ -75,8 +75,16 @@
       (sail-retreat pos sail-path))))
 
 (defn- compute-and-follow-sail-path!
+  [pos army-count]
+  (when-let [new-path (seq (support/compute-sail-path pos army-count))]
+    (let [sail-path (vec new-path)]
+      (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      (sail-follow-path pos sail-path))))
+
+(defn- compute-and-follow-random-sail-path!
   [pos]
-  (when-let [new-path (seq (support/compute-sail-path pos))]
+  (when-let [new-path (seq (support/random-sail-path pos))]
     (let [sail-path (vec new-path)]
       (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
       (visibility/sync-ai-unit-to-computer-map! pos)
@@ -86,13 +94,10 @@
   [pos transport]
   (if (unloading/has-nearby-unloadable-land? pos transport 5)
     (support/set-unloading-and-try! pos)
-    (or (compute-and-follow-sail-path! pos)
-        ;; No path and no adjacent coast at all: switch to unloading crawl mode.
-        (when-not (some (fn [n]
-                          (let [cell (get-in (sa/read-state :computer-map) n)]
-                            (and cell (#{:land :city} (:type cell)))))
-                        (core/get-neighbors pos))
-          (support/set-unloading-and-try! pos)))))
+    (or (compute-and-follow-sail-path! pos (:army-count transport 0))
+        (compute-and-follow-random-sail-path! pos)
+        (throw (ex-info "Loaded transport has no unclaimed target or safe random sail path"
+                        {:pos pos :transport transport})))))
 
 (defn- handle-loaded-transport-without-path!
   [pos transport]
@@ -113,23 +118,24 @@
                                                      :adjacent-land? adjacent-land?}))
       :launch-or-sail (handle-loaded-transport-without-path! pos transport)
       :unload-or-sail (maybe-unload-or-sail! pos transport)
-      (support/set-unloading-and-try! pos))))
+      (or (compute-and-follow-random-sail-path! pos)
+          (throw (ex-info "Loaded transport has no unclaimed target or safe random sail path"
+                          {:pos pos :transport transport})))))) 
 
 (defn- follow-path-action
   [pos sail-path]
   (sail-follow-path pos sail-path))
 
-(defn- empty-never-reload-action
+(defn- empty-no-path-action
   [pos]
-  (when-let [new-path (seq (support/compute-sail-path pos))]
-    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec new-path))
-    (visibility/sync-ai-unit-to-computer-map! pos)
-    (sail-follow-path pos (vec new-path))))
+  (or (compute-and-follow-sail-path! pos 0)
+      (throw (ex-info "Empty sailing transport had no claimed-land target"
+                      {:pos pos}))))
 
 (defn- mission-handler
   [state pos transport sail-path]
-  ({:empty-reload (fn [] (tc/set-transport-mission pos :loading))
-    :empty-never-reload (fn [] (empty-never-reload-action pos))
+  ({:empty-reload (fn [] (empty-no-path-action pos))
+    :empty-never-reload (fn [] (empty-no-path-action pos))
     :loaded-no-path (fn [] (loaded-no-path-action pos transport))
     :follow-path (fn [] (follow-path-action pos sail-path))}
    state))

@@ -97,64 +97,33 @@
       (should= :player (get-in (test-utils/read-test-state :game-map) [1 0 :contents :owner]))))
 
   (context "find-city-objective filters (L142, L143, L149)"
-    (it "player-cities filter finds player city (L142)"
-      ;; Army at [0 0] no country-id. Player city right, free city left (opposite directions).
-      ;; "O#a#+" → col0=player-city, col1=land, col2=army, col3=land, col4=free-city
-      ;; Player city at [0 0], free at [4 0]. Army at [2 0].
-      ;; find-city-objective: player-cities = [[0 0]], free-cities = [[4 0]].
-      ;; Targets player city first → army moves LEFT toward [0 0].
-      ;; With L142 mutation (= → not=): player-cities filter broken → empty.
-      ;; Falls to free-cities → army moves RIGHT toward [4 0].
+    (it "player and free cities do not become fallback objectives without explicit assignment"
       (set-test-world! (build-test-map ["O#a#+"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
-      (army/process-army [2 0])
-      ;; Army should have moved toward player city (left, to [1 0])
-      (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type])))
+      (with-redefs [rand-nth last]
+        (army/process-army [2 0]))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [3 0 :contents :type])))
 
-    (it "free-cities filter finds free city (L143)"
-      ;; Army at [0 0] no country-id. Only a free city, no player cities.
-      ;; Need to distinguish find-city-objective success from explore-randomly.
-      ;; Put army at center, free city at one end, obstacle at other end.
-      ;; "~a#+" → col0=sea, col1=army, col2=land, col3=free-city
-      ;; Army at [1 0]. Only land neighbor toward city: [2 0].
-      ;; With L143 mutation: free-cities broken → no target → explore-randomly.
-      ;; explore-randomly with rand-nth controlled → might go to [2 0] anyway.
-      ;; Block by mocking rand-nth to pick first candidate.
-      ;; explore-randomly: empty neighbors = [[2 0]], frontier check, then target.
-      ;; Both paths move to [2 0]. Can't distinguish. Need different topology.
-      ;;
-      ;; Better: army at [2 0], free city at [0 0], multiple paths.
-      ;; "+#a#" → col0=free, col1=land, col2=army, col3=land
-      ;; find-city-objective → target [0 0] → step to [1 0].
-      ;; With mutation: no target → explore-randomly → might pick [1 0] or [3 0].
-      ;; Mock rand-nth to pick last → would pick [3 0] with explore.
+    (it "free cities do not become fallback objectives without explicit assignment"
       (set-test-world! (build-test-map ["+#a#"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [2 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
       (with-redefs [rand-nth last]
         (army/process-army [2 0]))
-      ;; With correct code: army targets [0 0], steps to [1 0].
-      ;; With mutation: no target, explore-randomly with rand-nth=last picks [3 0].
-      (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type])))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [3 0 :contents :type])))
 
-    (it "returns target and updates claimed when target exists (L149)"
-      ;; Army at center, free city far left. All cities pre-claimed → fallback min-key.
-      ;; "+##a##" → col0=free, col1-2=land, col3=army, col4-5=land
-      ;; Army at [3 0], city at [0 0] (distance 3). Not adjacent → no attack.
+    (it "claimed objectives do not create a fallback city objective"
       (set-test-world! (build-test-map ["+##a##"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [3 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :awake})
       (test-utils/set-test-state! :claimed-objectives #{[0 0]})
-      ;; rand-nth last so explore-randomly picks rightmost neighbor [4 0]
       (with-redefs [rand-nth last]
         (army/process-army [3 0]))
-      ;; Correct: target [0 0], army steps left to [2 0].
-      ;; With mutation: no target, explore picks [4 0] (rightmost via rand-nth=last).
-      (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [4 0 :contents :type]))))
 
   (context "move-toward-objective preferred-in-history fallback (L175)"
     (it "falls through to sorted empty neighbors when preferred is in history"

@@ -26,8 +26,8 @@
   (pathfinding-bfs/bfs-to-land-ho-target from target computer-map))
 
 (defn bfs-to-coast-target
-  [from computer-map]
-  (pathfinding-bfs/bfs-to-coast-target from computer-map))
+  [from computer-map army-count]
+  (pathfinding-bfs/bfs-to-coast-target from computer-map army-count))
 
 (defn next-step
   ([from target unit-type]

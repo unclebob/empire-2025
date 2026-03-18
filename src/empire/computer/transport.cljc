@@ -43,7 +43,7 @@
     (sa/write-state! :transport-fully-loaded? true))
   (tc/mint-unload-country-id pos)
   (tc/record-pickup-continent-pos pos transport)
-  (when-let [path (sailing/compute-sail-path pos)]
+  (when-let [path (sailing/compute-sail-path pos (:army-count transport 0))]
     (sa/update-world! assoc-in
                       (conj pos :contents :sail-path) path)
     (visibility/sync-ai-unit-to-computer-map! pos)))

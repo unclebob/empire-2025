@@ -47,6 +47,35 @@
                                    (nil? (:country-id cell)))))))))
           map-utils/neighbor-offsets)))
 
+(defn- unclaimed-land?
+  [cell]
+  (and (= :land (:type cell))
+       (nil? (:country-id cell))))
+
+(defn- claimed-land?
+  [cell]
+  (and (= :land (:type cell))
+       (some? (:country-id cell))))
+
+(defn- adjacent-to-land-kind?
+  [pos computer-map pred]
+  (let [[x y] pos
+        height (count computer-map)
+        width (count (first computer-map))]
+    (some (fn [[dx dy]]
+            (let [nx (+ x dx)
+                  ny (+ y dy)]
+              (and (>= nx 0) (< nx height)
+                   (>= ny 0) (< ny width)
+                   (pred (get-in computer-map [nx ny])))))
+          map-utils/neighbor-offsets)))
+
+(defn- outside-radius?
+  [start pos radius]
+  (> (max (Math/abs (long (- (first pos) (first start))))
+          (Math/abs (long (- (second pos) (second start)))))
+     radius))
+
 (defn bfs-to-unowned-coast
   "BFS from start over explored sea cells on computer-map to find nearest
    cell adjacent to non-computer land/city on computer-map."
@@ -86,17 +115,19 @@
               (+ first-hit-depth coast-lookahead)))))
 
 (defn- classify-coastal
-  [current start computer-map]
+  [current start computer-map army-count]
   (if (= current start)
-    [false false]
-    [(adjacent-to-unowned? current computer-map)
-     (exploration/adjacent-to-unexplored? current computer-map)]))
+    false
+    (if (pos? army-count)
+      (adjacent-to-land-kind? current computer-map unclaimed-land?)
+      (and (outside-radius? start current coast-lookahead)
+           (adjacent-to-land-kind? current computer-map claimed-land?)))))
 
 (defn bfs-to-coast-target
-  "Combined BFS over explored sea cells seeking cells adjacent to
-   unowned land/city or unexplored territory, both on computer-map.
-   Continues coast-lookahead levels past first hit to prefer unowned coast."
-  [start computer-map]
+  "BFS over explored sea cells seeking transport coast targets on computer-map.
+   Loaded transports seek unclaimed land. Empty transports seek claimed land
+   outside the radius-4 safety zone around start."
+  [start computer-map army-count]
   (let [passable-sea? (fn [pos]
                         (let [cell (get-in computer-map pos)]
                           (and cell (= :sea (:type cell)))))]
@@ -104,22 +135,18 @@
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
              visited #{start}
              came-from {}
-             first-hit-depth nil
-             best-unowned nil
-             best-unexplored nil]
-        (if (bfs-past-lookahead? queue first-hit-depth)
-          (core/build-coast-path best-unowned best-unexplored came-from start)
+             best-target nil]
+        (if (or (empty? queue) best-target)
+          (when best-target
+            (vec (rest (map-utils/reconstruct-path came-from start best-target))))
           (let [[current depth] (peek queue)
-                [unowned? unexplored?] (classify-coastal current start computer-map)
-                hit? (or unowned? unexplored?)
+                target? (classify-coastal current start computer-map army-count)
                 neighbors (core/bfs-sea-neighbors current visited passable-sea?)
                 new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
             (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
                    (into visited neighbors)
                    new-came-from
-                   (core/update-first-match hit? first-hit-depth depth)
-                   (core/update-first-match unowned? best-unowned current)
-                   (core/update-first-match unexplored? best-unexplored current))))))))
+                   (core/update-first-match target? best-target current))))))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-12T12:01:34.617378-05:00", :module-hash "267691541", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1139483106"} {:id "defn/sea-reaches-edge?", :kind "defn", :line 8, :end-line 29, :hash "-359414710"} {:id "defn-/adjacent-to-unowned?", :kind "defn-", :line 31, :end-line 48, :hash "646172457"} {:id "defn/bfs-to-unowned-coast", :kind "defn", :line 50, :end-line 77, :hash "1116181976"} {:id "def/coast-lookahead", :kind "def", :line 79, :end-line 79, :hash "-1896136666"} {:id "defn-/bfs-past-lookahead?", :kind "defn-", :line 81, :end-line 86, :hash "-1287656638"} {:id "defn-/classify-coastal", :kind "defn-", :line 88, :end-line 93, :hash "-1071986533"} {:id "defn/bfs-to-coast-target", :kind "defn", :line 95, :end-line 122, :hash "2129782618"}]}

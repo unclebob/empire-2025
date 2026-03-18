@@ -83,7 +83,7 @@
                     q/stroke (fn [& args] (swap! calls conj [:stroke args]))
                     q/stroke-weight (fn [& args] (swap! calls conj [:stroke-weight args]))
                     q/ellipse (fn [& args] (swap! calls conj [:ellipse args]))]
-        (#'map-render/draw-attention-ring [[2 3]] 10 12)
+        (#'map-render/draw-attention-ring [[2 3]] 10 12 :player-map)
         (should-contain :no-fill @calls)
         (should-contain [:stroke [255 255 255]] @calls)
         (should-contain [:stroke-weight [2]] @calls)
@@ -94,7 +94,14 @@
     (let [calls (atom [])]
       (with-redefs [q/frame-count (fn [] 61)
                     q/ellipse (fn [& args] (swap! calls conj args))]
-        (#'map-render/draw-attention-ring [[2 3]] 10 12)
+        (#'map-render/draw-attention-ring [[2 3]] 10 12 :player-map)
+        (should= [] @calls))))
+
+  (it "does not draw when the computer map is displayed"
+    (let [calls (atom [])]
+      (with-redefs [q/frame-count (fn [] 60)
+                    q/ellipse (fn [& args] (swap! calls conj args))]
+        (#'map-render/draw-attention-ring [[2 3]] 10 12 :computer-map)
         (should= [] @calls)))))
 
 (describe "draw-debug-selection-rectangle"

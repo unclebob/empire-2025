@@ -11,8 +11,10 @@
             [empire.player.production :as player-prod]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
   (context "sail-path sailing"
-    (it "empty sailing transport with empty sail-path transitions to loading"
-      (set-test-world! (build-test-map ["~~t#"]))
+    (it "empty sailing transport with empty sail-path heads toward claimed land"
+      (set-test-world! (build-test-map ["~~t~~~~~#"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (update-test-world! assoc-in [8 0 :country-id] 7)
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [2 0 :contents]
              {:type :transport :owner :computer
@@ -20,11 +22,12 @@
               :sail-path []})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [2 0])
-      (let [t (first (for [c (range 4) r (range 1)
+      (let [t (first (for [c (range 9) r (range 1)
                            :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                            :when (= :transport (:type unit))]
                        unit))]
-        (should= :loading (:transport-mission t))))
+        (should= :sailing (:transport-mission t))
+        (should-not-be-nil (:sail-path t))))
 
     (it "follows sail-path two steps per turn (speed 2)"
       (set-test-world! (build-test-map ["t~~~~~~"]))
@@ -39,7 +42,7 @@
         (should= :transport (:type t))
         (should= [[3 0]] (:sail-path t))))
 
-    (it "sailing with armies and empty path does not flip to unloading when no unloadable land exists"
+    (it "sailing with armies and empty path takes a safe random route when no unclaimed target exists"
       (set-test-world! (build-test-map ["t~~"
                                         "###"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -53,9 +56,11 @@
                           :country-id 1
                           :sail-path []})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [sailing-support/compute-sail-path (constantly nil)]
+      (with-redefs [sailing-support/compute-sail-path (constantly nil)
+                    sailing-support/random-sail-path (constantly [[1 0] [2 0]])]
         (transport/process-transport [0 0]))
-      (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission])))
+      (should= :transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
+      (should= :sailing (get-in (test-utils/read-test-state :game-map) [2 0 :contents :transport-mission]))))
 
     (it "sailing transport in city launches to adjacent sea when path is empty"
       (set-test-world! (build-test-map ["~O~"
@@ -73,7 +78,7 @@
                           [c r]))]
         (should-not-be-nil tpos)
         (should-not= [1 0] tpos)
-        (should (contains? #{[0 0] [2 0] [1 1]} tpos)))))
+        (should (contains? #{[0 0] [2 0] [1 1]} tpos))))
 
     (it "continues in same direction when sail-path exhausted after 1 step"
       ;; t at [0 0], sail-path [[1 0]] — only 1 step.

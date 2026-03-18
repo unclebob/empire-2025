@@ -181,9 +181,9 @@
       (should= :loading (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
 
   (context "sail-path sailing transition"
-    (it "full transport enters sailing with sail-path toward fog"
-      ;; 5x5 all sea, transport at [2 1]. Rows 0-2 explored, rows 3-4 unexplored.
-      ;; Transport should enter sailing mode with a sail-path.
+    (it "full transport enters sailing even when no unclaimed land target is visible"
+      ;; 5x5 all sea, transport at [2 1]. No visible unclaimed land target exists.
+      ;; Transport should still enter sailing mode, but it will not have a target path yet.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"
@@ -205,7 +205,7 @@
         (transport/process-transport [2 1])
         (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 1]))]
           (should= :sailing (:transport-mission t))
-          (should-not-be-nil (:sail-path t))))))
+          (should-be-nil (:sail-path t))))))
 
   (context "mission transitions"
     (it "transport with no mission defaults to loading"

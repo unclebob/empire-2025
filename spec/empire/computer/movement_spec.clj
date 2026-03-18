@@ -35,8 +35,8 @@
                       (swap! calls conj [:land-ho from target computer-map])
                       :l)
                     empire.game-mechanics.movement.pathfinding-bfs/bfs-to-coast-target
-                    (fn [from computer-map]
-                      (swap! calls conj [:coast from computer-map])
+                    (fn [from computer-map army-count]
+                      (swap! calls conj [:coast from computer-map army-count])
                       :t)
                     empire.game-mechanics.movement.lakes/lake-cells
                     (fn [world lake-max-cells]
@@ -45,12 +45,12 @@
         (should= :u (movement/find-nearest-unexplored [1 1] :fighter))
         (should= :c (movement/bfs-to-unseen-coast [1 2] :map #{[9 9]}))
         (should= :l (movement/bfs-to-land-ho-target [0 0] [3 3] :map))
-        (should= :t (movement/bfs-to-coast-target [5 5] :map))
+        (should= :t (movement/bfs-to-coast-target [5 5] :map 3))
         (should= :lake-cells (movement/lake-cells :world 20))
         (should= [[:unexplored [1 1] :fighter]
                   [:unseen [1 2] :map #{[9 9]}]
                   [:land-ho [0 0] [3 3] :map]
-                  [:coast [5 5] :map]
+                  [:coast [5 5] :map 3]
                   [:lakes :world 20]]
                  @calls))))
 

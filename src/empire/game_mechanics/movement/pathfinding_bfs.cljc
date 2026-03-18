@@ -26,8 +26,8 @@
 (defn bfs-to-unowned-coast [start computer-map game-map]
   (coast-targeting/bfs-to-unowned-coast start computer-map game-map))
 
-(defn bfs-to-coast-target [start computer-map]
-  (coast-targeting/bfs-to-coast-target start computer-map))
+(defn bfs-to-coast-target [start computer-map army-count]
+  (coast-targeting/bfs-to-coast-target start computer-map army-count))
 
 (defn bfs-to-unseen-coast [start computer-map excluded]
   (exploration/bfs-to-unseen-coast start computer-map excluded))

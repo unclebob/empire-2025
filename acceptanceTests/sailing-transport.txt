@@ -1,8 +1,12 @@
-; Computer Transport Sailing — Pathfinding to Fog or Unowned Land
+; Computer Transport Sailing — Pathfinding to Unclaimed or Claimed Land
 ;
-; Replaces heading-based sailing. When a full transport (6 armies)
-; has no visible target city, it pathfinds over sea to the nearest
-; fog-of-war cell or unowned land on the computer map.
+; Loaded transports no longer target cities. They pathfind over sea
+; to the nearest unclaimed land on the computer map.
+;
+; Empty transports pathfind toward the nearest claimed land that is
+; outside radius 4, so they can return to a claimed coastline rather
+; than immediately switching to loading in open water.
+;
 ; It follows the stored sail-path step by step without
 ; re-pathfinding until arrival.
 ;
@@ -14,12 +18,12 @@
 ; Empty after unloading: transition to loading.
 
 ;===============================================================
-; Full transport with no target city pathfinds toward fog-of-war.
+; Full transport with armies pathfinds toward unclaimed land.
 ;===============================================================
 GIVEN game map
-  t~~~~~~~~
+  t~~~~#
 GIVEN computer map
-  t~~......
+  t~~~~#
 GIVEN t has transport-mission loading.
 GIVEN t has 6 armies.
 
@@ -58,19 +62,19 @@ WHEN computer transport t is processed.
 THEN t has 5 armies.
 
 ;===============================================================
-; Sailing transport with armies and exhausted path transitions to unloading.
+; Sailing transport with armies and exhausted path stays sailing.
 ;===============================================================
 GIVEN game map
-  ~~~~~t~~~~~~~
+  ~~~~~t~~~~~#
 GIVEN computer map
-  ....~t~......
+  ~~~~~t~~~~~#
 GIVEN t has transport-mission sailing.
 GIVEN t has 6 armies.
 GIVEN t has sail-path [].
 
 WHEN computer transport t is processed.
 
-THEN t has transport-mission unloading.
+THEN t has transport-mission sailing.
 
 ;===============================================================
 ; Sailing transport arrives at computer-owned land — picks new destination.
@@ -102,18 +106,3 @@ WHEN computer transport t is processed.
 
 THEN t is at [1 0].
 THEN t has sail-path [[2 0] [3 0] [4 0]].
-
-;===============================================================
-; Empty sailing transport transitions to loading.
-;===============================================================
-GIVEN game map
-  ~~t#
-GIVEN computer map
-  ~~t#
-GIVEN t has transport-mission sailing.
-GIVEN t has 0 armies.
-GIVEN t has sail-path [].
-
-WHEN computer transport t is processed.
-
-THEN t has transport-mission loading.

@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport :as transport]
+            [empire.computer.transport-core :as tc]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -313,8 +314,7 @@
                                                        :transport-mission :sailing
                                                        :army-count 0}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; Transition to loading via unloading with 0 armies
-      (transport/process-transport [0 0])
+      (tc/set-transport-mission [0 0] :loading)
       (let [t (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
         (should= :loading (:transport-mission t))
         (should= 5 (:loading-since t)))))
