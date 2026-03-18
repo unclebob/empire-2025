@@ -37,6 +37,10 @@
   [args]
   (boolean (some #{"--help" "-h"} args)))
 
+(defn headless-requested?
+  [args]
+  (boolean (some #(.startsWith ^String % "--headless=") args)))
+
 (defn usage-text
   []
   (str "Usage: clj -M:run [options] [cols rows]\n"
@@ -44,6 +48,8 @@
        "Options:\n"
        "  --help, -h        Print this help and exit.\n"
        "  --seed=N          Use N as the random seed.\n"
+       "  --headless=N      Run headlessly for up to N rounds with\n"
+       "                    handicap N. Exits early on game over.\n"
        "  --handicap=N      Let the computer play N rounds before the\n"
        "                    player gets the first turn. Default: 50.\n"
        "\n"
@@ -51,15 +57,19 @@
        "  cols rows         Optional map size. Default: 100 60.\n"))
 
 (defn parse-args
-  "Parses command-line args into a map of {:cols :rows :seed :handicap :window-w :window-h}.
-   Throws ex-info if map exceeds screen bounds."
+  "Parses command-line args into a map of {:cols :rows :seed :headless-rounds :handicap :window-w :window-h}.
+   Throws ex-info if map exceeds screen bounds when screen dimensions are provided."
   [args screen-w screen-h]
   (let [seed (some #(when (.startsWith ^String % "--seed=")
                       (Long/parseLong (subs % 7))) args)
-        handicap (or (some #(when (.startsWith ^String % "--handicap=")
+        headless-rounds (some #(when (.startsWith ^String % "--headless=")
+                                 (Long/parseLong (subs % 11))) args)
+        handicap (or headless-rounds
+                     (some #(when (.startsWith ^String % "--handicap=")
                               (Long/parseLong (subs % 11))) args)
                      50)
         non-options (remove #(or (.startsWith ^String % "--seed=")
+                                 (.startsWith ^String % "--headless=")
                                  (.startsWith ^String % "--handicap="))
                             args)
         [cols rows] (if (>= (count non-options) 2)
@@ -70,15 +80,18 @@
         text-area-h (* config/text-area-rows cell-h)
         window-w (* cols cell-w)
         window-h (+ (* rows cell-h) text-area-h config/text-area-gap)
-        max-cols (quot screen-w cell-w)
-        max-rows (quot (- screen-h text-area-h config/text-area-gap) cell-h)]
-    (when (or (> window-w screen-w) (> window-h screen-h))
+        max-cols (when screen-w (quot screen-w cell-w))
+        max-rows (when screen-h (quot (- screen-h text-area-h config/text-area-gap) cell-h))]
+    (when (and screen-w
+               screen-h
+               (or (> window-w screen-w) (> window-h screen-h)))
       (throw (ex-info "Map exceeds monitor bounds"
                       {:cols cols :rows rows :screen-w screen-w :screen-h screen-h
                        :max-cols max-cols :max-rows max-rows})))
     {:cols cols
      :rows rows
      :seed seed
+     :headless-rounds headless-rounds
      :handicap handicap
      :window-w window-w
      :window-h window-h}))

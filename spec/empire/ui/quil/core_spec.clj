@@ -37,7 +37,31 @@
         (should= [{:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 0} 7]
                  @initialized)
         (should= {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 0}
-                 @started)))))
+                 @started))))
+
+  (it "runs headlessly without querying screen dimensions"
+    (let [initialized (atom nil)
+          ran-headless (atom nil)]
+      (with-redefs [util-core/help-requested? (constantly false)
+                    util-core/headless-requested? (constantly true)
+                    empire.ui.quil.core/screen-dimensions (fn [] (throw (ex-info "should not run" {})))
+                    empire.ui.quil.core/parse-startup-config (fn [args screen-w screen-h]
+                                                               (should= ["--headless=40"] args)
+                                                               (should-be-nil screen-w)
+                                                               (should-be-nil screen-h)
+                                                               {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 40 :headless-rounds 40})
+                    empire.ui.quil.core/initialize-startup-state! (fn [startup effective-seed]
+                                                                     (reset! initialized [startup effective-seed]))
+                    empire.ui.quil.core/start-sketch! (fn [_] (throw (ex-info "should not run" {})))
+                    empire.ui.quil.core/run-headless! (fn [startup]
+                                                        (reset! ran-headless startup))]
+        (should= "empire has begun. Map size: [80 40], seed: 7\n"
+                 (with-out-str
+                   (quil-core/-main "--headless=40")))
+        (should= [{:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 40 :headless-rounds 40} 7]
+                 @initialized)
+        (should= {:cols 80 :rows 40 :seed 7 :window-w 640 :window-h 480 :handicap 40 :headless-rounds 40}
+                 @ran-headless)))))
 
 (describe "initialize-startup-state!"
   (before (reset-all-atoms!))
@@ -49,6 +73,58 @@
     (should= [80 40] (sa/read-state :map-size))
     (should= 12345 (sa/read-state :random-seed))
     (should= 12 (sa/read-state :handicap-rounds-remaining))))
+
+(describe "headless-progress-line"
+  (it "reports explored percent and invasion state"
+    (should= "Round 20 explored 50.0% invasion yes"
+             (#'quil-core/headless-progress-line
+              20
+              [[{:type :sea} {:type :unexplored}]
+               [{:type :land} {:type :unexplored}]]
+              {:active? true}))))
+
+(describe "run-headless!"
+  (before (reset-all-atoms!))
+
+  (it "prints progress every 20 rounds and stops at the requested round"
+    (let [player-updates (atom 0)
+          computer-updates (atom 0)
+          advances (atom 0)]
+      (sa/write-state! :computer-map [[{:type :sea} {:type :land}]
+                                      [{:type :unexplored} {:type :unexplored}]])
+      (sa/write-state! :major-invasion-state {:active? false})
+      (with-redefs [empire.ui.quil.core/install-seeded-random! (fn [] nil)
+                    empire.ui.quil.core/initialize-map! (fn [] nil)
+                    empire.game.loop.core/update-player-map (fn [] (swap! player-updates inc))
+                    empire.game.loop.core/update-computer-map (fn [] (swap! computer-updates inc))
+                    empire.game.loop.core/advance-game-batch (fn []
+                                                               (swap! advances inc)
+                                                               (sa/update-state! :round-number inc)
+                                                               (when (= 20 (sa/read-state :round-number))
+                                                                 (sa/write-state! :major-invasion-state {:active? true})))]
+        (should= "Round 20 explored 50.0% invasion yes\nRound 40 explored 50.0% invasion yes\n"
+                 (with-out-str
+                   (#'quil-core/run-headless! {:headless-rounds 40})))
+        (should= 40 (sa/read-state :round-number))
+        (should= 40 @player-updates)
+        (should= 40 @computer-updates)
+        (should= 40 @advances))))
+
+  (it "prints a final report when game over stops the run between checkpoints"
+    (sa/write-state! :computer-map [[{:type :sea} {:type :land}]
+                                    [{:type :unexplored} {:type :unexplored}]])
+    (sa/write-state! :major-invasion-state {:active? false})
+    (with-redefs [empire.ui.quil.core/install-seeded-random! (fn [] nil)
+                  empire.ui.quil.core/initialize-map! (fn [] nil)
+                  empire.game.loop.core/update-player-map (fn [] nil)
+                  empire.game.loop.core/update-computer-map (fn [] nil)
+                  empire.game.loop.core/advance-game-batch (fn []
+                                                             (sa/update-state! :round-number inc)
+                                                             (when (= 37 (sa/read-state :round-number))
+                                                               (sa/write-state! :paused true)))]
+      (should= "Round 20 explored 50.0% invasion no\nRound 37 explored 50.0% invasion no\n"
+               (with-out-str
+                 (#'quil-core/run-headless! {:headless-rounds 60}))))))
 
 (describe "create-fonts"
   (before (reset-all-atoms!))

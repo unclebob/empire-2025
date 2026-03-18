@@ -97,6 +97,11 @@
     (let [result (util-core/parse-args ["--handicap=12"] 2000 2000)]
       (should= 12 (:handicap result))))
 
+  (it "extracts --headless=N and uses it as handicap"
+    (let [result (util-core/parse-args ["--headless=30"] 2000 2000)]
+      (should= 30 (:headless-rounds result))
+      (should= 30 (:handicap result))))
+
   (it "returns nil seed when no seed arg"
     (let [result (util-core/parse-args ["80" "40"] 2000 2000)]
       (should-be-nil (:seed result))))
@@ -131,6 +136,19 @@
       (should= 30 (:rows result))
       (should= 7 (:handicap result))))
 
+  (it "ignores headless arg when computing dimensions"
+    (let [result (util-core/parse-args ["--headless=15" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= 15 (:headless-rounds result))
+      (should= 15 (:handicap result))))
+
+  (it "skips screen bounds checks when screen dimensions are absent"
+    (let [result (util-core/parse-args ["--headless=10" "200" "100"] nil nil)]
+      (should= 200 (:cols result))
+      (should= 100 (:rows result))
+      (should= 10 (:headless-rounds result))))
+
   )
 
 (describe "help-requested?"
@@ -143,10 +161,18 @@
   (it "returns false when help is absent"
     (should-not (util-core/help-requested? ["--seed=42"]))))
 
+(describe "headless-requested?"
+  (it "returns true for --headless=N"
+    (should (util-core/headless-requested? ["--headless=40"])))
+
+  (it "returns false when headless is absent"
+    (should-not (util-core/headless-requested? ["--seed=42"]))))
+
 (describe "usage-text"
-  (it "documents help handicap and seed options"
+  (it "documents help handicap seed and headless options"
     (let [usage (util-core/usage-text)]
       (should-contain "--help" usage)
       (should-contain "--seed=N" usage)
+      (should-contain "--headless=N" usage)
       (should-contain "--handicap=N" usage)
       (should-contain "Default: 50" usage))))
