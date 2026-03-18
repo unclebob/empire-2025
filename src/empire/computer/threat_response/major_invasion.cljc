@@ -4,6 +4,7 @@
             [empire.computer.core :as core]
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.invasion-state :as invasion-state]
+            [empire.computer.threat-response.probe :as probe]
             [empire.computer.movement :as computer-movement]
             [empire.state.api :as sa]))
 
@@ -169,7 +170,9 @@
 
 (defn- update-transport-invasion-route!
   [ctx pos target target-revision]
-  (let [{actual-target :target path :path}
+  (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))
+        current-mission (:transport-mission current-transport)
+        {actual-target :target path :path}
         (or (if-let [best-fn (:best-invasion-target-and-path-fn ctx)]
               (best-fn pos target)
               (best-invasion-target-and-path ctx pos target))
@@ -187,6 +190,15 @@
          :invasion-path path
          :invasion-plan-revision target-revision
          :invasion-path-origin pos))
+      (when (and (seq path)
+                 (not= current-mission :invading))
+        (probe/log-event! :transport-entered-invading
+                          {:pos pos
+                           :from-mission current-mission
+                           :target actual-target
+                           :path path
+                           :target-revision target-revision
+                           :transport current-transport}))
       (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
         (sync-ai-unit! pos)))))
 

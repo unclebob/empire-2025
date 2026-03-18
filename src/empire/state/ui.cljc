@@ -26,7 +26,10 @@
    :load-menu-hovered nil
    :save-menu-open false
    :save-menu-input ""
-   :save-menu-default-active false})
+   :save-menu-default-active false
+   :headless-mode? false
+   :headless-stop-on-major-invasion? false
+   :major-invasion-probe-hit? false})
 
 (def state (atom defaults))
 

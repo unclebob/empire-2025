@@ -1,5 +1,6 @@
 (ns empire.ui.quil.core
   (:require [empire.state.api :as sa]
+            [empire.computer.threat-response.probe :as invasion-probe]
             [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
             [empire.game.initialization :as init]
@@ -155,7 +156,10 @@
   (sa/write-state! :map-size [cols rows])
   (sa/write-state! :map-size-constants (config/compute-size-constants cols rows))
   (sa/write-state! :handicap-rounds-remaining handicap)
-  (sa/write-state! :handicap-display-rounds (when (pos? handicap) handicap)))
+  (sa/write-state! :handicap-display-rounds (when (pos? handicap) handicap))
+  (sa/write-state! :headless-mode? false)
+  (sa/write-state! :headless-stop-on-major-invasion? false)
+  (sa/write-state! :major-invasion-probe-hit? false))
 
 (defn- explored-percentage
   [computer-map]
@@ -191,14 +195,24 @@
   [{:keys [headless-rounds]}]
   (install-seeded-random!)
   (initialize-map!)
+  (invasion-probe/clear-log!)
+  (sa/write-state! :headless-mode? true)
+  (sa/write-state! :headless-stop-on-major-invasion? true)
+  (sa/write-state! :major-invasion-probe-hit? false)
   (loop [last-reported-round 0]
     (let [round-number (sa/read-state :round-number)]
       (cond
         (>= round-number headless-rounds)
-        (maybe-print-final-headless-progress! last-reported-round)
+        (do
+          (maybe-print-final-headless-progress! last-reported-round)
+          (sa/write-state! :headless-mode? false)
+          (sa/write-state! :headless-stop-on-major-invasion? false))
 
         (sa/read-state :paused)
-        (maybe-print-final-headless-progress! last-reported-round)
+        (do
+          (maybe-print-final-headless-progress! last-reported-round)
+          (sa/write-state! :headless-mode? false)
+          (sa/write-state! :headless-stop-on-major-invasion? false))
 
         :else
         (do

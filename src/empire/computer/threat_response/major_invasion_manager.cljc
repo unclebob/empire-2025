@@ -4,7 +4,8 @@
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.major-invasion-manager-decisions :as decisions]
-            [empire.computer.threat-response.major-invasion :as major-invasion]))
+            [empire.computer.threat-response.major-invasion :as major-invasion]
+            [empire.computer.threat-response.probe :as probe]))
 
 (defn- computer-city-count
   [world]
@@ -124,6 +125,9 @@
                      :computer-sea-unit-types (:computer-sea-unit-types ctx)})]
     (if (= :ready (:decision evaluation))
       (do
+        (probe/log-event! :major-invasion-activated
+                          {:detection-points (:detection-points state)
+                           :evaluation evaluation})
         ((:update-major-invasion-state! ctx) merge
          (decisions/invasion-start-update
           {:decision (:decision evaluation)
@@ -152,7 +156,12 @@
        (fn [s]
          (-> s
              (update :detection-points conj pos)
-             (assoc :started-round (or (:started-round s) ((:current-round-fn ctx))))))))
+             (assoc :started-round (or (:started-round s) ((:current-round-fn ctx)))))))
+      (probe/log-event! :major-invasion-detection-recorded
+                        {:pos pos
+                         :existing-detection-points (:detection-points state)
+                         :active? (:active? state)
+                         :decision (:decision state)}))
     should-add?))
 
 (defn handle-major-invasion-detection!
