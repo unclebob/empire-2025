@@ -18,6 +18,7 @@
       (set-test-world! (build-test-map ["BdX"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (set-test-unit (test-utils/game-map-atom) "d" :hits 2)
+      (test-utils/update-test-state! :computer-map assoc-in [1 0 :contents :hits] 2)
       (ship/process-ship [1 0] :destroyer)
       ;; Ship should be removed from map
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
@@ -89,6 +90,8 @@
                                                     "~~~~-"]))
         (update-test-world! assoc-in [2 2 :contents]
                {:type :destroyer :owner :computer :hits 3})
+        (test-utils/update-test-state! :computer-map assoc-in [2 2 :contents]
+                                       {:type :destroyer :owner :computer :hits 3})
         (ship/process-ship [2 2] :destroyer)
         ;; Should have moved
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))

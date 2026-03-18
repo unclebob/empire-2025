@@ -9,7 +9,13 @@
             [empire.computer.ship-escort :as escort]
             [empire.computer.ship-patrol :as patrol]
             [empire.computer.movement :as computer-movement]
-            [empire.computer.threat-response :as threat-response]))
+            [empire.computer.threat-response :as threat-response]
+            [empire.game-mechanics.movement.visibility :as visibility]))
+
+
+(defn- computer-unit-at
+  [pos]
+  (:contents (get-in (sa/read-state :computer-map) pos)))
 
 
 ;; --- Core utility re-exports ---
@@ -123,17 +129,19 @@
   (if (= :sentry (:mode unit))
     true
     (when (:lake-locked? unit)
-      (let [world (sa/current-world)
-            lake-cells-set (lake-naval/lake-cells (sa/read-state :computer-map)
+      (let [computer-map (sa/read-state :computer-map)
+            lake-cells-set (lake-naval/lake-cells computer-map
                                                   (sa/read-state :lake-max-cells))]
-        (if-let [step (lake-naval/retreat-step-from-shore world lake-cells-set pos)]
+        (if-let [step (lake-naval/retreat-step-from-shore computer-map lake-cells-set pos)]
           (do
             (when (core/move-unit-to pos step)
-              (when (lake-naval/deep-water? (sa/current-world) step)
-                (sa/update-world! assoc-in (conj step :contents :mode) :sentry)))
+              (when (lake-naval/deep-water? computer-map step)
+                (sa/update-world! assoc-in (conj step :contents :mode) :sentry)
+                (visibility/sync-ai-unit-to-computer-map! step)))
             true)
           (do
             (sa/update-world! assoc-in (conj pos :contents :mode) :sentry)
+            (visibility/sync-ai-unit-to-computer-map! pos)
             true))))))
 
 (defn- refresh-ship-visibility?
@@ -146,7 +154,7 @@
   "Processes a computer ship using VMS Empire style logic.
    Returns nil after processing."
   [pos ship-type]
-  (let [unit (:contents (get-in (sa/current-world) pos))]
+  (let [unit (computer-unit-at pos)]
     (when (and unit
                (= :computer (:owner unit))
                (= ship-type (:type unit)))

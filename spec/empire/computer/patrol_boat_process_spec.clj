@@ -103,7 +103,10 @@
       (tu/set-test-world! game-map)
       (tu/set-test-computer-map! game-map)
       (tu/set-test-unit (test-utils/game-map-atom) "p" :patrol-mode :crawling)
+      (tu/set-test-unit (test-utils/computer-map-atom) "p" :patrol-mode :crawling)
       (tu/update-test-world! assoc-in [6 1 :contents]
+             {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
+      (tu/update-test-computer-map! assoc-in [6 1 :contents]
              {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
       (with-redefs [rand-nth first]
         ;; Process first boat — it adds [1 1] to seen-coast

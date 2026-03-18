@@ -23,6 +23,8 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [1 0 :contents]
              {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
+      (test-utils/update-test-state! :computer-map assoc-in [1 0 :contents]
+                                     {:type :patrol-boat :owner :computer :hits 1 :patrol-mode :crawling})
       (with-redefs [rand-nth first]
         (ship/process-ship [1 0] :patrol-boat)
         ;; Patrol boat should have moved
@@ -291,6 +293,7 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (test-utils/set-test-state! :lake-max-cells 20)
       (update-test-world! assoc-in [1 1 :contents :lake-locked?] true)
+      (test-utils/update-test-state! :computer-map assoc-in [1 1 :contents :lake-locked?] true)
       (ship/process-ship [1 1] :destroyer)
       (should= :destroyer (get-in (test-utils/read-test-state :game-map) [2 2 :contents :type]))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [2 2 :contents :mode]))
@@ -308,6 +311,7 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (test-utils/set-test-state! :lake-max-cells 20)
       (update-test-world! assoc-in [1 1 :contents :lake-locked?] true)
+      (test-utils/update-test-state! :computer-map assoc-in [1 1 :contents :lake-locked?] true)
       (with-redefs [empire.computer.lake-naval/retreat-step-from-shore (fn [& _] nil)]
         (ship/process-ship [1 1] :destroyer))
       (should= :destroyer (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))

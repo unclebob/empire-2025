@@ -56,6 +56,14 @@
                 :destroyer-id 1 :escort-mode :pursuing
                 :escort-transport-id 1
                 :pursuit-target [3 2] :pursuit-steps-remaining 5})
+        (test-utils/update-test-state! :computer-map assoc-in [1 2 :contents]
+                                       {:type :transport :owner :computer :hits 3
+                                        :transport-id 1 :transport-mission :loading :army-count 0})
+        (test-utils/update-test-state! :computer-map assoc-in [2 2 :contents]
+                                       {:type :destroyer :owner :computer :hits 3
+                                        :destroyer-id 1 :escort-mode :pursuing
+                                        :escort-transport-id 1
+                                        :pursuit-target [3 2] :pursuit-steps-remaining 5})
         (ship/process-ship [2 2] :destroyer)
         ;; Destroyer should have moved and decremented steps
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))
