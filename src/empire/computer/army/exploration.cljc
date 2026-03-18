@@ -3,6 +3,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
+            [empire.game-mechanics.movement.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]))
 
 (defn- log-missing-army-contents!
@@ -15,17 +16,19 @@
 
 (defn- set-sentry-mode-if-unit!
   [pos context]
-  (if (get-in (sa/current-world) (conj pos :contents))
-    (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
+  (if (get-in (sa/read-state :computer-map) (conj pos :contents))
+    (do
+      (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
+      (visibility/sync-ai-unit-to-computer-map! pos))
     (log-missing-army-contents! :missing-contents-for-sentry
-                                (assoc context :pos pos :cell (get-in (sa/current-world) pos)))))
+                                (assoc context :pos pos :cell (get-in (sa/read-state :computer-map) pos)))))
 
 (defn explore-randomly
   "Move toward any unexplored territory adjacent to computer's explored area.
-   Only considers empty cells. Randomizes to avoid all armies picking the same cell.
+  Only considers empty cells. Randomizes to avoid all armies picking the same cell.
    Filters out cells in move-history to prevent oscillation."
   [pos country-id]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         history (set (:move-history unit))
         empty (movement/get-empty-passable-neighbors pos country-id)
         filtered (remove history empty)
@@ -47,9 +50,11 @@
       (do (when (movement/adjacent-to-sea? target)
             (sa/update-world! update-in (conj target :contents)
                               dissoc :interior-explore-direction))
+            (visibility/sync-ai-unit-to-computer-map! target)
           target)
       (do (sa/update-world! update-in (conj pos :contents)
                             dissoc :interior-explore-direction)
+          (visibility/sync-ai-unit-to-computer-map! pos)
           nil))))
 
 (defn start-interior-exploration
@@ -60,12 +65,13 @@
         [c r] pos
         target [(+ c dc) (+ r dr)]]
     (sa/update-world! assoc-in (conj pos :contents :interior-explore-direction) direction)
+    (visibility/sync-ai-unit-to-computer-map! pos)
     (try-interior-move pos target)))
 
 (defn process-interior-explore
   "Continues interior exploration in stored direction."
   [pos _country-id]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         [dc dr] (:interior-explore-direction unit)
         [c r] pos
         target [(+ c dc) (+ r dr)]]
@@ -80,6 +86,7 @@
                           assoc :mode :random-explore
                           :random-explore-direction (rand-nth [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
                           :random-explore-rounds 0)
+        (visibility/sync-ai-unit-to-computer-map! pos)
         nil)
     (let [computer-map (sa/read-state :computer-map)
           candidates (filter (fn [n]
@@ -93,12 +100,14 @@
 
 (defn- at-sea-coast? [pos]
   (and (movement/adjacent-to-sea? pos)
-       (not= :city (:type (get-in (sa/current-world) pos)))))
+       (not= :city (:type (get-in (sa/read-state :computer-map) pos)))))
 
 (defn- clear-random-explore-state [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    #(-> % (assoc :mode :awake)
-                         (dissoc :random-explore-direction :random-explore-rounds))))
+  (do
+    (sa/update-world! update-in (conj pos :contents)
+                      #(-> % (assoc :mode :awake)
+                           (dissoc :random-explore-direction :random-explore-rounds)))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- try-random-direction-move [pos country-id unit]
   (let [[dc dr] (:random-explore-direction unit)
@@ -118,7 +127,7 @@
       target)))
 
 (defn- handle-blocked-random-explore [pos country-id]
-  (if (= :city (:type (get-in (sa/current-world) pos)))
+  (if (= :city (:type (get-in (sa/read-state :computer-map) pos)))
     (when-let [neighbors (seq (movement/get-empty-passable-neighbors pos country-id))]
       (movement/try-move pos (rand-nth (vec neighbors))))
     (do (clear-random-explore-state pos) nil)))
@@ -127,12 +136,13 @@
   "Moves army in stored random-explore direction. Goes sentry on coast or when blocked.
    Times out after 10 rounds and transitions to fill-coastal-cell."
   [pos country-id]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         rounds (:random-explore-rounds unit 0)]
     (if (>= rounds 10)
       (do (clear-random-explore-state pos) nil)
       (do (sa/update-world! update-in (conj pos :contents)
                             update :random-explore-rounds (fnil inc 0))
+          (visibility/sync-ai-unit-to-computer-map! pos)
           (cond
             (at-sea-coast? pos)
             (do (set-sentry-mode-if-unit! pos
