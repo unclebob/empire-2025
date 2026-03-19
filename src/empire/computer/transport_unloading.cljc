@@ -2,6 +2,7 @@
   "Transport unloading — opportunistic and targeted army unloading."
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.computer.army.assignment :as army-assignment]
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.threat-response :as threat-response]
@@ -96,12 +97,14 @@
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos)
+        (army-assignment/assign-returning-transport-staging-at! pos))
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos)))))
+        (visibility/sync-ai-unit-to-computer-map! pos)
+        (army-assignment/assign-returning-transport-staging-at! pos)))))
 
 (defn- unload-army-template
   [transport]

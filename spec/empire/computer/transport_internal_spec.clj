@@ -101,6 +101,22 @@
         (@#'transport/transition-to-loading [0 0])
         (should= [:mission [0 0] :sail-to-load] (first @updates)))))
 
+  (it "transition-to-loading assigns nearby staging armies for the chosen load coast"
+    (let [assigned (atom nil)]
+      (set-test-world! [[{:contents {:type :transport
+                                     :owner :computer
+                                     :hits 1
+                                     :transport-mission :unloading
+                                     :army-count 0}}]
+                       [{:type :city :city-status :computer}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (with-redefs [empire.computer.transport-core/set-transport-mission (fn [& _] nil)
+                    empire.computer.transport-sailing-path/compute-sail-to-load-path (fn [& _] [[0 1]])
+                    empire.computer.army.assignment/assign-returning-transport-staging-at! (fn [pos]
+                                                                                              (reset! assigned pos))]
+        (@#'transport/transition-to-loading [0 0])
+        (should= [0 0] @assigned))))
+
   (it "loading with no crawl move transitions to sail-to-load"
     (let [called (atom nil)]
       (mission-handlers/process-loading-mission

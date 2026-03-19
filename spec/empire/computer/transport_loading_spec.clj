@@ -131,4 +131,19 @@
       (should= 0 (loading/load-adjacent-armies [0 1]))
       (should-not-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))))
+
+  (context "coastal-crawl-move"
+    (it "clears crawl history and backtracks when only history targets remain"
+      (set-test-world! (build-test-map ["~t"
+                                        "##"]))
+      (set-test-world! (assoc-in (test-utils/read-test-state :game-map)
+                                 [1 0 :contents]
+                                 {:type :transport :owner :computer
+                                  :hits 1
+                                  :transport-mission :loading
+                                  :crawl-history [[0 0]]}))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should= [0 0] (loading/coastal-crawl-move [1 0]))
+      (should= :transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
+      (should= [[1 0]] (get-in (test-utils/read-test-state :game-map) [0 0 :contents :crawl-history]))))
   )

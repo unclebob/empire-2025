@@ -7,6 +7,7 @@
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.computer.army.assignment :as army-assignment]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]
@@ -64,12 +65,14 @@
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos)
+        (army-assignment/assign-returning-transport-staging-at! pos))
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos)))))
+        (visibility/sync-ai-unit-to-computer-map! pos)
+        (army-assignment/assign-returning-transport-staging-at! pos)))))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -95,7 +98,10 @@
                     (or (sailing-path/compute-sail-to-load-path pos computer-map) [])
                     (or (sailing-path/compute-sail-to-unload-path pos computer-map) []))]
     (tc/set-transport-mission pos mission)
-    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path)))
+    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (when empty?
+      (army-assignment/assign-returning-transport-staging-at! pos)))
   (threat-response/prepare-transport! pos))
 
 (defn- transition-load-for-invasion-to-unloading!

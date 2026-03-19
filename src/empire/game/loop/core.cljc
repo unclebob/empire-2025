@@ -174,6 +174,7 @@
     (apply-round-start-state! round-state)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
+    (army/assign-transport-staging)
     (log-computer-units!)
     nil)
   (sa/write-state! :production-status

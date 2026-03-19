@@ -57,6 +57,7 @@
    [(:attack-target unit)                   #(army-combat/process-attack-target pos country-id)]
    [(= :coast-walk mode)                    #(coastal/process-coast-walk pos country-id)]
    [(= :move-to-coast-for-invasion mode)    #(coastal/process-move-to-coast-for-invasion pos country-id)]
+   [(= :move-to-coast-for-transport mode)   #(coastal/process-move-to-coast-for-transport pos country-id)]
    [(= :move-inland mode)                   #(exploration/process-move-inland pos country-id)]
    [(= :random-explore mode)                #(exploration/process-random-explore pos country-id)]
    [(= :sentry mode)                        #(process-sentry-in-city pos country-id cell)]
@@ -92,6 +93,10 @@
   "Scans computer-map for visible free/player cities and assigns up to 6 closest armies each."
   []
   (assignment/assign-city-attacks))
+
+(defn assign-transport-staging
+  []
+  (assignment/assign-transport-staging!))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-13T15:23:05.917928-05:00", :module-hash "-56593631", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-1799636957"} {:id "defn-/find-city-objective", :kind "defn-", :line 16, :end-line 33, :hash "-1808002651"} {:id "defn-/process-sentry-in-city", :kind "defn-", :line 35, :end-line 37, :hash "1801065927"} {:id "defn-/process-unowned-army", :kind "defn-", :line 39, :end-line 42, :hash "1767655122"} {:id "defn-/should-sentry-on-coast?", :kind "defn-", :line 44, :end-line 45, :hash "-370775186"} {:id "defn-/can-settle-here?", :kind "defn-", :line 47, :end-line 48, :hash "1670601850"} {:id "defn-/start-interior-exploration", :kind "defn-", :line 50, :end-line 51, :hash "-1722277386"} {:id "defn-/should-stage-for-opening-transport?", :kind "defn-", :line 53, :end-line 55, :hash "1763417169"} {:id "defn-/find-and-execute-land-action", :kind "defn-", :line 57, :end-line 65, :hash "-1785007441"} {:id "defn-/exit-city", :kind "defn-", :line 67, :end-line 76, :hash "1761327126"} {:id "defn-/build-army-actions", :kind "defn-", :line 78, :end-line 90, :hash "-1213306281"} {:id "defn/process-army", :kind "defn", :line 92, :end-line 114, :hash "-1671640060"} {:id "defn/assign-city-attacks", :kind "defn", :line 116, :end-line 119, :hash "-176952326"}]}

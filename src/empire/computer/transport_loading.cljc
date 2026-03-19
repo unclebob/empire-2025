@@ -110,25 +110,33 @@
   [pos]
   (let [computer-map (sa/read-state :computer-map)
         unit (get-in computer-map (conj pos :contents))
-        history (set (:crawl-history unit []))
+        crawl-history (:crawl-history unit [])
+        history (set crawl-history)
         passable (tc/get-passable-sea-neighbors pos)
         empty-passable (filter (fn [n]
                                  (nil? (:contents (get-in computer-map n))))
                                passable)
         coastal-cells (filter tc/adjacent-to-land? empty-passable)
         preferred (remove history coastal-cells)
-        targets (if (seq preferred) preferred coastal-cells)]
+        cleared-history? (and (empty? preferred)
+                              (seq coastal-cells)
+                              (seq crawl-history))
+        targets (if (seq preferred) preferred coastal-cells)
+        history-base (if cleared-history? [] crawl-history)]
     (when (seq targets)
+      (when cleared-history?
+        (sa/update-world! assoc-in (conj pos :contents :crawl-history) [])
+        (visibility/sync-ai-unit-to-computer-map! pos))
       (let [target (rand-nth targets)]
         (core/move-unit-to pos target)
         (update-cell-visibility! pos :computer)
         (update-cell-visibility! target :computer)
-        (let [new-history (vec (take-last 3 (conj (:crawl-history unit []) pos)))]
+        (let [new-history (vec (take-last 3 (conj history-base pos)))]
           (sa/update-world! assoc-in (conj target :contents :crawl-history) new-history))
         ;; Keep the visible transport state aligned with the authoritative unit so a second crawl
         ;; step in the same round can avoid immediately backtracking.
         (sa/update-state! :computer-map assoc-in (conj target :contents :crawl-history)
-                          (vec (take-last 3 (conj (:crawl-history unit []) pos))))
+                          (vec (take-last 3 (conj history-base pos))))
         ;; Auto-load armies from adjacent land at new position
         (load-adjacent-armies target)
         target))))

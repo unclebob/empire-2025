@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.army :as army]
+            [empire.computer.army.assignment :as assignment]
             [empire.computer.core :as core]
             [empire.computer.production :as production]
             [empire.computer.stamping :as stamping]
@@ -222,6 +223,20 @@
       ;; Army should still be in the city (no land neighbor)
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
+  (context "transport staging movement"
+    (it "staging army on coast settles into sentry and clears its target"
+      (set-test-world! [[{:type :land :country-id 1
+                          :contents {:type :army :owner :computer :hits 1
+                                     :mode :move-to-coast-for-transport
+                                     :country-id 1
+                                     :transport-staging-target [1 0]}}
+                         {:type :land :country-id 1}]
+                        [{:type :sea} {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (army/process-army [0 0])
+      (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-staging-target]))))
+
   (context "city attack coordination"
     (it "assigns up to 6 closest armies to visible free city"
       ;; 8 sentry armies and a free city visible on computer-map (10 cols x 1 row)
@@ -265,5 +280,44 @@
         (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents :attack-target]))
         ;; Sentry army should have attack-target
         (should= [2 0] (get-in (test-utils/read-test-state :game-map) [1 0 :contents :attack-target])))))
+
+  (context "transport staging"
+    (it "assigns up to six nearby armies to a city producing a transport within five rounds"
+      (let [army-cell {:type :land :country-id 1
+                       :contents {:type :army :owner :computer :hits 1
+                                  :mode :awake :country-id 1}}]
+        (set-test-world! [[army-cell army-cell]
+                          [army-cell army-cell]
+                          [{:type :city :city-status :computer} army-cell]
+                          [{:type :sea} army-cell]])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
+        (test-utils/set-test-state! :production {[2 0] {:item :transport :remaining-rounds 5}})
+        (army/assign-transport-staging)
+        (let [assigned (for [pos [[0 0] [0 1] [1 0] [1 1] [2 1] [3 1]]
+                             :let [unit (get-in (test-utils/read-test-state :game-map) (conj pos :contents))]
+                             :when (= :move-to-coast-for-transport (:mode unit))]
+                         unit)]
+          (should= 6 (count assigned))
+          (should (every? #(= [2 0] (:transport-staging-target %)) assigned)))))
+
+    (it "assigns nearby armies to the claimed coast targeted by a sail-to-load transport"
+      (set-test-world! [[{:type :land :country-id 1
+                          :contents {:type :army :owner :computer :hits 1
+                                     :mode :awake :country-id 1}}
+                         {:type :land :country-id 1}
+                         {:type :sea :contents {:type :transport :owner :computer :hits 1
+                                                :transport-mission :sail-to-load
+                                                :sail-path [[3 0]]}}
+                         {:type :sea}]
+                        [{:type :land :country-id 1}
+                         {:type :land :country-id 1}
+                         {:type :land :country-id 1}
+                         {:type :city :city-status :computer}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (assignment/assign-returning-transport-staging-at! [2 0])
+      (should= :move-to-coast-for-transport
+               (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
+      (should= [1 0]
+               (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-staging-target]))))
 
 )
