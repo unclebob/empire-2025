@@ -41,12 +41,28 @@
   [args]
   (boolean (some #(.startsWith ^String % "--headless=") args)))
 
+(defn log-requested?
+  [args]
+  (boolean (some #{"--log"} args)))
+
+(defn startup-timestamp
+  []
+  (let [now (java.time.LocalDateTime/now)
+        fmt (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmss")]
+    (.format now fmt)))
+
+(defn unit-log-filename
+  []
+  (str "empire-units" (startup-timestamp) ".log"))
+
 (defn usage-text
   []
   (str "Usage: clj -M:run [options] [cols rows]\n"
        "\n"
        "Options:\n"
        "  --help, -h        Print this help and exit.\n"
+       "  --log             Append every computer unit once per round\n"
+       "                    to a timestamped empire-units log file.\n"
        "  --seed=N          Use N as the random seed.\n"
        "  --headless=N      Run headlessly for up to N rounds with\n"
        "                    handicap N. Exits early on game over and\n"
@@ -63,6 +79,7 @@
   [args screen-w screen-h]
   (let [seed (some #(when (.startsWith ^String % "--seed=")
                       (Long/parseLong (subs % 7))) args)
+        log-enabled (log-requested? args)
         headless-rounds (some #(when (.startsWith ^String % "--headless=")
                                  (Long/parseLong (subs % 11))) args)
         handicap (or headless-rounds
@@ -70,6 +87,7 @@
                               (Long/parseLong (subs % 11))) args)
                      50)
         non-options (remove #(or (.startsWith ^String % "--seed=")
+                                 (= "--log" %)
                                  (.startsWith ^String % "--headless=")
                                  (.startsWith ^String % "--handicap="))
                             args)
@@ -92,6 +110,7 @@
     {:cols cols
      :rows rows
      :seed seed
+     :log-enabled log-enabled
      :headless-rounds headless-rounds
      :handicap handicap
      :window-w window-w

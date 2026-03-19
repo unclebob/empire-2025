@@ -32,6 +32,10 @@
   [unit city]
   (unit-stamping/stamp-computer-fields unit city))
 
+(defn- stamp-computer-unit-id
+  [unit]
+  (unit-stamping/ensure-computer-unit-id unit))
+
 ;; Transport operations
 
 (defn- loadable-army?
@@ -111,7 +115,8 @@
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
         updated-transport (domain-containers/remove-awake-transport-army transport)
-        disembarked-army (domain-containers/disembarked-army (:owner transport))
+        disembarked-army (-> (domain-containers/disembarked-army (:owner transport))
+                             (stamp-computer-unit-id))
         updated-cell (assoc cell :contents updated-transport)]
     (sa/update-world! assoc-in transport-coords updated-cell)
     (sa/update-world! assoc-in (conj target-coords :contents) disembarked-army)
@@ -123,7 +128,8 @@
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
         updated-transport (domain-containers/remove-awake-transport-army transport)
-        moving-army (domain-containers/moving-disembarked-army (:owner transport) extended-target)
+        moving-army (-> (domain-containers/moving-disembarked-army (:owner transport) extended-target)
+                        (stamp-computer-unit-id))
         updated-cell (assoc cell :contents updated-transport)]
     (sa/update-world! assoc-in transport-coords updated-cell)
     (sa/update-world! assoc-in (conj adjacent-coords :contents) moving-army)
@@ -134,7 +140,8 @@
   (let [cell (get-in (sa/current-world) transport-coords)
         transport (:contents cell)
         updated-transport (domain-containers/remove-awake-transport-army transport)
-        exploring-army (domain-containers/exploring-disembarked-army (:owner transport) target-coords)
+        exploring-army (-> (domain-containers/exploring-disembarked-army (:owner transport) target-coords)
+                           (stamp-computer-unit-id))
         updated-cell (assoc cell :contents updated-transport)]
     (sa/update-world! assoc-in transport-coords updated-cell)
     (sa/update-world! assoc-in (conj target-coords :contents) exploring-army)
@@ -166,10 +173,11 @@
         carrier (:contents cell)
         after-remove (uc/remove-awake-unit carrier :fighter-count :awake-fighters)
         first-step (domain-containers/first-step-toward carrier-coords target-coords)
-        moving-fighter (domain-containers/launched-fighter
-                        (:owner carrier)
-                        target-coords
-                        (dec (config/unit-speed :fighter)))
+        moving-fighter (-> (domain-containers/launched-fighter
+                            (:owner carrier)
+                            target-coords
+                            (dec (config/unit-speed :fighter)))
+                           (stamp-computer-unit-id))
         updated-cell (assoc cell :contents after-remove)
         target-cell (get-in world first-step)]
     ;; Update carrier
@@ -196,10 +204,11 @@
         target-cell (get-in world first-step)]
     (when first-step
       (let [after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
-            moving-fighter (domain-containers/launched-fighter
-                            owner
-                            target-coords
-                            (dec (config/unit-speed :fighter)))]
+            moving-fighter (-> (domain-containers/launched-fighter
+                                owner
+                                target-coords
+                                (dec (config/unit-speed :fighter)))
+                               (stamp-computer-unit-id))]
         (sa/update-world! assoc-in city-coords after-remove)
         (sa/update-world! assoc-in first-step (assoc target-cell :contents moving-fighter))
         (update-cell-visibility! first-step owner)

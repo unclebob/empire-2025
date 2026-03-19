@@ -38,6 +38,7 @@
    :distant-city-pairs nil
    :lake-max-cells 0
    :known-lake-cells #{}
+   :next-computer-unit-id 1
    :next-transport-id 1
    :next-unload-event-id 1
    :next-destroyer-id 1

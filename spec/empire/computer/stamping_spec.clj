@@ -29,12 +29,15 @@
   (context "transport fields"
     (it "assigns transport-mission and transport-id to computer transports"
       (test-utils/set-test-state! :next-transport-id 5)
+      (test-utils/set-test-state! :next-computer-unit-id 11)
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= :loading (:transport-mission stamped))
         (should= 5 (:transport-id stamped))
+        (should= 11 (:computer-unit-id stamped))
         (should= 0 (:army-count stamped))
+        (should= 12 (test-utils/read-test-state :next-computer-unit-id))
         (should= 6 (test-utils/read-test-state :next-transport-id))))
 
     (it "does not assign transport fields to player transports"
@@ -174,6 +177,23 @@
             cell {:type :city :city-status :player}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= unit stamped)))))
+
+  (context "generic computer-unit-id"
+    (it "assigns a generic id to computer armies"
+      (test-utils/set-test-state! :next-computer-unit-id 21)
+      (let [unit {:type :army :owner :computer :hits 1 :mode :awake}
+            cell {:type :city :city-status :computer}
+            stamped (stamping/stamp-computer-fields unit cell)]
+        (should= 21 (:computer-unit-id stamped))
+        (should= 22 (test-utils/read-test-state :next-computer-unit-id))))
+
+    (it "backfills missing ids on existing computer units in the world"
+      (test-utils/set-test-state! :next-computer-unit-id 31)
+      (set-test-world! (build-test-map ["ad"]))
+      (stamping/backfill-missing-computer-unit-ids!)
+      (should= 31 (get-in (test-utils/read-test-world) [0 0 :contents :computer-unit-id]))
+      (should= 32 (get-in (test-utils/read-test-world) [1 0 :contents :computer-unit-id]))
+      (should= 33 (test-utils/read-test-state :next-computer-unit-id))))
 
 (describe "apply-coast-walk-fields"
   (before (reset-all-atoms!))

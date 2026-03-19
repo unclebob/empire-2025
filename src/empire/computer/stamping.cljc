@@ -5,6 +5,10 @@
   [unit cell]
   (unit-stamping/stamp-computer-fields unit cell))
 
+(defn backfill-missing-computer-unit-ids!
+  []
+  (unit-stamping/backfill-missing-computer-unit-ids!))
+
 (defn apply-coast-walk-fields
   [unit item cell coords]
   (unit-stamping/apply-coast-walk-fields unit item cell coords))

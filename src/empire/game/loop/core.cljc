@@ -3,6 +3,7 @@
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.game.production-status :as production-status]
             [empire.game-mechanics.debug.integrity :as integrity]
+            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
@@ -16,6 +17,27 @@
             [empire.game.loop.item-processing :as item-processing]
             [empire.player.production :as player-production]
             [empire.game.loop.control-decisions :as decisions]))
+
+(defn- computer-unit-snapshots
+  [world round-number]
+  (vec
+   (for [row (range (count world))
+         col (range (count (first world)))
+         :let [unit (get-in world [row col :contents])]
+         :when (and unit (= :computer (:owner unit)))]
+     {:round round-number
+      :pos [row col]
+      :unit unit})))
+
+(defn- log-computer-units!
+  []
+  (when-let [log-file (sa/read-state :computer-unit-log-file)]
+    (let [entries (computer-unit-snapshots (sa/current-world)
+                                           (sa/read-state :round-number))]
+      (when (seq entries)
+        (spit log-file
+              (apply str (map #(str (pr-str %) "\n") entries))
+              :append true)))))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -126,6 +148,7 @@
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)
+  (unit-stamping/backfill-missing-computer-unit-ids!)
   (round-setup/move-satellites)
   (round-setup/consume-sentry-fighter-fuel)
   (round-setup/wake-sentries-seeing-enemy)
@@ -151,6 +174,7 @@
     (apply-round-start-state! round-state)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
+    (log-computer-units!)
     nil)
   (sa/write-state! :production-status
                    (production-status/format-production-status (sa/current-world)

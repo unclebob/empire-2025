@@ -72,7 +72,15 @@
      12345)
     (should= [80 40] (sa/read-state :map-size))
     (should= 12345 (sa/read-state :random-seed))
-    (should= 12 (sa/read-state :handicap-rounds-remaining))))
+    (should= 12 (sa/read-state :handicap-rounds-remaining)))
+
+  (it "stores a timestamped unit log filename when logging is enabled"
+    (with-redefs [empire.ui.util.core/unit-log-filename (constantly "empire-units2026-03-19-120000.log")]
+      (#'quil-core/initialize-startup-state!
+       {:cols 80 :rows 40 :handicap 12 :log-enabled true}
+       12345)
+      (should= "empire-units2026-03-19-120000.log"
+               (sa/read-state :computer-unit-log-file)))))
 
 (describe "headless-progress-line"
   (it "reports explored percent and invasion state"

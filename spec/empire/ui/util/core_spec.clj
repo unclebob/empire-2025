@@ -97,6 +97,10 @@
     (let [result (util-core/parse-args ["--handicap=12"] 2000 2000)]
       (should= 12 (:handicap result))))
 
+  (it "extracts --log"
+    (let [result (util-core/parse-args ["--log"] 2000 2000)]
+      (should= true (:log-enabled result))))
+
   (it "extracts --headless=N and uses it as handicap"
     (let [result (util-core/parse-args ["--headless=30"] 2000 2000)]
       (should= 30 (:headless-rounds result))
@@ -143,6 +147,12 @@
       (should= 15 (:headless-rounds result))
       (should= 15 (:handicap result))))
 
+  (it "ignores log arg when computing dimensions"
+    (let [result (util-core/parse-args ["--log" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= true (:log-enabled result))))
+
   (it "skips screen bounds checks when screen dimensions are absent"
     (let [result (util-core/parse-args ["--headless=10" "200" "100"] nil nil)]
       (should= 200 (:cols result))
@@ -168,10 +178,24 @@
   (it "returns false when headless is absent"
     (should-not (util-core/headless-requested? ["--seed=42"]))))
 
+(describe "log-requested?"
+  (it "returns true for --log"
+    (should (util-core/log-requested? ["--log"])))
+
+  (it "returns false when log is absent"
+    (should-not (util-core/log-requested? ["--seed=42"]))))
+
+(describe "unit-log-filename"
+  (it "uses the empire-units timestamped naming convention"
+    (with-redefs [util-core/startup-timestamp (constantly "2026-03-19-120000")]
+      (should= "empire-units2026-03-19-120000.log"
+               (util-core/unit-log-filename)))))
+
 (describe "usage-text"
-  (it "documents help handicap seed and headless options"
+  (it "documents help handicap seed headless and log options"
     (let [usage (util-core/usage-text)]
       (should-contain "--help" usage)
+      (should-contain "--log" usage)
       (should-contain "--seed=N" usage)
       (should-contain "--headless=N" usage)
       (should-contain "--handicap=N" usage)

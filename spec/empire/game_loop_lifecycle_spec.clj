@@ -115,3 +115,33 @@
                                       "aX"]))
     (let [items (game-loop/build-computer-items)]
       (should-not-contain [0 0] items))))
+
+(describe "computer unit logging"
+  (before (reset-all-atoms!))
+
+  (it "formats one snapshot per computer unit with round and position"
+    (set-test-world! (build-test-map ["ad"]))
+    (test-utils/set-test-state! :round-number 7)
+    (let [entries (#'game-loop/computer-unit-snapshots
+                   (test-utils/read-test-world)
+                   (test-utils/read-test-state :round-number))]
+      (should= [{:round 7
+                 :pos [0 0]
+                 :unit {:type :army :owner :computer :hits 1}}
+                {:round 7
+                 :pos [1 0]
+                 :unit {:type :destroyer :owner :computer :hits 3}}]
+               entries)))
+
+  (it "appends all computer units when a log file is configured"
+    (set-test-world! (build-test-map ["ad"]))
+    (test-utils/set-test-state! :round-number 3)
+    (test-utils/set-test-state! :computer-unit-log-file "empire-units-test.log")
+    (let [written (atom nil)]
+      (with-redefs [spit (fn [path content & opts]
+                           (reset! written {:path path :content content :opts opts}))]
+        (#'game-loop/log-computer-units!)
+        (should= "empire-units-test.log" (:path @written))
+        (should-contain "{:round 3, :pos [0 0]" (:content @written))
+        (should-contain "{:round 3, :pos [1 0]" (:content @written))
+        (should-contain ":append true" (pr-str (:opts @written)))))))

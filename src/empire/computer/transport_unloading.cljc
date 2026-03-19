@@ -5,6 +5,7 @@
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.threat-response :as threat-response]
+            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.game-mechanics.debug.logging :as debug]
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))
@@ -106,7 +107,8 @@
   [transport]
   (let [unload-eid (:unload-event-id transport)
         unload-cid (or (:unload-country-id transport) (:country-id transport))]
-    (cond-> {:type :army :owner :computer :mode :move-inland :hits 1}
+    (cond-> (unit-stamping/ensure-computer-unit-id
+             {:type :army :owner :computer :mode :move-inland :hits 1})
       unload-eid (assoc :unload-event-id unload-eid)
       unload-cid (assoc :country-id unload-cid))))
 

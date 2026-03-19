@@ -10,6 +10,13 @@
     (sa/write-state! k (inc id))
     id))
 
+(defn ensure-computer-unit-id
+  [unit]
+  (if (and (= :computer (:owner unit))
+           (nil? (:computer-unit-id unit)))
+    (assoc unit :computer-unit-id (next-id! :next-computer-unit-id))
+    unit))
+
 (defn- apply-computer-satellite-direction
   [unit]
   (if (and (= :satellite (:type unit)) (= :computer (:owner unit)))
@@ -67,6 +74,7 @@
   "Applies computer-specific initial fields when stamping a produced unit."
   [unit cell]
   (-> unit
+      (ensure-computer-unit-id)
       (apply-computer-satellite-direction)
       (apply-computer-transport-fields)
       (apply-destroyer-fields)
@@ -74,6 +82,17 @@
       (apply-escort-fields)
       (apply-country-id cell)
       (apply-patrol-fields cell)))
+
+(defn backfill-missing-computer-unit-ids!
+  []
+  (let [world (sa/current-world)]
+    (doseq [row (range (count world))
+            col (range (count (first world)))
+            :let [unit (get-in world [row col :contents])]
+            :when (and unit
+                       (= :computer (:owner unit))
+                       (nil? (:computer-unit-id unit)))]
+      (sa/update-world! update-in [row col :contents] ensure-computer-unit-id))))
 
 (defn- country-coastal-cells-explored? [country-id]
   (get-in (or (sa/read-state :country-stats) {}) [country-id :coastal-explored?] true))

@@ -19,6 +19,7 @@
    :waiting-for-input true
    :paused true
    :computer-turn true
+   :next-computer-unit-id true
    :next-transport-id true
    :next-country-id true
    :next-unload-event-id true
