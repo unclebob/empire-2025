@@ -6,14 +6,26 @@
    :load-for-invasion
    :land-locked
    :unloading
+   :sail-to-unload
+   :sail-to-load
    :sailing
    :loading])
 
+(defn- normalize-normal-mission
+  [mission army-count]
+  (let [army-count (or army-count 0)]
+  (case mission
+    nil :loading
+    :idle :loading
+    :sailing (if (zero? army-count) :sail-to-load :sail-to-unload)
+    mission)))
+
 (defn transport-mission-action
-  [{:keys [mission never-reload?]}]
+  [{:keys [mission never-reload? army-count]}]
+  (let [normalized (normalize-normal-mission mission army-count)]
   {:fix-idle? true
-   :force-sailing? (and (= :loading (or mission :loading)) never-reload?)
-   :mission (or mission :loading)})
+   :force-sailing? (and (= :loading normalized) never-reload?)
+   :mission normalized}))
 
 (defn active-transport-action
   [{:keys [sentry? lake-handled?]}]
@@ -36,7 +48,9 @@
         :load-for-invasion :load-for-invasion
         :land-locked :land-locked
         :unloading :unloading
-        :sailing :sailing
+        :sail-to-unload :sail-to-unload
+        :sail-to-load :sail-to-load
+        :sailing :compat-sailing
         :loading :loading}
        mission))
 

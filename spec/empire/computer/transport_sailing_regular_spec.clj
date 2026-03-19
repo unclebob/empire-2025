@@ -1,6 +1,7 @@
 (ns empire.computer.transport-sailing-regular-spec
   (:require [empire.computer.transport-sailing-regular :as regular]
             [empire.computer.transport-sailing-support :as support]
+            [empire.test.utils :as test-utils]
             [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]
             [speclj.core :refer :all]))
 
@@ -27,23 +28,32 @@
         (should= [0 1] (@#'regular/launch-from-city-to-sea [0 0] {:pickup-continent-pos [5 5]}))
         (should= [:move [0 0] [0 1]] (nth @calls 2)))))
 
-  (it "switches to unloading when land is nearby"
-    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly true)
-                  empire.computer.transport-sailing-support/set-unloading-and-try! (fn [pos] [:unload pos])]
-      (should= [:unload [2 2]]
-               (@#'regular/maybe-unload-or-sail! [2 2] {:army-count 2}))))
+  (it "switches to unloading when adjacent unclaimed land exists"
+    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :sail-to-unload
+                                              :army-count 2}}
+                       {:type :land}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (fn [_] true)
+                  empire.computer.transport-core/set-transport-mission (fn [pos mission] [pos mission])]
+      (should= [[0 0] :unloading]
+               (regular/process-sailing-mission [0 0]))))
 
-  (it "falls back to a safe random sail path when no loaded target exists"
-    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
-                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
-                  empire.computer.transport-sailing-support/random-sail-path (constantly [[1 0] [2 0]])
+  (it "recomputes an unload path when no loaded target is adjacent"
+    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :sail-to-unload
+                                              :army-count 1
+                                              :sail-path []}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly [[1 0] [2 0]])
                   empire.state.api/update-world! (fn [& _])
                   empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
                   empire.computer.core/move-unit-to (fn [_ _] true)
                   empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])
-                  empire.computer.transport-unloading/try-opportunistic-unload (fn [pos] pos)]
+                  empire.computer.transport-unloading/try-opportunistic-unload (fn [_] false)]
       (should= [2 0]
-               (@#'regular/maybe-unload-or-sail! [0 0] {:army-count 1}))))
+               (regular/process-sailing-mission [0 0]))))
 
   (it "does not launch from a city using sea visible only on game-map"
     (set-test-world! [[{:type :city :contents {:pickup-continent-pos [5 5]}} {:type :sea}]])
@@ -51,43 +61,49 @@
     (should-be-nil (@#'regular/launch-from-city-to-sea [0 0] {:pickup-continent-pos [5 5]})))
 
   (it "does not treat hidden adjacent land as a reason to unload"
-    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer}}
+    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :sail-to-unload
+                                              :army-count 1
+                                              :sail-path []}}
                        {:type :land}]])
-    (set-test-computer-map! [[{:type :sea :contents {:type :transport :owner :computer}}
+    (set-test-computer-map! [[{:type :sea :contents {:type :transport :owner :computer
+                                                      :transport-mission :sail-to-unload
+                                                      :army-count 1
+                                                      :sail-path []}}
                               nil]])
-    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
-                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
-                  empire.computer.transport-sailing-support/random-sail-path (constantly [[1 0]])
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly [[1 0]])
                   empire.state.api/update-world! (fn [& _])
                   empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
                   empire.computer.core/move-unit-to (fn [_ _] true)
-                  empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])
-                  empire.computer.transport-unloading/try-opportunistic-unload (fn [pos] pos)]
+                  empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])]
       (should= [1 0]
-               (@#'regular/maybe-unload-or-sail! [0 0] {:army-count 1}))))
+               (regular/process-sailing-mission [0 0]))))
 
-  (it "keeps sailing when no loaded target or safe random sail path exists"
-    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
-                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
-                  empire.computer.transport-sailing-support/random-sail-path (constantly nil)]
+  (it "keeps sailing when no loaded target exists"
+    (set-test-world! [[{:contents {:transport-mission :sail-to-unload :sail-path [] :army-count 1 :never-reload? false}}]])
+    (set-test-computer-map! [[{:contents {:transport-mission :sail-to-unload :sail-path [] :army-count 1 :never-reload? false}}]])
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly nil)]
       (should-be-nil
-       (@#'regular/maybe-unload-or-sail! [3 4] {:army-count 1}))))
+       (regular/process-sailing-mission [0 0]))))
 
   (it "dispatches process-sailing-mission through the selected mission handler"
-    (set-test-world! [[{:contents {:sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
-    (set-test-computer-map! [[{:contents {:sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
-    (with-redefs [empire.computer.transport-sailing-decisions/sailing-action (fn [_ _ _] {:action :follow-path})
-                  empire.computer.transport-sailing-regular/follow-path-action (fn [pos sail-path] [:follow pos sail-path])]
-      (should= [:follow [0 0] [[1 0]]]
+    (set-test-world! [[{:contents {:transport-mission :sail-to-unload :sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
+    (set-test-computer-map! [[{:contents {:transport-mission :sail-to-unload :sail-path [[1 0]] :army-count 1 :never-reload? false}}]])
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.core/move-unit-to (fn [_ _] true)
+                  empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])
+                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.state.api/update-world! (fn [& _])]
+      (should= [1 0]
                (regular/process-sailing-mission [0 0]))))
 
   (it "processes loaded-no-path without crashing when no target exists"
-    (set-test-world! [[{:contents {:sail-path [] :army-count 1 :never-reload? false}}]])
-    (set-test-computer-map! [[{:contents {:sail-path [] :army-count 1 :never-reload? false}}]])
-    (with-redefs [empire.computer.transport-sailing-decisions/sailing-action (fn [_ _ _] {:action :loaded-no-path})
-                  empire.computer.transport-unloading/has-nearby-unloadable-land? (constantly false)
-                  empire.computer.transport-sailing-support/compute-sail-path (constantly nil)
-                  empire.computer.transport-sailing-support/random-sail-path (constantly nil)]
+    (set-test-world! [[{:contents {:transport-mission :sail-to-unload :sail-path [] :army-count 1 :never-reload? false}}]])
+    (set-test-computer-map! [[{:contents {:transport-mission :sail-to-unload :sail-path [] :army-count 1 :never-reload? false}}]])
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly nil)]
       (should-be-nil
        (regular/process-sailing-mission [0 0]))))
 

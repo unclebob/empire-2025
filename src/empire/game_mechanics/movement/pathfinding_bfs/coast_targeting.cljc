@@ -49,8 +49,10 @@
 
 (defn- unclaimed-land?
   [cell]
-  (and (= :land (:type cell))
-       (nil? (:country-id cell))))
+  (or (and (= :land (:type cell))
+           (nil? (:country-id cell)))
+      (and (= :city (:type cell))
+           (#{:free :computer} (:city-status cell)))))
 
 (defn- claimed-land?
   [cell]
@@ -123,11 +125,8 @@
       (and (outside-radius? start current coast-lookahead)
            (adjacent-to-land-kind? current computer-map claimed-land?)))))
 
-(defn bfs-to-coast-target
-  "BFS over explored sea cells seeking transport coast targets on computer-map.
-   Loaded transports seek unclaimed land. Empty transports seek claimed land
-   outside the radius-4 safety zone around start."
-  [start computer-map army-count]
+(defn- bfs-to-adjacent-target
+  [start computer-map target?]
   (let [passable-sea? (fn [pos]
                         (let [cell (get-in computer-map pos)]
                           (and cell (= :sea (:type cell)))))]
@@ -140,13 +139,34 @@
           (when best-target
             (vec (rest (map-utils/reconstruct-path came-from start best-target))))
           (let [[current depth] (peek queue)
-                target? (classify-coastal current start computer-map army-count)
                 neighbors (core/bfs-sea-neighbors current visited passable-sea?)
                 new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
             (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
                    (into visited neighbors)
                    new-came-from
-                   (core/update-first-match target? best-target current))))))))
+                   (core/update-first-match (target? current) best-target current))))))))
+
+(defn bfs-to-unload-target
+  "Loaded transports seek the nearest reachable sea cell adjacent to unclaimed land.
+   If none exists, they fall back to the nearest reachable unexplored coast."
+  [start computer-map]
+  (or (bfs-to-adjacent-target start computer-map
+                              #(adjacent-to-land-kind? % computer-map unclaimed-land?))
+      (exploration/bfs-to-unexplored-coast start computer-map)))
+
+(defn bfs-to-load-target
+  "Empty transports seek the nearest reachable sea cell adjacent to claimed land."
+  [start computer-map]
+  (bfs-to-adjacent-target start computer-map
+                          #(adjacent-to-land-kind? % computer-map claimed-land?)))
+
+(defn bfs-to-coast-target
+  "Compatibility wrapper for older callers.
+   Loaded transports seek unload targets; empty transports seek load targets."
+  [start computer-map army-count]
+  (if (pos? army-count)
+    (bfs-to-unload-target start computer-map)
+    (bfs-to-load-target start computer-map)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-12T12:01:34.617378-05:00", :module-hash "267691541", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1139483106"} {:id "defn/sea-reaches-edge?", :kind "defn", :line 8, :end-line 29, :hash "-359414710"} {:id "defn-/adjacent-to-unowned?", :kind "defn-", :line 31, :end-line 48, :hash "646172457"} {:id "defn/bfs-to-unowned-coast", :kind "defn", :line 50, :end-line 77, :hash "1116181976"} {:id "def/coast-lookahead", :kind "def", :line 79, :end-line 79, :hash "-1896136666"} {:id "defn-/bfs-past-lookahead?", :kind "defn-", :line 81, :end-line 86, :hash "-1287656638"} {:id "defn-/classify-coastal", :kind "defn-", :line 88, :end-line 93, :hash "-1071986533"} {:id "defn/bfs-to-coast-target", :kind "defn", :line 95, :end-line 122, :hash "2129782618"}]}

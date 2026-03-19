@@ -17,7 +17,6 @@
   [:transport-mission
    :sail-path
    :pickup-continent-pos
-   :loading-since
    :invasion-target
    :invasion-path
    :invasion-path-origin
@@ -57,6 +56,14 @@
    pos
    (sa/read-state :computer-map)
    army-count))
+
+(defn compute-sail-to-unload-path
+  [pos]
+  (sailing-path/compute-sail-to-unload-path pos (sa/read-state :computer-map)))
+
+(defn compute-sail-to-load-path
+  [pos]
+  (sailing-path/compute-sail-to-load-path pos (sa/read-state :computer-map)))
 
 (defn set-unloading-and-try!
   [pos]

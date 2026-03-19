@@ -39,9 +39,6 @@
 (defn set-transport-mission
   [pos mission]
   (sa/update-world! assoc-in (conj pos :contents :transport-mission) mission)
-  (when (= mission :loading)
-    (sa/update-world! assoc-in (conj pos :contents :loading-since)
-                      (or (sa/read-state :round-number) 0)))
   (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn mint-unload-event-id

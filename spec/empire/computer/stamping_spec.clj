@@ -29,12 +29,10 @@
   (context "transport fields"
     (it "assigns transport-mission and transport-id to computer transports"
       (test-utils/set-test-state! :next-transport-id 5)
-      (test-utils/set-test-state! :round-number 12)
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
         (should= :loading (:transport-mission stamped))
-        (should= 12 (:loading-since stamped))
         (should= 5 (:transport-id stamped))
         (should= 0 (:army-count stamped))
         (should= 6 (test-utils/read-test-state :next-transport-id))))

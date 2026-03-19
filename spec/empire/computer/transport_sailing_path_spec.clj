@@ -46,7 +46,8 @@
       (set-test-world! (build-test-map ["t~~"
                                         "###"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; Exclude all adjacent land by matching country-id.
+      ;; Exclude all adjacent land by matching country-id. The transport now stays in
+      ;; place when there is no reachable unclaimed or unexplored unload target.
       (doseq [c (range 3)]
         (update-test-world! assoc-in [c 1 :country-id] 1))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -56,11 +57,10 @@
                           :country-id 1
                           :sail-path []})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [sailing-support/compute-sail-path (constantly nil)
-                    sailing-support/random-sail-path (constantly [[1 0] [2 0]])]
+      (with-redefs [sailing-support/compute-sail-to-unload-path (constantly nil)]
         (transport/process-transport [0 0]))
-      (should= :transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
-      (should= :sailing (get-in (test-utils/read-test-state :game-map) [2 0 :contents :transport-mission]))))
+      (should= :transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
+      (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission]))))
 
     (it "sailing transport in city launches to adjacent sea when path is empty"
       (set-test-world! (build-test-map ["~O~"

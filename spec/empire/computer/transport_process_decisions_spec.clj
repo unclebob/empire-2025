@@ -5,9 +5,11 @@
 (describe "transport process decisions"
   (it "normalizes mission dispatch state"
     (should= {:fix-idle? true :force-sailing? true :mission :loading}
-             (decisions/transport-mission-action {:mission :loading :never-reload? true}))
-    (should= {:fix-idle? true :force-sailing? false :mission :sailing}
-             (decisions/transport-mission-action {:mission :sailing :never-reload? false})))
+             (decisions/transport-mission-action {:mission :loading :army-count 0 :never-reload? true}))
+    (should= {:fix-idle? true :force-sailing? false :mission :sail-to-unload}
+             (decisions/transport-mission-action {:mission :sailing :army-count 2 :never-reload? false}))
+    (should= {:fix-idle? true :force-sailing? false :mission :sail-to-load}
+             (decisions/transport-mission-action {:mission :sailing :army-count 0 :never-reload? false})))
 
   (it "chooses active transport action"
     (should= :skip (decisions/active-transport-action {:sentry? true :lake-handled? false}))
@@ -21,5 +23,7 @@
 
   (it "maps transport missions to concrete handlers"
     (should= :loading (decisions/transport-mission-handler :loading))
-    (should= :sailing (decisions/transport-mission-handler :sailing))
+    (should= :compat-sailing (decisions/transport-mission-handler :sailing))
+    (should= :sail-to-unload (decisions/transport-mission-handler :sail-to-unload))
+    (should= :sail-to-load (decisions/transport-mission-handler :sail-to-load))
     (should-be-nil (decisions/transport-mission-handler :bogus))))

@@ -80,7 +80,7 @@
   []
   (mission-handlers/sea-load-points (sa/read-state :computer-map) core/get-neighbors))
 
-(declare loading-crawl-move handle-stale-loading)
+(declare loading-crawl-move)
 
 (defn- transition-load-for-invasion-to-sailing!
   [pos]
@@ -113,9 +113,7 @@
    :has-nearby-unloadable-land? unloading/has-nearby-unloadable-land?
    :clear-pickup-continent-if-arrived loading/clear-pickup-continent-if-arrived
    :should-start-sailing? loading/should-start-sailing?
-   :loading-stale? loading/loading-stale?
    :start-sailing start-sailing
-   :handle-stale-loading handle-stale-loading
    :loading-crawl-move loading-crawl-move
    :process-unloading-crawl unloading/unloading-crawl-move
    :try-opportunistic-unload unloading/try-opportunistic-unload
@@ -153,19 +151,6 @@
     (when-let [pos1 (move-one pos)]
       (or (move-one pos1) pos1))))
 
-(defn- handle-stale-loading
-  "When loading has stalled, sail with what we have or find a new pcp."
-  [pos transport army-count]
-  (if (pos? army-count)
-    (start-sailing pos transport)
-    (let [new-pcp (targeting/find-next-pickup-continent-pos pos nil 0)]
-      (sa/update-world! assoc-in (conj pos :contents :pickup-continent-pos) new-pcp)
-      (sa/update-world! assoc-in (conj pos :contents :loading-since)
-                        (or (sa/read-state :round-number) 0))
-      (visibility/sync-ai-unit-to-computer-map! pos)
-      (or (loading-crawl-move pos)
-          (when-not new-pcp
-            (start-sailing pos (get-in (sa/read-state :computer-map) (conj pos :contents))))))))
 (defn- process-loading-mission
   [pos]
   (mission-handlers/process-loading-mission (mission-handler-deps) pos))
@@ -196,7 +181,9 @@
                                                              (sa/read-state :computer-map)
                                                              (sa/read-state :lake-max-cells)))
                   :unloading #(process-unloading-mission pos army-count)
-                  :sailing #(sailing/process-sailing-mission pos)
+                  :sail-to-unload #(sailing/process-sailing-mission pos)
+                  :sail-to-load #(sailing/process-sailing-mission pos)
+                  :compat-sailing #(sailing/process-sailing-mission pos)
                   :loading #(process-loading-mission pos)}]
     (when-let [handler (get handlers handler-key)]
       (handler))))
@@ -207,11 +194,12 @@
         initial-mission (:transport-mission transport)
         {:keys [fix-idle? force-sailing? mission]} (process-decisions/transport-mission-action
                                                     {:mission initial-mission
+                                                     :army-count army-count
                                                      :never-reload? (:never-reload? transport)})]
     (when fix-idle?
-      (fix-idle-mission pos mission))
+      (fix-idle-mission pos initial-mission))
     (when force-sailing?
-      (tc/set-transport-mission pos :sailing))
+      (tc/set-transport-mission pos (if (zero? army-count) :sail-to-load :sailing)))
     (let [current-mission (or (:transport-mission (get-in (sa/read-state :computer-map) (conj pos :contents)))
                               mission
                               :loading)]
@@ -231,7 +219,6 @@
   [:transport-mission
    :sail-path
    :pickup-continent-pos
-   :loading-since
    :invasion-target
    :invasion-path
    :invasion-path-origin

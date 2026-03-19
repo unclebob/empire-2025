@@ -5,7 +5,9 @@
             [empire.computer.transport-decisions :as decisions]
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-unloading :as unloading]
-            [empire.computer.threat-response :as threat-response]))
+            [empire.computer.threat-response :as threat-response]
+            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.state.api :as sa]))
 
 (def ^:private invasion-army-search-max-distance 6)
 (def ^:private invasion-load-timeout-rounds 5)
@@ -213,14 +215,10 @@
 (defn process-loading-mission
   [{:keys [current-world
            read-computer-map
-           read-runtime-state
-           update-game-map!
            load-adjacent-armies
            clear-pickup-continent-if-arrived
            should-start-sailing?
-           loading-stale?
            start-sailing
-           handle-stale-loading
            loading-crawl-move]}
    pos]
   (load-adjacent-armies pos)
@@ -229,10 +227,8 @@
         transport' (get-in (read-map) (conj pos :contents))
         army-count' (:army-count transport' 0)]
     (case (decisions/loading-mission-action
-           {:should-start-sailing? (should-start-sailing? pos transport' army-count')
-            :loading-stale? (loading-stale? transport')})
+           {:should-start-sailing? (should-start-sailing? pos transport' army-count')})
       :start-sailing (start-sailing pos transport')
-      :handle-stale (handle-stale-loading pos transport' army-count')
       (loading-crawl-move pos))))
 
 (defn- take-second-unloading-step
@@ -254,22 +250,24 @@
 (defn- process-unloading-with-armies
   [{:keys [current-world
            read-computer-map
-           has-nearby-unloadable-land?
            process-unloading-crawl
-           try-opportunistic-unload
-           start-sailing]} pos transport]
+           try-opportunistic-unload]} pos transport]
   (let [read-map (or read-computer-map current-world)]
-    (case (handler-decisions/unloading-with-armies-action
-         {:nearby-unloadable-land? (has-nearby-unloadable-land? pos transport 5)})
-      :crawl-and-unload
-      (if-let [pos1 (process-unloading-crawl pos)]
-        (let [after-first (or (when (= :unloading
-                                     (:transport-mission (get-in (read-map) (conj pos1 :contents))))
-                                (try-opportunistic-unload pos1))
-                              false)]
-          (take-second-unloading-step read-map process-unloading-crawl try-opportunistic-unload pos1 after-first))
-        (start-sailing pos transport))
-      (start-sailing pos transport))))
+    (if-let [pos1 (process-unloading-crawl pos)]
+      (let [after-first (or (when (= :unloading
+                                   (:transport-mission (get-in (read-map) (conj pos1 :contents))))
+                              (try-opportunistic-unload pos1))
+                            false)]
+        (take-second-unloading-step read-map process-unloading-crawl try-opportunistic-unload pos1 after-first))
+      (do
+        (sa/update-world! assoc-in (conj pos :contents :crawl-history) [])
+        (visibility/sync-ai-unit-to-computer-map! pos)
+        (when-let [retry-pos (process-unloading-crawl pos)]
+          (let [after-retry (or (when (= :unloading
+                                       (:transport-mission (get-in (read-map) (conj retry-pos :contents))))
+                                  (try-opportunistic-unload retry-pos))
+                                false)]
+            (take-second-unloading-step read-map process-unloading-crawl try-opportunistic-unload retry-pos after-retry)))))))
 
 (defn process-unloading-mission
   [{:keys [current-world

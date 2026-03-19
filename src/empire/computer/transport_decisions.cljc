@@ -19,11 +19,8 @@
     (empty-invasion-action state)))
 
 (defn loading-mission-action
-  [{:keys [should-start-sailing? loading-stale?]}]
-  (cond
-    should-start-sailing? :start-sailing
-    loading-stale? :handle-stale
-    :else :crawl))
+  [{:keys [should-start-sailing?]}]
+  (if should-start-sailing? :start-sailing :crawl))
 
 (defn unloading-mission-action
   [{:keys [army-count]}]

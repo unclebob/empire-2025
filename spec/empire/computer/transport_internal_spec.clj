@@ -116,16 +116,4 @@
         (should= [:mission [0 0] :loading] (first @updates))
         (should= [:pickup [0 0] #{[1 1] [1 2]}] (nth @updates 2)))))
 
-  (it "stale empty loading transport without a pickup target falls back to sailing"
-    (let [called (atom [])]
-      (set-test-world! [[{:type :sea
-                          :contents {:type :transport :owner :computer
-                                     :transport-mission :loading
-                                     :army-count 0}}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [empire.computer.transport-targeting/find-next-pickup-continent-pos (fn [& _] nil)
-                    empire.computer.transport/loading-crawl-move (fn [_] nil)
-                    empire.computer.transport/start-sailing (fn [pos unit]
-                                                              (reset! called [:sail pos (:army-count unit)]))]
-        (@#'transport/handle-stale-loading [0 0] {:army-count 0} 0)
-        (should= [:sail [0 0] 0] @called)))))
+  )

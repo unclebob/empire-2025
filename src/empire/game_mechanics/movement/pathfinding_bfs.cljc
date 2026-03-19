@@ -29,6 +29,12 @@
 (defn bfs-to-coast-target [start computer-map army-count]
   (coast-targeting/bfs-to-coast-target start computer-map army-count))
 
+(defn bfs-to-unload-target [start computer-map]
+  (coast-targeting/bfs-to-unload-target start computer-map))
+
+(defn bfs-to-load-target [start computer-map]
+  (coast-targeting/bfs-to-load-target start computer-map))
+
 (defn bfs-to-unseen-coast [start computer-map excluded]
   (exploration/bfs-to-unseen-coast start computer-map excluded))
 

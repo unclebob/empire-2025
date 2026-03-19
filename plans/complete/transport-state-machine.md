@@ -85,7 +85,7 @@ sail-to-load | claimed-land | loading | crawl-pickup
 
 - In `sail-to-load`, adjacency to claimed land is enough to switch back to `loading`.
 
-- The random fallback from `crawl-unload` is required to avoid transports stalling when they still have armies but cannot continue the unload crawl.
+- `crawl-unload` retries by clearing backtrack memory when it cannot continue.
 
 ## Sanity Check
 

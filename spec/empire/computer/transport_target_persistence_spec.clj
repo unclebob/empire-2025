@@ -40,13 +40,13 @@
                                         :when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
                                     [c r]))
               transport (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents))]
-          ;; Transport re-sails to find foreign coast
-          (should= :sailing (:transport-mission transport)))))
+          ;; Transport keeps unloading and continues searching by crawl.
+          (should= :unloading (:transport-mission transport)))))
 
     (it "re-sails when all nearby land is excluded by country-id"
       ;; Transport at [2,2] in :unloading with 6 armies.
       ;; Adjacent land (rows 0-1) has country-id 1 matching pcp.
-      ;; No unloadable land nearby — should re-sail, not coast-crawl forever.
+      ;; No unloadable land nearby — the transport now stays in unloading and retries crawl.
       (let [game-map (build-test-map ["#####"
                                       "#####"
                                       "~~t~~"
@@ -76,11 +76,11 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :sailing (:transport-mission t)))))
+          (should= :unloading (:transport-mission t)))))
 
-    (it "unloading transport in open sea with no coast starts sailing"
+    (it "unloading transport in open sea with no coast stays unloading"
       ;; Full transport in unloading mode in open sea with no adjacent land.
-      ;; Coast-crawl fails, so it starts sailing via BFS.
+      ;; Coast-crawl fails, so it remains in unloading after resetting crawl memory.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"])]
@@ -104,7 +104,7 @@
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                                :when (= :transport (:type unit))]
                            unit))]
-          (should= :sailing (:transport-mission t)))))
+          (should= :unloading (:transport-mission t)))))
 
     (it "unload-target-city cleared when transport transitions to loading"
       ;; Transport with 1 army unloads completely, transitioning to loading.
@@ -122,9 +122,9 @@
 
 
   (context "global BFS unload (VMS-consistent)"
-    (it "stuck unloading transport with no adjacent land switches to sailing"
+    (it "stuck unloading transport with no adjacent land stays unloading"
       ;; Full transport in :unloading mode with no adjacent unclaimed land.
-      ;; Should switch to :sailing and try to move away.
+      ;; It now stays in :unloading and retries crawl after clearing history.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"
@@ -146,13 +146,13 @@
                            :transport-mission :unloading :army-count 6
                            :pickup-continent-pos [0 1]}))
         (transport/process-transport [2 2])
-        ;; Transport should switch to sailing and try to move
+        ;; Transport should stay unloading and try to continue its crawl.
         (let [t (first (for [c (range 5) r (range 5)
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                                :when (= :transport (:type unit))]
                            unit))]
           (should= :transport (:type t))
-          (should= :sailing (:transport-mission t)))))
+          (should= :unloading (:transport-mission t)))))
 
     (it "full transport explores regardless of nearby computer cities"
       ;; Full transport explores toward fog, ignoring computer cities

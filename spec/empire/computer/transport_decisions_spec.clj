@@ -22,9 +22,6 @@
   (it "starts sailing when full"
     (should= :start-sailing (decisions/loading-mission-action {:should-start-sailing? true})))
 
-  (it "handles stale loading"
-    (should= :handle-stale (decisions/loading-mission-action {:loading-stale? true})))
-
   (it "otherwise crawls"
     (should= :crawl (decisions/loading-mission-action {}))))
 

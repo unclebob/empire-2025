@@ -105,10 +105,12 @@
         (tc/set-transport-mission pos :sailing)
         (sa/update-world! update-in (conj pos :contents)
                           dissoc :unload-target-city :pickup-continent-pos)
+        (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
         (visibility/sync-ai-unit-to-computer-map! pos))
       (do
         (tc/set-transport-mission pos :loading)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
         (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
                                   (land-objectives/flood-fill-continent lp))
               next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]

@@ -29,6 +29,14 @@
   [from computer-map army-count]
   (pathfinding-bfs/bfs-to-coast-target from computer-map army-count))
 
+(defn bfs-to-unload-target
+  [from computer-map]
+  (pathfinding-bfs/bfs-to-unload-target from computer-map))
+
+(defn bfs-to-load-target
+  [from computer-map]
+  (pathfinding-bfs/bfs-to-load-target from computer-map))
+
 (defn next-step
   ([from target unit-type]
    (pathfinding/next-step from target unit-type nil nil))

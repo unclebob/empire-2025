@@ -131,16 +131,4 @@
       (should= 0 (loading/load-adjacent-armies [0 1]))
       (should-not-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))))
-
-  (context "loading-stale? (L135)"
-    (it "returns true when loading exceeds max rounds (L138)"
-      (test-utils/set-test-state! :round-number 20)
-      (should (loading/loading-stale? {:loading-since 5})))
-
-    (it "returns false when loading is recent"
-      (test-utils/set-test-state! :round-number 12)
-      (should-not (loading/loading-stale? {:loading-since 5})))
-
-    (it "returns falsy when loading-since is nil"
-      (test-utils/set-test-state! :round-number 20)
-      (should-not (loading/loading-stale? {})))))
+  )

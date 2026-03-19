@@ -262,63 +262,6 @@
         (transport/process-transport [1 0])
         (should= true (test-utils/read-test-state :transport-fully-loaded?)))))
 
-  (context "stale loading timeout"
-    (it "loading transport with armies sails after 10 stale rounds"
-      ;; ###   land at row 0, country-id 1 (same as transport)
-      ;; ~t~   transport at [1,1] with 3 armies, loading-since round 1
-      ;; ~~~   row 2
-      (test-utils/set-test-state! :round-number 12)
-      (set-test-world! (build-test-map ["###"
-                                               "~t~"
-                                               "~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; Mark land as same country so opportunistic unload skips it
-      (doseq [c (range 3)]
-        (update-test-world! assoc-in [c 0 :country-id] 1))
-      (update-test-world! assoc-in [1 1 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :loading :army-count 3
-              :country-id 1 :loading-since 1})
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [1 1])
-      (let [t (some (fn [[c r]]
-                      (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
-                        (when (= :transport (:type u)) u)))
-                    (for [c (range 3) r (range 3)] [c r]))]
-        (should= :sailing (:transport-mission t))))
-
-    (it "loading transport with 0 armies recalculates pcp after 10 stale rounds"
-      ;; a##   army on continent at [0,0]
-      ;; ~~~   sea
-      ;; ~t~   transport at [1,2] with 0 armies, pcp nil, loading-since round 1
-      (test-utils/set-test-state! :round-number 12)
-      (set-test-world! (build-test-map ["a##"
-                                               "~~~"
-                                               "~t~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (update-test-world! assoc-in [1 2 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :loading :army-count 0
-              :loading-since 1})
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [1 2])
-      (let [t (some (fn [[c r]]
-                      (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
-                        (when (= :transport (:type u)) u)))
-                    (for [c (range 3) r (range 3)] [c r]))]
-        (should-not-be-nil (:pickup-continent-pos t))))
-
-    (it "set-transport-mission records loading-since"
-      (test-utils/set-test-state! :round-number 5)
-      (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
-                                                       :transport-mission :sailing
-                                                       :army-count 0}}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (tc/set-transport-mission [0 0] :loading)
-      (let [t (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
-        (should= :loading (:transport-mission t))
-        (should= 5 (:loading-since t)))))
-
   (context "major invasion transport loading"
     (it "empty invasion transport enters find-armies-for-invasion"
       (set-test-world! (build-test-map ["tO~~~"

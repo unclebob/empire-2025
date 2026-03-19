@@ -99,7 +99,7 @@
 (defn should-try-opportunistic-unload?
   [army-count mission]
   (and (pos? army-count)
-       (#{:sailing :unloading} mission)))
+       (#{:sailing :sail-to-unload :unloading} mission)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T14:20:27.122733-05:00", :module-hash "-1275047669", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1919004257"} {:id "defn/adjacent-to-pickup-continent?", :kind "defn", :line 9, :end-line 23, :hash "-655962961"} {:id "defn-/score-target-city", :kind "defn-", :line 25, :end-line 37, :hash "1702347925"} {:id "defn/find-unload-target", :kind "defn", :line 39, :end-line 60, :hash "1436906733"} {:id "defn/find-next-pickup-continent-pos", :kind "defn", :line 62, :end-line 97, :hash "-523599609"} {:id "defn/should-try-opportunistic-unload?", :kind "defn", :line 99, :end-line 102, :hash "2063591989"}]}

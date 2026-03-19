@@ -133,13 +133,14 @@
                    [0 0] computer-map 3)]
         (should= [3 0] (last path)))))
 
-  (it "ignores cities as coast targets for loaded transports"
+  (it "treats free cities as coast targets for loaded transports"
     (let [computer-map [[{:type :sea}] [{:type :sea}]
                          [{:type :sea}] [{:type :city :city-status :free}]]]
-      (should-be-nil (pathfinding-bfs/bfs-to-coast-target
-                      [0 0] computer-map 4))))
+      (should= [[1 0] [2 0]]
+               (pathfinding-bfs/bfs-to-coast-target
+                [0 0] computer-map 4))))
 
-  (it "targets claimed land outside radius 4 for empty transports"
+  (it "targets the nearest claimed land for empty transports"
     (let [computer-map (vec (for [r (range 7)]
                               [(cond
                                  (= r 6) {:type :land :country-id 9}
@@ -158,10 +159,11 @@
       (should-be-nil (pathfinding-bfs/bfs-to-coast-target
                        [0 0] computer-map 2))))
 
-  (it "does not target claimed land within radius 4 for empty transports"
+  (it "can target claimed land within radius 4 for empty transports"
     (let [computer-map (vec (for [r (range 5)]
                               [(cond
                                  (= r 4) {:type :land :country-id 9}
                                  :else {:type :sea})]))]
-      (should-be-nil (pathfinding-bfs/bfs-to-coast-target
-                      [0 0] computer-map 0)))))
+      (should= [[1 0] [2 0] [3 0]]
+               (pathfinding-bfs/bfs-to-coast-target
+                [0 0] computer-map 0)))))

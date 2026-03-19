@@ -205,7 +205,7 @@
         (transport/process-transport [2 1])
         (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 1]))]
           (should= :sailing (:transport-mission t))
-          (should-be-nil (:sail-path t))))))
+          (should= [[1 2]] (:sail-path t))))))
 
   (context "mission transitions"
     (it "transport with no mission defaults to loading"
