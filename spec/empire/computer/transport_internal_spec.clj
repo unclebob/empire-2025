@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport :as transport]
+            [empire.computer.transport-mission-handlers :as mission-handlers]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -99,5 +100,20 @@
                     empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
         (@#'transport/transition-to-loading [0 0])
         (should= [:mission [0 0] :sail-to-load] (first @updates)))))
+
+  (it "loading with no crawl move transitions to sail-to-load"
+    (let [called (atom nil)]
+      (mission-handlers/process-loading-mission
+       {:read-computer-map (constantly [[{:contents {:type :transport
+                                                     :owner :computer
+                                                     :transport-mission :loading
+                                                     :army-count 1}}]])
+        :load-adjacent-armies (fn [_] nil)
+        :should-start-sailing? (fn [& _] false)
+        :start-sailing (fn [& _] (reset! called :start-sailing))
+        :loading-crawl-move (fn [_] nil)
+        :transition-to-loading (fn [pos] (reset! called [:transition pos]))}
+       [0 0])
+      (should= [:transition [0 0]] @called)))
 
   )

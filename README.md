@@ -21,6 +21,7 @@ Options:
 - `--help` or `-h` prints usage to stdout and exits.
 - `--seed=N` starts the game with a fixed random seed.
 - `--headless=N` runs the real game loop without opening the UI, gives the computer a handicap of `N`, exits on game over or round `N`, and prints a one-line progress report every 20 rounds showing computer-map exploration and whether a major invasion is active.
+- `--log` appends every computer unit once per round to a timestamped `empire-units<timestamp>.log` file.
 - `--handicap=N` lets the computer play `N` full rounds before the player gets the first turn. The default is `50`.
 
 The optional `cols` and `rows` arguments specify the map size. The default is 100 columns by 60 rows. If the specified size exceeds your monitor's dimensions, the game will display the maximum allowable size and exit.
@@ -29,8 +30,10 @@ Examples:
 
     clj -M:run                          # Default 100x60 map, handicap 50
     clj -M:run --help                   # Print usage
+    clj -M:run --log                    # Write per-round computer unit snapshots to a log file
     clj -M:run --seed=42                # Default map with fixed seed
     clj -M:run --headless=400           # Run headlessly for up to 400 rounds
+    clj -M:run --headless=400 --log     # Run headlessly and log computer units each round
     clj -M:run --handicap=0 80 50       # Smaller 80x50 map, no handicap
     clj -M:run 120 70                   # Larger 120x70 map (if monitor permits)
 

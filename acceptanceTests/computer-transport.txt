@@ -23,14 +23,18 @@
 ;   - When fully emptied, the transport returns to loading.
 
 ;===============================================================
-; Idle transport transitions to loading on first processing.
+; Idle transport transitions to sail-to-load on first processing.
 ;===============================================================
 GIVEN game map
-  t~~
+  t~~~
+  ~~~~
+  ~~~~
+  ~~~X
 
 WHEN a new round starts.
 
-THEN t has transport-mission loading.
+THEN t has transport-mission sail-to-load.
+THEN t has sail-path [[1 1] [2 2] [2 3]].
 
 ;===============================================================
 ; Loading transport coastal-crawls along shoreline.

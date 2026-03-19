@@ -148,6 +148,39 @@
                    new-came-from
                    (core/update-first-match (target? current) best-target current))))))))
 
+(def ^:private preferred-load-target-distance 4)
+
+(defn- load-target-candidates
+  [start computer-map]
+  (let [passable-sea? (fn [pos]
+                        (let [cell (get-in computer-map pos)]
+                          (and cell (= :sea (:type cell)))))]
+    (when (passable-sea? start)
+      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
+             visited #{start}
+             came-from {}
+             candidates []]
+        (if (empty? queue)
+          {:came-from came-from
+           :candidates candidates}
+          (let [[current depth] (peek queue)
+                candidate? (and (not= current start)
+                                (adjacent-to-land-kind? current computer-map claimed-land?))
+                neighbors (core/bfs-sea-neighbors current visited passable-sea?)
+                new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+            (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
+                   (into visited neighbors)
+                   new-came-from
+                   (cond-> candidates
+                     candidate? (conj {:pos current :depth depth})))))))))
+
+(defn- choose-load-target
+  [candidates]
+  (first
+   (sort-by (juxt #(Math/abs (long (- (:depth %) preferred-load-target-distance)))
+                  :depth)
+            candidates)))
+
 (defn bfs-to-unload-target
   "Loaded transports seek the nearest reachable sea cell adjacent to unclaimed land.
    If none exists, they fall back to the nearest reachable unexplored coast."
@@ -157,10 +190,13 @@
       (exploration/bfs-to-unexplored-coast start computer-map)))
 
 (defn bfs-to-load-target
-  "Empty transports seek the nearest reachable sea cell adjacent to claimed land."
+  "Empty transports seek a reachable sea cell adjacent to claimed land.
+   Prefer distance 4, degrading as the target is closer or farther."
   [start computer-map]
-  (bfs-to-adjacent-target start computer-map
-                          #(adjacent-to-land-kind? % computer-map claimed-land?)))
+  (let [{:keys [came-from candidates]} (load-target-candidates start computer-map)
+        target (choose-load-target candidates)]
+    (when target
+      (vec (rest (map-utils/reconstruct-path came-from start (:pos target)))))))
 
 (defn bfs-to-coast-target
   "Compatibility wrapper for older callers.

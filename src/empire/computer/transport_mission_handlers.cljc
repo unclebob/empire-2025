@@ -223,7 +223,8 @@
            load-adjacent-armies
            should-start-sailing?
            start-sailing
-           loading-crawl-move]}
+           loading-crawl-move
+           transition-to-loading]}
    pos]
   (load-adjacent-armies pos)
   (let [read-map (or read-computer-map current-world)
@@ -232,7 +233,8 @@
     (case (decisions/loading-mission-action
            {:should-start-sailing? (should-start-sailing? pos transport' army-count')})
       :start-sailing (start-sailing pos transport')
-      (loading-crawl-move pos))))
+      (or (loading-crawl-move pos)
+          (transition-to-loading pos)))))
 
 (defn- process-unloading-with-armies
   [{:keys [current-world

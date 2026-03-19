@@ -125,13 +125,13 @@
    :should-start-sailing? loading/should-start-sailing?
    :start-sailing start-sailing
    :loading-crawl-move loading-crawl-move
+   :transition-to-loading transition-to-loading
    :process-unloading-crawl unloading/unloading-crawl-move
    :try-opportunistic-unload unloading/try-opportunistic-unload
    :try-opportunistic-unload-any-land unloading/try-opportunistic-unload-any-land
    :retreat-step-from-shore lake-naval/retreat-step-from-shore
    :deep-water? lake-naval/deep-water?
-   :lake-cells lake-naval/lake-cells
-   :transition-to-loading transition-to-loading})
+   :lake-cells lake-naval/lake-cells})
 
 (defn- process-find-armies-for-invasion
   [pos]

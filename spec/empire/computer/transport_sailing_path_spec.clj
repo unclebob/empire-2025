@@ -29,6 +29,26 @@
         (should= :sailing (:transport-mission t))
         (should-not-be-nil (:sail-path t))))
 
+    (it "sail-to-load prefers the claimed coast closest to distance four"
+      (let [computer-map (build-test-map ["t~~~~~~"
+                                          "~#~~~#~"])]
+        (set-test-world! computer-map)
+        (update-test-world! assoc-in [1 1 :country-id] 1)
+        (update-test-world! assoc-in [5 1 :country-id] 2)
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
+        (should= [[1 0] [2 0] [3 0] [4 0]]
+                 (sailing-support/compute-sail-to-load-path [0 0]))))
+
+    (it "sail-to-load degrades smoothly when no target is exactly four away"
+      (let [computer-map (build-test-map ["t~~~"
+                                          "~#~#"])]
+        (set-test-world! computer-map)
+        (update-test-world! assoc-in [1 1 :country-id] 1)
+        (update-test-world! assoc-in [3 1 :country-id] 2)
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
+        (should= [[1 0] [2 0] [3 0]]
+                 (sailing-support/compute-sail-to-load-path [0 0]))))
+
     (it "follows sail-path two steps per turn (speed 2)"
       (set-test-world! (build-test-map ["t~~~~~~"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
