@@ -90,30 +90,14 @@
                   [:load [2 1]]]
                  @calls))))
 
-  (it "transition-to-loading keeps sailing when the transport should never reload"
+  (it "transition-to-loading keeps a never-reload transport in sail-to-load"
     (let [updates (atom [])]
-      (set-test-world! [[{:contents {:never-reload? true :unload-target-city [9 9] :pickup-continent-pos [1 1]}}]])
+      (set-test-world! [[{:contents {:never-reload? true :unload-target-city [9 9]}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
                                                                            (swap! updates conj [:mission pos mission]))
                     empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
         (@#'transport/transition-to-loading [0 0])
-        (should= [:mission [0 0] :sailing] (first @updates)))))
-
-  (it "transition-to-loading finds a new pickup continent for reloadable transports"
-    (let [updates (atom [])]
-      (set-test-world! [[{:contents {:unload-target-city [9 9]}}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
-                                                                           (swap! updates conj [:mission pos mission]))
-                    empire.computer.transport-core/find-adjacent-land-pos (constantly [1 1])
-                    empire.computer.land-objectives/flood-fill-continent (constantly #{[1 1] [1 2]})
-                    empire.computer.transport-targeting/find-next-pickup-continent-pos (fn [pos continent]
-                                                                                         (swap! updates conj [:pickup pos continent])
-                                                                                         [4 4])
-                    empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
-        (@#'transport/transition-to-loading [0 0])
-        (should= [:mission [0 0] :loading] (first @updates))
-        (should= [:pickup [0 0] #{[1 1] [1 2]}] (nth @updates 2)))))
+        (should= [:mission [0 0] :sail-to-load] (first @updates)))))
 
   )

@@ -123,14 +123,14 @@ THEN T has mode sentry.
 ; Transport unloads one army per turn onto adjacent land.
 ;===============================================================
 GIVEN game map
-  ~t#
-  ~##
+  X~t#
 GIVEN t has 1 army.
 GIVEN t has mission unloading.
 
 WHEN computer transport t is processed.
 
-THEN t has transport-mission loading.
+THEN t has transport-mission sail-to-load.
+THEN t has sail-path [[1 0]].
 THEN t has 0 armies.
 
 ;===============================================================

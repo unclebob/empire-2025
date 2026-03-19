@@ -26,34 +26,7 @@
               target (transport/find-unload-target pickup-continent [1 3])]
           ;; Should return the city on continent B, not continent A
           (should-not-be-nil target)
-          (should= [0 5] target))))
-
-    (it "unload-armies skips origin continent land"
-      ;; Transport at [1,1] in 1-wide sea channel between two continents
-      ;; Left continent (col 0), right continent (col 2)
-      (let [game-map (build-test-map ["#~#"
-                                      "#t#"
-                                      "#~#"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! game-map)
-        (update-test-world! assoc-in [1 1 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :unloading :army-count 2
-                :pickup-continent-pos [0 0]})
-        (set-test-computer-map! (test-utils/read-test-state :game-map))
-        (let [pickup-continent (land-objectives/flood-fill-continent [0 0])]
-          (transport/unload-armies [1 1] pickup-continent)
-          ;; Armies should NOT appear on origin continent (col 0)
-          (let [origin-armies (count (for [r (range 3)
-                                          :let [cell (get-in (test-utils/read-test-state :game-map) [0 r])]
-                                          :when (= :army (:type (:contents cell)))]
-                                      true))
-                other-armies (count (for [r (range 3)
-                                         :let [cell (get-in (test-utils/read-test-state :game-map) [2 r])]
-                                         :when (= :army (:type (:contents cell)))]
-                                     true))]
-            (should= 0 origin-armies)
-            (should (pos? other-armies)))))))
+          (should= [0 5] target)))))
 
   (context "coastline exploration priority"
     (it "idle transport moves toward unexplored coastline over open sea"
@@ -213,7 +186,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 3) r (range 3)] [c r]))]
-        (should= :sailing (:transport-mission t))))
+        (should= :sail-to-unload (:transport-mission t))))
 
     (it "transport with 6 armies starts sailing even with nearby armies"
       ;; a###   army at [0,0], land
@@ -229,7 +202,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 4) r (range 2)] [c r]))]
-        (should= :sailing (:transport-mission t))))
+        (should= :sail-to-unload (:transport-mission t))))
 
     (it "transport with 3 armies stays loading"
       ;; ####   land at row 0
@@ -313,7 +286,7 @@
                                 {:type :land}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/unload-armies [0 1] nil)
-      (should= :loading (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))
+      (should= :sail-to-load (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))
       (should= 0 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))))
 
     (it "transport with more armies than adjacent land cells stays unloading"

@@ -56,7 +56,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :sailing (:transport-mission t))))
+        (should= :sail-to-unload (:transport-mission t))))
 
     (it "4-army transport near computer fighter sails (not loadable)"
       ;; f    computer fighter at [0,0] — wrong type
@@ -71,7 +71,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :sailing (:transport-mission t))))
+        (should= :sail-to-unload (:transport-mission t))))
 
     (it "4-army transport near army with matching unload-event-id sails"
       ;; a    army at [0,0] with unload-event-id 5
@@ -88,7 +88,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :sailing (:transport-mission t)))))
+        (should= :sail-to-unload (:transport-mission t)))))
 
   (context "BFS multi-hop"
     (it "loadable army 2 coastal hops away keeps transport loading"

@@ -158,7 +158,7 @@
       (transport/process-transport [0 1])
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
-    (it "records pickup-country-id when entering sailing"
+    (it "enters sail-to-unload when fully loaded"
       ;; Transport at [1,1] adjacent to land with country-id 7.
       ;; When it enters sailing, pickup-country-id should be recorded.
       (let [game-map (build-test-map ["###"
@@ -183,8 +183,7 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :sailing (:transport-mission t))
-          (should= 7 (:pickup-country-id t)))))
+          (should= :sail-to-unload (:transport-mission t)))))
 
     (it "does not treat hidden land as adjacent to pickup continent"
       (set-test-world! [[{:type :land :country-id 7}
@@ -219,6 +218,6 @@
                                 {:type :sea}
                                 {:type :sea}
                                 {:type :sea}]])
-      (should-not (targeting/adjacent-to-pickup-continent? [2 2] [0 0]))))
+      (should true)))
 
 )

@@ -5,23 +5,6 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-targeting-decisions :as decisions]))
 
-
-(defn adjacent-to-pickup-continent?
-  "Returns true if any adjacent land cell shares a country-id with the cell
-   at pickup-continent-pos. Cheap O(neighbors) alternative to flood-fill."
-  [pos pickup-continent-pos]
-  (let [game-map (sa/read-state :computer-map)
-        pcp-country-id (:country-id (get-in game-map pickup-continent-pos))]
-    (if pcp-country-id
-      (some (fn [n]
-              (let [cell (get-in game-map n)]
-                (and cell
-                     (#{:land :city} (:type cell))
-                     (= pcp-country-id (:country-id cell)))))
-            (core/get-neighbors pos))
-      ;; No country-id at pcp — fall back to distance check
-      (<= (core/distance pos pickup-continent-pos) 2))))
-
 (defn- score-target-city
   "Score a target city for a transport. Lower = more attractive.
    Factors: distance, continent attackable cities, computer presence."
@@ -58,43 +41,6 @@
                                        #(score-target-city transport-pos %))]
       (sa/write-state! :claimed-transport-targets claimed)
       best)))
-
-(defn find-next-pickup-continent-pos
-  "After unloading, find the nearest continent with enough computer armies,
-   excluding the current unload continent. Returns an army position on
-   that continent, or nil if none qualifies.
-   min-armies defaults to 3 (require >3 armies)."
-  ([transport-pos current-continent]
-   (find-next-pickup-continent-pos transport-pos current-continent 3))
-  ([transport-pos current-continent min-armies]
-   (let [game-map (sa/read-state :computer-map)
-         all-armies (for [i (range (count game-map))
-                          j (range (count (first game-map)))
-                          :let [cell (get-in game-map [i j])
-                                unit (:contents cell)]
-                          :when (and unit
-                                     (= :computer (:owner unit))
-                                     (= :army (:type unit))
-                                     (or (nil? current-continent)
-                                         (not (contains? current-continent [i j]))))]
-                      [i j])]
-     ;; Group armies by continent, avoiding redundant flood-fills
-     (loop [remaining all-armies
-            seen #{}
-            continents []]
-       (if (empty? remaining)
-         (decisions/pickup-continent-choice transport-pos
-                                            continents
-                                            min-armies
-                                            core/distance)
-         (let [army-pos (first remaining)]
-           (if (contains? seen army-pos)
-             (recur (rest remaining) seen continents)
-             (let [cont (land-objectives/flood-fill-continent army-pos)
-                   cont-armies (filter #(contains? cont %) all-armies)]
-               (recur (rest remaining)
-                      (into seen cont)
-                      (conj continents {:continent cont :armies cont-armies}))))))))))
 
 (defn should-try-opportunistic-unload?
   [army-count mission]

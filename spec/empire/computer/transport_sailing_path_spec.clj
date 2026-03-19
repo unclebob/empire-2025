@@ -210,35 +210,6 @@
         (should (or (not= [4 0] t-pos)
                     (seq (:sail-path t))))))
 
-  (context "load armies after move-toward-position"
-    (it "loads army adjacent to destination when moving toward pickup continent"
-      ;; a##a#    army at [0,0], land row 0, army at [3,0]
-      ;; ~t~~~    transport at [1,1] heading toward pickup-continent-pos [4,0]
-      ;; ~~~~~    sea
-      ;; Transport moves from [1,1] toward [4,0], arrives at [2,1].
-      ;; Army at [3,0] is adjacent to [2,1] — should be loaded.
-      (let [game-map (build-test-map ["a##a#"
-                                      "~t~~~"
-                                      "~~~~~"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! game-map)
-        (update-test-world! assoc-in [1 1 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :loading :army-count 0
-                :pickup-continent-pos [4 0]})
-        (set-test-computer-map! (test-utils/read-test-state :game-map))
-        (transport/process-transport [1 1])
-        ;; Army at [0,0] should be loaded (adjacent to start pos)
-        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
-        ;; Army at [3,0] should also be loaded (adjacent to destination)
-        (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [3 0])))
-        ;; Transport should have 2 armies loaded
-        (let [t (first (for [c (range 5) r (range 3)
-                             :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
-                             :when (= :transport (:type unit))]
-                         unit))]
-          (should= 2 (:army-count t))))))
-
   (context "process-invading-mission (L89)"
     (it "transitions to unloading when path is empty (L95)"
       (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer

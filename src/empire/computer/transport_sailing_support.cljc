@@ -16,7 +16,6 @@
 (def transport-random-walk-restore-keys
   [:transport-mission
    :sail-path
-   :pickup-continent-pos
    :invasion-target
    :invasion-path
    :invasion-path-origin

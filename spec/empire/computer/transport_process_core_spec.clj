@@ -170,18 +170,17 @@
       (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
       (should= 1 (get-in (test-utils/read-test-state :game-map) [1 1 :contents :army-count])))
 
-    (it "changes to loading mode after full unload"
+    (it "changes to sail-to-load after full unload"
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
                                                         :army-count 1}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Transport should be in loading mode now
-      (should= :loading (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
+      (should= :sail-to-load (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
 
   (context "sail-path sailing transition"
-    (it "full transport enters sailing even when no unclaimed land target is visible"
+    (it "full transport enters sail-to-unload even when no unclaimed land target is visible"
       ;; 5x5 all sea, transport at [2 1]. No visible unclaimed land target exists.
       ;; Transport should still enter sailing mode, but it will not have a target path yet.
       (let [game-map (build-test-map ["~~~~~"
@@ -204,7 +203,7 @@
                            :transport-mission :loading :army-count 6}))
         (transport/process-transport [2 1])
         (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 1]))]
-          (should= :sailing (:transport-mission t))
+          (should= :sail-to-unload (:transport-mission t))
           (should= [[1 2]] (:sail-path t))))))
 
   (context "mission transitions"
@@ -268,126 +267,4 @@
       (set-test-world! [[{:type :sea}]])
       (should-be-nil (transport/process-transport [0 0]))))
 
-  (context "origin continent tracking"
-    (it "records pickup-continent-pos when transport becomes full"
-      ;; Transport at [1,1] (sea) adjacent to land at [0,0..2]
-      ;; No visible cities on computer-map so transport sails (not directed)
-      (let [game-map (build-test-map ["###"
-                                      "~t~"
-                                      "~~~"
-                                      "~~~"
-                                      "~~~"])]
-        (set-test-world! game-map)
-        ;; Leave row 4 unexplored so transport has fog to explore toward
-        (set-test-computer-map!
-                (vec (for [c (range 3)]
-                       (vec (for [r (range 5)]
-                              (if (< r 4) (get-in game-map [c r]) nil))))))
-        (update-test-world! assoc-in [1 1 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :loading :army-count 6})
-        (transport/process-transport [1 1])
-        ;; Transport may have moved; find it
-        (let [t (some (fn [[c r]]
-                        (let [contents (get-in (test-utils/read-test-state :game-map) [c r :contents])]
-                          (when (= :transport (:type contents)) contents)))
-                      (for [c (range 3) r (range 5)] [c r]))]
-          (should-not-be-nil (:pickup-continent-pos t)))))
-
-    (it "updates pickup-continent-pos after full unload to nearest qualifying continent"
-      ;; Two continents: unload continent (rows 0-1) and army continent (rows 4-5).
-      ;; Army continent has >3 computer armies.
-      ;; After unloading, transport should update pickup-continent-pos to army continent.
-      (let [game-map (build-test-map ["##~"
-                                      "~t~"
-                                      "~~~"
-                                      "~~~"
-                                      "aaa"
-                                      "a##"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! game-map)
-        (update-test-world! assoc-in [1 1 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :unloading :army-count 1
-                :pickup-continent-pos [2 5]})
-        (set-test-computer-map! (test-utils/read-test-state :game-map))
-        (transport/process-transport [1 1])
-        (should= :army (:type (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
-        (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [1 1]))]
-          (should= :loading (:transport-mission transport))
-          ;; pickup-continent-pos should be on the army continent (rows 4-5), not old value
-          (should (>= (second (:pickup-continent-pos transport)) 4)))))
-
-    (it "sets pickup-continent-pos to nil when no continent has >3 armies"
-      ;; Only 2 armies exist on one continent - below threshold
-      (let [game-map (build-test-map ["##~"
-                                      "~t~"
-                                      "~~~"
-                                      "a#a"
-                                      "###"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! game-map)
-        (update-test-world! assoc-in [1 1 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :unloading :army-count 1
-                :pickup-continent-pos [1 4]})
-        (set-test-computer-map! (test-utils/read-test-state :game-map))
-        (transport/process-transport [1 1])
-        (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [1 1]))]
-          (should= :loading (:transport-mission transport))
-          (should-be-nil (:pickup-continent-pos transport)))))
-
-    (it "excludes unload continent when finding next pickup"
-      ;; Transport at [2,0] (sea), unload continent (rows 0-1), army continent (rows 4-5)
-      ;; Unload continent also has armies, but it should be excluded.
-      (let [game-map (build-test-map ["aaaa#"
-                                      "a####"
-                                      "t~~~~"
-                                      "~~~~~"
-                                      "aaaa#"
-                                      "a####"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! game-map)
-        (update-test-world! assoc-in [0 2 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :unloading :army-count 1
-                :pickup-continent-pos [4 5]})
-        (set-test-computer-map! (test-utils/read-test-state :game-map))
-        (transport/process-transport [0 2])
-        (let [transport-pos (first (for [r (range 6) c (range 5)
-                                        :when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))]
-                                    [c r]))
-              transport (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents))]
-          (should= :loading (:transport-mission transport))
-          ;; pickup-continent-pos should be on the OTHER army continent (rows 4-5),
-          ;; not on the unload continent (rows 0-1)
-          (should (>= (second (:pickup-continent-pos transport)) 4)))))
-
-    (it "ignores hidden armies when selecting the next pickup continent"
-      (let [game-map (build-test-map ["##~"
-                                      "~t~"
-                                      "~~~"
-                                      "~~~"
-                                      "aaa"
-                                      "a##"])]
-        (set-test-world! game-map)
-        (set-test-computer-map! (build-test-map ["##~"
-                                                 "~t~"
-                                                 "~~~"
-                                                 "~~~"
-                                                 "..."
-                                                 ".##"]))
-        (update-test-world! assoc-in [1 1 :contents]
-               {:type :transport :owner :computer
-                :transport-mission :unloading :army-count 1
-                :pickup-continent-pos [2 5]})
-        (set-test-computer-map!
-                (assoc-in (test-utils/read-test-state :computer-map)
-                          [1 1 :contents]
-                          {:type :transport :owner :computer
-                           :transport-mission :unloading :army-count 1
-                           :pickup-continent-pos [2 5]}))
-        (transport/process-transport [1 1])
-        (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [1 1]))]
-          (should= :loading (:transport-mission transport))
-          (should-be-nil (:pickup-continent-pos transport)))))))
+  )

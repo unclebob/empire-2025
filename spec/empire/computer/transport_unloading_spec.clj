@@ -123,7 +123,7 @@
                                 {:type :sea}
                                 {:type :sea}
                                 {:type :sea}]])
-      (let [transport {:type :transport :owner :computer :pickup-continent-pos [0 0]}]
+      (let [transport {:type :transport :owner :computer}]
         (should (unloading/has-nearby-unloadable-land? [0 1] transport 3)))))
 
   (context "unload-armies (L146)"
@@ -165,7 +165,7 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-be-nil (unloading/unload-armies [0 1] nil)))
 
-    (it "never-reload transport transitions to sailing after full unload"
+    (it "never-reload transport transitions to sail-to-load after full unload"
       (set-test-world! [[{:type :land}
                          {:type :sea :contents {:type :transport :owner :computer
                                                 :transport-mission :unloading
@@ -175,24 +175,5 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (unloading/unload-armies [0 1] nil))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))
-      (should= :sailing (get-in (test-utils/read-test-state :game-map) [0 1 :contents :transport-mission]))
-      (should= true (get-in (test-utils/read-test-state :game-map) [0 1 :contents :never-reload?]))))
-
-  (context "pickup-continent exclusion"
-    (it "does not unload onto the same pickup landmass even when country-ids differ"
-      (set-test-world! (build-test-map ["###"
-                                        "#t#"
-                                        "###"]))
-      (set-test-computer-map! (build-test-map ["###"
-                                               "#t#"
-                                               "###"]))
-      (update-test-world! assoc-in [1 1 :contents]
-                         {:type :transport :owner :computer
-                          :army-count 3
-                          :country-id 1
-                          :pickup-continent-pos [0 0]})
-      ;; Simulate drifted country-ids on the same landmass.
-      (doseq [p [[0 1] [1 0] [1 2] [2 1]]]
-        (update-test-world! assoc-in (conj p :country-id) 15))
-      (should-be-nil (unloading/try-opportunistic-unload [1 1]))
-      (should= 3 (get-in (test-utils/read-test-state :game-map) [1 1 :contents :army-count])))))
+      (should= :sail-to-load (get-in (test-utils/read-test-state :game-map) [0 1 :contents :transport-mission]))
+      (should= true (get-in (test-utils/read-test-state :game-map) [0 1 :contents :never-reload?])))))

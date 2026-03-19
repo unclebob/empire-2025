@@ -117,7 +117,7 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
       (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
-        (should= :loading (:transport-mission transport))
+        (should= :sail-to-load (:transport-mission transport))
         (should-be-nil (:unload-target-city transport)))))
 
 
@@ -181,7 +181,7 @@
                                :when (= :transport (:type unit))]
                            unit))]
           (should= :transport (:type t))
-          (should= :sailing (:transport-mission t)))))
+          (should= :sail-to-unload (:transport-mission t)))))
 
     (it "full transport explores even when no enemy cities visible"
       ;; Only computer cities. Full transport explores toward unexplored.
@@ -214,7 +214,7 @@
                                :when (= :transport (:type unit))]
                            unit))]
           (should= :transport (:type t))
-          (should= :sailing (:transport-mission t))))))
+          (should= :sail-to-unload (:transport-mission t))))))
 
   (context "no-reload from recently unloaded country"
     (it "transport avoids armies from recently unloaded country"
@@ -287,14 +287,6 @@
       (transport/process-transport [0 1])
       (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
         (should-be-nil (:unloaded-countries transport))))
-
-    (it "adjacent-to-pickup-continent? distance fallback at boundary (L22)"
-      ;; When pcp has no country-id, falls back to distance <= 2.
-      ;; pos at distance 2 should return true; distance 3 should return false.
-      (set-test-world! [[{:type :land} {:type :sea} {:type :sea} {:type :sea}]])
-      ;; pcp at [0 0] has no country-id
-      (should (targeting/adjacent-to-pickup-continent? [0 2] [0 0]))
-      (should-not (targeting/adjacent-to-pickup-continent? [0 3] [0 0])))
 
     (it "score-target-city multiplication affects target ranking (L36)"
       ;; Two player cities at different distances. Closer one should win.

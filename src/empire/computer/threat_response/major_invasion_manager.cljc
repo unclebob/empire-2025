@@ -83,7 +83,9 @@
                                   :invasion-plan-revision
                                   :invasion-load-since))]
         (if (mission-needs-reset? transport)
-          (assoc transport :transport-mission :sailing)
+          (assoc transport :transport-mission (if (zero? (:army-count transport 0))
+                                                :sail-to-load
+                                                :sail-to-unload))
           transport))
       base)))
 

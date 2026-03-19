@@ -32,7 +32,7 @@
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                                :when (= :transport (:type unit))]
                            unit))]
-          (should= :sailing (:transport-mission t)))))
+          (should= :sail-to-unload (:transport-mission t)))))
 
   (context "lake transport behavior"
     (it "lake transport unloads first, then parks in deep water as sentry"
@@ -146,4 +146,4 @@
                              :when (= :transport (:type unit))]
                          unit))]
           (should-not-be-nil t)
-          (should= :sailing (:transport-mission t))))))
+          (should= :sail-to-unload (:transport-mission t))))))

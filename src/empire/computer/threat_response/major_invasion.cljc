@@ -214,7 +214,9 @@
                                   :invasion-plan-revision
                                   :invasion-path-origin))]
        (if (= :invading (:transport-mission transport'))
-         (assoc transport' :transport-mission :sailing)
+         (assoc transport' :transport-mission (if (zero? (:army-count transport' 0))
+                                                :sail-to-load
+                                                :sail-to-unload))
          transport'))))
   (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
     (sync-ai-unit! pos)))
@@ -280,7 +282,9 @@
           ((:update-game-map! ctx) update-in (conj pos :contents)
            #(-> %
                 (assoc :major-invasion-skip-revision (current-target-land-revision ctx))
-                (assoc :transport-mission :sailing)
+                (assoc :transport-mission (if (zero? (:army-count % 0))
+                                            :sail-to-load
+                                            :sail-to-unload))
                 (dissoc :major-invasion-target
                         :major-invasion-find-armies-round
                         :invasion-target

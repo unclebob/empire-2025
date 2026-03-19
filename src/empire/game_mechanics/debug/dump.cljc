@@ -54,7 +54,6 @@
                          [:kamikazee-hunt-resume-pos "k-resume"]
                          [:kamikazee-route "k-route"]
                          [:kamikazee-targets "k-targets"]
-                         [:pickup-continent-pos "pcp"]
                          [:stuck-since-round "stuck-since"]
                          [:patrol-mode "patrol-mode"]]
         optional-strs (for [[k label] optional-fields

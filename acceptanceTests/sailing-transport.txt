@@ -29,7 +29,8 @@ GIVEN t has 6 armies.
 
 WHEN computer transport t is processed.
 
-THEN t has transport-mission sailing.
+THEN t has transport-mission sail-to-unload.
+THEN t has sail-path [[1 0] [2 0] [3 0] [4 0]].
 
 ;===============================================================
 ; Sailing transport moves two steps along its stored path (speed 2).

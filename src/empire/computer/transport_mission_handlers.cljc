@@ -221,13 +221,11 @@
   [{:keys [current-world
            read-computer-map
            load-adjacent-armies
-           clear-pickup-continent-if-arrived
            should-start-sailing?
            start-sailing
            loading-crawl-move]}
    pos]
   (load-adjacent-armies pos)
-  (clear-pickup-continent-if-arrived pos)
   (let [read-map (or read-computer-map current-world)
         transport' (get-in (read-map) (conj pos :contents))
         army-count' (:army-count transport' 0)]

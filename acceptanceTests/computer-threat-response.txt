@@ -345,8 +345,7 @@ THEN a has mode move-to-coast-for-invasion.
 ; Invasion loading timeout with no armies does not join invasion.
 ;===============================================================
 GIVEN game map
-  ~t~
-  ###
+  ~t~~X
 GIVEN t has transport-mission load-for-invasion.
 GIVEN t has major-invasion true.
 GIVEN t has invasion-load-since 0.
@@ -354,7 +353,8 @@ GIVEN t has 0 armies.
 
 WHEN 6 rounds are complete.
 
-THEN t has transport-mission loading.
+THEN t has transport-mission sail-to-load.
+THEN t has sail-path [[3 0]].
 
 ;===============================================================
 ; Invasion loading with armies near target joins invasion immediately.

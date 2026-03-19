@@ -64,15 +64,16 @@ THEN t is at [0 0].
 ; Full transport switches to sailing.
 ;===============================================================
 GIVEN game map
-  ~~~
-  ~t~
-  ~~~
+  t~~~~#
+GIVEN computer map
+  t~~~~#
 GIVEN t has transport-mission loading.
 GIVEN t has 6 armies.
 
 WHEN a new round starts.
 
-THEN t has transport-mission sailing.
+THEN t has transport-mission sail-to-unload.
+THEN t has sail-path [[1 0] [2 0] [3 0] [4 0]].
 
 ;===============================================================
 ; Sailing transport unloads at unexplored coast.

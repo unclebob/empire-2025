@@ -143,7 +143,7 @@
       (should= :unsustainable-losses (:failure-reason @state))
       (should= :deferred (:decision @state))
       (should= 9 (:next-review-round @state))
-      (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
+      (should= :sail-to-load (get-in @world [0 0 :contents :transport-mission]))
       (should-be-nil (get-in @world [0 0 :contents :major-invasion]))
       (should-be-nil (get-in @world [1 0 :contents :major-invasion]))
       (should-be-nil (get-in @world [1 0 :contents :kamikazee]))))
@@ -207,7 +207,7 @@
                     empire.computer.threat-response.invasion-decision/armies-in-transports-to-target-continent (fn [& _] 0)
                     empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)]
         (manager/on-round-start! ctx))
-      (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
+      (should= :sail-to-load (get-in @world [0 0 :contents :transport-mission]))
       (should-be-nil (get-in @world [0 0 :contents :invasion-target]))))
 
   (it "forces patrol boats into exploration when sea-pathing is unavailable"

@@ -55,7 +55,7 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :sailing (:transport-mission t))
+          (should= :sail-to-unload (:transport-mission t))
           (should-not-be-nil (:unload-country-id t)))))
 
     (it "unloaded army gets country-id from transport"
@@ -117,7 +117,7 @@
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       ;; Transport should have 0 armies (did NOT reload)
       (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
-        (should= :loading (:transport-mission transport))
+        (should= :sail-to-load (:transport-mission transport))
         (should= 0 (:army-count transport)))))
 
   (context "transport without army-count field"
@@ -223,6 +223,6 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :sailing (:transport-mission t))))))
+          (should= :sail-to-unload (:transport-mission t))))))
 
 )

@@ -235,5 +235,5 @@
       (should= :deferred (:decision state))
       (should= :unsustainable-losses (:failure-reason state))
       (should= 13 (:next-review-round state))
-      (should= :sailing (:transport-mission transport))
+      (should= :sail-to-load (:transport-mission transport))
       (should-be-nil (:major-invasion transport)))))

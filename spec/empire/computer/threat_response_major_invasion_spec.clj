@@ -144,7 +144,7 @@
                  :nearest-major-target (fn [_] nil)
                  :computer-sea-unit-types #{:transport}}]
         (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))
-        (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
+        (should= :sail-to-unload (get-in @world [0 0 :contents :transport-mission]))
         (should-be-nil (get-in @world [0 0 :contents :invasion-target])))))
 
   (context "trim stale find-armies missions"
@@ -179,6 +179,6 @@
                  :update-game-map! (update-world-fn world)
                  :current-world (fn [] @world)}]
         (mi/trim-stale-find-armies-missions! ctx)
-        (should= :sailing (get-in @world [0 0 :contents :transport-mission]))
+        (should= :sail-to-load (get-in @world [0 0 :contents :transport-mission]))
         (should= 9 (get-in @world [0 0 :contents :major-invasion-skip-revision]))
         (should-be-nil (get-in @world [0 0 :contents :major-invasion-target])))))

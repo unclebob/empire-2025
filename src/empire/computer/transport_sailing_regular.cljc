@@ -15,7 +15,6 @@
     (when (= :city cell-type)
       (let [target-ref (or (:invasion-target transport)
                            (:major-invasion-target transport)
-                           (:pickup-continent-pos transport)
                            pos)
             options (->> (core/get-neighbors pos)
                          (filter (fn [n]
@@ -161,17 +160,13 @@
       (transition-to-loading! pos)
 
       city-cell?
-      (or (handle-launch-and-follow! pos transport support/compute-sail-to-load-path false)
-          (throw (ex-info "Empty sailing transport had no claimed-land target"
-                          {:pos pos :transport transport})))
+      (handle-launch-and-follow! pos transport support/compute-sail-to-load-path false)
 
       (seq sail-path)
       (sail-follow-path pos sail-path false)
 
       :else
-      (or (compute-and-follow-path! pos support/compute-sail-to-load-path false)
-          (throw (ex-info "Empty sailing transport had no claimed-land target"
-                          {:pos pos :transport transport}))))))
+      (compute-and-follow-path! pos support/compute-sail-to-load-path false))))
 
 (defn- follow-path-action
   [pos sail-path]

@@ -42,27 +42,6 @@
           ;; Should pick the unclaimed city [3,0]
           (should= [3 0] target)))))
 
-  (context "loading pcp clearing"
-    (it "clears pickup-continent-pos when adjacent to pickup continent"
-      ;; ##   land at row 0, country-id 5
-      ;; t~   transport at [0,1] loading with pickup-continent-pos [0,0]
-      (set-test-world! (build-test-map ["##"
-                                               "t~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (doseq [c (range 2)]
-        (update-test-world! assoc-in [c 0 :country-id] 5))
-      (update-test-world! assoc-in [0 1 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :loading :army-count 0
-              :pickup-continent-pos [0 0]})
-      (transport/process-transport [0 1])
-      ;; Find transport — pickup-continent-pos should be cleared
-      (let [t (some (fn [[c r]]
-                      (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
-                        (when (= :transport (:type u)) u)))
-                    (for [c (range 2) r (range 2)] [c r]))]
-        (should-be-nil (:pickup-continent-pos t)))))
-
   (context "idle mission fix"
     (it "transport with idle mission transitions to loading"
       (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
@@ -106,49 +85,6 @@
         ;; crawl-history should have been updated
         (should (seq (:crawl-history (:unit t)))))))
 
-  (context "move-toward-position"
-    (it "loading transport with pickup-continent-pos moves toward it"
-      ;; ~~~~~~#   land at [6,0]
-      ;; t~~~~~~   transport at [0,1] with pickup-continent-pos [6,0]
-      ;; Linear sea — transport should move rightward toward [6,0]
-      (set-test-world! (build-test-map ["~~~~~~#"
-                                               "t~~~~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (update-test-world! assoc-in [0 1 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :loading :army-count 0
-              :pickup-continent-pos [6 0]})
-      (transport/process-transport [0 1])
-      ;; Transport should have moved rightward (col > 0)
-      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))
-      (let [t-pos (some (fn [[c r]]
-                          (when (= :transport (get-in (test-utils/read-test-state :game-map) [c r :contents :type]))
-                            [c r]))
-                        (for [c (range 7) r (range 2)] [c r]))]
-        (should (> (first t-pos) 0))))
-
-    (it "falls back to coastal crawl when preferred cell is occupied by another transport"
-      ;; ##~~~~   col0,col1 = land; col2-5 = sea
-      ;; #t~~~~   transport at [1,1]; pcp [5,1] (far east)
-      ;; ##~~~~   col0,col1 = land; col2-5 = sea
-      ;; Blocker transport placed at [2,1].
-      ;; move-toward picks [2,1] (closest to pcp), but move fails.
-      ;; Should fall back to coastal crawl → [2,0] or [2,2].
-      (set-test-world! (build-test-map ["##~~~~"
-                                               "#t~~~~"
-                                               "##~~~~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (update-test-world! assoc-in [1 1 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :loading :army-count 0
-              :pickup-continent-pos [5 1]})
-      (update-test-world! assoc-in [2 1 :contents]
-             {:type :transport :owner :computer
-              :transport-mission :loading :army-count 0})
-      (transport/process-transport [1 1])
-      ;; Transport should have moved away from [1,1]
-      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [1 1])))))
-
   (context "passable-sea with computer unit"
     (it "transport moves past sea cell containing computer unit"
       ;; ~s~   computer sub at [1,0]
@@ -175,7 +111,7 @@
         (should-not-be-nil t))))
 
   (context "zero-army unloading"
-    (it "unloading transport with 0 armies transitions to loading"
+    (it "unloading transport with 0 armies transitions to sail-to-load"
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
@@ -183,7 +119,7 @@
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      (should= :loading (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
+      (should= :sail-to-load (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
 
   (context "recently-unloaded countries"
     (it "skips army from country unloaded less than 10 rounds ago"
@@ -283,7 +219,7 @@
                     (for [c (range 5) r (range 3)] [c r]))]
         (should= :find-armies-for-invasion (:transport-mission t))))
 
-    (it "load-for-invasion times out empty transport back to loading"
+    (it "load-for-invasion times out empty transport back to sail-to-load"
       (test-utils/set-test-state! :round-number 6)
       (set-test-world! (build-test-map ["~t~"
                                         "###"]))
@@ -296,7 +232,7 @@
                           :army-count 0})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 0])
-      (should= :loading (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission])))
+      (should= :sail-to-load (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission])))
 
     (it "load-for-invasion with armies times out into invasion mission"
       (test-utils/set-test-state! :round-number 6)

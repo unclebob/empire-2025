@@ -17,6 +17,7 @@
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-mission-handlers :as mission-handlers]
             [empire.computer.transport-sailing :as sailing]
+            [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-targeting :as targeting]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
@@ -42,36 +43,33 @@
 (defn- start-sailing
   "Transition transport from loading to sailing with BFS path."
   [pos transport]
-  (tc/set-transport-mission pos :sailing)
+  (tc/set-transport-mission pos :sail-to-unload)
   (tc/mint-unload-event-id pos transport)
   (when-not (sa/read-state :transport-fully-loaded?)
     (sa/write-state! :transport-fully-loaded? true))
   (tc/mint-unload-country-id pos)
-  (tc/record-pickup-continent-pos pos transport)
   (when-let [path (sailing/compute-sail-path pos (:army-count transport 0))]
     (sa/update-world! assoc-in
                       (conj pos :contents :sail-path) path)
     (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- transition-to-loading
-  "Switch an empty transport to loading mode and find next pickup continent."
+  "Switch an empty transport to the return-to-load sailing state."
   [pos]
-  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))]
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
+        sail-path (or (sailing-path/compute-sail-to-load-path pos (sa/read-state :computer-map))
+                      [])]
     (if (:never-reload? transport)
       (do
-        (tc/set-transport-mission pos :sailing)
-        (sa/update-world! update-in (conj pos :contents)
-                          dissoc :unload-target-city :pickup-continent-pos)
+        (tc/set-transport-mission pos :sail-to-load)
+        (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
         (visibility/sync-ai-unit-to-computer-map! pos))
       (do
-        (tc/set-transport-mission pos :loading)
+        (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
-        (let [current-continent (when-let [lp (tc/find-adjacent-land-pos pos)]
-                                  (land-objectives/flood-fill-continent lp))
-              next-pickup (targeting/find-next-pickup-continent-pos pos current-continent)]
-          (sa/update-world! assoc-in
-                            (conj pos :contents :pickup-continent-pos) next-pickup)
-          (visibility/sync-ai-unit-to-computer-map! pos))))))
+        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+        (visibility/sync-ai-unit-to-computer-map! pos)))))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -89,7 +87,15 @@
 
 (defn- transition-load-for-invasion-to-sailing!
   [pos]
-  (tc/set-transport-mission pos :sailing)
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
+        computer-map (sa/read-state :computer-map)
+        empty? (zero? (:army-count transport 0))
+        mission (if empty? :sail-to-load :sail-to-unload)
+        sail-path (if empty?
+                    (or (sailing-path/compute-sail-to-load-path pos computer-map) [])
+                    (or (sailing-path/compute-sail-to-unload-path pos computer-map) []))]
+    (tc/set-transport-mission pos mission)
+    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path)))
   (threat-response/prepare-transport! pos))
 
 (defn- transition-load-for-invasion-to-unloading!
@@ -116,7 +122,6 @@
    :transition-to-sailing transition-load-for-invasion-to-sailing!
    :transition-to-unloading transition-load-for-invasion-to-unloading!
    :has-nearby-unloadable-land? unloading/has-nearby-unloadable-land?
-   :clear-pickup-continent-if-arrived loading/clear-pickup-continent-if-arrived
    :should-start-sailing? loading/should-start-sailing?
    :start-sailing start-sailing
    :loading-crawl-move loading-crawl-move
@@ -147,12 +152,7 @@
 (defn- loading-crawl-move
   [pos]
   (let [move-one (fn [p]
-                   (let [t (get-in (sa/read-state :computer-map) (conj p :contents))
-                         pcp (:pickup-continent-pos t)]
-                     (if pcp
-                       (or (move-toward-position p pcp)
-                           (loading/coastal-crawl-move p))
-                       (loading/coastal-crawl-move p))))]
+                   (loading/coastal-crawl-move p))]
     (loop [current-pos pos
            moves-left (transport-speed)
            moved-any? false]
@@ -210,13 +210,12 @@
     (when fix-idle?
       (fix-idle-mission pos initial-mission))
     (when force-sailing?
-      (tc/set-transport-mission pos (if (zero? army-count) :sail-to-load :sailing)))
+      (tc/set-transport-mission pos (if (zero? army-count) :sail-to-load :sail-to-unload)))
     (let [current-mission (or (:transport-mission (get-in (sa/read-state :computer-map) (conj pos :contents)))
                               mission
                               :loading)]
       (debug/log-computer-event! :transport-process pos
-                                 {:mission current-mission :armies army-count
-                                  :pcp (:pickup-continent-pos transport)})
+                                 {:mission current-mission :armies army-count})
       (if (and (targeting/should-try-opportunistic-unload? army-count current-mission)
                (unloading/try-opportunistic-unload pos))
         true
@@ -229,7 +228,6 @@
 (def ^:private transport-random-walk-restore-keys
   [:transport-mission
    :sail-path
-   :pickup-continent-pos
    :invasion-target
    :invasion-path
    :invasion-path-origin

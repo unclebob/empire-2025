@@ -12,20 +12,19 @@
    :loading])
 
 (defn- normalize-normal-mission
-  [mission army-count]
-  (let [army-count (or army-count 0)]
+  [mission _army-count]
   (case mission
     nil :loading
     :idle :loading
-    :sailing (if (zero? army-count) :sail-to-load :sail-to-unload)
-    mission)))
+    :sailing (if (zero? _army-count) :sail-to-load :sail-to-unload)
+    mission))
 
 (defn transport-mission-action
   [{:keys [mission never-reload? army-count]}]
   (let [normalized (normalize-normal-mission mission army-count)]
-  {:fix-idle? true
-   :force-sailing? (and (= :loading normalized) never-reload?)
-   :mission normalized}))
+    {:fix-idle? true
+     :force-sailing? (and (= :loading normalized) never-reload?)
+     :mission normalized}))
 
 (defn active-transport-action
   [{:keys [sentry? lake-handled?]}]
