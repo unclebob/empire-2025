@@ -80,6 +80,22 @@
       (should= [1 0]
                (regular/process-sailing-mission [0 0]))))
 
+  (it "treats adjacent computer cities as claimed land and keeps sailing"
+    (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
+                                              :transport-mission :sail-to-unload
+                                              :army-count 4
+                                              :sail-path []}}
+                       {:type :city :city-status :computer}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly [[1 0]])
+                  empire.state.api/update-world! (fn [& _])
+                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.computer.core/move-unit-to (fn [_ _] true)
+                  empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])]
+      (should= [1 0]
+               (regular/process-sailing-mission [0 0]))))
+
   (it "keeps sailing when no loaded target exists"
     (set-test-world! [[{:contents {:transport-mission :sail-to-unload :sail-path [] :army-count 1 :never-reload? false}}]])
     (set-test-computer-map! [[{:contents {:transport-mission :sail-to-unload :sail-path [] :army-count 1 :never-reload? false}}]])

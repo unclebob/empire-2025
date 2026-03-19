@@ -276,9 +276,9 @@
                                    [0 c]))]
         (should= [0 1] transport-pos)))
 
-    (it "records unloaded country-id on unload"
+    (it "does not record unloaded country-id when unloading onto unclaimed land"
       (test-utils/set-test-state! :round-number 15)
-      (set-test-world! [[{:type :land :country-id 3}
+      (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
                                                         :army-count 1}}
@@ -286,7 +286,7 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
       (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
-        (should= 15 (get-in transport [:unloaded-countries 3]))))
+        (should-be-nil (:unloaded-countries transport))))
 
     (it "adjacent-to-pickup-continent? distance fallback at boundary (L22)"
       ;; When pcp has no country-id, falls back to distance <= 2.

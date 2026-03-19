@@ -26,6 +26,20 @@
       (let [transport {:type :transport :owner :computer}]
         (should (unloading/has-nearby-unloadable-land? [1 1] transport 3))))
 
+    (it "does not treat adjacent computer cities as unloadable"
+      (set-test-world! [[{:type :city :city-status :computer}
+                         {:type :sea :contents {:type :transport :owner :computer}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [transport {:type :transport :owner :computer}]
+        (should= false (unloading/has-nearby-unloadable-land? [0 1] transport 3))))
+
+    (it "treats adjacent player cities as unloadable"
+      (set-test-world! [[{:type :city :city-status :player}
+                         {:type :sea :contents {:type :transport :owner :computer}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [transport {:type :transport :owner :computer}]
+        (should (unloading/has-nearby-unloadable-land? [0 1] transport 3))))
+
     (it "returns true when unloadable land is within depth via BFS (L89, L94)"
       ;; Transport at [0 1] with country-id 1. Adjacent land at [0 0] has country-id 1 (excluded).
       ;; Unloadable land (no country-id) at [3 0], reachable via 2 BFS hops along coast.
@@ -96,7 +110,7 @@
       (set-test-world! [[{:type :land :country-id 9}
                          {:type :sea}
                          {:type :sea}
-                         {:type :land :country-id 9}]
+                         {:type :city :city-status :player}]
                         [{:type :sea}
                          {:type :sea}
                          {:type :sea}
@@ -104,7 +118,7 @@
       (set-test-computer-map! [[{:type :land}
                                 {:type :sea}
                                 {:type :sea}
-                                {:type :land :country-id 9}]
+                                {:type :city :city-status :player}]
                                [{:type :sea}
                                 {:type :sea}
                                 {:type :sea}
@@ -122,6 +136,25 @@
       (should (unloading/unload-armies [0 1] nil))
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 2 :contents :type]))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
+
+    (it "does not unload onto adjacent computer cities"
+      (set-test-world! [[{:type :city :city-status :computer}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :army-count 1}}
+                         {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should-be-nil (unloading/unload-armies [0 1] nil))
+      (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
+
+    (it "unloads onto adjacent player cities"
+      (set-test-world! [[{:type :city :city-status :player}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :army-count 1}}
+                         {:type :sea}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should (unloading/unload-armies [0 1] nil))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
 
     (it "returns nil when no adjacent empty land"

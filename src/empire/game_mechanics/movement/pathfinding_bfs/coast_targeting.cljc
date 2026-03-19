@@ -52,12 +52,14 @@
   (or (and (= :land (:type cell))
            (nil? (:country-id cell)))
       (and (= :city (:type cell))
-           (#{:free :computer} (:city-status cell)))))
+           (#{:free :player} (:city-status cell)))))
 
 (defn- claimed-land?
   [cell]
-  (and (= :land (:type cell))
-       (some? (:country-id cell))))
+  (or (and (= :land (:type cell))
+           (some? (:country-id cell)))
+      (and (= :city (:type cell))
+           (= :computer (:city-status cell)))))
 
 (defn- adjacent-to-land-kind?
   [pos computer-map pred]

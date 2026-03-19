@@ -275,21 +275,20 @@
       (should= 42 (:unload-event-id (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))))
 
   (context "unload country-id tracking"
-    (it "unload-armies records country-id in unloaded-countries"
-      ;; Land at [0,0] has country-id 7. Transport unloads army there.
+    (it "unload-armies does not record unloaded-countries for unclaimed land"
       (test-utils/set-test-state! :round-number 5)
-      (set-test-world! [[{:type :land :country-id 7}
+      (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
                                                         :army-count 1}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/unload-armies [0 1] nil)
       (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
-        (should= 5 (get-in transport [:unloaded-countries 7]))))
+        (should-be-nil (:unloaded-countries transport))))
 
-    (it "opportunistic unload records country-id in unloaded-countries"
+    (it "opportunistic unload does not record unloaded-countries for unclaimed land"
       (test-utils/set-test-state! :round-number 10)
-      (set-test-world! [[{:type :land :country-id 3}
+      (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :sailing
                                                         :army-count 1
@@ -302,7 +301,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= 10 (get-in t [:unloaded-countries 3])))))
+        (should-be-nil (:unloaded-countries t)))))
 
   (context "full-unload boundary"
     (it "transport with army-count equal to adjacent land cells transitions to loading"

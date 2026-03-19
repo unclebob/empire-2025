@@ -114,8 +114,10 @@
 (defn- claimed-land?
   [cell]
   (and cell
-       (= :land (:type cell))
-       (some? (:country-id cell))))
+       (or (and (= :land (:type cell))
+                (some? (:country-id cell)))
+           (and (= :city (:type cell))
+                (= :computer (:city-status cell))))))
 
 (defn- adjacent-claimed-land?
   [pos]

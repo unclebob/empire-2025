@@ -33,7 +33,10 @@
   "Returns true if cell is empty land/city not excluded by country-id or pickup continent."
   [cell neighbor-pos exclude-ids pickup-continent major-invasion?]
   (and cell
-       (#{:land :city} (:type cell))
+       (or (and (= :land (:type cell))
+                (nil? (:country-id cell)))
+           (and (= :city (:type cell))
+                (#{:free :player} (:city-status cell))))
        (nil? (:contents cell))
        (or (not major-invasion?)
            (threat-response/major-invasion-target-land? neighbor-pos))
@@ -157,7 +160,10 @@
     (filter (fn [neighbor]
               (let [cell (get-in game-map neighbor)]
                 (and cell
-                     (#{:land :city} (:type cell))
+                     (or (and (= :land (:type cell))
+                              (nil? (:country-id cell)))
+                         (and (= :city (:type cell))
+                              (#{:free :player} (:city-status cell))))
                      (nil? (:contents cell))
                      (or (nil? pickup-continent)
                          (not (contains? pickup-continent neighbor))))))
@@ -168,7 +174,8 @@
   (filter (fn [neighbor]
             (let [cell (get-in game-map neighbor)]
               (and cell
-                   (#{:land :city} (:type cell))
+                   (or (= :land (:type cell))
+                       (#{:free :player :computer} (:city-status cell)))
                    (nil? (:contents cell)))))
           (core/get-neighbors pos)))
 

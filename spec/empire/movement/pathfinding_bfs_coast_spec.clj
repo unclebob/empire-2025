@@ -140,6 +140,20 @@
                (pathfinding-bfs/bfs-to-coast-target
                 [0 0] computer-map 4))))
 
+  (it "treats player cities as coast targets for loaded transports"
+    (let [computer-map [[{:type :sea}] [{:type :sea}]
+                        [{:type :sea}] [{:type :city :city-status :player}]]]
+      (should= [[1 0] [2 0]]
+               (pathfinding-bfs/bfs-to-coast-target
+                [0 0] computer-map 4))))
+
+  (it "treats computer cities as claimed coast for empty transports"
+    (let [computer-map [[{:type :sea}] [{:type :sea}]
+                        [{:type :sea}] [{:type :city :city-status :computer}]]]
+      (should= [[1 0] [2 0]]
+               (pathfinding-bfs/bfs-to-coast-target
+                [0 0] computer-map 0))))
+
   (it "targets the nearest claimed land for empty transports"
     (let [computer-map (vec (for [r (range 7)]
                               [(cond

@@ -73,14 +73,12 @@ sail-to-load | claimed-land | loading | crawl-pickup
 
 - Claimed land:
   - land with a `country-id`
+  - computer cities
 
 - Unclaimed land:
   - land without a `country-id`
   - free cities
-  - computer cities
-
-- Player cities:
-  - neither claimed nor unclaimed land for this state machine
+  - player cities
 
 ## Clarifications
 
@@ -118,9 +116,8 @@ The proposed state machine is sound, but several boundary conditions need to be 
   - A transport that never receives the `loaded` event remains in `loading`.
 
 - Land classification is intentionally asymmetric.
-  - Claimed land is only land with a `country-id`.
-  - Computer cities are unload targets, but not reload targets.
-  - Player cities are excluded from both categories for this state machine.
+  - Claimed land includes land with a `country-id` and computer cities.
+  - Unclaimed land includes land without a `country-id`, free cities, and player cities.
 
 - Arrival in `sail-to-load` is adjacency-based.
   - The transport does not need to reach a specific marked coast cell.
