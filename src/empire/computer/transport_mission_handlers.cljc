@@ -1,5 +1,6 @@
 (ns empire.computer.transport-mission-handlers
   (:require [empire.computer.core :as core]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport-mission-handler-decisions :as handler-decisions]
             [empire.computer.transport-decisions :as decisions]
@@ -14,6 +15,10 @@
 
 (defn- noop-sync!
   [_])
+
+(defn- transport-speed
+  []
+  (dispatcher/speed :transport))
 
 (defn load-for-invasion-start!
   ([update-game-map! read-runtime-state pos]
@@ -231,43 +236,33 @@
       :start-sailing (start-sailing pos transport')
       (loading-crawl-move pos))))
 
-(defn- take-second-unloading-step
-  [read-computer-map process-unloading-crawl try-opportunistic-unload pos1 after-first]
-  (let [unit1 (get-in (read-computer-map) (conj pos1 :contents))
-        can-second? (and unit1
-                         (= :unloading (:transport-mission unit1))
-                         (not after-first))]
-    (if can-second?
-      (if-let [pos2 (process-unloading-crawl pos1)]
-        (do
-          (when (= :unloading
-                   (:transport-mission (get-in (read-computer-map) (conj pos2 :contents))))
-            (try-opportunistic-unload pos2))
-          pos2)
-        pos1)
-      pos1)))
-
 (defn- process-unloading-with-armies
   [{:keys [current-world
            read-computer-map
            process-unloading-crawl
            try-opportunistic-unload]} pos transport]
   (let [read-map (or read-computer-map current-world)]
-    (if-let [pos1 (process-unloading-crawl pos)]
-      (let [after-first (or (when (= :unloading
-                                   (:transport-mission (get-in (read-map) (conj pos1 :contents))))
-                              (try-opportunistic-unload pos1))
-                            false)]
-        (take-second-unloading-step read-map process-unloading-crawl try-opportunistic-unload pos1 after-first))
-      (do
-        (sa/update-world! assoc-in (conj pos :contents :crawl-history) [])
-        (visibility/sync-ai-unit-to-computer-map! pos)
-        (when-let [retry-pos (process-unloading-crawl pos)]
-          (let [after-retry (or (when (= :unloading
-                                       (:transport-mission (get-in (read-map) (conj retry-pos :contents))))
-                                  (try-opportunistic-unload retry-pos))
-                                false)]
-            (take-second-unloading-step read-map process-unloading-crawl try-opportunistic-unload retry-pos after-retry)))))))
+    (loop [current-pos pos
+           moves-left (transport-speed)
+           retried? false
+           moved-any? false]
+      (if (zero? moves-left)
+        (when moved-any? current-pos)
+        (if-let [next-pos (process-unloading-crawl current-pos)]
+          (let [still-unloading? (= :unloading
+                                    (:transport-mission (get-in (read-map) (conj next-pos :contents))))
+                unloaded-now? (and still-unloading?
+                                   (boolean (try-opportunistic-unload next-pos)))
+                continue? (and still-unloading? (not unloaded-now?))]
+            (if continue?
+              (recur next-pos (dec moves-left) false true)
+              next-pos))
+          (if retried?
+            (when moved-any? current-pos)
+            (do
+              (sa/update-world! assoc-in (conj current-pos :contents :crawl-history) [])
+              (visibility/sync-ai-unit-to-computer-map! current-pos)
+              (recur current-pos moves-left true moved-any?))))))))
 
 (defn process-unloading-mission
   [{:keys [current-world

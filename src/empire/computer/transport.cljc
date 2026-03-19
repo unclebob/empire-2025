@@ -7,6 +7,7 @@
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.oscillation :as oscillation]
@@ -22,6 +23,10 @@
             [empire.game-mechanics.debug.logging :as debug]))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
+
+(defn- transport-speed
+  []
+  (dispatcher/speed :transport))
 
 (defn- move-toward-position
   "Move transport one step toward target using greedy neighbor selection."
@@ -148,8 +153,14 @@
                        (or (move-toward-position p pcp)
                            (loading/coastal-crawl-move p))
                        (loading/coastal-crawl-move p))))]
-    (when-let [pos1 (move-one pos)]
-      (or (move-one pos1) pos1))))
+    (loop [current-pos pos
+           moves-left (transport-speed)
+           moved-any? false]
+      (if (zero? moves-left)
+        (when moved-any? current-pos)
+        (if-let [next-pos (move-one current-pos)]
+          (recur next-pos (dec moves-left) true)
+          (when moved-any? current-pos))))))
 
 (defn- process-loading-mission
   [pos]

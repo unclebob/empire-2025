@@ -42,6 +42,20 @@
         (should= :transport (:type t))
         (should= [[3 0]] (:sail-path t))))
 
+    (it "follows sail-path for the full transport speed"
+      (set-test-world! (build-test-map ["t~~~~~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (update-test-world! assoc-in [0 0 :contents]
+             {:type :transport :owner :computer
+              :transport-mission :sailing :army-count 6
+              :sail-path [[1 0] [2 0] [3 0] [4 0]]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (with-redefs [empire.config.units.dispatcher/speed (constantly 3)]
+        (transport/process-transport [0 0]))
+      (let [t (:contents (get-in (test-utils/read-test-state :game-map) [3 0]))]
+        (should= :transport (:type t))
+        (should= [[4 0]] (:sail-path t))))
+
     (it "sailing with armies and empty path takes a safe random route when no unclaimed target exists"
       (set-test-world! (build-test-map ["t~~"
                                         "###"]))

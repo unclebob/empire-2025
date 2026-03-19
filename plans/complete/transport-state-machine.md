@@ -49,10 +49,12 @@ sail-to-load | claimed-land | loading | crawl-pickup
 - `crawl-pickup`
   - Crawl the coast without backtracking.
   - Pick up adjacent armies while crawling.
+  - Continue crawling for up to the transport's full movement allowance each round.
 
 - `set-unload-target`
   - Set BFS path to the nearest reachable unclaimed land.
   - If none exists, set BFS path to the nearest reachable unexplored cell.
+  - Once a path exists, follow it for up to the transport's full movement allowance each round.
 
 - `unload`
   - Unload one army into each adjacent unclaimed land cell.
@@ -61,9 +63,11 @@ sail-to-load | claimed-land | loading | crawl-pickup
   - Crawl the coast without backtracking.
   - Unload armies on every adjacent land cell while crawling.
   - If no crawl move exists, clear backtrack memory and try the crawl again.
+  - Continue crawling for up to the transport's full movement allowance each round.
 
 - `set-load-target`
   - Set BFS path to the nearest claimed land.
+  - Once a path exists, follow it for up to the transport's full movement allowance each round.
 
 ## Land Classification
 

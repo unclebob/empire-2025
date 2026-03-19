@@ -4,6 +4,7 @@
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-sailing-support :as support]
             [empire.computer.transport-unloading :as unloading]
+            [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.movement.visibility :as visibility]
             [empire.state.api :as sa]))
 
@@ -43,49 +44,72 @@
       (visibility/sync-ai-unit-to-computer-map! retreat)
       retreat)))
 
-(defn- sail-take-second-step
-  [from-pos next-pos remaining]
-  (let [step2 (or (first remaining)
-                  (sailing-path/continue-pos (sa/read-state :computer-map) from-pos next-pos))
-        remaining2 (if (seq remaining) (vec (rest remaining)) [])
-        moved2 (when step2 (core/move-unit-to next-pos step2))]
-    (if moved2
-      (do (support/update-cell-visibility! next-pos :computer)
-          (support/update-cell-visibility! step2 :computer)
-          (sa/update-world! assoc-in
-                            (conj step2 :contents :sail-path) remaining2)
-          (visibility/sync-ai-unit-to-computer-map! step2)
-          (unloading/try-opportunistic-unload step2)
-          step2)
-      (do (sa/update-world! assoc-in
-                            (conj next-pos :contents :sail-path) remaining)
-          (visibility/sync-ai-unit-to-computer-map! next-pos)
-          (unloading/try-opportunistic-unload next-pos)
-          next-pos))))
+(defn- transport-speed
+  []
+  (dispatcher/speed :transport))
+
+(defn- sync-sail-path!
+  [pos sail-path]
+  (sa/update-world! assoc-in
+                    (conj pos :contents :sail-path)
+                    (vec sail-path))
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn- next-sail-step
+  [previous-pos current-pos sail-path]
+  (or (first sail-path)
+      (when previous-pos
+        (sailing-path/continue-pos (sa/read-state :computer-map) previous-pos current-pos))))
+
+(defn- remaining-sail-path
+  [sail-path]
+  (if (seq sail-path) (vec (rest sail-path)) []))
 
 (defn- sail-follow-path
-  [pos sail-path]
-  (let [next-pos (first sail-path)
-        remaining (vec (rest sail-path))]
-    (if (core/move-unit-to pos next-pos)
-      (do (support/update-cell-visibility! pos :computer)
-          (support/update-cell-visibility! next-pos :computer)
-          (sail-take-second-step pos next-pos remaining))
-      (sail-retreat pos sail-path))))
+  [pos sail-path maybe-unload?]
+  (loop [current-pos pos
+         previous-pos nil
+         remaining-path (vec sail-path)
+         moves-left (transport-speed)
+         moved-any? false]
+    (if (zero? moves-left)
+      (when moved-any? current-pos)
+      (if-let [next-pos (next-sail-step previous-pos current-pos remaining-path)]
+        (let [path-after-step (remaining-sail-path remaining-path)]
+          (if (core/move-unit-to current-pos next-pos)
+            (do
+              (support/update-cell-visibility! current-pos :computer)
+              (support/update-cell-visibility! next-pos :computer)
+              (sync-sail-path! next-pos path-after-step)
+              (let [unloaded? (and maybe-unload?
+                                   (unloading/try-opportunistic-unload next-pos))
+                    transport (get-in (sa/read-state :computer-map) (conj next-pos :contents))]
+                (if (or (zero? (dec moves-left))
+                        unloaded?
+                        (zero? (:army-count transport 0)))
+                  next-pos
+                  (recur next-pos current-pos path-after-step (dec moves-left) true))))
+            (if moved-any?
+              (do
+                (sync-sail-path! current-pos remaining-path)
+                current-pos)
+              (sail-retreat pos sail-path))))
+        (when moved-any?
+          current-pos)))))
 
 (defn- compute-and-follow-path!
-  [pos path-fn]
+  [pos path-fn maybe-unload?]
   (when-let [new-path (seq (path-fn pos))]
     (let [sail-path (vec new-path)]
       (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
       (visibility/sync-ai-unit-to-computer-map! pos)
-      (sail-follow-path pos sail-path))))
+      (sail-follow-path pos sail-path maybe-unload?))))
 
 (defn- handle-launch-and-follow!
-  [pos transport path-fn]
+  [pos transport path-fn maybe-unload?]
   (if-let [sea-pos (launch-from-city-to-sea pos transport)]
-    (compute-and-follow-path! sea-pos path-fn)
-    (compute-and-follow-path! pos path-fn)))
+    (compute-and-follow-path! sea-pos path-fn maybe-unload?)
+    (compute-and-follow-path! pos path-fn maybe-unload?)))
 
 (defn- claimed-land?
   [cell]
@@ -114,16 +138,16 @@
           sail-path (:sail-path transport)]
       (cond
         city-cell?
-        (handle-launch-and-follow! pos transport support/compute-sail-to-unload-path)
+        (handle-launch-and-follow! pos transport support/compute-sail-to-unload-path true)
 
         (adjacent-claimed-land? pos)
-        (compute-and-follow-path! pos support/compute-sail-to-unload-path)
+        (compute-and-follow-path! pos support/compute-sail-to-unload-path true)
 
         (seq sail-path)
-        (sail-follow-path pos sail-path)
+        (sail-follow-path pos sail-path true)
 
         :else
-        (compute-and-follow-path! pos support/compute-sail-to-unload-path)))))
+        (compute-and-follow-path! pos support/compute-sail-to-unload-path true)))))
 
 (defn- process-sail-to-load-mission
   [pos transport]
@@ -135,21 +159,21 @@
       (transition-to-loading! pos)
 
       city-cell?
-      (or (handle-launch-and-follow! pos transport support/compute-sail-to-load-path)
+      (or (handle-launch-and-follow! pos transport support/compute-sail-to-load-path false)
           (throw (ex-info "Empty sailing transport had no claimed-land target"
                           {:pos pos :transport transport})))
 
       (seq sail-path)
-      (sail-follow-path pos sail-path)
+      (sail-follow-path pos sail-path false)
 
       :else
-      (or (compute-and-follow-path! pos support/compute-sail-to-load-path)
+      (or (compute-and-follow-path! pos support/compute-sail-to-load-path false)
           (throw (ex-info "Empty sailing transport had no claimed-land target"
                           {:pos pos :transport transport}))))))
 
 (defn- follow-path-action
   [pos sail-path]
-  (sail-follow-path pos sail-path))
+  (sail-follow-path pos sail-path true))
 
 (defn process-sailing-mission
   [pos]

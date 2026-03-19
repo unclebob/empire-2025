@@ -52,7 +52,7 @@
                   empire.computer.core/move-unit-to (fn [_ _] true)
                   empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])
                   empire.computer.transport-unloading/try-opportunistic-unload (fn [_] false)]
-      (should= [2 0]
+      (should= [1 0]
                (regular/process-sailing-mission [0 0]))))
 
   (it "does not launch from a city using sea visible only on game-map"
