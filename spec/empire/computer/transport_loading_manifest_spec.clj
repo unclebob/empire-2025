@@ -49,6 +49,103 @@
        [0 0])
       (should= [:load] @called)))
 
+  (it "loading with nil manifest does not start sailing to unload"
+    (let [called (atom [])]
+      (mission-handlers/process-loading-mission
+       {:read-computer-map (constantly [[{:contents {:type :transport
+                                                     :owner :computer
+                                                     :transport-mission :loading
+                                                     :army-count 0
+                                                     :load-manifest nil
+                                                     :loading-since-round 10}}]])
+        :load-adjacent-armies (fn [_] (swap! called conj :load))
+        :should-start-sailing? (fn [& _] (swap! called conj :legacy-should-start) false)
+        :start-sailing (fn [& _] (swap! called conj :start))
+        :loading-crawl-move (fn [_] (swap! called conj :crawl) :crawl)
+        :transition-to-loading (fn [_] (swap! called conj :replan))}
+       [0 0])
+      (should= [:load :legacy-should-start :crawl] @called)))
+
+  (it "sail-to-load with empty manifest enters hold-sail-to-load"
+    (test-utils/set-test-state! :round-number 20)
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :hits 1
+                                   :transport-id 7
+                                   :army-count 0
+                                   :transport-mission :sail-to-load
+                                   :load-target-cell [4 0]
+                                   :load-manifest []
+                                   :sail-path [[1 0] [2 0] [3 0]]}}
+                      {:type :sea}
+                      {:type :sea}
+                      {:type :sea}
+                      {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {7 {:coastal-cell [1 0]
+                                    :army-ids #{41 42}}})
+    (transport/process-transport [0 0])
+    (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :hold-sail-to-load (:transport-mission unit))
+      (should= 20 (:hold-sail-to-load-since-round unit))
+      (should= [] (:sail-path unit))
+      (should-be-nil (:load-manifest unit)))
+    (should= {}
+             (test-utils/read-test-state :transport-load-reservations)))
+
+  (it "sail-to-load with empty path enters hold-sail-to-load"
+    (test-utils/set-test-state! :round-number 20)
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :hits 1
+                                   :transport-id 8
+                                   :army-count 0
+                                   :transport-mission :sail-to-load
+                                   :load-target-cell [4 0]
+                                   :load-manifest [41]
+                                   :sail-path []}}
+                      {:type :sea}
+                      {:type :sea}
+                      {:type :sea}
+                      {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {8 {:coastal-cell [1 0]
+                                    :army-ids #{41}}})
+    (transport/process-transport [0 0])
+    (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :hold-sail-to-load (:transport-mission unit))
+      (should= 20 (:hold-sail-to-load-since-round unit))
+      (should= [] (:sail-path unit))
+      (should-be-nil (:load-manifest unit)))
+    (should= {}
+             (test-utils/read-test-state :transport-load-reservations)))
+
+  (it "hold-sail-to-load waits five rounds before returning to sail-to-load"
+    (test-utils/set-test-state! :round-number 20)
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :hits 1
+                                   :transport-id 9
+                                   :army-count 0
+                                   :transport-mission :hold-sail-to-load
+                                   :hold-sail-to-load-since-round 16
+                                   :sail-path []}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (transport/process-transport [0 0])
+    (should= :hold-sail-to-load
+             (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission]))
+    (test-utils/set-test-state! :round-number 21)
+    (transport/process-transport [0 0])
+    (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :sail-to-load (:transport-mission unit))
+      (should-be-nil (:hold-sail-to-load-since-round unit))
+      (should= [] (:sail-path unit))))
+
   (it "planned loading with empty manifest starts sailing to unload"
     (let [called (atom nil)]
       (mission-handlers/process-loading-mission

@@ -167,11 +167,12 @@
 
 (defn planned-loading?
   [transport]
-  (contains? transport :load-manifest))
+  (vector? (:load-manifest transport)))
 
 (defn manifest-empty?
   [transport]
-  (empty? (:load-manifest transport)))
+  (and (vector? (:load-manifest transport))
+       (empty? (:load-manifest transport))))
 
 (defn loading-stale?
   [transport]
