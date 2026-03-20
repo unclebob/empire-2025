@@ -13,6 +13,7 @@
             [empire.computer.threat-response.major-invasion-manager :as manager]
             [empire.computer.threat-response.major-invasion :as major-invasion]
             [empire.computer.threat-response.processing :as processing]
+            [empire.computer.threat-response-port :as threat-response-port]
             [empire.game-mechanics.services.threat-policy :as threat-policy]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))
@@ -286,6 +287,13 @@
   []
   (refresh-computer-map!)
   (manager/rebuild-kamikazee-routing! (manager-ctx)))
+
+(defrecord ActiveThreatResponsePort []
+  threat-response-port/ThreatResponsePort
+  (rebuild-kamikazee-routing! [_]
+    (rebuild-kamikazee-routing!)))
+
+(threat-response-port/set-threat-response-port! (->ActiveThreatResponsePort))
 
 (defn launch-kamikazee-from-airport!
   [city-pos]

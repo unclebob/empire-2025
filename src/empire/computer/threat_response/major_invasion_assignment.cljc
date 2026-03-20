@@ -1,6 +1,6 @@
 (ns empire.computer.threat-response.major-invasion-assignment
   "Major invasion unit assignment extracted from major-invasion."
-  (:require [empire.computer.army.coastal :as army-coastal]
+  (:require [empire.computer.army.coastal-positioning :as coastal-positioning]
             [empire.computer.threat-response.major-invasion-assignment-decisions :as decisions]
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.state.api :as sa]))
@@ -49,9 +49,9 @@
 (defn- assign-army-invasion-embark!
   [ctx pos unit]
   (let [country-id (:country-id unit)]
-    (when-not (army-coastal/should-sentry-on-coast? pos country-id)
+    (when-not (coastal-positioning/should-sentry-on-coast? pos country-id)
       (let [target (or (:coast-target unit)
-                       (army-coastal/find-coast-target-once pos country-id))]
+                       (coastal-positioning/find-coast-target-once pos country-id))]
         ((:update-game-map! ctx) update-in (conj pos :contents)
          #(merge % (decisions/army-coast-assignment target)))))))
 

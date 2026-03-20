@@ -1,5 +1,5 @@
 ;; mutation-tested: no
-(ns empire.game-mechanics.services.unit-stamping
+(ns empire.game-mechanics.unit-stamping
   "Unit stamping: applies initial fields to newly produced units."
   (:require [empire.config.ai :as ai]
             [empire.state.api :as sa]))

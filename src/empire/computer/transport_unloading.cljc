@@ -6,7 +6,7 @@
             [empire.computer.transport-core :as tc]
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.threat-response :as threat-response]
-            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
+            [empire.game-mechanics.unit-stamping :as unit-stamping]
             [empire.game-mechanics.debug.logging :as debug]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))

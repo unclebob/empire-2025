@@ -1,6 +1,6 @@
 (ns empire.game-mechanics.containers.ops
   (:require [empire.state.api :as sa]
-            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
+            [empire.game-mechanics.unit-stamping :as unit-stamping]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.containers.launch :as launch]

@@ -1,5 +1,5 @@
 (ns empire.computer.stamping
-  (:require [empire.game-mechanics.services.unit-stamping :as unit-stamping]))
+  (:require [empire.game-mechanics.unit-stamping :as unit-stamping]))
 
 (defn stamp-computer-fields
   [unit cell]

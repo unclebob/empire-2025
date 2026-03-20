@@ -3,7 +3,7 @@
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.game.production-status :as production-status]
             [empire.game-mechanics.debug.integrity :as integrity]
-            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
+            [empire.game-mechanics.unit-stamping :as unit-stamping]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]

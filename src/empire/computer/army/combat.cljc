@@ -15,10 +15,15 @@
                        (core/attackable-target? cell)))
                    (core/get-neighbors pos)))))
 
+(defn attack-enemy-result
+  "Attack an adjacent enemy. Returns outcome data for the caller."
+  [army-pos enemy-pos]
+  (army-action-resolution/attack-enemy army-pos enemy-pos))
+
 (defn attack-enemy
   "Attack an adjacent enemy. Returns new position or nil if army died."
   [army-pos enemy-pos]
-  (army-action-resolution/attack-enemy army-pos enemy-pos))
+  (:position (attack-enemy-result army-pos enemy-pos)))
 
 (defn process-attack-target
   "Moves army toward its attack-target city. Clears target if conquered or gone."

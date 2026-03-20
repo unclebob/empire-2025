@@ -2,7 +2,7 @@
   (:require [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.state.api :as sa]
-            [empire.game-mechanics.services.unit-stamping :as unit-stamping]
+            [empire.game-mechanics.unit-stamping :as unit-stamping]
             [empire.player.production-decisions :as decisions]))
 
 (defn- stamp-computer-fields

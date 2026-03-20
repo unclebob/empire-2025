@@ -2,6 +2,7 @@
   "Computer army orchestrator.
    Priority: Attack adjacent enemies > Find land objective > Board transport > Explore"
   (:require [empire.state.api :as sa]
+            [empire.computer.army-effects :as army-effects]
             [empire.computer.army.assignment :as assignment]
             [empire.computer.army.coastal :as coastal]
             [empire.computer.army.combat :as army-combat]
@@ -50,8 +51,13 @@
         pos)
       pos)))
 
+(defn- attack-and-handle-effects [pos enemy-pos]
+  (let [outcome (army-combat/attack-enemy-result pos enemy-pos)]
+    (army-effects/handle-attack-outcome! outcome)
+    (:position outcome)))
+
 (defn- build-army-actions [pos country-id mode unit cell enemy-pos]
-  [[enemy-pos                               #(army-combat/attack-enemy pos enemy-pos)]
+  [[enemy-pos                               #(attack-and-handle-effects pos enemy-pos)]
    [(= :country-defense (:threat-mission unit))
     #(movement/move-toward-objective pos (:threat-center unit) country-id)]
    [(:attack-target unit)                   #(army-combat/process-attack-target pos country-id)]

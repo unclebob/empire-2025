@@ -2,8 +2,8 @@
   "Coastal movement, coast-walk, and coastal positioning behaviors."
   (:require [empire.state.api :as sa]
             [empire.computer.army.coastal-invasion :as invasion]
+            [empire.computer.army.coastal-positioning :as coastal-positioning]
             [empire.computer.core :as core]
-            [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]
@@ -88,55 +88,15 @@
             (do (terminate-coast-walk target) target)
             target))))))
 
-(defn- adjacent-to-computer-city?
-  "Returns true if position has an adjacent computer city."
-  [pos]
-  (some (fn [neighbor]
-          (let [cell (get-in (sa/read-state :computer-map) neighbor)]
-            (and (= :city (:type cell))
-                 (= :computer (:city-status cell)))))
-        (core/get-neighbors pos)))
-
-(defn- known-lake-cells
-  []
-  (lake-naval/lake-cells (sa/read-state :computer-map)
-                         (sa/read-state :lake-max-cells)))
-
-(defn- adjacent-to-ocean?
-  [pos]
-  (let [world (sa/read-state :computer-map)
-        lakes (known-lake-cells)]
-    (some (fn [neighbor]
-            (let [cell (get-in world neighbor)]
-              (and (= :sea (:type cell))
-                   (not (contains? lakes neighbor)))))
-          (core/get-neighbors pos))))
-
-(defn- find-nearest-unoccupied-coastal-cell
-  "Finds nearest coastal cell from registry with matching country-id, no unit.
-   Excludes cells adjacent to computer cities to avoid blocking production."
-  [pos country-id]
-  (when country-id
-    (movement/ensure-coastal-registry country-id)
-    (let [coastal (get (sa/read-state :coastal-cells-by-country) country-id)
-          game-map (sa/read-state :computer-map)
-          candidates (filter (fn [p]
-                               (let [cell (get-in game-map p)]
-                                 (and (= :land (:type cell))
-                                      (adjacent-to-ocean? p)
-                                      (or (nil? (:country-id cell))
-                                          (= country-id (:country-id cell)))
-                                      (nil? (:contents cell)))))
-                             coastal)
-          away-from-city (remove adjacent-to-computer-city? candidates)]
-      (first (sort-by #(core/distance pos %)
-                      (if (seq away-from-city) away-from-city candidates))))))
-
 (defn- empty-land-for-country? [cell country-id]
   (and (= :land (:type cell))
        (or (nil? (:country-id cell))
            (= country-id (:country-id cell)))
        (nil? (:contents cell))))
+
+(defn find-nearest-unoccupied-coastal-cell
+  [pos country-id]
+  (coastal-positioning/find-nearest-unoccupied-coastal-cell pos country-id))
 
 (defn- coast-distance [coastal c]
   (cond
@@ -150,7 +110,7 @@
   [pos country-id]
   (when country-id
     (movement/ensure-coastal-registry country-id)
-    (let [coastal (set (filter adjacent-to-ocean?
+    (let [coastal (set (filter coastal-positioning/adjacent-to-ocean?
                                (get (sa/read-state :coastal-cells-by-country) country-id)))]
       (when (seq coastal)
         (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
@@ -168,15 +128,10 @@
               (first (sort-by #(core/distance pos %) near-coast)))))))))
 
 (defn should-sentry-on-coast? [pos country-id]
-  (and country-id
-       (adjacent-to-ocean? pos)
-       (not= :city (:type (get-in (sa/read-state :computer-map) pos)))
-       (not (adjacent-to-computer-city? pos))))
+  (coastal-positioning/should-sentry-on-coast? pos country-id))
 
 (defn can-settle-here? [pos country-id]
-  (and country-id
-       (adjacent-to-ocean? pos)
-       (not= :city (:type (get-in (sa/read-state :computer-map) pos)))))
+  (coastal-positioning/can-settle-here? pos country-id))
 
 (declare find-coast-target-once)
 (declare empty-coastal-cell?)
@@ -231,14 +186,14 @@
    :update-game-map! sa/update-world!
    :read-runtime-state sa/read-state
    :sync-ai-unit! visibility/sync-ai-unit-to-computer-map!
-   :adjacent-to-ocean? adjacent-to-ocean?
+   :adjacent-to-ocean? coastal-positioning/adjacent-to-ocean?
    :should-sentry-on-coast? should-sentry-on-coast?
    :find-coast-target-once find-coast-target-once})
 
 (defn find-coast-target-once
   "One-time land-only BFS target selection for invasion embarkation."
   [start country-id]
-  (invasion/find-coast-target-once (invasion-ctx) start country-id))
+  (coastal-positioning/find-coast-target-once start country-id))
 
 (defn- local-empty-coast-target
   [pos country-id]
