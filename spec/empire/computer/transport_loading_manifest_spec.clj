@@ -146,7 +146,24 @@
       (should-be-nil (:hold-sail-to-load-since-round unit))
       (should= [] (:sail-path unit))))
 
-  (it "planned loading with empty manifest starts sailing to unload"
+  (it "planned loading with empty manifest replans when still empty"
+    (let [called (atom nil)]
+      (mission-handlers/process-loading-mission
+       {:read-computer-map (constantly [[{:contents {:type :transport
+                                                     :owner :computer
+                                                     :transport-mission :loading
+                                                     :army-count 0
+                                                     :load-manifest []
+                                                     :loading-since-round 10}}]])
+        :load-adjacent-armies (fn [_] nil)
+        :should-start-sailing? (fn [& _] false)
+        :start-sailing (fn [pos transport] (reset! called [:start pos transport]))
+        :loading-crawl-move (fn [_] :crawl)
+        :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
+       [0 0])
+      (should= [:replan [0 0]] @called)))
+
+  (it "planned loading with empty manifest starts sailing to unload when partially loaded"
     (let [called (atom nil)]
       (mission-handlers/process-loading-mission
        {:read-computer-map (constantly [[{:contents {:type :transport
@@ -159,7 +176,7 @@
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [pos transport] (reset! called [:start pos transport]))
         :loading-crawl-move (fn [_] :crawl)
-        :transition-to-loading (fn [_] :replan)}
+        :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= :start (first @called))))
 
@@ -180,6 +197,24 @@
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= [:start [0 0]] @called)))
+
+  (it "planned loading timeout with zero armies replans sail-to-load"
+    (test-utils/set-test-state! :round-number 20)
+    (let [called (atom nil)]
+      (mission-handlers/process-loading-mission
+       {:read-computer-map (constantly [[{:contents {:type :transport
+                                                     :owner :computer
+                                                     :transport-mission :loading
+                                                     :army-count 0
+                                                     :load-manifest [42]
+                                                     :loading-since-round 9}}]])
+        :load-adjacent-armies (fn [_] nil)
+        :should-start-sailing? (fn [& _] false)
+        :start-sailing (fn [pos _] (reset! called [:start pos]))
+        :loading-crawl-move (fn [_] :crawl)
+        :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
+       [0 0])
+      (should= [:replan [0 0]] @called)))
 
   (it "planned loading timeout with more than three armies replans sail-to-load"
     (test-utils/set-test-state! :round-number 20)

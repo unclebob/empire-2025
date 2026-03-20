@@ -216,17 +216,22 @@
         transport' (get-in (read-map) (conj pos :contents))
         army-count' (:army-count transport' 0)
         planned-loading? (loading/planned-loading? transport')
-        loading-stale? (loading/loading-stale? transport')]
+        loading-stale? (loading/loading-stale? transport')
+        empty-transport? (zero? army-count')]
     (cond
       planned-loading?
       (cond
         (or (>= army-count' 6)
             (loading/manifest-empty? transport'))
-        (start-sailing pos transport')
+        (if empty-transport?
+          (transition-to-loading pos)
+          (start-sailing pos transport'))
 
         loading-stale?
         (if (<= army-count' 3)
-          (start-sailing pos transport')
+          (if empty-transport?
+            (transition-to-loading pos)
+            (start-sailing pos transport'))
           (transition-to-loading pos))
 
         :else nil)
