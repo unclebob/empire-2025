@@ -7,6 +7,7 @@
             [empire.computer.threat-response.kamikazee-targets :as targets]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.launch :as launch]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.computer.shared.grid :as grid]
             [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
@@ -15,23 +16,37 @@
 (def ^:private hunt-refuel-threshold 5)
 (def ^:private route-city-launch-buffer 2)
 
+(defn- sync-kamikazee-cell!
+  [pos]
+  (visibility/sync-ai-cell-to-computer-map! pos))
+
+(defn- authoritative-kamikazee-unit?
+  [pos]
+  (let [unit (visibility/authoritative-computer-unit-at pos)]
+    (and (= :fighter (:type unit))
+         (:kamikazee unit))))
+
 (defn- kamikazee-writeable-unit?
   [ctx pos]
+  (sync-kamikazee-cell! pos)
   (let [unit (get-in ((:current-world ctx)) (conj pos :contents))]
-    (and (= :fighter (:type unit))
+    (and (authoritative-kamikazee-unit? pos)
+         (= :fighter (:type unit))
          (= :computer (:owner unit))
          (:kamikazee unit))))
 
 (defn- fill-fuel!
   [ctx pos site]
-  (if (kamikazee-writeable-unit? ctx pos)
-    ((:update-game-map! ctx) assoc-in (conj pos :contents :fuel) config/fighter-fuel))
+  (when (kamikazee-writeable-unit? ctx pos)
+    ((:update-game-map! ctx) assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+    (sync-kamikazee-cell! pos))
   pos)
 
 (defn- update-kamikazee-unit!
   [ctx pos f]
   (when (kamikazee-writeable-unit? ctx pos)
-    ((:update-game-map! ctx) update-in (conj pos :contents) f)))
+    ((:update-game-map! ctx) update-in (conj pos :contents) f)
+    (sync-kamikazee-cell! pos)))
 
 (declare process-kamikazee-fighter)
 
@@ -78,6 +93,8 @@
 
 (defn- apply-hunt-step
   [ctx pos moved-pos unit]
+  (sync-kamikazee-cell! pos)
+  (sync-kamikazee-cell! moved-pos)
   (let [moved-unit (get-in ((:current-world ctx)) (conj moved-pos :contents))
         action (decisions/hunt-step-result moved-unit
                                            moved-pos
@@ -89,11 +106,13 @@
         :destroy
         (do
           ((:update-game-map! ctx) update-in moved-pos dissoc :contents)
+          (sync-kamikazee-cell! moved-pos)
           {:pos moved-pos :steps-used 1})
         :update-unit
         (do
           ((:update-game-map! ctx) update-in (conj moved-pos :contents)
            #(merge % (:unit-updates action)))
+          (sync-kamikazee-cell! moved-pos)
           {:pos moved-pos :steps-used 1})
         nil))))
 
@@ -227,6 +246,8 @@
                        (routing/city-has-launch-capacity? world next-route-city route-city-launch-buffer)))
           (remove-airport-kamikazee! ctx city-pos)
           ((:update-game-map! ctx) assoc-in (conj (:launch-pos action) :contents) (:fighter action))
+          (sync-kamikazee-cell! city-pos)
+          (sync-kamikazee-cell! (:launch-pos action))
           (:launch-pos action))))))
 
 (defn- process-hunt-step
@@ -283,6 +304,8 @@
     :land-at-city
     (do
       (fm/land-at-city pos next-site)
+      (sync-kamikazee-cell! pos)
+      (sync-kamikazee-cell! next-site)
       nil)
 
     :finish-route-node (finish-route-node! ctx pos route next-site)

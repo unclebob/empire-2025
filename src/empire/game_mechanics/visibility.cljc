@@ -193,6 +193,19 @@
                (= :computer (:owner unit)))
       (update-visible-map! :computer-map assoc-in pos cell))))
 
+(defn sync-ai-cell-to-computer-map!
+  [pos]
+  (let [computer-map (read-runtime-state :computer-map)
+        cell (get-in (current-world) pos)]
+    (when (and computer-map cell)
+      (update-visible-map! :computer-map assoc-in pos cell))))
+
+(defn authoritative-computer-unit-at
+  [pos]
+  (let [unit (get-in (current-world) (conj pos :contents))]
+    (when (= :computer (:owner unit))
+      unit)))
+
 (defn refresh-visible-map!
   [owner]
   (let [game-map (current-world)

@@ -189,6 +189,32 @@
       (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
       (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))
 
+  (it "does not recreate a stale visible-map kamikazee on an empty sea cell"
+    (let [world (build-test-map ["~~~"
+                                 "~~~"])]
+      (set-test-world! world)
+      (set-test-computer-map! world)
+      (test-utils/set-major-invasion-state! {:detection-points #{[2 0]}})
+      (test-utils/update-test-computer-map! assoc-in [1 0 :contents]
+                                   {:type :fighter
+                                    :owner :computer
+                                    :hits 1
+                                    :fuel 6
+                                    :major-invasion true
+                                    :kamikazee true
+                                    :kamikazee-stage :hunt
+                                    :major-invasion-target [2 0]
+                                    :kamikazee-targets []
+                                    :kamikazee-route []})
+      (with-redefs [rand-nth first]
+        (should= nil
+                 (kamikazee/process-kamikazee-fighter
+                  (test-utils/mission-ctx)
+                  [1 0]
+                  (get-in (test-utils/read-test-state :computer-map) [1 0 :contents]))))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))
+      (should= nil (get-in (test-utils/read-test-state :computer-map) [1 0 :contents]))))
+
   (it "removes a kamikazee fighter when the hunt step burns the last fuel point"
     (let [world (build-test-map ["f~~"
                                  "~~~"])]
