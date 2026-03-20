@@ -4,6 +4,7 @@
             [empire.state.api :as sa]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.transport.core :as tc]
+            [empire.computer.transport.reservations :as reservations]
             [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.debug.logging :as debug]))
 
@@ -103,14 +104,18 @@
         (debug/log-computer-event! :transport-load-army pos {:from army-pos})
         (sa/update-world! update-in army-pos dissoc :contents)
         (update-cell-visibility! army-pos :computer))
-      (when (pos? to-load)
-        (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
-        (when manifest-ids
-          (let [loaded-ids (->> loaded-positions
-                                (keep #(get-in computer-map (conj % :contents :computer-unit-id)))
-                                set)]
-            (sa/update-world! update-in (conj pos :contents :load-manifest)
-                              #(vec (remove loaded-ids %)))))
+        (when (pos? to-load)
+          (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
+          (when manifest-ids
+            (let [loaded-ids (->> loaded-positions
+                                  (keep #(get-in computer-map (conj % :contents :computer-unit-id)))
+                                  set)
+                  updated-manifest (vec (remove loaded-ids (:load-manifest transport)))]
+              (sa/update-world! update-in (conj pos :contents :load-manifest)
+                              (constantly updated-manifest))
+              (reservations/update-army-ids!
+               (:transport-id transport)
+               updated-manifest)))
         (visibility/sync-ai-unit-to-computer-map! pos))
       ;; Wake nearby sentries to advance the transport queue
       (doseq [army-pos loaded-positions]

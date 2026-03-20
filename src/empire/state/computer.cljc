@@ -32,6 +32,7 @@
                           :started-round nil
                           :first-landing-round nil}
    :transport-fully-loaded? false
+   :transport-load-reservations {}
    :early-patrol-boat-produced? false
    :early-satellite-produced? false
    :computer-event-log []

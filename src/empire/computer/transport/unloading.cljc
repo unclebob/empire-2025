@@ -5,6 +5,7 @@
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.transport.core :as tc]
             [empire.computer.transport.load-targeting :as load-targeting]
+            [empire.computer.transport.reservations :as reservations]
             [empire.computer.transport.sailing-path :as sailing-path]
             [empire.computer.threat-response-impl :as threat-response]
             [empire.game-mechanics.unit-stamping :as unit-stamping]
@@ -92,8 +93,14 @@
   "Inline return-to-load transition — avoids circular dep with facade."
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
+        transport-id (:transport-id transport)
+        _ (reservations/release! transport-id)
         computer-map (sa/read-state :computer-map)
-        load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
+        load-target-cell (load-targeting/choose-load-target-cell
+                          pos
+                          computer-map
+                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
         sail-path (or (when load-target-cell
                         (load-targeting/path-to-load-target pos computer-map load-target-cell))
                       (sailing-path/compute-sail-to-load-path pos computer-map)
@@ -106,8 +113,11 @@
         (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
         (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (sa/update-world! assoc-in (conj pos :contents :load-manifest)
-                          (vec (army-assignment/assign-returning-transport-staging-at! pos)))
+        (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
+          (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+        (reservations/reserve! transport-id
+                               load-target-cell
+                               manifest))
         (visibility/sync-ai-unit-to-computer-map! pos)
         nil)
       (do
@@ -117,8 +127,11 @@
         (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
         (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (sa/update-world! assoc-in (conj pos :contents :load-manifest)
-                          (vec (army-assignment/assign-returning-transport-staging-at! pos)))
+        (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
+          (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+        (reservations/reserve! transport-id
+                               load-target-cell
+                               manifest))
         (visibility/sync-ai-unit-to-computer-map! pos)
         nil))))
 

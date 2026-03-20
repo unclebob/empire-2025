@@ -4,6 +4,7 @@
             [empire.computer.shared.grid :as grid]
             [empire.computer.transport.core :as tc]
             [empire.computer.transport.load-targeting :as load-targeting]
+            [empire.computer.transport.reservations :as reservations]
             [empire.computer.transport.sailing-path :as sailing-path]
             [empire.computer.transport.sailing-support :as support]
             [empire.computer.transport.unloading :as unloading]
@@ -14,8 +15,14 @@
 
 (defn- initialize-load-plan!
   [pos]
-  (let [computer-map (sa/read-state :computer-map)
-        load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
+  (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))
+        _ (reservations/release! transport-id)
+        computer-map (sa/read-state :computer-map)
+        load-target-cell (load-targeting/choose-load-target-cell
+                          pos
+                          computer-map
+                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
         sail-path (or (when load-target-cell
                         (load-targeting/path-to-load-target pos computer-map load-target-cell))
                       (support/compute-sail-to-load-path pos)
@@ -30,6 +37,7 @@
     (visibility/sync-ai-unit-to-computer-map! pos)
     (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
       (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+      (reservations/reserve! transport-id load-target-cell manifest)
       (visibility/sync-ai-unit-to-computer-map! pos)
       (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
              :load-target-cell load-target-cell

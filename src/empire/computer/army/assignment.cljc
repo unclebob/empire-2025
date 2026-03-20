@@ -3,6 +3,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.early-game.strategy :as opening]
             [empire.computer.transport.load-targeting :as load-targeting]
+            [empire.computer.transport.reservations :as reservations]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.army.assignment-decisions :as decisions]
             [empire.computer.shared.grid :as grid]
@@ -69,9 +70,10 @@
          first)))
 
 (defn- assignable-load-target-army?
-  [unit]
+  [reserved-army-ids unit]
   (and (= :army (:type unit))
        (= :computer (:owner unit))
+       (not (contains? reserved-army-ids (:computer-unit-id unit)))
        (not (:attack-target unit))
        (not= :move-to-coast-for-invasion (:mode unit))))
 
@@ -80,20 +82,24 @@
   (get-in (sa/read-state :computer-map) (conj transport-pos :contents :load-target-cell)))
 
 (defn- load-target-staging-armies
-  [target]
+  [transport-id target]
   (let [computer-map (sa/read-state :computer-map)]
     (->> (load-targeting/neighborhood-tile-army-positions target computer-map)
+         (remove (comp (reservations/reserved-army-ids transport-id)
+                       #(get-in computer-map (conj % :contents :computer-unit-id))))
          shuffle
          (keep (fn [pos]
                  (let [unit (get-in computer-map (conj pos :contents))]
-                   (when (assignable-load-target-army? unit)
+                   (when (assignable-load-target-army?
+                          (reservations/reserved-army-ids transport-id)
+                          unit)
                      {:pos pos
                       :computer-unit-id (:computer-unit-id unit)}))))
          (take max-returning-staging-armies))))
 
 (defn- assign-load-target-staging-armies!
-  [target]
-  (let [selected (vec (load-target-staging-armies target))]
+  [transport-id target]
+  (let [selected (vec (load-target-staging-armies transport-id target))]
     (doseq [{:keys [pos]} selected]
       (sa/update-world! update-in (conj pos :contents)
                         #(assoc %
@@ -125,11 +131,13 @@
 
 (defn assign-returning-transport-staging-at!
   [transport-pos]
-  (if-let [target (returning-load-target transport-pos)]
-    (assign-load-target-staging-armies! target)
+  (let [transport-id (get-in (sa/read-state :computer-map)
+                             (conj transport-pos :contents :transport-id))]
+    (if-let [target (returning-load-target transport-pos)]
+      (assign-load-target-staging-armies! transport-id target)
     (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
       (assign-staging-armies! anchor)
-      [])))
+      []))))
 
 (defn assign-returning-transport-staging!
   []

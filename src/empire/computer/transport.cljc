@@ -20,6 +20,7 @@
             [empire.computer.transport.load-targeting :as load-targeting]
             [empire.computer.transport.loading :as loading]
             [empire.computer.transport.mission-handlers :as mission-handlers]
+            [empire.computer.transport.reservations :as reservations]
             [empire.computer.transport.sailing :as sailing]
             [empire.computer.transport.sailing-path :as sailing-path]
             [empire.computer.transport.targeting :as targeting]
@@ -47,6 +48,7 @@
 (defn- start-sailing
   "Transition transport from loading to sailing with BFS path."
   [pos transport]
+  (reservations/release! (:transport-id transport))
   (tc/set-transport-mission pos :sail-to-unload)
   (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
   (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
@@ -62,8 +64,14 @@
 
 (defn- plan-return-to-load!
   [pos]
-  (let [computer-map (sa/read-state :computer-map)
-        load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
+  (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))
+        _ (reservations/release! transport-id)
+        computer-map (sa/read-state :computer-map)
+        load-target-cell (load-targeting/choose-load-target-cell
+                          pos
+                          computer-map
+                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
         sail-path (or (when load-target-cell
                         (load-targeting/path-to-load-target pos computer-map load-target-cell))
                       (sailing-path/compute-sail-to-load-path pos computer-map)
@@ -79,6 +87,7 @@
     (visibility/sync-ai-unit-to-computer-map! pos)
     (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
       (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+      (reservations/reserve! transport-id load-target-cell manifest)
       (visibility/sync-ai-unit-to-computer-map! pos)
       {:load-target-cell load-target-cell
        :sail-path (vec sail-path)
@@ -104,6 +113,7 @@
     (if empty?
       (plan-return-to-load! pos)
       (let [sail-path (or (sailing-path/compute-sail-to-unload-path pos computer-map) [])]
+        (reservations/release! (:transport-id transport))
         (tc/set-transport-mission pos mission)
         (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
         (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
@@ -114,6 +124,8 @@
 
 (defn- transition-load-for-invasion-to-unloading!
   [pos major-target]
+  (reservations/release! (get-in (sa/read-state :computer-map)
+                                 (conj pos :contents :transport-id)))
   (sa/update-world! update-in (conj pos :contents)
                     #(assoc % :transport-mission :unloading
                               :load-target-cell nil

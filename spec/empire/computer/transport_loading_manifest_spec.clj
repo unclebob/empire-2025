@@ -1,5 +1,6 @@
 (ns empire.computer.transport-loading-manifest-spec
-  (:require [empire.computer.transport.loading :as loading]
+  (:require [empire.computer.transport :as transport]
+            [empire.computer.transport.loading :as loading]
             [empire.computer.transport.mission-handlers :as mission-handlers]
             [empire.player.production :as player-prod]
             [empire.test.utils :as test-utils]
@@ -99,4 +100,24 @@
         :loading-crawl-move (fn [_] :crawl)
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
-      (should= [:replan [0 0]] @called))))
+      (should= [:replan [0 0]] @called)))
+
+  (it "clears the transport reservation when loading starts sailing to unload"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :hits 1
+                                   :transport-id 7
+                                   :army-count 4
+                                   :transport-mission :loading
+                                   :load-target-cell [1 0]
+                                   :load-manifest [41 42]}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {7 {:coastal-cell [1 0]
+                                    :army-ids #{41 42}}})
+    (@#'transport/start-sailing [0 0]
+                                (get-in (test-utils/read-test-state :computer-map)
+                                        [0 0 :contents]))
+    (should= {}
+             (test-utils/read-test-state :transport-load-reservations))))

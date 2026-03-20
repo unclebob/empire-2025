@@ -46,21 +46,22 @@
        (map-utils/adjacent-to-sea? pos computer-map)))
 
 (defn- computer-army?
-  [cell]
+  [cell reserved-army-ids]
   (let [unit (:contents cell)]
     (and unit
          (= :army (:type unit))
-         (= :computer (:owner unit)))))
+         (= :computer (:owner unit))
+         (not (contains? reserved-army-ids (:computer-unit-id unit))))))
 
 (defn- tile-summary
-  [computer-map tile-index]
+  [computer-map tile-index reserved-army-ids]
   (let [cells (tile-cells computer-map tile-index)
         coastal-targets (keep (fn [{:keys [pos cell]}]
                                 (when (computer-claimed-coastal-cell? computer-map pos cell)
                                   pos))
                               cells)
         army-positions (keep (fn [{:keys [pos cell]}]
-                               (when (computer-army? cell)
+                               (when (computer-army? cell reserved-army-ids)
                                  pos))
                              cells)]
     {:tile tile-index
@@ -80,17 +81,23 @@
                   coastal-targets)))
 
 (defn choose-load-target-cell
-  [transport-pos computer-map]
-  (let [candidates (->> (all-tiles computer-map)
-                        (map #(tile-summary computer-map %))
+  ([transport-pos computer-map]
+   (choose-load-target-cell transport-pos computer-map {}))
+  ([transport-pos computer-map {:keys [reserved-coastal-cells reserved-army-ids]
+                                :or {reserved-coastal-cells #{}
+                                     reserved-army-ids #{}}}]
+   (let [candidates (->> (all-tiles computer-map)
+                        (map #(tile-summary computer-map % reserved-army-ids))
                         (filter #(seq (:coastal-targets %)))
+                        (filter #(not-any? reserved-coastal-cells
+                                           (:coastal-targets %)))
                         (filter #(>= (count (:army-positions %))
                                      min-armies-in-target-tile))
                         (map (fn [tile]
                                (assoc tile :target (tile-target transport-pos tile))))
                         (sort-by (juxt #(grid/chebyshev-distance transport-pos (:target %))
                                        :tile)))]
-    (:target (first candidates))))
+    (:target (first candidates)))))
 
 (defn- target-adjacent-sea?
   [computer-map target pos]
@@ -125,7 +132,9 @@
        (<= (grid/chebyshev-distance transport-pos target) 1)))
 
 (defn neighborhood-tile-army-positions
-  [target computer-map]
+  ([target computer-map]
+   (neighborhood-tile-army-positions target computer-map #{}))
+  ([target computer-map reserved-army-ids]
   (let [[tile-x tile-y] (tile-index-for-pos target)
         neighbor-tiles (for [dx [-1 0 1]
                              dy [-1 0 1]
@@ -136,4 +145,4 @@
                                         (< (second tile) (long (Math/ceil (/ (double (map-height computer-map)) tile-size)))))]
                          tile)]
     (vec (mapcat :army-positions
-                 (map #(tile-summary computer-map %) neighbor-tiles)))))
+                 (map #(tile-summary computer-map % reserved-army-ids) neighbor-tiles))))))

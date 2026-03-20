@@ -27,6 +27,54 @@
                                                    (test-utils/read-test-state :computer-map)
                                                    [5 0]))))
 
+  (it "rejects a qualifying tile when one of its coastal cells is reserved"
+    (let [computer-map (build-test-map ["#~~~~#~~~~"
+                                        "~t~~~~~~~~"
+                                        "aaaa~aaaa~"
+                                        "~~~~~~~~~~"
+                                        "~~~~~~~~~~"])]
+      (set-test-world! computer-map)
+      (doseq [pos [[0 0] [5 0]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (test-utils/set-test-state! :transport-load-reservations
+                                  {99 {:coastal-cell [0 0]
+                                       :army-ids #{}}})
+      (should= [0 0]
+               (load-targeting/choose-load-target-cell
+                [1 1]
+                (test-utils/read-test-state :computer-map)))
+      (should= [5 0]
+               (load-targeting/choose-load-target-cell
+                [1 1]
+                (test-utils/read-test-state :computer-map)
+                {:reserved-coastal-cells #{[0 0]}
+                 :reserved-army-ids #{}}))))
+
+  (it "does not count reserved armies toward tile qualification"
+    (let [computer-map (build-test-map ["#~~~~#~~~~"
+                                        "~t~~~~~~~~"
+                                        "aaaa~aaaa~"
+                                        "~~~~~~~~~~"
+                                        "~~~~~~~~~~"])]
+      (set-test-world! computer-map)
+      (doseq [[idx pos] (map-indexed vector [[0 0] [5 0]
+                                             [0 2] [1 2] [2 2] [3 2]
+                                             [5 2] [6 2] [7 2] [8 2]])]
+        (when (#{[0 0] [5 0]} pos)
+          (update-test-world! assoc-in (conj pos :country-id) 1))
+        (when (not (#{[0 0] [5 0]} pos))
+          (update-test-world! assoc-in (conj pos :contents :computer-unit-id) idx)))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should= [0 0]
+               (load-targeting/choose-load-target-cell [1 1] (test-utils/read-test-state :computer-map)))
+      (should= [5 0]
+               (load-targeting/choose-load-target-cell
+                [1 1]
+                (test-utils/read-test-state :computer-map)
+                {:reserved-coastal-cells #{}
+                 :reserved-army-ids #{2 3}}))))
+
   (it "stores the chosen coastal load target when an empty transport starts sailing to load"
     (let [world (build-test-map ["#~~~~#####"
                                  "~t~~~~~~~~"
@@ -102,4 +150,40 @@
                         staged))
         (should= nil
                  (get-in (test-utils/read-test-state :game-map)
-                         [5 5 :contents :mode]))))))
+                         [5 5 :contents :mode])))))
+
+  (it "does not recruit armies already reserved for another transport"
+    (let [world (build-test-map ["~~~~~#~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "aaaaaa~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"])]
+      (set-test-world! world)
+      (doseq [pos [[5 0] [5 1] [5 2] [5 3] [5 4]
+                   [0 5] [1 5] [2 5] [3 5] [4 5] [5 5]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (doseq [[id pos] (map vector (range 1 12)
+                            [[5 1] [5 2] [5 3] [5 4] [0 5] [1 5] [2 5] [3 5] [4 5] [5 5] [5 0]])]
+        (when (= :army (get-in (test-utils/read-test-state :game-map) (conj pos :contents :type)))
+          (update-test-world! assoc-in (conj pos :contents :computer-unit-id) id)))
+      (update-test-world! assoc-in [9 9 :contents]
+                         {:type :transport
+                          :owner :computer
+                          :hits 1
+                          :transport-id 10
+                          :transport-mission :sail-to-load
+                          :load-target-cell [5 0]})
+      (test-utils/set-test-state! :transport-load-reservations
+                                  {99 {:coastal-cell [0 0]
+                                       :army-ids #{5 6}}})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (with-redefs [shuffle identity]
+        (let [assigned (assignment/assign-returning-transport-staging-at! [9 9])]
+          (should= 5 (count assigned))
+          (should-not-contain 5 assigned)
+          (should-not-contain 6 assigned))))))
