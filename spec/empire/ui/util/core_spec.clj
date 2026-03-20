@@ -101,6 +101,11 @@
     (let [result (util-core/parse-args ["--log"] 2000 2000)]
       (should= true (:log-enabled result))))
 
+  (it "extracts --limits=SPEC"
+    (let [result (util-core/parse-args ["--limits=t:8,p:4"] 2000 2000)]
+      (should= {:transport 8 :patrol-boat 4}
+               (:production-limits result))))
+
   (it "extracts --headless=N and uses it as handicap"
     (let [result (util-core/parse-args ["--headless=30"] 2000 2000)]
       (should= 30 (:headless-rounds result))
@@ -153,6 +158,13 @@
       (should= 30 (:rows result))
       (should= true (:log-enabled result))))
 
+  (it "ignores limits arg when computing dimensions"
+    (let [result (util-core/parse-args ["--limits=t:8,p:4" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= {:transport 8 :patrol-boat 4}
+               (:production-limits result))))
+
   (it "skips screen bounds checks when screen dimensions are absent"
     (let [result (util-core/parse-args ["--headless=10" "200" "100"] nil nil)]
       (should= 200 (:cols result))
@@ -197,6 +209,7 @@
       (should-contain "--help" usage)
       (should-contain "--log" usage)
       (should-contain "--seed=N" usage)
+      (should-contain "--limits=SPEC" usage)
       (should-contain "--headless=N" usage)
       (should-contain "--handicap=N" usage)
       (should-contain "Default: 50" usage))))

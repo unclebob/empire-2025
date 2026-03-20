@@ -151,12 +151,13 @@
       (print-map-size-error-and-exit! e))))
 
 (defn- initialize-startup-state!
-  [{:keys [cols rows handicap log-enabled]} effective-seed]
+  [{:keys [cols rows handicap log-enabled production-limits]} effective-seed]
   (sa/write-state! :random-seed effective-seed)
   (sa/write-state! :map-size [cols rows])
   (sa/write-state! :map-size-constants (config/compute-size-constants cols rows))
   (sa/write-state! :handicap-rounds-remaining handicap)
   (sa/write-state! :handicap-display-rounds (when (pos? handicap) handicap))
+  (sa/write-state! :computer-production-limits production-limits)
   (sa/write-state! :computer-unit-log-file
                    (when log-enabled
                      (util-core/unit-log-filename)))

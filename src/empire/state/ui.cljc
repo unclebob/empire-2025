@@ -28,6 +28,7 @@
    :save-menu-input ""
    :save-menu-default-active false
    :computer-unit-log-file nil
+   :computer-production-limits {}
    :headless-mode? false
    :headless-stop-on-major-invasion? false
    :major-invasion-probe-hit? false})

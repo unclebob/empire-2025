@@ -1,5 +1,6 @@
 (ns empire.ui.util.core
-  (:require [empire.state.api :as sa]
+  (:require [clojure.string :as str]
+            [empire.state.api :as sa]
             [empire.config.core :as config]))
 
 (defn screen->cell
@@ -45,6 +46,35 @@
   [args]
   (boolean (some #{"--log"} args)))
 
+(def ^:private limit-code->unit-type
+  {\a :army
+   \b :battleship
+   \c :carrier
+   \d :destroyer
+   \f :fighter
+   \p :patrol-boat
+   \s :submarine
+   \t :transport
+   \v :satellite})
+
+(defn- parse-limit-entry
+  [entry]
+  (let [[code-text n-text] (str/split entry #":" 2)
+        code (some-> code-text str/lower-case first)
+        unit-type (get limit-code->unit-type code)]
+    (when-not (and unit-type n-text)
+      (throw (ex-info "Invalid --limits entry"
+                      {:entry entry})))
+    [unit-type (Long/parseLong n-text)]))
+
+(defn parse-production-limits
+  [arg]
+  (if-let [limits-text (some-> arg not-empty)]
+    (into {}
+          (map parse-limit-entry)
+          (str/split limits-text #","))
+    {}))
+
 (defn startup-timestamp
   []
   (let [now (java.time.LocalDateTime/now)
@@ -64,6 +94,8 @@
        "  --log             Append every computer unit once per round\n"
        "                    to a timestamped empire-units log file.\n"
        "  --seed=N          Use N as the random seed.\n"
+       "  --limits=SPEC     Cap computer production by unit code, e.g.\n"
+       "                    t:8,p:4. When a cap is hit, produce army.\n"
        "  --headless=N      Run headlessly for up to N rounds with\n"
        "                    handicap N. Exits early on game over and\n"
        "                    prints a progress line every 20 rounds.\n"
@@ -74,11 +106,13 @@
        "  cols rows         Optional map size. Default: 100 60.\n"))
 
 (defn parse-args
-  "Parses command-line args into a map of {:cols :rows :seed :headless-rounds :handicap :window-w :window-h}.
+  "Parses command-line args into a map of {:cols :rows :seed :headless-rounds :handicap :window-w :window-h :production-limits}.
    Throws ex-info if map exceeds screen bounds when screen dimensions are provided."
   [args screen-w screen-h]
   (let [seed (some #(when (.startsWith ^String % "--seed=")
                       (Long/parseLong (subs % 7))) args)
+        production-limits (some #(when (.startsWith ^String % "--limits=")
+                                   (parse-production-limits (subs % 9))) args)
         log-enabled (log-requested? args)
         headless-rounds (some #(when (.startsWith ^String % "--headless=")
                                  (Long/parseLong (subs % 11))) args)
@@ -87,6 +121,7 @@
                               (Long/parseLong (subs % 11))) args)
                      50)
         non-options (remove #(or (.startsWith ^String % "--seed=")
+                                 (.startsWith ^String % "--limits=")
                                  (= "--log" %)
                                  (.startsWith ^String % "--headless=")
                                  (.startsWith ^String % "--handicap="))
@@ -110,6 +145,7 @@
     {:cols cols
      :rows rows
      :seed seed
+     :production-limits (or production-limits {})
      :log-enabled log-enabled
      :headless-rounds headless-rounds
      :handicap handicap

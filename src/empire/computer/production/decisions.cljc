@@ -59,6 +59,19 @@
   (when (< (stats/count-all-computer-fighters) (stats/count-computer-cities))
     :fighter))
 
+(defn- limit-reached?
+  [unit-type unit-counts]
+  (when-let [limit (get (sa/read-state :computer-production-limits) unit-type)]
+    (>= (get unit-counts unit-type 0) limit)))
+
+(defn- apply-production-limit
+  [unit-type unit-counts]
+  (if (and unit-type
+           (not= :army unit-type)
+           (limit-reached? unit-type unit-counts))
+    :army
+    unit-type))
+
 (defn- decide-country-production
   [city-pos country-id coastal? unit-counts]
   (selection/country-production-choice
@@ -126,14 +139,16 @@
         country-id (:country-id city-cell)
         coastal? (stats/city-is-coastal? city-pos)
         unit-counts (stats/count-computer-units)]
-    (selection/production-choice
-     {:override (kamikazee/invasion-production-override city-pos)
-      :opening (opening-production city-pos)
-      :country-choice (when country-id
-                        (or (decide-country-production city-pos country-id coastal? unit-counts)
-                            (decide-global-production coastal? unit-counts)))
-      :global-choice nil
-      :fallback-army? (not (and country-id (stats/country-army-limit-reached? country-id)))})))
+    (apply-production-limit
+     (selection/production-choice
+      {:override (kamikazee/invasion-production-override city-pos)
+       :opening (opening-production city-pos)
+       :country-choice (when country-id
+                         (or (decide-country-production city-pos country-id coastal? unit-counts)
+                             (decide-global-production coastal? unit-counts)))
+       :global-choice nil
+       :fallback-army? (not (and country-id (stats/country-army-limit-reached? country-id)))})
+     unit-counts)))
 
 (defn process-computer-city [pos]
   (let [action (selection/process-city-action

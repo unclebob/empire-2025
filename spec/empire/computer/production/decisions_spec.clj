@@ -87,6 +87,30 @@
                   empire.computer.production.stats/country-has-other-coastal-city? (constantly true)]
       (should-be-nil (#'decisions/should-produce-transport? [4 4] 2 true))))
 
+  (it "falls back to army when a transport production limit is reached"
+    (test-utils/set-test-state! :computer-production-limits {:transport 2})
+    (with-redefs [empire.computer.threat-response.kamikazee/invasion-production-override (constantly nil)
+                  empire.computer.early-game.strategy/opening-production (constantly nil)
+                  empire.computer.production.stats/city-is-coastal? (constantly true)
+                  empire.computer.production.stats/country-army-limit-reached? (constantly false)
+                  empire.computer.production.decisions/decide-country-production (constantly :transport)
+                  empire.computer.production.decisions/decide-global-production (constantly nil)
+                  empire.computer.production.stats/count-computer-units (constantly {:transport 2})]
+      (set-test-computer-map! [[{:type :city :city-status :computer :country-id 1}]])
+      (should= :army (decisions/decide-production [0 0]))))
+
+  (it "falls back to army when a patrol-boat production limit is reached"
+    (test-utils/set-test-state! :computer-production-limits {:patrol-boat 4})
+    (with-redefs [empire.computer.threat-response.kamikazee/invasion-production-override (constantly nil)
+                  empire.computer.early-game.strategy/opening-production (constantly nil)
+                  empire.computer.production.stats/city-is-coastal? (constantly true)
+                  empire.computer.production.stats/country-army-limit-reached? (constantly false)
+                  empire.computer.production.decisions/decide-country-production (constantly :patrol-boat)
+                  empire.computer.production.decisions/decide-global-production (constantly nil)
+                  empire.computer.production.stats/count-computer-units (constantly {:patrol-boat 4})]
+      (set-test-computer-map! [[{:type :city :city-status :computer :country-id 1}]])
+      (should= :army (decisions/decide-production [0 0]))))
+
   (it "prefers battleships before submarines in global capital ship production"
     (should= :battleship (#'decisions/decide-global-production true {:carrier 2 :battleship 1 :submarine 5 :satellite 0})))
 

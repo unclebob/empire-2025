@@ -20,6 +20,7 @@ Options:
 
 - `--help` or `-h` prints usage to stdout and exits.
 - `--seed=N` starts the game with a fixed random seed.
+- `--limits=SPEC` caps selected computer-produced unit types by live count. `SPEC` is a comma-separated list like `t:10,p:10`. Supported codes are `a` army, `b` battleship, `c` carrier, `d` destroyer, `f` fighter, `p` patrol-boat, `s` submarine, `t` transport, `v` satellite. When the AI chooses a capped unit type whose limit has been reached, it produces an army instead.
 - `--headless=N` runs the real game loop without opening the UI, gives the computer a handicap of `N`, exits only on game over or round `N`, and prints a one-line progress report every 20 rounds showing computer-map exploration and whether a major invasion is active. Major invasion detection is reported in the progress line, but does not end the run.
 - `--log` appends every computer unit once per round to a timestamped `empire-units<timestamp>.log` file.
 - `--handicap=N` lets the computer play `N` full rounds before the player gets the first turn. The default is `50`.
@@ -32,8 +33,11 @@ Examples:
     clj -M:run --help                   # Print usage
     clj -M:run --log                    # Write per-round computer unit snapshots to a log file
     clj -M:run --seed=42                # Default map with fixed seed
+    clj -M:run --limits=t:10,p:10       # Cap computer transport/patrol-boat production
     clj -M:run --headless=400           # Run headlessly for up to 400 rounds
     clj -M:run --headless=400 --log     # Run headlessly and log computer units each round
+    clj -M:run --headless=400 --limits=t:10,p:10 --log
+                                         # Headless run with production caps and logging
     clj -M:run --handicap=0 80 50       # Smaller 80x50 map, no handicap
     clj -M:run 120 70                   # Larger 120x70 map (if monitor permits)
 
