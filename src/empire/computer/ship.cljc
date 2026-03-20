@@ -10,7 +10,7 @@
             [empire.computer.ship-patrol :as patrol]
             [empire.computer.movement :as computer-movement]
             [empire.computer.threat-response :as threat-response]
-            [empire.game-mechanics.movement.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 
 (defn- computer-unit-at

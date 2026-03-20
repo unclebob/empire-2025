@@ -200,7 +200,7 @@
   (initialize-map!)
   (invasion-probe/clear-log!)
   (sa/write-state! :headless-mode? true)
-  (sa/write-state! :headless-stop-on-major-invasion? true)
+  (sa/write-state! :headless-stop-on-major-invasion? false)
   (sa/write-state! :major-invasion-probe-hit? false)
   (loop [last-reported-round 0]
     (let [round-number (sa/read-state :round-number)]

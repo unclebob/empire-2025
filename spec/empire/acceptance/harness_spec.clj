@@ -67,9 +67,9 @@
 
   (it "drains visibility detections into threat handling"
     (let [calls (atom [])]
-      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility (fn [pos owner unit]
+      (with-redefs [empire.game-mechanics.visibility/update-cell-visibility (fn [pos owner unit]
                                                                                        (swap! calls conj [:update pos owner unit]))
-                    empire.game-mechanics.movement.visibility/drain-detections! (fn []
+                    empire.game-mechanics.visibility/drain-detections! (fn []
                                                                                   [{:pos [1 2] :cell :first}
                                                                                    {:pos [3 4] :cell :second}])
                     empire.computer.threat-response/handle-detection! (fn [pos cell]
@@ -122,10 +122,10 @@
   (it "reveals a computer transport before processing it"
     (let [calls (atom [])]
       (h/set-test-world! (h/build-test-map ["t"]))
-      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+      (with-redefs [empire.game-mechanics.visibility/update-cell-visibility
                     (fn [pos owner unit]
                       (swap! calls conj [:update pos owner unit]))
-                    empire.game-mechanics.movement.visibility/drain-detections!
+                    empire.game-mechanics.visibility/drain-detections!
                     (fn [] [])
                     empire.computer.transport/process-transport
                     (fn [pos]
@@ -142,10 +142,10 @@
   (it "reveals a computer fighter before processing it"
     (let [calls (atom [])
           unit {:type :fighter :owner :computer}]
-      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+      (with-redefs [empire.game-mechanics.visibility/update-cell-visibility
                     (fn [pos owner fighter]
                       (swap! calls conj [:update pos owner fighter]))
-                    empire.game-mechanics.movement.visibility/drain-detections!
+                    empire.game-mechanics.visibility/drain-detections!
                     (fn [] [])
                     empire.computer.fighter/process-fighter
                     (fn [pos fighter]
@@ -158,10 +158,10 @@
   (it "reveals a computer ship before processing it"
     (let [calls (atom [])]
       (h/set-test-world! (h/build-test-map ["d"]))
-      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+      (with-redefs [empire.game-mechanics.visibility/update-cell-visibility
                     (fn [pos owner unit]
                       (swap! calls conj [:update pos owner unit]))
-                    empire.game-mechanics.movement.visibility/drain-detections!
+                    empire.game-mechanics.visibility/drain-detections!
                     (fn [] [])
                     empire.computer.ship/process-ship
                     (fn [pos ship-type]
@@ -178,10 +178,10 @@
   (it "does not reveal non-computer fighters before processing them"
     (let [calls (atom [])
           unit {:type :fighter :owner :player}]
-      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+      (with-redefs [empire.game-mechanics.visibility/update-cell-visibility
                     (fn [& args]
                       (swap! calls conj args))
-                    empire.game-mechanics.movement.visibility/drain-detections!
+                    empire.game-mechanics.visibility/drain-detections!
                     (fn [] [])
                     empire.computer.fighter/process-fighter
                     (fn [pos fighter]

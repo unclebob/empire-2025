@@ -2,7 +2,7 @@
   "Round initialization: satellite moves, fuel consumption, sentry waking,
    dead unit removal, repair, step resets."
   (:require [empire.state.api :as sa]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.satellite :as satellite]
             [empire.config.core :as config]
             [empire.game.loop.round-setup-decisions :as decisions]

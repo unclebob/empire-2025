@@ -3,7 +3,7 @@
   (:require [empire.game-mechanics.movement.lakes :as lakes]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.movement.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 (defn update-cell-visibility!
   [pos owner]

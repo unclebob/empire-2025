@@ -3,7 +3,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.early-game.strategy :as opening]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.computer.army.assignment-decisions :as decisions]
             [empire.computer.land-objectives :as land-objectives]))
 

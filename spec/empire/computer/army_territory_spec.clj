@@ -63,6 +63,7 @@
   (context "stamp-territory on cities"
     (it "stamps city cell with army's country-id"
       (set-test-world! [[{:type :city :city-status :computer}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [army {:type :army :owner :computer :country-id 5}]
         (core/stamp-territory [0 0] army)
         (should= 5 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))))))

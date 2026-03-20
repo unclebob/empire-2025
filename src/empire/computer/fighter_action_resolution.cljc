@@ -1,13 +1,13 @@
-(ns empire.game-mechanics.services.fighter-action-resolution
+(ns empire.computer.fighter-action-resolution
   (:require [empire.computer.fighter-movement-decisions :as decisions]
             [empire.config.core :as config]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]))
 
 (defn attack-enemy
   [fighter-pos enemy-pos attackable-enemy-cell?]
-  (let [world (sa/current-world)
+  (let [world (sa/read-state :computer-map)
         {:keys [attacker defender attackable?]} (decisions/attack-context world
                                                                           fighter-pos
                                                                           enemy-pos
@@ -28,7 +28,7 @@
 
 (defn land-at-city
   [pos city-pos]
-  (let [fighter (get-in (sa/current-world) (conj pos :contents))]
+  (let [fighter (get-in (sa/read-state :computer-map) (conj pos :contents))]
     (sa/update-world! update-in pos dissoc :contents)
     (sa/update-world! update-in (conj city-pos :fighter-count) (fnil inc 0))
     (when (:kamikazee fighter)
@@ -40,7 +40,7 @@
 
 (defn consume-fighter-fuel
   [pos]
-  (let [unit (get-in (sa/current-world) (conj pos :contents))
+  (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         action (decisions/fuel-action unit config/fighter-fuel)]
     (case (:action action)
       :invalid false

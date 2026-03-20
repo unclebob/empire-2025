@@ -8,7 +8,7 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn read-test-state

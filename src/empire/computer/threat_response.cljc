@@ -14,7 +14,7 @@
             [empire.computer.threat-response.major-invasion :as major-invasion]
             [empire.computer.threat-response.processing :as processing]
             [empire.game-mechanics.services.threat-policy :as threat-policy]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))
 
 (defn- threat-radius []

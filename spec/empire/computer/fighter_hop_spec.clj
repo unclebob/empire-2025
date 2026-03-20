@@ -183,6 +183,7 @@
     ;; intermediate cells are [1 0] and [2 0] (2 cells), so 2 fuel burned
     (set-test-world! (build-test-map ["#f##"]))
     (set-test-unit (test-utils/game-map-atom) "f" :fuel 20)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (fm/consume-hop-fuel [1 0] 3)]
       (should= true result)
       ;; 3 hops means 2 intermediate fuel burns (hops-1 since final cell was already burned by move)
@@ -194,6 +195,7 @@
     ;; First burn: fuel 2->1. Second burn: fuel 1->0, fighter dies.
     (set-test-world! (build-test-map ["#f##"]))
     (set-test-unit (test-utils/game-map-atom) "f" :fuel 2)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (fm/consume-hop-fuel [1 0] 3)]
       (should= false result)
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))))
@@ -202,6 +204,7 @@
     ;; A single hop has no intermediate cells to burn fuel for
     (set-test-world! (build-test-map ["#f##"]))
     (set-test-unit (test-utils/game-map-atom) "f" :fuel 5)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (fm/consume-hop-fuel [1 0] 1)]
       (should= true result)
       (should= 5 (:fuel (get-in (test-utils/read-test-state :game-map) [1 0 :contents]))))))

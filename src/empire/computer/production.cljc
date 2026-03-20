@@ -1,7 +1,7 @@
 (ns empire.computer.production
   "Computer production module - priority-based production."
   (:require [empire.state.api :as sa]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.computer.production.decisions :as decisions]
             [empire.computer.production.stats :as stats]))
 

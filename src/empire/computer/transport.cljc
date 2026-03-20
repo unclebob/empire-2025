@@ -4,7 +4,7 @@
    Sailing: follow BFS path to unexplored coast, opportunistic unload
    Unloading: coast-crawl while dropping armies on empty land"
   (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.army.assignment :as army-assignment]
@@ -77,14 +77,6 @@
 (defn- load-for-invasion-start!
   [pos]
   (mission-handlers/load-for-invasion-start! sa/update-world! sa/read-state pos))
-
-(defn- passable-sea-cell?
-  [cell]
-  (mission-handlers/passable-sea-cell? cell))
-(defn- sea-load-points
-  "All passable sea cells adjacent to at least one computer army."
-  []
-  (mission-handlers/sea-load-points (sa/read-state :computer-map) core/get-neighbors))
 
 (declare loading-crawl-move)
 

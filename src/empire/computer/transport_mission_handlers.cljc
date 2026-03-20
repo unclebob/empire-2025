@@ -7,7 +7,7 @@
             [empire.computer.transport-loading :as loading]
             [empire.computer.transport-unloading :as unloading]
             [empire.computer.threat-response :as threat-response]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]))
 
 (def ^:private invasion-army-search-max-distance 6)
@@ -37,22 +37,6 @@
                  (= :computer (:owner unit))
                  (= :army (:type unit)))))
         (get-neighbors transport-pos)))
-
-(defn passable-sea-cell?
-  [cell]
-  (and (= :sea (:type cell))
-       (or (nil? (:contents cell))
-           (= :computer (:owner (:contents cell))))))
-
-(defn sea-load-points
-  [world get-neighbors]
-  (for [i (range (count world))
-        j (range (count (first world)))
-        :let [cell (get-in world [i j])]
-        :when (and cell
-                   (passable-sea-cell? cell)
-                   (loadable-army-neighbor? world get-neighbors [i j]))]
-    [i j]))
 
 (defn- coastal-army?
   [get-neighbors pos computer-map]

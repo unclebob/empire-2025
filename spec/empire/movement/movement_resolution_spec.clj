@@ -1,7 +1,7 @@
 (ns empire.game-mechanics.movement.movement-resolution-spec
   (:require [empire.test.utils :as test-utils]
             [empire.game-mechanics.movement.movement-resolution :as resolution]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
 

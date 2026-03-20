@@ -6,7 +6,7 @@
   :state [:config],
   :acceptance
   [:computer :config :game :game-mechanics :state :test :ui],
-  :ui [:config :game :game-mechanics :player :state],
+  :ui [:computer :config :game :game-mechanics :player :state],
   :player [:config :game-mechanics :state],
   :game-mechanics [:computer :config :state],
   :test [:computer :config :game-mechanics :state]},

@@ -3,7 +3,7 @@
             [empire.state.api :as sa]
             [empire.game-mechanics.debug.logging :as debug]
             [empire.game-mechanics.movement.map-utils :as map-utils]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.explore :as explore]))
 
 (defn- update-game-map!

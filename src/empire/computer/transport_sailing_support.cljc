@@ -4,7 +4,7 @@
             [empire.computer.transport-sailing-path :as sailing-path]
             [empire.computer.transport-unloading :as unloading]
             [empire.game-mechanics.movement.map-utils :as map-utils]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]))
 
 (def invasion-unload-radius 2)

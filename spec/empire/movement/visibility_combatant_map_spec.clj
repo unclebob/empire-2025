@@ -1,7 +1,7 @@
 (ns empire.game-mechanics.movement.visibility-combatant-map-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.game-mechanics.movement.visibility :refer :all]
+            [empire.game-mechanics.visibility :refer :all]
             [empire.test.utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
 (describe "update-combatant-map"
   (before (reset-all-atoms!))
@@ -112,4 +112,3 @@
     (should= {:type :sea} (get-in (test-utils/read-test-state :player-map) [3 3]))
     ;; Far corner should not be revealed
     (should= nil (get-in (test-utils/read-test-state :player-map) [6 6]))))
-

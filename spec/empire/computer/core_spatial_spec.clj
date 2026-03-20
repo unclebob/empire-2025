@@ -115,30 +115,36 @@
 
   (it "stamps land cell with army's country-id"
     (set-test-world! (build-test-map ["#"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
     (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "stamps city cell with army's country-id"
     (set-test-world! (build-test-map ["X"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 5})
     (should= 5 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp sea cell"
     (set-test-world! (build-test-map ["~"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (core/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
     (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp for player army"
     (set-test-world! (build-test-map ["#"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (core/stamp-territory [0 0] {:type :army :owner :player :country-id 3})
     (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp for non-army unit"
     (set-test-world! (build-test-map ["#"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (core/stamp-territory [0 0] {:type :transport :owner :computer :country-id 3})
     (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "does not stamp when army has no country-id"
     (set-test-world! (build-test-map ["#"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (core/stamp-territory [0 0] {:type :army :owner :computer})
     (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))))

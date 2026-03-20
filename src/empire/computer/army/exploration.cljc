@@ -3,7 +3,7 @@
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
             [empire.computer.core :as core]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]))
 
 (defn- log-missing-army-contents!

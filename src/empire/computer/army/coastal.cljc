@@ -5,7 +5,7 @@
             [empire.computer.core :as core]
             [empire.computer.lake-naval :as lake-naval]
             [empire.computer.army.movement :as movement]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.debug.logging :as debug]))
 

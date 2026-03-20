@@ -3,7 +3,7 @@
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.state.api :as sa]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- update-game-map!

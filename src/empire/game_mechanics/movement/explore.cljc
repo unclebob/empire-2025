@@ -2,7 +2,7 @@
   (:require [empire.config.core :as config]
             [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.wake-conditions :as wake]))
 
 (defn- update-game-map!

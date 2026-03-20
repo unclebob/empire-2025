@@ -18,6 +18,7 @@
                                          {:kamikazee-stage :route
                                           :kamikazee-route [[2 0]]
                                           :fuel 20})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [rand-nth first]
         (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
                                              [1 0]

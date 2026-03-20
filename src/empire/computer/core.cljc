@@ -1,5 +1,5 @@
 (ns empire.computer.core
-  (:require [empire.game-mechanics.services.computer-action-resolution :as action-resolution]
+  (:require [empire.computer.computer-action-resolution :as action-resolution]
             [empire.state.api :as sa]))
 
 (def neighbor-offsets

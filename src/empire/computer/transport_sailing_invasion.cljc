@@ -5,7 +5,7 @@
             [empire.computer.transport-sailing-decisions :as decisions]
             [empire.computer.transport-sailing-support :as support]
             [empire.computer.transport-unloading :as unloading]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]))
 
 (defn- clear-invasion-path!

@@ -2,7 +2,6 @@
 set -euo pipefail
 
 # Reports direct authoritative game-map reads in AI-related code.
-# This is an audit guard, not a hard boundary yet.
 #
 # Usage:
 #   scripts/check-ai-map-access.sh
@@ -23,7 +22,7 @@ else
   )
 fi
 
-violations="$(
+all_accesses="$(
   rg -n \
     -e '\bsa/current-world\b' \
     -e '\bsa/read-state\s+:game-map\b' \
@@ -31,9 +30,33 @@ violations="$(
     || true
 )"
 
-if [[ -n "${violations}" ]]; then
-  echo "AI map access audit warnings:"
-  printf '%s\n' "${violations}"
+# This allowlist is the explicit set of authoritative accesses permitted in AI-related
+# code today. It must never be modified without explicit user permission.
+readonly ALLOWED_ACCESSES=(
+  "src/empire/computer/computer_action_resolution.cljc:48:  (let [from-cell (get-in (sa/current-world) from-pos)"
+  "src/empire/computer/computer_action_resolution.cljc:49:        to-cell (get-in (sa/current-world) to-pos)"
+  "src/empire/computer/computer_action_resolution.cljc:120:         (sa/current-world))))"
+  "src/empire/computer/computer_action_resolution.cljc:133:  (let [army-cell (get-in (sa/current-world) army-pos)"
+  "src/empire/computer/computer_action_resolution.cljc:135:        city-cell (get-in (sa/current-world) city-pos)]"
+  "src/empire/computer/computer_action_resolution.cljc:148:          (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))"
+  "src/empire/computer/computer_action_resolution.cljc:149:        (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]"
+  "src/empire/computer/threat_response/probe.cljc:52:        game-map (sa/read-state :game-map)"
+)
+
+unexpected_accesses="${all_accesses}"
+for allowed in "${ALLOWED_ACCESSES[@]}"; do
+  unexpected_accesses="$(printf '%s\n' "${unexpected_accesses}" | grep -F -x -v "${allowed}" || true)"
+done
+
+if [[ -n "${unexpected_accesses//$'\n'/}" ]]; then
+  echo "AI map access audit failed:"
+  printf '%s\n' "${unexpected_accesses}"
+  exit 1
+fi
+
+if [[ -n "${all_accesses}" ]]; then
+  echo "AI map access audit passed with approved authoritative accesses:"
+  printf '%s\n' "${all_accesses}"
   exit 0
 fi
 

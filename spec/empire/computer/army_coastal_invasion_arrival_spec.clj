@@ -55,7 +55,7 @@
                                                     :hits 1
                                                     :mode :move-to-coast
                                                     :coast-target [2 2]}}]]))
-                    empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map!
+                    empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
                     (fn [_] nil)]
         (should= [0 0] (coastal/process-move-to-coast-for-invasion [0 0] 1))
         (should= 1 (count @updates)))))

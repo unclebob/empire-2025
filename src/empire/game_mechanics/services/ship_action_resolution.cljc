@@ -1,6 +1,6 @@
 (ns empire.game-mechanics.services.ship-action-resolution
   (:require [empire.game-mechanics.containers.helpers :as uc]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]))
 

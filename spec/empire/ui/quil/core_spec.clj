@@ -132,7 +132,24 @@
                                                                (sa/write-state! :paused true)))]
       (should= "Round 20 explored 50.0% invasion no\nRound 37 explored 50.0% invasion no\n"
                (with-out-str
-                 (#'quil-core/run-headless! {:headless-rounds 60}))))))
+                 (#'quil-core/run-headless! {:headless-rounds 60})))))
+
+  (it "keeps major invasion probe stopping disabled while running headless"
+    (let [observed-stop-flags (atom [])]
+      (sa/write-state! :computer-map [[{:type :sea} {:type :land}]
+                                      [{:type :unexplored} {:type :unexplored}]])
+      (sa/write-state! :major-invasion-state {:active? false})
+      (with-redefs [empire.ui.quil.core/install-seeded-random! (fn [] nil)
+                    empire.ui.quil.core/initialize-map! (fn [] nil)
+                    empire.game.loop.core/update-player-map (fn [] nil)
+                    empire.game.loop.core/update-computer-map (fn [] nil)
+                    empire.game.loop.core/advance-game-batch (fn []
+                                                               (swap! observed-stop-flags conj
+                                                                      (sa/read-state :headless-stop-on-major-invasion?))
+                                                               (sa/update-state! :round-number inc))]
+        (#'quil-core/run-headless! {:headless-rounds 3})
+        (should= [false false false] @observed-stop-flags)
+        (should-not (sa/read-state :headless-stop-on-major-invasion?))))))
 
 (describe "create-fonts"
   (before (reset-all-atoms!))

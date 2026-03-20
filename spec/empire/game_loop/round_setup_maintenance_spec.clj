@@ -1,7 +1,7 @@
 (ns empire.game-loop-round-setup-maintenance-spec
   (:require [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.containers.helpers :as uc]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.wake-conditions :as wake]
             [empire.game.loop.round-setup :as setup]
             [empire.game.loop.round-setup.fuel :as fuel]

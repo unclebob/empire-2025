@@ -9,7 +9,7 @@
             [empire.game-mechanics.movement.movement-execution :as execution]
             [empire.game-mechanics.movement.movement-pathing :as pathing]
             [empire.game-mechanics.movement.satellite :as satellite]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.wake-conditions :as wake]
             [empire.config.units.dispatcher :as dispatcher]))
 

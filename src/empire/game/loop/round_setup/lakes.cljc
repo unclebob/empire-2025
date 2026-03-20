@@ -2,7 +2,7 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.game-mechanics.movement.lakes :as lakes]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [clojure.set :as set]))
 
 (defn find-adjacent-empty-sea

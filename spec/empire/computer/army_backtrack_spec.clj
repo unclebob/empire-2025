@@ -162,7 +162,6 @@
     (it "wakes nearby sentries when army boards transport"
       (set-test-world! (build-test-map ["###"
                                                "~t~"]))
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (doseq [col (range 3)]
         (update-test-world! assoc-in [col 0 :country-id] 1))
       ;; Army at [1 0]
@@ -173,6 +172,7 @@
              {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
       ;; Transport at [1 1] in loading mode
       (update-test-world! assoc-in [1 1 :contents :transport-mission] :loading)
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       ;; Board the army
       (core/board-transport [1 0] [1 1])
       ;; Sentry at [2 0] should be woken

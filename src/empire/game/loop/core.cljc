@@ -4,7 +4,7 @@
   (:require [empire.game.production-status :as production-status]
             [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.services.unit-stamping :as unit-stamping]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.state.api :as sa]

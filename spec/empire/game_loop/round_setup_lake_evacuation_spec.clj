@@ -1,6 +1,6 @@
 (ns empire.game-loop.round-setup-lake-evacuation-spec
   (:require [empire.game-mechanics.movement.satellite :as satellite]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.wake-conditions :as wake]
             [empire.game.loop.round-setup :as setup]
             [empire.game.loop.round-setup.lakes :as lakes]
@@ -91,4 +91,3 @@
         (lakes/evacuate-lake-patrol-boats))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 1 :contents]))
       (should= :patrol-boat (get-in (test-utils/read-test-state :game-map) [0 2 :contents :type])))))
-

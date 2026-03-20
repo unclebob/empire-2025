@@ -1,7 +1,7 @@
 (ns empire.game-mechanics.movement.visibility-cell-update-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.game-mechanics.movement.visibility :refer :all]
+            [empire.game-mechanics.visibility :refer :all]
             [empire.test.utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
 (describe "update-cell-visibility"
   (before (reset-all-atoms!))

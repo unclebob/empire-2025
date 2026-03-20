@@ -1,7 +1,7 @@
 (ns empire.computer.fighter-movement-impl
-  (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.movement.visibility :as visibility]
-            [empire.game-mechanics.services.fighter-action-resolution :as fighter-action-resolution]
+  (:require [empire.computer.fighter-action-resolution :as fighter-action-resolution]
+            [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.fighter-movement-decisions :as decisions]

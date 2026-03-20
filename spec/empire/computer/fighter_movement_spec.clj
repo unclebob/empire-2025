@@ -100,6 +100,7 @@
 
     (it "logs and skips fuel burn when position no longer contains a computer fighter"
       (set-test-world! [[{:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-not-throw (fm/consume-fighter-fuel [0 0]))
       (should-not (fm/consume-fighter-fuel [0 0]))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))))

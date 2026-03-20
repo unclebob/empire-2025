@@ -1,7 +1,7 @@
-(ns empire.game-mechanics.services.computer-action-resolution
+(ns empire.computer.computer-action-resolution
   (:require [empire.computer.oscillation :as oscillation]
             [empire.game-mechanics.debug.logging :as debug]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]))
@@ -29,7 +29,7 @@
           (and (map? prod)
                (= :army (:item prod))
                (not= coords city-pos)
-               (let [cell (get-in (sa/current-world) coords)]
+               (let [cell (get-in (sa/read-state :computer-map) coords)]
                  (and (= :city (:type cell))
                       (= :computer (:city-status cell))
                       (= country-id (:country-id cell))))))
@@ -40,7 +40,7 @@
   (when (and (= :army (:type unit))
              (= :computer (:owner unit))
              (:country-id unit)
-             (#{:land :city} (:type (get-in (sa/current-world) pos))))
+             (#{:land :city} (:type (get-in (sa/read-state :computer-map) pos))))
     (sa/update-world! assoc-in (conj pos :country-id) (:country-id unit))))
 
 (defn move-unit-to
@@ -58,8 +58,9 @@
         (when (#{:patrol-boat :transport} (:type unit))
           (sa/update-world! update-in (conj to-pos :contents)
                             oscillation/append-position to-pos))
-        (stamp-territory to-pos unit)
         (update-cell-visibility! from-pos (:owner unit))
+        (update-cell-visibility! to-pos (:owner unit) unit)
+        (stamp-territory to-pos unit)
         (update-cell-visibility! to-pos (:owner unit) unit)
         to-pos))))
 
@@ -89,7 +90,7 @@
 
 (defn wake-nearby-sentries
   [pos radius]
-  (let [candidates (find-wakeable-sentries (sa/current-world) pos radius)]
+  (let [candidates (find-wakeable-sentries (sa/read-state :computer-map) pos radius)]
     (doseq [coord candidates
             :let [direction (random-away-direction pos coord)]]
       (sa/update-world! update-in (conj coord :contents)
@@ -139,15 +140,16 @@
         (sa/update-world! assoc-in city-pos (assoc city-cell :city-status :computer))
         (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)
         (combat/conquer-city-contents city-pos :computer)
+        (update-cell-visibility! army-pos :computer)
+        (update-cell-visibility! city-pos :computer)
         (stamp-territory city-pos army)
+        (update-cell-visibility! city-pos :computer)
         (when (= :player (:city-status city-cell))
           (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))
         (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
           (when-not (and city-country-id
                          (country-city-producing-armies? city-pos city-country-id))
             (city-production/set-city-production city-pos :army)))
-        (update-cell-visibility! army-pos :computer)
-        (update-cell-visibility! city-pos :computer)
         (when (and (sa/read-state :game-over-check-enabled)
                    (= :player (:city-status city-cell))
                    (not (has-city? :player)))

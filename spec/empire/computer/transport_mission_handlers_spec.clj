@@ -3,24 +3,6 @@
             [empire.computer.transport-mission-handlers :as mh]))
 
 (describe "transport mission-handlers"
-  (context "sea loading helpers"
-    (it "recognizes passable sea cells for empty and friendly-occupied water"
-      (should (mh/passable-sea-cell? {:type :sea}))
-      (should (mh/passable-sea-cell? {:type :sea :contents {:owner :computer}}))
-      (should-not (mh/passable-sea-cell? {:type :sea :contents {:owner :player}}))
-      (should-not (mh/passable-sea-cell? {:type :land})))
-
-    (it "finds sea load points adjacent to computer armies"
-      (let [world [[{:type :sea} {:type :land :contents {:type :army :owner :computer}}]
-                   [{:type :sea :contents {:owner :player}} {:type :land}]]
-            neighbors (fn [[x y]]
-                        (case [x y]
-                          [0 0] [[0 1]]
-                          [1 0] [[1 1]]
-                          []))]
-        (should= [[0 0]]
-                 (vec (mh/sea-load-points world neighbors))))))
-
   (context "load-for-invasion helpers"
     (it "transitions to unloading inside the unload zone"
       (let [calls (atom [])]

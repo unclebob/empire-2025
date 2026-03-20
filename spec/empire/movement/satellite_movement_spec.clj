@@ -2,7 +2,7 @@
   (:require [empire.test.utils :as test-utils]
             [empire.game.loop.core :as game-loop]
             [empire.game-mechanics.movement.api :refer [set-unit-movement]]
-            [empire.game-mechanics.movement.visibility :refer [update-cell-visibility]]
+            [empire.game-mechanics.visibility :refer [update-cell-visibility]]
             [empire.game-mechanics.movement.satellite :as sat :refer [move-satellite calculate-satellite-target]]
             [empire.test.utils :refer [build-test-map set-test-unit get-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map
                                        set-test-world!]]

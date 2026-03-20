@@ -120,11 +120,13 @@
   (context "consume-hop-fuel (L189-192)"
     (it "returns true when fuel sufficient for hops"
       (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer :fuel 5}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should (fm/consume-hop-fuel [0 0] 3))
       (should= 3 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :fuel])))
 
     (it "returns false when fuel runs out during hop"
       (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer :fuel 1}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (should-not (fm/consume-hop-fuel [0 0] 3))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
 

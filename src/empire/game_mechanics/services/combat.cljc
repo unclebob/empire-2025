@@ -2,7 +2,7 @@
   (:require [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.config.domain.model.combat :as domain-combat]
-            [empire.game-mechanics.services.combat-visibility-port :as visibility-port]
+            [empire.game-mechanics.combat-visibility-port :as visibility-port]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- error-message-map

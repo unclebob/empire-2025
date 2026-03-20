@@ -25,7 +25,7 @@
                                   (when (= k :computer-map)
                                     current-world))
                   sa/update-world! (fn [& args] (swap! updates conj args))
-                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map!
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
                   (fn [_] nil)
                   empire.game-mechanics.debug.logging/log-computer-event! (fn [& _] nil)]
       {:result (coastal/fill-coastal-cell [1 1] 1)

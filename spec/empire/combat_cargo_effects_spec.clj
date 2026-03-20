@@ -222,10 +222,10 @@
     (it "conquered city does not produce armies when another city in country is already producing"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["a#XO"]))
-        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (update-test-world! assoc-in [0 0 :contents :country-id] 3)
         ;; Existing computer city at [2 0] in country 3, already producing armies
         (update-test-world! assoc-in [2 0 :country-id] 3)
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
         (test-utils/update-test-state! :production assoc [2 0] {:item :army :remaining-rounds 3})
         ;; Army at [0 0] conquers city at [3 0]
         (computer-core/attempt-conquest-computer [0 0] [3 0])

@@ -20,7 +20,7 @@ Options:
 
 - `--help` or `-h` prints usage to stdout and exits.
 - `--seed=N` starts the game with a fixed random seed.
-- `--headless=N` runs the real game loop without opening the UI, gives the computer a handicap of `N`, exits on game over or round `N`, and prints a one-line progress report every 20 rounds showing computer-map exploration and whether a major invasion is active.
+- `--headless=N` runs the real game loop without opening the UI, gives the computer a handicap of `N`, exits only on game over or round `N`, and prints a one-line progress report every 20 rounds showing computer-map exploration and whether a major invasion is active. Major invasion detection is reported in the progress line, but does not end the run.
 - `--log` appends every computer unit once per round to a timestamped `empire-units<timestamp>.log` file.
 - `--handicap=N` lets the computer play `N` full rounds before the player gets the first turn. The default is `50`.
 

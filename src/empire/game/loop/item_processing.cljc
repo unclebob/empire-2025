@@ -2,7 +2,7 @@
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.api :as movement-api]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.game-mechanics.containers.helpers :as uc]

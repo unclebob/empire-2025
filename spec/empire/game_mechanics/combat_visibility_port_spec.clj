@@ -1,5 +1,5 @@
-(ns empire.game-mechanics.services.combat-visibility-port-spec
-  (:require [empire.game-mechanics.services.combat-visibility-port :as sut]
+(ns empire.game-mechanics.combat-visibility-port-spec
+  (:require [empire.game-mechanics.combat-visibility-port :as sut]
             [speclj.core :refer :all]))
 
 (describe "combat visibility port"

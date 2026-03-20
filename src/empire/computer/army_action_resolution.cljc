@@ -1,4 +1,4 @@
-(ns empire.game-mechanics.services.army-action-resolution
+(ns empire.computer.army-action-resolution
   (:require [empire.computer.core :as core]
             [empire.computer.movement :as computer-movement]
             [empire.computer.threat-response :as threat-response]
@@ -9,14 +9,14 @@
 (defn attack-enemy
   "Attack an adjacent enemy. Returns new position or nil if army died."
   [army-pos enemy-pos]
-  (let [game-map (sa/current-world)
+  (let [game-map (sa/read-state :computer-map)
         enemy-cell (get-in game-map enemy-pos)]
     (cond
       (= :city (:type enemy-cell))
       (do
         (debug/log-computer-event! :army-attack-city army-pos {:target enemy-pos})
         (core/attempt-conquest-computer army-pos enemy-pos)
-        (when (= :computer (:city-status (get-in (sa/current-world) enemy-pos)))
+        (when (= :computer (:city-status (get-in (sa/read-state :computer-map) enemy-pos)))
           (threat-response/rebuild-kamikazee-routing!)))
 
       (:contents enemy-cell)

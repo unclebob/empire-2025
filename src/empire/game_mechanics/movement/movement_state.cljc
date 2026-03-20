@@ -2,7 +2,7 @@
   (:require [empire.config.core :as config]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.state.api :as sa]
-            [empire.game-mechanics.movement.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 (defn- update-game-map!
   [f & args]

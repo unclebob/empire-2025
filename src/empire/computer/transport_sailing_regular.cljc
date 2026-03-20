@@ -5,7 +5,7 @@
             [empire.computer.transport-sailing-support :as support]
             [empire.computer.transport-unloading :as unloading]
             [empire.config.units.dispatcher :as dispatcher]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]))
 
 (defn- launch-from-city-to-sea

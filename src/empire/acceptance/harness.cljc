@@ -10,7 +10,7 @@
             [empire.computer.transport :as computer-transport]
             [empire.game.loop.core :as game-loop]
             [empire.game.loop.item-processing :as item-processing]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.test.utils :as test-utils]
             [empire.ui.util.input.dispatch :as input-dispatch]))
 

@@ -1,7 +1,7 @@
 (ns empire.game.loop.item-processing.computer-items
   "Computer item processing and threat detection dispatch."
   (:require [empire.state.api :as sa]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing.computer-item-decisions :as decisions]

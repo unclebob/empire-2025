@@ -8,7 +8,7 @@
             [empire.computer.threat-response :as threat-response]
             [empire.game-mechanics.services.unit-stamping :as unit-stamping]
             [empire.game-mechanics.debug.logging :as debug]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.computer.movement :as computer-movement]))
 
 

@@ -10,6 +10,7 @@
   (it "wakes sentry armies within radius"
     (set-test-world! (build-test-map ["~a~"]))
     (update-test-world! assoc-in [1 0 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 2)]
         (should= 1 woken)
@@ -18,6 +19,7 @@
   (it "does not wake armies beyond radius"
     (set-test-world! (build-test-map ["~..a"]))
     (update-test-world! assoc-in [3 0 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 1)]
         (should= 0 woken)
@@ -26,6 +28,7 @@
   (it "does not wake player armies"
     (set-test-world! (build-test-map ["~A~"]))
     (update-test-world! assoc-in [1 0 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 2)]
         (should= 0 woken)
@@ -33,6 +36,7 @@
 
   (it "does not wake non-sentry armies"
     (set-test-world! (build-test-map ["~a~"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [0 0] 2)]
         (should= 0 woken))))
@@ -44,6 +48,7 @@
                                       "~~#~~"
                                       "~~#~~"]))
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [2 2] 2)]
         (should= 1 woken)
@@ -55,6 +60,7 @@
                                       "~~a~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (update-test-world! assoc-in [2 2 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [2 1] 1)]
         (should= 2 woken)
@@ -68,6 +74,7 @@
                                       "~~#~~"
                                       "~~#~~"]))
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))]
@@ -80,6 +87,7 @@
                                       "~~~~~"
                                       "~~~~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
@@ -92,6 +100,7 @@
                                       "~~~~~"
                                       "~~~~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
@@ -104,6 +113,7 @@
                                       "~~#~~"
                                       "~~#~~"]))
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (core/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))]
@@ -116,6 +126,7 @@
                                       "~~~~~"
                                       "~~~~~"]))
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.7)]
       (core/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
@@ -127,6 +138,7 @@
                                       "~~~~"
                                       "~~~~"]))
     (update-test-world! assoc-in [3 1 :contents :mode] :sentry)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
       (let [woken (core/wake-nearby-sentries [1 1] 2)]
         (should= 1 woken)

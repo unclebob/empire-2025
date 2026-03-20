@@ -11,7 +11,7 @@
             [empire.computer.fighter-movement :as fm]
             [empire.computer.fighter-exploration :as fe]
             [empire.computer.threat-response :as threat-response]
-            [empire.game-mechanics.movement.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 (defn- computer-unit-at
   [pos]

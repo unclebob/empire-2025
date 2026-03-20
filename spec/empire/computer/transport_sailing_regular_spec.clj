@@ -48,7 +48,7 @@
     (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
                   empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly [[1 0] [2 0]])
                   empire.state.api/update-world! (fn [& _])
-                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map! (fn [& _])
                   empire.computer.core/move-unit-to (fn [_ _] true)
                   empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])
                   empire.computer.transport-unloading/try-opportunistic-unload (fn [_] false)]
@@ -74,7 +74,7 @@
     (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
                   empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly [[1 0]])
                   empire.state.api/update-world! (fn [& _])
-                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map! (fn [& _])
                   empire.computer.core/move-unit-to (fn [_ _] true)
                   empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])]
       (should= [1 0]
@@ -90,7 +90,7 @@
     (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
                   empire.computer.transport-sailing-support/compute-sail-to-unload-path (constantly [[1 0]])
                   empire.state.api/update-world! (fn [& _])
-                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map! (fn [& _])
                   empire.computer.core/move-unit-to (fn [_ _] true)
                   empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])]
       (should= [1 0]
@@ -110,7 +110,7 @@
     (with-redefs [empire.computer.transport-unloading/try-opportunistic-unload (constantly false)
                   empire.computer.core/move-unit-to (fn [_ _] true)
                   empire.computer.transport-sailing-support/update-cell-visibility! (fn [& _])
-                  empire.game-mechanics.movement.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map! (fn [& _])
                   empire.state.api/update-world! (fn [& _])]
       (should= [1 0]
                (regular/process-sailing-mission [0 0]))))

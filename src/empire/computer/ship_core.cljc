@@ -1,7 +1,7 @@
 (ns empire.computer.ship-core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
   (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.movement.visibility :as visibility]
+            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.game-mechanics.services.ship-action-resolution :as ship-action-resolution]
             [empire.computer.core :as core]

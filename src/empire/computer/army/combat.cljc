@@ -2,9 +2,9 @@
   "Army combat helpers."
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
+            [empire.computer.army-action-resolution :as army-action-resolution]
             [empire.computer.core :as core]
-            [empire.game-mechanics.movement.visibility :as visibility]
-            [empire.game-mechanics.services.army-action-resolution :as army-action-resolution]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 (defn find-adjacent-enemy
   "Finds an adjacent enemy unit or city to attack."

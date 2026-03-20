@@ -5,7 +5,7 @@
             [empire.computer.ship-core :as ship-core]
             [empire.computer.ship-escort :as escort]
             [empire.computer.movement :as computer-movement]
-            [empire.game-mechanics.movement.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 
 (defn- computer-unit-at

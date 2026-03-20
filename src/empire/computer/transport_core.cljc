@@ -2,7 +2,7 @@
   "Shared transport helpers — no dependencies on other transport sub-modules."
   (:require [empire.state.api :as sa]
             [empire.computer.core :as core]
-            [empire.game-mechanics.movement.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]))
 
 (defn get-passable-sea-neighbors
   [pos]

@@ -1,6 +1,6 @@
 (ns empire.computer.transport-loading
   "Transport loading — army loading, coastal crawling, staleness detection."
-  (:require [empire.game-mechanics.movement.visibility :as visibility]
+  (:require [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.core :as core]
             [empire.computer.transport-core :as tc]

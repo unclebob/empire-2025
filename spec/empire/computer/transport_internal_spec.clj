@@ -46,12 +46,6 @@
        (@#'transport/process-load-for-invasion-with-armies
         [0 0] {:army-count 1} [2 2] false false))))
 
-  (it "passable-sea-cell? accepts empty sea and friendly-occupied sea only"
-    (should (@#'transport/passable-sea-cell? {:type :sea :contents nil}))
-    (should (@#'transport/passable-sea-cell? {:type :sea :contents {:owner :computer}}))
-    (should-not (@#'transport/passable-sea-cell? {:type :sea :contents {:owner :player}}))
-    (should-not (@#'transport/passable-sea-cell? {:type :land :contents nil})))
-
   (it "load-for-invasion-start! stamps mission and current round"
     (test-utils/set-test-state! :round-number 12)
     (set-test-world! (build-test-map ["~t~"]))
@@ -59,16 +53,6 @@
     (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
       (should= :load-for-invasion (:transport-mission unit))
       (should= 12 (:invasion-load-since unit))))
-
-  (it "sea-load-points returns passable sea adjacent to computer armies"
-    (set-test-world! (build-test-map ["a~~"
-                                      "~~~"
-                                      "~~~"]))
-    (set-test-computer-map! (test-utils/read-test-state :game-map))
-    (let [points (set (@#'transport/sea-load-points))]
-      (should (contains? points [1 0]))
-      (should (contains? points [0 1]))
-      (should-not (contains? points [2 2]))))
 
   (it "move-toward-position updates visibility and loads adjacent armies after a move"
     (let [calls (atom [])]
@@ -79,7 +63,7 @@
                     empire.computer.core/move-unit-to (fn [from to]
                                                         (swap! calls conj [:move from to])
                                                         true)
-                    empire.game-mechanics.movement.visibility/update-cell-visibility (fn [pos owner]
+                    empire.game-mechanics.visibility/update-cell-visibility (fn [pos owner]
                                                                                        (swap! calls conj [:visibility pos owner]))
                     empire.computer.transport-loading/load-adjacent-armies (fn [pos]
                                                                               (swap! calls conj [:load pos]))]

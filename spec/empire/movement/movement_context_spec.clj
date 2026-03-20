@@ -4,7 +4,7 @@
     [empire.game.loop.core :as game-loop]
     [empire.game-mechanics.movement.explore :as explore]
     [empire.game-mechanics.movement.api :refer :all]
-    [empire.game-mechanics.movement.visibility :as visibility]
+    [empire.game-mechanics.visibility :as visibility]
     [empire.game-mechanics.movement.wake-conditions :as wake]
     [empire.test.utils :refer [build-test-map get-test-unit set-test-unit reset-all-atoms! set-test-player-map! set-test-world! update-test-world!]]
     [speclj.core :refer :all]))

@@ -6,7 +6,7 @@
   (it "forwards visibility updates"
     (let [call (atom nil)
           unit {:type :army}]
-      (with-redefs [empire.game-mechanics.movement.visibility/update-cell-visibility
+      (with-redefs [empire.game-mechanics.visibility/update-cell-visibility
                     (fn
                       ([pos owner]
                        (reset! call [pos owner])
