@@ -1,0 +1,21 @@
+; Transport loading manifest
+;
+; Returning transports wait at their chosen loading coast for recruited armies.
+
+;===============================================================
+; Sail-to-load transport enters loading when it reaches its target coast.
+;===============================================================
+GIVEN game map
+  a#t~
+  ###X
+GIVEN computer map
+  a#t~
+  ###X
+GIVEN t has transport-mission sail-to-load.
+GIVEN t has load-target-cell [3 1].
+GIVEN t has sail-path [].
+
+WHEN a new round starts.
+
+THEN t is at [2 0].
+THEN t has transport-mission loading.

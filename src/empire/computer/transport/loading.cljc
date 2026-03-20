@@ -11,6 +11,8 @@
   [pos owner]
   (visibility/update-cell-visibility pos owner))
 
+(def ^:private max-loading-rounds 10)
+
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."
   [n game-map unloaded-countries unload-eid]
@@ -77,6 +79,8 @@
         army-count (:army-count transport 0)
         capacity (- 6 army-count)
         unloaded-countries (:unloaded-countries transport)
+        manifest-ids (when (contains? transport :load-manifest)
+                       (set (:load-manifest transport)))
         neighbors (world-query/get-neighbors pos)
         armies (filter (fn [n]
                          (let [cell (get-in computer-map n)
@@ -85,6 +89,8 @@
                            (and unit
                                 (= :army (:type unit))
                                 (= :computer (:owner unit))
+                                (or (nil? manifest-ids)
+                                    (contains? manifest-ids (:computer-unit-id unit)))
                                 (or invasion-pickup?
                                     (not (and (seq unloaded-countries)
                                               (:country-id unit)
@@ -99,6 +105,12 @@
         (update-cell-visibility! army-pos :computer))
       (when (pos? to-load)
         (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
+        (when manifest-ids
+          (let [loaded-ids (->> loaded-positions
+                                (keep #(get-in computer-map (conj % :contents :computer-unit-id)))
+                                set)]
+            (sa/update-world! update-in (conj pos :contents :load-manifest)
+                              #(vec (remove loaded-ids %)))))
         (visibility/sync-ai-unit-to-computer-map! pos))
       ;; Wake nearby sentries to advance the transport queue
       (doseq [army-pos loaded-positions]
@@ -147,6 +159,19 @@
   (and (>= army-count 4)
        (or (>= army-count 6)
            (not (has-nearby-loadable-armies? pos transport 3)))))
+
+(defn planned-loading?
+  [transport]
+  (contains? transport :load-manifest))
+
+(defn manifest-empty?
+  [transport]
+  (empty? (:load-manifest transport)))
+
+(defn loading-stale?
+  [transport]
+  (when-let [started (:loading-since-round transport)]
+    (> (- (or (sa/read-state :round-number) 0) started) max-loading-rounds)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-12T11:58:57.394349-05:00", :module-hash "859187559", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "788791339"} {:id "defn-/update-cell-visibility!", :kind "defn-", :line 10, :end-line 12, :hash "-1102586575"} {:id "defn-/loadable-army-at?", :kind "defn-", :line 14, :end-line 30, :hash "-584039442"} {:id "defn-/passable-coastal-sea-neighbor?", :kind "defn-", :line 32, :end-line 40, :hash "1453757411"} {:id "defn-/coastal-sea-neighbors", :kind "defn-", :line 42, :end-line 45, :hash "279146420"} {:id "defn/has-nearby-loadable-armies?", :kind "defn", :line 47, :end-line 69, :hash "-37818847"} {:id "defn/load-adjacent-armies", :kind "defn", :line 71, :end-line 105, :hash "-176084131"} {:id "defn/coastal-crawl-move", :kind "defn", :line 107, :end-line 130, :hash "1512796160"} {:id "defn/should-start-sailing?", :kind "defn", :line 132, :end-line 136, :hash "1199262319"} {:id "defn/clear-pickup-continent-if-arrived", :kind "defn", :line 138, :end-line 146, :hash "1344478972"} {:id "def/max-loading-rounds", :kind "def", :line 148, :end-line 148, :hash "-1272023921"} {:id "defn/loading-stale?", :kind "defn", :line 150, :end-line 153, :hash "545146802"}]}

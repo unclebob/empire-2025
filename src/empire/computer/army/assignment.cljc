@@ -87,17 +87,20 @@
          (keep (fn [pos]
                  (let [unit (get-in computer-map (conj pos :contents))]
                    (when (assignable-load-target-army? unit)
-                     pos))))
+                     {:pos pos
+                      :computer-unit-id (:computer-unit-id unit)}))))
          (take max-returning-staging-armies))))
 
 (defn- assign-load-target-staging-armies!
   [target]
-  (doseq [pos (load-target-staging-armies target)]
-    (sa/update-world! update-in (conj pos :contents)
-                      #(assoc %
-                              :mode :move-to-coast-for-transport
-                              :transport-staging-target target))
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+  (let [selected (vec (load-target-staging-armies target))]
+    (doseq [{:keys [pos]} selected]
+      (sa/update-world! update-in (conj pos :contents)
+                        #(assoc %
+                                :mode :move-to-coast-for-transport
+                                :transport-staging-target target))
+      (visibility/sync-ai-unit-to-computer-map! pos))
+    (vec (keep :computer-unit-id selected))))
 
 (defn assign-city-attacks
   "Scans computer-map for visible free/player cities and assigns up to 6 closest armies each."
@@ -125,7 +128,8 @@
   (if-let [target (returning-load-target transport-pos)]
     (assign-load-target-staging-armies! target)
     (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
-      (assign-staging-armies! anchor))))
+      (assign-staging-armies! anchor)
+      [])))
 
 (defn assign-returning-transport-staging!
   []

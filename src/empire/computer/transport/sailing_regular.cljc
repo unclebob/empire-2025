@@ -1,5 +1,6 @@
 (ns empire.computer.transport.sailing-regular
-  (:require [empire.computer.shared.action-resolution :as action-resolution]
+  (:require [empire.computer.army.assignment :as army-assignment]
+            [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.shared.grid :as grid]
             [empire.computer.transport.core :as tc]
             [empire.computer.transport.load-targeting :as load-targeting]
@@ -10,6 +11,30 @@
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
+
+(defn- initialize-load-plan!
+  [pos]
+  (let [computer-map (sa/read-state :computer-map)
+        load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
+        sail-path (or (when load-target-cell
+                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
+                      (support/compute-sail-to-load-path pos)
+                      [])]
+    (sa/update-world! update-in (conj pos :contents)
+                      #(-> %
+                           (assoc :load-target-cell load-target-cell
+                                  :load-manifest nil
+                                  :loading-since-round nil
+                                  :sail-path (vec sail-path))
+                           (dissoc :unload-target-city)))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
+      (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
+             :load-target-cell load-target-cell
+             :load-manifest manifest
+             :sail-path (vec sail-path)))))
 
 (defn- launch-from-city-to-sea
   [pos transport]
@@ -130,7 +155,8 @@
 (defn- transition-to-loading!
   [pos]
   (tc/set-transport-mission pos :loading)
-  (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
+  (sa/update-world! assoc-in (conj pos :contents :loading-since-round)
+                    (or (sa/read-state :round-number) 0))
   (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
   (visibility/sync-ai-unit-to-computer-map! pos))
 
@@ -168,7 +194,12 @@
 
 (defn- process-sail-to-load-mission
   [pos transport]
-  (let [computer-map (sa/read-state :computer-map)
+  (let [transport (if (or (:load-target-cell transport)
+                          (seq (:sail-path transport))
+                          (contains? transport :load-manifest))
+                    transport
+                    (initialize-load-plan! pos))
+        computer-map (sa/read-state :computer-map)
         city-cell? (= :city (:type (get-in computer-map pos)))
         sail-path (:sail-path transport)
         load-target-cell (:load-target-cell transport)]

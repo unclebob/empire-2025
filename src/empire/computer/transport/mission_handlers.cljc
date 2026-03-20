@@ -205,6 +205,7 @@
   [{:keys [current-world
            read-computer-map
            load-adjacent-armies
+           read-runtime-state
            should-start-sailing?
            start-sailing
            loading-crawl-move
@@ -213,12 +214,29 @@
   (load-adjacent-armies pos)
   (let [read-map (or read-computer-map current-world)
         transport' (get-in (read-map) (conj pos :contents))
-        army-count' (:army-count transport' 0)]
-    (case (decisions/loading-mission-action
-           {:should-start-sailing? (should-start-sailing? pos transport' army-count')})
-      :start-sailing (start-sailing pos transport')
-      (or (loading-crawl-move pos)
-          (transition-to-loading pos)))))
+        army-count' (:army-count transport' 0)
+        planned-loading? (loading/planned-loading? transport')
+        loading-stale? (loading/loading-stale? transport')]
+    (cond
+      planned-loading?
+      (cond
+        (or (>= army-count' 6)
+            (loading/manifest-empty? transport'))
+        (start-sailing pos transport')
+
+        loading-stale?
+        (if (<= army-count' 3)
+          (start-sailing pos transport')
+          (transition-to-loading pos))
+
+        :else nil)
+
+      :else
+      (case (decisions/loading-mission-action
+             {:should-start-sailing? (should-start-sailing? pos transport' army-count')})
+        :start-sailing (start-sailing pos transport')
+        (or (loading-crawl-move pos)
+            (transition-to-loading pos))))))
 
 (defn- process-unloading-with-armies
   [{:keys [current-world

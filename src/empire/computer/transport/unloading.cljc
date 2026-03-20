@@ -103,16 +103,24 @@
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+        (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest)
+                          (vec (army-assignment/assign-returning-transport-staging-at! pos)))
         (visibility/sync-ai-unit-to-computer-map! pos)
-        (army-assignment/assign-returning-transport-staging-at! pos))
+        nil)
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
         (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+        (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest)
+                          (vec (army-assignment/assign-returning-transport-staging-at! pos)))
         (visibility/sync-ai-unit-to-computer-map! pos)
-        (army-assignment/assign-returning-transport-staging-at! pos)))))
+        nil))))
 
 (defn- unload-army-template
   [transport]

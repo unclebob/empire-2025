@@ -33,7 +33,7 @@
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
-        (should= :loading (:transport-mission stamped))
+        (should= :sail-to-load (:transport-mission stamped))
         (should= 5 (:transport-id stamped))
         (should= 11 (:computer-unit-id stamped))
         (should= 0 (:army-count stamped))

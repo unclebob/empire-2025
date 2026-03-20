@@ -86,7 +86,7 @@
       (let [ship (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (should= :transport (:type ship))
         (should= :computer (:owner ship))
-        (should= :loading (:transport-mission ship))
+        (should= :sail-to-load (:transport-mission ship))
         (should (integer? (:transport-id ship))))))
 
   (it "stamps patrol fields on computer patrol-boat from country city"

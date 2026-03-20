@@ -49,6 +49,8 @@
   [pos transport]
   (tc/set-transport-mission pos :sail-to-unload)
   (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
+  (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+  (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
   (tc/mint-unload-event-id pos transport)
   (when-not (sa/read-state :transport-fully-loaded?)
     (sa/write-state! :transport-fully-loaded? true))
@@ -58,31 +60,34 @@
                       (conj pos :contents :sail-path) path)
     (visibility/sync-ai-unit-to-computer-map! pos)))
 
-(defn- transition-to-loading
-  "Switch an empty transport to the return-to-load sailing state."
+(defn- plan-return-to-load!
   [pos]
-  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        computer-map (sa/read-state :computer-map)
+  (let [computer-map (sa/read-state :computer-map)
         load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
         sail-path (or (when load-target-cell
                         (load-targeting/path-to-load-target pos computer-map load-target-cell))
                       (sailing-path/compute-sail-to-load-path pos computer-map)
                       [])]
-    (if (:never-reload? transport)
-      (do
-        (tc/set-transport-mission pos :sail-to-load)
-        (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
-        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
-        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos)
-        (army-assignment/assign-returning-transport-staging-at! pos))
-      (do
-        (tc/set-transport-mission pos :sail-to-load)
-        (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
-        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
-        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos)
-        (army-assignment/assign-returning-transport-staging-at! pos)))))
+    (tc/set-transport-mission pos :sail-to-load)
+    (sa/update-world! update-in (conj pos :contents)
+                      #(-> %
+                           (assoc :load-target-cell load-target-cell
+                                  :load-manifest nil
+                                  :loading-since-round nil
+                                  :sail-path (vec sail-path))
+                           (dissoc :unload-target-city)))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
+      (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      {:load-target-cell load-target-cell
+       :sail-path (vec sail-path)
+       :load-manifest manifest})))
+
+(defn- transition-to-loading
+  "Switch an empty transport to the return-to-load sailing state."
+  [pos]
+  (plan-return-to-load! pos))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -93,23 +98,18 @@
 (defn- transition-load-for-invasion-to-sailing!
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        computer-map (sa/read-state :computer-map)
         empty? (zero? (:army-count transport 0))
-        load-target-cell (when empty?
-                           (load-targeting/choose-load-target-cell pos computer-map))
         mission (if empty? :sail-to-load :sail-to-unload)
-        sail-path (if empty?
-                    (or (when load-target-cell
-                          (load-targeting/path-to-load-target pos computer-map load-target-cell))
-                        (sailing-path/compute-sail-to-load-path pos computer-map)
-                        [])
-                    (or (sailing-path/compute-sail-to-unload-path pos computer-map) []))]
-    (tc/set-transport-mission pos mission)
-    (sa/update-world! assoc-in (conj pos :contents :load-target-cell) (when empty? load-target-cell))
-    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-    (visibility/sync-ai-unit-to-computer-map! pos)
-    (when empty?
-      (army-assignment/assign-returning-transport-staging-at! pos)))
+        computer-map (sa/read-state :computer-map)]
+    (if empty?
+      (plan-return-to-load! pos)
+      (let [sail-path (or (sailing-path/compute-sail-to-unload-path pos computer-map) [])]
+        (tc/set-transport-mission pos mission)
+        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+        (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
+        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+        (visibility/sync-ai-unit-to-computer-map! pos))))
   (threat-response/prepare-transport! pos))
 
 (defn- transition-load-for-invasion-to-unloading!
@@ -117,6 +117,8 @@
   (sa/update-world! update-in (conj pos :contents)
                     #(assoc % :transport-mission :unloading
                               :load-target-cell nil
+                              :load-manifest nil
+                              :loading-since-round nil
                               :invasion-target (or (:invasion-target %)
                                                    major-target)))
   (visibility/sync-ai-unit-to-computer-map! pos))
