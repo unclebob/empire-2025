@@ -4,6 +4,7 @@
             [empire.computer.army.assignment :as army-assignment]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.transport.core :as tc]
+            [empire.computer.transport.load-targeting :as load-targeting]
             [empire.computer.transport.sailing-path :as sailing-path]
             [empire.computer.threat-response-impl :as threat-response]
             [empire.game-mechanics.unit-stamping :as unit-stamping]
@@ -91,18 +92,24 @@
   "Inline return-to-load transition — avoids circular dep with facade."
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        sail-path (or (sailing-path/compute-sail-to-load-path pos (sa/read-state :computer-map))
+        computer-map (sa/read-state :computer-map)
+        load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
+        sail-path (or (when load-target-cell
+                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
+                      (sailing-path/compute-sail-to-load-path pos computer-map)
                       [])]
     (if (:never-reload? transport)
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
         (visibility/sync-ai-unit-to-computer-map! pos)
         (army-assignment/assign-returning-transport-staging-at! pos))
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
         (visibility/sync-ai-unit-to-computer-map! pos)
         (army-assignment/assign-returning-transport-staging-at! pos)))))

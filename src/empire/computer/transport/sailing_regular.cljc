@@ -2,6 +2,7 @@
   (:require [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.shared.grid :as grid]
             [empire.computer.transport.core :as tc]
+            [empire.computer.transport.load-targeting :as load-targeting]
             [empire.computer.transport.sailing-path :as sailing-path]
             [empire.computer.transport.sailing-support :as support]
             [empire.computer.transport.unloading :as unloading]
@@ -129,8 +130,21 @@
 (defn- transition-to-loading!
   [pos]
   (tc/set-transport-mission pos :loading)
+  (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
   (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
   (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn- compute-and-follow-load-target-path!
+  [pos transport]
+  (let [computer-map (sa/read-state :computer-map)
+        load-target-cell (:load-target-cell transport)
+        sail-path (or (when load-target-cell
+                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
+                      (support/compute-sail-to-load-path pos))]
+    (when-let [new-path (seq sail-path)]
+      (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec new-path))
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      (sail-follow-path pos (vec new-path) false))))
 
 (defn- process-sail-to-unload-mission
   [pos transport]
@@ -156,19 +170,24 @@
   [pos transport]
   (let [computer-map (sa/read-state :computer-map)
         city-cell? (= :city (:type (get-in computer-map pos)))
-        sail-path (:sail-path transport)]
+        sail-path (:sail-path transport)
+        load-target-cell (:load-target-cell transport)]
     (cond
-      (adjacent-claimed-land? pos)
+      (if load-target-cell
+        (load-targeting/target-reached? pos load-target-cell)
+        (adjacent-claimed-land? pos))
       (transition-to-loading! pos)
 
       city-cell?
-      (handle-launch-and-follow! pos transport support/compute-sail-to-load-path false)
+      (if-let [sea-pos (launch-from-city-to-sea pos transport)]
+        (compute-and-follow-load-target-path! sea-pos transport)
+        (compute-and-follow-load-target-path! pos transport))
 
       (seq sail-path)
       (sail-follow-path pos sail-path false)
 
       :else
-      (compute-and-follow-path! pos support/compute-sail-to-load-path false))))
+      (compute-and-follow-load-target-path! pos transport))))
 
 (defn- follow-path-action
   [pos sail-path]

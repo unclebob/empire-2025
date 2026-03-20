@@ -14,6 +14,7 @@
 ;; Keep restore keys aligned with transport random-walk recovery behavior.
 (def transport-random-walk-restore-keys
   [:transport-mission
+   :load-target-cell
    :sail-path
    :invasion-target
    :invasion-path

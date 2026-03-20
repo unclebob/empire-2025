@@ -1,0 +1,22 @@
+; Transport load targeting
+;
+; Returning transports stage armies against their stored load-target-cell,
+; not the temporary end of the current sail-path.
+
+;===============================================================
+; Sail-to-load staging uses the stored load target cell.
+;===============================================================
+GIVEN game map
+  a#t~
+  ###X
+GIVEN computer map
+  a#t~
+  ###X
+GIVEN t has transport-mission sail-to-load.
+GIVEN t has load-target-cell [3 1].
+GIVEN t has sail-path [[0 0]].
+
+WHEN a new round starts.
+
+THEN a has mode move-to-coast-for-transport.
+THEN a has transport-staging-target [3 1].

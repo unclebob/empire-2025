@@ -2,6 +2,7 @@
   "Attack-target and transport staging assignment for computer armies."
   (:require [empire.state.api :as sa]
             [empire.computer.early-game.strategy :as opening]
+            [empire.computer.transport.load-targeting :as load-targeting]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.army.assignment-decisions :as decisions]
             [empire.computer.shared.grid :as grid]
@@ -10,6 +11,7 @@
 
 (def ^:private transport-staging-radius 5)
 (def ^:private max-staging-armies 6)
+(def ^:private max-returning-staging-armies 5)
 
 (defn- transport-staging-mode?
   [unit]
@@ -66,6 +68,37 @@
          (sort)
          first)))
 
+(defn- assignable-load-target-army?
+  [unit]
+  (and (= :army (:type unit))
+       (= :computer (:owner unit))
+       (not (:attack-target unit))
+       (not= :move-to-coast-for-invasion (:mode unit))))
+
+(defn- returning-load-target
+  [transport-pos]
+  (get-in (sa/read-state :computer-map) (conj transport-pos :contents :load-target-cell)))
+
+(defn- load-target-staging-armies
+  [target]
+  (let [computer-map (sa/read-state :computer-map)]
+    (->> (load-targeting/neighborhood-tile-army-positions target computer-map)
+         shuffle
+         (keep (fn [pos]
+                 (let [unit (get-in computer-map (conj pos :contents))]
+                   (when (assignable-load-target-army? unit)
+                     pos))))
+         (take max-returning-staging-armies))))
+
+(defn- assign-load-target-staging-armies!
+  [target]
+  (doseq [pos (load-target-staging-armies target)]
+    (sa/update-world! update-in (conj pos :contents)
+                      #(assoc %
+                              :mode :move-to-coast-for-transport
+                              :transport-staging-target target))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
+
 (defn assign-city-attacks
   "Scans computer-map for visible free/player cities and assigns up to 6 closest armies each."
   []
@@ -89,8 +122,10 @@
 
 (defn assign-returning-transport-staging-at!
   [transport-pos]
-  (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
-    (assign-staging-armies! anchor)))
+  (if-let [target (returning-load-target transport-pos)]
+    (assign-load-target-staging-armies! target)
+    (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
+      (assign-staging-armies! anchor))))
 
 (defn assign-returning-transport-staging!
   []

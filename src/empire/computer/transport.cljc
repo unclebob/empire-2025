@@ -17,6 +17,7 @@
             [empire.computer.transport.decisions :as decisions]
             [empire.computer.transport.process-decisions :as process-decisions]
             [empire.computer.transport.core :as tc]
+            [empire.computer.transport.load-targeting :as load-targeting]
             [empire.computer.transport.loading :as loading]
             [empire.computer.transport.mission-handlers :as mission-handlers]
             [empire.computer.transport.sailing :as sailing]
@@ -47,6 +48,7 @@
   "Transition transport from loading to sailing with BFS path."
   [pos transport]
   (tc/set-transport-mission pos :sail-to-unload)
+  (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
   (tc/mint-unload-event-id pos transport)
   (when-not (sa/read-state :transport-fully-loaded?)
     (sa/write-state! :transport-fully-loaded? true))
@@ -60,18 +62,24 @@
   "Switch an empty transport to the return-to-load sailing state."
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        sail-path (or (sailing-path/compute-sail-to-load-path pos (sa/read-state :computer-map))
+        computer-map (sa/read-state :computer-map)
+        load-target-cell (load-targeting/choose-load-target-cell pos computer-map)
+        sail-path (or (when load-target-cell
+                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
+                      (sailing-path/compute-sail-to-load-path pos computer-map)
                       [])]
     (if (:never-reload? transport)
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
         (visibility/sync-ai-unit-to-computer-map! pos)
         (army-assignment/assign-returning-transport-staging-at! pos))
       (do
         (tc/set-transport-mission pos :sail-to-load)
         (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
         (visibility/sync-ai-unit-to-computer-map! pos)
         (army-assignment/assign-returning-transport-staging-at! pos)))))
@@ -87,11 +95,17 @@
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         computer-map (sa/read-state :computer-map)
         empty? (zero? (:army-count transport 0))
+        load-target-cell (when empty?
+                           (load-targeting/choose-load-target-cell pos computer-map))
         mission (if empty? :sail-to-load :sail-to-unload)
         sail-path (if empty?
-                    (or (sailing-path/compute-sail-to-load-path pos computer-map) [])
+                    (or (when load-target-cell
+                          (load-targeting/path-to-load-target pos computer-map load-target-cell))
+                        (sailing-path/compute-sail-to-load-path pos computer-map)
+                        [])
                     (or (sailing-path/compute-sail-to-unload-path pos computer-map) []))]
     (tc/set-transport-mission pos mission)
+    (sa/update-world! assoc-in (conj pos :contents :load-target-cell) (when empty? load-target-cell))
     (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
     (visibility/sync-ai-unit-to-computer-map! pos)
     (when empty?
@@ -102,6 +116,7 @@
   [pos major-target]
   (sa/update-world! update-in (conj pos :contents)
                     #(assoc % :transport-mission :unloading
+                              :load-target-cell nil
                               :invasion-target (or (:invasion-target %)
                                                    major-target)))
   (visibility/sync-ai-unit-to-computer-map! pos))
@@ -227,6 +242,7 @@
 
 (def ^:private transport-random-walk-restore-keys
   [:transport-mission
+   :load-target-cell
    :sail-path
    :invasion-target
    :invasion-path
