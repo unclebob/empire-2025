@@ -7,7 +7,6 @@
                                        set-test-player-map! set-test-world! update-test-world!]]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.containers.helpers :as uc]
-            [empire.computer.core :as computer-core]
             [empire.computer.production :as comp-production]
             [empire.player.production :as production]))
 

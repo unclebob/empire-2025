@@ -1,11 +1,12 @@
 (ns empire.computer.threat-response.major-invasion
   "Major invasion planning and assignment helpers."
   (:require [empire.computer.threat-response.major-invasion-assignment :as assignment]
-            [empire.computer.core :as core]
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.probe :as probe]
-            [empire.computer.movement :as computer-movement]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.movement :as computer-movement]
+            [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
 
 (def ^:private major-invasion-unload-radius 2)
@@ -15,7 +16,7 @@
 
 (defn- target-land-candidates-within-radius*
   [state target]
-  (let [candidates (filter #(<= (core/chebyshev-distance % target) major-invasion-unload-radius)
+  (let [candidates (filter #(<= (grid/chebyshev-distance % target) major-invasion-unload-radius)
                            (:target-land-set state))]
     (if (seq candidates)
       candidates
@@ -25,7 +26,7 @@
   [computer-map land-pos]
   (some (fn [n]
           (= :sea (get-in computer-map (conj n :type))))
-        (core/get-neighbors land-pos)))
+        (world-query/get-neighbors land-pos)))
 
 (defn- connected-target-land
   [computer-map state target]
@@ -48,7 +49,7 @@
       visited
       (let [current (peek queue)
             rest-queue (pop queue)
-            sea-neighbors (for [n (core/get-neighbors current)
+            sea-neighbors (for [n (world-query/get-neighbors current)
                                 :let [cell (get-in computer-map n)]
                                 :when (and cell
                                            (= :sea (:type cell))
@@ -78,7 +79,7 @@
             (and cell
                  (= :sea (:type cell))
                  (contains? reachable-sea n))))
-        (core/get-neighbors land-pos)))
+        (world-query/get-neighbors land-pos)))
 
 (defn- sea-reachable-detection-points
   [state computer-map computer-sea-unit-types]
@@ -106,7 +107,7 @@
       ((:nearest-major-target ctx) pos)
 
       (seq sea-points)
-      (apply min-key #(core/distance pos %) sea-points)
+      (apply min-key #(grid/distance pos %) sea-points)
 
       :else nil)))
 
@@ -115,20 +116,20 @@
   (let [state ((:load-major-invasion-state ctx))
         computer-map ((:read-runtime-state ctx) :computer-map)
         all-candidates (connected-coastal-candidates computer-map state target)
-        nearby-candidates (filter #(<= (core/chebyshev-distance % target)
+        nearby-candidates (filter #(<= (grid/chebyshev-distance % target)
                                        preferred-invasion-landing-distance)
                                   all-candidates)
         candidates-base (if (seq nearby-candidates) nearby-candidates all-candidates)
         candidates (->> candidates-base
                         (sort-by (fn [candidate]
-                                   [(core/chebyshev-distance candidate target)
+                                   [(grid/chebyshev-distance candidate target)
                                     candidate]))
                         (take max-invasion-coastal-candidates))
         scored (keep (fn [candidate]
                        (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
                          {:target candidate
                           :path (vec path)
-                          :score [(core/chebyshev-distance candidate target)
+                          :score [(grid/chebyshev-distance candidate target)
                                   (count path)
                                   candidate]}))
                      candidates)]

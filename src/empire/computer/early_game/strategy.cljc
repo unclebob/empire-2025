@@ -1,5 +1,5 @@
 (ns empire.computer.early-game.strategy
-  (:require [empire.computer.core :as core]
+  (:require [empire.computer.shared.grid :as grid]
             [empire.config.ai :as ai]
             [empire.computer.early-game.roles :as roles]
             [empire.computer.early-game.theater :as theater]
@@ -84,7 +84,7 @@
       :else
       (boolean
        (some (fn [[producer-pos remaining]]
-               (<= remaining (core/distance pos producer-pos)))
+               (<= remaining (grid/distance pos producer-pos)))
              (theater-transport-producers pos))))))
 
 ;; clj-mutate-manifest-begin

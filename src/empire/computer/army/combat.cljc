@@ -2,8 +2,8 @@
   "Army combat helpers."
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
-            [empire.computer.army-action-resolution :as army-action-resolution]
-            [empire.computer.core :as core]
+            [empire.computer.shared.army-action-resolution :as army-action-resolution]
+            [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.visibility :as visibility]))
 
 (defn find-adjacent-enemy
@@ -12,8 +12,8 @@
   (let [game-map (sa/read-state :computer-map)]
     (first (filter (fn [neighbor]
                      (let [cell (get-in game-map neighbor)]
-                       (core/attackable-target? cell)))
-                   (core/get-neighbors pos)))))
+                       (world-query/attackable-target? cell)))
+                   (world-query/get-neighbors pos)))))
 
 (defn attack-enemy-result
   "Attack an adjacent enemy. Returns outcome data for the caller."

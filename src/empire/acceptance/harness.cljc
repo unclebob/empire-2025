@@ -6,7 +6,7 @@
             [empire.computer.fighter :as computer-fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as computer-ship]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response-impl :as threat-response]
             [empire.computer.transport :as computer-transport]
             [empire.game.loop.core :as game-loop]
             [empire.game.loop.item-processing :as item-processing]

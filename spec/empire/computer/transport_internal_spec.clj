@@ -3,7 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport :as transport]
-            [empire.computer.transport-mission-handlers :as mission-handlers]
+            [empire.computer.transport.mission-handlers :as mission-handlers]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -35,13 +35,13 @@
     (let [called (atom nil)]
       (with-redefs [empire.computer.transport/transition-load-for-invasion-to-sailing!
                     (fn [pos] (reset! called [:sail pos]))
-                    empire.computer.transport-unloading/has-nearby-unloadable-land? (fn [& _] true)]
+                    empire.computer.transport.unloading/has-nearby-unloadable-land? (fn [& _] true)]
         (@#'transport/process-load-for-invasion-with-armies
          [3 1] {:army-count 2} [4 4] false false)
         (should= [:sail [3 1]] @called))))
 
   (it "process-load-for-invasion-with-armies returns nil when no branch applies"
-    (with-redefs [empire.computer.transport-unloading/has-nearby-unloadable-land? (fn [& _] false)]
+    (with-redefs [empire.computer.transport.unloading/has-nearby-unloadable-land? (fn [& _] false)]
       (should-be-nil
        (@#'transport/process-load-for-invasion-with-armies
         [0 0] {:army-count 1} [2 2] false false))))
@@ -56,16 +56,16 @@
 
   (it "move-toward-position updates visibility and loads adjacent armies after a move"
     (let [calls (atom [])]
-      (with-redefs [empire.computer.transport-core/get-passable-sea-neighbors (fn [_] [[2 1]])
-                    empire.computer.core/move-toward (fn [pos target passable]
-                                                       (swap! calls conj [:toward pos target passable])
-                                                       [2 1])
-                    empire.computer.core/move-unit-to (fn [from to]
-                                                        (swap! calls conj [:move from to])
-                                                        true)
+      (with-redefs [empire.computer.transport.core/get-passable-sea-neighbors (fn [_] [[2 1]])
+                    empire.computer.shared.grid/move-toward (fn [pos target passable]
+                                                              (swap! calls conj [:toward pos target passable])
+                                                              [2 1])
+                    empire.computer.shared.action-resolution/move-unit-to (fn [from to]
+                                                                            (swap! calls conj [:move from to])
+                                                                            true)
                     empire.game-mechanics.visibility/update-cell-visibility (fn [pos owner]
                                                                                        (swap! calls conj [:visibility pos owner]))
-                    empire.computer.transport-loading/load-adjacent-armies (fn [pos]
+                    empire.computer.transport.loading/load-adjacent-armies (fn [pos]
                                                                               (swap! calls conj [:load pos]))]
         (should= [2 1] (@#'transport/move-toward-position [1 1] [4 4]))
         (should= [[:toward [1 1] [4 4] [[2 1]]]
@@ -79,7 +79,7 @@
     (let [updates (atom [])]
       (set-test-world! [[{:contents {:never-reload? true :unload-target-city [9 9]}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [empire.computer.transport-core/set-transport-mission (fn [pos mission]
+      (with-redefs [empire.computer.transport.core/set-transport-mission (fn [pos mission]
                                                                            (swap! updates conj [:mission pos mission]))
                     empire.state.api/update-world! (fn [& args] (swap! updates conj args))]
         (@#'transport/transition-to-loading [0 0])
@@ -94,8 +94,8 @@
                                      :army-count 0}}]
                        [{:type :city :city-status :computer}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [empire.computer.transport-core/set-transport-mission (fn [& _] nil)
-                    empire.computer.transport-sailing-path/compute-sail-to-load-path (fn [& _] [[0 1]])
+      (with-redefs [empire.computer.transport.core/set-transport-mission (fn [& _] nil)
+                    empire.computer.transport.sailing-path/compute-sail-to-load-path (fn [& _] [[0 1]])
                     empire.computer.army.assignment/assign-returning-transport-staging-at! (fn [pos]
                                                                                               (reset! assigned pos))]
         (@#'transport/transition-to-loading [0 0])

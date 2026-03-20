@@ -1,8 +1,8 @@
-(ns empire.computer.transport-loading-spec
+(ns empire.computer.transport.loading-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.transport-loading :as loading]
-            [empire.computer.transport-core :as tc]
+            [empire.computer.transport.loading :as loading]
+            [empire.computer.transport.core :as tc]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "transport-loading"

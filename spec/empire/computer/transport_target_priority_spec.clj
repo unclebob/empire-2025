@@ -3,7 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.transport :as transport]
-            [empire.computer.transport-targeting :as targeting]
+            [empire.computer.transport.targeting :as targeting]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]

@@ -1,11 +1,11 @@
-(ns empire.computer.transport-sailing-path-spec
+(ns empire.computer.transport.sailing-path-spec
   "Tests for VMS Empire style computer transport movement."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.core :as core]
+            [empire.computer.shared.grid :as grid]
             [empire.computer.transport :as transport]
-            [empire.computer.transport-core :as tc]
-            [empire.computer.transport-sailing-support :as sailing-support]
+            [empire.computer.transport.core :as tc]
+            [empire.computer.transport.sailing-support :as sailing-support]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]
@@ -330,4 +330,4 @@
                                    [c r]))
             transport-unit (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents))]
         (should= :unloading (:transport-mission transport-unit))
-        (should (> (core/chebyshev-distance transport-pos [4 0]) 2)))))
+        (should (> (grid/chebyshev-distance transport-pos [4 0]) 2)))))

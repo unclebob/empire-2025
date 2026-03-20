@@ -3,7 +3,7 @@
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.computer.early-game.strategy :as opening]
-            [empire.computer.production-selection-decisions :as selection]
+            [empire.computer.production.selection-decisions :as selection]
             [empire.computer.production.stats :as stats]
             [empire.computer.ship :as ship]
             [empire.computer.threat-response.kamikazee :as kamikazee]))

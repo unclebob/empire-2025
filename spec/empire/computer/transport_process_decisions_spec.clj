@@ -1,5 +1,5 @@
-(ns empire.computer.transport-process-decisions-spec
-  (:require [empire.computer.transport-process-decisions :as decisions]
+(ns empire.computer.transport.process-decisions-spec
+  (:require [empire.computer.transport.process-decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "transport process decisions"

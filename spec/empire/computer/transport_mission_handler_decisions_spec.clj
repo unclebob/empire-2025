@@ -1,5 +1,5 @@
-(ns empire.computer.transport-mission-handler-decisions-spec
-  (:require [empire.computer.transport-mission-handler-decisions :as decisions]
+(ns empire.computer.transport.mission-handler-decisions-spec
+  (:require [empire.computer.transport.mission-handler-decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "transport mission handler decisions"

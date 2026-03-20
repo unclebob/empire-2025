@@ -1,14 +1,13 @@
-(ns empire.computer.ship-carrier-process-spec
+(ns empire.computer.ship.carrier-process-spec
   "Tests for VMS Empire style computer ship movement - carrier group escort, positioning helpers, mutation: ship combat."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship :as ship]
-            [empire.computer.core :as core]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.services.combat :as combat]
-            [empire.computer.threat :as threat]))
+            [empire.computer.shared.threat :as threat]))
 (describe "process-ship"
   (before (reset-all-atoms!))
 

@@ -1,5 +1,5 @@
-(ns empire.computer.transport-decisions-spec
-  (:require [empire.computer.transport-decisions :as decisions]
+(ns empire.computer.transport.decisions-spec
+  (:require [empire.computer.transport.decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "load-for-invasion-action"

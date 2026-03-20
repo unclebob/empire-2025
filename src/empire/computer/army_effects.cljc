@@ -4,5 +4,4 @@
 (defn handle-attack-outcome!
   [{:keys [conquered-city?]}]
   (when conquered-city?
-    (threat-response-port/rebuild-kamikazee-routing!
-     (threat-response-port/threat-response-port))))
+    (threat-response-port/rebuild-kamikazee-routing!)))

@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! set-test-state! update-test-world!]]
             [empire.test.utils :as test-utils]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response-impl :as threat-response]
             [empire.computer.threat-response.kamikazee :as kamikazee]))
 
 (describe "major invasion kamikazee mission"
@@ -70,7 +70,7 @@
                                           :kamikazee-route []
                                           :fuel 8})
       (with-redefs [rand-nth first
-                    empire.computer.fighter-movement/hop-over-friendly (constantly nil)]
+                    empire.computer.fighter.movement/hop-over-friendly (constantly nil)]
         (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
                                              [0 0]
                                              (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
@@ -180,9 +180,9 @@
                                          {:kamikazee-stage :hunt
                                           :fuel 6})
       (with-redefs [rand-nth first
-                    empire.computer.core/move-unit-to (fn [_ _]
-                                                        (update-test-world! update-in [0 0] dissoc :contents)
-                                                        [1 0])]
+                    empire.computer.shared.action-resolution/move-unit-to (fn [_ _]
+                                                                            (update-test-world! update-in [0 0] dissoc :contents)
+                                                                            [1 0])]
         (kamikazee/process-kamikazee-fighter (test-utils/mission-ctx)
                                              [0 0]
                                              (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
@@ -236,7 +236,7 @@
       (test-utils/set-kamikazee-fighter! [0 0]
                                          {:kamikazee-stage :hunt
                                           :fuel 20})
-      (with-redefs [empire.computer.fighter-movement/attack-enemy
+      (with-redefs [empire.computer.fighter.movement/attack-enemy
                     (fn [from _]
                       (update-test-world! update-in from dissoc :contents)
                       nil)]

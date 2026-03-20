@@ -1,6 +1,6 @@
 (ns empire.computer.early-game.theater
-  (:require [empire.computer.core :as core]
-            [empire.computer.lake-naval :as lake-naval]
+  (:require [empire.computer.shared.world-query :as world-query]
+            [empire.computer.ship.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]
             [empire.state.api :as sa]))
 
@@ -32,7 +32,7 @@
             (let [cell (get-in computer-map neighbor)]
               (and (= :sea (:type cell))
                    (not (contains? lakes neighbor)))))
-          (core/get-neighbors city-pos))))
+          (world-query/get-neighbors city-pos))))
 
 (defn- theater-positions
   [start-pos]

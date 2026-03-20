@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
-            [empire.computer.core :as core]))
+            [empire.computer.shared.world-query :as world-query]))
 
 (describe "register-coastal-cells"
   (it "does nothing when country-id is nil"
@@ -20,7 +20,7 @@
                                       {}))
                     sa/write-state! (fn [& _])
                     movement/adjacent-to-sea? (fn [_] false)
-                    core/get-neighbors (fn [_] [[1 0]])
+                    world-query/get-neighbors (fn [_] [[1 0]])
                     movement/merge-continents! (fn [a b] (swap! merged conj [a b]))]
         (movement/register-coastal-cells [0 0] 1)
         (should-contain [1 2] @merged))))

@@ -1,5 +1,5 @@
 (ns empire.computer.threat-response.kamikazee-targets
-  (:require [empire.computer.core :as core]
+  (:require [empire.computer.shared.grid :as grid]
             [empire.computer.threat-response.kamikazee-target-decisions :as decisions]
             [empire.state.api :as sa]))
 
@@ -107,7 +107,7 @@
   [state world pos]
   (let [targets (invasion-target-points state world)]
     (when (seq targets)
-      (apply min-key #(core/distance pos %) targets))))
+      (apply min-key #(grid/distance pos %) targets))))
 
 (defn fighter-support-targets
   [state]

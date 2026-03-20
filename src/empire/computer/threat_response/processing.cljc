@@ -1,10 +1,9 @@
 (ns empire.computer.threat-response.processing
   "Threat mission execution helpers extracted from threat-response coordinator."
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]
-            [empire.computer.fighter-movement :as fm]
-            [empire.computer.oscillation :as oscillation]
-            [empire.computer.ship-core :as ship-core]
+            [empire.computer.fighter.movement :as fm]
+            [empire.computer.shared.oscillation :as oscillation]
+            [empire.computer.ship.core :as ship-core]
             [empire.computer.threat-response.processing-fighter :as fighter]
             [empire.computer.threat-response.processing-ship :as ship]
             [empire.computer.threat-response.processing-decisions :as decisions]

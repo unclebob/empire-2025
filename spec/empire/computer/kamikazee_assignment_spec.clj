@@ -2,7 +2,7 @@
   (:require [speclj.core :refer :all]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! set-test-state! update-test-world!]]
             [empire.test.utils :as test-utils]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response-impl :as threat-response]
             [empire.computer.production :as production]))
 
 (describe "major invasion kamikazee assignment"

@@ -1,15 +1,14 @@
-(ns empire.computer.ship-escort-spec
+(ns empire.computer.ship.escort-spec
   "Tests for VMS Empire style computer ship movement."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship :as ship]
-            [empire.computer.ship-carrier :as ship-carrier]
-            [empire.computer.core :as core]
+            [empire.computer.ship.carrier :as ship-carrier]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-unit set-test-world! update-test-world!]]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.services.combat :as combat]
-            [empire.computer.threat :as threat]))
+            [empire.computer.shared.threat :as threat]))
 (describe "process-ship"
   (before (reset-all-atoms!))
 
@@ -312,7 +311,7 @@
       (test-utils/set-test-state! :lake-max-cells 20)
       (update-test-world! assoc-in [1 1 :contents :lake-locked?] true)
       (test-utils/update-test-state! :computer-map assoc-in [1 1 :contents :lake-locked?] true)
-      (with-redefs [empire.computer.lake-naval/retreat-step-from-shore (fn [& _] nil)]
+      (with-redefs [empire.computer.ship.lake-naval/retreat-step-from-shore (fn [& _] nil)]
         (ship/process-ship [1 1] :destroyer))
       (should= :destroyer (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
       (should= :sentry (get-in (test-utils/read-test-state :game-map) [1 1 :contents :mode]))))

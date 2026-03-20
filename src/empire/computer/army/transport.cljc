@@ -2,9 +2,10 @@
   "Army transport boarding behavior."
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
-            [empire.computer.core :as core]
+            [empire.computer.shared.action-resolution :as action-resolution]
             [empire.game-mechanics.debug.logging :as debug]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.shared.transport-query :as transport-query]
+            [empire.computer.shared.movement :as computer-movement]))
 
 (defn find-and-board-transport
   "Look for a loading transport and move toward/board it.
@@ -13,13 +14,13 @@
   [pos country-id]
   (let [army (get-in (sa/read-state :computer-map) (conj pos :contents))
         army-unload-id (:unload-event-id army)]
-    (if-let [transport-pos (core/find-adjacent-loading-transport pos army-unload-id)]
+    (if-let [transport-pos (transport-query/find-adjacent-loading-transport pos army-unload-id)]
       (do
         (debug/log-computer-event! :army-board pos {:transport transport-pos})
-        (core/board-transport pos transport-pos)
+        (action-resolution/board-transport pos transport-pos)
         (computer-movement/update-cell-visibility! pos :computer)
         nil)
-      (when-let [transport-pos (core/find-loading-transport army-unload-id)]
+      (when-let [transport-pos (transport-query/find-loading-transport army-unload-id)]
         (movement/move-toward-objective pos transport-pos country-id)))))
 
 ;; clj-mutate-manifest-begin

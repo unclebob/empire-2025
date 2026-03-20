@@ -3,8 +3,10 @@
   (:require [empire.state.api :as sa]
             [empire.computer.army.coastal-invasion :as invasion]
             [empire.computer.army.coastal-positioning :as coastal-positioning]
-            [empire.computer.core :as core]
             [empire.computer.army.movement :as movement]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.debug.logging :as debug]))
@@ -40,7 +42,7 @@
   [pos]
   (count (filter (fn [neighbor]
                    (nil? (get-in (sa/read-state :computer-map) neighbor)))
-                 (core/get-neighbors pos))))
+                 (world-query/get-neighbors pos))))
 
 (defn- update-backtrack
   "Adds pos to visited vector, keeping at most 10 entries."
@@ -101,7 +103,7 @@
 (defn- coast-distance [coastal c]
   (cond
     (contains? coastal c) 0
-    (some (partial contains? coastal) (core/get-neighbors c)) 1
+    (some (partial contains? coastal) (world-query/get-neighbors c)) 1
     :else -1))
 
 (defn- find-nearest-cell-close-to-coast
@@ -113,7 +115,7 @@
     (let [coastal (set (filter coastal-positioning/adjacent-to-ocean?
                                (get (sa/read-state :coastal-cells-by-country) country-id)))]
       (when (seq coastal)
-        (let [expanded (into (set coastal) (mapcat core/get-neighbors coastal))
+        (let [expanded (into (set coastal) (mapcat world-query/get-neighbors coastal))
               game-map (sa/read-state :computer-map)
               candidates (filter #(empty-land-for-country? (get-in game-map %) country-id)
                                  expanded)
@@ -125,7 +127,7 @@
             (let [best-coast-dist (apply min (map second with-coast-dist))
                   near-coast (map first (filter #(= best-coast-dist (second %))
                                                 with-coast-dist))]
-              (first (sort-by #(core/distance pos %) near-coast)))))))))
+              (first (sort-by #(grid/distance pos %) near-coast)))))))))
 
 (defn should-sentry-on-coast? [pos country-id]
   (coastal-positioning/should-sentry-on-coast? pos country-id))
@@ -159,7 +161,7 @@
             pos))))
 
 (defn- try-wake-nearby [pos]
-  (when (pos? (core/wake-nearby-sentries pos 3))
+  (when (pos? (action-resolution/wake-nearby-sentries pos 3))
     (debug/log-computer-event! :army-wake-sentries pos {:reason :stuck})
     nil))
 
@@ -227,10 +229,10 @@
 
 (defn- step-toward-target-cheap
   [pos target country-id]
-  (let [current-dist (core/distance pos target)
+  (let [current-dist (grid/distance pos target)
         candidates (->> (movement/get-empty-passable-neighbors pos country-id)
-                        (filter #(> current-dist (core/distance % target)))
-                        (sort-by #(core/distance % target)))]
+                        (filter #(> current-dist (grid/distance % target)))
+                        (sort-by #(grid/distance % target)))]
     (when-let [best (first candidates)]
       (movement/try-move pos best))))
 
@@ -258,7 +260,7 @@
         (settle-transport-staging! pos)
         pos)
 
-      (<= (core/distance pos target) 2)
+      (<= (grid/distance pos target) 2)
       (let [result (fill-coastal-cell pos country-id)
             settled-pos (or result pos)]
         (when (= :sentry (get-in (sa/read-state :computer-map) (conj settled-pos :contents :mode)))

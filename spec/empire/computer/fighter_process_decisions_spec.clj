@@ -1,5 +1,5 @@
-(ns empire.computer.fighter-process-decisions-spec
-  (:require [empire.computer.fighter-process-decisions :as decisions]
+(ns empire.computer.fighter.process-decisions-spec
+  (:require [empire.computer.fighter.process-decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "fighter process decisions"

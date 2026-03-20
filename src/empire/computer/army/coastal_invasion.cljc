@@ -1,7 +1,7 @@
 (ns empire.computer.army.coastal-invasion
   "Invasion embarkation target selection and coastal movement helpers."
-  (:require [empire.computer.core :as core]
-            [empire.computer.army.coastal-invasion-decisions :as decisions]
+  (:require [empire.computer.army.coastal-invasion-decisions :as decisions]
+            [empire.computer.shared.grid :as grid]
             [empire.computer.army.movement :as movement]))
 
  (defn- coastal-cell?
@@ -44,7 +44,7 @@
                                           (= p (first coastal-seeds))))))
                              visited)]
          (first (sort-by (fn [p]
-                           (let [coast-dist (apply min (map #(core/distance p %) coastal-seeds))]
+                           (let [coast-dist (apply min (map #(grid/distance p %) coastal-seeds))]
                              [coast-dist (get distances p 9999) p]))
                          staging))))))
 
@@ -92,10 +92,10 @@
 
  (defn- step-toward-target-cheap
    [pos target country-id]
-   (let [current-dist (core/distance pos target)
+   (let [current-dist (grid/distance pos target)
          candidates (->> (movement/get-empty-passable-neighbors pos country-id)
-                         (filter #(> current-dist (core/distance % target)))
-                         (sort-by #(core/distance % target)))]
+                         (filter #(> current-dist (grid/distance % target)))
+                         (sort-by #(grid/distance % target)))]
      (when-let [best (first candidates)]
        (movement/try-move pos best))))
 

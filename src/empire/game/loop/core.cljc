@@ -12,7 +12,7 @@
             [empire.computer.army :as army]
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.production :as computer-production]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response-impl :as threat-response]
             [empire.game.loop.round-setup :as round-setup]
             [empire.game.loop.item-processing :as item-processing]
             [empire.player.production :as player-production]

@@ -6,22 +6,24 @@
   (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
-            [empire.computer.core :as core]
             [empire.computer.army.assignment :as army-assignment]
             [empire.config.units.dispatcher :as dispatcher]
-            [empire.computer.lake-naval :as lake-naval]
+            [empire.computer.ship.lake-naval :as lake-naval]
             [empire.computer.land-objectives :as land-objectives]
-            [empire.computer.oscillation :as oscillation]
-            [empire.computer.transport-decisions :as decisions]
-            [empire.computer.transport-process-decisions :as process-decisions]
-            [empire.computer.transport-core :as tc]
-            [empire.computer.transport-loading :as loading]
-            [empire.computer.transport-mission-handlers :as mission-handlers]
-            [empire.computer.transport-sailing :as sailing]
-            [empire.computer.transport-sailing-path :as sailing-path]
-            [empire.computer.transport-targeting :as targeting]
-            [empire.computer.transport-unloading :as unloading]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.oscillation :as oscillation]
+            [empire.computer.shared.world-query :as world-query]
+            [empire.computer.transport.decisions :as decisions]
+            [empire.computer.transport.process-decisions :as process-decisions]
+            [empire.computer.transport.core :as tc]
+            [empire.computer.transport.loading :as loading]
+            [empire.computer.transport.mission-handlers :as mission-handlers]
+            [empire.computer.transport.sailing :as sailing]
+            [empire.computer.transport.sailing-path :as sailing-path]
+            [empire.computer.transport.targeting :as targeting]
+            [empire.computer.transport.unloading :as unloading]
+            [empire.computer.threat-response-impl :as threat-response]
             [empire.game-mechanics.debug.logging :as debug]))
 (def find-unload-target targeting/find-unload-target)
 (def unload-armies unloading/unload-armies)
@@ -34,8 +36,8 @@
   "Move transport one step toward target using greedy neighbor selection."
   [pos target]
   (let [passable (tc/get-passable-sea-neighbors pos)
-        closest (core/move-toward pos target passable)]
-    (when (and closest (core/move-unit-to pos closest))
+        closest (grid/move-toward pos target passable)]
+    (when (and closest (action-resolution/move-unit-to pos closest))
       (visibility/update-cell-visibility pos :computer)
       (visibility/update-cell-visibility closest :computer)
       (loading/load-adjacent-armies closest)
@@ -112,10 +114,10 @@
    :sync-transport! visibility/sync-ai-unit-to-computer-map!
    :update-cell-visibility! visibility/update-cell-visibility
    :bfs-to-land-ho-target pathfinding-bfs/bfs-to-land-ho-target
-   :get-neighbors core/get-neighbors
+   :get-neighbors world-query/get-neighbors
    :load-adjacent-armies loading/load-adjacent-armies
    :coastal-crawl-move loading/coastal-crawl-move
-   :move-unit-to core/move-unit-to
+   :move-unit-to action-resolution/move-unit-to
    :set-transport-mission tc/set-transport-mission
    :transition-to-sailing transition-load-for-invasion-to-sailing!
    :transition-to-unloading transition-load-for-invasion-to-unloading!
@@ -248,7 +250,7 @@
         computer-map (sa/read-state :computer-map)
         empty-passable (filter #(nil? (:contents (get-in computer-map %))) passable)
         final-pos (if-let [target (when (seq empty-passable) (rand-nth empty-passable))]
-                    (if (core/move-unit-to pos target)
+                    (if (action-resolution/move-unit-to pos target)
                       (do
                         (visibility/update-cell-visibility pos :computer)
                         (visibility/update-cell-visibility target :computer)

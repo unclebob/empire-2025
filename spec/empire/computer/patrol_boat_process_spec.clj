@@ -156,14 +156,14 @@
       (tu/set-test-world! [[{:type :sea}
                             {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
                             {:type :sea}]])
-      (with-redefs [empire.computer.ship-core/get-passable-sea-neighbors (fn [_] [[0 0] [2 0]])
+      (with-redefs [empire.computer.ship.core/get-passable-sea-neighbors (fn [_] [[0 0] [2 0]])
                     rand-nth (fn [xs] (last xs))]
-        (should= [2 0] (@#'empire.computer.ship-patrol/patrol-random-walk-step [1 0])))))
+        (should= [2 0] (@#'empire.computer.ship.patrol/patrol-random-walk-step [1 0])))))
 
   (it "stays put when a major-invasion attack step returns nil"
     (let [world [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1
                                          :major-invasion true}}]]]
       (tu/set-test-world! world)
-      (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (fn [_] [1 0])
-                    empire.computer.ship-patrol/major-invasion-step (fn [_] nil)]
-        (should= [0 0] (@#'empire.computer.ship-patrol/process-standard-patrol [0 0]))))))
+      (with-redefs [empire.computer.ship.core/find-adjacent-enemy-ship (fn [_] [1 0])
+                    empire.computer.ship.patrol/major-invasion-step (fn [_] nil)]
+        (should= [0 0] (@#'empire.computer.ship.patrol/process-standard-patrol [0 0]))))))

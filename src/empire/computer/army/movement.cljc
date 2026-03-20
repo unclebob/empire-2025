@@ -1,9 +1,11 @@
 (ns empire.computer.army.movement
   "Shared movement and passability helpers for computer armies."
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.grid :as grid]
             [empire.game-mechanics.debug.logging :as debug]
-            [empire.computer.movement :as computer-movement]))
+            [empire.computer.shared.world-query :as world-query]
+            [empire.computer.shared.movement :as computer-movement]))
 
 (defn on-same-continent?
   [country-a country-b]
@@ -17,7 +19,7 @@
   [pos]
   (some (fn [neighbor]
           (= :sea (:type (get-in (sa/read-state :computer-map) neighbor))))
-        (core/get-neighbors pos)))
+        (world-query/get-neighbors pos)))
 
 (defn- seed-coastal-registry
   "One-time full-map scan to populate coastal cell registry for country-id.
@@ -70,7 +72,7 @@
   [pos country-id]
   (when country-id
     (let [game-map (sa/read-state :computer-map)
-          all-pos (cons pos (core/get-neighbors pos))]
+          all-pos (cons pos (world-query/get-neighbors pos))]
       (merge-neighbor-continents! all-pos country-id game-map)
       (let [coastal (local-coastal-cells all-pos country-id game-map)]
         (when (seq coastal)
@@ -91,7 +93,7 @@
   (let [game-map (sa/read-state :computer-map)]
     (filter (fn [neighbor]
               (sovereign-passable? country-id (get-in game-map neighbor)))
-            (core/get-neighbors pos))))
+            (world-query/get-neighbors pos))))
 
 (defn get-empty-passable-neighbors
   [pos country-id]
@@ -105,7 +107,7 @@
   [candidates pos]
   (let [unclaimed (remove (or (sa/read-state :claimed-objectives) #{}) candidates)]
     (when (seq unclaimed)
-      (apply min-key #(core/distance pos %) unclaimed))))
+      (apply min-key #(grid/distance pos %) unclaimed))))
 
 (defn- update-move-history
   "Adds pos to move-history vector, keeping at most 4 entries."
@@ -117,7 +119,7 @@
 
 (defn try-move
   [pos target]
-  (when (core/move-unit-to pos target)
+  (when (action-resolution/move-unit-to pos target)
     (debug/log-computer-event! :army-move pos {:to target})
     (sa/update-world! update-in (conj target :contents :move-history)
                       update-move-history pos)
@@ -143,7 +145,7 @@
         (let [empty-neighbors (get-empty-passable-neighbors pos country-id)
               filtered (remove history empty-neighbors)]
           (when (seq filtered)
-            (let [sorted (sort-by #(core/distance % objective) filtered)]
+            (let [sorted (sort-by #(grid/distance % objective) filtered)]
               (try-move pos (first sorted))))))))
 
 (defn in-bounds?

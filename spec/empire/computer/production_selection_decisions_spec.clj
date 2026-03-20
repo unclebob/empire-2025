@@ -1,5 +1,5 @@
-(ns empire.computer.production-selection-decisions-spec
-  (:require [empire.computer.production-selection-decisions :as sut]
+(ns empire.computer.production.selection-decisions-spec
+  (:require [empire.computer.production.selection-decisions :as sut]
             [speclj.core :refer :all]))
 
 (describe "production selection decisions"

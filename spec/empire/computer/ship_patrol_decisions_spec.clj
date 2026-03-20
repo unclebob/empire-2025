@@ -1,5 +1,5 @@
-(ns empire.computer.ship-patrol-decisions-spec
-  (:require [empire.computer.ship-patrol-decisions :as sut]
+(ns empire.computer.ship.patrol-decisions-spec
+  (:require [empire.computer.ship.patrol-decisions :as sut]
             [speclj.core :refer :all]))
 
 (describe "adjacent patrol decisions"

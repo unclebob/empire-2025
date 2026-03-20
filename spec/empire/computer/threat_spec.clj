@@ -1,7 +1,7 @@
-(ns empire.computer.threat-spec
+(ns empire.computer.shared.threat-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.threat :as threat]
+            [empire.computer.shared.threat :as threat]
             [empire.test.utils :refer [reset-all-atoms! set-test-computer-map!]]))
 
 (describe "unit-threat"

@@ -2,15 +2,15 @@
   "Computer fighter module - VMS Empire style fighter movement.
    Leg-based coverage, navigation, state machine, process-fighter entry point."
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]
-            [empire.computer.movement :as computer-movement]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.movement :as computer-movement]
             [empire.config.core :as config]
-            [empire.computer.fighter-decisions :as decisions]
-            [empire.computer.fighter-process-decisions :as process-decisions]
-            [empire.computer.fighter-flight-plan :as flight-plan]
-            [empire.computer.fighter-movement :as fm]
-            [empire.computer.fighter-exploration :as fe]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.fighter.decisions :as decisions]
+            [empire.computer.fighter.process-decisions :as process-decisions]
+            [empire.computer.fighter.flight-plan :as flight-plan]
+            [empire.computer.fighter.movement :as fm]
+            [empire.computer.fighter.exploration :as fe]
+            [empire.computer.threat-response-port :as threat-response-port]
             [empire.game-mechanics.visibility :as visibility]))
 
 (defn- computer-unit-at
@@ -63,7 +63,7 @@
         explore-pos (when fuel-margin?
                       (select-best-navigation-target passable target))]
     (if explore-pos
-      (when (core/move-unit-to pos explore-pos)
+      (when (action-resolution/move-unit-to pos explore-pos)
         (computer-movement/update-cell-visibility! pos :computer)
         (computer-movement/update-cell-visibility! explore-pos :computer)
         (when (fm/consume-fighter-fuel explore-pos)
@@ -191,7 +191,7 @@
 
 (defn- process-threat-fighter?
   [pos unit]
-  (threat-response/process-fighter-threat pos unit))
+  (threat-response-port/process-fighter-threat pos unit))
 
 (defn- run-fighter-steps!
   [pos]

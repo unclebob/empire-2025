@@ -1,7 +1,7 @@
-(ns empire.computer.transport-core-spec
+(ns empire.computer.transport.core-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.transport-core :as tc]
+            [empire.computer.transport.core :as tc]
             [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]))
 
 (describe "transport-core"

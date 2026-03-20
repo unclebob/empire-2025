@@ -1,5 +1,5 @@
-(ns empire.computer.fighter-decisions-spec
-  (:require [empire.computer.fighter-decisions :as decisions]
+(ns empire.computer.fighter.decisions-spec
+  (:require [empire.computer.fighter.decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "objective-action"

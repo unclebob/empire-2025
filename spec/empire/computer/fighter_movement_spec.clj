@@ -1,9 +1,9 @@
-(ns empire.computer.fighter-movement-spec
+(ns empire.computer.fighter.movement-spec
   "Tests for fighter movement primitives: combat, hopping, fuel management."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.computer.fighter-movement :as fm]
+            [empire.computer.fighter.movement :as fm]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map build-sparse-test-map

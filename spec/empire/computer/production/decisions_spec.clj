@@ -94,7 +94,7 @@
     (let [calls (atom [])]
       (with-redefs [empire.computer.early-game.strategy/should-reset-lake-production? (constantly true)
                     empire.computer.production.decisions/decide-production (constantly :army)
-                    empire.computer.production-selection-decisions/process-city-action (fn [_]
+                    empire.computer.production.selection-decisions/process-city-action (fn [_]
                                                                                          {:reset-lake-production? true
                                                                                           :set-production? false})
                     empire.state.api/update-state! (fn [& args] (swap! calls conj [:state args]))
@@ -109,7 +109,7 @@
     (let [calls (atom [])]
       (with-redefs [empire.computer.early-game.strategy/should-reset-lake-production? (constantly false)
                     empire.computer.production.decisions/decide-production (constantly :fighter)
-                    empire.computer.production-selection-decisions/process-city-action (fn [_]
+                    empire.computer.production.selection-decisions/process-city-action (fn [_]
                                                                                          {:reset-lake-production? false
                                                                                           :set-production? true
                                                                                           :unit-type :fighter})

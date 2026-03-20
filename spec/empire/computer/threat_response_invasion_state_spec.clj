@@ -10,8 +10,8 @@
     (should-not (invasion-state/land-or-city? nil)))
 
   (it "flood-fills the connected land component from a starting point"
-    (with-redefs [empire.computer.core/get-neighbors (fn [[x y]]
-                                                       [[(dec x) y] [(inc x) y] [x (dec y)] [x (inc y)]])]
+    (with-redefs [empire.computer.shared.world-query/get-neighbors (fn [[x y]]
+                                                                     [[(dec x) y] [(inc x) y] [x (dec y)] [x (inc y)]])]
       (let [world [[{:type :land} {:type :land} {:type :sea}]
                    [{:type :city} {:type :sea} {:type :land}]
                    [{:type :sea} {:type :land} {:type :land}]]]
@@ -46,10 +46,10 @@
                                             9)))
 
   (it "finds the nearest target and returns nil when there are none"
-    (with-redefs [empire.computer.core/distance (fn [from to]
-                                                  ({[[0 0] [1 1]] 3
-                                                    [[0 0] [5 5]] 9}
-                                                   [from to]))]
+    (with-redefs [empire.computer.shared.grid/distance (fn [from to]
+                                                         ({[[0 0] [1 1]] 3
+                                                           [[0 0] [5 5]] 9}
+                                                          [from to]))]
       (should= [1 1]
                (invasion-state/nearest-target {:detection-points [[5 5] [1 1]]} [0 0]))
       (should-be-nil

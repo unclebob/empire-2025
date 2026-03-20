@@ -1,6 +1,6 @@
-(ns empire.computer.fighter-movement-decisions-spec
+(ns empire.computer.fighter.movement-decisions-spec
   (:require [speclj.core :refer :all]
-            [empire.computer.fighter-movement-decisions :as decisions]))
+            [empire.computer.fighter.movement-decisions :as decisions]))
 
 (describe "fighter-movement-decisions"
   (it "fills missing hits from unit type"

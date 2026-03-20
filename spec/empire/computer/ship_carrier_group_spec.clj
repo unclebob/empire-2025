@@ -1,10 +1,9 @@
-(ns empire.computer.ship-carrier-group-spec
+(ns empire.computer.ship.carrier-group-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.ship-carrier-group :as cg]
+            [empire.computer.ship.carrier-group :as cg]
             [empire.computer.ship :as ship]
-            [empire.computer.ship-core :as ship-core]
-            [empire.computer.core :as core]
+            [empire.computer.ship.core :as ship-core]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]
             [empire.game-mechanics.visibility :as visibility]))
 
@@ -57,7 +56,7 @@
 
   (context "initial-orbit-angle (L39)"
     (it "battleship gets orbit-angle 0"
-      (let [initial-orbit-angle #'empire.computer.ship-carrier-group/initial-orbit-angle
+      (let [initial-orbit-angle #'empire.computer.ship.carrier-group/initial-orbit-angle
             carrier {:carrier-id 1 :group-submarine-ids []}]
         (should= 0 (initial-orbit-angle :battleship carrier))))
 
@@ -95,13 +94,13 @@
 
   (context "orbit-target-pos (L67)"
     (it "computes correct orbit position from angle"
-      (let [orbit-target-pos #'empire.computer.ship-carrier-group/orbit-target-pos]
+      (let [orbit-target-pos #'empire.computer.ship.carrier-group/orbit-target-pos]
         (should= [1 1] (orbit-target-pos [3 3] 0))
         (should= [1 4] (orbit-target-pos [3 3] 3))
         (should= [5 5] (orbit-target-pos [3 3] 8)))))
 
   (context "valid-orbit-pos? (L73)"
-    (let [valid-orbit-pos? #'empire.computer.ship-carrier-group/valid-orbit-pos?]
+    (let [valid-orbit-pos? #'empire.computer.ship.carrier-group/valid-orbit-pos?]
       (it "empty sea cell is valid"
         (set-test-world! [[{:type :sea}]])
         (set-test-computer-map! [[{:type :sea}]])

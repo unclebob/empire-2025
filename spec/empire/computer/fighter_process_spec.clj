@@ -3,7 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.computer.fighter-movement :as fighter-movement]
+            [empire.computer.fighter.movement :as fighter-movement]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map set-test-unit
@@ -265,7 +265,7 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
       (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))
-                    empire.computer.fighter-exploration/best-exploration-heading (fn [_ _] [-1 -1])]
+                    empire.computer.fighter.exploration/best-exploration-heading (fn [_ _] [-1 -1])]
         ((ns-resolve 'empire.computer.fighter 'assign-exploration-flight) [0 0] [0 0])
         (let [target (get-in (test-utils/read-test-state :game-map) [0 0 :contents :flight-target-site])]
           (should= [0 0] target)))))

@@ -72,7 +72,7 @@
                     empire.game-mechanics.visibility/drain-detections! (fn []
                                                                                   [{:pos [1 2] :cell :first}
                                                                                    {:pos [3 4] :cell :second}])
-                    empire.computer.threat-response/handle-detection! (fn [pos cell]
+                    empire.computer.threat-response-impl/handle-detection! (fn [pos cell]
                                                                         (swap! calls conj [:detect pos cell]))]
         (h/update-cell-visibility! [0 0] :computer {:type :fighter})
         (should= [[:update [0 0] :computer {:type :fighter}]

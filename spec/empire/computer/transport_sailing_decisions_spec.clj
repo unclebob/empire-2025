@@ -1,5 +1,5 @@
-(ns empire.computer.transport-sailing-decisions-spec
-  (:require [empire.computer.transport-sailing-decisions :as decisions]
+(ns empire.computer.transport.sailing-decisions-spec
+  (:require [empire.computer.transport.sailing-decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "transport sailing decisions"

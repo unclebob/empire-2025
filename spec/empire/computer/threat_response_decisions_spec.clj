@@ -1,5 +1,5 @@
-(ns empire.computer.threat-response-decisions-spec
-  (:require [empire.computer.threat-response-decisions :as decisions]
+(ns empire.computer.threat-response.decisions-spec
+  (:require [empire.computer.threat-response.decisions :as decisions]
             [speclj.core :refer :all]))
 
 (describe "threat response decisions"

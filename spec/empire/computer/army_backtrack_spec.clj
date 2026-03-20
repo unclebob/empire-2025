@@ -3,9 +3,9 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.army :as army]
-            [empire.computer.core :as core]
+            [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.production :as production]
-            [empire.computer.stamping :as stamping]
+            [empire.computer.shared.stamping :as stamping]
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
@@ -174,7 +174,7 @@
       (update-test-world! assoc-in [1 1 :contents :transport-mission] :loading)
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       ;; Board the army
-      (core/board-transport [1 0] [1 1])
+      (action-resolution/board-transport [1 0] [1 1])
       ;; Sentry at [2 0] should be woken
       (should-not= :sentry (get-in (test-utils/read-test-state :game-map) [2 0 :contents :mode])))
 

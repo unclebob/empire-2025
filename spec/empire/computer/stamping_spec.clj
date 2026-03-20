@@ -1,7 +1,7 @@
-(ns empire.computer.stamping-spec
+(ns empire.computer.shared.stamping-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.stamping :as stamping]
+            [empire.computer.shared.stamping :as stamping]
             [empire.computer.production :as computer-production]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-player-map! set-test-computer-map! set-test-world! update-test-world!]]))

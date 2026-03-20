@@ -1,5 +1,5 @@
-(ns empire.computer.movement-spec
-  (:require [empire.computer.movement :as movement]
+(ns empire.computer.shared.movement-spec
+  (:require [empire.computer.shared.movement :as movement]
             [speclj.core :refer :all]))
 
 (describe "computer movement wrappers"

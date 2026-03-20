@@ -1,9 +1,9 @@
-(ns empire.computer.fighter-movement-primitives-spec
+(ns empire.computer.fighter.movement-primitives-spec
   "Low-level fighter movement primitive tests (hop/fuel/combat edge cases)."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.computer.fighter-movement :as fm]
+            [empire.computer.fighter.movement :as fm]
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map
                                        set-test-unit

@@ -1,10 +1,11 @@
 (ns empire.computer.army.assignment
   "Attack-target and transport staging assignment for computer armies."
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]
             [empire.computer.early-game.strategy :as opening]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.army.assignment-decisions :as decisions]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.world-query :as world-query]
             [empire.computer.land-objectives :as land-objectives]))
 
 (def ^:private transport-staging-radius 5)
@@ -18,7 +19,7 @@
   [anchor unit-pos unit]
   (and (= :army (:type unit))
        (= :computer (:owner unit))
-       (<= (core/chebyshev-distance anchor unit-pos) transport-staging-radius)
+       (<= (grid/chebyshev-distance anchor unit-pos) transport-staging-radius)
        (not (:attack-target unit))
        (not= :move-to-coast-for-invasion (:mode unit))))
 
@@ -40,7 +41,7 @@
                  (let [unit (get-in computer-map (conj pos :contents))]
                    (when (assignable-staging-army? anchor pos unit)
                      {:pos pos
-                      :distance (core/chebyshev-distance anchor pos)
+                      :distance (grid/chebyshev-distance anchor pos)
                       :already-staging? (transport-staging-mode? unit)}))))
          (sort-by (juxt :distance :already-staging? :pos))
          (take max-staging-armies))))
@@ -60,7 +61,7 @@
         transport (get-in computer-map (conj transport-pos :contents))
         endpoint (or (last (:sail-path transport))
                      transport-pos)]
-    (->> (core/get-neighbors endpoint)
+    (->> (world-query/get-neighbors endpoint)
          (filter #(claimed-land? (get-in computer-map %)))
          (sort)
          first)))
@@ -74,7 +75,7 @@
                                                   armies
                                                   contains?
                                                   land-objectives/flood-fill-continent
-                                                  core/distance)]
+                                                  grid/distance)]
     (doseq [{:keys [pos target]} assignments]
       (sa/update-world! assoc-in (conj pos :contents :attack-target) target))))
 

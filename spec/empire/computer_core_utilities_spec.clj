@@ -3,27 +3,21 @@
    Decision logic has been gutted; these tests cover preserved utilities."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.game.loop.core :as game-loop]
-            [empire.computer.coordinator :as computer]
-            [empire.computer.army :as army]
-            [empire.computer.core :as computer-core]
-            [empire.computer.fighter :as fighter]
-            [empire.computer.production :as computer-production]
-            [empire.computer.ship :as ship]
-            [empire.computer.threat :as threat]
-            [empire.computer.transport :as transport]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.world-query :as world-query]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-player-map! set-test-computer-map!]]))
 (describe "Computer Core Utilities"
   (before (reset-all-atoms!))
 
-  (context "computer-core/get-neighbors"
+  (context "world-query/get-neighbors"
     (it "returns neighbors for center position"
       (let [world (build-test-map ["###"
                                    "###"
                                    "###"])]
         (set-test-world! world)
         (set-test-computer-map! world))
-      (let [neighbors (computer-core/get-neighbors [1 1])]
+      (let [neighbors (world-query/get-neighbors [1 1])]
         (should= 8 (count neighbors))))
 
     (it "returns fewer neighbors for corner position"
@@ -32,77 +26,77 @@
                                    "###"])]
         (set-test-world! world)
         (set-test-computer-map! world))
-      (let [neighbors (computer-core/get-neighbors [0 0])]
+      (let [neighbors (world-query/get-neighbors [0 0])]
         (should= 3 (count neighbors)))))
 
-  (context "computer-core/distance"
+  (context "grid/distance"
     (it "calculates manhattan distance"
-      (should= 0 (computer-core/distance [0 0] [0 0]))
-      (should= 1 (computer-core/distance [0 0] [0 1]))
-      (should= 2 (computer-core/distance [0 0] [1 1]))
-      (should= 5 (computer-core/distance [0 0] [2 3]))))
+      (should= 0 (grid/distance [0 0] [0 0]))
+      (should= 1 (grid/distance [0 0] [0 1]))
+      (should= 2 (grid/distance [0 0] [1 1]))
+      (should= 5 (grid/distance [0 0] [2 3]))))
 
-  (context "computer-core/attackable-target?"
+  (context "world-query/attackable-target?"
     (it "returns true for player unit"
-      (should (computer-core/attackable-target? {:contents {:owner :player}})))
+      (should (world-query/attackable-target? {:contents {:owner :player}})))
 
     (it "returns true for free city"
-      (should (computer-core/attackable-target? {:type :city :city-status :free})))
+      (should (world-query/attackable-target? {:type :city :city-status :free})))
 
     (it "returns true for player city"
-      (should (computer-core/attackable-target? {:type :city :city-status :player})))
+      (should (world-query/attackable-target? {:type :city :city-status :player})))
 
     (it "returns false for computer city"
-      (should-not (computer-core/attackable-target? {:type :city :city-status :computer})))
+      (should-not (world-query/attackable-target? {:type :city :city-status :computer})))
 
     (it "returns false for empty cell"
-      (should-not (computer-core/attackable-target? {:type :land}))))
+      (should-not (world-query/attackable-target? {:type :land}))))
 
-  (context "computer-core/find-visible-cities"
+  (context "world-query/find-visible-cities"
     (it "finds cities matching status predicate"
       (set-test-computer-map! (build-test-map ["X+O"]))
-      (should= [[0 0]] (computer-core/find-visible-cities #{:computer}))
-      (should= [[1 0]] (computer-core/find-visible-cities #{:free}))
-      (should= [[2 0]] (computer-core/find-visible-cities #{:player}))))
+      (should= [[0 0]] (world-query/find-visible-cities #{:computer}))
+      (should= [[1 0]] (world-query/find-visible-cities #{:free}))
+      (should= [[2 0]] (world-query/find-visible-cities #{:player}))))
 
-  (context "computer-core/move-toward"
+  (context "grid/move-toward"
     (it "returns neighbor closest to target"
       (let [passable [[0 1] [1 0] [1 1]]]
-        (should= [0 1] (computer-core/move-toward [0 0] [0 5] passable))))
+        (should= [0 1] (grid/move-toward [0 0] [0 5] passable))))
 
     (it "returns nil for empty passable list"
-      (should-be-nil (computer-core/move-toward [0 0] [5 5] []))))
+      (should-be-nil (grid/move-toward [0 0] [5 5] []))))
 
-  (context "computer-core/adjacent-to-computer-unexplored?"
+  (context "world-query/adjacent-to-computer-unexplored?"
     (it "returns true when adjacent to nil cell"
       (set-test-computer-map! [[{:type :land} nil]
                                    [{:type :land} {:type :land}]])
-      (should (computer-core/adjacent-to-computer-unexplored? [0 0])))
+      (should (world-query/adjacent-to-computer-unexplored? [0 0])))
 
     (it "returns false when all neighbors explored"
       (set-test-computer-map! [[{:type :land} {:type :land}]
                                    [{:type :land} {:type :land}]])
-      (should-not (computer-core/adjacent-to-computer-unexplored? [0 0]))))
+      (should-not (world-query/adjacent-to-computer-unexplored? [0 0]))))
 
-  (context "computer-core/move-unit-to"
+  (context "action-resolution/move-unit-to"
     (it "moves unit from one position to another"
       (set-test-world! (build-test-map ["a#"]))
-      (computer-core/move-unit-to [0 0] [1 0])
+      (action-resolution/move-unit-to [0 0] [1 0])
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
       (should= :army (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
-  (context "computer-core/find-visible-player-units"
+  (context "world-query/find-visible-player-units"
     (it "finds player units on computer-map"
       (set-test-computer-map! (build-test-map ["aA#"]))
-      (should= [[1 0]] (computer-core/find-visible-player-units))))
+      (should= [[1 0]] (world-query/find-visible-player-units))))
 
-  (context "computer-core/board-transport"
+  (context "action-resolution/board-transport"
     (it "loads army onto adjacent transport"
       (set-test-world! (build-test-map ["at"]))
-      (computer-core/board-transport [0 0] [1 0])
+      (action-resolution/board-transport [0 0] [1 0])
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
       (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
     (it "throws when positions are not adjacent"
       (set-test-world! (build-test-map ["a#t"]))
-      (should-throw (computer-core/board-transport [0 0] [2 0])))))
+      (should-throw (action-resolution/board-transport [0 0] [2 0])))))

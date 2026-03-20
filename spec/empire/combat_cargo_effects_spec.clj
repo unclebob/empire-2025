@@ -6,7 +6,7 @@
             [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.containers.helpers :as uc]
-            [empire.computer.core :as computer-core]
+            [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.production :as comp-production]
             [empire.player.production :as production]))
 (describe "post-combat effects"
@@ -190,7 +190,7 @@
         (set-test-world! (build-test-map ["aO"]))
         (set-test-computer-map! (test-utils/read-test-state :game-map))
         (update-test-world! assoc-in [0 0 :contents :country-id] 3)
-        (computer-core/attempt-conquest-computer [0 0] [1 0])
+        (action-resolution/attempt-conquest-computer [0 0] [1 0])
         ;; City should be computer-owned
         (should= :computer (get-in (test-utils/read-test-state :game-map) [1 0 :city-status]))
         ;; Production should be set to :army
@@ -211,7 +211,7 @@
           (update-test-world! assoc-in [col 0 :contents :country-id] 3))
         (update-test-world! assoc-in [0 1 :contents :country-id] 3)
         ;; Army at [0 0] conquers city at [20 0]
-        (computer-core/attempt-conquest-computer [0 0] [20 0])
+        (action-resolution/attempt-conquest-computer [0 0] [20 0])
         ;; City should be computer-owned
         (should= :computer (get-in (test-utils/read-test-state :game-map) [20 0 :city-status]))
         ;; Production SHOULD be set (no other city in country 3 producing armies)
@@ -228,7 +228,7 @@
         (set-test-computer-map! (test-utils/read-test-state :game-map))
         (test-utils/update-test-state! :production assoc [2 0] {:item :army :remaining-rounds 3})
         ;; Army at [0 0] conquers city at [3 0]
-        (computer-core/attempt-conquest-computer [0 0] [3 0])
+        (action-resolution/attempt-conquest-computer [0 0] [3 0])
         ;; City should be computer-owned
         (should= :computer (get-in (test-utils/read-test-state :game-map) [3 0 :city-status]))
         ;; Production should NOT be set because another city in country 3 is already producing armies

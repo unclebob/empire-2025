@@ -1,15 +1,17 @@
 (ns empire.computer.ship
   "Computer ship module - facade delegating to sub-modules."
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]
-            [empire.computer.lake-naval :as lake-naval]
-            [empire.computer.ship-carrier :as carrier]
-            [empire.computer.ship-carrier-group :as carrier-group]
-            [empire.computer.ship-core :as ship-core]
-            [empire.computer.ship-escort :as escort]
-            [empire.computer.ship-patrol :as patrol]
-            [empire.computer.movement :as computer-movement]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.ship.lake-naval :as lake-naval]
+            [empire.computer.ship.carrier :as carrier]
+            [empire.computer.ship.carrier-group :as carrier-group]
+            [empire.computer.ship.core :as ship-core]
+            [empire.computer.ship.escort :as escort]
+            [empire.computer.ship.patrol :as patrol]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.movement :as computer-movement]
+            [empire.computer.shared.world-query :as world-query]
+            [empire.computer.threat-response-port :as threat-response-port]
             [empire.game-mechanics.visibility :as visibility]))
 
 
@@ -48,7 +50,7 @@
 
 (defn- try-retreat [pos unit]
   (when-let [rp (ship-core/retreat-if-damaged pos unit)]
-    (core/move-unit-to pos rp)
+    (action-resolution/move-unit-to pos rp)
     (computer-movement/update-cell-visibility! pos :computer)
     (computer-movement/update-cell-visibility! rp :computer)))
 
@@ -58,7 +60,7 @@
 
 (defn- major-invasion-neighbor-target
   [pos]
-  (first (for [n (core/get-neighbors pos)
+  (first (for [n (world-query/get-neighbors pos)
                :let [target (:contents (get-in (sa/read-state :computer-map) n))]
                :when (and target
                           (= :player (:owner target))
@@ -85,7 +87,7 @@
 (defn- try-escort-transport [pos ship-type]
   (when (= :destroyer ship-type)
     (when-let [transport-pos (ship-core/find-nearest-transport pos)]
-      (if (> (core/distance pos transport-pos) 2)
+      (if (> (grid/distance pos transport-pos) 2)
         (ship-core/move-toward pos transport-pos)
         (ship-core/explore-sea pos ship-type)))))
 
@@ -112,7 +114,7 @@
 
 (defn- dispatch-ship-action [pos ship-type unit]
   (cond
-    (threat-response/process-ship-threat pos ship-type unit)
+    (threat-response-port/process-ship-threat pos ship-type unit)
     true
 
     (= :patrol-boat ship-type)
@@ -134,7 +136,7 @@
                                                   (sa/read-state :lake-max-cells))]
         (if-let [step (lake-naval/retreat-step-from-shore computer-map lake-cells-set pos)]
           (do
-            (when (core/move-unit-to pos step)
+            (when (action-resolution/move-unit-to pos step)
               (when (lake-naval/deep-water? computer-map step)
                 (sa/update-world! assoc-in (conj step :contents :mode) :sentry)
                 (visibility/sync-ai-unit-to-computer-map! step)))

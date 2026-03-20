@@ -1,9 +1,10 @@
 (ns empire.computer.army.coastal-positioning
   "Shared coastal positioning and embarkation target queries."
-  (:require [empire.computer.core :as core]
-            [empire.computer.lake-naval :as lake-naval]
+  (:require [empire.computer.ship.lake-naval :as lake-naval]
             [empire.computer.army.coastal-invasion :as invasion]
             [empire.computer.army.movement :as movement]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
 
 (declare find-coast-target-once)
@@ -15,7 +16,7 @@
           (let [cell (get-in (sa/read-state :computer-map) neighbor)]
             (and (= :city (:type cell))
                  (= :computer (:city-status cell)))))
-        (core/get-neighbors pos)))
+        (world-query/get-neighbors pos)))
 
 (defn- known-lake-cells
   []
@@ -30,7 +31,7 @@
             (let [cell (get-in world neighbor)]
               (and (= :sea (:type cell))
                    (not (contains? lakes neighbor)))))
-          (core/get-neighbors pos))))
+          (world-query/get-neighbors pos))))
 
 (defn find-nearest-unoccupied-coastal-cell
   "Finds nearest coastal cell from registry with matching country-id, no unit.
@@ -49,7 +50,7 @@
                                       (nil? (:contents cell)))))
                              coastal)
           away-from-city (remove adjacent-to-computer-city? candidates)]
-      (first (sort-by #(core/distance pos %)
+      (first (sort-by #(grid/distance pos %)
                       (if (seq away-from-city) away-from-city candidates))))))
 
 (defn should-sentry-on-coast? [pos country-id]

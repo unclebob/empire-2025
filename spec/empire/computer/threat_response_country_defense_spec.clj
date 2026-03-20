@@ -1,6 +1,7 @@
 (ns empire.computer.threat-response-country-defense-spec
   (:require [speclj.core :refer :all]
-            [empire.computer.threat-response :as threat-response]
+            [empire.computer.threat-response-impl :as threat-response]
+            [empire.computer.threat-response.core :as threat-response-core]
             [empire.test.utils :as test-utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-computer-map! update-test-world!]]))
 
 (describe "country-defense threat response"
@@ -52,7 +53,7 @@
   (it "processes fighters on country-defense mission through threat logic"
     (set-test-world! (build-test-map ["f"]))
     (let [calls (atom 0)]
-      (with-redefs [empire.computer.threat-response/fighter-step-threat
+      (with-redefs [empire.computer.threat-response.core/fighter-step-threat
                     (fn [_ _]
                       (swap! calls inc)
                       nil)]

@@ -1,5 +1,5 @@
-(ns empire.computer.transport-targeting-decisions-spec
-  (:require [empire.computer.transport-targeting-decisions :as sut]
+(ns empire.computer.transport.targeting-decisions-spec
+  (:require [empire.computer.transport.targeting-decisions :as sut]
             [speclj.core :refer :all]))
 
 (describe "transport targeting decisions"

@@ -2,7 +2,7 @@
   "Army exploration behaviors (interior, inland, random)."
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
-            [empire.computer.core :as core]
+            [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.debug.integrity :as integrity]))
 
@@ -33,7 +33,7 @@
         empty (movement/get-empty-passable-neighbors pos country-id)
         filtered (remove history empty)
         pool (if (seq filtered) filtered empty)
-        frontier (filter core/adjacent-to-computer-unexplored? pool)]
+        frontier (filter world-query/adjacent-to-computer-unexplored? pool)]
     (when-let [target (if (seq frontier)
                         (rand-nth frontier)
                         (when (seq pool) (rand-nth pool)))]
@@ -90,11 +90,11 @@
         nil)
     (let [computer-map (sa/read-state :computer-map)
           candidates (filter (fn [n]
-                               (let [cell (get-in computer-map n)]
+                              (let [cell (get-in computer-map n)]
                                  (and (movement/sovereign-passable? country-id cell)
                                       (nil? (:contents cell))
                                       (not (movement/adjacent-to-sea? n)))))
-                             (core/get-neighbors pos))
+                             (world-query/get-neighbors pos))
           target (when (seq candidates) (rand-nth (vec candidates)))]
       (when target (movement/try-move pos target)))))
 

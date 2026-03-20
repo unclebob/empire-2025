@@ -6,7 +6,7 @@
             [empire.test.utils :refer [build-test-map get-test-city get-test-unit set-test-unit reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.containers.helpers :as uc]
-            [empire.computer.core :as computer-core]
+            [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.production :as comp-production]
             [empire.player.production :as production]))
 (describe "post-combat effects"
@@ -179,8 +179,8 @@
         (update-test-world! assoc-in [1 0 :contents]
                {:type :destroyer :owner :player :mode :sentry :hits 3})
         (test-utils/update-test-state! :production assoc [1 0] {:item :army :remaining-rounds 2})
-        (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
-          (core [0 0] [1 0])
+        (let [attempt-conquest (requiring-resolve 'empire.computer.shared.action-resolution/attempt-conquest-computer)]
+          (attempt-conquest [0 0] [1 0])
           ;; City should be computer-owned
           (should= :computer (get-in (test-utils/read-test-state :game-map) [1 0 :city-status]))
           ;; Destroyer should be flipped to computer
@@ -196,8 +196,8 @@
         (set-test-world! (build-test-map ["aO"]))
         (set-test-computer-map! (test-utils/read-test-state :game-map))
         (update-test-world! assoc-in [0 0 :contents :country-id] 3)
-        (let [core (requiring-resolve 'empire.computer.core/attempt-conquest-computer)]
-          (core [0 0] [1 0])
+        (let [attempt-conquest (requiring-resolve 'empire.computer.shared.action-resolution/attempt-conquest-computer)]
+          (attempt-conquest [0 0] [1 0])
           (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
   ;; unload-event-id minting tests removed — country-id is now minted at sail time

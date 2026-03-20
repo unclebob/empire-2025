@@ -1,7 +1,7 @@
 ;; mutation-tested: no
 (ns empire.computer.threat-response.country-defense
   "Country-level homeland defense helpers for detected player armies."
-  (:require [empire.computer.core :as core]))
+  (:require [empire.computer.shared.grid :as grid]))
 
 (def ^:private defense-threat-keys
   [:threat-mission :threat-center :threat-radius :threat-rounds-left])
@@ -28,7 +28,7 @@
 (defn- nearest-target
   [pos targets]
   (when (seq targets)
-    (apply min-key #(core/distance pos %) targets)))
+    (apply min-key #(grid/distance pos %) targets)))
 
 (defn- snapshot-threat-fields
   [unit]

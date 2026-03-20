@@ -1,5 +1,5 @@
-(ns empire.computer.transport-sailing-support-spec
-  (:require [empire.computer.transport-sailing-support :as support]
+(ns empire.computer.transport.sailing-support-spec
+  (:require [empire.computer.transport.sailing-support :as support]
             [speclj.core :refer :all]))
 
 (describe "transport sailing support"

@@ -3,7 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
-            [empire.computer.fighter-movement :as fighter-movement]
+            [empire.computer.fighter.movement :as fighter-movement]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map set-test-unit

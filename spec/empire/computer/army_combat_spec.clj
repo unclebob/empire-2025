@@ -1,5 +1,6 @@
 (ns empire.computer.army-combat-spec
   (:require [empire.computer.army :as army]
+            [empire.computer.threat-response-port]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]
             [speclj.core :refer :all]))
@@ -12,7 +13,7 @@
     (set-test-computer-map! (build-test-map ["a+"]))
     (let [calls (atom [])]
       (with-redefs [rand (constantly 0.1)
-                    empire.computer.threat-response/rebuild-kamikazee-routing!
+                    empire.computer.threat-response-port/rebuild-kamikazee-routing!
                     (fn [] (swap! calls conj :rebuilt))]
         (army/process-army [0 0]))
       (should= [:rebuilt] @calls)))
@@ -22,7 +23,7 @@
     (set-test-computer-map! (build-test-map ["a+"]))
     (let [calls (atom [])]
       (with-redefs [rand (constantly 0.9)
-                    empire.computer.threat-response/rebuild-kamikazee-routing!
+                    empire.computer.threat-response-port/rebuild-kamikazee-routing!
                     (fn [] (swap! calls conj :rebuilt))]
         (army/process-army [0 0]))
       (should= [] @calls))))

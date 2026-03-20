@@ -10,7 +10,7 @@
   (it "attacks a directly adjacent enemy ship before checking the wider neighborhood"
     (set-test-world! (build-test-map ["dP"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
-    (with-redefs [empire.computer.ship-core/attack-enemy (fn [_ enemy] enemy)]
+    (with-redefs [empire.computer.ship.core/attack-enemy (fn [_ enemy] enemy)]
       (should= [1 0]
                (@#'ship/try-major-invasion-attack [0 0]))))
 
@@ -18,8 +18,8 @@
     (set-test-world! (build-test-map ["d#"
                                       "A~"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
-    (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
-                  empire.computer.ship-core/attack-enemy (fn [_ enemy] enemy)]
+    (with-redefs [empire.computer.ship.core/find-adjacent-enemy-ship (constantly nil)
+                  empire.computer.ship.core/attack-enemy (fn [_ enemy] enemy)]
       (should= [0 1]
                (@#'ship/try-major-invasion-attack [0 0]))))
 
@@ -27,7 +27,7 @@
     (set-test-world! (build-test-map ["dT"
                                       "V~"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
-    (with-redefs [empire.computer.ship-core/find-adjacent-enemy-ship (constantly nil)
-                  empire.computer.ship-core/attack-enemy (fn [& _] :attacked)]
+    (with-redefs [empire.computer.ship.core/find-adjacent-enemy-ship (constantly nil)
+                  empire.computer.ship.core/attack-enemy (fn [& _] :attacked)]
       (should= nil
                (@#'ship/try-major-invasion-attack [0 0])))))

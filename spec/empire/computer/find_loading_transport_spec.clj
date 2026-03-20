@@ -1,5 +1,5 @@
 (ns empire.computer.find-loading-transport-spec
-  (:require [empire.computer.core :as core]
+  (:require [empire.computer.shared.transport-query :as transport-query]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -12,28 +12,28 @@
                                          :transport-mission :loading :army-count 2}}]]]
       (set-test-world! world)
       (set-test-computer-map! world))
-    (should= [0 0] (core/find-loading-transport)))
+    (should= [0 0] (transport-query/find-loading-transport)))
 
   (it "skips full transports"
     (let [world [[{:type :sea :contents {:type :transport :owner :computer
                                          :transport-mission :loading :army-count 6}}]]]
       (set-test-world! world)
       (set-test-computer-map! world))
-    (should-be-nil (core/find-loading-transport)))
+    (should-be-nil (transport-query/find-loading-transport)))
 
   (it "skips non-loading transports"
     (let [world [[{:type :sea :contents {:type :transport :owner :computer
                                          :transport-mission :sailing :army-count 0}}]]]
       (set-test-world! world)
       (set-test-computer-map! world))
-    (should-be-nil (core/find-loading-transport)))
+    (should-be-nil (transport-query/find-loading-transport)))
 
   (it "skips player transports"
     (let [world [[{:type :sea :contents {:type :transport :owner :player
                                          :transport-mission :loading :army-count 0}}]]]
       (set-test-world! world)
       (set-test-computer-map! world))
-    (should-be-nil (core/find-loading-transport)))
+    (should-be-nil (transport-query/find-loading-transport)))
 
   (it "excludes transport with matching unload-event-id"
     (let [world [[{:type :sea :contents {:type :transport :owner :computer
@@ -41,7 +41,7 @@
                                          :unload-event-id 42}}]]]
       (set-test-world! world)
       (set-test-computer-map! world))
-    (should-be-nil (core/find-loading-transport 42)))
+    (should-be-nil (transport-query/find-loading-transport 42)))
 
   (it "includes transport with different unload-event-id"
     (let [world [[{:type :sea :contents {:type :transport :owner :computer
@@ -49,4 +49,4 @@
                                          :unload-event-id 42}}]]]
       (set-test-world! world)
       (set-test-computer-map! world))
-    (should= [0 0] (core/find-loading-transport 99))))
+    (should= [0 0] (transport-query/find-loading-transport 99))))

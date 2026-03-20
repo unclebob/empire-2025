@@ -33,13 +33,13 @@ all_accesses="$(
 # This allowlist is the explicit set of authoritative accesses permitted in AI-related
 # code today. It must never be modified without explicit user permission.
 readonly ALLOWED_ACCESSES=(
-  "src/empire/computer/computer_action_resolution.cljc:48:  (let [from-cell (get-in (sa/current-world) from-pos)"
-  "src/empire/computer/computer_action_resolution.cljc:49:        to-cell (get-in (sa/current-world) to-pos)"
-  "src/empire/computer/computer_action_resolution.cljc:120:         (sa/current-world))))"
-  "src/empire/computer/computer_action_resolution.cljc:133:  (let [army-cell (get-in (sa/current-world) army-pos)"
-  "src/empire/computer/computer_action_resolution.cljc:135:        city-cell (get-in (sa/current-world) city-pos)]"
-  "src/empire/computer/computer_action_resolution.cljc:148:          (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))"
-  "src/empire/computer/computer_action_resolution.cljc:149:        (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]"
+  "src/empire/computer/shared/action_resolution.cljc:48:  (let [from-cell (get-in (sa/current-world) from-pos)"
+  "src/empire/computer/shared/action_resolution.cljc:49:        to-cell (get-in (sa/current-world) to-pos)"
+  "src/empire/computer/shared/action_resolution.cljc:120:         (sa/current-world))))"
+  "src/empire/computer/shared/action_resolution.cljc:133:  (let [army-cell (get-in (sa/current-world) army-pos)"
+  "src/empire/computer/shared/action_resolution.cljc:135:        city-cell (get-in (sa/current-world) city-pos)]"
+  "src/empire/computer/shared/action_resolution.cljc:148:          (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))"
+  "src/empire/computer/shared/action_resolution.cljc:149:        (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]"
   "src/empire/computer/threat_response/probe.cljc:52:        game-map (sa/read-state :game-map)"
 )
 

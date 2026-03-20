@@ -1,8 +1,8 @@
-(ns empire.computer.ship-patrol-spec
+(ns empire.computer.ship.patrol-spec
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.ship-patrol :as patrol]
-            [empire.computer.ship-core :as ship-core]
+            [empire.computer.ship.patrol :as patrol]
+            [empire.computer.ship.core :as ship-core]
             [empire.state.api]
             [empire.state.world :as world]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! update-test-computer-map!]]))
@@ -15,7 +15,7 @@
       ;; Patrol boat at [0,0], empty sea at [1,0], land at [2,0].
       ;; Walk steps to [1,0]. From [1,0]: [0,0] has contents (patrol boat),
       ;; [2,0] is land. No empty passable neighbors -> dead end with path [[1,0]].
-      (let [generate-random-sea-walk #'empire.computer.ship-patrol/generate-random-sea-walk]
+      (let [generate-random-sea-walk #'empire.computer.ship.patrol/generate-random-sea-walk]
         (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}]
                           [{:type :sea}]
                           [{:type :land}]])
@@ -64,7 +64,7 @@
                          {:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}
                          {:type :sea}]])
       (with-redefs [ship-core/get-passable-sea-neighbors (fn [_] [[0 0] [2 0]])
-                    empire.computer.core/move-unit-to (fn [_ to] to)
+                    empire.computer.shared.action-resolution/move-unit-to (fn [_ to] to)
                     rand-nth (fn [xs] (last xs))]
         (should= [2 0] (@#'patrol/patrol-random-walk-step [1 0]))))
 
@@ -86,7 +86,7 @@
                                                        [0 1])
                       empire.state.api/update-world! (fn [f & args]
                                                        (apply swap! world/state update :game-map f args))
-                      empire.computer.oscillation/dec-random-walk identity
-                      empire.computer.oscillation/maybe-restore identity]
+                      empire.computer.shared.oscillation/dec-random-walk identity
+                      empire.computer.shared.oscillation/maybe-restore identity]
           (should= [0 1] (@#'patrol/process-random-walk-patrol [0 1]))
           (should= 4 (count @calls))))))

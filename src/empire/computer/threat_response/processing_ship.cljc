@@ -1,8 +1,9 @@
 (ns empire.computer.threat-response.processing-ship
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]
-            [empire.computer.oscillation :as oscillation]
-            [empire.computer.ship-core :as ship-core]
+            [empire.computer.shared.oscillation :as oscillation]
+            [empire.computer.ship.core :as ship-core]
+            [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.grid :as grid]
             [empire.computer.threat-response.processing-decisions :as decisions]))
 
 (def patrol-yield-radius 4)
@@ -25,14 +26,14 @@
 (defn ship-sidestep-toward
   [pos target]
   (let [world (sa/read-state :computer-map)
-        current-distance (core/distance pos target)
+        current-distance (grid/distance pos target)
         candidates (->> (ship-core/get-passable-sea-neighbors pos)
                         (filter #(nil? (:contents (get-in world %))))
-                        (map (fn [p] {:pos p :distance (core/distance p target)}))
+                        (map (fn [p] {:pos p :distance (grid/distance p target)}))
                         (filter #(<= (:distance %) current-distance))
                         (sort-by (fn [{:keys [distance pos]}] [distance pos])))]
     (when-let [choice (:pos (first candidates))]
-      (when (core/move-unit-to pos choice)
+      (when (action-resolution/move-unit-to pos choice)
         choice))))
 
 (defn start-ship-congestion-random-walk!
@@ -48,7 +49,7 @@
         candidates (vec (->> (ship-core/get-passable-sea-neighbors pos)
                              (filter #(nil? (:contents (get-in world %))))))
         final-pos (if-let [target (when (seq candidates) (rand-nth candidates))]
-                    (if (core/move-unit-to pos target) target pos)
+                    (if (action-resolution/move-unit-to pos target) target pos)
                     pos)]
     ((:update-game-map! ctx) update-in (conj final-pos :contents)
      #(-> %
@@ -105,7 +106,7 @@
   (let [passable (ship-core/get-passable-sea-neighbors pos)
         empty-passable (filter #(nil? (:contents (get-in world %))) passable)]
     (if center
-      (filter #(<= (core/distance % center) patrol-max-invasion-distance) empty-passable)
+      (filter #(<= (grid/distance % center) patrol-max-invasion-distance) empty-passable)
       empty-passable)))
 
 (defn patrol-stand-off-step
@@ -115,9 +116,9 @@
         scored (for [cand candidates]
                  {:pos cand
                   :score (+ (shore-band-score world cand)
-                            (if center (- 12 (min 12 (core/distance cand center))) 0))})]
+                            (if center (- 12 (min 12 (grid/distance cand center))) 0))})]
     (when-let [target (top-random-choice scored)]
-      (when (core/move-unit-to pos target)
+      (when (action-resolution/move-unit-to pos target)
         target))))
 
 (defn patrol-yield-to-transport
@@ -128,9 +129,9 @@
       (when (seq transports)
         (let [candidates (candidate-neighbors visible-map pos center)
               scored (for [cand candidates
-                           :let [clearance (apply min (map #(core/distance cand %) transports))
+                           :let [clearance (apply min (map #(grid/distance cand %) transports))
                                  center-bias (if center
-                                               (- 8 (min 8 (core/distance cand center)))
+                                               (- 8 (min 8 (grid/distance cand center)))
                                                0)]]
                        {:pos cand
                         :score (+ (* 4 clearance)
@@ -144,7 +145,7 @@
                                                        (- row)
                                                        col]))
                                                   scored)))]
-            (when (core/move-unit-to pos target)
+            (when (action-resolution/move-unit-to pos target)
               target)))))))
 
 (defn sea-scout-target
@@ -153,7 +154,7 @@
    {:pos pos
     :center center
     :radius radius
-    :distance-fn core/distance}))
+    :distance-fn grid/distance}))
 
 (defn major-invasion-target
   [nearest-major-target pos center]

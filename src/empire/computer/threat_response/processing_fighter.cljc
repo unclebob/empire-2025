@@ -1,8 +1,9 @@
 (ns empire.computer.threat-response.processing-fighter
-  (:require [empire.computer.core :as core]
-            [empire.computer.fighter-movement :as fm]
-            [empire.computer.oscillation :as oscillation]
+  (:require [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.fighter.movement :as fm]
+            [empire.computer.shared.oscillation :as oscillation]
             [empire.computer.threat-response.processing-decisions :as decisions]
+            [empire.computer.shared.grid :as grid]
             [empire.config.core :as config]))
 
 (defn can-stay-in-refuel-range?
@@ -45,7 +46,7 @@
 
 (defn out-of-threat-radius?
   [pos center radius]
-  (and center (> (core/distance pos center) radius)))
+  (and center (> (grid/distance pos center) radius)))
 
 (defn patrol-threat-step
   [pos center radius fuel fighter-refuel-safety-buffer]
@@ -59,15 +60,15 @@
 
 (defn fighter-sidestep-consume
   [pos center]
-  (let [current-distance (core/distance pos center)
+  (let [current-distance (grid/distance pos center)
         passable (fm/get-passable-neighbors pos)
         candidates (->> passable
                         (remove fm/occupied?)
-                        (map (fn [p] {:pos p :distance (core/distance p center)}))
+                        (map (fn [p] {:pos p :distance (grid/distance p center)}))
                         (filter #(<= (:distance %) current-distance))
                         (sort-by (fn [{:keys [distance pos]}] [distance pos])))]
     (when-let [target (:pos (first candidates))]
-      (when (core/move-unit-to pos target)
+      (when (action-resolution/move-unit-to pos target)
         (when (fm/consume-fighter-fuel target)
           {:pos target :steps-used 1})))))
 
@@ -82,7 +83,7 @@
   [pos]
   (let [candidates (vec (remove fm/occupied? (fm/get-passable-neighbors pos)))]
     (if-let [target (when (seq candidates) (rand-nth candidates))]
-      (if (core/move-unit-to pos target)
+      (if (action-resolution/move-unit-to pos target)
         (when (fm/consume-fighter-fuel target)
           target)
         pos)

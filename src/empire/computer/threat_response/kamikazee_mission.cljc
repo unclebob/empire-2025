@@ -1,12 +1,14 @@
 (ns empire.computer.threat-response.kamikazee-mission
-  (:require [empire.computer.core :as core]
-            [empire.computer.fighter-movement :as fm]
+  (:require [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.fighter.movement :as fm]
             [empire.computer.threat-response.kamikazee-launch-decisions :as launch-decisions]
             [empire.computer.threat-response.kamikazee-mission-decisions :as decisions]
             [empire.computer.threat-response.kamikazee-routing :as routing]
             [empire.computer.threat-response.kamikazee-targets :as targets]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.launch :as launch]
+            [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
 
 (def ^:private hunt-trail-length 4)
@@ -47,7 +49,7 @@
 
 (defn- adjacent-player-army
   [world pos]
-  (first (filter #(player-army-at? world %) (core/get-neighbors pos))))
+  (first (filter #(player-army-at? world %) (world-query/get-neighbors pos))))
 
 (defn- move-toward!
   [pos target]
@@ -56,14 +58,14 @@
 
 (defn- backtracking-candidates
   [pos target min-target-distance trail]
-  (let [current-distance (if target (core/distance pos target) 0)
+  (let [current-distance (if target (grid/distance pos target) 0)
         far-enough? (fn [cand]
                       (or (nil? target)
-                          (<= min-target-distance (core/distance cand target))))
+                          (<= min-target-distance (grid/distance cand target))))
         passable (fm/get-passable-neighbors pos)
         sorted-candidates (fn [cells]
                             (sort-by (fn [cand]
-                                       [(if target (core/distance cand target) current-distance)
+                                       [(if target (grid/distance cand target) current-distance)
                                         cand])
                                      cells))]
     (or (seq (sorted-candidates (->> passable
@@ -103,7 +105,7 @@
           trail (set (:kamikazee-trail unit))
           choices (vec (backtracking-candidates pos target min-target-distance trail))]
       (when-let [choice (when (seq choices) (rand-nth choices))]
-        (when-let [moved-pos (core/move-unit-to pos choice)]
+        (when-let [moved-pos (action-resolution/move-unit-to pos choice)]
           (apply-hunt-step ctx pos moved-pos unit))))))
 
 (defn- enter-hunt!
@@ -276,7 +278,7 @@
                                        :at-route-site? (and next-site (routing/at-site? world pos next-site))
                                        :has-next-site? (boolean next-site)
                                        :close-enough-to-goal? (decisions/close-enough-to-hunt?
-                                                               (when current-goal (core/distance pos current-goal)))
+                                                               (when current-goal (grid/distance pos current-goal)))
                                        :has-goal? (boolean current-goal)})
     :land-at-city
     (do

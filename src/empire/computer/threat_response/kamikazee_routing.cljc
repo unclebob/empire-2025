@@ -1,8 +1,9 @@
 (ns empire.computer.threat-response.kamikazee-routing
-  (:require [empire.computer.core :as core]
-            [empire.computer.fighter-movement :as fm]
+  (:require [empire.computer.shared.grid :as grid]
+            [empire.computer.fighter.movement :as fm]
             [empire.computer.threat-response.kamikazee-targets :as targets]
             [empire.config.core :as config]
+            [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
 
 (defn carrier-site?
@@ -17,7 +18,7 @@
 (defn free-adjacent-cell-count
   [world pos]
   (count (filter #(nil? (get-in world (conj % :contents)))
-                 (core/neighbors-in-map world pos))))
+                 (grid/neighbors-in-map world pos))))
 
 (defn city-has-launch-capacity?
   [world pos required-free-cells]
@@ -46,7 +47,7 @@
 
 (defn- target-distance
   [pos goal-points]
-  (apply min (map #(core/distance pos %) goal-points)))
+  (apply min (map #(grid/distance pos %) goal-points)))
 
 (defn- computer-city-positions
   [world]
@@ -259,7 +260,7 @@
     (when (:active? state)
       (cond
         (and (seq target-points)
-             (some #(<= (core/distance city-pos %) config/fighter-fuel) target-points))
+             (some #(<= (grid/distance city-pos %) config/fighter-fuel) target-points))
         :fighter
 
         (seq loaded-transports)

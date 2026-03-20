@@ -3,9 +3,9 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.army :as army]
-            [empire.computer.core :as core]
+            [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.production :as production]
-            [empire.computer.stamping :as stamping]
+            [empire.computer.shared.stamping :as stamping]
             [empire.game-mechanics.unit-stamping :as unit-stamping]
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
@@ -65,7 +65,7 @@
       (set-test-world! [[{:type :city :city-status :computer}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [army {:type :army :owner :computer :country-id 5}]
-        (core/stamp-territory [0 0] army)
+        (action-resolution/stamp-territory [0 0] army)
         (should= 5 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))))))
 
 ;; --- Targeted mutation-killing tests ---

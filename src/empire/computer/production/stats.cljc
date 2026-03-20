@@ -1,10 +1,10 @@
 (ns empire.computer.production.stats
   (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]))
+            [empire.computer.shared.world-query :as world-query]))
 
 (defn- get-neighbors [pos]
   (filter #(some? (get-in (sa/read-state :computer-map) %))
-          (core/get-neighbors pos)))
+          (world-query/get-neighbors pos)))
 
 (defn city-is-coastal? [city-pos]
   (let [computer-map (sa/read-state :computer-map)]
@@ -15,7 +15,7 @@
 (defn- coastal? [visible-map pos]
   (some (fn [n] (= :sea (:type (get-in visible-map n))))
         (filter #(some? (get-in visible-map %))
-                (core/get-neighbors pos))))
+                (world-query/get-neighbors pos))))
 
 (defn- update-country [acc cid k f]
   (update-in acc [cid k] (fnil f 0)))

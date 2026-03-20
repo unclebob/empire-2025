@@ -1,8 +1,8 @@
 (ns empire.computer.land-objectives
   "Land objective detection using flood-fill on fog-of-war map.
    Implements VMS Empire style continent recognition that respects unexplored territory."
-  (:require [empire.state.api :as sa]
-            [empire.computer.core :as core]))
+  (:require [empire.computer.shared.grid :as grid]
+            [empire.state.api :as sa]))
 
 (def ^:private neighbor-offsets
   [[-1 -1] [-1 0] [-1 1]
@@ -144,7 +144,7 @@
                               (pred cell pos)))
                           continent-positions)]
     (when (seq candidates)
-      (apply min-key #(core/distance start-pos %) candidates))))
+      (apply min-key #(grid/distance start-pos %) candidates))))
 
 (defn find-unexplored-on-continent
   [start-pos continent-positions]

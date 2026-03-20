@@ -1,4 +1,4 @@
-(ns empire.computer.fighter-exploration-spec
+(ns empire.computer.fighter.exploration-spec
   "Tests for fighter exploration: sorties, drone operations, unexplored-cell scoring."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
@@ -117,4 +117,4 @@
       (set-test-computer-map! [[{:type :land} nil]
                                [{:type :land} {:type :land}]])
       (should= 1
-               (#'empire.computer.fighter-exploration/count-unexplored-neighbors [0 0]))))))
+               (#'empire.computer.fighter.exploration/count-unexplored-neighbors [0 0]))))))

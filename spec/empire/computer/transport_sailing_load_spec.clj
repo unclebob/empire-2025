@@ -1,10 +1,9 @@
-(ns empire.computer.transport-sailing-load-spec
+(ns empire.computer.transport.sailing-load-spec
   "Tests for VMS Empire style computer transport movement."
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
-            [empire.computer.core :as core]
             [empire.computer.transport :as transport]
-            [empire.computer.transport-core :as tc]
+            [empire.computer.transport.core :as tc]
 
             [empire.computer.land-objectives :as land-objectives]
             [empire.player.production :as player-prod]

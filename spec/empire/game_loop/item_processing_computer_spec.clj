@@ -58,7 +58,7 @@
     (set-test-world! [[{:type :city :city-status :computer}]])
     (test-utils/set-test-state! :computer-items [0 0])
     (with-redefs [computer-production/process-computer-city (fn [_])
-                  empire.computer.threat-response/launch-kamikazee-from-airport!
+                  empire.computer.threat-response-impl/launch-kamikazee-from-airport!
                   (fn [_] [1 0])]
       (#'computer-items/process-one-computer-item)
       (should= [[1 0]] (test-utils/read-test-state :computer-items))))
@@ -70,7 +70,7 @@
           launched? (atom false)]
       (with-redefs [computer-production/process-computer-city
                     (fn [_] (reset! produced? true))
-                    empire.computer.threat-response/launch-kamikazee-from-airport!
+                    empire.computer.threat-response-impl/launch-kamikazee-from-airport!
                     (fn [coords]
                       (reset! launched? true)
                       coords)]

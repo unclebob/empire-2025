@@ -1,5 +1,5 @@
-(ns empire.computer.fighter-flight-decisions-spec
-  (:require [empire.computer.fighter-flight-decisions :as sut]
+(ns empire.computer.fighter.flight-decisions-spec
+  (:require [empire.computer.fighter.flight-decisions :as sut]
             [speclj.core :refer :all]))
 
 (describe "fighter flight decisions"

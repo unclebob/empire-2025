@@ -20,7 +20,7 @@
                   empire.computer.army.coastal/find-nearest-unoccupied-coastal-cell (fn [_ _] coastal-target)
                   coastal/can-settle-here? (fn [_ _] can-settle?)
                   empire.computer.army.coastal/find-nearest-cell-close-to-coast (fn [_ _] queue-target)
-                  empire.computer.core/wake-nearby-sentries (fn [_ _] wake-count)
+                  empire.computer.shared.action-resolution/wake-nearby-sentries (fn [_ _] wake-count)
                   sa/read-state (fn [k]
                                   (when (= k :computer-map)
                                     current-world))

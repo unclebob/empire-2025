@@ -1,5 +1,5 @@
 (ns empire.computer.wake-nearby-sentries-spec
-  (:require [empire.computer.core :as core]
+  (:require [empire.computer.shared.action-resolution :as action-resolution]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -12,7 +12,7 @@
     (update-test-world! assoc-in [1 0 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [0 0] 2)]
+      (let [woken (action-resolution/wake-nearby-sentries [0 0] 2)]
         (should= 1 woken)
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
@@ -21,7 +21,7 @@
     (update-test-world! assoc-in [3 0 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [0 0] 1)]
+      (let [woken (action-resolution/wake-nearby-sentries [0 0] 1)]
         (should= 0 woken)
         (should= :sentry (:mode (:contents (get-in (test-utils/read-test-state :game-map) [3 0])))))))
 
@@ -30,7 +30,7 @@
     (update-test-world! assoc-in [1 0 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [0 0] 2)]
+      (let [woken (action-resolution/wake-nearby-sentries [0 0] 2)]
         (should= 0 woken)
         (should= :sentry (:mode (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))))
 
@@ -38,7 +38,7 @@
     (set-test-world! (build-test-map ["~a~"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [0 0] 2)]
+      (let [woken (action-resolution/wake-nearby-sentries [0 0] 2)]
         (should= 0 woken))))
 
   (it "wakes sentry at exact chebyshev distance = radius"
@@ -50,7 +50,7 @@
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [2 2] 2)]
+      (let [woken (action-resolution/wake-nearby-sentries [2 2] 2)]
         (should= 1 woken)
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))))))
 
@@ -62,7 +62,7 @@
     (update-test-world! assoc-in [2 2 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [2 1] 1)]
+      (let [woken (action-resolution/wake-nearby-sentries [2 1] 1)]
         (should= 2 woken)
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))))
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [2 2])))))))
@@ -76,7 +76,7 @@
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (core/wake-nearby-sentries [2 2] 2)
+      (action-resolution/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))]
         (should= -1 (first dir)))))
 
@@ -89,7 +89,7 @@
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (core/wake-nearby-sentries [2 2] 2)
+      (action-resolution/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
         (should= -1 (second dir)))))
 
@@ -102,7 +102,7 @@
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (core/wake-nearby-sentries [2 2] 2)
+      (action-resolution/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
         (should= -1 (first dir)))))
 
@@ -115,7 +115,7 @@
     (update-test-world! assoc-in [0 2 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (core/wake-nearby-sentries [2 2] 2)
+      (action-resolution/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))]
         (should= -1 (second dir)))))
 
@@ -128,7 +128,7 @@
     (update-test-world! assoc-in [2 0 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.7)]
-      (core/wake-nearby-sentries [2 2] 2)
+      (action-resolution/wake-nearby-sentries [2 2] 2)
       (let [dir (:interior-explore-direction (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))]
         (should= 1 (first dir)))))
 
@@ -140,6 +140,6 @@
     (update-test-world! assoc-in [3 1 :contents :mode] :sentry)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [rand (constantly 0.3)]
-      (let [woken (core/wake-nearby-sentries [1 1] 2)]
+      (let [woken (action-resolution/wake-nearby-sentries [1 1] 2)]
         (should= 1 woken)
         (should= :awake (:mode (:contents (get-in (test-utils/read-test-state :game-map) [3 1]))))))))

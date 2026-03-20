@@ -6,11 +6,10 @@
             [empire.game.loop.core :as game-loop]
             [empire.computer.coordinator :as computer]
             [empire.computer.army :as army]
-            [empire.computer.core :as computer-core]
             [empire.computer.fighter :as fighter]
             [empire.computer.production :as computer-production]
             [empire.computer.ship :as ship]
-            [empire.computer.threat :as threat]
+            [empire.computer.shared.threat :as threat]
             [empire.computer.transport :as transport]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-player-map! set-test-computer-map!]]))
 (describe "Dispatcher and Game Loop"

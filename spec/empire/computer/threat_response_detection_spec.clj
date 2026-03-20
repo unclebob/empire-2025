@@ -1,6 +1,7 @@
 (ns empire.computer.threat-response-detection-spec
-  (:require [empire.computer.core :as core]
-            [empire.computer.threat-response :as threat-response]
+  (:require [empire.computer.shared.grid :as grid]
+            [empire.computer.threat-response-impl :as threat-response]
+            [empire.computer.threat-response.core :as threat-response-core]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -45,7 +46,7 @@
       (set-test-computer-map! gm)
       (test-utils/update-test-computer-map! assoc-in [0 2] nil)
       (should= [[0 0]]
-               (vec (@#'threat-response/find-computer-unit-positions
+               (vec (@#'threat-response-core/find-computer-unit-positions
                      #(= :fighter (:type %)))))))
 
   (it "assigns 2 patrol boats and 2 battleships when enemy ship detected"
@@ -101,7 +102,7 @@
       (threat-response/refresh-major-invasion-assignments!)
       (let [transport (get-in (test-utils/read-test-state :game-map) [0 3 :contents])]
         (should (#{:invading :unloading} (:transport-mission transport)))
-        (should (<= (core/chebyshev-distance (:invasion-target transport) [2 2]) 2)))))
+        (should (<= (grid/chebyshev-distance (:invasion-target transport) [2 2]) 2)))))
 
   (it "ignores non-threat detections"
     (let [gm (build-test-map ["~~~"])]
@@ -119,7 +120,7 @@
                                                          :detection-points []
                                                          :target-land-set #{}
                                                          :started-round 1})
-      (with-redefs [empire.computer.threat-response/recompute-major-invasion-target-land!
+      (with-redefs [empire.computer.threat-response.core/recompute-major-invasion-target-land!
                     (fn [] (swap! recompute-count inc))]
         (threat-response/handle-detection! [10 10] city-cell)
         (threat-response/handle-detection! [11 10] city-cell)

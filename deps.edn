@@ -29,7 +29,7 @@
 	                                :main-opts ["-m" "dependency-checker.core"]}
 	           :arch-view {:extra-deps {io.github.unclebob/arch-view
 	                                    {:git/url "https://github.com/unclebob/arch-view"
-	                                     :git/sha "6d3ed706310e1fdee57672215cd0b16f33e1e99b"}}
+	                                     :git/sha "66064d35a2b0f05afd43414a6f3ef3f0045705b5"}}
                        :main-opts ["-m" "arch-view.core" "--project-path" "."]}
 					 :mutate {:extra-deps {io.github.unclebob/clj-mutate
 						                        {:git/url "https://github.com/unclebob/clj-mutate"

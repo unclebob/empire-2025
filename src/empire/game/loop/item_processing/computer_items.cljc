@@ -5,7 +5,7 @@
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing.computer-item-decisions :as decisions]
-            [empire.computer.threat-response :as threat-response]))
+            [empire.computer.threat-response-impl :as threat-response]))
 
 (defn- dispatch-detections!
   "Drains queued visibility detections and dispatches to threat-response."

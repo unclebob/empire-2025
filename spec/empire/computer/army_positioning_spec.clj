@@ -4,9 +4,8 @@
             [speclj.core :refer :all]
             [empire.computer.army :as army]
             [empire.computer.army.assignment :as assignment]
-            [empire.computer.core :as core]
             [empire.computer.production :as production]
-            [empire.computer.stamping :as stamping]
+            [empire.computer.shared.stamping :as stamping]
             [empire.game-mechanics.services.combat :as combat]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 
