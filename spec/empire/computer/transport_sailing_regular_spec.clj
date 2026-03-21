@@ -144,6 +144,50 @@
       (should= [1 0]
                (regular/process-sailing-mission [0 0]))))
 
+  (it "replans sail-to-unload when the next step is blocked by a ship"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport :owner :computer
+                                   :transport-mission :sail-to-unload
+                                   :transport-id 7
+                                   :army-count 2
+                                   :sail-path [[1 0] [2 0]]}}
+                       {:type :sea}]
+                      [{:type :sea
+                        :contents {:type :destroyer :owner :computer}}
+                       {:type :sea}]
+                      [{:type :sea} {:type :sea}]
+                      [{:type :sea} {:type :sea}]
+                      [{:type :land} {:type :land}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport.sailing-support/compute-sail-to-unload-path (constantly [[0 1] [1 1] [2 1] [3 1]])]
+      (regular/process-sailing-mission [0 0]))
+    (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :sail-to-unload (:transport-mission transport))
+      (should= [[0 1] [1 1] [2 1] [3 1]] (:sail-path transport))))
+
+  (it "replans sail-to-load when the next step is blocked by a ship"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport :owner :computer
+                                   :transport-mission :sail-to-load
+                                   :transport-id 7
+                                   :army-count 0
+                                   :load-target-cell [4 0]
+                                   :load-manifest [11]
+                                   :sail-path [[1 0] [2 0]]}}
+                       {:type :sea}]
+                      [{:type :sea
+                        :contents {:type :patrol-boat :owner :computer}}
+                       {:type :sea}]
+                      [{:type :sea} {:type :sea}]
+                      [{:type :sea} {:type :sea}]
+                      [{:type :land :country-id 1} {:type :land :country-id 1}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (regular/process-sailing-mission [0 0])
+    (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :sail-to-load (:transport-mission transport))
+      (should= [[1 1] [2 0] [3 0]] (:sail-path transport))))
+
   (it "sail-to-unload follows the stored path before reconsidering adjacent claimed land"
     (set-test-world! [[{:type :sea} {:type :sea} {:type :sea}]
                       [{:type :sea} {:type :sea} {:type :sea}]

@@ -100,10 +100,10 @@
 (defn bfs-to-unexplored-coast
   "BFS from start over explored sea cells on computer-map to find nearest
    cell adjacent to unexplored territory. Returns path excluding start."
-  [start computer-map]
-  (let [passable-sea? (fn [pos]
-                        (let [cell (get-in computer-map pos)]
-                          (and cell (= :sea (:type cell)))))]
+  ([start computer-map]
+   (bfs-to-unexplored-coast start computer-map
+                            #(core/passable-sea? computer-map %)))
+  ([start computer-map passable-sea?]
     (when (passable-sea? start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
              visited #{start}

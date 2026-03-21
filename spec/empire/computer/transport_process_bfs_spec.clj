@@ -182,23 +182,19 @@
 
   (context "sailing blocked retreat"
     (it "sailing transport blocked by player unit retreats"
-      ;; ~D~   player destroyer at [1,0] blocks the path
-      ;; t~~   transport at [0,1], sail-path [[1,0],[2,0]]
-      ;; ~~~   row 2
       (set-test-world! [[{:type :sea}
-                                {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing :army-count 2
-                                                        :sail-path [[1 0]]}}
-                                {:type :sea}]
-                               [{:type :sea :contents {:type :destroyer :owner :player :hits 3}}
-                                {:type :sea}
-                                {:type :sea}]
-                               [{:type :sea}
-                                {:type :sea}
-                                {:type :sea}]])
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :transport-mission :sailing :army-count 2
+                                                :sail-path [[1 0]]}}
+                         {:type :sea}]
+                        [{:type :sea :contents {:type :destroyer :owner :player :hits 3}}
+                         {:type :sea}
+                         {:type :sea}]
+                        [{:type :sea}
+                         {:type :sea}
+                         {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Transport should have retreated to a passable neighbor (not [1,0])
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]

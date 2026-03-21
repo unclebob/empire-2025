@@ -1,0 +1,44 @@
+; Transport path replanning when blocked by ships.
+
+;===============================================================
+; Sail-to-load transport replans around a blocking ship.
+;===============================================================
+GIVEN game map
+  tp~~#
+  ~~~~~
+  ~~~~~
+  ~~~~~
+GIVEN computer map
+  tp~~#
+  ~~~~~
+  ~~~~~
+  ~~~~~
+GIVEN t has transport-mission sail-to-load.
+GIVEN t has sail-path [[1 0] [2 0]].
+GIVEN t has load-target-cell [4 0].
+
+WHEN computer transport t is processed.
+
+THEN t is at [0 0].
+THEN t has sail-path [[1 1] [2 0] [3 0]].
+
+;===============================================================
+; Sail-to-unload transport selects an initial route that avoids a blocking ship.
+;===============================================================
+GIVEN game map
+  tp~~#
+  ~~~~~
+  ~~~~~
+  ~~~~~
+GIVEN computer map
+  tp~~#
+  ~~~~~
+  ~~~~~
+  ~~~~~
+GIVEN t has transport-mission sail-to-unload.
+GIVEN t has 6 armies.
+GIVEN t has sail-path [].
+
+WHEN computer transport t is processed.
+
+THEN t is at [2 0].

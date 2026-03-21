@@ -98,8 +98,8 @@
     (:target (first candidates)))))
 
 (defn- target-adjacent-sea?
-  [computer-map target pos]
-  (and (bfs-core/passable-sea? computer-map pos)
+  [computer-map start target pos]
+  (and (bfs-core/transport-passable-sea? computer-map start pos)
        (some #{target} (for [[dx dy] map-utils/neighbor-offsets
                              :let [candidate [(+ (first pos) dx) (+ (second pos) dy)]]
                              :when (in-bounds? computer-map candidate)]
@@ -107,16 +107,16 @@
 
 (defn path-to-load-target
   [start computer-map target]
-  (let [passable-sea? #(bfs-core/passable-sea? computer-map %)]
+  (let [passable-sea? #(bfs-core/transport-passable-sea? computer-map start %)]
     (when (and target (passable-sea? start))
-      (if (target-adjacent-sea? computer-map target start)
+      (if (target-adjacent-sea? computer-map start target start)
         []
         (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
                visited #{start}
                came-from {}]
           (when (seq queue)
             (let [current (peek queue)]
-              (if (target-adjacent-sea? computer-map target current)
+              (if (target-adjacent-sea? computer-map start target current)
                 (vec (rest (map-utils/reconstruct-path came-from start current)))
                 (let [neighbors (bfs-core/bfs-sea-neighbors current visited passable-sea?)
                       new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]

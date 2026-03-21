@@ -192,4 +192,30 @@
           path (pathfinding-bfs/bfs-to-coast-target [2 1] computer-map 6)]
       (should-not-be-nil path)
       (should= [3 1] (first path))
-      (should= [5 3] (last path)))))
+      (should= [5 3] (last path))))
+
+  (it "does not route unload paths through occupied ships"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                        [{:type :sea
+                          :contents {:type :destroyer :owner :computer}}
+                         {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :land} {:type :land}]]
+          path (pathfinding-bfs/bfs-to-coast-target [0 0] computer-map 6)]
+      (should-not-be-nil path)
+      (should-not-contain [1 0] path)
+      (should= [3 0] (last path))))
+
+  (it "does not route load paths through occupied ships"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                        [{:type :sea
+                          :contents {:type :transport :owner :computer}}
+                         {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :land :country-id 9} {:type :land :country-id 9}]]
+          path (pathfinding-bfs/bfs-to-coast-target [0 0] computer-map 0)]
+      (should-not-be-nil path)
+      (should-not-contain [1 0] path)
+      (should= [3 0] (last path)))))

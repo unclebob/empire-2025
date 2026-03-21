@@ -165,9 +165,7 @@
 
 (defn- bfs-to-adjacent-target
   [start computer-map target?]
-  (let [passable-sea? (fn [pos]
-                        (let [cell (get-in computer-map pos)]
-                          (and cell (= :sea (:type cell)))))]
+  (let [passable-sea? #(core/transport-passable-sea? computer-map start %)]
     (when (passable-sea? start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
              visited #{start}
@@ -188,9 +186,7 @@
 
 (defn- load-target-candidates
   [start computer-map]
-  (let [passable-sea? (fn [pos]
-                        (let [cell (get-in computer-map pos)]
-                          (and cell (= :sea (:type cell)))))]
+  (let [passable-sea? #(core/transport-passable-sea? computer-map start %)]
     (when (passable-sea? start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
              visited #{start}
@@ -221,11 +217,12 @@
   "Loaded transports seek the nearest reachable sea cell adjacent to unclaimed land.
    If none exists, they fall back to the nearest reachable unexplored coast."
   [start computer-map]
-  (let [reachable-land (land-reachable-from-adjacent start computer-map)]
+  (let [reachable-land (land-reachable-from-adjacent start computer-map)
+        passable-sea? #(core/transport-passable-sea? computer-map start %)]
     (or (bfs-to-adjacent-target start computer-map
                                 #(and (adjacent-to-land-kind? % computer-map unclaimed-land?)
                                       (not (adjacent-unclaimed-land-reachable? % computer-map reachable-land))))
-        (exploration/bfs-to-unexplored-coast start computer-map))))
+        (exploration/bfs-to-unexplored-coast start computer-map passable-sea?))))
 
 (defn bfs-to-load-target
   "Empty transports seek a reachable sea cell adjacent to claimed land.

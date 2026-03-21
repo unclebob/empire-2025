@@ -144,8 +144,6 @@
         (should= [] (:sail-path t))))
 
     (it "retreats one cell back when blocked by enemy"
-      ;; t at [2 0], enemy D at [3 0], sail-path [[3 0] [4 0]]
-      ;; Transport should retreat to [1 0] and prepend [2 0] to path
       (set-test-world! (build-test-map ["~~tD~~~~"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [2 0 :contents]

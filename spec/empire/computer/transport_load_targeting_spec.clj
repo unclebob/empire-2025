@@ -70,6 +70,19 @@
                 [1 1]
                 (test-utils/read-test-state :computer-map)))))
 
+  (it "does not build a load path through an occupied ship"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                        [{:type :sea
+                          :contents {:type :destroyer :owner :computer}}
+                         {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :land :country-id 1} {:type :land :country-id 1}]]]
+      (let [path (load-targeting/path-to-load-target [0 0] computer-map [4 0])]
+        (should-not-be-nil path)
+        (should-not-contain [1 0] path)
+        (should= [3 0] (last path))))))
+
   (it "does not count reserved armies toward tile qualification"
     (let [computer-map (build-test-map ["#~~~~#~~~~"
                                         "~t~~~~~~~~"
@@ -240,4 +253,4 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [shuffle identity]
         (let [assigned (assignment/assign-returning-transport-staging-at! [9 9] [5 0])]
-          (should= 5 (count assigned)))))))
+          (should= 5 (count assigned))))))

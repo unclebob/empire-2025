@@ -116,6 +116,15 @@
       (visibility/sync-ai-unit-to-computer-map! retreat)
       retreat)))
 
+(defn- blocked-follow-result
+  [pos]
+  {:blocked? true
+   :pos pos})
+
+(defn- blocked-follow?
+  [result]
+  (true? (:blocked? result)))
+
 (defn- transport-speed
   []
   (dispatcher/speed :transport))
@@ -159,11 +168,7 @@
                         (zero? (:army-count transport 0)))
                   next-pos
                   (recur next-pos current-pos path-after-step (dec moves-left) true))))
-            (if moved-any?
-              (do
-                (sync-sail-path! current-pos remaining-path)
-                current-pos)
-              (sail-retreat pos sail-path))))
+            (blocked-follow-result current-pos)))
         (when moved-any?
           current-pos)))))
 
@@ -174,6 +179,15 @@
       (sa/update-world! assoc-in (conj pos :contents :sail-path) sail-path)
       (visibility/sync-ai-unit-to-computer-map! pos)
       (sail-follow-path pos sail-path maybe-unload?))))
+
+(defn- replan-sail-path!
+  [pos path-fn]
+  (if-let [new-path (seq (path-fn pos))]
+    (do
+      (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec new-path))
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      pos)
+    pos))
 
 (defn- handle-launch-and-follow!
   [pos transport path-fn maybe-unload?]
@@ -245,8 +259,11 @@
         city-cell?
         (handle-launch-and-follow! pos transport support/compute-sail-to-unload-path true)
 
-        (seq sail-path)
-        (sail-follow-path pos sail-path true)
+      (seq sail-path)
+      (let [result (sail-follow-path pos sail-path true)]
+        (if (blocked-follow? result)
+          (replan-sail-path! pos support/compute-sail-to-unload-path)
+          result))
 
         (adjacent-claimed-land? pos)
         (compute-and-follow-path! pos support/compute-sail-to-unload-path true)
@@ -302,14 +319,22 @@
         (tc/enter-hold-sail-to-load! pos))
 
       (seq sail-path)
-      (sail-follow-path pos sail-path false)
+      (let [result (sail-follow-path pos sail-path false)]
+        (if (blocked-follow? result)
+          (replan-sail-path! pos #(or (when load-target-cell
+                                        (load-targeting/path-to-load-target % computer-map load-target-cell))
+                                      (support/compute-sail-to-load-path %)))
+          result))
 
       :else
       (compute-and-follow-load-target-path! pos transport))))
 
 (defn- follow-path-action
   [pos sail-path]
-  (sail-follow-path pos sail-path true))
+  (let [result (sail-follow-path pos sail-path true)]
+    (if (blocked-follow? result)
+      (sail-retreat pos sail-path)
+      result)))
 
 (defn- process-hold-sail-to-load-mission
   [pos transport]
@@ -328,9 +353,11 @@
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         mission (:transport-mission transport)]
     (case mission
-      :sailing (if (zero? (:army-count transport 0))
-                 (process-sail-to-load-mission pos transport)
-                 (process-sail-to-unload-mission pos transport))
+      :sailing (if (seq (:sail-path transport))
+                 (follow-path-action pos (:sail-path transport))
+                 (if (zero? (:army-count transport 0))
+                   (process-sail-to-load-mission pos transport)
+                   (process-sail-to-unload-mission pos transport)))
       :leave-city (process-leave-city-mission pos transport)
       :hold-sail-to-load (process-hold-sail-to-load-mission pos transport)
       :sail-to-load (process-sail-to-load-mission pos transport)
