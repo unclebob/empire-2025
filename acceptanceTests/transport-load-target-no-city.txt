@@ -6,8 +6,10 @@
 GIVEN game map
   X#~t~
   aaaa~
+  aaaa~
 GIVEN computer map
   X#~t~
+  aaaa~
   aaaa~
 GIVEN X is a computer city.
 GIVEN X belongs to country 1.

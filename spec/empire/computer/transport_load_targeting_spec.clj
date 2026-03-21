@@ -27,6 +27,20 @@
                                                    (test-utils/read-test-state :computer-map)
                                                    [5 0]))))
 
+  (it "rejects tiles whose armies are not already on the coast"
+    (let [computer-map (build-test-map ["#~~~~"
+                                        "~t~~~"
+                                        "~###~"
+                                        "~#aa#"
+                                        "~#aa#"])]
+      (set-test-world! computer-map)
+      (update-test-world! assoc-in [0 0 :country-id] 1)
+      (doseq [pos [[1 2] [2 2] [3 2] [1 3] [4 3] [1 4] [4 4]]]
+        (update-test-world! assoc-in (conj pos :country-id) 2))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should-be-nil
+       (load-targeting/choose-load-target-cell [1 1] (test-utils/read-test-state :computer-map)))))
+
   (it "rejects a qualifying tile when one of its coastal cells is reserved"
     (let [computer-map (build-test-map ["#~~~~#~~~~"
                                         "~t~~~~~~~~"

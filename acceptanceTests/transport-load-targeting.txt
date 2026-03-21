@@ -7,11 +7,11 @@
 ; Sail-to-load staging uses the stored load target cell.
 ;===============================================================
 GIVEN game map
-  a#t~
-  ###X
+  a~t~
+  ##~#
 GIVEN computer map
-  a#t~
-  ###X
+  a~t~
+  ##~#
 GIVEN t has transport-mission sail-to-load.
 GIVEN t has load-target-cell [3 1].
 GIVEN t has sail-path [[0 0]].

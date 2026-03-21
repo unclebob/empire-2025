@@ -1,0 +1,24 @@
+; Transport load target tiles require coastal armies.
+
+;===============================================================
+; Inland armies inside the tile do not qualify a sail-to-load target.
+;===============================================================
+GIVEN game map
+  X~~~~~
+  ~t~~~~
+  ~####~
+  ~#aa#~
+  ~#aa#~
+  ~####~
+GIVEN computer map
+  X~~~~~
+  ~t~~~~
+  ~####~
+  ~#aa#~
+  ~#aa#~
+  ~####~
+GIVEN territory around X belongs to country 1.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission hold-sail-to-load.

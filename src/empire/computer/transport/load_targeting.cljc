@@ -51,6 +51,11 @@
          (= :computer (:owner unit))
          (not (contains? reserved-army-ids (:computer-unit-id unit))))))
 
+(defn- computer-coastal-army?
+  [computer-map pos cell reserved-army-ids]
+  (and (computer-army? cell reserved-army-ids)
+       (map-utils/adjacent-to-sea? pos computer-map)))
+
 (defn- tile-summary
   [computer-map tile-index reserved-army-ids]
   (let [cells (tile-cells computer-map tile-index)
@@ -59,7 +64,7 @@
                                   pos))
                               cells)
         army-positions (keep (fn [{:keys [pos cell]}]
-                               (when (computer-army? cell reserved-army-ids)
+                               (when (computer-coastal-army? computer-map pos cell reserved-army-ids)
                                  pos))
                              cells)]
     {:tile tile-index

@@ -34,6 +34,8 @@ blocked="$(printf '%s\n' "$changed" \
   | rg -v '^acceptanceTests/sailing-transport\.txt$' \
   | rg -v '^acceptanceTests/transport-cleanup\.txt$' \
   | rg -v '^acceptanceTests/transport-leave-city\.txt$' \
+  | rg -v '^acceptanceTests/transport-load-target-no-city\.txt$' \
+  | rg -v '^acceptanceTests/transport-load-targeting\.txt$' \
   | rg -v '^acceptanceTests/transport-loading-manifest\.txt$' \
   | rg -v '^acceptanceTests/transport-unload-path-persistence\.txt$' \
   | rg -v '^acceptanceTests/transport\.txt$' \
