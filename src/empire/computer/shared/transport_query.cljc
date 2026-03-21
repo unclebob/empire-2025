@@ -1,5 +1,6 @@
 (ns empire.computer.shared.transport-query
-  (:require [empire.computer.shared.world-query :as world-query]
+  (:require [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
 
 (defn- transport-compatible?
@@ -28,6 +29,21 @@
                   :let [unit (:contents (get-in world [i j]))]
                   :when (loading-transport? unit army-unload-event-id)]
               [i j])))))
+
+(defn find-nearby-loading-transport
+  ([pos max-distance]
+   (find-nearby-loading-transport pos max-distance nil))
+  ([pos max-distance army-unload-event-id]
+   (let [world (sa/read-state :computer-map)]
+     (->> (for [i (range (count world))
+                j (range (count (first world)))
+                :let [transport-pos [i j]
+                      unit (:contents (get-in world transport-pos))]
+                :when (and (loading-transport? unit army-unload-event-id)
+                           (<= (grid/chebyshev-distance pos transport-pos) max-distance))]
+            transport-pos)
+          (sort-by #(vector (grid/chebyshev-distance pos %) %))
+          first))))
 
 (defn find-adjacent-loading-transport
   ([pos]

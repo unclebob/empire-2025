@@ -1,0 +1,19 @@
+; Nearby armies move toward waiting loading transports
+;
+; An awake computer army within five cells of a loading transport should move
+; toward that transport instead of sitting idle.
+
+;===============================================================
+; Awake nearby army moves toward loading transport.
+;===============================================================
+GIVEN game map
+  a~~~~t
+  #~~~~#
+GIVEN computer map
+  a~~~~t
+  #~~~~#
+GIVEN t has transport-mission loading.
+
+WHEN a new round starts.
+
+THEN a is at [0 1].

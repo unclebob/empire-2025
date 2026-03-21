@@ -33,7 +33,8 @@
   (opening/allow-coastal-staging? pos))
 
 (defn- find-and-execute-land-action [pos country-id]
-  (or (when (and country-id (< (rand) 1/3))
+  (or (transport/find-and-board-nearby-loading-transport pos country-id)
+      (when (and country-id (< (rand) 1/3))
         (start-interior-exploration pos country-id))
       (when (should-stage-for-opening-transport? pos)
         (or (coastal/fill-coastal-cell pos country-id)

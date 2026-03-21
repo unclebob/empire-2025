@@ -7,6 +7,8 @@
             [empire.computer.shared.transport-query :as transport-query]
             [empire.computer.shared.movement :as computer-movement]))
 
+(def ^:private nearby-loading-transport-radius 5)
+
 (defn find-and-board-transport
   "Look for a loading transport and move toward/board it.
    Excludes transports with matching unload-event-id to prevent
@@ -21,6 +23,22 @@
         (computer-movement/update-cell-visibility! pos :computer)
         nil)
       (when-let [transport-pos (transport-query/find-loading-transport army-unload-id)]
+        (movement/move-toward-objective pos transport-pos country-id)))))
+
+(defn find-and-board-nearby-loading-transport
+  [pos country-id]
+  (let [army (get-in (sa/read-state :computer-map) (conj pos :contents))
+        army-unload-id (:unload-event-id army)]
+    (if-let [transport-pos (transport-query/find-adjacent-loading-transport pos army-unload-id)]
+      (do
+        (debug/log-computer-event! :army-board pos {:transport transport-pos})
+        (action-resolution/board-transport pos transport-pos)
+        (computer-movement/update-cell-visibility! pos :computer)
+        :boarded)
+      (when-let [transport-pos (transport-query/find-nearby-loading-transport
+                                pos
+                                nearby-loading-transport-radius
+                                army-unload-id)]
         (movement/move-toward-objective pos transport-pos country-id)))))
 
 ;; clj-mutate-manifest-begin

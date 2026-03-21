@@ -46,4 +46,21 @@
     (with-redefs [empire.computer.shared.transport-query/find-adjacent-loading-transport (constantly nil)
                   empire.computer.shared.transport-query/find-loading-transport (constantly nil)]
       (should-be-nil
-       (army-transport/find-and-board-transport [0 0] 9)))))
+       (army-transport/find-and-board-transport [0 0] 9))))
+
+  (it "moves toward a nearby loading transport within five cells"
+    (set-test-world! [[{:contents {:type :army :owner :computer :unload-event-id 5}}]])
+    (set-test-computer-map! [[{:contents {:type :army :owner :computer :unload-event-id 5}}]])
+    (with-redefs [empire.computer.shared.transport-query/find-adjacent-loading-transport (constantly nil)
+                  empire.computer.shared.transport-query/find-nearby-loading-transport (fn [pos max-distance unload-id]
+                                                                                         (should= [0 0] pos)
+                                                                                         (should= 5 max-distance)
+                                                                                         (should= 5 unload-id)
+                                                                                         [4 1])
+                  empire.computer.army.movement/move-toward-objective (fn [pos target country-id]
+                                                                        (should= [0 0] pos)
+                                                                        (should= [4 1] target)
+                                                                        (should= 9 country-id)
+                                                                        :moved)]
+      (should= :moved
+               (army-transport/find-and-board-nearby-loading-transport [0 0] 9)))))
