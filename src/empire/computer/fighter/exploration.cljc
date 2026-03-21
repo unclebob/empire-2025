@@ -47,6 +47,18 @@
             0
             (range 1 (inc n)))))
 
+(defn nearest-unexplored-distance
+  "Return the distance from pos to the nearest unexplored cell on computer-map."
+  [pos]
+  (let [computer-map (sa/read-state :computer-map)
+        height (count computer-map)
+        width (count (first computer-map))]
+    (when-let [distances (seq (for [r (range height)
+                                    c (range width)
+                                    :when (nil? (get-in computer-map [r c]))]
+                                (fm/distance-to pos [r c])))]
+      (apply min distances))))
+
 (defn best-exploration-heading
   "Score all 8 compass directions by unexplored cell count, return best.
    Tie-break with rand-nth."

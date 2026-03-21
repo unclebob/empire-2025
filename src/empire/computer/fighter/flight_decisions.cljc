@@ -94,6 +94,42 @@
                                sites))]
     (first (first (sort-by second scored)))))
 
+(defn- reachable-sites
+  [sites pos remaining-fuel]
+  (keep (fn [site]
+          (let [distance (fm/distance-to pos site)]
+            (when (<= distance remaining-fuel)
+              [site distance])))
+        sites))
+
+(defn- computer-city-site?
+  [world site]
+  (let [cell (get-in world site)]
+    (and (= :city (:type cell))
+         (= :computer (:city-status cell)))))
+
+(defn- best-reachable-landing-site
+  [world sites pos remaining-fuel]
+  (let [reachable (vec (reachable-sites sites pos remaining-fuel))
+        reachable-cities (filter (fn [[site _]]
+                                   (computer-city-site? world site))
+                                 reachable)
+        city-scored (keep (fn [[site distance]]
+                            (when-let [unexplored-distance (fe/nearest-unexplored-distance site)]
+                              [site unexplored-distance distance]))
+                          reachable-cities)]
+    (cond
+      (seq city-scored)
+      (first (first (sort-by (fn [[_ unexplored-distance distance]]
+                               [unexplored-distance distance])
+                             city-scored)))
+
+      (seq reachable-cities)
+      (first (first (sort-by second reachable-cities)))
+
+      :else
+      (nearest-reachable-refueling-site sites pos remaining-fuel))))
+
 (defn- max-sortie-plan
   [world sites pos direction]
   (let [max-fuel config/fighter-fuel]
@@ -104,7 +140,7 @@
         (let [endpoint (projected-endpoint world pos direction steps)
               actual-steps (fm/distance-to pos endpoint)
               remaining-fuel (- max-fuel actual-steps)
-              landing-site (nearest-reachable-refueling-site sites endpoint remaining-fuel)
+              landing-site (best-reachable-landing-site world sites endpoint remaining-fuel)
               next-plan (when (and (pos? actual-steps) landing-site)
                           {:steps actual-steps
                            :endpoint endpoint
