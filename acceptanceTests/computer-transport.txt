@@ -100,10 +100,10 @@ THEN t has sail-path [].
 ;===============================================================
 GIVEN game map
   a#X~
-  ####
+  ###~
 GIVEN computer map
   a#X~
-  ####
+  ###~
 GIVEN X belongs to country 1.
 GIVEN territory around X belongs to country 1.
 GIVEN production at X is transport with 5 rounds remaining.
@@ -111,7 +111,7 @@ GIVEN production at X is transport with 5 rounds remaining.
 WHEN a new round starts.
 
 THEN a has mode move-to-coast-for-transport.
-THEN a has transport-staging-target [2 0].
+THEN a has transport-staging-target [2 1].
 
 ;===============================================================
 ; Sail-to-load transport stages nearby armies at its return coast.

@@ -281,23 +281,25 @@
         (should= [2 0] (get-in (test-utils/read-test-state :game-map) [1 0 :contents :attack-target])))))
 
   (context "transport staging"
-    (it "assigns up to six nearby armies to a city producing a transport within five rounds"
+    (it "assigns up to six nearby armies to coastal cells near a city producing a transport"
       (let [army-cell {:type :land :country-id 1
                        :contents {:type :army :owner :computer :hits 1
                                   :mode :awake :country-id 1}}]
-        (set-test-world! [[army-cell army-cell]
-                          [army-cell army-cell]
-                          [{:type :city :city-status :computer} army-cell]
-                          [{:type :sea} army-cell]])
+        (set-test-world! [[army-cell army-cell army-cell]
+                          [army-cell army-cell army-cell]
+                          [{:type :city :city-status :computer :country-id 1} army-cell army-cell]
+                          [{:type :sea} {:type :sea} {:type :sea}]])
         (set-test-computer-map! (test-utils/read-test-state :game-map))
         (test-utils/set-test-state! :production {[2 0] {:item :transport :remaining-rounds 5}})
         (army/assign-transport-staging)
-        (let [assigned (for [pos [[0 0] [0 1] [1 0] [1 1] [2 1] [3 1]]
-                             :let [unit (get-in (test-utils/read-test-state :game-map) (conj pos :contents))]
+        (let [assigned (for [x (range 4)
+                             y (range 3)
+                             :let [unit (get-in (test-utils/read-test-state :game-map) [x y :contents])]
                              :when (= :move-to-coast-for-transport (:mode unit))]
                          unit)]
           (should= 6 (count assigned))
-          (should (every? #(= [2 0] (:transport-staging-target %)) assigned)))))
+          (should (every? #(not= [2 0] (:transport-staging-target %)) assigned))
+          (should (every? #{[2 1] [2 2]} (map :transport-staging-target assigned))))))
 
     (it "assigns nearby armies to the claimed coast targeted by a sail-to-load transport"
       (set-test-world! [[{:type :land :country-id 1

@@ -5,6 +5,7 @@
             [empire.computer.transport.load-targeting :as load-targeting]
             [empire.computer.transport.reservations :as reservations]
             [empire.game-mechanics.visibility :as visibility]
+            [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.computer.army.assignment-decisions :as decisions]
             [empire.computer.shared.grid :as grid]
             [empire.computer.shared.world-query :as world-query]
@@ -13,6 +14,7 @@
 (def ^:private transport-staging-radius 5)
 (def ^:private max-staging-armies 6)
 (def ^:private max-returning-staging-armies 5)
+(def ^:private producer-staging-cells-per-side 3)
 
 (defn- transport-staging-mode?
   [unit]
@@ -50,13 +52,70 @@
          (take max-staging-armies))))
 
 (defn- assign-staging-armies!
-  [anchor]
-  (doseq [{:keys [pos]} (staging-armies anchor)]
+  [anchor targets]
+  (doseq [[{:keys [pos]} target]
+          (map vector
+               (staging-armies anchor)
+               (cycle targets))]
     (sa/update-world! update-in (conj pos :contents)
                       #(assoc %
                               :mode :move-to-coast-for-transport
-                              :transport-staging-target anchor))
+                              :transport-staging-target target))
     (visibility/sync-ai-unit-to-computer-map! pos)))
+
+(defn- producer-staging-cell?
+  [computer-map city-pos country-id pos]
+  (let [cell (get-in computer-map pos)]
+    (and (not= city-pos pos)
+         (= :land (:type cell))
+         (= country-id (:country-id cell))
+         (map-utils/adjacent-to-sea? pos computer-map))))
+
+(defn- producer-staging-seed-cells
+  [computer-map city-pos country-id]
+  (->> (world-query/get-neighbors city-pos)
+       (filter #(= :sea (:type (get-in computer-map %))))
+       (mapcat world-query/get-neighbors)
+       (filter #(producer-staging-cell? computer-map city-pos country-id %))
+       sort
+       distinct))
+
+(defn- producer-branch-cells
+  [computer-map city-pos country-id seed visited]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY seed)
+         seen (conj visited seed)
+         branch []]
+    (if (empty? queue)
+      branch
+      (let [current (peek queue)
+            branch' (conj branch current)]
+        (if (>= (count branch') producer-staging-cells-per-side)
+          branch'
+          (let [neighbors (->> (world-query/get-neighbors current)
+                               (filter #(producer-staging-cell? computer-map city-pos country-id %))
+                               (remove seen)
+                               sort)]
+            (recur (reduce conj (pop queue) neighbors)
+                   (into seen neighbors)
+                   branch')))))))
+
+(defn- producer-staging-targets
+  [city-pos]
+  (let [computer-map (sa/read-state :computer-map)
+        country-id (:country-id (get-in computer-map city-pos))
+        seeds (producer-staging-seed-cells computer-map city-pos country-id)]
+    (loop [remaining seeds
+           visited #{}
+           targets []]
+      (if (empty? remaining)
+        targets
+        (let [seed (first remaining)
+              branch (if (contains? visited seed)
+                       []
+                       (producer-branch-cells computer-map city-pos country-id seed visited))]
+          (recur (rest remaining)
+                 (into visited branch)
+                 (into targets branch)))))))
 
 (defn- staging-anchor-for-sail-to-load
   [transport-pos]
@@ -128,7 +187,8 @@
           :when (and (= :transport (:item prod))
                      (<= (:remaining-rounds prod 99) transport-staging-radius)
                      (opening/city-usable-coastal? pos))]
-    (assign-staging-armies! pos)))
+    (when-let [targets (seq (producer-staging-targets pos))]
+      (assign-staging-armies! pos targets))))
 
 (defn assign-returning-transport-staging-at!
   ([transport-pos]
@@ -139,7 +199,7 @@
     (if-let [target (returning-load-target transport-pos target)]
       (assign-load-target-staging-armies! transport-id target)
       (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
-        (assign-staging-armies! anchor)
+        (assign-staging-armies! anchor [anchor])
         [])))))
 
 (defn assign-returning-transport-staging!
