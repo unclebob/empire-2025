@@ -1,0 +1,19 @@
+; Transport opportunistic loading
+;
+; Loading transports can board adjacent computer armies even when those armies
+; were not part of the recruited manifest.
+
+;===============================================================
+; Loading transport opportunistically boards an adjacent army.
+;===============================================================
+GIVEN game map
+  #a#
+  ~t~
+GIVEN computer map
+  #a#
+  ~t~
+GIVEN t has transport-mission loading.
+
+WHEN computer transport t is processed.
+
+THEN t has 1 armies.

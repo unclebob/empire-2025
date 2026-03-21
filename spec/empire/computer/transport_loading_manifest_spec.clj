@@ -32,6 +32,65 @@
     (should= [9]
              (get-in (test-utils/read-test-state :game-map) [0 1 :contents :load-manifest])))
 
+  (it "load-adjacent-armies opportunistically boards adjacent non-manifest armies"
+    (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 7}}
+                       {:type :sea :contents {:type :transport :owner :computer
+                                              :transport-id 4
+                                              :army-count 0
+                                              :load-manifest [7 9]}}
+                       {:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 11}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {4 {:coastal-cell [0 0]
+                                    :army-ids #{7 9}}})
+    (should= 2 (loading/load-adjacent-armies [0 1]))
+    (should= 2
+             (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))
+    (should= [9]
+             (get-in (test-utils/read-test-state :game-map) [0 1 :contents :load-manifest]))
+    (should= #{9}
+             (get-in (test-utils/read-test-state :transport-load-reservations) [4 :army-ids])))
+
+  (it "load-adjacent-armies ends recruitment when the transport becomes full"
+    (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 7}}
+                       {:type :sea :contents {:type :transport :owner :computer
+                                              :transport-id 4
+                                              :army-count 5
+                                              :load-manifest [7 9]}}
+                       {:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 11}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {4 {:coastal-cell [0 0]
+                                    :army-ids #{7 9}}})
+    (should= 1 (loading/load-adjacent-armies [0 1]))
+    (should= 6
+             (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))
+    (should-be-nil
+     (get-in (test-utils/read-test-state :game-map) [0 1 :contents :load-manifest]))
+    (should= {}
+             (test-utils/read-test-state :transport-load-reservations)))
+
+  (it "load-adjacent-armies prefers opportunistic adjacent armies over manifest armies"
+    (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 7}}
+                       {:type :sea :contents {:type :transport :owner :computer
+                                              :transport-id 4
+                                              :army-count 5
+                                              :load-manifest [7]}}
+                       {:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 11}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {4 {:coastal-cell [0 0]
+                                    :army-ids #{7}}})
+    (should= 1 (loading/load-adjacent-armies [0 1]))
+    (should-be-nil
+     (get-in (test-utils/read-test-state :game-map) [0 2 :contents]))
+    (should= {:type :army :owner :computer :hits 1 :computer-unit-id 7}
+             (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+    (should-be-nil
+     (get-in (test-utils/read-test-state :game-map) [0 1 :contents :load-manifest]))
+    (should= {}
+             (test-utils/read-test-state :transport-load-reservations)))
+
   (it "planned loading waits in place instead of crawling"
     (let [called (atom [])]
       (mission-handlers/process-loading-mission

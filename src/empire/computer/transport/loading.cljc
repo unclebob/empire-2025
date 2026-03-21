@@ -83,44 +83,55 @@
         manifest-ids (when (contains? transport :load-manifest)
                        (set (:load-manifest transport)))
         neighbors (world-query/get-neighbors pos)
-        armies (filter (fn [n]
-                         (let [cell (get-in computer-map n)
-                               unit (:contents cell)
-                               invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
-                           (and unit
-                                (= :army (:type unit))
-                                (= :computer (:owner unit))
-                                (or (nil? manifest-ids)
-                                    (contains? manifest-ids (:computer-unit-id unit)))
-                                (or invasion-pickup?
-                                    (not (and (seq unloaded-countries)
-                                              (:country-id unit)
-                                              (tc/recently-unloaded-country?
-                                                unloaded-countries (:country-id unit))))))))
-                       neighbors)
-        to-load (min capacity (count armies))]
-    (let [loaded-positions (vec (take to-load armies))]
-      (doseq [army-pos loaded-positions]
-        (debug/log-computer-event! :transport-load-army pos {:from army-pos})
-        (sa/update-world! update-in army-pos dissoc :contents)
-        (update-cell-visibility! army-pos :computer))
-        (when (pos? to-load)
-          (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
-          (when manifest-ids
-            (let [loaded-ids (->> loaded-positions
-                                  (keep #(get-in computer-map (conj % :contents :computer-unit-id)))
-                                  set)
-                  updated-manifest (vec (remove loaded-ids (:load-manifest transport)))]
-              (sa/update-world! update-in (conj pos :contents :load-manifest)
-                              (constantly updated-manifest))
+        armies (keep (fn [n]
+                       (let [cell (get-in computer-map n)
+                             unit (:contents cell)
+                             invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
+                         (when (and unit
+                                    (= :army (:type unit))
+                                    (= :computer (:owner unit))
+                                    (or invasion-pickup?
+                                        (not (and (seq unloaded-countries)
+                                                  (:country-id unit)
+                                                  (tc/recently-unloaded-country?
+                                                    unloaded-countries (:country-id unit))))))
+                           {:pos n
+                            :unit unit
+                            :manifest-match? (and manifest-ids
+                                                  (contains? manifest-ids (:computer-unit-id unit)))})))
+                     neighbors)
+        prioritized-armies (concat (remove :manifest-match? armies)
+                                   (filter :manifest-match? armies))
+        loaded-armies (vec (take capacity prioritized-armies))
+        loaded-positions (mapv :pos loaded-armies)
+        loaded-manifest-ids (->> loaded-armies
+                                 (filter :manifest-match?)
+                                 (keep (comp :computer-unit-id :unit))
+                                 set)
+        to-load (count loaded-positions)]
+    (doseq [army-pos loaded-positions]
+      (debug/log-computer-event! :transport-load-army pos {:from army-pos})
+      (sa/update-world! update-in army-pos dissoc :contents)
+      (update-cell-visibility! army-pos :computer))
+    (when (pos? to-load)
+      (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
+      (when manifest-ids
+        (let [updated-manifest (vec (remove loaded-manifest-ids (:load-manifest transport)))
+              final-army-count (+ army-count to-load)]
+          (if (>= final-army-count 6)
+            (do
+              (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+              (reservations/release! (:transport-id transport)))
+            (do
+              (sa/update-world! assoc-in (conj pos :contents :load-manifest) updated-manifest)
               (reservations/update-army-ids!
                (:transport-id transport)
-               updated-manifest)))
-        (visibility/sync-ai-unit-to-computer-map! pos))
-      ;; Wake nearby sentries to advance the transport queue
-      (doseq [army-pos loaded-positions]
-        (action-resolution/wake-nearby-sentries army-pos 3))
-      to-load)))
+               updated-manifest)))))
+      (visibility/sync-ai-unit-to-computer-map! pos))
+    ;; Wake nearby sentries to advance the transport queue
+    (doseq [army-pos loaded-positions]
+      (action-resolution/wake-nearby-sentries army-pos 3))
+    to-load))
 
 (defn coastal-crawl-move
   "Moves transport to adjacent sea cell that is also adjacent to land.
