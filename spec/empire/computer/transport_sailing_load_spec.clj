@@ -17,6 +17,7 @@
       (test-utils/set-test-state! :next-unload-event-id 100)
       (let [game-map (build-test-map ["t~"])]
         (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (update-test-world! assoc-in [0 0 :contents :unload-event-id] 42)
         (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (tc/mint-unload-event-id [0 0] transport)
@@ -29,6 +30,7 @@
       (test-utils/set-test-state! :next-country-id 50)
       (let [game-map (build-test-map ["t~"])]
         (set-test-world! game-map)
+        (set-test-computer-map! game-map)
         (tc/mint-unload-country-id [0 0])
         (should= 50 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :unload-country-id]))
         (should= 51 (test-utils/read-test-state :next-country-id))))

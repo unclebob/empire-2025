@@ -51,17 +51,16 @@
   (when-let [path (seq (sailing/compute-sail-path pos (:army-count transport 0)))]
     (reservations/release! (:transport-id transport))
     (tc/set-transport-mission pos :sail-to-unload)
-    (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
-    (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
-    (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
-    (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
-    (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
+    (tc/assoc-transport-field! pos :load-target-cell nil)
+    (tc/assoc-transport-field! pos :load-manifest nil)
+    (tc/assoc-transport-field! pos :load-plan-failure nil)
+    (tc/assoc-transport-field! pos :hold-sail-to-load-since-round nil)
+    (tc/assoc-transport-field! pos :loading-since-round nil)
     (tc/mint-unload-event-id pos transport)
     (when-not (sa/read-state :transport-fully-loaded?)
       (sa/write-state! :transport-fully-loaded? true))
     (tc/mint-unload-country-id pos)
-    (sa/update-world! assoc-in
-                      (conj pos :contents :sail-path) (vec path))
+    (tc/assoc-transport-field! pos :sail-path (vec path))
     (visibility/sync-ai-unit-to-computer-map! pos)
     true))
 
@@ -87,11 +86,11 @@
       (when-let [sail-path (seq (sailing-path/compute-sail-to-unload-path pos computer-map))]
         (reservations/release! (:transport-id transport))
         (tc/set-transport-mission pos :sail-to-unload)
-        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
-        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
-        (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
-        (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
-        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+        (tc/assoc-transport-field! pos :load-target-cell nil)
+        (tc/assoc-transport-field! pos :load-manifest nil)
+        (tc/assoc-transport-field! pos :load-plan-failure nil)
+        (tc/assoc-transport-field! pos :loading-since-round nil)
+        (tc/assoc-transport-field! pos :sail-path (vec sail-path))
         (visibility/sync-ai-unit-to-computer-map! pos)
         (threat-response/prepare-transport! pos)))))
 
@@ -100,14 +99,15 @@
   (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
     (reservations/release! (get-in (sa/read-state :computer-map)
                                    (conj pos :contents :transport-id)))
-    (sa/update-world! update-in (conj pos :contents)
-                      #(assoc % :transport-mission :unloading
-                                :load-target-cell nil
-                                :load-manifest nil
-                                :loading-since-round nil
-                                :invasion-target (or (:invasion-target %)
-                                                     major-target)))
-    (tc/log-transport-mission-transition! pos from-mission :unloading))
+    (when (tc/update-transport-contents!
+           pos
+           #(assoc % :transport-mission :unloading
+                     :load-target-cell nil
+                     :load-manifest nil
+                     :loading-since-round nil
+                     :invasion-target (or (:invasion-target %)
+                                          major-target)))
+      (tc/log-transport-mission-transition! pos from-mission :unloading)))
   (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- mission-handler-deps

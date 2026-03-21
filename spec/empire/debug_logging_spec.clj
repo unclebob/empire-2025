@@ -84,4 +84,15 @@
       (should= :loading (:from entry))
       (should= :unloading (:to entry))
       (should= 17 (:transport-id entry))
-      (should= 3 (:armies entry)))))
+      (should= 3 (:armies entry))))
+
+  (it "records transport write misses"
+    (test-utils/set-test-world! [[{:type :sea}]])
+    (test-utils/set-test-state! :computer-map [[{:type :sea}]])
+    (transport-core/assoc-transport-field! [0 0] :sail-path [[1 0]])
+    (let [entry (first (test-utils/read-test-state :computer-event-log))]
+      (should= :transport-write-miss (:event entry))
+      (should= [0 0] (:pos entry))
+      (should= :assoc-transport-field (:op entry))
+      (should= :sea (:cell-type entry))
+      (should= nil (:cell-contents entry)))))
