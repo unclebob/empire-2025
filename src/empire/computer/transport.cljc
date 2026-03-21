@@ -48,20 +48,22 @@
 (defn- start-sailing
   "Transition transport from loading to sailing with BFS path."
   [pos transport]
-  (reservations/release! (:transport-id transport))
-  (tc/set-transport-mission pos :sail-to-unload)
-  (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
-  (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
-  (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
-  (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
-  (tc/mint-unload-event-id pos transport)
-  (when-not (sa/read-state :transport-fully-loaded?)
-    (sa/write-state! :transport-fully-loaded? true))
-  (tc/mint-unload-country-id pos)
-  (when-let [path (sailing/compute-sail-path pos (:army-count transport 0))]
+  (when-let [path (seq (sailing/compute-sail-path pos (:army-count transport 0)))]
+    (reservations/release! (:transport-id transport))
+    (tc/set-transport-mission pos :sail-to-unload)
+    (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
+    (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+    (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
+    (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
+    (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
+    (tc/mint-unload-event-id pos transport)
+    (when-not (sa/read-state :transport-fully-loaded?)
+      (sa/write-state! :transport-fully-loaded? true))
+    (tc/mint-unload-country-id pos)
     (sa/update-world! assoc-in
-                      (conj pos :contents :sail-path) path)
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+                      (conj pos :contents :sail-path) (vec path))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    true))
 
 (defn- transition-to-loading
   "Switch an empty transport to the return-to-load sailing state."
@@ -75,25 +77,23 @@
   [pos]
   (mission-handlers/load-for-invasion-start! sa/update-world! sa/read-state pos))
 
-(declare loading-crawl-move)
-
 (defn- transition-load-for-invasion-to-sailing!
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         empty? (zero? (:army-count transport 0))
-        mission (if empty? :sail-to-load :sail-to-unload)
         computer-map (sa/read-state :computer-map)]
     (if empty?
       (transition-to-loading pos)
-      (let [sail-path (or (sailing-path/compute-sail-to-unload-path pos computer-map) [])]
+      (when-let [sail-path (seq (sailing-path/compute-sail-to-unload-path pos computer-map))]
         (reservations/release! (:transport-id transport))
-        (tc/set-transport-mission pos mission)
+        (tc/set-transport-mission pos :sail-to-unload)
         (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
         (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+        (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
         (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
         (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (visibility/sync-ai-unit-to-computer-map! pos))))
-  (threat-response/prepare-transport! pos))
+        (visibility/sync-ai-unit-to-computer-map! pos)
+        (threat-response/prepare-transport! pos)))))
 
 (defn- transition-load-for-invasion-to-unloading!
   [pos major-target]
@@ -126,7 +126,6 @@
    :has-nearby-unloadable-land? unloading/has-nearby-unloadable-land?
    :should-start-sailing? loading/should-start-sailing?
    :start-sailing start-sailing
-   :loading-crawl-move loading-crawl-move
    :transition-to-loading transition-to-loading
    :process-unloading-crawl unloading/unloading-crawl-move
    :try-opportunistic-unload unloading/try-opportunistic-unload
@@ -150,19 +149,6 @@
   [pos]
   (mission-handlers/process-load-for-invasion
    (mission-handler-deps) sa/update-world! transition-to-loading pos))
-
-(defn- loading-crawl-move
-  [pos]
-  (let [move-one (fn [p]
-                   (loading/coastal-crawl-move p))]
-    (loop [current-pos pos
-           moves-left (transport-speed)
-           moved-any? false]
-      (if (zero? moves-left)
-        (when moved-any? current-pos)
-        (if-let [next-pos (move-one current-pos)]
-          (recur next-pos (dec moves-left) true)
-          (when moved-any? current-pos))))))
 
 (defn- process-loading-mission
   [pos]
@@ -194,11 +180,11 @@
                                                              (sa/read-state :computer-map)
                                                              (sa/read-state :lake-max-cells)))
                   :unloading #(process-unloading-mission pos army-count)
+                  :sailing #(sailing/process-sailing-mission pos)
                   :sail-to-unload #(sailing/process-sailing-mission pos)
                   :leave-city #(sailing/process-sailing-mission pos)
                   :sail-to-load #(sailing/process-sailing-mission pos)
                   :hold-sail-to-load #(sailing/process-sailing-mission pos)
-                  :compat-sailing #(sailing/process-sailing-mission pos)
                   :loading #(process-loading-mission pos)}]
     (when-let [handler (get handlers handler-key)]
       (handler))))
@@ -213,15 +199,23 @@
                                                      :never-reload? (:never-reload? transport)})]
     (when fix-idle?
       (fix-idle-mission pos initial-mission))
+    (when (and mission
+               (not= mission initial-mission))
+      (when (#{nil :idle} initial-mission)
+        (tc/set-transport-mission pos mission)))
     (when force-sailing?
       (if (zero? army-count)
         (transition-to-loading pos)
-        (tc/set-transport-mission pos :sail-to-unload)))
+        (start-sailing pos transport)))
     (let [current-mission (or (:transport-mission (get-in (sa/read-state :computer-map) (conj pos :contents)))
                               mission
                               :loading)]
       (debug/log-computer-event! :transport-process pos
-                                 {:mission current-mission :armies army-count})
+                                 {:mission current-mission
+                                  :armies army-count
+                                  :manifest (:load-manifest transport)
+                                  :reservation (when-let [transport-id (:transport-id transport)]
+                                                 (get (sa/read-state :transport-load-reservations) transport-id))})
       (if (and (targeting/should-try-opportunistic-unload? army-count current-mission)
                (unloading/try-opportunistic-unload pos))
         true

@@ -45,6 +45,8 @@
                          [:army-count "army-count"]
                          [:fighter-count "fighter-count"]
                          [:transport-mission "transport-mission"]
+                         [:hold-sail-to-load-since-round "hold-since"]
+                         [:load-plan-failure "load-plan-failure"]
                          [:load-manifest "load-manifest"]
                          [:load-target-cell "load-target"]
                          [:country-id "cid"]
@@ -418,6 +420,11 @@
        filename)
      :cljs
      (format-dump [start-row start-col] [end-row end-col])))
+
+(defn write-full-dump!
+  []
+  (let [[rows cols] (or (sa/read-state :map-size) [0 0])]
+    (write-dump! [0 0] [(max 0 (dec rows)) (max 0 (dec cols))])))
 
 (defn screen-coords-to-cell-range
   "Convert screen pixel coordinates to map cell coordinate range.

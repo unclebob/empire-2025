@@ -28,6 +28,8 @@
    :save-menu-input ""
    :save-menu-default-active false
    :computer-unit-log-file nil
+   :debug-dump-on-exit? false
+   :debug-dump-written? false
    :computer-production-limits {}
    :headless-mode? false
    :headless-stop-on-major-invasion? false

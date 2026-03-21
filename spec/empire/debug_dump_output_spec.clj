@@ -17,6 +17,13 @@
         (should= [["debug-test.txt" "dump [1 2] [3 4]"]]
                  @writes))))
 
+  (it "writes a full dump using the current map size"
+    (test-utils/set-test-state! :map-size [3 4])
+    (with-redefs [debug-dump/write-dump! (fn [start end]
+                                           [start end])]
+      (should= [[0 0] [2 3]]
+               (debug-dump/write-full-dump!))))
+
   (it "formats movement entries"
     (let [basic (#'debug-dump/format-movement-entry {:unit-type :army :from [1 2] :to [1 3] :mode :moving :event :move :reason nil})
           with-event (#'debug-dump/format-movement-entry {:unit-type :army :from [0 0] :to [0 1] :mode :explore :event :wake :reason nil})
@@ -82,6 +89,8 @@
                         :contents {:type :transport
                                    :owner :computer
                                    :transport-mission :loading
+                                   :hold-sail-to-load-since-round 17
+                                   :load-plan-failure {:reasons [:no-manifest]}
                                    :load-manifest [41 42]
                                    :load-target-cell [3 1]}}]])
     (set-test-player-map! [[{:type :sea}]])
@@ -92,6 +101,8 @@
     (let [result (debug-dump/format-dump [0 0] [0 0])]
       (should-contain "Transport Load Reservations" result)
       (should-contain "7 {:coastal-cell [3 1], :army-ids #{41 42}}" result)
+      (should-contain "hold-since:17" result)
+      (should-contain "load-plan-failure:{:reasons [:no-manifest]}" result)
       (should-contain "load-manifest:[41 42]" result)
       (should-contain "load-target:[3 1]" result)))
 

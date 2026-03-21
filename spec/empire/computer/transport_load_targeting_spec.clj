@@ -87,7 +87,9 @@
         (update-test-world! assoc-in (conj pos :country-id) 2))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [empire.computer.army.assignment/assign-returning-transport-staging-at!
-                    (fn [_] [1 2 3 4])]
+                    (fn
+                      ([_] [1 2 3 4])
+                      ([_ _] [1 2 3 4]))]
         (@#'transport/transition-to-loading [1 1]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
         (should= :sail-to-load (:transport-mission unit))
@@ -189,4 +191,34 @@
         (let [assigned (assignment/assign-returning-transport-staging-at! [9 9])]
           (should= 5 (count assigned))
           (should-not-contain 5 assigned)
-          (should-not-contain 6 assigned))))))
+          (should-not-contain 6 assigned)))))
+
+  (it "recruits armies using an explicit target even before the transport stores it in state"
+    (let [world (build-test-map ["~~~~~#~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "aaaaaa~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"])]
+      (set-test-world! world)
+      (doseq [pos [[5 0] [5 1] [5 2] [5 3] [5 4]
+                   [0 5] [1 5] [2 5] [3 5] [4 5] [5 5]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (doseq [[id pos] (map vector (range 1 12)
+                            [[5 1] [5 2] [5 3] [5 4] [0 5] [1 5] [2 5] [3 5] [4 5] [5 5] [5 0]])]
+        (when (= :army (get-in (test-utils/read-test-state :game-map) (conj pos :contents :type)))
+          (update-test-world! assoc-in (conj pos :contents :computer-unit-id) id)))
+      (update-test-world! assoc-in [9 9 :contents]
+                         {:type :transport
+                          :owner :computer
+                          :hits 1
+                          :transport-id 10
+                          :transport-mission :sail-to-load})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (with-redefs [shuffle identity]
+        (let [assigned (assignment/assign-returning-transport-staging-at! [9 9] [5 0])]
+          (should= 5 (count assigned)))))))

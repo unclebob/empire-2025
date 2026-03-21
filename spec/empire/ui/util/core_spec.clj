@@ -101,6 +101,10 @@
     (let [result (util-core/parse-args ["--log"] 2000 2000)]
       (should= true (:log-enabled result))))
 
+  (it "extracts --debug-dump"
+    (let [result (util-core/parse-args ["--debug-dump"] 2000 2000)]
+      (should= true (:debug-dump-enabled result))))
+
   (it "extracts --limits=SPEC"
     (let [result (util-core/parse-args ["--limits=t:8,p:4"] 2000 2000)]
       (should= {:transport 8 :patrol-boat 4}
@@ -158,6 +162,12 @@
       (should= 30 (:rows result))
       (should= true (:log-enabled result))))
 
+  (it "ignores debug dump arg when computing dimensions"
+    (let [result (util-core/parse-args ["--debug-dump" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= true (:debug-dump-enabled result))))
+
   (it "ignores limits arg when computing dimensions"
     (let [result (util-core/parse-args ["--limits=t:8,p:4" "50" "30"] 2000 2000)]
       (should= 50 (:cols result))
@@ -197,6 +207,13 @@
   (it "returns false when log is absent"
     (should-not (util-core/log-requested? ["--seed=42"]))))
 
+(describe "debug-dump-requested?"
+  (it "returns true for --debug-dump"
+    (should (util-core/debug-dump-requested? ["--debug-dump"])))
+
+  (it "returns false when debug dump is absent"
+    (should-not (util-core/debug-dump-requested? ["--seed=42"]))))
+
 (describe "unit-log-filename"
   (it "uses the empire-units timestamped naming convention"
     (with-redefs [util-core/startup-timestamp (constantly "2026-03-19-120000")]
@@ -204,10 +221,11 @@
                (util-core/unit-log-filename)))))
 
 (describe "usage-text"
-  (it "documents help handicap seed headless and log options"
+  (it "documents help handicap seed headless log and debug dump options"
     (let [usage (util-core/usage-text)]
       (should-contain "--help" usage)
       (should-contain "--log" usage)
+      (should-contain "--debug-dump" usage)
       (should-contain "--seed=N" usage)
       (should-contain "--limits=SPEC" usage)
       (should-contain "--headless=N" usage)

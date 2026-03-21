@@ -40,7 +40,9 @@
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (with-redefs [empire.computer.transport.load-targeting/choose-load-target-cell (fn [& _] [3 0])
                   empire.computer.transport.load-targeting/path-to-load-target (fn [& _] [[1 0] [2 0] [3 0]])
-                  empire.computer.army.assignment/assign-returning-transport-staging-at! (fn [_] [41 42])]
+                  empire.computer.army.assignment/assign-returning-transport-staging-at! (fn
+                                                                                           ([_] [41 42])
+                                                                                           ([_ _] [41 42]))]
       (regular/process-sailing-mission [0 0]))
     (let [transport (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
       (should= :transport (:type transport))
@@ -48,6 +50,50 @@
       (should= [3 0] (:load-target-cell transport))
       (should= [[1 0] [2 0] [3 0]] (:sail-path transport))
       (should= [41 42] (:load-manifest transport)))))
+
+  (it "records the load-plan failure when a transport cannot find a target, manifest, or path"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :transport-id 7
+                                   :transport-mission :hold-sail-to-load
+                                   :army-count 0}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.load-targeting/choose-load-target-cell (fn [& _] nil)
+                  empire.computer.transport.sailing-support/compute-sail-to-load-path (fn [_] [])
+                  empire.computer.army.assignment/assign-returning-transport-staging-at! (fn
+                                                                                           ([_] [])
+                                                                                           ([_ _] []))]
+      (regular/enter-sail-to-load! [0 0]))
+    (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :hold-sail-to-load (:transport-mission transport))
+      (should= {:round 0
+                :at [0 0]
+                :reasons [:no-load-target :no-manifest :no-sail-path]
+                :load-target-cell nil
+                :manifest-count 0
+                :sail-path-length 0}
+               (:load-plan-failure transport))))
+
+  (it "accepts an empty sail path when already adjacent to the chosen load target"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :transport-id 7
+                                   :transport-mission :hold-sail-to-load
+                                   :army-count 0}}
+                       {:type :land :country-id 1}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.load-targeting/choose-load-target-cell (fn [& _] [0 1])
+                  empire.computer.transport.load-targeting/path-to-load-target (fn [& _] [])
+                  empire.computer.army.assignment/assign-returning-transport-staging-at! (fn [_ _] [41 42])]
+      (regular/enter-sail-to-load! [0 0]))
+    (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (should= :sail-to-load (:transport-mission transport))
+      (should= [0 1] (:load-target-cell transport))
+      (should= [] (:sail-path transport))
+      (should= [41 42] (:load-manifest transport))
+      (should-be-nil (:load-plan-failure transport))))
 
   (it "switches to unloading when adjacent unclaimed land exists"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer

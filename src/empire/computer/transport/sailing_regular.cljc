@@ -22,6 +22,7 @@
                            (assoc :transport-mission :leave-city
                                   :load-target-cell nil
                                   :load-manifest nil
+                                  :load-plan-failure nil
                                   :hold-sail-to-load-since-round nil
                                   :loading-since-round nil
                                   :sail-path [])
@@ -38,36 +39,40 @@
                           computer-map
                           {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
                            :reserved-army-ids (reservations/reserved-army-ids transport-id)})
-        sail-path (or (when load-target-cell
-                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
-                      (support/compute-sail-to-load-path pos)
-                      [])]
-    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))
-          stored-manifest (when (seq manifest) manifest)]
-      (sa/update-world! update-in (conj pos :contents)
-                        #(-> %
-                             (assoc :transport-mission :sail-to-load)
-                             (assoc :load-target-cell load-target-cell
-                                    :load-manifest nil
-                                    :hold-sail-to-load-since-round nil
-                                    :loading-since-round nil
-                                    :sail-path (vec sail-path))
-                             (dissoc :unload-target-city)))
-      (visibility/sync-ai-unit-to-computer-map! pos)
-      (sa/update-world! assoc-in (conj pos :contents :load-manifest) stored-manifest)
+        sail-path (if load-target-cell
+                    (or (load-targeting/path-to-load-target pos computer-map load-target-cell)
+                        [])
+                    (or (support/compute-sail-to-load-path pos)
+                        []))
+        path-ready? (and load-target-cell
+                         (or (seq sail-path)
+                             (load-targeting/target-reached? pos load-target-cell)))]
+    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos load-target-cell))
+          failure (tc/load-plan-failure pos load-target-cell sail-path manifest path-ready?)]
       (if (and load-target-cell
-               (seq stored-manifest)
-               (seq sail-path))
+               (seq manifest)
+               path-ready?)
         (do
-          (reservations/reserve! transport-id load-target-cell stored-manifest)
+          (sa/update-world! update-in (conj pos :contents)
+                            #(-> %
+                                 (assoc :transport-mission :sail-to-load)
+                                 (assoc :load-target-cell load-target-cell
+                                        :load-manifest manifest
+                                        :load-plan-failure nil
+                                        :hold-sail-to-load-since-round nil
+                                        :loading-since-round nil
+                                        :sail-path (vec sail-path))
+                                 (dissoc :unload-target-city)))
+          (reservations/reserve! transport-id load-target-cell manifest)
           (visibility/sync-ai-unit-to-computer-map! pos)
           (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
                  :transport-mission :sail-to-load
                  :load-target-cell load-target-cell
-                 :load-manifest stored-manifest
+                 :load-manifest manifest
+                 :load-plan-failure nil
                  :sail-path (vec sail-path)))
         (do
-          (tc/enter-hold-sail-to-load! pos)
+          (tc/enter-hold-sail-to-load! pos failure)
           (get-in (sa/read-state :computer-map) (conj pos :contents)))))))
 
 (defn- launch-from-city-to-sea
@@ -193,6 +198,7 @@
       (do
         (tc/set-transport-mission pos :loading)
         (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
+        (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
         (sa/update-world! assoc-in (conj pos :contents :loading-since-round)
                           (or (sa/read-state :round-number) 0))
         (sa/update-world! assoc-in (conj pos :contents :sail-path) [])

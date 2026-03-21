@@ -46,6 +46,10 @@
   [args]
   (boolean (some #{"--log"} args)))
 
+(defn debug-dump-requested?
+  [args]
+  (boolean (some #{"--debug-dump"} args)))
+
 (def ^:private limit-code->unit-type
   {\a :army
    \b :battleship
@@ -93,6 +97,8 @@
        "  --help, -h        Print this help and exit.\n"
        "  --log             Append every computer unit once per round\n"
        "                    to a timestamped empire-units log file.\n"
+       "  --debug-dump      Write a full-map debug dump when the game\n"
+       "                    process exits for any reason.\n"
        "  --seed=N          Use N as the random seed.\n"
        "  --limits=SPEC     Cap computer production by unit code, e.g.\n"
        "                    t:8,p:4. When a cap is hit, produce army.\n"
@@ -114,6 +120,7 @@
         production-limits (some #(when (.startsWith ^String % "--limits=")
                                    (parse-production-limits (subs % 9))) args)
         log-enabled (log-requested? args)
+        debug-dump-enabled (debug-dump-requested? args)
         headless-rounds (some #(when (.startsWith ^String % "--headless=")
                                  (Long/parseLong (subs % 11))) args)
         handicap (or headless-rounds
@@ -123,6 +130,7 @@
         non-options (remove #(or (.startsWith ^String % "--seed=")
                                  (.startsWith ^String % "--limits=")
                                  (= "--log" %)
+                                 (= "--debug-dump" %)
                                  (.startsWith ^String % "--headless=")
                                  (.startsWith ^String % "--handicap="))
                             args)
@@ -147,6 +155,7 @@
      :seed seed
      :production-limits (or production-limits {})
      :log-enabled log-enabled
+     :debug-dump-enabled debug-dump-enabled
      :headless-rounds headless-rounds
      :handicap handicap
      :window-w window-w

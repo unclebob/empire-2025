@@ -82,6 +82,13 @@
       (should= "empire-units2026-03-19-120000.log"
                (sa/read-state :computer-unit-log-file)))))
 
+  (it "stores debug dump startup flags"
+    (#'quil-core/initialize-startup-state!
+     {:cols 80 :rows 40 :handicap 12 :debug-dump-enabled true}
+     12345)
+    (should (sa/read-state :debug-dump-on-exit?))
+    (should-not (sa/read-state :debug-dump-written?)))
+
 (describe "headless-progress-line"
   (it "reports explored percent and invasion state"
     (should= "Round 20 explored 50.0% invasion yes"
@@ -133,6 +140,28 @@
       (should= "Round 20 explored 50.0% invasion no\nRound 37 explored 50.0% invasion no\n"
                (with-out-str
                  (#'quil-core/run-headless! {:headless-rounds 60})))))
+
+  (it "writes a debug dump when headless exits and dumping is enabled"
+    (sa/write-state! :computer-map [[{:type :sea}]])
+    (sa/write-state! :major-invasion-state {:active? false})
+    (sa/write-state! :debug-dump-on-exit? true)
+    (let [writes (atom [])]
+      (with-redefs [empire.ui.quil.core/install-seeded-random! (fn [] nil)
+                    empire.ui.quil.core/initialize-map! (fn [] nil)
+                    empire.game.loop.core/update-player-map (fn [] nil)
+                    empire.game.loop.core/update-computer-map (fn [] nil)
+                    empire.game.loop.core/advance-game-batch (fn []
+                                                               (sa/update-state! :round-number inc)
+                                                               (when (= 2 (sa/read-state :round-number))
+                                                                 (sa/write-state! :paused true)))
+                    empire.game-mechanics.debug.dump/write-full-dump! (fn []
+                                                                        (swap! writes conj :dump)
+                                                                        "debug-headless.txt")]
+        (should-contain "Debug log written: debug-headless.txt"
+                        (with-out-str
+                          (#'quil-core/run-headless! {:headless-rounds 10})))
+        (should= [:dump] @writes)
+        (should (sa/read-state :debug-dump-written?)))))
 
   (it "keeps major invasion probe stopping disabled while running headless"
     (let [observed-stop-flags (atom [])]

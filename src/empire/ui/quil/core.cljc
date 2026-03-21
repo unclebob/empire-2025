@@ -4,6 +4,7 @@
             [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
             [empire.game.initialization :as init]
+            [empire.game-mechanics.debug.dump :as debug-dump]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
             [empire.ui.quil.rendering.messages :as render-messages]
@@ -13,6 +14,11 @@
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]
             [quil.middleware :as m]))
+
+(defonce ^:private debug-dump-hook-installed? (atom false))
+
+(declare maybe-write-debug-dump-on-exit!)
+(declare install-debug-dump-shutdown-hook!)
 
 (defn create-fonts
   "Creates and caches font objects."
@@ -124,6 +130,7 @@
   state)
 
 (defn on-close [_]
+  (maybe-write-debug-dump-on-exit!)
   (q/no-loop)
   (q/exit)
   (println "Empire closed.")
@@ -151,7 +158,7 @@
       (print-map-size-error-and-exit! e))))
 
 (defn- initialize-startup-state!
-  [{:keys [cols rows handicap log-enabled production-limits]} effective-seed]
+  [{:keys [cols rows handicap log-enabled debug-dump-enabled production-limits]} effective-seed]
   (sa/write-state! :random-seed effective-seed)
   (sa/write-state! :map-size [cols rows])
   (sa/write-state! :map-size-constants (config/compute-size-constants cols rows))
@@ -161,6 +168,8 @@
   (sa/write-state! :computer-unit-log-file
                    (when log-enabled
                      (util-core/unit-log-filename)))
+  (sa/write-state! :debug-dump-on-exit? (boolean debug-dump-enabled))
+  (sa/write-state! :debug-dump-written? false)
   (sa/write-state! :headless-mode? false)
   (sa/write-state! :headless-stop-on-major-invasion? false)
   (sa/write-state! :major-invasion-probe-hit? false))
@@ -210,13 +219,15 @@
         (do
           (maybe-print-final-headless-progress! last-reported-round)
           (sa/write-state! :headless-mode? false)
-          (sa/write-state! :headless-stop-on-major-invasion? false))
+          (sa/write-state! :headless-stop-on-major-invasion? false)
+          (maybe-write-debug-dump-on-exit!))
 
         (sa/read-state :paused)
         (do
           (maybe-print-final-headless-progress! last-reported-round)
           (sa/write-state! :headless-mode? false)
-          (sa/write-state! :headless-stop-on-major-invasion? false))
+          (sa/write-state! :headless-stop-on-major-invasion? false)
+          (maybe-write-debug-dump-on-exit!))
 
         :else
         (do
@@ -261,6 +272,7 @@
               (parse-startup-config args screen-w screen-h)))]
       (let [effective-seed (or seed (System/currentTimeMillis))]
         (initialize-startup-state! startup effective-seed)
+        (install-debug-dump-shutdown-hook!)
         (println (format "empire has begun. Map size: [%d %d], seed: %d" cols rows effective-seed))
         (if headless?
           (run-headless! startup)
@@ -269,3 +281,20 @@
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T15:31:25.375489-05:00", :module-hash "820525299", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "-182943859"} {:id "defn/create-fonts", :kind "defn", :line 16, :end-line 20, :hash "1956119937"} {:id "defn/setup", :kind "defn", :line 22, :end-line 38, :hash "-470041702"} {:id "defn/update-state", :kind "defn", :line 40, :end-line 47, :hash "476676615"} {:id "defn/draw-state", :kind "defn", :line 49, :end-line 61, :hash "-52211456"} {:id "defn-/normalize-key", :kind "defn-", :line 63, :end-line 70, :hash "-1064835850"} {:id "defn-/remember-key!", :kind "defn-", :line 72, :end-line 76, :hash "-236905863"} {:id "defn/key-pressed", :kind "defn", :line 78, :end-line 84, :hash "-1203340287"} {:id "defn-/get-modifiers", :kind "defn-", :line 86, :end-line 92, :hash "808258936"} {:id "defn/mouse-pressed", :kind "defn", :line 94, :end-line 103, :hash "-624125753"} {:id "defn/mouse-dragged", :kind "defn", :line 105, :end-line 107, :hash "1314545681"} {:id "defn/mouse-released", :kind "defn", :line 109, :end-line 111, :hash "206586691"} {:id "defn/on-close", :kind "defn", :line 113, :end-line 117, :hash "1221335354"} {:id "defn-/screen-dimensions", :kind "defn-", :line 119, :end-line 121, :hash "1572516113"} {:id "form/14/declare", :kind "declare", :line 123, :end-line 123, :hash "2146718225"} {:id "defn-/print-map-size-error-and-exit!", :kind "defn-", :line 124, :end-line 131, :hash "1515084806"} {:id "defn-/parse-startup-config", :kind "defn-", :line 133, :end-line 138, :hash "-1190224892"} {:id "defn-/initialize-startup-state!", :kind "defn-", :line 140, :end-line 147, :hash "-419380522"} {:id "defn-/start-sketch!", :kind "defn-", :line 149, :end-line 165, :hash "-347673216"} {:id "defn/-main", :kind "defn", :line 167, :end-line 176, :hash "871102357"}]}
 ;; clj-mutate-manifest-end
+(defn- maybe-write-debug-dump-on-exit!
+  []
+  (when (and (sa/read-state :debug-dump-on-exit?)
+             (not (sa/read-state :debug-dump-written?))
+             (seq (sa/read-state :map-size)))
+    (let [filename (debug-dump/write-full-dump!)]
+      (sa/write-state! :debug-dump-written? true)
+      (println (str "Debug log written: " filename))
+      filename)))
+
+(defn- install-debug-dump-shutdown-hook!
+  []
+  (when (and (sa/read-state :debug-dump-on-exit?)
+             (compare-and-set! debug-dump-hook-installed? false true))
+    (.addShutdownHook
+     (Runtime/getRuntime)
+     (Thread. ^Runnable (fn [] (maybe-write-debug-dump-on-exit!))))))

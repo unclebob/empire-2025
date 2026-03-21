@@ -101,23 +101,28 @@
                           computer-map
                           {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
                            :reserved-army-ids (reservations/reserved-army-ids transport-id)})
-        sail-path (or (when load-target-cell
-                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
-                      (sailing-path/compute-sail-to-load-path pos computer-map)
-                      [])]
-    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))
+        sail-path (if load-target-cell
+                    (or (load-targeting/path-to-load-target pos computer-map load-target-cell)
+                        [])
+                    (or (sailing-path/compute-sail-to-load-path pos computer-map)
+                        []))
+        path-ready? (and load-target-cell
+                         (or (seq sail-path)
+                             (load-targeting/target-reached? pos load-target-cell)))]
+    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos load-target-cell))
           stored-manifest (when (seq manifest) manifest)]
       (tc/set-transport-mission pos :sail-to-load)
       (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
       (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
       (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+      (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
       (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
       (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
       (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
       (sa/update-world! assoc-in (conj pos :contents :load-manifest) stored-manifest)
       (when (and load-target-cell
                  (seq stored-manifest)
-                 (seq sail-path))
+                 path-ready?)
         (reservations/reserve! transport-id
                                load-target-cell
                                stored-manifest))

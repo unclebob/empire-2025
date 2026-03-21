@@ -108,7 +108,7 @@
         :load-adjacent-armies (fn [_] nil)
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [& _] (reset! called :start-sailing))
-        :loading-crawl-move (fn [_] nil)
+        :coastal-crawl-move (fn [_] nil)
         :transition-to-loading (fn [pos] (reset! called [:transition pos]))}
        [0 0])
       (should= [:transition [0 0]] @called)))

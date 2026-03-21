@@ -23,6 +23,7 @@ Options:
 - `--limits=SPEC` caps selected computer-produced unit types by live count. `SPEC` is a comma-separated list like `t:10,p:10`. Supported codes are `a` army, `b` battleship, `c` carrier, `d` destroyer, `f` fighter, `p` patrol-boat, `s` submarine, `t` transport, `v` satellite. When the AI chooses a capped unit type whose limit has been reached, it produces an army instead.
 - `--headless=N` runs the real game loop without opening the UI, gives the computer a handicap of `N`, exits only on game over or round `N`, and prints a one-line progress report every 20 rounds showing computer-map exploration and whether a major invasion is active. Major invasion detection is reported in the progress line, but does not end the run.
 - `--log` appends every computer unit once per round to a timestamped `empire-units<timestamp>.log` file.
+- `--debug-dump` writes a full-map `debug-<timestamp>.txt` dump when the process exits.
 - `--handicap=N` lets the computer play `N` full rounds before the player gets the first turn. The default is `50`.
 
 The optional `cols` and `rows` arguments specify the map size. The default is 100 columns by 60 rows. If the specified size exceeds your monitor's dimensions, the game will display the maximum allowable size and exit.
@@ -36,6 +37,7 @@ Examples:
     clj -M:run --limits=t:10,p:10       # Cap computer transport/patrol-boat production
     clj -M:run --headless=400           # Run headlessly for up to 400 rounds
     clj -M:run --headless=400 --log     # Run headlessly and log computer units each round
+    clj -M:run --headless=400 --debug-dump
     clj -M:run --headless=400 --limits=t:10,p:10 --log
                                          # Headless run with production caps and logging
     clj -M:run --handicap=0 80 50       # Smaller 80x50 map, no handicap
@@ -318,7 +320,14 @@ The debug log contains:
 - Recent game actions (last 50)
 - Units in coastline-follow mode
 - Player unit movement history (last 20 rounds)
+- Transport load manifests, load-plan failures, and reservation registry state
 - Full cell data for the selected region from all three maps (game-map, player-map, computer-map)
+
+You can also request a full-map debug dump automatically on exit:
+```
+clj -M:run --debug-dump
+clj -M:run --headless=300 --limits=t:10,p:10 --log --debug-dump
+```
 
 ---
 

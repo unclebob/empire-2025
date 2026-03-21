@@ -78,8 +78,9 @@
        (not= :move-to-coast-for-invasion (:mode unit))))
 
 (defn- returning-load-target
-  [transport-pos]
-  (get-in (sa/read-state :computer-map) (conj transport-pos :contents :load-target-cell)))
+  [transport-pos target]
+  (or target
+      (get-in (sa/read-state :computer-map) (conj transport-pos :contents :load-target-cell))))
 
 (defn- load-target-staging-armies
   [transport-id target]
@@ -130,14 +131,16 @@
     (assign-staging-armies! pos)))
 
 (defn assign-returning-transport-staging-at!
-  [transport-pos]
+  ([transport-pos]
+   (assign-returning-transport-staging-at! transport-pos nil))
+  ([transport-pos target]
   (let [transport-id (get-in (sa/read-state :computer-map)
                              (conj transport-pos :contents :transport-id))]
-    (if-let [target (returning-load-target transport-pos)]
+    (if-let [target (returning-load-target transport-pos target)]
       (assign-load-target-staging-armies! transport-id target)
-    (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
-      (assign-staging-armies! anchor)
-      []))))
+      (when-let [anchor (staging-anchor-for-sail-to-load transport-pos)]
+        (assign-staging-armies! anchor)
+        [])))))
 
 (defn assign-returning-transport-staging!
   []

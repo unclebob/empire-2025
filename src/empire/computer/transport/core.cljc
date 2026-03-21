@@ -43,8 +43,25 @@
 
 (def hold-sail-to-load-rounds 5)
 
+(defn load-plan-failure
+  ([pos load-target-cell sail-path manifest]
+   (load-plan-failure pos load-target-cell sail-path manifest (seq sail-path)))
+  ([pos load-target-cell sail-path manifest path-ready?]
+  (let [reasons (cond-> []
+                  (nil? load-target-cell) (conj :no-load-target)
+                  (empty? manifest) (conj :no-manifest)
+                  (not path-ready?) (conj :no-sail-path))]
+    {:round (or (sa/read-state :round-number) 0)
+     :at pos
+     :reasons reasons
+     :load-target-cell load-target-cell
+     :manifest-count (count manifest)
+     :sail-path-length (count sail-path)})))
+
 (defn enter-hold-sail-to-load!
-  [pos]
+  ([pos]
+   (enter-hold-sail-to-load! pos nil))
+  ([pos failure]
   (sa/update-world! update-in
                     (conj pos :contents)
                     #(-> %
@@ -53,9 +70,10 @@
                                 :load-target-cell nil
                                 :load-manifest nil
                                 :loading-since-round nil
-                                :sail-path [])
+                                :sail-path []
+                                :load-plan-failure failure)
                          (dissoc :unload-target-city)))
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn release-hold-sail-to-load!
   [pos]
@@ -67,7 +85,8 @@
                                 :load-target-cell nil
                                 :load-manifest nil
                                 :loading-since-round nil
-                                :sail-path [])
+                                :sail-path []
+                                :load-plan-failure nil)
                          (dissoc :unload-target-city)))
   (visibility/sync-ai-unit-to-computer-map! pos))
 
