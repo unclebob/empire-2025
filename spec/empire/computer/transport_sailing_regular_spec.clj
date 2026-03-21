@@ -95,6 +95,28 @@
       (should= [41 42] (:load-manifest transport))
       (should-be-nil (:load-plan-failure transport))))
 
+  (it "hold-sail-to-load opportunistically loads and sails out when full"
+    (test-utils/set-test-state! :round-number 20)
+    (set-test-world! [[{:type :land
+                        :contents {:type :army :owner :computer :hits 1 :computer-unit-id 7}}
+                       {:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :transport-id 7
+                                   :transport-mission :hold-sail-to-load
+                                   :army-count 5
+                                   :hold-sail-to-load-since-round 18}}]
+                      [{:type :sea} {:type :sea}]
+                      [{:type :sea} {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.sailing-support/compute-sail-to-unload-path (constantly [[1 1] [2 1]])]
+      (regular/process-sailing-mission [0 1]))
+    (let [transport (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
+      (should= :sail-to-unload (:transport-mission transport))
+      (should= 6 (:army-count transport))
+      (should= [[1 1] [2 1]] (:sail-path transport))
+      (should-be-nil (:hold-sail-to-load-since-round transport))))
+
   (it "switches to unloading when adjacent unclaimed land exists"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
                                               :transport-mission :sail-to-unload

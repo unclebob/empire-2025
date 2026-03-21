@@ -1,0 +1,21 @@
+; Transport hold loading
+;
+; Hold-sail-to-load transports can still opportunistically board adjacent armies.
+
+;===============================================================
+; Hold-sail-to-load transport boards an adjacent army.
+;===============================================================
+GIVEN game map
+  #a#
+  ~t~
+  ~~~
+GIVEN computer map
+  #a#
+  ~t~
+  ~~~
+GIVEN t has transport-mission hold-sail-to-load.
+GIVEN t has army-count 5.
+
+WHEN computer transport t is processed.
+
+THEN t has 6 armies.

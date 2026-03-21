@@ -4,6 +4,7 @@
             [empire.computer.shared.grid :as grid]
             [empire.computer.transport.core :as tc]
             [empire.computer.transport.load-targeting :as load-targeting]
+            [empire.computer.transport.loading :as loading]
             [empire.computer.transport.reservations :as reservations]
             [empire.computer.transport.sailing-path :as sailing-path]
             [empire.computer.transport.sailing-support :as support]
@@ -250,6 +251,22 @@
         :else
         (compute-and-follow-path! pos support/compute-sail-to-unload-path true)))))
 
+(defn- enter-sail-to-unload!
+  [pos transport]
+  (when-let [path (seq (support/compute-sail-to-unload-path pos))]
+    (reservations/release! (:transport-id transport))
+    (tc/set-transport-mission pos :sail-to-unload)
+    (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
+    (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+    (sa/update-world! assoc-in (conj pos :contents :load-plan-failure) nil)
+    (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
+    (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
+    (tc/mint-unload-event-id pos transport)
+    (tc/mint-unload-country-id pos)
+    (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec path))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    true))
+
 (defn- process-sail-to-load-mission
   [pos transport]
   (let [transport (if (or (:load-target-cell transport)
@@ -290,6 +307,18 @@
 (defn- follow-path-action
   [pos sail-path]
   (sail-follow-path pos sail-path true))
+
+(defn- process-hold-sail-to-load-mission
+  [pos transport]
+  (loading/load-adjacent-armies pos)
+  (let [transport' (get-in (sa/read-state :computer-map) (conj pos :contents))
+        army-count' (:army-count transport' 0)]
+    (cond
+      (>= army-count' 6)
+      (enter-sail-to-unload! pos transport')
+
+      (tc/hold-sail-to-load-elapsed? transport')
+      (enter-sail-to-load! pos))))
 
 (defn process-sailing-mission
   [pos]
