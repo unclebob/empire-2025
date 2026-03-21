@@ -1,0 +1,44 @@
+; Transport producer cycle
+;
+; A city that launched a transport keeps building armies until that specific
+; transport enters sail-to-unload, then returns to transport production.
+
+;===============================================================
+; Transport producer city builds armies while its latest transport is loading.
+;===============================================================
+GIVEN game map
+  X~taaaaaa
+GIVEN X belongs to country 1.
+GIVEN t belongs to country 1.
+GIVEN a1 belongs to country 1.
+GIVEN a2 belongs to country 1.
+GIVEN a3 belongs to country 1.
+GIVEN a4 belongs to country 1.
+GIVEN a5 belongs to country 1.
+GIVEN a6 belongs to country 1.
+GIVEN t has produced-at [0 0].
+GIVEN t has transport-mission loading.
+
+WHEN the computer chooses production at X.
+
+THEN production at X is army.
+
+;===============================================================
+; Transport producer city builds the next transport once the last one sails out.
+;===============================================================
+GIVEN game map
+  X~taaaaaa
+GIVEN X belongs to country 1.
+GIVEN t belongs to country 1.
+GIVEN a1 belongs to country 1.
+GIVEN a2 belongs to country 1.
+GIVEN a3 belongs to country 1.
+GIVEN a4 belongs to country 1.
+GIVEN a5 belongs to country 1.
+GIVEN a6 belongs to country 1.
+GIVEN t has produced-at [0 0].
+GIVEN t has transport-mission sail-to-unload.
+
+WHEN the computer chooses production at X.
+
+THEN production at X is transport.

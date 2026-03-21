@@ -180,4 +180,16 @@
                                  :else {:type :sea})]))]
       (should= [[1 0] [2 0] [3 0]]
                (pathfinding-bfs/bfs-to-coast-target
-                [0 0] computer-map 0)))))
+                [0 0] computer-map 0))))
+
+  (it "rejects unload targets reachable by land from shore next to the transport"
+    (let [computer-map (build-test-map ["####~~"
+                                        "##~~~~"
+                                        "####~~"
+                                        "~~~~~~"
+                                        "~~~~O#"
+                                        "~~~~##"])
+          path (pathfinding-bfs/bfs-to-coast-target [2 1] computer-map 6)]
+      (should-not-be-nil path)
+      (should= [3 1] (first path))
+      (should= [5 3] (last path)))))

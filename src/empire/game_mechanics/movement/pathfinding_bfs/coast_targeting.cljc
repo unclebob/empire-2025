@@ -61,6 +61,24 @@
       (and (= :city (:type cell))
            (= :computer (:city-status cell)))))
 
+(defn- land-or-city?
+  [cell]
+  (contains? #{:land :city} (:type cell)))
+
+(defn- adjacent-cells
+  [pos computer-map pred]
+  (let [[x y] pos
+        height (count computer-map)
+        width (count (first computer-map))]
+    (for [[dx dy] map-utils/neighbor-offsets
+          :let [nx (+ x dx)
+                ny (+ y dy)
+                neighbor [nx ny]]
+          :when (and (>= nx 0) (< nx height)
+                     (>= ny 0) (< ny width)
+                     (pred (get-in computer-map neighbor)))]
+      neighbor)))
+
 (defn- adjacent-to-land-kind?
   [pos computer-map pred]
   (let [[x y] pos
@@ -73,6 +91,24 @@
                    (>= ny 0) (< ny width)
                    (pred (get-in computer-map [nx ny])))))
           map-utils/neighbor-offsets)))
+
+(defn- land-reachable-from-adjacent
+  [start computer-map]
+  (let [starts (vec (adjacent-cells start computer-map land-or-city?))]
+    (loop [queue (reduce conj clojure.lang.PersistentQueue/EMPTY starts)
+           visited (set starts)]
+      (if (empty? queue)
+        visited
+        (let [current (peek queue)
+              neighbors (remove visited
+                                (adjacent-cells current computer-map land-or-city?))]
+          (recur (reduce conj (pop queue) neighbors)
+                 (into visited neighbors)))))))
+
+(defn- adjacent-unclaimed-land-reachable?
+  [pos computer-map reachable-land]
+  (some reachable-land
+        (adjacent-cells pos computer-map unclaimed-land?)))
 
 (defn- outside-radius?
   [start pos radius]
@@ -185,9 +221,11 @@
   "Loaded transports seek the nearest reachable sea cell adjacent to unclaimed land.
    If none exists, they fall back to the nearest reachable unexplored coast."
   [start computer-map]
-  (or (bfs-to-adjacent-target start computer-map
-                              #(adjacent-to-land-kind? % computer-map unclaimed-land?))
-      (exploration/bfs-to-unexplored-coast start computer-map)))
+  (let [reachable-land (land-reachable-from-adjacent start computer-map)]
+    (or (bfs-to-adjacent-target start computer-map
+                                #(and (adjacent-to-land-kind? % computer-map unclaimed-land?)
+                                      (not (adjacent-unclaimed-land-reachable? % computer-map reachable-land))))
+        (exploration/bfs-to-unexplored-coast start computer-map))))
 
 (defn bfs-to-load-target
   "Empty transports seek a reachable sea cell adjacent to claimed land.

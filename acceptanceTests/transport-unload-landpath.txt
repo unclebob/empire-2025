@@ -1,0 +1,32 @@
+; Transport unload target rejection
+;
+; A sail-to-unload path should not target coast that is already reachable
+; by land from the cells next to the transport.
+
+;===============================================================
+; Loaded transport rejects same-landmass unload coast.
+;===============================================================
+GIVEN game map
+  ##X####~~
+  ##t~~~~~~
+  ##X####~~
+  ~~~~~~~~~
+  ~~~~~O###
+  ~~~~~####
+GIVEN computer map
+  ##X####~~
+  ##t~~~~~~
+  ##X####~~
+  ~~~~~~~~~
+  ~~~~~O###
+  ~~~~~####
+GIVEN X1 belongs to country 1.
+GIVEN X2 belongs to country 1.
+GIVEN territory around X1 belongs to country 1.
+GIVEN territory around X2 belongs to country 1.
+GIVEN t has 6 armies.
+GIVEN t has transport-mission sail-to-unload.
+
+WHEN computer transport t is processed.
+
+THEN t is at [3 1].

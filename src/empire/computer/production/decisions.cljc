@@ -31,6 +31,26 @@
   (and (= city-pos (get (sa/read-state :last-transport-city) country-id))
        (stats/country-has-other-coastal-city? city-pos country-id)))
 
+(defn- produced-transport-at
+  [city-pos]
+  (let [computer-map (sa/read-state :computer-map)]
+    (last
+     (sort-by :transport-id
+              (for [x (range (count computer-map))
+                    y (range (count (first computer-map)))
+                    :let [unit (:contents (get-in computer-map [x y]))]
+                    :when (and (= :transport (:type unit))
+                               (= :computer (:owner unit))
+                               (= city-pos (:produced-at unit)))]
+                unit)))))
+
+(defn- next-produced-transport-cycle-item
+  [city-pos]
+  (when-let [transport (produced-transport-at city-pos)]
+    (if (= :sail-to-unload (:transport-mission transport))
+      :transport
+      :army)))
+
 (defn- should-produce-transport? [city-pos country-id coastal?]
   (when (and coastal?
              (>= (stats/count-country-armies country-id) config/armies-before-transport)
@@ -74,12 +94,13 @@
 
 (defn- decide-country-production
   [city-pos country-id coastal? unit-counts]
-  (selection/country-production-choice
-   {:transport (should-produce-transport? city-pos country-id coastal?)
-    :army (when (should-produce-army? country-id) :army)
-    :patrol-boat (when (should-produce-patrol-boat? country-id coastal?) :patrol-boat)
-    :destroyer (when (should-produce-destroyer? city-pos country-id coastal? unit-counts) :destroyer)
-    :fighter (should-produce-fighter?)}))
+  (or (next-produced-transport-cycle-item city-pos)
+      (selection/country-production-choice
+       {:transport (should-produce-transport? city-pos country-id coastal?)
+        :army (when (should-produce-army? country-id) :army)
+        :patrol-boat (when (should-produce-patrol-boat? country-id coastal?) :patrol-boat)
+        :destroyer (when (should-produce-destroyer? city-pos country-id coastal? unit-counts) :destroyer)
+        :fighter (should-produce-fighter?)})))
 
 (defn- count-carrier-producers []
   (count (filter (fn [[_coords prod]]
@@ -141,7 +162,8 @@
         unit-counts (stats/count-computer-units)]
     (apply-production-limit
      (selection/production-choice
-      {:override (kamikazee/invasion-production-override city-pos)
+      {:override (or (kamikazee/invasion-production-override city-pos)
+                     (next-produced-transport-cycle-item city-pos))
        :opening (opening-production city-pos)
        :country-choice (when country-id
                          (or (decide-country-production city-pos country-id coastal? unit-counts)
