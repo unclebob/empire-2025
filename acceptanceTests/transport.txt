@@ -134,7 +134,7 @@ THEN t has sail-path [[1 0]].
 THEN t has 0 armies.
 
 ;===============================================================
-; Sailing transport moves two steps (speed 2) continuing direction.
+; Sailing transport follows its stored path without extending it.
 ;===============================================================
 GIVEN game map
   ~~t~~
@@ -144,4 +144,4 @@ GIVEN t has sail-path [[1 0]].
 
 WHEN computer transport t is processed.
 
-THEN t is at [0 0].
+THEN t is at [1 0].

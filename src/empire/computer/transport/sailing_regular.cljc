@@ -123,10 +123,8 @@
   (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- next-sail-step
-  [previous-pos current-pos sail-path]
-  (or (first sail-path)
-      (when previous-pos
-        (sailing-path/continue-pos (sa/read-state :computer-map) previous-pos current-pos))))
+  [_previous-pos _current-pos sail-path]
+  (first sail-path))
 
 (defn- remaining-sail-path
   [sail-path]
@@ -242,11 +240,11 @@
         city-cell?
         (handle-launch-and-follow! pos transport support/compute-sail-to-unload-path true)
 
-        (adjacent-claimed-land? pos)
-        (compute-and-follow-path! pos support/compute-sail-to-unload-path true)
-
         (seq sail-path)
         (sail-follow-path pos sail-path true)
+
+        (adjacent-claimed-land? pos)
+        (compute-and-follow-path! pos support/compute-sail-to-unload-path true)
 
         :else
         (compute-and-follow-path! pos support/compute-sail-to-unload-path true)))))

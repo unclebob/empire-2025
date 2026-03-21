@@ -144,6 +144,44 @@
       (should= [1 0]
                (regular/process-sailing-mission [0 0]))))
 
+  (it "sail-to-unload follows the stored path before reconsidering adjacent claimed land"
+    (set-test-world! [[{:type :sea} {:type :sea} {:type :sea}]
+                      [{:type :sea} {:type :sea} {:type :sea}]
+                      [{:type :land :country-id 1}
+                       {:type :sea
+                        :contents {:type :transport :owner :computer
+                                   :transport-mission :sail-to-unload
+                                   :army-count 2
+                                   :sail-path [[1 1]]}}
+                       {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.transport.sailing-support/compute-sail-to-unload-path (constantly [[0 1]])
+                  empire.computer.shared.action-resolution/move-unit-to (fn [_ _] true)
+                  empire.computer.transport.sailing-support/update-cell-visibility! (fn [& _])
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.state.api/update-world! (fn [& _])]
+      (should= [1 1]
+               (regular/process-sailing-mission [1 2]))))
+
+  (it "sail-to-unload does not extrapolate past the stored path"
+    (set-test-world! [[{:type :sea} {:type :sea} {:type :sea}]
+                      [{:type :sea}
+                       {:type :sea
+                        :contents {:type :transport :owner :computer
+                                   :transport-mission :sail-to-unload
+                                   :army-count 2
+                                   :sail-path [[1 0]]}}
+                       {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.unloading/try-opportunistic-unload (constantly false)
+                  empire.computer.shared.action-resolution/move-unit-to (fn [_ _] true)
+                  empire.computer.transport.sailing-support/update-cell-visibility! (fn [& _])
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map! (fn [& _])
+                  empire.state.api/update-world! (fn [& _])]
+      (should= [1 0]
+               (regular/process-sailing-mission [1 1]))))
+
   (it "does not launch from a city using sea visible only on game-map"
     (set-test-world! [[{:type :city :contents {:pickup-continent-pos [5 5]}} {:type :sea}]])
     (set-test-computer-map! [[{:type :city :contents {:pickup-continent-pos [5 5]}} nil]])

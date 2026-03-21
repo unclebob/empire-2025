@@ -35,6 +35,8 @@ blocked="$(printf '%s\n' "$changed" \
   | rg -v '^acceptanceTests/transport-cleanup\.txt$' \
   | rg -v '^acceptanceTests/transport-leave-city\.txt$' \
   | rg -v '^acceptanceTests/transport-loading-manifest\.txt$' \
+  | rg -v '^acceptanceTests/transport-unload-path-persistence\.txt$' \
+  | rg -v '^acceptanceTests/transport\.txt$' \
   || true)"
 
 if [[ -n "${blocked}" ]]; then

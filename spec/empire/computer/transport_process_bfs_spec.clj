@@ -163,11 +163,11 @@
                     (for [c (range 3) r (range 2)] [c r]))]
         (should= 0 (:army-count t)))))
 
-  (context "continue-pos sailing"
-    (it "sailing with 1-element sail-path continues direction for second step"
+  (context "stored-path sailing"
+    (it "sailing with 1-element sail-path stops at the stored step"
       ;; ~~~   row 0
       ;; t~~   transport at [0,0], sail-path [[1,0]]
-      ;; ~~~   row 2 — continue-pos should put transport at [2,0]
+      ;; ~~~   row 2 — transport should stop at [1,0]
       (set-test-world! (build-test-map ["~~~"
                                                "t~~"
                                                "~~~"]))
@@ -178,8 +178,7 @@
               :sail-path [[1 0]]})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 0])
-      ;; Should have moved to [1,0] then continued to [2,0]
-      (should= :transport (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))))
+      (should= :transport (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))))
 
   (context "sailing blocked retreat"
     (it "sailing transport blocked by player unit retreats"

@@ -1,0 +1,27 @@
+; Transport unload path persistence
+;
+; Loaded transports should follow their stored unload path without repathing
+; while the path still exists.
+
+;===============================================================
+; Sailing-to-unload transport follows its stored path before repathing.
+;===============================================================
+GIVEN game map
+  ~~~~~~
+  ~~~~~~
+  ~~~~~t
+  ~~~~~~
+  ~~~~##
+GIVEN computer map
+  ~~~~~~
+  ~~~~~~
+  ...~~t
+  ...~~~
+  ...~##
+GIVEN t has transport-mission sail-to-unload.
+GIVEN t has 2 armies.
+GIVEN t has sail-path [[4 2] [3 2]].
+
+WHEN computer transport t is processed.
+
+THEN t is at [3 2].
