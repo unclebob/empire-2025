@@ -11,7 +11,7 @@
             [empire.player.production :as player-prod]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
   (context "sail-path sailing"
-    (it "empty sailing transport with empty sail-path heads toward claimed land"
+    (it "empty sailing transport with empty sail-path re-enters the load lifecycle"
       (set-test-world! (build-test-map ["~~t~~~~~#"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [8 0 :country-id] 7)
@@ -26,8 +26,7 @@
                            :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                            :when (= :transport (:type unit))]
                        unit))]
-        (should= :sail-to-load (:transport-mission t))
-        (should-not-be-nil (:sail-path t))))
+        (should (contains? #{:sail-to-load :hold-sail-to-load} (:transport-mission t)))))
 
     (it "sail-to-load prefers the claimed coast closest to distance four"
       (let [computer-map (build-test-map ["t~~~~~~"

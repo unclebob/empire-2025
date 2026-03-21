@@ -170,7 +170,7 @@
       (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))))
 
   (context "sail trigger boundaries"
-    (it "transport with 4 armies and no nearby armies starts sailing"
+    (it "transport with 4 armies and no plan enters hold-sail-to-load"
       ;; ~~~   all sea
       ;; ~t~   transport at [1,1] with 4 armies, no adjacent armies
       ;; ~~~   all sea (no adjacent land = no opportunistic unload)
@@ -186,9 +186,9 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 3) r (range 3)] [c r]))]
-        (should= :sail-to-unload (:transport-mission t))))
+        (should= :hold-sail-to-load (:transport-mission t))))
 
-    (it "transport with 6 armies starts sailing even with nearby armies"
+    (it "transport with 6 armies and no plan enters hold-sail-to-load"
       ;; a###   army at [0,0], land
       ;; ~t~~   transport at [1,1] with 6 armies
       (set-test-world! (build-test-map ["a###"
@@ -202,9 +202,9 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 4) r (range 2)] [c r]))]
-        (should= :sail-to-unload (:transport-mission t))))
+        (should= :hold-sail-to-load (:transport-mission t))))
 
-    (it "transport with 3 armies stays loading"
+    (it "transport with 3 armies and no plan enters hold-sail-to-load"
       ;; ####   land at row 0
       ;; ~t~~   transport at [1,1] with 3 armies
       (set-test-world! (build-test-map ["####"
@@ -218,7 +218,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 4) r (range 2)] [c r]))]
-        (should= :loading (:transport-mission t)))))
+        (should= :hold-sail-to-load (:transport-mission t)))))
 
   (context "unloaded army properties"
     (it "unload-armies produces army with hits 1"

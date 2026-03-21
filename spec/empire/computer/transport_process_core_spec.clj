@@ -10,8 +10,8 @@
 (describe "process-transport"
   (before (reset-all-atoms!))
 
-  (context "coastal crawl loading"
-    (it "crawls along coastline adjacent to land"
+  (context "loading hold behavior"
+    (it "replans to sail-to-load instead of crawling along coastline"
       ;; ###    land at row 0
       ;; t~~    transport at [0 1]
       (set-test-world! (build-test-map ["###"
@@ -19,22 +19,20 @@
       (update-test-world! assoc-in [0 1 :contents]
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 0
+              :load-manifest []
 })
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; A short coast can backtrack on the second step, but the transport must still end the
-      ;; round in a coastal sea cell and record that it moved.
       (let [[col row transport] (first (for [c (range 3) r (range 2)
                                              :let [unit (get-in (test-utils/read-test-state :game-map)
                                                                 [c r :contents])]
                                              :when (= :transport (:type unit))]
                                          [c r unit]))]
+        (should= 0 col)
         (should= 1 row)
-        (should= :sea (get-in (test-utils/read-test-state :game-map) [col row :type]))
-        (should= :land (get-in (test-utils/read-test-state :game-map) [col 0 :type]))
-        (should (seq (:oscillation-history transport)))))
+        (should= :hold-sail-to-load (:transport-mission transport))))
 
-    (it "loading coastal crawl moves 2 cells per round (speed 2)"
+    (it "loading no longer records crawl movement while holding"
       ;; ########   land at row 0
       ;; t~~~~~~~   transport at [0,1]
       ;; Linear coast — only one direction to crawl (rightward)
@@ -42,21 +40,21 @@
                                                "t~~~~~~~"]))
       (update-test-world! assoc-in [0 1 :contents]
              {:type :transport :owner :computer
-              :transport-mission :loading :army-count 0})
+              :transport-mission :loading :army-count 0
+              :load-manifest []})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; The loading mission should execute two moves in the round. Under visibility-aware crawl
-      ;; the second move may continue east or backtrack west, but it should not stop after one hop.
-        (let [[col row transport] (first (for [c (range 8) r (range 2)
+      (let [[col row transport] (first (for [c (range 8) r (range 2)
                                              :let [unit (get-in (test-utils/read-test-state :game-map)
                                                                 [c r :contents])]
                                              :when (= :transport (:type unit))]
                                          [c r unit]))]
+        (should= 0 col)
         (should= 1 row)
-        (should (contains? #{0 2} col))
-        (should= 2 (count (:oscillation-history transport)))))
+        (should= :hold-sail-to-load (:transport-mission transport))
+        (should= 0 (count (:oscillation-history transport)))))
 
-    (it "loads army from adjacent land while crawling"
+    (it "loads army from adjacent land while holding"
       ;; a##    army at [0 0]
       ;; t~~    transport at [0 1]
       (set-test-world! (build-test-map ["a##"
@@ -77,7 +75,7 @@
         (should= 1 (:army-count transport))))
 
     (it "stays put in open sea with no adjacent land"
-      ;; Transport in open sea (no adjacent land) - no coastal targets
+      ;; Transport in open sea (no adjacent land) replans instead of walking.
       (set-test-world! [[{:type :sea} {:type :sea}]
                                [{:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :loading
@@ -181,8 +179,8 @@
 
   (context "sail-path sailing transition"
     (it "full transport enters sail-to-unload even when no unclaimed land target is visible"
-      ;; 5x5 all sea, transport at [2 1]. No visible unclaimed land target exists.
-      ;; Transport should still enter sailing mode, but it will not have a target path yet.
+      ;; 5x5 all sea, transport at [2 1]. No visible unclaimed land target exists,
+      ;; but unexplored sea still yields a valid unload path.
       (let [game-map (build-test-map ["~~~~~"
                                       "~~~~~"
                                       "~~~~~"
@@ -195,12 +193,14 @@
                               (if (< r 3) {:type :sea} nil))))))
         (update-test-world! assoc-in [2 1 :contents]
                {:type :transport :owner :computer
-                :transport-mission :loading :army-count 6})
+                :transport-mission :loading :army-count 6
+                :load-manifest []})
         (set-test-computer-map!
                 (assoc-in (test-utils/read-test-state :computer-map)
                           [2 1 :contents]
                           {:type :transport :owner :computer
-                           :transport-mission :loading :army-count 6}))
+                           :transport-mission :loading :army-count 6
+                           :load-manifest []}))
         (transport/process-transport [2 1])
         (let [t (:contents (get-in (test-utils/read-test-state :game-map) [2 1]))]
           (should= :sail-to-unload (:transport-mission t))
@@ -219,7 +219,7 @@
                                :when (= :transport (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
                            [0 c]))
             transport (get-in (test-utils/read-test-state :game-map) (conj t-pos :contents))]
-        (should= :sail-to-load (:transport-mission transport)))))
+        (should (contains? #{:sail-to-load :hold-sail-to-load} (:transport-mission transport))))))
 
   (context "find-armies-for-invasion targeting"
     (it "targets nearest coastal army within chebyshev 6 using sea BFS"

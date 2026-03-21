@@ -43,7 +43,7 @@
           (should= [3 0] target)))))
 
   (context "idle mission fix"
-    (it "transport with idle mission transitions to loading"
+    (it "transport with idle mission transitions into the sail-to-load lifecycle"
       (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
                                                        :transport-mission :idle
                                                        :army-count 0}}
@@ -55,7 +55,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :loading (:transport-mission t)))))
+        (should (contains? #{:sail-to-load :hold-sail-to-load} (:transport-mission t))))))
 
   (context "crawl history avoidance"
     (it "unloading crawl avoids positions in crawl-history"
@@ -111,7 +111,7 @@
         (should-not-be-nil t))))
 
   (context "zero-army unloading"
-    (it "unloading transport with 0 armies transitions to sail-to-load"
+    (it "unloading transport with 0 armies re-enters the load lifecycle"
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading
@@ -119,7 +119,8 @@
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      (should= :sail-to-load (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
+      (should (contains? #{:sail-to-load :hold-sail-to-load}
+                         (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))))))
 
   (context "recently-unloaded countries"
     (it "skips army from country unloaded less than 10 rounds ago"
@@ -176,11 +177,13 @@
         (update-test-world! assoc-in [1 0 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
+                :load-manifest []
                 :country-id 1 :transport-id 1
                 :hits 1 :been-to-sea true :awake-armies 0})
         (test-utils/set-test-state! :transport-fully-loaded? false)
         (should= false (test-utils/read-test-state :transport-fully-loaded?))
-        (transport/process-transport [1 0])
+        (with-redefs [empire.computer.transport.sailing/compute-sail-path (constantly [[2 0]])]
+          (transport/process-transport [1 0]))
         (should= true (test-utils/read-test-state :transport-fully-loaded?))))
 
     (it "does not re-set when already true"
@@ -193,6 +196,7 @@
         (update-test-world! assoc-in [1 0 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
+                :load-manifest []
                 :country-id 1 :transport-id 1
                 :hits 1 :been-to-sea true :awake-armies 0})
         (transport/process-transport [1 0])
@@ -219,7 +223,7 @@
                     (for [c (range 5) r (range 3)] [c r]))]
         (should= :find-armies-for-invasion (:transport-mission t))))
 
-    (it "load-for-invasion times out empty transport back to sail-to-load"
+    (it "load-for-invasion times out empty transport back into the load lifecycle"
       (test-utils/set-test-state! :round-number 6)
       (set-test-world! (build-test-map ["~t~"
                                         "###"]))
@@ -232,7 +236,8 @@
                           :army-count 0})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 0])
-      (should= :sail-to-load (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission])))
+      (should (contains? #{:sail-to-load :hold-sail-to-load}
+                         (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-mission]))))
 
     (it "load-for-invasion with armies times out into invasion mission"
       (test-utils/set-test-state! :round-number 6)

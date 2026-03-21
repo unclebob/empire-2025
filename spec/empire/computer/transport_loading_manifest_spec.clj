@@ -44,7 +44,7 @@
         :load-adjacent-armies (fn [_] (swap! called conj :load))
         :should-start-sailing? (fn [& _] (swap! called conj :legacy-should-start) false)
         :start-sailing (fn [& _] (swap! called conj :start))
-        :loading-crawl-move (fn [_] (swap! called conj :crawl))
+        :coastal-crawl-move (fn [_] (swap! called conj :crawl))
         :transition-to-loading (fn [_] (swap! called conj :replan))}
        [0 0])
       (should= [:load] @called)))
@@ -59,12 +59,10 @@
                                                      :load-manifest nil
                                                      :loading-since-round 10}}]])
         :load-adjacent-armies (fn [_] (swap! called conj :load))
-        :should-start-sailing? (fn [& _] (swap! called conj :legacy-should-start) false)
         :start-sailing (fn [& _] (swap! called conj :start))
-        :loading-crawl-move (fn [_] (swap! called conj :crawl) :crawl)
         :transition-to-loading (fn [_] (swap! called conj :replan))}
        [0 0])
-      (should= [:load :legacy-should-start :crawl] @called)))
+      (should= [:load :replan] @called)))
 
   (it "sail-to-load with empty manifest enters hold-sail-to-load"
     (test-utils/set-test-state! :round-number 20)
@@ -164,7 +162,7 @@
         :load-adjacent-armies (fn [_] nil)
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [pos transport] (reset! called [:start pos transport]))
-        :loading-crawl-move (fn [_] :crawl)
+        :coastal-crawl-move (fn [_] :crawl)
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= [:replan [0 0]] @called)))
@@ -181,7 +179,7 @@
         :load-adjacent-armies (fn [_] nil)
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [pos transport] (reset! called [:start pos transport]))
-        :loading-crawl-move (fn [_] :crawl)
+        :coastal-crawl-move (fn [_] :crawl)
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= :start (first @called))))
@@ -199,7 +197,7 @@
         :load-adjacent-armies (fn [_] nil)
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [pos _] (reset! called [:start pos]))
-        :loading-crawl-move (fn [_] :crawl)
+        :coastal-crawl-move (fn [_] :crawl)
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= [:start [0 0]] @called)))
@@ -217,7 +215,7 @@
         :load-adjacent-armies (fn [_] nil)
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [pos _] (reset! called [:start pos]))
-        :loading-crawl-move (fn [_] :crawl)
+        :coastal-crawl-move (fn [_] :crawl)
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= [:replan [0 0]] @called)))
@@ -235,7 +233,7 @@
         :load-adjacent-armies (fn [_] nil)
         :should-start-sailing? (fn [& _] false)
         :start-sailing (fn [pos _] (reset! called [:start pos]))
-        :loading-crawl-move (fn [_] :crawl)
+        :coastal-crawl-move (fn [_] :crawl)
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= [:replan [0 0]] @called)))
@@ -254,8 +252,28 @@
     (test-utils/set-test-state! :transport-load-reservations
                                 {7 {:coastal-cell [1 0]
                                     :army-ids #{41 42}}})
-    (@#'transport/start-sailing [0 0]
-                                (get-in (test-utils/read-test-state :computer-map)
-                                        [0 0 :contents]))
+    (with-redefs [empire.computer.transport.sailing/compute-sail-path (constantly [[1 0]])]
+      (@#'transport/start-sailing [0 0]
+                                  (get-in (test-utils/read-test-state :computer-map)
+                                          [0 0 :contents])))
     (should= {}
-             (test-utils/read-test-state :transport-load-reservations))))
+             (test-utils/read-test-state :transport-load-reservations)))
+
+  (it "does not enter sail-to-unload without an unload path"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :hits 1
+                                   :transport-id 7
+                                   :army-count 4
+                                   :transport-mission :loading
+                                   :load-target-cell [1 0]
+                                   :load-manifest [41 42]}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.sailing/compute-sail-path (constantly nil)]
+      (should-be-nil
+       (@#'transport/start-sailing [0 0]
+                                   (get-in (test-utils/read-test-state :computer-map)
+                                           [0 0 :contents]))))
+    (should= :loading
+             (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission]))))

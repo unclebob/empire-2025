@@ -177,7 +177,8 @@
                                 nil))))))
         (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
-                :transport-mission :loading :army-count 6})
+                :transport-mission :loading :army-count 6
+                :load-manifest []})
         (transport/process-transport [1 1])
         (let [t (first (for [c (range 3) r (range 5)
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]

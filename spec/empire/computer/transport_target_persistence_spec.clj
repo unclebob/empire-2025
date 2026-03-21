@@ -169,12 +169,14 @@
         (update-test-world! assoc-in [2 2 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
+                :load-manifest []
 })
         (set-test-computer-map!
                 (assoc-in (test-utils/read-test-state :computer-map)
                           [2 2 :contents]
                           {:type :transport :owner :computer
-                           :transport-mission :loading :army-count 6}))
+                           :transport-mission :loading :army-count 6
+                           :load-manifest []}))
         (transport/process-transport [2 2])
         (let [t (first (for [c (range 5) r (range 5)
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -201,12 +203,14 @@
         (update-test-world! assoc-in [1 3 :contents]
                {:type :transport :owner :computer
                 :transport-mission :loading :army-count 6
+                :load-manifest []
 })
         (set-test-computer-map!
                 (assoc-in (test-utils/read-test-state :computer-map)
                           [1 3 :contents]
                           {:type :transport :owner :computer
-                           :transport-mission :loading :army-count 6}))
+                           :transport-mission :loading :army-count 6
+                           :load-manifest []}))
         (transport/process-transport [1 3])
         ;; Transport should have explored toward unexplored
         (let [t (first (for [c (range 3) r (range 5)
@@ -270,11 +274,12 @@
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 2])
-      ;; Should move toward army (no country-id, not filtered)
+      ;; Loading no longer crawls without a plan. The transport stays put and waits
+      ;; for a fresh sail-to-load plan.
       (let [transport-pos (first (for [c (range 4)
                                        :when (= :transport (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
                                    [0 c]))]
-        (should= [0 1] transport-pos)))
+        (should= [0 2] transport-pos)))
 
     (it "does not record unloaded country-id when unloading onto unclaimed land"
       (test-utils/set-test-state! :round-number 15)
@@ -307,7 +312,7 @@
               target (transport/find-unload-target pickup-continent [1 1])]
           (should= [0 2] target))))
 
-    (it "transport falls back to explore when all armies filtered"
+    (it "transport holds position when all armies are filtered"
       (test-utils/set-test-state! :round-number 10)
       (let [game-map (build-test-map ["a~a"
                                       "~t~"
@@ -325,9 +330,9 @@
                 :transport-mission :loading :army-count 0
                 :unloaded-countries {1 5}})
         (transport/process-transport [1 1])
-        (let [transport-pos (first (for [r (range 3) c (range 3)
+          (let [transport-pos (first (for [r (range 3) c (range 3)
                                          :when (= :transport (get-in (test-utils/read-test-state :game-map) [r c :contents :type]))]
                                      [r c]))]
           (should-not-be-nil transport-pos)
-          (should-not= [1 1] transport-pos)
+          (should= [1 1] transport-pos)
           (should= :sea (get-in (test-utils/read-test-state :game-map) (conj transport-pos :type))))))))

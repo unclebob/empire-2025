@@ -45,6 +45,8 @@
                          [:army-count "army-count"]
                          [:fighter-count "fighter-count"]
                          [:transport-mission "transport-mission"]
+                         [:load-manifest "load-manifest"]
+                         [:load-target-cell "load-target"]
                          [:country-id "cid"]
                          [:unload-event-id "eid"]
                          [:attack-target "atk-target"]
@@ -145,6 +147,17 @@
                      (for [r rounds]
                        (str "  Round " r ":\n"
                             (str/join "\n" (map format-computer-event-entry (get by-round r)))))))
+         "\n\n")))
+
+(defn- format-transport-reservations-section
+  []
+  (let [reservations (or (sa/read-state :transport-load-reservations) {})]
+    (str "=== Transport Load Reservations ===\n"
+         (if (empty? reservations)
+           "  (none)\n"
+           (str/join "\n"
+                     (for [[transport-id reservation] (sort-by key reservations)]
+                       (str "  " transport-id " " (pr-str reservation)))))
          "\n\n")))
 
 (defn format-movement-entry
@@ -354,6 +367,7 @@
                                 "\n\n")
         invasion-section (format-major-invasion-section)
         coastline-section (format-coastline-section)
+        reservation-section (format-transport-reservations-section)
         computer-event-section (format-computer-event-section)
         movement-section (format-movement-history-section)
         kamikazee-fighter-section (format-kamikazee-fighter-section (:game-map region-data))
@@ -364,7 +378,7 @@
                           (format-map-section "player-map" (:player-map region-data))
                           "\n"
                           (format-map-section "computer-map" (:computer-map region-data)))]
-    (str header global-state actions-section production-section invasion-section coastline-section computer-event-section movement-section kamikazee-fighter-section kamikazee-airport-section maps-section)))
+    (str header global-state actions-section production-section invasion-section coastline-section reservation-section computer-event-section movement-section kamikazee-fighter-section kamikazee-airport-section maps-section)))
 
 (defn- screen->cell
   [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]

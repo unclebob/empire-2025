@@ -77,6 +77,24 @@
       (should-contain "army-move" result)
       (should-contain ":to [1 2]" result)))
 
+  (it "contains transport reservations and load manifest details"
+    (set-test-world! [[{:type :sea
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :transport-mission :loading
+                                   :load-manifest [41 42]
+                                   :load-target-cell [3 1]}}]])
+    (set-test-player-map! [[{:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {7 {:coastal-cell [3 1]
+                                    :army-ids #{41 42}}})
+    (let [result (debug-dump/format-dump [0 0] [0 0])]
+      (should-contain "Transport Load Reservations" result)
+      (should-contain "7 {:coastal-cell [3 1], :army-ids #{41 42}}" result)
+      (should-contain "load-manifest:[41 42]" result)
+      (should-contain "load-target:[3 1]" result)))
+
   (it "contains major invasion targets and routing paths"
     (set-test-world! (build-test-map ["##" "##"]))
     (set-test-player-map! (build-test-map ["##" "##"]))

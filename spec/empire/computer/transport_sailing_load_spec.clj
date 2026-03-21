@@ -48,8 +48,10 @@
                               (if (< r 4) (get-in game-map [c r]) nil))))))
         (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
-                :transport-mission :loading :army-count 6})
-        (transport/process-transport [1 1])
+                :transport-mission :loading :army-count 6
+                :load-manifest []})
+        (with-redefs [empire.computer.transport.sailing/compute-sail-path (constantly [[1 2] [1 3]])]
+          (transport/process-transport [1 1]))
         (let [t (first (for [c (range 3) r (range 5)
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
@@ -151,7 +153,7 @@
 
 
   (context "sail threshold"
-    (it "does not sail with fewer than 4 armies"
+    (it "transport with fewer than 4 armies and no plan enters hold-sail-to-load"
       ;; Transport with 2 armies, no adjacent loadable armies.
       ;; Land has same country-id as transport to prevent opportunistic unload.
       (let [game-map (build-test-map ["###"
@@ -174,9 +176,9 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :loading (:transport-mission t)))))
+          (should= :hold-sail-to-load (:transport-mission t)))))
 
-    (it "does not sail when loadable army within 3 coastal cells"
+    (it "transport with nearby loadable army and no plan enters hold-sail-to-load"
       ;; Transport with 4 armies at [1,1]. Army at [5,0] is 3 coastal hops away.
       ;; Land has same country-id as transport to prevent opportunistic unload.
       ;; ######   row 0: land, army at col 5
@@ -199,9 +201,9 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :loading (:transport-mission t)))))
+          (should= :hold-sail-to-load (:transport-mission t)))))
 
-    (it "sails when loadable army is beyond 3 coastal cells"
+    (it "transport beyond the old coastal threshold still enters hold-sail-to-load without a plan"
       ;; Transport with 4 armies at [1,1]. Army at [6,0] is 4 coastal hops away.
       ;; Land has same country-id as transport to prevent opportunistic unload.
       (let [game-map (build-test-map ["######a"
@@ -222,6 +224,6 @@
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
                          unit))]
-          (should= :sail-to-unload (:transport-mission t))))))
+          (should= :hold-sail-to-load (:transport-mission t))))))
 
 )

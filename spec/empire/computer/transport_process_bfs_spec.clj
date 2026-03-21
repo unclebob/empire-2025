@@ -56,7 +56,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :sail-to-unload (:transport-mission t))))
+        (should= :hold-sail-to-load (:transport-mission t))))
 
     (it "4-army transport near computer fighter sails (not loadable)"
       ;; f    computer fighter at [0,0] — wrong type
@@ -71,7 +71,7 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :sail-to-unload (:transport-mission t))))
+        (should= :hold-sail-to-load (:transport-mission t))))
 
     (it "4-army transport near army with matching unload-event-id sails"
       ;; a    army at [0,0] with unload-event-id 5
@@ -88,10 +88,10 @@
                       (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
                         (when (= :transport (:type u)) u)))
                     (range 3))]
-        (should= :sail-to-unload (:transport-mission t)))))
+        (should= :hold-sail-to-load (:transport-mission t)))))
 
   (context "BFS multi-hop"
-    (it "loadable army 2 coastal hops away keeps transport loading"
+    (it "loadable army 2 coastal hops away without a plan enters hold-sail-to-load"
       ;; ##a   army at [2,0], land at [0,0],[1,0]
       ;; ##~   land at [0,1],[1,1], sea at [2,1]
       ;; ~t~   sea at [0,2], transport at [1,2], sea at [2,2]
@@ -105,12 +105,13 @@
              {:type :transport :owner :computer
               :transport-mission :loading :army-count 4})
       (transport/process-transport [1 2])
-      ;; Transport should stay loading (army within BFS range)
+      ;; Without a manifest-backed plan, the transport now leaves legacy loading and
+      ;; waits in hold-sail-to-load for a fresh plan.
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 3) r (range 3)] [c r]))]
-        (should= :loading (:transport-mission t)))))
+        (should= :hold-sail-to-load (:transport-mission t)))))
 
   (context "BFS unloadable land"
     (it "unloading transport with unloadable land nearby crawls not re-sails"

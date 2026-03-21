@@ -205,10 +205,7 @@
   [{:keys [current-world
            read-computer-map
            load-adjacent-armies
-           read-runtime-state
-           should-start-sailing?
            start-sailing
-           loading-crawl-move
            transition-to-loading]}
    pos]
   (load-adjacent-armies pos)
@@ -231,17 +228,13 @@
         (if (<= army-count' 3)
           (if empty-transport?
             (transition-to-loading pos)
-            (start-sailing pos transport'))
+          (start-sailing pos transport'))
           (transition-to-loading pos))
 
         :else nil)
 
       :else
-      (case (decisions/loading-mission-action
-             {:should-start-sailing? (should-start-sailing? pos transport' army-count')})
-        :start-sailing (start-sailing pos transport')
-        (or (loading-crawl-move pos)
-            (transition-to-loading pos))))))
+      (transition-to-loading pos))))
 
 (defn- process-unloading-with-armies
   [{:keys [current-world
@@ -337,7 +330,7 @@
 (defn fix-idle-mission
   [set-transport-mission pos mission]
   (when (or (nil? mission) (= :idle mission))
-    (set-transport-mission pos :loading)))
+    (set-transport-mission pos :sail-to-load)))
 
 (defn maybe-handle-lake-transport
   [{:keys [current-world

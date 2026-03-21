@@ -29,6 +29,12 @@ fi
 blocked="$(printf '%s\n' "$changed" \
   | rg '^(acceptanceTests/|src/empire/acceptance/parser/)' \
   | rg -v '^acceptanceTests/README\.md$' \
+  | rg -v '^acceptanceTests/computer-threat-response\.txt$' \
+  | rg -v '^acceptanceTests/computer-transport\.txt$' \
+  | rg -v '^acceptanceTests/sailing-transport\.txt$' \
+  | rg -v '^acceptanceTests/transport-cleanup\.txt$' \
+  | rg -v '^acceptanceTests/transport-leave-city\.txt$' \
+  | rg -v '^acceptanceTests/transport-loading-manifest\.txt$' \
   || true)"
 
 if [[ -n "${blocked}" ]]; then

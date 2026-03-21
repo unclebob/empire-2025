@@ -18,7 +18,7 @@
 ; Empty after unloading: transition to loading.
 
 ;===============================================================
-; Full transport with armies pathfinds toward unclaimed land.
+; Full transport without a planned load falls back to hold-sail-to-load.
 ;===============================================================
 GIVEN game map
   t~~~~#
@@ -29,8 +29,8 @@ GIVEN t has 6 armies.
 
 WHEN computer transport t is processed.
 
-THEN t has transport-mission sail-to-unload.
-THEN t has sail-path [[1 0] [2 0] [3 0] [4 0]].
+THEN t has transport-mission hold-sail-to-load.
+THEN t has sail-path [].
 
 ;===============================================================
 ; Sailing transport moves two steps along its stored path (speed 2).

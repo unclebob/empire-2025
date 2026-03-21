@@ -2,16 +2,16 @@
 ;
 ; Computer transports use a mission-based state machine:
 ;   - idle: newly created, no mission assigned yet
-;   - loading: coastal crawl along shoreline, auto-load adjacent armies
-;   - sailing: heading-based movement with reflection off borders/explored coasts
+;   - hold-sail-to-load: wait before replanning a load mission
+;   - loading: hold at a planned coastal pickup cell while armies board
+;   - sailing: compatibility alias for normal transport movement
 ;   - unloading: drop armies onto adjacent land at unexplored coast
 ;
 ; Loading details:
-;   - The transport follows the coastline (coastal crawl) while
-;     auto-loading adjacent computer armies.
-;   - When not near land, the transport explores toward the nearest
-;     unexplored coastline.
-;   - When the transport reaches 6 armies, it transitions to sailing.
+;   - The transport only enters loading with a planned manifest.
+;   - Loading transports hold position and wait for recruited armies.
+;   - If no valid loading plan exists, the transport enters hold-sail-to-load
+;     and replans later.
 ;
 ; Sailing details:
 ;   - The transport picks a random heading and sails in that direction.
@@ -23,7 +23,7 @@
 ;   - When fully emptied, the transport returns to loading.
 
 ;===============================================================
-; Idle transport transitions to sail-to-load on first processing.
+; Idle transport enters hold-sail-to-load when no valid load plan exists.
 ;===============================================================
 GIVEN game map
   t~~~
@@ -33,11 +33,11 @@ GIVEN game map
 
 WHEN a new round starts.
 
-THEN t has transport-mission sail-to-load.
-THEN t has sail-path [[1 1] [2 2] [2 3]].
+THEN t has transport-mission hold-sail-to-load.
+THEN t has sail-path [].
 
 ;===============================================================
-; Loading transport coastal-crawls along shoreline.
+; Loading transport without a plan holds position.
 ;===============================================================
 GIVEN game map
   ~~~t
@@ -49,7 +49,7 @@ GIVEN t has transport-mission loading.
 
 WHEN computer transport t is processed.
 
-THEN t is at [1 0].
+THEN t is at [3 0].
 
 ;===============================================================
 ; Loading transport stays put in open sea with no land.
@@ -65,7 +65,7 @@ WHEN a new round starts.
 THEN t is at [0 0].
 
 ;===============================================================
-; Loading transport backtracks after reaching a coastal dead end.
+; Loading transport without a plan stays put after repeated processing.
 ;===============================================================
 GIVEN game map
   t~
@@ -81,7 +81,7 @@ WHEN a new round starts.
 THEN t is at [0 0].
 
 ;===============================================================
-; Full transport switches to sailing.
+; Full transport without a planned load falls back to hold-sail-to-load.
 ;===============================================================
 GIVEN game map
   t~~~~#
@@ -92,8 +92,8 @@ GIVEN t has 6 armies.
 
 WHEN a new round starts.
 
-THEN t has transport-mission sail-to-unload.
-THEN t has sail-path [[1 0] [2 0] [3 0] [4 0]].
+THEN t has transport-mission hold-sail-to-load.
+THEN t has sail-path [].
 
 ;===============================================================
 ; Transport-producing city stages nearby armies on the coast.

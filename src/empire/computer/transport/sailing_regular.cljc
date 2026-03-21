@@ -55,16 +55,20 @@
                              (dissoc :unload-target-city)))
       (visibility/sync-ai-unit-to-computer-map! pos)
       (sa/update-world! assoc-in (conj pos :contents :load-manifest) stored-manifest)
-      (when (and load-target-cell
-                 (seq stored-manifest)
-                 (seq sail-path))
-        (reservations/reserve! transport-id load-target-cell stored-manifest))
-      (visibility/sync-ai-unit-to-computer-map! pos)
-      (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
-             :transport-mission :sail-to-load
-             :load-target-cell load-target-cell
-             :load-manifest stored-manifest
-             :sail-path (vec sail-path)))))
+      (if (and load-target-cell
+               (seq stored-manifest)
+               (seq sail-path))
+        (do
+          (reservations/reserve! transport-id load-target-cell stored-manifest)
+          (visibility/sync-ai-unit-to-computer-map! pos)
+          (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
+                 :transport-mission :sail-to-load
+                 :load-target-cell load-target-cell
+                 :load-manifest stored-manifest
+                 :sail-path (vec sail-path)))
+        (do
+          (tc/enter-hold-sail-to-load! pos)
+          (get-in (sa/read-state :computer-map) (conj pos :contents)))))))
 
 (defn- launch-from-city-to-sea
   [pos transport]
@@ -184,12 +188,16 @@
 
 (defn- transition-to-loading!
   [pos]
-  (tc/set-transport-mission pos :loading)
-  (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
-  (sa/update-world! assoc-in (conj pos :contents :loading-since-round)
-                    (or (sa/read-state :round-number) 0))
-  (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))]
+    (if (vector? (:load-manifest transport))
+      (do
+        (tc/set-transport-mission pos :loading)
+        (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
+        (sa/update-world! assoc-in (conj pos :contents :loading-since-round)
+                          (or (sa/read-state :round-number) 0))
+        (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
+        (visibility/sync-ai-unit-to-computer-map! pos))
+      (tc/enter-hold-sail-to-load! pos))))
 
 (defn- process-hold-sail-to-load-mission
   [pos transport]
@@ -280,16 +288,15 @@
 (defn process-sailing-mission
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        army-count (:army-count transport 0)
         mission (:transport-mission transport)]
     (case mission
+      :sailing (if (zero? (:army-count transport 0))
+                 (process-sail-to-load-mission pos transport)
+                 (process-sail-to-unload-mission pos transport))
       :leave-city (process-leave-city-mission pos transport)
       :hold-sail-to-load (process-hold-sail-to-load-mission pos transport)
       :sail-to-load (process-sail-to-load-mission pos transport)
       :sail-to-unload (process-sail-to-unload-mission pos transport)
-      :sailing (if (zero? army-count)
-                 (process-sail-to-load-mission pos transport)
-                 (process-sail-to-unload-mission pos transport))
       (when-let [sail-path (:sail-path transport)]
         (follow-path-action pos sail-path)))))
 

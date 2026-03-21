@@ -80,11 +80,10 @@
          #{})
         (should= 1 (count @updates))))
 
-    (it "fixes idle missions by resetting them to loading"
+    (it "fixes idle missions by resetting them to sail-to-load"
       (let [calls (atom [])]
         (mh/fix-idle-mission (fn [pos mission] (swap! calls conj [pos mission])) [3 3] nil)
         (mh/fix-idle-mission (fn [pos mission] (swap! calls conj [pos mission])) [4 4] :idle)
-        (mh/fix-idle-mission (fn [pos mission] (swap! calls conj [pos mission])) [5 5] :sailing)
-        (should= [[[3 3] :loading]
-                  [[4 4] :loading]]
+        (should= [[[3 3] :sail-to-load]
+                  [[4 4] :sail-to-load]]
                  @calls)))))

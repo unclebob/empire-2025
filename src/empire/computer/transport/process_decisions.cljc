@@ -6,19 +6,18 @@
    :load-for-invasion
    :land-locked
    :unloading
+   :sailing
    :sail-to-unload
    :leave-city
    :sail-to-load
    :hold-sail-to-load
-   :sailing
    :loading])
 
 (defn- normalize-normal-mission
   [mission _army-count]
   (case mission
-    nil :loading
-    :idle :loading
-    :sailing (if (zero? _army-count) :sail-to-load :sail-to-unload)
+    nil :sail-to-load
+    :idle :sail-to-load
     mission))
 
 (defn transport-mission-action
@@ -49,11 +48,11 @@
         :load-for-invasion :load-for-invasion
         :land-locked :land-locked
         :unloading :unloading
+        :sailing :sailing
         :sail-to-unload :sail-to-unload
         :leave-city :leave-city
         :sail-to-load :sail-to-load
         :hold-sail-to-load :hold-sail-to-load
-        :sailing :compat-sailing
         :loading :loading}
        mission))
 

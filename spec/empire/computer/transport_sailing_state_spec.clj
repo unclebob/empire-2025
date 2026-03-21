@@ -25,7 +25,8 @@
                                 nil))))))
         (update-test-world! assoc-in [0 0 :contents]
                {:type :transport :owner :computer
-                :transport-mission :loading :army-count 6})
+                :transport-mission :loading :army-count 6
+                :load-manifest []})
         (transport/process-transport [0 0])
         (let [t (first (for [c (range 6) r (range 2)
                                :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
@@ -133,13 +134,16 @@
                               (if (< r 3) (get-in game-map [c r]) nil))))))
         (update-test-world! assoc-in [1 1 :contents]
                {:type :transport :owner :computer
-                :transport-mission :loading :army-count 6})
+                :transport-mission :loading :army-count 6
+                :load-manifest []})
         (set-test-computer-map!
                 (assoc-in (test-utils/read-test-state :computer-map)
                           [1 1 :contents]
                           {:type :transport :owner :computer
-                           :transport-mission :loading :army-count 6}))
-        (transport/process-transport [1 1])
+                           :transport-mission :loading :army-count 6
+                           :load-manifest []}))
+        (with-redefs [empire.computer.transport.sailing/compute-sail-path (constantly [[1 2] [1 3]])]
+          (transport/process-transport [1 1]))
         (let [t (first (for [c (range 3) r (range 5)
                              :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                              :when (= :transport (:type unit))]
