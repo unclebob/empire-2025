@@ -77,6 +77,26 @@
         (q/ellipse center-x center-y diameter diameter)
         (q/stroke-weight 1)))))
 
+(defn- hovered-transport-path
+  [the-map]
+  (when-let [[col row :as coords] (sa/read-state :hover-cell)]
+    (when-let [cell (get-in the-map coords)]
+      (let [unit (:contents cell)]
+        (when (= :transport (:type unit))
+          (:sail-path unit))))))
+
+(defn- draw-hovered-transport-path
+  [the-map cell-w cell-h map-to-display]
+  (when (and (= :computer-map map-to-display)
+             (seq (hovered-transport-path the-map)))
+    (let [path (hovered-transport-path the-map)]
+    (q/no-fill)
+    (q/stroke 255 255 255)
+    (q/stroke-weight 3)
+    (doseq [[col row] path]
+      (q/rect (* col cell-w) (* row cell-h) cell-w cell-h))
+    (q/stroke-weight 1))))
+
 (defn draw-debug-selection-rectangle
   "Draws the debug selection rectangle if a drag is active.
    Uses screen coordinates from debug-drag-start and debug-drag-current atoms."
@@ -129,6 +149,7 @@
       (q/line (* col cell-w) 0 (* col cell-w) map-h))
     (doseq [row (range (inc rows))]
       (q/line 0 (* row cell-h) map-w (* row cell-h)))
+    (draw-hovered-transport-path the-map cell-w cell-h map-to-display)
     ;; Draw production indicators, units, and waypoints (set font once)
     (q/text-font (sa/read-state :production-char-font))
     (doseq [[_ cells] cells-by-color]

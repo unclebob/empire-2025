@@ -33,14 +33,17 @@
                                                                            "hovered")]
       (overlay/update-hover-status)
       (should= 0 (sa/read-state :load-menu-hovered))
+      (should= [1 2] (sa/read-state :hover-cell))
       (should= "hovered" (sa/read-state :hover-message)))))
 
   (it "clears hover message when the mouse is off the map"
     (sa/write-state! :load-menu-open false)
+    (sa/write-state! :hover-cell [1 2])
     (with-redefs [quil.core/mouse-x (constantly 500)
                   quil.core/mouse-y (constantly 500)
                   empire.game-mechanics.movement.map-utils/on-map? (constantly false)]
       (overlay/update-hover-status)
+      (should-be-nil (sa/read-state :hover-cell))
       (should= "" (sa/read-state :hover-message))))
 
 (describe "draw-load-menu"

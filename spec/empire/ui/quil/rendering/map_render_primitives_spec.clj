@@ -104,6 +104,54 @@
         (#'map-render/draw-attention-ring [[2 3]] 10 12 :computer-map)
         (should= [] @calls)))))
 
+(describe "draw-hovered-transport-path"
+  (before (reset-all-atoms!))
+
+  (it "draws thick white outlines for the hovered transport sail path"
+    (let [calls (atom [])]
+      (empire.state.api/write-state! :hover-cell [0 0])
+      (empire.state.api/write-state! :map-to-display :computer-map)
+      (with-redefs [q/no-fill (fn [] (swap! calls conj :no-fill))
+                    q/stroke (fn [& args] (swap! calls conj [:stroke args]))
+                    q/stroke-weight (fn [& args] (swap! calls conj [:stroke-weight args]))
+                    q/rect (fn [& args] (swap! calls conj [:rect args]))]
+        (#'map-render/draw-hovered-transport-path
+         [[{:type :sea
+            :contents {:type :transport
+                       :owner :computer
+                       :sail-path [[1 0] [1 1]]}}
+           {:type :sea}
+           {:type :sea}]
+          [{:type :sea}
+           {:type :sea}
+           {:type :sea}]]
+         10 12 :computer-map)
+        (should-contain :no-fill @calls)
+        (should-contain [:stroke [255 255 255]] @calls)
+        (should-contain [:stroke-weight [3]] @calls)
+        (should-contain [:rect [10 0 10 12]] @calls)
+        (should-contain [:rect [10 12 10 12]] @calls)
+        (should-contain [:stroke-weight [1]] @calls))))
+
+  (it "does nothing when the hovered cell is not a transport"
+    (let [calls (atom [])]
+      (empire.state.api/write-state! :hover-cell [0 0])
+      (with-redefs [q/rect (fn [& args] (swap! calls conj args))]
+        (#'map-render/draw-hovered-transport-path [[{:type :land :contents {:type :army :owner :player}}]] 10 12 :computer-map)
+        (should= [] @calls))))
+
+  (it "does not draw when a non-computer map is displayed"
+    (let [calls (atom [])]
+      (empire.state.api/write-state! :hover-cell [0 0])
+      (with-redefs [q/rect (fn [& args] (swap! calls conj args))]
+        (#'map-render/draw-hovered-transport-path
+         [[{:type :sea
+            :contents {:type :transport
+                       :owner :computer
+                       :sail-path [[1 0]]}}]]
+         10 12 :player-map)
+        (should= [] @calls)))))
+
 (describe "draw-debug-selection-rectangle"
   (before (reset-all-atoms!))
 

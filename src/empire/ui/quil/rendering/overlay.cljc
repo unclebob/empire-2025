@@ -17,15 +17,18 @@
             geom (save-load/menu-geometry (q/width) (q/height) (count files))
             idx (save-load/hovered-file-index x y geom (count files))]
         (sa/write-state! :load-menu-hovered idx)))
-    (sa/write-state! :hover-message
-                          (if (map-utils/on-map? x y)
-                            (let [coords (vec (map-utils/determine-cell-coordinates x y))
-                                  the-map (display/resolve-display-map (sa/read-state :map-to-display)
-                                                                       (sa/read-state :player-map)
-                                                                       (sa/read-state :computer-map)
-                                                                       (sa/current-world))]
-                              (display/compute-hover-message the-map (sa/read-state :production) coords))
-                            ""))))
+    (if (map-utils/on-map? x y)
+      (let [coords (vec (map-utils/determine-cell-coordinates x y))
+            the-map (display/resolve-display-map (sa/read-state :map-to-display)
+                                                 (sa/read-state :player-map)
+                                                 (sa/read-state :computer-map)
+                                                 (sa/current-world))]
+        (sa/write-state! :hover-cell coords)
+        (sa/write-state! :hover-message
+                         (display/compute-hover-message the-map (sa/read-state :production) coords)))
+      (do
+        (sa/write-state! :hover-cell nil)
+        (sa/write-state! :hover-message "")))))
 
 (defn draw-load-menu
   "Draws the load game menu overlay when open."

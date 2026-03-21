@@ -13,6 +13,7 @@
    :turn-message ""
    :turn-message-until 0
    :hover-message ""
+   :hover-cell nil
    :error-message ""
    :error-until 0
    :production-status ""
