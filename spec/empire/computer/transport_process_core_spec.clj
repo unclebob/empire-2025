@@ -207,7 +207,7 @@
           (should= [[1 2]] (:sail-path t))))))
 
   (context "mission transitions"
-    (it "transport with no mission defaults to loading"
+    (it "transport with no mission enters the sail-to-load lifecycle"
       (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
                                                        :army-count 0}}
                                 {:type :sea}
@@ -219,7 +219,7 @@
                                :when (= :transport (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
                            [0 c]))
             transport (get-in (test-utils/read-test-state :game-map) (conj t-pos :contents))]
-        (should= :loading (:transport-mission transport)))))
+        (should= :sail-to-load (:transport-mission transport)))))
 
   (context "find-armies-for-invasion targeting"
     (it "targets nearest coastal army within chebyshev 6 using sea BFS"

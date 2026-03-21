@@ -27,7 +27,7 @@
   [unit]
   (if (and (= :transport (:type unit)) (= :computer (:owner unit)))
     (let [id (next-id! :next-transport-id)]
-      (assoc unit :transport-mission :sail-to-load
+      (assoc unit :transport-mission :leave-city
                   :transport-id id
                   :army-count 0))
     unit))

@@ -26,7 +26,7 @@
                            :let [unit (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                            :when (= :transport (:type unit))]
                        unit))]
-        (should= :sailing (:transport-mission t))
+        (should= :sail-to-load (:transport-mission t))
         (should-not-be-nil (:sail-path t))))
 
     (it "sail-to-load prefers the claimed coast closest to distance four"

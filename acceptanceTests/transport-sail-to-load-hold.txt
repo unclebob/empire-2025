@@ -1,0 +1,21 @@
+; Sail-to-load hold
+;
+; Transports with no usable load plan pause before retrying sail-to-load.
+
+;===============================================================
+; Sail-to-load with an empty path enters hold.
+;===============================================================
+GIVEN game map
+  t~
+  ~~
+GIVEN computer map
+  t~
+  ~~
+GIVEN t has transport-mission sail-to-load.
+GIVEN t has load-target-cell [3 0].
+GIVEN t has sail-path [].
+
+WHEN a new round starts.
+
+THEN t is at [0 0].
+THEN t has transport-mission hold-sail-to-load.

@@ -52,6 +52,7 @@
   (tc/set-transport-mission pos :sail-to-unload)
   (sa/update-world! assoc-in (conj pos :contents :load-target-cell) nil)
   (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+  (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
   (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
   (tc/mint-unload-event-id pos transport)
   (when-not (sa/read-state :transport-fully-loaded?)
@@ -62,41 +63,13 @@
                       (conj pos :contents :sail-path) path)
     (visibility/sync-ai-unit-to-computer-map! pos)))
 
-(defn- plan-return-to-load!
-  [pos]
-  (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))
-        _ (reservations/release! transport-id)
-        computer-map (sa/read-state :computer-map)
-        load-target-cell (load-targeting/choose-load-target-cell
-                          pos
-                          computer-map
-                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
-                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
-        sail-path (or (when load-target-cell
-                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
-                      (sailing-path/compute-sail-to-load-path pos computer-map)
-                      [])]
-    (tc/set-transport-mission pos :sail-to-load)
-    (sa/update-world! update-in (conj pos :contents)
-                      #(-> %
-                           (assoc :load-target-cell load-target-cell
-                                  :load-manifest nil
-                                  :loading-since-round nil
-                                  :sail-path (vec sail-path))
-                           (dissoc :unload-target-city)))
-    (visibility/sync-ai-unit-to-computer-map! pos)
-    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
-      (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
-      (reservations/reserve! transport-id load-target-cell manifest)
-      (visibility/sync-ai-unit-to-computer-map! pos)
-      {:load-target-cell load-target-cell
-       :sail-path (vec sail-path)
-       :load-manifest manifest})))
-
 (defn- transition-to-loading
   "Switch an empty transport to the return-to-load sailing state."
   [pos]
-  (plan-return-to-load! pos))
+  (let [cell-type (get-in (sa/read-state :computer-map) (conj pos :type))]
+    (if (= :city cell-type)
+      (sailing/enter-leave-city! pos)
+      (sailing/enter-sail-to-load! pos))))
 
 (defn- load-for-invasion-start!
   [pos]
@@ -111,7 +84,7 @@
         mission (if empty? :sail-to-load :sail-to-unload)
         computer-map (sa/read-state :computer-map)]
     (if empty?
-      (plan-return-to-load! pos)
+      (transition-to-loading pos)
       (let [sail-path (or (sailing-path/compute-sail-to-unload-path pos computer-map) [])]
         (reservations/release! (:transport-id transport))
         (tc/set-transport-mission pos mission)
@@ -222,7 +195,9 @@
                                                              (sa/read-state :lake-max-cells)))
                   :unloading #(process-unloading-mission pos army-count)
                   :sail-to-unload #(sailing/process-sailing-mission pos)
+                  :leave-city #(sailing/process-sailing-mission pos)
                   :sail-to-load #(sailing/process-sailing-mission pos)
+                  :hold-sail-to-load #(sailing/process-sailing-mission pos)
                   :compat-sailing #(sailing/process-sailing-mission pos)
                   :loading #(process-loading-mission pos)}]
     (when-let [handler (get handlers handler-key)]
@@ -239,7 +214,9 @@
     (when fix-idle?
       (fix-idle-mission pos initial-mission))
     (when force-sailing?
-      (tc/set-transport-mission pos (if (zero? army-count) :sail-to-load :sail-to-unload)))
+      (if (zero? army-count)
+        (transition-to-loading pos)
+        (tc/set-transport-mission pos :sail-to-unload)))
     (let [current-mission (or (:transport-mission (get-in (sa/read-state :computer-map) (conj pos :contents)))
                               mission
                               :loading)]
@@ -315,21 +292,24 @@
     (when (and (= :transport (:type transport))
                (= :computer (:owner transport))
                (nil? (:transport-mission transport)))
-      (tc/set-transport-mission pos :loading))
-    (let [transport' (:contents (get-in (sa/read-state :computer-map) pos))]
-      (case (process-decisions/transport-process-action
-             {:transport? (= :transport (:type transport'))
-              :computer-owned? (= :computer (:owner transport'))
-              :random-walk? (do
-                              (when (and transport'
-                                         (= :computer (:owner transport'))
-                                         (= :transport (:type transport')))
-                                (maybe-enter-transport-random-walk! pos))
-                              (oscillation/in-random-walk? (get-in (sa/read-state :computer-map)
-                                                                   (conj pos :contents))))})
-        :random-walk (process-transport-random-walk pos)
-        :active (process-active-transport pos (get-in (sa/read-state :computer-map) (conj pos :contents)))
-        nil)))
+      (transition-to-loading pos))
+    (when-not (and (= :transport (:type transport))
+                   (= :computer (:owner transport))
+                   (nil? (:transport-mission transport)))
+      (let [transport' (:contents (get-in (sa/read-state :computer-map) pos))]
+        (case (process-decisions/transport-process-action
+               {:transport? (= :transport (:type transport'))
+                :computer-owned? (= :computer (:owner transport'))
+                :random-walk? (do
+                                (when (and transport'
+                                           (= :computer (:owner transport'))
+                                           (= :transport (:type transport')))
+                                  (maybe-enter-transport-random-walk! pos))
+                                (oscillation/in-random-walk? (get-in (sa/read-state :computer-map)
+                                                                     (conj pos :contents))))})
+          :random-walk (process-transport-random-walk pos)
+          :active (process-active-transport pos (get-in (sa/read-state :computer-map) (conj pos :contents)))
+          nil))))
   nil)
 
 ;; clj-mutate-manifest-begin

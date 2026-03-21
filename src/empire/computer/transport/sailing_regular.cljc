@@ -13,7 +13,22 @@
             [empire.computer.shared.world-query :as world-query]
             [empire.state.api :as sa]))
 
-(defn- initialize-load-plan!
+(defn enter-leave-city!
+  [pos]
+  (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))]
+    (reservations/release! transport-id)
+    (sa/update-world! update-in (conj pos :contents)
+                      #(-> %
+                           (assoc :transport-mission :leave-city
+                                  :load-target-cell nil
+                                  :load-manifest nil
+                                  :hold-sail-to-load-since-round nil
+                                  :loading-since-round nil
+                                  :sail-path [])
+                           (dissoc :unload-target-city)))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
+
+(defn enter-sail-to-load!
   [pos]
   (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))
         _ (reservations/release! transport-id)
@@ -27,21 +42,28 @@
                         (load-targeting/path-to-load-target pos computer-map load-target-cell))
                       (support/compute-sail-to-load-path pos)
                       [])]
-    (sa/update-world! update-in (conj pos :contents)
-                      #(-> %
-                           (assoc :load-target-cell load-target-cell
-                                  :load-manifest nil
-                                  :loading-since-round nil
-                                  :sail-path (vec sail-path))
-                           (dissoc :unload-target-city)))
-    (visibility/sync-ai-unit-to-computer-map! pos)
-    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
-      (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
-      (reservations/reserve! transport-id load-target-cell manifest)
+    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))
+          stored-manifest (when (seq manifest) manifest)]
+      (sa/update-world! update-in (conj pos :contents)
+                        #(-> %
+                             (assoc :transport-mission :sail-to-load)
+                             (assoc :load-target-cell load-target-cell
+                                    :load-manifest nil
+                                    :hold-sail-to-load-since-round nil
+                                    :loading-since-round nil
+                                    :sail-path (vec sail-path))
+                             (dissoc :unload-target-city)))
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      (sa/update-world! assoc-in (conj pos :contents :load-manifest) stored-manifest)
+      (when (and load-target-cell
+                 (seq stored-manifest)
+                 (seq sail-path))
+        (reservations/reserve! transport-id load-target-cell stored-manifest))
       (visibility/sync-ai-unit-to-computer-map! pos)
       (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
+             :transport-mission :sail-to-load
              :load-target-cell load-target-cell
-             :load-manifest manifest
+             :load-manifest stored-manifest
              :sail-path (vec sail-path)))))
 
 (defn- launch-from-city-to-sea
@@ -163,10 +185,24 @@
 (defn- transition-to-loading!
   [pos]
   (tc/set-transport-mission pos :loading)
+  (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
   (sa/update-world! assoc-in (conj pos :contents :loading-since-round)
                     (or (sa/read-state :round-number) 0))
   (sa/update-world! assoc-in (conj pos :contents :sail-path) [])
   (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn- process-hold-sail-to-load-mission
+  [pos transport]
+  (when (tc/hold-sail-to-load-elapsed? transport)
+    (enter-sail-to-load! pos)))
+
+(defn- process-leave-city-mission
+  [pos transport]
+  (let [computer-map (sa/read-state :computer-map)]
+    (if (= :city (:type (get-in computer-map pos)))
+      (when-let [sea-pos (launch-from-city-to-sea pos transport)]
+        (enter-sail-to-load! sea-pos))
+      (enter-sail-to-load! pos))))
 
 (defn- compute-and-follow-load-target-path!
   [pos transport]
@@ -206,21 +242,30 @@
                           (seq (:sail-path transport))
                           (contains? transport :load-manifest))
                     transport
-                    (initialize-load-plan! pos))
+                    (enter-sail-to-load! pos))
+        mission (:transport-mission transport)
         computer-map (sa/read-state :computer-map)
         city-cell? (= :city (:type (get-in computer-map pos)))
         sail-path (:sail-path transport)
         load-target-cell (:load-target-cell transport)]
     (cond
+      (= :hold-sail-to-load mission)
+      nil
+
+      city-cell?
+      (process-leave-city-mission pos transport)
+
       (if load-target-cell
         (load-targeting/target-reached? pos load-target-cell)
         (adjacent-claimed-land? pos))
       (transition-to-loading! pos)
 
-      city-cell?
-      (if-let [sea-pos (launch-from-city-to-sea pos transport)]
-        (compute-and-follow-load-target-path! sea-pos transport)
-        (compute-and-follow-load-target-path! pos transport))
+      (or (and (vector? (:load-manifest transport))
+               (empty? (:load-manifest transport)))
+          (empty? sail-path))
+      (do
+        (reservations/release! (:transport-id transport))
+        (tc/enter-hold-sail-to-load! pos))
 
       (seq sail-path)
       (sail-follow-path pos sail-path false)
@@ -238,6 +283,8 @@
         army-count (:army-count transport 0)
         mission (:transport-mission transport)]
     (case mission
+      :leave-city (process-leave-city-mission pos transport)
+      :hold-sail-to-load (process-hold-sail-to-load-mission pos transport)
       :sail-to-load (process-sail-to-load-mission pos transport)
       :sail-to-unload (process-sail-to-unload-mission pos transport)
       :sailing (if (zero? army-count)

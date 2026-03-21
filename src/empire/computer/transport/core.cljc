@@ -41,6 +41,42 @@
   (sa/update-world! assoc-in (conj pos :contents :transport-mission) mission)
   (visibility/sync-ai-unit-to-computer-map! pos))
 
+(def hold-sail-to-load-rounds 5)
+
+(defn enter-hold-sail-to-load!
+  [pos]
+  (sa/update-world! update-in
+                    (conj pos :contents)
+                    #(-> %
+                         (assoc :transport-mission :hold-sail-to-load
+                                :hold-sail-to-load-since-round (or (sa/read-state :round-number) 0)
+                                :load-target-cell nil
+                                :load-manifest nil
+                                :loading-since-round nil
+                                :sail-path [])
+                         (dissoc :unload-target-city)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn release-hold-sail-to-load!
+  [pos]
+  (sa/update-world! update-in
+                    (conj pos :contents)
+                    #(-> %
+                         (assoc :transport-mission :sail-to-load
+                                :hold-sail-to-load-since-round nil
+                                :load-target-cell nil
+                                :load-manifest nil
+                                :loading-since-round nil
+                                :sail-path [])
+                         (dissoc :unload-target-city)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn hold-sail-to-load-elapsed?
+  [transport]
+  (when-let [started (:hold-sail-to-load-since-round transport)]
+    (>= (- (or (sa/read-state :round-number) 0) started)
+        hold-sail-to-load-rounds)))
+
 (defn mint-unload-event-id
   [pos _transport]
   (let [id (or (sa/read-state :next-unload-event-id) 0)]

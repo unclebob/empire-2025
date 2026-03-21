@@ -7,7 +7,9 @@
    :land-locked
    :unloading
    :sail-to-unload
+   :leave-city
    :sail-to-load
+   :hold-sail-to-load
    :sailing
    :loading])
 
@@ -48,7 +50,9 @@
         :land-locked :land-locked
         :unloading :unloading
         :sail-to-unload :sail-to-unload
+        :leave-city :leave-city
         :sail-to-load :sail-to-load
+        :hold-sail-to-load :hold-sail-to-load
         :sailing :compat-sailing
         :loading :loading}
        mission))

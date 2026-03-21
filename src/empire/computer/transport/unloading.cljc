@@ -105,35 +105,24 @@
                         (load-targeting/path-to-load-target pos computer-map load-target-cell))
                       (sailing-path/compute-sail-to-load-path pos computer-map)
                       [])]
-    (if (:never-reload? transport)
-      (do
-        (tc/set-transport-mission pos :sail-to-load)
-        (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
-        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
-        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
-        (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
-        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
-          (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
+    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))
+          stored-manifest (when (seq manifest) manifest)]
+      (tc/set-transport-mission pos :sail-to-load)
+      (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
+      (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
+      (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+      (sa/update-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
+      (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
+      (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
+      (sa/update-world! assoc-in (conj pos :contents :load-manifest) stored-manifest)
+      (when (and load-target-cell
+                 (seq stored-manifest)
+                 (seq sail-path))
         (reservations/reserve! transport-id
                                load-target-cell
-                               manifest))
-        (visibility/sync-ai-unit-to-computer-map! pos)
-        nil)
-      (do
-        (tc/set-transport-mission pos :sail-to-load)
-        (sa/update-world! update-in (conj pos :contents) dissoc :unload-target-city)
-        (sa/update-world! assoc-in (conj pos :contents :load-target-cell) load-target-cell)
-        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
-        (sa/update-world! assoc-in (conj pos :contents :loading-since-round) nil)
-        (sa/update-world! assoc-in (conj pos :contents :sail-path) (vec sail-path))
-        (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos))]
-          (sa/update-world! assoc-in (conj pos :contents :load-manifest) manifest)
-        (reservations/reserve! transport-id
-                               load-target-cell
-                               manifest))
-        (visibility/sync-ai-unit-to-computer-map! pos)
-        nil))))
+                               stored-manifest))
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      nil)))
 
 (defn- unload-army-template
   [transport]

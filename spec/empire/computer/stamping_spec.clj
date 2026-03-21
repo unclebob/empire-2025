@@ -27,13 +27,13 @@
         (should-not-contain :direction stamped))))
 
   (context "transport fields"
-    (it "assigns transport-mission and transport-id to computer transports"
+    (it "assigns leave-city mission and transport-id to computer transports"
       (test-utils/set-test-state! :next-transport-id 5)
       (test-utils/set-test-state! :next-computer-unit-id 11)
       (let [unit {:type :transport :owner :computer :hits 3 :mode :awake}
             cell {:type :city :city-status :computer}
             stamped (stamping/stamp-computer-fields unit cell)]
-        (should= :sail-to-load (:transport-mission stamped))
+        (should= :leave-city (:transport-mission stamped))
         (should= 5 (:transport-id stamped))
         (should= 11 (:computer-unit-id stamped))
         (should= 0 (:army-count stamped))

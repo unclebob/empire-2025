@@ -28,6 +28,27 @@
         (should= [0 1] (@#'regular/launch-from-city-to-sea [0 0] {:pickup-continent-pos [5 5]}))
         (should= [:move [0 0] [0 1]] (nth @calls 2)))))
 
+  (it "leave-city moves a new transport out of the city and plans sail-to-load"
+    (set-test-world! [[{:type :city
+                        :city-status :computer
+                        :contents {:type :transport
+                                   :owner :computer
+                                   :transport-id 7
+                                   :transport-mission :leave-city
+                                   :army-count 0}}
+                       {:type :sea :contents nil}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [empire.computer.transport.load-targeting/choose-load-target-cell (fn [& _] [3 0])
+                  empire.computer.transport.load-targeting/path-to-load-target (fn [& _] [[1 0] [2 0] [3 0]])
+                  empire.computer.army.assignment/assign-returning-transport-staging-at! (fn [_] [41 42])]
+      (regular/process-sailing-mission [0 0]))
+    (let [transport (get-in (test-utils/read-test-state :game-map) [0 1 :contents])]
+      (should= :transport (:type transport))
+      (should= :sail-to-load (:transport-mission transport))
+      (should= [3 0] (:load-target-cell transport))
+      (should= [[1 0] [2 0] [3 0]] (:sail-path transport))
+      (should= [41 42] (:load-manifest transport)))))
+
   (it "switches to unloading when adjacent unclaimed land exists"
     (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer
                                               :transport-mission :sail-to-unload
@@ -128,4 +149,4 @@
                       [{:type :sea} {:type :sea :contents {:type :destroyer :owner :player}}]])
     (set-test-computer-map! [[{:type :sea} {:type :sea}]
                              [{:type :sea} nil]])
-    (should-not (support/enemy-ship-near-target? [0 0] 2))))
+    (should-not (support/enemy-ship-near-target? [0 0] 2)))

@@ -1,0 +1,19 @@
+; Transport leave-city
+;
+; Newly produced computer transports leave their city before entering sail-to-load.
+
+;===============================================================
+; Leave-city transport moves to coastal sea and enters sail-to-load.
+;===============================================================
+GIVEN game map
+  Xt
+  ~~
+GIVEN computer map
+  Xt
+  ~~
+GIVEN t has transport-mission leave-city.
+
+WHEN computer transport t is processed.
+
+THEN t is at [1 0].
+THEN t has transport-mission sail-to-load.

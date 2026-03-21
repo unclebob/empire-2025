@@ -86,7 +86,9 @@
       (doseq [pos [[5 0] [5 2] [6 2] [7 2] [8 2]]]
         (update-test-world! assoc-in (conj pos :country-id) 2))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (@#'transport/transition-to-loading [1 1])
+      (with-redefs [empire.computer.army.assignment/assign-returning-transport-staging-at!
+                    (fn [_] [1 2 3 4])]
+        (@#'transport/transition-to-loading [1 1]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 1 :contents])]
         (should= :sail-to-load (:transport-mission unit))
         (should= [5 0] (:load-target-cell unit))
@@ -105,6 +107,7 @@
                           :army-count 0
                           :transport-mission :sail-to-load
                           :load-target-cell [4 0]
+                          :load-manifest [99]
                           :sail-path [[2 1] [3 1] [4 1]]})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [1 1])

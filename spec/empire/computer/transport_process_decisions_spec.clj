@@ -25,5 +25,6 @@
     (should= :loading (decisions/transport-mission-handler :loading))
     (should= :compat-sailing (decisions/transport-mission-handler :sailing))
     (should= :sail-to-unload (decisions/transport-mission-handler :sail-to-unload))
+    (should= :leave-city (decisions/transport-mission-handler :leave-city))
     (should= :sail-to-load (decisions/transport-mission-handler :sail-to-load))
     (should-be-nil (decisions/transport-mission-handler :bogus))))

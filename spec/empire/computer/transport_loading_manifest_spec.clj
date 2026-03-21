@@ -10,7 +10,7 @@
 (describe "transport loading manifest"
   (before (reset-all-atoms!))
 
-  (it "newly spawned computer transport starts in sail-to-load before load planning"
+  (it "newly spawned computer transport starts in leave-city before load planning"
     (test-utils/set-test-state! :round-number 5)
     (set-test-world! [[{:type :city :city-status :computer :country-id 1}]])
     (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -19,7 +19,7 @@
     (let [unit (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
       (should= :transport (:type unit))
       (should= 0 (:army-count unit))
-      (should= :sail-to-load (:transport-mission unit))
+      (should= :leave-city (:transport-mission unit))
       (should= nil (:load-manifest unit))))
 
   (it "load-adjacent-armies removes boarded army ids from the manifest"
@@ -140,11 +140,17 @@
     (should= :hold-sail-to-load
              (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission]))
     (test-utils/set-test-state! :round-number 21)
-    (transport/process-transport [0 0])
+    (with-redefs [empire.computer.transport.sailing-regular/enter-sail-to-load! (fn [pos]
+                                                                                  (test-utils/update-test-world! assoc-in (conj pos :contents :transport-mission) :sail-to-load)
+                                                                                  (test-utils/update-test-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
+                                                                                  (test-utils/update-test-world! assoc-in (conj pos :contents :sail-path) [[1 0]])
+                                                                                  (test-utils/update-test-world! assoc-in (conj pos :contents :load-manifest) [7]))]
+      (transport/process-transport [0 0]))
     (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
       (should= :sail-to-load (:transport-mission unit))
       (should-be-nil (:hold-sail-to-load-since-round unit))
-      (should= [] (:sail-path unit))))
+      (should= [[1 0]] (:sail-path unit))
+      (should= [7] (:load-manifest unit))))
 
   (it "planned loading with empty manifest replans when still empty"
     (let [called (atom nil)]
