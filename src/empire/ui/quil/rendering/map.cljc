@@ -90,12 +90,13 @@
   (when (and (= :computer-map map-to-display)
              (seq (hovered-transport-path the-map)))
     (let [path (hovered-transport-path the-map)]
-    (q/no-fill)
-    (q/stroke 255 255 255)
-    (q/stroke-weight 3)
-    (doseq [[col row] path]
-      (q/rect (* col cell-w) (* row cell-h) cell-w cell-h))
-    (q/stroke-weight 1))))
+      (q/no-fill)
+      (q/stroke 255 255 255)
+      (q/stroke-weight 3)
+      (doseq [[col row] path]
+        (q/rect (* col cell-w) (* row cell-h) cell-w cell-h))
+      (q/stroke-weight 1)
+      (q/no-stroke))))
 
 (defn draw-debug-selection-rectangle
   "Draws the debug selection rectangle if a drag is active.

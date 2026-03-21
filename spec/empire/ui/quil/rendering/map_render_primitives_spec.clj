@@ -112,6 +112,7 @@
       (empire.state.api/write-state! :hover-cell [0 0])
       (empire.state.api/write-state! :map-to-display :computer-map)
       (with-redefs [q/no-fill (fn [] (swap! calls conj :no-fill))
+                    q/no-stroke (fn [] (swap! calls conj :no-stroke))
                     q/stroke (fn [& args] (swap! calls conj [:stroke args]))
                     q/stroke-weight (fn [& args] (swap! calls conj [:stroke-weight args]))
                     q/rect (fn [& args] (swap! calls conj [:rect args]))]
@@ -131,7 +132,8 @@
         (should-contain [:stroke-weight [3]] @calls)
         (should-contain [:rect [10 0 10 12]] @calls)
         (should-contain [:rect [10 12 10 12]] @calls)
-        (should-contain [:stroke-weight [1]] @calls))))
+        (should-contain [:stroke-weight [1]] @calls)
+        (should-contain :no-stroke @calls))))
 
   (it "does nothing when the hovered cell is not a transport"
     (let [calls (atom [])]
