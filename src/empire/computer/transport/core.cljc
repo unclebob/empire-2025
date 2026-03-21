@@ -2,6 +2,7 @@
   "Shared transport helpers — no dependencies on other transport sub-modules."
   (:require [empire.state.api :as sa]
             [empire.computer.shared.world-query :as world-query]
+            [empire.game-mechanics.debug.logging :as debug]
             [empire.game-mechanics.visibility :as visibility]))
 
 (defn get-passable-sea-neighbors
@@ -36,10 +37,24 @@
                        (and cell (#{:land :city} (:type cell)))))
                    (world-query/get-neighbors pos)))))
 
+(defn log-transport-mission-transition!
+  [pos from-mission to-mission]
+  (when (not= from-mission to-mission)
+    (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))]
+      (debug/log-computer-event! :transport-mission-transition
+                                 pos
+                                 {:from from-mission
+                                  :to to-mission
+                                  :transport-id (:transport-id transport)
+                                  :armies (:army-count transport 0)}))))
+
 (defn set-transport-mission
   [pos mission]
-  (sa/update-world! assoc-in (conj pos :contents :transport-mission) mission)
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
+    (sa/update-world! assoc-in (conj pos :contents :transport-mission) mission)
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (log-transport-mission-transition! pos from-mission mission))
+  nil)
 
 (def hold-sail-to-load-rounds 5)
 
@@ -62,6 +77,7 @@
   ([pos]
    (enter-hold-sail-to-load! pos nil))
   ([pos failure]
+  (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
   (sa/update-world! update-in
                     (conj pos :contents)
                     #(-> %
@@ -73,10 +89,12 @@
                                 :sail-path []
                                 :load-plan-failure failure)
                          (dissoc :unload-target-city)))
-  (visibility/sync-ai-unit-to-computer-map! pos)))
+  (visibility/sync-ai-unit-to-computer-map! pos)
+  (log-transport-mission-transition! pos from-mission :hold-sail-to-load))))
 
 (defn release-hold-sail-to-load!
   [pos]
+  (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
   (sa/update-world! update-in
                     (conj pos :contents)
                     #(-> %
@@ -88,7 +106,8 @@
                                 :sail-path []
                                 :load-plan-failure nil)
                          (dissoc :unload-target-city)))
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (visibility/sync-ai-unit-to-computer-map! pos)
+  (log-transport-mission-transition! pos from-mission :sail-to-load)))
 
 (defn hold-sail-to-load-elapsed?
   [transport]

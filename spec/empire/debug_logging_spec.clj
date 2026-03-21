@@ -1,5 +1,6 @@
 (ns empire.debug-logging-spec
-  (:require [empire.game-mechanics.debug.logging :as debug-logging]
+  (:require [empire.computer.transport.core :as transport-core]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.test.utils :as test-utils]
             [speclj.core :refer :all]))
 
@@ -66,4 +67,21 @@
   (it "caps computer event log at 2000 entries"
     (dotimes [i 2001]
       (debug-logging/log-computer-event! :tick [0 i] {:n i}))
-    (should= 2000 (count (test-utils/read-test-state :computer-event-log)))))
+    (should= 2000 (count (test-utils/read-test-state :computer-event-log))))
+
+  (it "records transport mission transitions"
+    (test-utils/set-test-state! :computer-map
+                                [[{:type :sea
+                                   :contents {:type :transport
+                                              :owner :computer
+                                              :transport-id 17
+                                              :army-count 3
+                                              :transport-mission :loading}}]])
+    (transport-core/log-transport-mission-transition! [0 0] :loading :unloading)
+    (let [entry (first (test-utils/read-test-state :computer-event-log))]
+      (should= :transport-mission-transition (:event entry))
+      (should= [0 0] (:pos entry))
+      (should= :loading (:from entry))
+      (should= :unloading (:to entry))
+      (should= 17 (:transport-id entry))
+      (should= 3 (:armies entry)))))

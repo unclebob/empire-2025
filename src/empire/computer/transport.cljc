@@ -97,15 +97,17 @@
 
 (defn- transition-load-for-invasion-to-unloading!
   [pos major-target]
-  (reservations/release! (get-in (sa/read-state :computer-map)
-                                 (conj pos :contents :transport-id)))
-  (sa/update-world! update-in (conj pos :contents)
-                    #(assoc % :transport-mission :unloading
-                              :load-target-cell nil
-                              :load-manifest nil
-                              :loading-since-round nil
-                              :invasion-target (or (:invasion-target %)
-                                                   major-target)))
+  (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
+    (reservations/release! (get-in (sa/read-state :computer-map)
+                                   (conj pos :contents :transport-id)))
+    (sa/update-world! update-in (conj pos :contents)
+                      #(assoc % :transport-mission :unloading
+                                :load-target-cell nil
+                                :load-manifest nil
+                                :loading-since-round nil
+                                :invasion-target (or (:invasion-target %)
+                                                     major-target)))
+    (tc/log-transport-mission-transition! pos from-mission :unloading))
   (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- mission-handler-deps

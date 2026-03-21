@@ -4,6 +4,7 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.transport.mission-handler-decisions :as handler-decisions]
             [empire.computer.transport.decisions :as decisions]
+            [empire.computer.transport.core :as tc]
             [empire.computer.transport.loading :as loading]
             [empire.computer.transport.unloading :as unloading]
             [empire.computer.threat-response-impl :as threat-response]
@@ -24,10 +25,12 @@
   ([update-game-map! read-runtime-state pos]
    (load-for-invasion-start! update-game-map! read-runtime-state noop-sync! pos))
   ([update-game-map! read-runtime-state sync-transport! pos]
-   (update-game-map! update-in (conj pos :contents)
-                     #(assoc % :transport-mission :load-for-invasion
-                               :invasion-load-since (or (read-runtime-state :round-number) 0)))
-   (sync-transport! pos)))
+   (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
+     (update-game-map! update-in (conj pos :contents)
+                       #(assoc % :transport-mission :load-for-invasion
+                                 :invasion-load-since (or (read-runtime-state :round-number) 0)))
+     (sync-transport! pos)
+     (tc/log-transport-mission-transition! pos from-mission :load-for-invasion))))
 
 (defn- loadable-army-neighbor?
   [world get-neighbors transport-pos]
@@ -115,12 +118,14 @@
         nil)
       :revert-loading
       (do
-        (update-game-map! update-in (conj pos :contents)
-                          #(assoc %
-                                  :transport-mission :loading
-                                  :major-invasion-skip-revision
-                                  (threat-response/major-invasion-target-revision)))
-        (sync-transport! pos)))))
+        (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+          (update-game-map! update-in (conj pos :contents)
+                            #(assoc %
+                                    :transport-mission :loading
+                                    :major-invasion-skip-revision
+                                    (threat-response/major-invasion-target-revision)))
+          (sync-transport! pos)
+          (tc/log-transport-mission-transition! pos from-mission :loading))))))
 
 (defn process-load-for-invasion-with-armies
   [{:keys [transition-to-sailing
@@ -228,7 +233,7 @@
         (if (<= army-count' 3)
           (if empty-transport?
             (transition-to-loading pos)
-          (start-sailing pos transport'))
+            (start-sailing pos transport'))
           (transition-to-loading pos))
 
         :else nil)
@@ -292,20 +297,26 @@
       (if-let [step (retreat-step-from-shore (read-map) lake-cells-set pos)]
         (if (move-unit-to pos step)
           (when (deep-water? (read-map) step)
-            (update-game-map! update-in (conj step :contents)
-                              #(assoc % :mode :sentry
-                                      :transport-mission :land-locked))
-            (sync-transport! step))
+            (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+              (update-game-map! update-in (conj step :contents)
+                                #(assoc % :mode :sentry
+                                        :transport-mission :land-locked))
+              (sync-transport! step)
+              (tc/log-transport-mission-transition! step from-mission :land-locked)))
           (do
+            (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+              (update-game-map! update-in (conj pos :contents)
+                                #(assoc % :mode :sentry
+                                        :transport-mission :land-locked))
+              (sync-transport! pos)
+              (tc/log-transport-mission-transition! pos from-mission :land-locked))))
+        (do
+          (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
             (update-game-map! update-in (conj pos :contents)
                               #(assoc % :mode :sentry
                                       :transport-mission :land-locked))
-            (sync-transport! pos)))
-        (do
-          (update-game-map! update-in (conj pos :contents)
-                            #(assoc % :mode :sentry
-                                    :transport-mission :land-locked))
-          (sync-transport! pos)))
+            (sync-transport! pos)
+            (tc/log-transport-mission-transition! pos from-mission :land-locked))))
       false)))
 
 (defn process-land-locked-mission

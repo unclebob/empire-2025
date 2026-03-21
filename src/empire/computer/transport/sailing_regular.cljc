@@ -16,7 +16,9 @@
 
 (defn enter-leave-city!
   [pos]
-  (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))]
+  (let [computer-map (sa/read-state :computer-map)
+        from-mission (get-in computer-map (conj pos :contents :transport-mission))
+        transport-id (get-in computer-map (conj pos :contents :transport-id))]
     (reservations/release! transport-id)
     (sa/update-world! update-in (conj pos :contents)
                       #(-> %
@@ -25,16 +27,18 @@
                                   :load-manifest nil
                                   :load-plan-failure nil
                                   :hold-sail-to-load-since-round nil
-                                  :loading-since-round nil
-                                  :sail-path [])
+                                 :loading-since-round nil
+                                 :sail-path [])
                            (dissoc :unload-target-city)))
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (tc/log-transport-mission-transition! pos from-mission :leave-city)))
 
 (defn enter-sail-to-load!
   [pos]
-  (let [transport-id (get-in (sa/read-state :computer-map) (conj pos :contents :transport-id))
+  (let [computer-map (sa/read-state :computer-map)
+        from-mission (get-in computer-map (conj pos :contents :transport-mission))
+        transport-id (get-in computer-map (conj pos :contents :transport-id))
         _ (reservations/release! transport-id)
-        computer-map (sa/read-state :computer-map)
         load-target-cell (load-targeting/choose-load-target-cell
                           pos
                           computer-map
@@ -66,6 +70,7 @@
                                  (dissoc :unload-target-city)))
           (reservations/reserve! transport-id load-target-cell manifest)
           (visibility/sync-ai-unit-to-computer-map! pos)
+          (tc/log-transport-mission-transition! pos from-mission :sail-to-load)
           (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
                  :transport-mission :sail-to-load
                  :load-target-cell load-target-cell
