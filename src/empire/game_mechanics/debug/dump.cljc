@@ -48,6 +48,7 @@
                          [:hold-sail-to-load-since-round "hold-since"]
                          [:load-plan-failure "load-plan-failure"]
                          [:load-manifest "load-manifest"]
+                         [:sail-path "sail-path"]
                          [:load-target-cell "load-target"]
                          [:country-id "cid"]
                          [:unload-event-id "eid"]

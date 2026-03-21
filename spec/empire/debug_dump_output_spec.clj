@@ -92,6 +92,7 @@
                                    :hold-sail-to-load-since-round 17
                                    :load-plan-failure {:reasons [:no-manifest]}
                                    :load-manifest [41 42]
+                                   :sail-path [[1 0] [2 0]]
                                    :load-target-cell [3 1]}}]])
     (set-test-player-map! [[{:type :sea}]])
     (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -104,6 +105,7 @@
       (should-contain "hold-since:17" result)
       (should-contain "load-plan-failure:{:reasons [:no-manifest]}" result)
       (should-contain "load-manifest:[41 42]" result)
+      (should-contain "sail-path:[[1 0] [2 0]]" result)
       (should-contain "load-target:[3 1]" result)))
 
   (it "contains major invasion targets and routing paths"
