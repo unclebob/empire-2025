@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
+            [empire.computer.fighter.flight-decisions :as flight-decisions]
             [empire.computer.fighter.movement :as fighter-movement]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
@@ -55,20 +56,14 @@
         (update-test-world! assoc-in [10 10 :contents]
                {:type :fighter :owner :computer :hits 1 :fuel 32})
         (set-test-computer-map! (test-utils/read-test-state :game-map))
-        ;; North leg is flown, west leg is unflown
-        (test-utils/set-test-state! :fighter-leg-records {#{[10 10] [10 0]} {:last-flown 5}})
-        ;; Force regular leg assignment
-        (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
-          (let [unit (get-in (test-utils/read-test-state :game-map) [10 10 :contents])]
-            (fighter/process-fighter [10 10] unit)
-            ;; Fighter should have moved west (toward unflown leg target [0,10])
-            (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-              (should-not-be-nil result)
-              (let [[r c] (:pos result)]
-                ;; Moved west: r=col < 10
-                (should (< r 10))
-                ;; Did not move north significantly: c=row >= 8
-                (should (>= c 8))))))))
+        (let [sites [[10 10] [10 0] [0 10]]
+              leg-records {#{[10 10] [10 0]} {:last-flown 5}}]
+          (should= [0 10]
+                   (#'empire.computer.fighter.flight-decisions/choose-leg
+                    (test-utils/read-test-state :game-map)
+                    sites
+                    leg-records
+                    [10 10])))))
 
     (it "picks oldest flown leg when all legs are flown"
       ;; Same map setup: city at [10,10], carrier A at [10,0] (north), carrier B at [0,10] (west)
@@ -86,19 +81,15 @@
         (update-test-world! assoc-in [10 10 :contents]
                {:type :fighter :owner :computer :hits 1 :fuel 32})
         (set-test-computer-map! (test-utils/read-test-state :game-map))
-        ;; Both legs flown; west leg is older (lower round number)
-        (test-utils/set-test-state! :fighter-leg-records {#{[10 10] [10 0]} {:last-flown 10}
-                 #{[10 10] [0 10]} {:last-flown 3}})
-        ;; Force regular leg assignment
-        (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
-          (let [unit (get-in (test-utils/read-test-state :game-map) [10 10 :contents])]
-            (fighter/process-fighter [10 10] unit)
-            ;; Fighter should move toward older leg target [0,10] (west)
-            (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-              (should-not-be-nil result)
-              (let [[r c] (:pos result)]
-                (should (< r 10))
-                (should (>= c 8))))))))
+        (let [sites [[10 10] [10 0] [0 10]]
+              leg-records {#{[10 10] [10 0]} {:last-flown 10}
+                           #{[10 10] [0 10]} {:last-flown 3}}]
+          (should= [0 10]
+                   (#'empire.computer.fighter.flight-decisions/choose-leg
+                    (test-utils/read-test-state :game-map)
+                    sites
+                    leg-records
+                    [10 10])))))
 
     (it "records leg on arrival at target city"
       (set-test-world! (build-test-map ["X#####fX"]))
@@ -224,51 +215,37 @@
           (should (> (first (:pos result)) 7))))))
 
   (context "ensure-flight-target (L420-423)"
-    (it "assigns regular leg when rand >= 0.5 (L423 if->if-not)"
+    (it "assigns an exploration sortie with a landing site"
       ;; Fighter at a city with another refueling site in range
       (set-test-world! (build-test-map ["X###########X"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; Force regular leg assignment (rand >= 0.5)
       (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
         (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (fighter/process-fighter [0 0] unit)
-          ;; Fighter should have started moving (regular leg toward [12,0])
           (let [result (get-test-unit (test-utils/game-map-atom) "f")]
             (when result
-              ;; Should have flight-target-site set
-              (should-not-be-nil (:flight-target-site (:unit result))))))))
-
-    (it "assigns exploration flight when rand < 0.5"
-      (set-test-world! (build-test-map ["X############"]))
-      (update-test-world! assoc-in [0 0 :contents]
-             {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
-      ;; Lots of unexplored territory
-      (set-test-computer-map! (build-test-map ["X............"]))
-      (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))]
-        (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
-          (fighter/process-fighter [0 0] unit)
-          ;; Fighter should have moved exploring
-          (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-            (when result
-              (let [mode (:flight-mode (:unit result))]
-                (when mode
-                  (should (#{:explore :drone} mode))))))))))
+              (should (#{:explore :drone} (:flight-mode (:unit result))))
+              (should-not-be-nil (:flight-target-site (:unit result)))
+              (should-not-be-nil (:explore-landing-site (:unit result)))))))))
 
   (context "exploration target bounds"
-    (it "clamps exploration flight target to map bounds"
+    (it "keeps exploration flight target in bounds"
       (set-test-world! (build-test-map ["X##"
                                         "###"
                                         "###"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel config/fighter-fuel})
-      (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))
-                    empire.computer.fighter.exploration/best-exploration-heading (fn [_ _] [-1 -1])]
+      (with-redefs [rand (fn ([] 0.3) ([_n] 0.3))]
         ((ns-resolve 'empire.computer.fighter 'assign-exploration-flight) [0 0] [0 0])
-        (let [target (get-in (test-utils/read-test-state :game-map) [0 0 :contents :flight-target-site])]
-          (should= [0 0] target)))))
+        (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])
+              target (:flight-target-site unit)]
+          (should (vector? target))
+          (should (<= 0 (first target) 2))
+          (should (<= 0 (second target) 2))
+          (should= [0 0] (:explore-landing-site unit))))))
 
   (context "desperate patrol on low fuel (L524)"
     (it "patrols when no refueling site and low fuel"

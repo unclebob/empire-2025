@@ -16,6 +16,7 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-steps-remaining 3
                      :flight-target-site [11 0]
                      :flight-origin-site [0 0])
@@ -38,6 +39,7 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-steps-remaining 1
                      :flight-target-site [7 0]
                      :flight-origin-site [0 0])
@@ -57,16 +59,17 @@
       (set-test-world! (build-test-map ["X####f#####"]))
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :drone
+                     :explore-landing-site [0 0]
+                     :explore-steps-remaining 1
                      :flight-target-site [10 0]
                      :flight-origin-site [0 0])
       ;; Unexplored territory to the right
       (set-test-computer-map! (build-test-map ["X####f....."]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [5 0 :contents])]
         (fighter/process-fighter [5 0] unit)
-        ;; Fighter should have moved
-        (should-be-nil (get-in (test-utils/read-test-state :game-map) [5 0 :contents]))
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-          (should-not-be-nil result)))))
+          (should-not-be-nil result)
+          (should= :regular (:flight-mode (:unit result)))))))
 
   (context "explore-hop-over (L298-304)"
     (it "explore hops over friendly in correct direction"
@@ -77,6 +80,7 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-steps-remaining 5
                      :flight-target-site [15 0]
                      :flight-origin-site [0 0])
@@ -97,6 +101,7 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-steps-remaining 5
                      :flight-target-site [8 0]
                      :flight-origin-site [0 0])

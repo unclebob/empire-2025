@@ -1,0 +1,18 @@
+;===============================================================
+; Computer fighters always launch exploration sorties from a
+; refueling site, even when no regular leg is chosen.
+;===============================================================
+GIVEN game map
+  X########
+  #########
+  #########
+GIVEN X has a computer fighter.
+GIVEN computer map
+  X--------
+  ---------
+  ---------
+
+WHEN a new round starts.
+
+THEN no unit at [0 0].
+THEN computer can see [1 0].

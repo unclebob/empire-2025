@@ -5,13 +5,18 @@
 
 (defn assign-exploration-flight!
   [update-game-map! world pos site-pos]
-  (let [{:keys [mode origin heading steps-remaining target]}
-        (decisions/exploration-flight-action world pos site-pos (rand))]
+  (when-let [{:keys [mode origin heading steps-remaining target landing-site]}
+             (decisions/exploration-flight-action world
+                                                  (ship/find-refueling-sites)
+                                                  pos
+                                                  site-pos
+                                                  (rand))]
     (update-game-map! update-in (conj pos :contents)
                       assoc :flight-mode mode
                       :explore-origin origin
                       :explore-heading heading
                       :explore-steps-remaining steps-remaining
+                      :explore-landing-site landing-site
                       :flight-target-site target
                       :flight-origin-site origin)))
 
@@ -41,6 +46,7 @@
                           :explore-origin (:origin decision)
                           :explore-heading (:heading decision)
                           :explore-steps-remaining (:steps-remaining decision)
+                          :explore-landing-site (:landing-site decision)
                           :flight-target-site (:target decision)
                           :flight-origin-site (:origin decision))
         nil))))
@@ -65,7 +71,8 @@
     (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
     (update-game-map! update-in (conj pos :contents)
                       #(-> %
-                           (dissoc :explore-origin :explore-heading :explore-steps-remaining :flight-mode)
+                           (dissoc :explore-origin :explore-heading :explore-steps-remaining
+                                   :explore-landing-site :flight-mode)
                            (assoc :flight-target-site (:new-target decision)
                                   :flight-origin-site (:target decision))))
     {:pos pos :hops (:hops decision)}))

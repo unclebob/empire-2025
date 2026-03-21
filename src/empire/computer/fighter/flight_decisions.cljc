@@ -3,8 +3,6 @@
             [empire.computer.fighter.movement :as fm]
             [empire.config.core :as config]))
 
-(def sortie-half-steps 16)
-
 (def neighbor-offsets
   [[-1 -1] [-1 0] [-1 1]
    [0 -1]          [0 1]
@@ -70,31 +68,83 @@
      :target target
      :origin site-pos}))
 
+(defn- in-bounds?
+  [world [r c]]
+  (and (<= 0 r) (< r (count world))
+       (<= 0 c) (< c (count (first world)))))
+
+(defn- projected-endpoint
+  [world start direction steps]
+  (reduce (fn [last-pos step]
+            (let [[dr dc] direction
+                  next-pos [(+ (first start) (* step dr))
+                            (+ (second start) (* step dc))]]
+              (if (in-bounds? world next-pos)
+                next-pos
+                (reduced last-pos))))
+          start
+          (range 1 (inc steps))))
+
+(defn- nearest-reachable-refueling-site
+  [sites pos remaining-fuel]
+  (when-let [scored (seq (keep (fn [site]
+                                 (let [distance (fm/distance-to pos site)]
+                                   (when (<= distance remaining-fuel)
+                                     [site distance])))
+                               sites))]
+    (first (first (sort-by second scored)))))
+
+(defn- max-sortie-plan
+  [world sites pos direction]
+  (let [max-fuel config/fighter-fuel]
+    (loop [steps 1
+           best-plan nil]
+      (if (> steps max-fuel)
+        best-plan
+        (let [endpoint (projected-endpoint world pos direction steps)
+              actual-steps (fm/distance-to pos endpoint)
+              remaining-fuel (- max-fuel actual-steps)
+              landing-site (nearest-reachable-refueling-site sites endpoint remaining-fuel)
+              next-plan (when (and (pos? actual-steps) landing-site)
+                          {:steps actual-steps
+                           :endpoint endpoint
+                           :landing-site landing-site})]
+          (if (and (= endpoint pos) (nil? next-plan))
+            best-plan
+            (recur (inc steps) (or next-plan best-plan))))))))
+
+(defn- choose-exploration-plan
+  [world sites pos]
+  (when-let [plans (seq (keep (fn [dir]
+                                (when-let [plan (max-sortie-plan world sites pos dir)]
+                                  (assoc plan
+                                         :direction dir
+                                         :score (fe/count-unexplored-along-direction
+                                                 pos
+                                                 dir
+                                                 (:steps plan)))))
+                              neighbor-offsets))]
+    (let [best-score (apply max (map :score plans))
+          best-plans (filter #(= best-score (:score %)) plans)]
+      (rand-nth (vec best-plans)))))
+
 (defn exploration-flight-action
-  [world pos site-pos drone-roll]
-  (let [heading (fe/best-exploration-heading pos sortie-half-steps)
-        drone? (< drone-roll 0.05)
-        mode (if drone? :drone :explore)
-        [dr dc] heading
-        endpoint (clamp-to-map-bounds
-                  world
-                  [(+ (first pos) (* sortie-half-steps dr))
-                   (+ (second pos) (* sortie-half-steps dc))])]
+  [world sites pos site-pos drone-roll]
+  (when-let [{:keys [direction endpoint steps landing-site]} (choose-exploration-plan world sites pos)]
     {:action :assign-exploration-flight
      :pos pos
-     :mode mode
+     :mode (if (< drone-roll 0.10) :drone :explore)
      :origin site-pos
-     :heading heading
-     :steps-remaining sortie-half-steps
-     :target endpoint}))
+     :heading direction
+     :steps-remaining steps
+     :target endpoint
+     :landing-site landing-site}))
 
 (defn ensure-flight-target-action
   [world sites leg-records pos unit leg-roll drone-roll]
   (when (and unit (nil? (:flight-mode unit)) (nil? (:flight-target-site unit)))
     (when-let [site-pos (current-refueling-site world pos)]
-      (if (>= leg-roll 0.5)
-        (regular-leg-action world sites leg-records pos site-pos)
-        (exploration-flight-action world pos site-pos drone-roll)))))
+      (exploration-flight-action world sites pos site-pos drone-roll))))
 
 (defn at-flight-target?
   [world pos target]

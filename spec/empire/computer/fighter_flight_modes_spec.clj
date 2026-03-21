@@ -13,9 +13,7 @@
   (before (reset-all-atoms!))
 
   (context "flight mode selection"
-    (it "assigns regular leg when rand >= 0.5"
-      ;; Two cities within fuel range, fighter on city A with no flight-mode.
-      ;; With rand returning 0.6, ensure-flight-target should assign :regular mode.
+    (it "assigns an exploration sortie when fighter has no flight plan"
       (set-test-world! (build-test-map ["X################X"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel 32})
@@ -25,50 +23,48 @@
                            ([_n] 0.6))]
         (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
           (fighter/process-fighter [0 0] unit)
-          ;; Fighter should have :flight-mode :regular
           (let [result (get-test-unit (test-utils/game-map-atom) "f")]
             (should-not-be-nil result)
-            (should= :regular (:flight-mode (:unit result)))))))
+            (should= :explore (:flight-mode (:unit result)))
+            (should-not-be-nil (:explore-landing-site (:unit result)))
+            (should (pos? (:explore-steps-remaining (:unit result))))))))
 
-    (it "assigns exploration sortie when first rand < 0.5 and second >= 0.05"
-      ;; Two cities within fuel range, fighter on city A with no flight-mode.
-      ;; Sequential rolls: 0.3 (exploration), 0.1 (not drone, >= 0.05) => sortie
+    (it "assigns exploration sortie when drone roll is at or above 0.1"
       (set-test-world! (build-test-map ["X################X"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel 32})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (let [rolls (atom [0.3 0.1])]
+      (let [rolls (atom [0.6 0.1])]
         (with-redefs [rand (fn
                              ([] (let [v (first @rolls)] (swap! rolls rest) v))
                              ([_n] (let [v (first @rolls)] (swap! rolls rest) v)))
                       rand-nth first]
           (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
             (fighter/process-fighter [0 0] unit)
-            ;; Fighter should have :flight-mode :explore
             (let [result (get-test-unit (test-utils/game-map-atom) "f")]
               (should-not-be-nil result)
               (should= :explore (:flight-mode (:unit result)))
               (should-not-be-nil (:explore-origin (:unit result)))
               (should-not-be-nil (:explore-heading (:unit result)))
+              (should-not-be-nil (:explore-landing-site (:unit result)))
               (should (pos? (:explore-steps-remaining (:unit result)))))))))
 
-    (it "assigns drone when first rand < 0.5 and second < 0.05"
-      ;; Sequential rolls: 0.3 (exploration), 0.02 (drone, < 0.05)
+    (it "assigns drone when drone roll is below 0.1"
       (set-test-world! (build-test-map ["X################X"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel 32})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (let [rolls (atom [0.3 0.02])]
+      (let [rolls (atom [0.6 0.02])]
         (with-redefs [rand (fn
                              ([] (let [v (first @rolls)] (swap! rolls rest) v))
                              ([_n] (let [v (first @rolls)] (swap! rolls rest) v)))
                       rand-nth first]
           (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
             (fighter/process-fighter [0 0] unit)
-            ;; Fighter should have :flight-mode :drone
             (let [result (get-test-unit (test-utils/game-map-atom) "f")]
               (should-not-be-nil result)
-              (should= :drone (:flight-mode (:unit result))))))))
+              (should= :drone (:flight-mode (:unit result)))
+              (should-not-be-nil (:explore-landing-site (:unit result))))))))
 
     (it "does not re-roll when fighter already has flight-mode"
       ;; Fighter already has :flight-mode :regular - ensure-flight-target should not reassign
@@ -102,7 +98,7 @@
                                                    "##X--"
                                                    "###--"
                                                    "###--"]))
-      (let [rolls (atom [0.3 0.1])]
+      (let [rolls (atom [0.1])]
         (with-redefs [rand (fn
                              ([] (let [v (first @rolls)] (swap! rolls rest) v))
                              ([_n] (let [v (first @rolls)] (swap! rolls rest) v)))
@@ -120,6 +116,7 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-heading [0 1]
                      :explore-steps-remaining 10
                      :flight-target-site [18 0])
@@ -141,13 +138,14 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-heading [0 1]
                      :explore-steps-remaining 1
                      :flight-target-site [24 0])
       (set-test-computer-map! (build-test-map ["X#########f.............."]))
       (let [unit (get-in (test-utils/read-test-state :game-map) [10 0 :contents])]
         (fighter/process-fighter [10 0] unit)
-        ;; After 1 outbound step, should switch to :regular with target = origin
+        ;; After 1 outbound step, should switch to :regular with target = landing site
         ;; Fighter navigates back but can't reach [0 0] in remaining 7 steps
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
@@ -163,6 +161,7 @@
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :explore
                      :explore-origin [0 1]
+                     :explore-landing-site [0 1]
                      :explore-heading [0 1]
                      :explore-steps-remaining 10
                      :flight-target-site [4 1])
@@ -178,20 +177,21 @@
           (should-not= [2 1] (:pos result))))))
 
   (context "drone movement"
-    (it "drone flies until fuel exhaustion and dies"
-      ;; Drone fighter with 3 fuel on open map, no city nearby
-      (set-test-world! (build-test-map ["f##########"]))
-      (set-test-unit (test-utils/game-map-atom) "f" :fuel 3
+    (it "drone sortie decrements outbound steps"
+      (set-test-world! (build-test-map ["X####f######"]))
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-mode :drone
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-heading [0 1]
+                     :explore-steps-remaining 3
                      :flight-target-site [10 0])
-      ;; Unexplored territory east
-      (set-test-computer-map! (build-test-map ["f.........."]))
-      (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
-        (fighter/process-fighter [0 0] unit)
-        ;; Drone should have burned all fuel and died
-        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
+      (set-test-computer-map! (build-test-map ["X####f......"]))
+      (let [unit (get-in (test-utils/read-test-state :game-map) [5 0 :contents])]
+        (fighter/process-fighter [5 0] unit)
+        (let [result (get-test-unit (test-utils/game-map-atom) "f")]
+          (should-not-be-nil result)
+          (should (< (:explore-steps-remaining (:unit result)) 3))))))
 
   (context "handle-arrival cleanup"
     (it "arrival clears exploration fields from unit"
@@ -202,6 +202,7 @@
                      :flight-origin-site [0 0]
                      :flight-mode :regular
                      :explore-origin [0 0]
+                     :explore-landing-site [0 0]
                      :explore-heading [0 1]
                      :explore-steps-remaining 0)
       (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -211,6 +212,7 @@
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
           (should-be-nil (:explore-origin (:unit result)))
+          (should-be-nil (:explore-landing-site (:unit result)))
           (should-be-nil (:explore-heading (:unit result)))
           (should-be-nil (:explore-steps-remaining (:unit result)))))))
 

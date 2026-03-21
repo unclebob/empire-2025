@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
+            [empire.computer.fighter.flight-decisions :as flight-decisions]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map build-sparse-test-map
@@ -183,25 +184,19 @@
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0]))))))
 
   (context "carrier detection in current-refueling-site"
-    (it "assigns flight target when adjacent to holding computer carrier"
-      ;; Fighter on sea next to computer carrier. ensure-flight-target should
-      ;; detect the carrier and assign a leg toward the distant city.
+    (it "detects a holding computer carrier as the current refueling site"
       (set-test-world! (build-test-map ["#####~j~#######X"]))
       (update-test-world! assoc-in [7 0 :contents]
              {:type :carrier :owner :computer :hits 8 :carrier-mode :holding})
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 32)
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
-        (let [unit (get-in (test-utils/read-test-state :game-map) [6 0 :contents])]
-          (fighter/process-fighter [6 0] unit)
-          (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-            (should-not-be-nil result)
-            (should= :regular (:flight-mode (:unit result))))))))
+      (should= [7 0]
+               (flight-decisions/current-refueling-site
+                (test-utils/read-test-state :game-map)
+                [6 0]))))
 
   (context "choose-leg distance boundary"
-    (it "includes site at exactly fighter-fuel distance"
-      ;; Two cities 32 apart (= config/fighter-fuel). Leg should be reachable.
-      ;; Mutation <= to < would exclude it.
+    (it "can use a refueling site at exactly fighter-fuel distance as a landing site"
       (let [row-str (str "X" (apply str (repeat 31 \#)) "X")]
         (set-test-world! (build-test-map [row-str]))
         (update-test-world! assoc-in [0 0 :contents]
@@ -212,8 +207,8 @@
             (fighter/process-fighter [0 0] unit)
             (let [result (get-test-unit (test-utils/game-map-atom) "f")]
               (should-not-be-nil result)
-              (should= :regular (:flight-mode (:unit result)))
-              (should= [32 0] (:flight-target-site (:unit result)))))))))
+              (should= :explore (:flight-mode (:unit result)))
+              (should= [32 0] (:explore-landing-site (:unit result)))))))))
 
   (context "non-axis distance calculation"
     (it "correctly computes distance when both coordinates differ"
