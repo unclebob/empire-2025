@@ -1,0 +1,20 @@
+; Transport load targeting excludes city pickup cells.
+
+;===============================================================
+; Sail-to-load staging does not choose a city as the load target.
+;===============================================================
+GIVEN game map
+  X#~t~
+  aaaa~
+GIVEN computer map
+  X#~t~
+  aaaa~
+GIVEN X is a computer city.
+GIVEN X belongs to country 1.
+GIVEN territory around X belongs to country 1.
+GIVEN t belongs to country 1.
+GIVEN t has transport-mission sail-to-load.
+
+WHEN a new round starts.
+
+THEN t has load-target-cell [1 0].

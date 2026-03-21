@@ -39,10 +39,8 @@
 (defn- computer-claimed-coastal-cell?
   [computer-map pos cell]
   (and cell
-       (or (and (= :land (:type cell))
-                (some? (:country-id cell)))
-           (and (= :city (:type cell))
-                (= :computer (:city-status cell))))
+       (= :land (:type cell))
+       (some? (:country-id cell))
        (map-utils/adjacent-to-sea? pos computer-map)))
 
 (defn- computer-army?

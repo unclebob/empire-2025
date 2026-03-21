@@ -51,6 +51,25 @@
                 {:reserved-coastal-cells #{[0 0]}
                  :reserved-army-ids #{}}))))
 
+  (it "does not choose a computer city as the coastal load target"
+    (let [computer-map (build-test-map ["O~~~~#~~~~"
+                                        "~t~~~~~~~~"
+                                        "aaaa~aaaa~"
+                                        "~~~~~~~~~~"
+                                        "~~~~~~~~~~"])]
+      (set-test-world! computer-map)
+      (update-test-world! assoc-in [0 0 :city-status] :computer)
+      (update-test-world! assoc-in [0 0 :country-id] 1)
+      (update-test-world! assoc-in [5 0 :country-id] 1)
+      (doseq [[idx pos] (map-indexed vector [[0 2] [1 2] [2 2] [3 2]
+                                             [5 2] [6 2] [7 2] [8 2]])]
+        (update-test-world! assoc-in (conj pos :contents :computer-unit-id) idx))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should= [5 0]
+               (load-targeting/choose-load-target-cell
+                [1 1]
+                (test-utils/read-test-state :computer-map)))))
+
   (it "does not count reserved armies toward tile qualification"
     (let [computer-map (build-test-map ["#~~~~#~~~~"
                                         "~t~~~~~~~~"
