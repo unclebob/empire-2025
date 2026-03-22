@@ -11,6 +11,11 @@
        (= :transport (:type unit))
        (= :computer (:owner unit))))
 
+;; These guarded write helpers are intentional instrumentation for a sticky
+;; integrity bug where stale transport writes can fabricate metadata-only
+;; :contents maps on sea cells. When a suspected write site fires after the
+;; transport has moved or disappeared, we want a precise event telling us
+;; which write was attempted and what was actually at that position.
 (defn log-transport-write-miss!
   [pos op details]
   (let [cell (get-in (sa/read-state :computer-map) pos)]
