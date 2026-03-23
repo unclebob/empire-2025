@@ -2,6 +2,7 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.containers.visibility-port :as containers-visibility-port]
             [empire.game-mechanics.combat-visibility-port :as visibility-port]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- update-game-map!
@@ -176,10 +177,12 @@
 (defn- reveal-and-track!
   "Reveals a single cell and queues threat detections for newly visible cells."
   [visible-map-source ni nj stamp-id detect-threats? visible-map]
-  (let [game-cell (get-in (current-world) [ni nj])]
+  (let [was-unexplored (was-unexplored? visible-map ni nj)
+        game-cell (get-in (current-world) [ni nj])]
     (reveal-cell! visible-map-source ni nj game-cell stamp-id visible-map)
-    (when (and detect-threats?
-               (was-unexplored? visible-map ni nj))
+    (when was-unexplored
+      (debug-logging/record-active-computer-unit-discovery! 1))
+    (when (and detect-threats? was-unexplored)
       (queue-detection! [ni nj] game-cell))))
 
 (defn sync-ai-unit-to-computer-map!

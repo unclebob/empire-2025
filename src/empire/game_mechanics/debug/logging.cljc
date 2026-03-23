@@ -5,6 +5,7 @@
 (def ^:private max-action-log-size 100)
 (def ^:private max-movement-log-size 500)
 (def ^:private max-computer-event-log-size 2000)
+(def ^:dynamic *computer-unit-id* nil)
 
 (defn begin-computer-unit-log-round!
   "Clears per-unit discovery totals for the current computer turn."
@@ -17,6 +18,17 @@
   (when (and unit-id (pos? discovered-cells))
     (sa/update-state! :computer-unit-round-discoveries
                       #(update (or % {}) unit-id (fnil + 0) discovered-cells))))
+
+(defn record-active-computer-unit-discovery!
+  "Adds newly discovered cells for the computer unit currently being processed."
+  [discovered-cells]
+  (record-computer-unit-discovery! *computer-unit-id* discovered-cells))
+
+(defn with-computer-unit-context
+  "Runs f while attributing discovery logging to the given computer unit id."
+  [unit-id f]
+  (binding [*computer-unit-id* unit-id]
+    (f)))
 
 (defn computer-unit-snapshots
   "Build per-round computer unit snapshots with per-unit discovery totals."

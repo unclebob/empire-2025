@@ -1,5 +1,6 @@
 (ns empire.game-mechanics.movement.visibility-cell-update-spec
-  (:require [empire.test.utils :as test-utils]
+  (:require [empire.game-mechanics.debug.logging :as debug-logging]
+            [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.game-mechanics.visibility :refer :all]
             [empire.test.utils :refer [build-test-map set-test-unit reset-all-atoms! set-test-player-map! set-test-computer-map! make-initial-test-map set-test-world!]]))
@@ -91,4 +92,30 @@
     ;; All 25 cells in the 5x5 map should be visible (rings 1 and 2 plus center)
     (doseq [row (range 5)
             col (range 5)]
-      (should (get-in (test-utils/read-test-state :player-map) [row col])))))
+      (should (get-in (test-utils/read-test-state :player-map) [row col]))))
+
+  (it "records discovered cells for the active computer unit when revealing unexplored cells"
+    (set-test-world! (build-test-map ["###"
+                                      "#f#"
+                                      "###"]))
+    (set-test-computer-map! (make-initial-test-map 3 3 {:type :unexplored}))
+    (debug-logging/begin-computer-unit-log-round!)
+    (debug-logging/with-computer-unit-context
+      31
+      #(update-cell-visibility [1 1] :computer {:type :fighter :owner :computer :computer-unit-id 31}))
+    (should= {31 9}
+             (test-utils/read-test-state :computer-unit-round-discoveries)))
+
+  (it "does not record discovered cells when the cells were already visible"
+    (set-test-world! (build-test-map ["###"
+                                      "#f#"
+                                      "###"]))
+    (set-test-computer-map! (build-test-map ["###"
+                                             "#f#"
+                                             "###"]))
+    (debug-logging/begin-computer-unit-log-round!)
+    (debug-logging/with-computer-unit-context
+      31
+      #(update-cell-visibility [1 1] :computer {:type :fighter :owner :computer :computer-unit-id 31}))
+    (should= {}
+             (test-utils/read-test-state :computer-unit-round-discoveries))))

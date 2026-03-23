@@ -22,13 +22,6 @@
   []
   (first (normalize-computer-items)))
 
-(defn- count-visible-cells
-  [visible-map]
-  (count (for [row visible-map
-               cell row
-               :when (some? cell)]
-           1)))
-
 (defn- make-empty-visible-map
   [game-map]
   (vec (repeat (count game-map)
@@ -56,7 +49,6 @@
   (let [coords (next-computer-item-coords)
         cell (get-in (sa/current-world) coords)
         unit-id (get-in cell [:contents :computer-unit-id])
-        visible-before (count-visible-cells (sa/read-state :computer-map))
         is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
         should-requeue-city? (fn [city-pos]
                                (let [current-cell (get-in (sa/current-world) city-pos)]
@@ -66,17 +58,17 @@
       (let [launched-pos (when is-computer-city?
                          (threat-response/launch-kamikazee-from-airport! coords))
           new-coords (when (= (:owner (:contents cell)) :computer)
-                       (let [coords* (computer/process-computer-unit coords)]
-                         (dispatch-detections!)
-                         coords*))
-          visible-after (count-visible-cells (sa/read-state :computer-map))
+                       (debug-logging/with-computer-unit-context
+                         unit-id
+                         #(let [coords* (computer/process-computer-unit coords)]
+                            (dispatch-detections!)
+                            coords*)))
           action (decisions/computer-item-action {:cell cell
                                                   :launched-pos launched-pos
                                                   :new-coords new-coords
                                                   :should-requeue-city? (should-requeue-city? coords)})
           state (decisions/computer-item-state {:items (sa/read-state :computer-items)
                                                 :action action})]
-      (debug-logging/record-computer-unit-discovery! unit-id (- visible-after visible-before))
       (sa/write-state! :computer-items (:computer-items state))
       (:result state))))
 

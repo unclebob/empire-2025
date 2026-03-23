@@ -101,6 +101,13 @@
 (describe "computer unit log snapshots"
   (before (test-utils/reset-all-atoms!))
 
+  (it "attributes active discovery counts to the bound computer unit"
+    (debug-logging/with-computer-unit-context
+      17
+      #(debug-logging/record-active-computer-unit-discovery! 2))
+    (should= {17 2}
+             (test-utils/read-test-state :computer-unit-round-discoveries)))
+
   (it "includes discovered cells for each computer unit"
     (let [world [[{:type :land
                    :contents {:type :army :owner :computer :computer-unit-id 11}}
