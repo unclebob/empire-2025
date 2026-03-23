@@ -51,6 +51,69 @@
     (when (seq scored)
       (ffirst (sort-by second scored)))))
 
+(defn- computer-city-site?
+  [world site]
+  (let [cell (get-in world site)]
+    (and (= :city (:type cell))
+         (= :computer (:city-status cell)))))
+
+(defn- computer-city-sites
+  [world sites]
+  (filter #(computer-city-site? world %) sites))
+
+(defn- path-distance
+  [path]
+  (reduce + 0 (map (fn [[from to]] (fm/distance-to from to))
+                   (partition 2 1 path))))
+
+(defn- reachable-city-hop-paths
+  [world start sites]
+  (let [city-sites (vec (computer-city-sites world sites))
+        start-paths (cond-> {}
+                      (computer-city-site? world start) (assoc start [start]))]
+    (loop [queue (if (computer-city-site? world start) [start] [])
+           seen (cond-> #{start}
+                  (computer-city-site? world start) (into city-sites))
+           paths start-paths]
+      (if (empty? queue)
+        (reduce (fn [acc city]
+                  (if (contains? acc city)
+                    acc
+                    (if (<= (fm/distance-to start city) config/fighter-fuel)
+                      (assoc acc city [start city])
+                      acc)))
+                paths
+                city-sites)
+        (let [node (first queue)
+              neighbors (for [city city-sites
+                              :when (and (not (contains? paths city))
+                                         (not= city node)
+                                         (<= (fm/distance-to node city) config/fighter-fuel))]
+                          city)
+              next-paths (reduce (fn [acc city]
+                                   (assoc acc city (conj (get acc node [node]) city)))
+                                 paths
+                                 neighbors)]
+          (recur (into (vec (rest queue)) neighbors)
+                 (into seen neighbors)
+                 next-paths))))))
+
+(defn best-sortie-staging-plan
+  [world sites current-site]
+  (let [paths (reachable-city-hop-paths world current-site sites)
+        scored (keep (fn [[city path]]
+                       (when-let [unexplored-distance (fe/nearest-unexplored-distance city)]
+                         {:city city
+                          :path path
+                          :unexplored-distance unexplored-distance
+                          :hop-count (dec (count path))
+                          :path-distance (path-distance path)}))
+                     paths)]
+    (when (seq scored)
+      (first (sort-by (fn [{:keys [unexplored-distance hop-count path-distance city]}]
+                        [unexplored-distance hop-count path-distance city])
+                      scored)))))
+
 (defn clamp-to-map-bounds
   [world [r c]]
   (let [height (count world)
@@ -67,6 +130,18 @@
      :pos pos
      :target target
      :origin site-pos}))
+
+(declare exploration-flight-action)
+
+(defn- staging-action
+  [world sites leg-records pos site-pos drone-roll]
+  (when-let [{:keys [city path]} (best-sortie-staging-plan world sites site-pos)]
+    (if (= city site-pos)
+      (exploration-flight-action world sites pos site-pos drone-roll)
+      {:action :assign-regular-leg
+       :pos pos
+       :target (second path)
+       :origin site-pos})))
 
 (defn- in-bounds?
   [world [r c]]
@@ -101,12 +176,6 @@
             (when (<= distance remaining-fuel)
               [site distance])))
         sites))
-
-(defn- computer-city-site?
-  [world site]
-  (let [cell (get-in world site)]
-    (and (= :city (:type cell))
-         (= :computer (:city-status cell)))))
 
 (defn- best-reachable-landing-site
   [world sites pos remaining-fuel]
@@ -180,7 +249,8 @@
   [world sites leg-records pos unit leg-roll drone-roll]
   (when (and unit (nil? (:flight-mode unit)) (nil? (:flight-target-site unit)))
     (when-let [site-pos (current-refueling-site world pos)]
-      (exploration-flight-action world sites pos site-pos drone-roll))))
+      (or (staging-action world sites leg-records pos site-pos drone-roll)
+          (exploration-flight-action world sites pos site-pos drone-roll)))))
 
 (defn at-flight-target?
   [world pos target]
@@ -190,17 +260,20 @@
              (<= (fm/distance-to pos target) 1)))))
 
 (defn arrival-action
-  [world sites leg-records round-number pos unit]
+  [world sites leg-records round-number pos unit drone-roll]
   (let [target (:flight-target-site unit)
         origin (:flight-origin-site unit)
-        new-target (choose-leg world sites leg-records target)
+        next-action (or (staging-action world sites leg-records pos target drone-roll)
+                        (exploration-flight-action world sites pos target drone-roll))
         leg-record (when (and origin (not= origin target))
                      {:leg-key #{origin target}
-                      :last-flown round-number})]
+                      :last-flown round-number})
+        exploration? (= :assign-exploration-flight (:action next-action))]
     {:action :handle-arrival
      :pos pos
      :target target
-     :new-target new-target
+     :next-action next-action
+     :launch-exploration? exploration?
      :leg-record leg-record
      :hops 1}))
 

@@ -30,7 +30,8 @@
                                               12
                                               [2 0]
                                               {:flight-target-site [2 0]
-                                               :flight-origin-site [0 0]}))))
+                                               :flight-origin-site [0 0]}
+                                              0.6))))
 
   (it "chooses the reachable landing city closest to unexplored cells"
     (let [world (build-test-map ["X###########X###########X########"])
@@ -50,4 +51,43 @@
                                                                sites
                                                                [0 0]
                                                                [0 0]
-                                                               0.5)))))))
+                                                               0.5))))))
+
+  (it "chooses the reachable city closest to unexplored cells even when it requires hops"
+    (let [world (build-test-map ["X###################X###################X########"])
+          sites [[0 0] [20 0] [40 0]]]
+      (with-redefs [empire.computer.fighter.exploration/nearest-unexplored-distance
+                    (fn [site]
+                      (case site
+                        [0 0] 40
+                        [20 0] 10
+                        [40 0] 1
+                        99))]
+        (should= {:city [40 0]
+                  :path [[0 0] [20 0] [40 0]]
+                  :unexplored-distance 1
+                  :hop-count 2
+                  :path-distance 40}
+                 (sut/best-sortie-staging-plan world sites [0 0])))))
+
+  (it "assigns a regular leg to the first hop before launching a sortie"
+    (let [world (build-test-map ["X###################X###################X########"])
+          sites [[0 0] [20 0] [40 0]]]
+      (with-redefs [empire.computer.fighter.exploration/nearest-unexplored-distance
+                    (fn [site]
+                      (case site
+                        [0 0] 40
+                        [20 0] 10
+                        [40 0] 1
+                        99))]
+        (should= {:action :assign-regular-leg
+                  :pos [0 0]
+                  :target [20 0]
+                  :origin [0 0]}
+                 (sut/ensure-flight-target-action world
+                                                 sites
+                                                 {}
+                                                 [0 0]
+                                                 {:type :fighter :owner :computer}
+                                                 0.6
+                                                 0.6))))))

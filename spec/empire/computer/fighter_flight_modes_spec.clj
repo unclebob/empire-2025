@@ -8,6 +8,7 @@
             [empire.test.utils :refer [build-test-map build-sparse-test-map
                                        set-test-unit
                                        get-test-unit reset-all-atoms! set-test-computer-map!
+                                       update-test-computer-map!
                                        set-test-world! update-test-world!]]))
 (describe "process-fighter"
   (before (reset-all-atoms!))
@@ -79,7 +80,25 @@
         ;; Fighter should still have :flight-mode :regular (not reassigned)
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
-          (should= :regular (:flight-mode (:unit result)))))))
+          (should= :regular (:flight-mode (:unit result))))))
+
+    (it "hops toward the best exploration staging city before launching a sortie"
+      (set-test-world! (build-test-map ["X###################X###################X########"]))
+      (update-test-world! assoc-in [0 0 :contents]
+             {:type :fighter :owner :computer :hits 1 :fuel 32})
+      (set-test-computer-map! (build-test-map ["X###################X###################X--------"]))
+      (update-test-computer-map! assoc-in [0 0 :contents]
+                                {:type :fighter :owner :computer :hits 1 :fuel 32})
+      (with-redefs [rand (fn
+                           ([] 0.6)
+                           ([_n] 0.6))]
+        (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+          (fighter/process-fighter [0 0] unit)
+          (let [result (get-test-unit (test-utils/game-map-atom) "f")]
+            (should-not-be-nil result)
+            (should= :regular (:flight-mode (:unit result)))
+            (should= [20 0] (:flight-target-site (:unit result)))
+            (should= [8 0] (:pos result)))))))
 
   (context "exploration heading"
     (it "picks direction with most unexplored cells"
@@ -194,8 +213,9 @@
           (should (< (:explore-steps-remaining (:unit result)) 3))))))
 
   (context "handle-arrival cleanup"
-    (it "arrival clears exploration fields from unit"
-      ;; Fighter arriving at target city — should clear explore fields
+    (it "arrival replaces stale exploration fields with a new sortie from the staging city"
+      ;; Fighter arriving at target city should clear stale explore state and
+      ;; re-seed exploration from the arrival city.
       (set-test-world! (build-test-map ["X#fX"]))
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
                      :flight-target-site [3 0]
@@ -208,13 +228,13 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (let [unit (get-in (test-utils/read-test-state :game-map) [2 0 :contents])]
         (fighter/process-fighter [2 0] unit)
-        ;; Exploration fields should be cleared after arrival
+        ;; Stale exploration fields should be replaced with a fresh sortie from [3 0].
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
-          (should-be-nil (:explore-origin (:unit result)))
-          (should-be-nil (:explore-landing-site (:unit result)))
-          (should-be-nil (:explore-heading (:unit result)))
-          (should-be-nil (:explore-steps-remaining (:unit result)))))))
+          (should= [3 0] (:explore-origin (:unit result)))
+          (should-not-be-nil (:explore-landing-site (:unit result)))
+          (should-not-be-nil (:explore-heading (:unit result)))
+          (should-not-be-nil (:flight-target-site (:unit result)))))))
 
   (context "returning sortie arrival"
     (it "does not crash when origin equals target (returning sortie)"

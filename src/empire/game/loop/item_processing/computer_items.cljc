@@ -1,6 +1,7 @@
 (ns empire.game.loop.item-processing.computer-items
   "Computer item processing and threat detection dispatch."
   (:require [empire.state.api :as sa]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
@@ -20,6 +21,13 @@
 (defn- next-computer-item-coords
   []
   (first (normalize-computer-items)))
+
+(defn- count-visible-cells
+  [visible-map]
+  (count (for [row visible-map
+               cell row
+               :when (some? cell)]
+           1)))
 
 (defn- make-empty-visible-map
   [game-map]
@@ -47,6 +55,8 @@
   []
   (let [coords (next-computer-item-coords)
         cell (get-in (sa/current-world) coords)
+        unit-id (get-in cell [:contents :computer-unit-id])
+        visible-before (count-visible-cells (sa/read-state :computer-map))
         is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
         should-requeue-city? (fn [city-pos]
                                (let [current-cell (get-in (sa/current-world) city-pos)]
@@ -59,12 +69,14 @@
                        (let [coords* (computer/process-computer-unit coords)]
                          (dispatch-detections!)
                          coords*))
+          visible-after (count-visible-cells (sa/read-state :computer-map))
           action (decisions/computer-item-action {:cell cell
                                                   :launched-pos launched-pos
                                                   :new-coords new-coords
                                                   :should-requeue-city? (should-requeue-city? coords)})
           state (decisions/computer-item-state {:items (sa/read-state :computer-items)
                                                 :action action})]
+      (debug-logging/record-computer-unit-discovery! unit-id (- visible-after visible-before))
       (sa/write-state! :computer-items (:computer-items state))
       (:result state))))
 
@@ -75,7 +87,9 @@
   (loop [processed 0]
     (when (and (seq (normalize-computer-items)) (< processed 100))
       (process-one-computer-item)
-      (recur (inc processed)))))
+      (recur (inc processed))))
+  (when (empty? (normalize-computer-items))
+    (debug-logging/log-computer-units!)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T12:52:40.820475-05:00", :module-hash "393035575", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1027675793"} {:id "defn-/dispatch-detections!", :kind "defn-", :line 10, :end-line 14, :hash "-1526900239"} {:id "defn-/normalize-computer-items", :kind "defn-", :line 16, :end-line 18, :hash "-323406046"} {:id "defn-/next-computer-item-coords", :kind "defn-", :line 20, :end-line 22, :hash "-1996732340"} {:id "defn-/process-one-computer-item", :kind "defn-", :line 24, :end-line 48, :hash "1164443286"} {:id "defn/process-computer-items", :kind "defn", :line 50, :end-line 56, :hash "-1531772992"}]}

@@ -6,6 +6,43 @@
 (def ^:private max-movement-log-size 500)
 (def ^:private max-computer-event-log-size 2000)
 
+(defn begin-computer-unit-log-round!
+  "Clears per-unit discovery totals for the current computer turn."
+  []
+  (sa/write-state! :computer-unit-round-discoveries {}))
+
+(defn record-computer-unit-discovery!
+  "Adds newly discovered cell count for the given computer unit id."
+  [unit-id discovered-cells]
+  (when (and unit-id (pos? discovered-cells))
+    (sa/update-state! :computer-unit-round-discoveries
+                      #(update (or % {}) unit-id (fnil + 0) discovered-cells))))
+
+(defn computer-unit-snapshots
+  "Build per-round computer unit snapshots with per-unit discovery totals."
+  [world round-number discovery-counts]
+  (vec
+   (for [row (range (count world))
+         col (range (count (first world)))
+         :let [unit (get-in world [row col :contents])]
+         :when (and unit (= :computer (:owner unit)))]
+     {:round round-number
+      :pos [row col]
+      :unit unit
+      :discovered-cells (get discovery-counts (:computer-unit-id unit) 0)})))
+
+(defn log-computer-units!
+  "Append current computer unit snapshots, including this round's discovered-cell counts."
+  []
+  (when-let [log-file (sa/read-state :computer-unit-log-file)]
+    (let [entries (computer-unit-snapshots (sa/current-world)
+                                           (sa/read-state :round-number)
+                                           (or (sa/read-state :computer-unit-round-discoveries) {}))]
+      (when (seq entries)
+        (spit log-file
+              (apply str (map #(str (pr-str %) "\n") entries))
+              :append true)))))
+
 (defn log-player-movement!
   "Log a player unit movement for debugging.
    event is :move, :wake, or :blocked.

@@ -2,6 +2,7 @@
   (:require [empire.computer.transport.core :as transport-core]
             [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.test.utils :as test-utils]
+            [clojure.edn :as edn]
             [speclj.core :refer :all]))
 
 (describe "log-player-movement!"
@@ -96,3 +97,40 @@
       (should= :assoc-transport-field (:op entry))
       (should= :sea (:cell-type entry))
       (should= nil (:cell-contents entry)))))
+
+(describe "computer unit log snapshots"
+  (before (test-utils/reset-all-atoms!))
+
+  (it "includes discovered cells for each computer unit"
+    (let [world [[{:type :land
+                   :contents {:type :army :owner :computer :computer-unit-id 11}}
+                  {:type :sea
+                   :contents {:type :transport :owner :computer :computer-unit-id 22}}]]]
+      (should= [{:round 7
+                 :pos [0 0]
+                 :unit {:type :army :owner :computer :computer-unit-id 11}
+                 :discovered-cells 3}
+                {:round 7
+                 :pos [0 1]
+                 :unit {:type :transport :owner :computer :computer-unit-id 22}
+                 :discovered-cells 0}]
+               (debug-logging/computer-unit-snapshots world 7 {11 3})))))
+
+(describe "log-computer-units!"
+  (before (test-utils/reset-all-atoms!))
+
+  (it "writes discovered-cell totals into the unit log"
+    (let [log-file "/tmp/empire-debug-logging-spec.log"]
+      (spit log-file "")
+      (test-utils/set-test-state! :computer-unit-log-file log-file)
+      (test-utils/set-test-state! :round-number 9)
+      (test-utils/set-test-state! :computer-unit-round-discoveries {31 4})
+      (test-utils/set-test-world! [[{:type :land
+                                     :contents {:type :fighter
+                                                :owner :computer
+                                                :computer-unit-id 31}}]])
+      (debug-logging/log-computer-units!)
+      (let [entry (-> log-file slurp edn/read-string)]
+        (should= 9 (:round entry))
+        (should= [0 0] (:pos entry))
+        (should= 4 (:discovered-cells entry)))))) 

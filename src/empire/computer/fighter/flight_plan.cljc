@@ -62,7 +62,8 @@
                                            (or (read-runtime-state :fighter-leg-records) {})
                                            (or (read-runtime-state :round-number) 0)
                                            pos
-                                           unit)]
+                                           unit
+                                           (rand))]
     (when-let [leg-record (:leg-record decision)]
       (write-runtime-state! :fighter-leg-records
                             (assoc (or (read-runtime-state :fighter-leg-records) {})
@@ -70,11 +71,29 @@
                                    {:last-flown (:last-flown leg-record)})))
     (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
     (update-game-map! update-in (conj pos :contents)
-                      #(-> %
-                           (dissoc :explore-origin :explore-heading :explore-steps-remaining
-                                   :explore-landing-site :flight-mode)
-                           (assoc :flight-target-site (:new-target decision)
-                                  :flight-origin-site (:target decision))))
+                      (fn [fighter]
+                        (let [base (-> fighter
+                                       (dissoc :explore-origin :explore-heading :explore-steps-remaining
+                                               :explore-landing-site :flight-mode)
+                                       (assoc :flight-origin-site (:target decision)))
+                              next-action (:next-action decision)]
+                          (case (:action next-action)
+                            :assign-regular-leg
+                            (assoc base
+                                   :flight-target-site (:target next-action)
+                                   :flight-mode :regular)
+
+                            :assign-exploration-flight
+                            (assoc base
+                                   :flight-mode (:mode next-action)
+                                   :explore-origin (:origin next-action)
+                                   :explore-heading (:heading next-action)
+                                   :explore-steps-remaining (:steps-remaining next-action)
+                                   :explore-landing-site (:landing-site next-action)
+                                   :flight-target-site (:target next-action)
+                                   :flight-origin-site (:origin next-action))
+
+                            (dissoc base :flight-target-site)))))
     {:pos pos :hops (:hops decision)}))
 
 ;; clj-mutate-manifest-begin

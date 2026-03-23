@@ -2,6 +2,7 @@
   "Round orchestration: start-new-round, advance-game, update-map.
    Delegates round setup to round-setup and item processing to item-processing."
   (:require [empire.game.production-status :as production-status]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.unit-stamping :as unit-stamping]
             [empire.game-mechanics.visibility :as visibility]
@@ -17,27 +18,6 @@
             [empire.game.loop.item-processing :as item-processing]
             [empire.player.production :as player-production]
             [empire.game.loop.control-decisions :as decisions]))
-
-(defn- computer-unit-snapshots
-  [world round-number]
-  (vec
-   (for [row (range (count world))
-         col (range (count (first world)))
-         :let [unit (get-in world [row col :contents])]
-         :when (and unit (= :computer (:owner unit)))]
-     {:round round-number
-      :pos [row col]
-      :unit unit})))
-
-(defn- log-computer-units!
-  []
-  (when-let [log-file (sa/read-state :computer-unit-log-file)]
-    (let [entries (computer-unit-snapshots (sa/current-world)
-                                           (sa/read-state :round-number))]
-      (when (seq entries)
-        (spit log-file
-              (apply str (map #(str (pr-str %) "\n") entries))
-              :append true)))))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -164,6 +144,7 @@
   (sa/write-state! :claimed-objectives #{})
   (sa/write-state! :claimed-transport-targets #{})
   (sa/write-state! :claimed-patrol-targets #{})
+  (debug-logging/begin-computer-unit-log-round!)
   (let [player-items (current-player-items)
         computer-items (vec (build-computer-items))
         round-state (decisions/round-start-state
@@ -175,7 +156,6 @@
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
     (army/assign-transport-staging)
-    (log-computer-units!)
     nil)
   (sa/write-state! :production-status
                    (production-status/format-production-status (sa/current-world)

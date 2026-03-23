@@ -1,7 +1,7 @@
 ;===============================================================
-; After choosing an exploration sortie, the fighter should plan
-; to recover at the reachable computer city closest to unexplored
-; cells, not merely the nearest city.
+; Before launching a sortie, the fighter should head for the
+; reachable computer city closest to unexplored cells, even when
+; that city can be reached in one leg.
 ;===============================================================
 GIVEN game map
   X###########X###########X########
@@ -12,4 +12,19 @@ GIVEN computer map
 WHEN a new round starts.
 
 THEN f is at [8 0].
-THEN f has explore-landing-site [24 0].
+THEN f has flight-target-site [24 0].
+
+;===============================================================
+; Before launching a sortie, the fighter should hop toward the
+; reachable computer city closest to unexplored cells.
+;===============================================================
+GIVEN game map
+  X###################X###################X########
+GIVEN X has a computer fighter.
+GIVEN computer map
+  X###################X###################X--------
+
+WHEN a new round starts.
+
+THEN f is at [8 0].
+THEN f has flight-target-site [20 0].

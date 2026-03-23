@@ -36,6 +36,7 @@
    :early-patrol-boat-produced? false
    :early-satellite-produced? false
    :computer-event-log []
+   :computer-unit-round-discoveries {}
    :distant-city-pairs nil
    :lake-max-cells 0
    :known-lake-cells #{}
