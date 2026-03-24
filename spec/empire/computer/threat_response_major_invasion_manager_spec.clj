@@ -1,5 +1,6 @@
 (ns empire.computer.threat-response-major-invasion-manager-spec
   (:require [speclj.core :refer :all]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.threat-response.major-invasion-manager :as manager]))
 
 (defn- update-world-fn
@@ -270,6 +271,73 @@
                     empire.computer.threat-response.invasion-decision/armies-in-transports-to-target-continent (fn [& _] 1)]
         (manager/on-round-start! ctx))
       (should= 0 @rebuilds)))
+
+  (it "records threat-response round-start profiling phases"
+    (let [world (atom [[{:type :sea}]])
+          state (atom {:active? true
+                       :decision :ready
+                       :target-land-set #{[0 0]}
+                       :detection-points #{[0 0]}})
+          recorded-phases (atom [])
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] nil)
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :chebyshev-distance-fn (fn [& _] 0)
+               :recompute-major-invasion-target-land!-fn (fn [] nil)
+               :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
+      (with-redefs [empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)]
+        (profiling/with-round-phase-recorder
+          (fn [phase _elapsed-ns]
+            (swap! recorded-phases conj phase))
+          #(manager/on-round-start! ctx)))
+      (should-contain :start-new-round/threat-response-dec-threat-rounds @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-target-land @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-sea-reachable @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-find-units @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-fighters @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-army-targets @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-armies @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-transports @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-ships @recorded-phases)
+      (should-contain :start-new-round/threat-response-refresh-active-assignments-non-fighters @recorded-phases)
+      (should-contain :start-new-round/threat-response-finalize @recorded-phases)
+      (should-contain :start-new-round/threat-response-country-defense @recorded-phases)))
+
+  (it "refreshes kamikazee army targets only once during active round start"
+    (let [world (atom [[{:type :sea}]])
+          state (atom {:active? true
+                       :decision :ready
+                       :target-land-set #{[0 0]}
+                       :detection-points #{[0 0]}})
+          refreshes (atom 0)
+          ctx {:load-major-invasion-state (fn [] @state)
+               :update-major-invasion-state! (update-state-fn state)
+               :current-world (fn [] @world)
+               :read-runtime-state (fn [_] nil)
+               :update-game-map! (update-world-fn world)
+               :next-review-round-fn (constantly 9)
+               :current-round-fn (constantly 5)
+               :dec-threat-rounds-fn identity
+               :find-computer-unit-positions-fn (constantly [])
+               :apply-major-invasion-assignment!-fn (fn [& _] nil)
+               :refresh-country-defense!-fn (fn [] nil)
+               :chebyshev-distance-fn (fn [& _] 0)
+               :recompute-major-invasion-target-land!-fn (fn [] nil)
+               :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
+      (with-redefs [empire.computer.threat-response.kamikazee/refresh-army-targets!
+                    (fn [& _] (swap! refreshes inc))]
+        (manager/on-round-start! ctx))
+      (should= 1 @refreshes)))
 
   (it "rebuilds kamikazee routing on round start after the computer conquers a city"
     (let [world (atom [[{:type :city :city-status :computer}]

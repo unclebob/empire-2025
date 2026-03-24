@@ -130,3 +130,20 @@ Measurement:
 Result:
 - Transport-staging pathing dropped substantially again.
 - In the latest late-game windows, the main hotspots shifted to broader army work and `start-new-round/threat-response` rather than transport-staging pathing alone.
+
+### Threat-response duplicate army-target refresh removal
+
+Change:
+- Removed a redundant `kamikazee/refresh-army-targets!` call from active major-invasion round-start processing.
+- Active threat-response refresh now updates kamikazee army targets only once, inside `refresh-major-invasion-assignments!`, instead of once before assignments and again during assignments.
+
+Files:
+- `src/empire/computer/threat_response/major_invasion_manager.cljc`
+
+Verification:
+- Added a regression proving active round start calls `refresh-army-targets!` exactly once.
+
+Result:
+- This removes one guaranteed full kamikazee target refresh from every active major-invasion round.
+- Follow-up profiling shows the remaining threat-response hotspot is no longer army-target refresh itself. The dominant subphase is now transport assignment inside `refresh-active-assignments`, for example:
+  - `start-new-round/threat-response-refresh-active-assignments-transports` avg `340.7 ms` in the final analyzed window of `clj -M:run --headless=220 --slow-round-analysis=500:20 --seed=1774361658123`
