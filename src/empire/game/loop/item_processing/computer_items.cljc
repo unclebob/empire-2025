@@ -3,7 +3,6 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.game-mechanics.visibility :as visibility]
-            [empire.game.loop.profiling :as profiling]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing.computer-item-decisions :as decisions]
@@ -69,18 +68,16 @@
                                (let [current-cell (get-in (sa/current-world) city-pos)]
                                  (pos? (:awake-kamikazee-fighters current-cell 0))))]
     (when is-computer-city?
-      (profiling/time-phase phase
-                            #(computer-production/process-computer-city-with-current-visibility coords)))
+      (computer-production/process-computer-city-with-current-visibility coords))
       (let [launched-pos (when is-computer-city?
                          (threat-response/launch-kamikazee-from-airport! coords))
           new-coords (when (= (:owner (:contents cell)) :computer)
-                       (profiling/time-phase phase
-                                             #(debug-logging/with-computer-unit-context
-                                                unit-id
-                                                (fn []
-                                                  (let [coords* (computer/process-computer-unit coords)]
-                                                    (dispatch-detections!)
-                                                    coords*)))))
+                       (debug-logging/with-computer-unit-context
+                         unit-id
+                         (fn []
+                           (let [coords* (computer/process-computer-unit coords)]
+                             (dispatch-detections!)
+                             coords*))))
           action (decisions/computer-item-action {:cell cell
                                                   :launched-pos launched-pos
                                                   :new-coords new-coords

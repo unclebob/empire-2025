@@ -3,7 +3,6 @@
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing :as ip]
             [empire.game.loop.item-processing.computer-items :as computer-items]
-            [empire.game.loop.profiling :as profiling]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]
             [speclj.core :refer :all]))

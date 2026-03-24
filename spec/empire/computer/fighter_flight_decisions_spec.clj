@@ -1,6 +1,5 @@
 (ns empire.computer.fighter.flight-decisions-spec
   (:require [empire.computer.fighter.flight-decisions :as sut]
-            [empire.game.loop.profiling :as profiling]
             [empire.test.utils :refer [build-test-map]]
             [speclj.core :refer :all]))
 

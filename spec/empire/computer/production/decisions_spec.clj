@@ -1,7 +1,6 @@
 (ns empire.computer.production.decisions-spec
   (:require [empire.test.utils :as test-utils]
             [empire.computer.production.decisions :as decisions]
-            [empire.game.loop.profiling :as profiling]
             [empire.computer.production.stats :as stats]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map!]]
             [speclj.core :refer :all]))

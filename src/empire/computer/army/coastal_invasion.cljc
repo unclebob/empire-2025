@@ -2,13 +2,7 @@
   "Invasion embarkation target selection and coastal movement helpers."
   (:require [empire.computer.army.coastal-invasion-decisions :as decisions]
             [empire.computer.shared.grid :as grid]
-            [empire.game.loop.profiling :as profiling]
             [empire.computer.army.movement :as movement]))
-
-(defn- army-invasion-phase
-  [suffix]
-  (keyword "process-computer"
-           (str "army-invasion-" suffix)))
 
  (defn- coastal-cell?
    [ctx pos country-id]
@@ -111,13 +105,10 @@
     ((:sync-ai-unit! ctx) pos)))
 
 (defn- resolve-coast-target [ctx unit pos country-id]
-  (profiling/time-phase
-   (army-invasion-phase "resolve-coast-target")
-   (fn []
-     (let [cached-target (:coast-target unit)]
-       (decisions/resolve-coast-target cached-target
-                                       (when-not cached-target
-                                         ((:find-coast-target-once ctx) pos country-id)))))))
+  (let [cached-target (:coast-target unit)]
+    (decisions/resolve-coast-target cached-target
+                                    (when-not cached-target
+                                      ((:find-coast-target-once ctx) pos country-id)))))
 
 (defn- retry-repath-now? [ctx unit]
   (let [now (or ((:read-runtime-state ctx) :round-number) 0)
@@ -133,9 +124,7 @@
   (when (retry-repath-now? ctx (assoc unit :pos pos))
     (when-let [local-target (local-empty-coast-target ctx pos country-id)]
       (set-coast-target! ctx pos local-target)
-      (profiling/time-phase
-       (army-invasion-phase "repath-move")
-       #(movement/move-toward-objective pos local-target country-id)))))
+      (movement/move-toward-objective pos local-target country-id))))
 
 (defn- plan-coast-target-step
   [ctx pos country-id unit target]
@@ -148,22 +137,14 @@
                                                :move-step? nil
                                                :repath-step? nil})
                  (let [cheap-step (when (:lake-retask? unit)
-                                    (profiling/time-phase
-                                     (army-invasion-phase "cheap-step")
-                                     #(step-toward-target-cheap pos target country-id)))
+                                    (step-toward-target-cheap pos target country-id))
                        local-step (when-not (or (:lake-retask? unit) cheap-step)
-                                    (profiling/time-phase
-                                     (army-invasion-phase "local-step")
-                                     #(movement/local-step-toward-objective pos target country-id)))
+                                    (movement/local-step-toward-objective pos target country-id))
                        move-step (when-not (:lake-retask? unit)
                                     (when-not local-step
-                                      (profiling/time-phase
-                                       (army-invasion-phase "path-step")
-                                       #(movement/move-toward-objective pos target country-id))))
+                                      (movement/move-toward-objective pos target country-id)))
                        repath-step (when-not (or (:lake-retask? unit) local-step move-step)
-                                     (profiling/time-phase
-                                      (army-invasion-phase "repath-step")
-                                      #(maybe-repath-local-target ctx pos country-id unit)))]
+                                     (maybe-repath-local-target ctx pos country-id unit))]
                    (decisions/coast-step-action {:pos pos
                                                  :target target
                                                  :lake-retask? (:lake-retask? unit)
@@ -194,9 +175,7 @@
     (let [unit (get-in ((:current-world ctx)) (conj pos :contents))]
       (when-let [target (resolve-coast-target ctx unit pos country-id)]
         (set-coast-target! ctx pos target)
-        (profiling/time-phase
-         (army-invasion-phase "execute-coast-target-step")
-         #(execute-coast-target-step ctx pos country-id unit target))))))
+        (execute-coast-target-step ctx pos country-id unit target)))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T07:15:15.260869-05:00", :module-hash "-400258597", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "1115790238"} {:id "defn-/coastal-cell?", :kind "defn-", :line 7, :end-line 11, :hash "-308990903"} {:id "defn/empty-coastal-cell?", :kind "defn", :line 13, :end-line 17, :hash "-935405407"} {:id "defn-/bfs-land-distances", :kind "defn-", :line 19, :end-line 31, :hash "-702595219"} {:id "defn-/closest-staging-cell", :kind "defn-", :line 33, :end-line 47, :hash "1335816473"} {:id "defn/find-coast-target-once", :kind "defn", :line 49, :end-line 58, :hash "1909238643"} {:id "defn/local-empty-coast-target", :kind "defn", :line 60, :end-line 74, :hash "-447623782"} {:id "def/local-coast-repath-interval-rounds", :kind "def", :line 76, :end-line 76, :hash "1825849599"} {:id "defn-/settle-at-coast-target!", :kind "defn-", :line 78, :end-line 83, :hash "-855297685"} {:id "defn-/step-toward-target-cheap", :kind "defn-", :line 85, :end-line 92, :hash "1071279685"} {:id "defn-/set-coast-target!", :kind "defn-", :line 94, :end-line 95, :hash "-1760347742"} {:id "defn-/resolve-coast-target", :kind "defn-", :line 97, :end-line 99, :hash "-114205102"} {:id "defn-/retry-repath-now?", :kind "defn-", :line 101, :end-line 107, :hash "-1896130787"} {:id "defn-/maybe-repath-local-target", :kind "defn-", :line 109, :end-line 114, :hash "918333870"} {:id "defn-/move-toward-coast-target", :kind "defn-", :line 116, :end-line 119, :hash "928392083"} {:id "defn-/plan-coast-target-step", :kind "defn-", :line 121, :end-line 135, :hash "1097036474"} {:id "defn-/execute-coast-target-step", :kind "defn-", :line 137, :end-line 145, :hash "1565108873"} {:id "defn/process-move-to-coast-for-invasion", :kind "defn", :line 147, :end-line 160, :hash "-742693444"}]}

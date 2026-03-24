@@ -1,7 +1,6 @@
 (ns empire.ui.quil.core-spec
   (:require [empire.ui.quil.core :as quil-core]
             [empire.ui.quil.input :as quil-input]
-            [empire.game.loop.profiling :as profiling]
             [empire.state.api :as sa]
             [empire.test.utils :refer [reset-all-atoms!]]
             [empire.ui.util.core :as util-core]

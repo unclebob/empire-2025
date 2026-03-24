@@ -5,12 +5,7 @@
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.major-invasion-manager-decisions :as decisions]
             [empire.computer.threat-response.major-invasion :as major-invasion]
-            [empire.game.loop.profiling :as profiling]
             [empire.computer.threat-response.probe :as probe]))
-
-(defn- threat-response-phase
-  [suffix]
-  (keyword "start-new-round" (str "threat-response-" suffix)))
 
 (def ^:private major-invasion-ship-types
   #{:patrol-boat :destroyer :submarine :carrier :battleship})
@@ -222,46 +217,32 @@
 (defn refresh-major-invasion-assignments!
   [ctx]
   (when (:active? ((:load-major-invasion-state ctx)))
-    (let [units (profiling/time-phase
-                 (threat-response-phase "refresh-active-assignments-find-units")
-                 #((:find-computer-unit-positions-fn ctx) (constantly true)))
+    (let [units ((:find-computer-unit-positions-fn ctx) (constantly true))
           world ((:current-world ctx))]
-      (profiling/time-phase
-       (threat-response-phase "refresh-active-assignments-fighters")
-       #(doseq [pos units
-                :let [unit (get-in world (conj pos :contents))]
-                :when (= :fighter (:type unit))]
-          ((:apply-major-invasion-assignment!-fn ctx) pos unit)))
-      (profiling/time-phase
-       (threat-response-phase "refresh-active-assignments-army-targets")
-       #(kamikazee/refresh-army-targets! ctx))
-      (profiling/time-phase
-       (threat-response-phase "refresh-active-assignments-armies")
-       #(doseq [pos units
-                :let [unit (get-in world (conj pos :contents))]
-                :when (= :army (:type unit))]
-          ((:apply-major-invasion-assignment!-fn ctx) pos unit)))
-      (profiling/time-phase
-       (threat-response-phase "refresh-active-assignments-transports")
-       #(doseq [pos units
-                :let [unit (get-in world (conj pos :contents))]
-                :when (= :transport (:type unit))]
-          ((:apply-major-invasion-assignment!-fn ctx) pos unit)))
-      (profiling/time-phase
-       (threat-response-phase "refresh-active-assignments-ships")
-       #(doseq [pos units
-                :let [unit (get-in world (conj pos :contents))]
-                :when (and unit
-                           (major-invasion-ship? unit))]
-          ((:apply-major-invasion-assignment!-fn ctx) pos unit)))
-      (profiling/time-phase
-       (threat-response-phase "refresh-active-assignments-non-fighters")
-       #(doseq [pos units
-                :let [unit (get-in world (conj pos :contents))]
-                :when (and unit
-                           (not (#{:fighter :army :transport} (:type unit)))
-                           (not (major-invasion-ship? unit)))]
-          ((:apply-major-invasion-assignment!-fn ctx) pos unit))))))
+      (doseq [pos units
+              :let [unit (get-in world (conj pos :contents))]
+              :when (= :fighter (:type unit))]
+        ((:apply-major-invasion-assignment!-fn ctx) pos unit))
+      (kamikazee/refresh-army-targets! ctx)
+      (doseq [pos units
+              :let [unit (get-in world (conj pos :contents))]
+              :when (= :army (:type unit))]
+        ((:apply-major-invasion-assignment!-fn ctx) pos unit))
+      (doseq [pos units
+              :let [unit (get-in world (conj pos :contents))]
+              :when (= :transport (:type unit))]
+        ((:apply-major-invasion-assignment!-fn ctx) pos unit))
+      (doseq [pos units
+              :let [unit (get-in world (conj pos :contents))]
+              :when (and unit
+                         (major-invasion-ship? unit))]
+        ((:apply-major-invasion-assignment!-fn ctx) pos unit))
+      (doseq [pos units
+              :let [unit (get-in world (conj pos :contents))]
+              :when (and unit
+                         (not (#{:fighter :army :transport} (:type unit)))
+                         (not (major-invasion-ship? unit)))]
+        ((:apply-major-invasion-assignment!-fn ctx) pos unit)))))
 
 (defn rebuild-kamikazee-routing!
   [ctx]
@@ -283,17 +264,12 @@
 (defn- refresh-active-major-invasion!
   [ctx]
   (when (:active? ((:load-major-invasion-state ctx)))
-    (profiling/time-phase (threat-response-phase "refresh-active-target-land")
-                          #(recompute-target-land! ctx))
-    (profiling/time-phase (threat-response-phase "refresh-active-sea-reachable")
-                          #(recompute-sea-reachable! ctx))
-    (profiling/time-phase (threat-response-phase "refresh-active-unsustainable-losses")
-                          #(maybe-handle-unsustainable-losses! ctx))
+    (recompute-target-land! ctx)
+    (recompute-sea-reachable! ctx)
+    (maybe-handle-unsustainable-losses! ctx)
     (when (:active? ((:load-major-invasion-state ctx)))
-      (profiling/time-phase (threat-response-phase "refresh-active-rebuild-routing")
-                            #(rebuild-routing-if-needed! ctx))
-      (profiling/time-phase (threat-response-phase "refresh-active-assignments")
-                            #(refresh-major-invasion-assignments! ctx)))))
+      (rebuild-routing-if-needed! ctx)
+      (refresh-major-invasion-assignments! ctx))))
 
 (defn- finalize-round-start!
   [ctx]
@@ -306,27 +282,21 @@
                                       :next-review-round (:next-review-round state)
                                       :current-round ((:current-round-fn ctx))})
                   :failure-reason (:failure-reason state)})]
-    (profiling/time-phase (threat-response-phase "country-defense")
-                          #((:refresh-country-defense!-fn ctx)))
+    ((:refresh-country-defense!-fn ctx))
     (when (:review-deferred? actions)
-      (profiling/time-phase (threat-response-phase "review-deferred")
-                            #(maybe-review-deferred-major-invasion! ctx)))
+      (maybe-review-deferred-major-invasion! ctx))
     (when (:force-patrol-exploration? actions)
-      (profiling/time-phase (threat-response-phase "force-patrol-exploration")
-                            #(force-patrol-boat-exploration! ctx)))))
+      (force-patrol-boat-exploration! ctx))))
 
 (defn on-round-start!
   [ctx]
-  (profiling/time-phase (threat-response-phase "dec-threat-rounds")
-                        #(dec-threat-rounds! ctx))
+  (dec-threat-rounds! ctx)
   (when (:refresh-active? (decisions/round-start-actions
                            {:active? (:active? ((:load-major-invasion-state ctx)))
                             :review-deferred? false
                             :failure-reason (:failure-reason ((:load-major-invasion-state ctx)))}))
-    (profiling/time-phase (threat-response-phase "refresh-active")
-                          #(refresh-active-major-invasion! ctx)))
-  (profiling/time-phase (threat-response-phase "finalize")
-                        #(finalize-round-start! ctx)))
+    (refresh-active-major-invasion! ctx))
+  (finalize-round-start! ctx))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T11:27:21.706187-05:00", :module-hash "-2056063138", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-159037560"} {:id "defn-/computer-city-count", :kind "defn-", :line 9, :end-line 16, :hash "1021744181"} {:id "defn-/rebuild-routing-if-needed!", :kind "defn-", :line 18, :end-line 28, :hash "-1979926472"} {:id "defn/recompute-major-invasion-target-land!", :kind "defn", :line 30, :end-line 43, :hash "1090175681"} {:id "defn-/recompute-target-land!", :kind "defn-", :line 45, :end-line 49, :hash "204964494"} {:id "defn-/recompute-sea-reachable!", :kind "defn-", :line 51, :end-line 55, :hash "-422920731"} {:id "defn-/mission-needs-reset?", :kind "defn-", :line 57, :end-line 61, :hash "2076506354"} {:id "defn-/clear-major-invasion-from-unit", :kind "defn-", :line 63, :end-line 87, :hash "-30374017"} {:id "defn-/stand-down-major-invasion!", :kind "defn-", :line 89, :end-line 105, :hash "-913351683"} {:id "defn-/force-patrol-boat-exploration!", :kind "defn-", :line 107, :end-line 113, :hash "733963500"} {:id "form/10/declare", :kind "declare", :line 115, :end-line 115, :hash "11733860"} {:id "defn/evaluate-major-invasion-start!", :kind "defn", :line 117, :end-line 140, :hash "662760004"} {:id "defn-/maybe-record-major-invasion-detection!", :kind "defn-", :line 142, :end-line 156, :hash "700769299"} {:id "defn/handle-major-invasion-detection!", :kind "defn", :line 158, :end-line 167, :hash "1599444521"} {:id "defn-/maybe-handle-unsustainable-losses!", :kind "defn-", :line 169, :end-line 187, :hash "1348944847"} {:id "defn-/maybe-review-deferred-major-invasion!", :kind "defn-", :line 189, :end-line 197, :hash "-2100257739"} {:id "defn/refresh-major-invasion-assignments!", :kind "defn", :line 199, :end-line 212, :hash "-26363854"} {:id "defn/rebuild-kamikazee-routing!", :kind "defn", :line 214, :end-line 218, :hash "-680401485"} {:id "defn-/dec-threat-rounds!", :kind "defn-", :line 220, :end-line 229, :hash "-1156496508"} {:id "defn-/refresh-active-major-invasion!", :kind "defn-", :line 231, :end-line 240, :hash "1093038917"} {:id "defn-/finalize-round-start!", :kind "defn-", :line 242, :end-line 257, :hash "-427648184"} {:id "defn/on-round-start!", :kind "defn", :line 259, :end-line 267, :hash "-606016937"}]}

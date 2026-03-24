@@ -5,7 +5,6 @@
             [empire.computer.fighter :as fighter]
             [empire.computer.fighter.flight-decisions :as flight-decisions]
             [empire.computer.fighter.movement :as fighter-movement]
-            [empire.game.loop.profiling :as profiling]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map set-test-unit

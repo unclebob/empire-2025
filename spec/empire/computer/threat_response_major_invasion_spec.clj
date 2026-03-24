@@ -3,7 +3,6 @@
             [empire.computer.threat-response.major-invasion :as mi]
             [empire.computer.threat-response.major-invasion-assignment :as assignment]
             [empire.computer.threat-response.invasion-state :as invasion-state]
-            [empire.game.loop.profiling :as profiling]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]))
 
 (defn- update-world-fn

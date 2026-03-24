@@ -3,7 +3,6 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.army :as army]
-            [empire.game.loop.profiling :as profiling]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.production :as production]
             [empire.computer.shared.stamping :as stamping]

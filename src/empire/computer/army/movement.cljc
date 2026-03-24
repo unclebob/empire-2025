@@ -3,15 +3,9 @@
   (:require [empire.state.api :as sa]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.shared.grid :as grid]
-            [empire.game.loop.profiling :as profiling]
             [empire.game-mechanics.debug.logging :as debug]
             [empire.computer.shared.world-query :as world-query]
             [empire.computer.shared.movement :as computer-movement]))
-
-(defn- army-movement-phase
-  [suffix]
-  (keyword "process-computer"
-           (str "army-movement-" suffix)))
 
 (defn on-same-continent?
   [country-a country-b]
@@ -145,9 +139,7 @@
   (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         history (set (:move-history unit))
         pass-fn (when country-id (sovereignty-passability-fn country-id))
-        preferred (profiling/time-phase
-                   (army-movement-phase "next-step")
-                   #(computer-movement/next-step pos objective :army pass-fn country-id))]
+        preferred (computer-movement/next-step pos objective :army pass-fn country-id)]
     (or (when (and preferred (not (history preferred)))
           (try-move pos preferred))
         (let [empty-neighbors (get-empty-passable-neighbors pos country-id)

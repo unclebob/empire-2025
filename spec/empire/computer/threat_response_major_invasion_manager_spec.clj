@@ -1,6 +1,5 @@
 (ns empire.computer.threat-response-major-invasion-manager-spec
   (:require [speclj.core :refer :all]
-            [empire.game.loop.profiling :as profiling]
             [empire.computer.threat-response.major-invasion-manager :as manager]))
 
 (defn- update-world-fn
