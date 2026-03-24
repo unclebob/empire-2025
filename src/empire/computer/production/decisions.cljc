@@ -39,16 +39,33 @@
 
 (defn- produced-transport-at
   [city-pos]
-  (let [computer-map (sa/read-state :computer-map)]
-    (last
-     (sort-by :transport-id
-              (for [x (range (count computer-map))
-                    y (range (count (first computer-map)))
-                    :let [unit (:contents (get-in computer-map [x y]))]
-                    :when (and (= :transport (:type unit))
-                               (= :computer (:owner unit))
-                               (= city-pos (:produced-at unit)))]
-                unit)))))
+  (let [computer-map (sa/read-state :computer-map)
+        cached-source (sa/read-state :produced-transport-source)
+        cached-by-city (sa/read-state :produced-transport-by-city)]
+    (if (= computer-map cached-source)
+      (get cached-by-city city-pos)
+      (let [by-city (reduce (fn [acc column]
+                              (reduce (fn [inner-acc cell]
+                                        (let [unit (:contents cell)
+                                              produced-at (:produced-at unit)]
+                                          (if (and (= :transport (:type unit))
+                                                   (= :computer (:owner unit))
+                                                   produced-at)
+                                            (update inner-acc produced-at
+                                                    (fn [existing]
+                                                      (if (or (nil? existing)
+                                                              (> (:transport-id unit 0)
+                                                                 (:transport-id existing 0)))
+                                                        unit
+                                                        existing)))
+                                            inner-acc)))
+                                      acc
+                                      column))
+                            {}
+                            computer-map)]
+        (sa/write-state! :produced-transport-source computer-map)
+        (sa/write-state! :produced-transport-by-city by-city)
+        (get by-city city-pos)))))
 
 (defn- next-produced-transport-cycle-item
   [city-pos]
@@ -100,7 +117,9 @@
 
 (defn- decide-country-production
   [city-pos country-id coastal? unit-counts]
-  (or (next-produced-transport-cycle-item city-pos)
+  (or (profiling/time-phase
+       (city-phase "transport-cycle")
+       #(next-produced-transport-cycle-item city-pos))
       (selection/country-production-choice
        {:transport (should-produce-transport? city-pos country-id coastal?)
         :army (when (should-produce-army? country-id) :army)

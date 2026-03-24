@@ -93,6 +93,17 @@
       (production/rebuild-country-stats!)
       (should= :transport (production/decide-production [1 0])))
 
+    (it "city that launched an unnumbered transport still resumes transport production after sail-to-unload"
+      (set-test-world! (build-test-map ["X~taaaaaa"]))
+      (update-test-world! assoc-in [0 0 :country-id] 1)
+      (update-test-world! assoc-in [2 0 :contents :country-id] 1)
+      (update-test-world! assoc-in [2 0 :contents :produced-at] [0 0])
+      (update-test-world! assoc-in [2 0 :contents :transport-mission] :sail-to-unload)
+      (doseq [col (range 3 9)]
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (production/rebuild-country-stats!)
+      (should= :transport (production/decide-production [0 0])))
+
     (it "coastal city produces transport when country has 6+ coastal armies waiting"
       ;; 2-row map: armies on coastal cells, no transports
       (set-test-world! (build-test-map ["~Xaaaaaa"
