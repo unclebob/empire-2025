@@ -134,10 +134,10 @@
 (declare exploration-flight-action)
 
 (defn- staging-action
-  [world sites leg-records pos site-pos drone-roll]
+  [world sites leg-records pos site-pos]
   (when-let [{:keys [city path]} (best-sortie-staging-plan world sites site-pos)]
     (if (= city site-pos)
-      (exploration-flight-action world sites pos site-pos drone-roll)
+      (exploration-flight-action world sites pos site-pos)
       {:action :assign-regular-leg
        :pos pos
        :target (second path)
@@ -234,11 +234,11 @@
       (rand-nth (vec best-plans)))))
 
 (defn exploration-flight-action
-  [world sites pos site-pos drone-roll]
+  [world sites pos site-pos]
   (when-let [{:keys [direction endpoint steps landing-site]} (choose-exploration-plan world sites pos)]
     {:action :assign-exploration-flight
      :pos pos
-     :mode (if (< drone-roll 0.10) :drone :explore)
+     :mode :explore
      :origin site-pos
      :heading direction
      :steps-remaining steps
@@ -249,8 +249,8 @@
   [world sites leg-records pos unit leg-roll drone-roll]
   (when (and unit (nil? (:flight-mode unit)) (nil? (:flight-target-site unit)))
     (when-let [site-pos (current-refueling-site world pos)]
-      (or (staging-action world sites leg-records pos site-pos drone-roll)
-          (exploration-flight-action world sites pos site-pos drone-roll)))))
+      (or (staging-action world sites leg-records pos site-pos)
+          (exploration-flight-action world sites pos site-pos)))))
 
 (defn at-flight-target?
   [world pos target]
@@ -263,8 +263,8 @@
   [world sites leg-records round-number pos unit drone-roll]
   (let [target (:flight-target-site unit)
         origin (:flight-origin-site unit)
-        next-action (or (staging-action world sites leg-records pos target drone-roll)
-                        (exploration-flight-action world sites pos target drone-roll))
+        next-action (or (staging-action world sites leg-records pos target)
+                        (exploration-flight-action world sites pos target))
         leg-record (when (and origin (not= origin target))
                      {:leg-key #{origin target}
                       :last-flown round-number})

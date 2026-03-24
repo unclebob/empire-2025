@@ -1,5 +1,6 @@
 (ns empire.computer.fighter.movement-impl
   (:require [empire.computer.fighter.action-resolution :as fighter-action-resolution]
+            [empire.config.domain.core.refueling :as refueling]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
@@ -136,7 +137,9 @@
 
 (defn find-nearest-refueling-site
   [pos]
-  (let [sites (ship-carrier/find-refueling-sites)]
+  (let [{:keys [cities carriers]}
+        (refueling/scan-refueling-positions (sa/read-state :computer-map))
+        sites (concat cities carriers)]
     (when (seq sites)
       (apply min-key (partial grid/distance pos) sites))))
 

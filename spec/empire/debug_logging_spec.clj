@@ -102,10 +102,18 @@
   (before (test-utils/reset-all-atoms!))
 
   (it "attributes active discovery counts to the bound computer unit"
+    (test-utils/set-test-state! :computer-unit-log-file "/tmp/enabled.log")
     (debug-logging/with-computer-unit-context
       17
       #(debug-logging/record-active-computer-unit-discovery! 2))
     (should= {17 2}
+             (test-utils/read-test-state :computer-unit-round-discoveries)))
+
+  (it "does not record discovery counts when unit logging is disabled"
+    (debug-logging/with-computer-unit-context
+      17
+      #(debug-logging/record-active-computer-unit-discovery! 2))
+    (should= {}
              (test-utils/read-test-state :computer-unit-round-discoveries)))
 
   (it "includes discovered cells for each computer unit"
@@ -140,4 +148,23 @@
       (let [entry (-> log-file slurp edn/read-string)]
         (should= 9 (:round entry))
         (should= [0 0] (:pos entry))
-        (should= 4 (:discovered-cells entry)))))) 
+        (should= 4 (:discovered-cells entry)))))
+
+  (it "writes explicit fighter crash entries into the unit log"
+    (let [log-file "/tmp/empire-debug-logging-spec.log"]
+      (spit log-file "")
+      (test-utils/set-test-state! :computer-unit-log-file log-file)
+      (test-utils/set-test-state! :round-number 11)
+      (debug-logging/log-computer-unit-crash!
+        [2 3]
+        {:type :fighter :owner :computer :computer-unit-id 44 :fuel 0}
+        :fuel
+        {:target-site [1 1] :target-distance 3})
+      (let [entry (-> log-file slurp edn/read-string)]
+        (should= 11 (:round entry))
+        (should= :fighter-crash (:event entry))
+        (should= [2 3] (:pos entry))
+        (should= 44 (get-in entry [:unit :computer-unit-id]))
+        (should= :fuel (:reason entry))
+        (should= [1 1] (:target-site entry))
+        (should= 3 (:target-distance entry)))))) 

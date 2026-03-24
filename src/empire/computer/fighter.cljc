@@ -21,6 +21,10 @@
   [pos]
   (get-in (sa/read-state :computer-map) pos))
 
+(defn- world-cell-at
+  [pos]
+  (get-in (sa/current-world) pos))
+
 ;; --- Leg-based coverage ---
 
 (defn- ensure-flight-target
@@ -91,11 +95,33 @@
 
 (defn- adjacent-to-city-site? [site pos]
   (and site
-       (= :city (:type (computer-cell-at site)))
+       (= :city (:type (or (computer-cell-at site)
+                           (world-cell-at site))))
        (<= (fm/distance-to pos site) 1)))
 
 (defn- adjacent-to-site? [site pos]
   (and site (<= (fm/distance-to pos site) 1)))
+
+(defn- candidate-refueling-sites
+  [pos unit]
+  (->> [(:explore-landing-site unit)
+        (when (= :regular (:flight-mode unit))
+          (:flight-target-site unit))
+        (:flight-origin-site unit)
+        (fm/find-nearest-refueling-site pos)]
+       (remove nil?)
+       distinct))
+
+(defn- nearest-recovery-site
+  [pos unit]
+  (when-let [sites (seq (candidate-refueling-sites pos unit))]
+    (apply min-key (partial fm/distance-to pos) sites)))
+
+(defn- should-break-off-to-refuel?
+  [pos fuel unit]
+  (if-let [site (nearest-recovery-site pos unit)]
+    (<= fuel (+ (fm/distance-to pos site) 2))
+    false))
 
 (defn- desperate-patrol [pos]
   (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
@@ -105,8 +131,8 @@
 (defn- handle-low-fuel
   "Handle low-fuel: return to nearest refueling site or patrol desperately.
    Returns :landed, {:pos p :hops n}, or nil."
-  [pos]
-  (let [site (fm/find-nearest-refueling-site pos)]
+  [pos unit]
+  (let [site (nearest-recovery-site pos unit)]
     (cond
       (adjacent-to-city-site? site pos) (fm/land-at-city pos site)
       (adjacent-to-site? site pos) {:pos (refuel-at-site pos site) :hops 1}
@@ -126,28 +152,25 @@
   (and (= :explore (:flight-mode unit))
        (pos? (:explore-steps-remaining unit 0))))
 
-(defn- handle-exploration-or-drone
-  "Dispatch to drone-step or explore-step based on flight-mode."
+(defn- handle-exploration
+  "Process an outbound exploration sortie."
   [pos unit]
-  (if (= :drone (:flight-mode unit))
-    (fe/drone-step pos unit)
-    (fe/explore-step pos unit)))
+  (fe/explore-step pos unit))
 
 (defn- move-fighter-toward-objective
-  "Non-combat movement priorities: explore/drone > arrival > low fuel > navigate > patrol. CC=5."
+  "Non-combat movement priorities: explore > arrival > low fuel > navigate > patrol. CC=5."
   [pos unit]
   (let [fuel (:fuel unit config/fighter-fuel)
         target (:flight-target-site unit)
         action (decisions/objective-action
                 {:exploring? (exploring? unit)
-                 :drone? (= :drone (:flight-mode unit))
                  :at-flight-target? (and target (at-flight-target? pos target))
-                 :low-fuel? (fm/should-return-to-refuel? pos fuel)
+                 :low-fuel? (should-break-off-to-refuel? pos fuel unit)
                  :has-target? (boolean target)})]
     (case action
-      :explore (handle-exploration-or-drone pos unit)
+      :explore (handle-exploration pos unit)
       :arrive (handle-arrival pos unit)
-      :low-fuel (handle-low-fuel pos)
+      :low-fuel (handle-low-fuel pos unit)
       :navigate (navigate-toward-target pos target fuel)
       (handle-patrol pos))))
 

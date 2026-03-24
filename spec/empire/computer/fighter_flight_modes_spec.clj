@@ -30,7 +30,7 @@
             (should-not-be-nil (:explore-landing-site (:unit result)))
             (should (pos? (:explore-steps-remaining (:unit result))))))))
 
-    (it "assigns exploration sortie when drone roll is at or above 0.1"
+    (it "assigns exploration sortie regardless of the extra random roll"
       (set-test-world! (build-test-map ["X################X"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel 32})
@@ -50,7 +50,7 @@
               (should-not-be-nil (:explore-landing-site (:unit result)))
               (should (pos? (:explore-steps-remaining (:unit result)))))))))
 
-    (it "assigns drone when drone roll is below 0.1"
+    (it "never assigns the drone label"
       (set-test-world! (build-test-map ["X################X"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :computer :hits 1 :fuel 32})
@@ -64,7 +64,7 @@
             (fighter/process-fighter [0 0] unit)
             (let [result (get-test-unit (test-utils/game-map-atom) "f")]
               (should-not-be-nil result)
-              (should= :drone (:flight-mode (:unit result)))
+              (should= :explore (:flight-mode (:unit result)))
               (should-not-be-nil (:explore-landing-site (:unit result))))))))
 
     (it "does not re-roll when fighter already has flight-mode"
@@ -195,11 +195,11 @@
           (should-not-be-nil result)
           (should-not= [2 1] (:pos result))))))
 
-  (context "drone movement"
-    (it "drone sortie decrements outbound steps"
+  (context "exploration movement"
+    (it "exploration sortie decrements outbound steps"
       (set-test-world! (build-test-map ["X####f######"]))
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
-                     :flight-mode :drone
+                     :flight-mode :explore
                      :explore-origin [0 0]
                      :explore-landing-site [0 0]
                      :explore-heading [0 1]

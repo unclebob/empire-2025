@@ -7,15 +7,20 @@
 (def ^:private max-computer-event-log-size 2000)
 (def ^:dynamic *computer-unit-id* nil)
 
+(defn computer-unit-logging-enabled?
+  []
+  (boolean (sa/read-state :computer-unit-log-file)))
+
 (defn begin-computer-unit-log-round!
   "Clears per-unit discovery totals for the current computer turn."
   []
-  (sa/write-state! :computer-unit-round-discoveries {}))
+  (when (computer-unit-logging-enabled?)
+    (sa/write-state! :computer-unit-round-discoveries {})))
 
 (defn record-computer-unit-discovery!
   "Adds newly discovered cell count for the given computer unit id."
   [unit-id discovered-cells]
-  (when (and unit-id (pos? discovered-cells))
+  (when (and (computer-unit-logging-enabled?) unit-id (pos? discovered-cells))
     (sa/update-state! :computer-unit-round-discoveries
                       #(update (or % {}) unit-id (fnil + 0) discovered-cells))))
 
@@ -27,7 +32,9 @@
 (defn with-computer-unit-context
   "Runs f while attributing discovery logging to the given computer unit id."
   [unit-id f]
-  (binding [*computer-unit-id* unit-id]
+  (if (computer-unit-logging-enabled?)
+    (binding [*computer-unit-id* unit-id]
+      (f))
     (f)))
 
 (defn computer-unit-snapshots
@@ -54,6 +61,20 @@
         (spit log-file
               (apply str (map #(str (pr-str %) "\n") entries))
               :append true)))))
+
+(defn log-computer-unit-crash!
+  "Append an explicit computer fighter crash entry to the unit log when enabled."
+  [pos unit reason details]
+  (when-let [log-file (sa/read-state :computer-unit-log-file)]
+    (spit log-file
+          (str (pr-str (cond-> {:round (sa/read-state :round-number)
+                                :event :fighter-crash
+                                :pos pos
+                                :unit unit
+                                :reason reason}
+                         details (merge details)))
+               "\n")
+          :append true)))
 
 (defn log-player-movement!
   "Log a player unit movement for debugging.

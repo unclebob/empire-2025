@@ -40,6 +40,16 @@
   (it "adjacent-to-site? returns false for distant site"
     (should-not (@#'fighter/adjacent-to-site? [0 0] [3 0])))
 
+  (it "candidate-refueling-sites excludes the exploration endpoint"
+    (with-redefs [empire.computer.fighter.movement/find-nearest-refueling-site (constantly [9 9])]
+      (should= '([0 0] [7 0] [9 9])
+               (seq (@#'fighter/candidate-refueling-sites
+                     [1 0]
+                     {:flight-mode :explore
+                      :explore-landing-site [0 0]
+                      :flight-target-site [2 0]
+                      :flight-origin-site [7 0]})))))
+
   (it "desperate-patrol returns nil when do-patrol returns nil"
     (set-test-world! (build-test-map ["f"]))
     (set-test-unit (test-utils/game-map-atom) "f" :fuel 5)

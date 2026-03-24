@@ -1,11 +1,11 @@
 (ns empire.computer.fighter.decisions)
 
 (defn objective-action
-  [{:keys [exploring? drone? at-flight-target? low-fuel? has-target?]}]
+  [{:keys [exploring? at-flight-target? low-fuel? has-target?]}]
   (cond
-    (or exploring? drone?) :explore
     at-flight-target? :arrive
     low-fuel? :low-fuel
+    exploring? :explore
     has-target? :navigate
     :else :patrol))
 

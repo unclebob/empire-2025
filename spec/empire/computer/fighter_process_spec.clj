@@ -195,6 +195,55 @@
           (should-not-be-nil record)
           (should= 10 (:last-flown record))))))
 
+  (context "critical fuel return"
+    (it "lands at an adjacent target city even when refueling caches are stale"
+      (set-test-world! (build-test-map ["Xf####"]))
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 1
+                     :flight-target-site [0 0]
+                     :flight-origin-site [5 0]
+                     :flight-mode :regular
+                     :explore-landing-site [0 0])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (test-utils/set-test-state! :computer-city-positions #{[5 0]})
+      (test-utils/set-test-state! :computer-carrier-positions #{})
+      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
+        (fighter/process-fighter [1 0] unit)
+        (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f"))))
+
+    (it "breaks off exploration to land when fuel is critical and a city is adjacent"
+      (set-test-world! (build-test-map ["Xf#####"]))
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 1
+                     :flight-target-site [6 0]
+                     :flight-origin-site [6 0]
+                     :flight-mode :explore
+                     :explore-origin [6 0]
+                     :explore-heading [-1 0]
+                     :explore-steps-remaining 3
+                     :explore-landing-site [0 0])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
+        (fighter/process-fighter [1 0] unit)
+        (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f"))))
+
+    (it "uses the planned landing site even when that city is not visible on computer-map"
+      (set-test-world! (build-test-map ["Xf#####"]))
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 1
+                     :flight-target-site [6 0]
+                     :flight-origin-site [6 0]
+                     :flight-mode :explore
+                     :explore-origin [6 0]
+                     :explore-heading [-1 0]
+                     :explore-steps-remaining 3
+                     :explore-landing-site [0 0])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (test-utils/update-test-computer-map! assoc-in [0 0] nil)
+      (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
+        (fighter/process-fighter [1 0] unit)
+        (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
+
   (context "navigation toward target (L460-479)"
     (it "navigates toward flight target with fuel margin"
       ;; Fighter with flight target, enough fuel for margin exploration
@@ -223,12 +272,12 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [rand (fn ([] 0.6) ([_n] 0.6))]
         (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
-          (fighter/process-fighter [0 0] unit)
-          (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-            (when result
-              (should (#{:explore :drone} (:flight-mode (:unit result))))
-              (should-not-be-nil (:flight-target-site (:unit result)))
-              (should-not-be-nil (:explore-landing-site (:unit result)))))))))
+            (fighter/process-fighter [0 0] unit)
+            (let [result (get-test-unit (test-utils/game-map-atom) "f")]
+              (when result
+                (should= :explore (:flight-mode (:unit result)))
+                (should-not-be-nil (:flight-target-site (:unit result)))
+                (should-not-be-nil (:explore-landing-site (:unit result)))))))))
 
   (context "exploration target bounds"
     (it "keeps exploration flight target in bounds"

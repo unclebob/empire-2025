@@ -9,8 +9,7 @@
              (decisions/exploration-flight-action world
                                                   (ship/find-refueling-sites)
                                                   pos
-                                                  site-pos
-                                                  (rand))]
+                                                  site-pos)]
     (update-game-map! update-in (conj pos :contents)
                       assoc :flight-mode mode
                       :explore-origin origin
