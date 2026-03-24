@@ -9,12 +9,13 @@
   (or (nil? retry-at) (<= retry-at (or current-round 0))))
 
 (defn coast-step-action
-  [{:keys [pos target lake-retask? cheap-step? move-step? repath-step?]}]
+  [{:keys [pos target lake-retask? cheap-step? local-step? move-step? repath-step?]}]
   (cond
     (= pos target) {:action :settle}
     lake-retask? (if cheap-step?
                    {:action :cheap-step :target cheap-step?}
                    {:action :settle})
+    local-step? {:action :local-step :target local-step?}
     move-step? {:action :move :target move-step?}
     repath-step? {:action :repath :target repath-step?}
     :else nil))

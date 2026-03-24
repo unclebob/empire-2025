@@ -249,7 +249,7 @@
                               (/ total-duration-ms analyzed-rounds)
                               0.0)
         max-duration-ms (reduce max 0.0 (map :duration-ms rounds))
-        top-phases (take 6
+        top-phases (take 10
                          (sort-by (comp :total-ns val) >
                                   phase-stats))
         slowest-rounds (take 5

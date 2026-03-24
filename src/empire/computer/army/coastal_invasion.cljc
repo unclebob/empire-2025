@@ -106,8 +106,9 @@
        (movement/try-move pos best))))
 
 (defn- set-coast-target! [ctx pos target]
-  ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target)
-  ((:sync-ai-unit! ctx) pos))
+  (when-not (= target (get-in ((:current-world ctx)) (conj pos :contents :coast-target)))
+    ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target)
+    ((:sync-ai-unit! ctx) pos)))
 
 (defn- resolve-coast-target [ctx unit pos country-id]
   (profiling/time-phase
@@ -132,12 +133,9 @@
   (when (retry-repath-now? ctx (assoc unit :pos pos))
     (when-let [local-target (local-empty-coast-target ctx pos country-id)]
       (set-coast-target! ctx pos local-target)
-      (movement/move-toward-objective pos local-target country-id))))
-
-(defn- move-toward-coast-target
-  [ctx pos country-id unit target]
-  (or (movement/move-toward-objective pos target country-id)
-      (maybe-repath-local-target ctx pos country-id unit)))
+      (profiling/time-phase
+       (army-invasion-phase "repath-move")
+       #(movement/move-toward-objective pos local-target country-id)))))
 
 (defn- plan-coast-target-step
   [ctx pos country-id unit target]
@@ -146,18 +144,31 @@
                                                :target target
                                                :lake-retask? (:lake-retask? unit)
                                                :cheap-step? nil
+                                               :local-step? nil
                                                :move-step? nil
                                                :repath-step? nil})
                  (let [cheap-step (when (:lake-retask? unit)
-                                    (step-toward-target-cheap pos target country-id))
+                                    (profiling/time-phase
+                                     (army-invasion-phase "cheap-step")
+                                     #(step-toward-target-cheap pos target country-id)))
+                       local-step (when-not (or (:lake-retask? unit) cheap-step)
+                                    (profiling/time-phase
+                                     (army-invasion-phase "local-step")
+                                     #(movement/local-step-toward-objective pos target country-id)))
                        move-step (when-not (:lake-retask? unit)
-                                   (movement/move-toward-objective pos target country-id))
-                       repath-step (when-not (or (:lake-retask? unit) move-step)
-                                     (maybe-repath-local-target ctx pos country-id unit))]
+                                    (when-not local-step
+                                      (profiling/time-phase
+                                       (army-invasion-phase "path-step")
+                                       #(movement/move-toward-objective pos target country-id))))
+                       repath-step (when-not (or (:lake-retask? unit) local-step move-step)
+                                     (profiling/time-phase
+                                      (army-invasion-phase "repath-step")
+                                      #(maybe-repath-local-target ctx pos country-id unit)))]
                    (decisions/coast-step-action {:pos pos
                                                  :target target
                                                  :lake-retask? (:lake-retask? unit)
                                                  :cheap-step? cheap-step
+                                                 :local-step? local-step
                                                  :move-step? move-step
                                                  :repath-step? repath-step})))]
     action))
@@ -168,6 +179,7 @@
     (case (:action action)
       :settle (do (settle-at-coast-target! ctx pos) pos)
       :cheap-step (:target action)
+      :local-step (:target action)
       :move (:target action)
       :repath (:target action)
       nil)))

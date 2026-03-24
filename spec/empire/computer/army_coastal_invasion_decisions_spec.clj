@@ -20,4 +20,12 @@
              (sut/coast-step-action {:pos [1 1]
                                      :target [2 2]
                                      :move-step? nil
+                                     :repath-step? [3 3]})))
+
+  (it "uses a local step before full movement"
+    (should= {:action :local-step :target [2 1]}
+             (sut/coast-step-action {:pos [1 1]
+                                     :target [4 4]
+                                     :local-step? [2 1]
+                                     :move-step? [2 2]
                                      :repath-step? [3 3]}))))

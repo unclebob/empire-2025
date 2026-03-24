@@ -57,11 +57,14 @@
           (map vector
                (staging-armies anchor)
                (cycle targets))]
-    (sa/update-world! update-in (conj pos :contents)
-                      #(assoc %
-                              :mode :move-to-coast-for-transport
-                              :transport-staging-target target))
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+    (let [current (get-in (sa/read-state :computer-map) (conj pos :contents))]
+      (when (or (not= :move-to-coast-for-transport (:mode current))
+                (not= target (:transport-staging-target current)))
+        (sa/update-world! update-in (conj pos :contents)
+                          #(assoc %
+                                  :mode :move-to-coast-for-transport
+                                  :transport-staging-target target))
+        (visibility/sync-ai-unit-to-computer-map! pos)))))
 
 (defn- producer-staging-cell?
   [computer-map city-pos country-id pos]
@@ -161,11 +164,14 @@
   [transport-id target]
   (let [selected (vec (load-target-staging-armies transport-id target))]
     (doseq [{:keys [pos]} selected]
-      (sa/update-world! update-in (conj pos :contents)
-                        #(assoc %
-                                :mode :move-to-coast-for-transport
-                                :transport-staging-target target))
-      (visibility/sync-ai-unit-to-computer-map! pos))
+      (let [current (get-in (sa/read-state :computer-map) (conj pos :contents))]
+        (when (or (not= :move-to-coast-for-transport (:mode current))
+                  (not= target (:transport-staging-target current)))
+          (sa/update-world! update-in (conj pos :contents)
+                            #(assoc %
+                                    :mode :move-to-coast-for-transport
+                                    :transport-staging-target target))
+          (visibility/sync-ai-unit-to-computer-map! pos))))
     (vec (keep :computer-unit-id selected))))
 
 (defn assign-city-attacks

@@ -37,6 +37,38 @@
                   movement/move-toward-objective (fn [_ _ _] [1 0])]
       (should= [1 0] (coastal/process-move-to-coast-for-invasion [0 0] 7))))
 
+  (it "uses a local sidestep before full pathing when available"
+    (let [moves (atom [])]
+      (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
+                    sa/read-state (fn [k]
+                                    (when (= k :computer-map)
+                                      [[{:contents {:coast-target [3 3]}}]]))
+                    sa/update-world! (fn [& _] nil)
+                    empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
+                    (fn [_] nil)
+                    movement/local-step-toward-objective
+                    (fn [pos target country-id]
+                      (swap! moves conj [:local pos target country-id])
+                      [0 1])
+                    movement/move-toward-objective
+                    (fn [& _] (should-not "should not use full pathing when a local sidestep is available"))]
+        (should= [0 1] (coastal/process-move-to-coast-for-invasion [0 0] 7))
+        (should= [[:local [0 0] [3 3] 7]] @moves))))
+
+  (it "does not rewrite the coast target when it is unchanged"
+    (let [writes (atom 0)]
+      (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
+                    sa/read-state (fn [k]
+                                    (when (= k :computer-map)
+                                      [[{:contents {:coast-target [3 3]}}]]))
+                    sa/update-world! (fn [& _] (swap! writes inc))
+                    empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
+                    (fn [_] (swap! writes inc))
+                    movement/local-step-toward-objective (fn [_ _ _] [0 1])
+                    movement/move-toward-objective (fn [_ _ _] (should-not "should not use full pathing"))]
+        (should= [0 1] (coastal/process-move-to-coast-for-invasion [0 0] 7))
+        (should= 0 @writes))))
+
   (it "falls back to a local target when moving toward the main target fails"
     (let [moves (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
@@ -48,6 +80,7 @@
                     sa/update-world! (fn [& _] nil)
                     empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
                     (fn [_] nil)
+                    movement/local-step-toward-objective (fn [& _] nil)
                     movement/move-toward-objective
                     (fn [pos target country-id]
                       (swap! moves conj [pos target country-id])

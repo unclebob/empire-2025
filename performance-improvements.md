@@ -173,3 +173,29 @@ Measurement:
 Result:
 - Transport assignment inside threat-response was roughly cut in half.
 - The remaining late-game hotspots are broader army processing and the remaining non-transport threat-response assignment work.
+
+### Army transport staging no-op assignment elimination
+
+Change:
+- Stopped rewriting army `:mode` and `:transport-staging-target` during transport staging when both values are already current.
+- Stopped syncing AI visibility for those unchanged staging assignments.
+- Applied the same no-op skip to both producer staging and returning `:sail-to-load` staging assignment.
+
+Files:
+- `src/empire/computer/army/assignment.cljc`
+
+Verification:
+- Added regressions proving no writes occur when:
+  - a producer staging army already has the assigned staging mode and target
+  - a returning-transport staging army already has the assigned staging mode and target
+
+Measurement:
+- Command: `clj -M:run --headless=220 --slow-round-analysis=500:20 --seed=1774361658123`
+- Before optimization, an earlier late window showed:
+  - `process-computer/army-move-to-coast-for-transport` avg `347.6 ms`
+- After optimization, a comparable post-change window showed:
+  - `process-computer/army-move-to-coast-for-transport` avg `91.0 ms`
+
+Result:
+- Transport staging army work dropped substantially on this seeded path.
+- In the next measured active-invasion window, the dominant army cost shifted to `process-computer/army-move-to-coast-for-invasion`.

@@ -319,6 +319,58 @@
       (should= :move-to-coast-for-transport
                (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
       (should= [1 0]
-               (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-staging-target]))))
+               (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-staging-target])))
+
+    (it "does not rewrite producer staging armies when mode and target are already current"
+      (let [updates (atom 0)
+            syncs (atom 0)]
+        (set-test-world! [[{:type :land :country-id 1
+                            :contents {:type :army :owner :computer :hits 1
+                                       :mode :move-to-coast-for-transport
+                                       :country-id 1
+                                       :transport-staging-target [2 1]}}
+                           {:type :land :country-id 1}
+                           {:type :land :country-id 1}]
+                          [{:type :land :country-id 1}
+                           {:type :land :country-id 1}
+                           {:type :land :country-id 1}]
+                          [{:type :city :city-status :computer :country-id 1}
+                           {:type :land :country-id 1}
+                           {:type :land :country-id 1}]
+                          [{:type :sea} {:type :sea} {:type :sea}]])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
+        (test-utils/set-test-state! :production {[2 0] {:item :transport :remaining-rounds 5}})
+        (with-redefs [empire.state.api/update-world! (fn [& _] (swap! updates inc))
+                      empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
+                      (fn [_] (swap! syncs inc))]
+          (army/assign-transport-staging))
+        (should= 0 @updates)
+        (should= 0 @syncs)))
+
+    (it "does not rewrite returning staging armies when mode and target are already current"
+      (let [updates (atom 0)
+            syncs (atom 0)]
+        (set-test-world! [[{:type :land :country-id 1
+                            :contents {:type :army :owner :computer :hits 1
+                                       :mode :move-to-coast-for-transport
+                                       :country-id 1
+                                       :transport-staging-target [1 0]}}
+                           {:type :land :country-id 1}
+                           {:type :sea :contents {:type :transport :owner :computer :hits 1
+                                                  :transport-id 7
+                                                  :transport-mission :sail-to-load
+                                                  :sail-path [[3 0]]}}
+                           {:type :sea}]
+                          [{:type :land :country-id 1}
+                           {:type :land :country-id 1}
+                           {:type :land :country-id 1}
+                           {:type :city :city-status :computer}]])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
+        (with-redefs [empire.state.api/update-world! (fn [& _] (swap! updates inc))
+                      empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
+                      (fn [_] (swap! syncs inc))]
+          (assignment/assign-returning-transport-staging-at! [2 0]))
+        (should= 0 @updates)
+        (should= 0 @syncs))))
 
 )
