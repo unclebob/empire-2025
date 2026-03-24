@@ -42,6 +42,8 @@
     (test-utils/set-test-state! :computer-items [[0 0]])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
+                    (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                    computer-production/process-computer-city-with-current-visibility
                     (fn [_] (reset! produced? true))]
         (ip/process-computer-items)
         (should @produced?))))
@@ -51,6 +53,8 @@
     (test-utils/set-test-state! :computer-items [0 0])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
+                    (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                    computer-production/process-computer-city-with-current-visibility
                     (fn [_] (reset! produced? true))]
         (#'computer-items/process-one-computer-item)
         (should @produced?))))
@@ -58,7 +62,8 @@
   (it "normalizes a raw computer coord pair queue after a kamikazee relaunch"
     (set-test-world! [[{:type :city :city-status :computer}]])
     (test-utils/set-test-state! :computer-items [0 0])
-    (with-redefs [computer-production/process-computer-city (fn [_])
+    (with-redefs [computer-production/process-computer-city (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                  computer-production/process-computer-city-with-current-visibility (fn [_])
                   empire.computer.threat-response-impl/launch-kamikazee-from-airport!
                   (fn [_] [1 0])]
       (#'computer-items/process-one-computer-item)
@@ -70,6 +75,8 @@
     (let [produced? (atom false)
           launched? (atom false)]
       (with-redefs [computer-production/process-computer-city
+                    (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                    computer-production/process-computer-city-with-current-visibility
                     (fn [_] (reset! produced? true))
                     empire.computer.threat-response-impl/launch-kamikazee-from-airport!
                     (fn [coords]
@@ -85,6 +92,8 @@
     (test-utils/set-test-state! :computer-items [[0 0]])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
+                    (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                    computer-production/process-computer-city-with-current-visibility
                     (fn [_] (reset! produced? true))]
         (ip/process-computer-items)
         (should-not @produced?))))
@@ -94,6 +103,8 @@
     (test-utils/set-test-state! :computer-items [[0 0]])
     (let [produced? (atom false)]
       (with-redefs [computer-production/process-computer-city
+                    (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                    computer-production/process-computer-city-with-current-visibility
                     (fn [_] (reset! produced? true))]
         (ip/process-computer-items)
         (should-not @produced?))))
@@ -145,15 +156,16 @@
       (ip/process-computer-items)
       (should= 25 (count (test-utils/read-test-state :computer-items)))))
 
-  (it "records computer processing phases by unit type"
+  (it "processes a fighter computer item"
     (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer :mode :awake}}]])
     (set-test-computer-map! [[{:type :land :contents {:type :fighter :owner :computer :mode :awake}}]])
     (test-utils/set-test-state! :computer-items [[0 0]])
-    (let [phases (atom [])]
-      (with-redefs [computer-production/process-computer-city (fn [_] nil)
+    (let [processed? (atom false)]
+      (with-redefs [computer-production/process-computer-city (fn [_] (throw (ex-info "unexpected direct city processing" {})))
+                    computer-production/process-computer-city-with-current-visibility (fn [_] nil)
                     empire.computer.threat-response-impl/launch-kamikazee-from-airport! (fn [_] nil)
-                    computer/process-computer-unit (fn [_] nil)]
-        (profiling/with-round-phase-recorder
-          (fn [phase _elapsed-ns] (swap! phases conj phase))
-          #(ip/process-computer-items))
-        (should-contain :process-computer/fighter @phases)))))
+                    computer/process-computer-unit (fn [coords]
+                                                    (reset! processed? true)
+                                                    coords)]
+        (ip/process-computer-items)
+        (should @processed?)))))

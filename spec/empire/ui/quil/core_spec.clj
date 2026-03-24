@@ -181,40 +181,6 @@
         (should= [false false false] @observed-stop-flags)
         (should-not (sa/read-state :headless-stop-on-major-invasion?)))))
 
-  (it "reports a slow round after analyzing the configured number of later rounds"
-    (sa/write-state! :computer-map [[{:type :sea}]])
-    (sa/write-state! :major-invasion-state {:active? false})
-    (let [times (atom [0
-                       600000000
-                       600000000
-                       1200000000
-                       1200000000
-                       1300000000
-                       1450000000
-                       1550000000])]
-      (with-redefs [empire.ui.quil.core/install-seeded-random! (fn [] nil)
-                    empire.ui.quil.core/initialize-map! (fn [] nil)
-                    empire.game.loop.profiling/now-ns (fn []
-                                                        (let [value (or (first @times) 1550000000)]
-                                                          (when (seq @times)
-                                                            (swap! times rest))
-                                                          value))
-                    empire.game.loop.core/update-player-map (fn []
-                                                              (profiling/record-phase! :update-player-map 10000000))
-                    empire.game.loop.core/update-computer-map (fn [] nil)
-                    empire.game.loop.core/advance-game-batch (fn []
-                                                               (profiling/record-phase! :process-computer 50000000)
-                                                               (sa/update-state! :round-number inc))]
-        (let [output (with-out-str
-                       (#'quil-core/run-headless! {:headless-rounds 5
-                                                   :slow-round-analysis {:threshold-ms 500
-                                                                         :rounds 3}}))]
-          (should-contain "Slow round detected at round 1: 600.0 ms. Analyzing the next 3 rounds." output)
-          (should-contain "Slow round analysis triggered by round 1 at 600.0 ms." output)
-          (should-contain "Analyzed 3 rounds." output)
-          (should-contain "Slowest analyzed rounds:" output)
-          (should-contain "process-computer" output))))))
-
 (describe "create-fonts"
   (before (reset-all-atoms!))
 
@@ -416,3 +382,4 @@
         (should= [[:drag-update 22 44]
                   [:drag-end 22 44 {:ctrl false :meta true :alt true}]]
                  @calls)))))
+)

@@ -227,3 +227,28 @@ Result:
 - Transport route planning inside active threat-response dropped by about `81%` in the measured late window.
 - The remaining transport route-plan cost is almost entirely in search, not writeback or sync.
 - With this reduction, the late-game hotspots shifted back toward city production and broader army processing.
+
+### Early-game theater summary reuse across same-landmass positions
+
+Change:
+- Expanded the early-game theater-summary cache so one computed summary is stored for every position in that theater, not just the `start-pos` that happened to build it.
+- This lets repeated `allow-coastal-staging?`, opening-role, and opening-production checks across many armies and cities on the same landmass reuse one summary build.
+
+Files:
+- `src/empire/computer/early_game/theater.cljc`
+
+Verification:
+- Added a regression proving two different positions on the same landmass reuse the same cached theater summary.
+
+Measurement:
+- Command: `clj -M:run --headless=170 --slow-round-analysis=500:20 --seed=1774361658123`
+- Before optimization, a measured slow-round window showed:
+  - `process-computer/army-opening-theater-summary` avg `61.2 ms`
+  - `process-computer/army-land-action-allow-coastal-staging` avg `65.4 ms`
+- After optimization, a comparable measured window showed:
+  - `process-computer/army-opening-theater-summary` avg `32.6 ms`
+  - `process-computer/army-land-action-allow-coastal-staging` avg `34.7 ms`
+
+Result:
+- Same-landmass theater-summary reuse cut the opening transport summary cost roughly in half.
+- The remaining city and fighter costs now dominate more clearly than the early-game staging predicate itself.

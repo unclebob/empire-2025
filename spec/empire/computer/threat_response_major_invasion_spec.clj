@@ -280,7 +280,7 @@
         (should= [0 2] (get-in @world [0 0 :contents :invasion-target]))
         (should= [[0 1] [0 2]] (get-in @world [0 0 :contents :invasion-path]))))
 
-    (it "records transport assignment profiling phases"
+    (it "updates the transport mission during transport assignment preparation"
       (let [world (atom [[{:type :sea
                            :contents {:type :transport :owner :computer
                                       :transport-mission :sailing
@@ -288,7 +288,6 @@
             state (atom {:target-land-revision 3
                          :detection-points #{[0 0]}
                          :target-land-set #{[0 0]}})
-            recorded-phases (atom [])
             ctx {:load-major-invasion-state (fn [] @state)
                  :read-runtime-state (fn [k]
                                        (case k
@@ -302,14 +301,9 @@
                  :nearest-major-target (fn [_] [0 0])
                  :computer-sea-unit-types #{:transport}}]
         (with-redefs [pathfinding-bfs/bfs-to-land-ho-target (fn [_ _ _] [[0 0]])]
-          (profiling/with-round-phase-recorder
-            (fn [phase _elapsed-ns]
-              (swap! recorded-phases conj phase))
-            #(mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))))
-        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-target @recorded-phases)
-        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-stamp @recorded-phases)
-        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-route-plan @recorded-phases)
-        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-mark-find-armies @recorded-phases))))
+          (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents])))
+        (should= :invading
+                 (get-in @world [0 0 :contents :transport-mission])))))
 
   (context "trim stale find-armies missions"
     (it "sets find-armies round when not timed out"

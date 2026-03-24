@@ -155,6 +155,61 @@
 
   (it "allows coastal staging immediately when the opening is inactive"
     (with-redefs [strategy/opening-active? (fn [] false)]
-      (should (strategy/allow-coastal-staging? [2 2])))))
+      (should (strategy/allow-coastal-staging? [2 2]))))
+
+  (it "reuses cached theater summaries while computer-map and production stay unchanged"
+    (set-test-world! (build-test-map ["~X##"
+                                      "####"
+                                      "a###"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [1 0 :country-id] 1)
+    (update-test-world! assoc-in [0 2 :contents :country-id] 1)
+    (test-utils/set-test-state! :round-number 30)
+    (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 2}})
+    (let [calls (atom 0)]
+        (with-redefs [empire.computer.early-game.theater/city-usable-coastal?
+                    (fn [pos]
+                      (swap! calls inc)
+                      (or (= pos [1 0]) (= pos [0 2])))]
+        (strategy/theater-summary [0 2])
+        (strategy/theater-summary [0 2]))
+      (should= 1 @calls)))
+
+  (it "reuses cached theater summaries across positions on the same landmass"
+    (set-test-world! (build-test-map ["~X##"
+                                      "####"
+                                      "a###"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [1 0 :country-id] 1)
+    (update-test-world! assoc-in [0 2 :contents :country-id] 1)
+    (test-utils/set-test-state! :round-number 30)
+    (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 2}})
+    (let [calls (atom 0)]
+      (with-redefs [empire.computer.early-game.theater/city-usable-coastal?
+                    (fn [pos]
+                      (swap! calls inc)
+                      (or (= pos [1 0]) (= pos [0 2])))]
+        (strategy/theater-summary [0 2])
+        (strategy/theater-summary [1 0]))
+      (should= 1 @calls)))
+
+  (it "invalidates cached theater summaries when production changes"
+    (set-test-world! (build-test-map ["~X##"
+                                      "####"
+                                      "a###"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (update-test-world! assoc-in [1 0 :country-id] 1)
+    (update-test-world! assoc-in [0 2 :contents :country-id] 1)
+    (test-utils/set-test-state! :round-number 30)
+    (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 5}})
+    (let [calls (atom 0)]
+        (with-redefs [empire.computer.early-game.theater/city-usable-coastal?
+                    (fn [pos]
+                      (swap! calls inc)
+                      (or (= pos [1 0]) (= pos [0 2])))]
+        (strategy/theater-summary [0 2])
+        (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 2}})
+        (strategy/theater-summary [0 2]))
+      (should= 2 @calls))))
 
 (run-specs)

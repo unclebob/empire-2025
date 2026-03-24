@@ -99,6 +99,7 @@
                                       "#f#"
                                       "###"]))
     (set-test-computer-map! (make-initial-test-map 3 3 {:type :unexplored}))
+    (test-utils/set-test-state! :computer-unit-log-file "test.log")
     (debug-logging/begin-computer-unit-log-round!)
     (debug-logging/with-computer-unit-context
       31
@@ -113,6 +114,7 @@
     (set-test-computer-map! (build-test-map ["###"
                                              "#f#"
                                              "###"]))
+    (test-utils/set-test-state! :computer-unit-log-file "test.log")
     (debug-logging/begin-computer-unit-log-round!)
     (debug-logging/with-computer-unit-context
       31

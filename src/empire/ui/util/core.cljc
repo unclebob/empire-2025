@@ -50,23 +50,6 @@
   [args]
   (boolean (some #{"--debug-dump"} args)))
 
-(defn parse-slow-round-analysis
-  [arg]
-  (let [[threshold-text rounds-text extra] (str/split arg #":" 3)]
-    (when (or (str/blank? threshold-text)
-              (str/blank? rounds-text)
-              extra)
-      (throw (ex-info "Invalid --slow-round-analysis value"
-                      {:arg arg})))
-    {:threshold-ms (Long/parseLong threshold-text)
-     :rounds (Long/parseLong rounds-text)}))
-
-(defn slow-round-analysis-requested?
-  [args]
-  (some #(when (.startsWith ^String % "--slow-round-analysis=")
-           (parse-slow-round-analysis (subs % 22)))
-        args))
-
 (def ^:private limit-code->unit-type
   {\a :army
    \b :battleship
@@ -116,9 +99,6 @@
        "                    to a timestamped empire-units log file.\n"
        "  --debug-dump      Write a full-map debug dump when the game\n"
        "                    process exits for any reason.\n"
-       "  --slow-round-analysis=T:N\n"
-       "                    In headless mode, when a round exceeds T ms,\n"
-       "                    profile the next N rounds and print a report.\n"
        "  --seed=N          Use N as the random seed.\n"
        "  --limits=SPEC     Cap computer production by unit code, e.g.\n"
        "                    t:8,p:4. When a cap is hit, produce army.\n"
@@ -141,7 +121,6 @@
                                    (parse-production-limits (subs % 9))) args)
         log-enabled (log-requested? args)
         debug-dump-enabled (debug-dump-requested? args)
-        slow-round-analysis (slow-round-analysis-requested? args)
         headless-rounds (some #(when (.startsWith ^String % "--headless=")
                                  (Long/parseLong (subs % 11))) args)
         handicap (or headless-rounds
@@ -152,7 +131,6 @@
                                  (.startsWith ^String % "--limits=")
                                  (= "--log" %)
                                  (= "--debug-dump" %)
-                                 (.startsWith ^String % "--slow-round-analysis=")
                                  (.startsWith ^String % "--headless=")
                                  (.startsWith ^String % "--handicap="))
                             args)
@@ -178,7 +156,6 @@
      :production-limits (or production-limits {})
      :log-enabled log-enabled
      :debug-dump-enabled debug-dump-enabled
-     :slow-round-analysis slow-round-analysis
      :headless-rounds headless-rounds
      :handicap handicap
      :window-w window-w

@@ -1,9 +1,14 @@
 (ns empire.computer.early-game.strategy
-  (:require [empire.computer.shared.grid :as grid]
-            [empire.config.ai :as ai]
+  (:require [empire.config.ai :as ai]
             [empire.computer.early-game.roles :as roles]
             [empire.computer.early-game.theater :as theater]
+            [empire.game.loop.profiling :as profiling]
             [empire.state.api :as sa]))
+
+(defn- opening-phase
+  [suffix]
+  (keyword "process-computer"
+           (str "army-opening-" suffix)))
 
 (def city-usable-coastal? theater/city-usable-coastal?)
 (def invasion-started? theater/invasion-started?)
@@ -14,7 +19,7 @@
 (defn assigned-role
   [city-pos]
   (let [summary (theater-summary city-pos)]
-    (get (roles/theater-role-plan summary) city-pos :CA)))
+    (get (:role-plan summary) city-pos :CA)))
 
 (defn- original-continent-city?
   [city-pos]
@@ -56,36 +61,27 @@
 
 (defn theater-loading-transports
   [start-pos]
-  (let [positions (:positions (theater-summary start-pos))
-        world (sa/read-state :computer-map)]
-    (for [pos positions
-          :let [unit (get-in world (conj pos :contents))]
-          :when (and (= :transport (:type unit))
-                     (= :computer (:owner unit))
-                     (= :loading (:transport-mission unit)))]
-      pos)))
-
-(defn- theater-transport-producers
-  [start-pos]
-  (let [positions (:positions (theater-summary start-pos))
-        production (sa/read-state :production)]
-    (for [pos positions
-          :let [prod (get production pos)]
-          :when (= :transport (:item prod))]
-      [pos (:remaining-rounds prod)])))
+  (:loading-transport-positions (theater-summary start-pos)))
 
 (defn allow-coastal-staging?
   [pos]
-  (let [{:keys [phase]} (theater-summary pos)]
-    (cond
-      (not (opening-active?)) true
+  (if-not (profiling/time-phase
+           (opening-phase "active")
+           opening-active?)
+    true
+    (let [{:keys [phase loading-transport-positions staging-allowed-positions]}
+          (profiling/time-phase
+           (opening-phase "theater-summary")
+           #(theater-summary pos))]
+      (cond
       (= phase :phase-1) false
-      (seq (theater-loading-transports pos)) true
+      (profiling/time-phase
+       (opening-phase "loading-transports")
+       #(seq loading-transport-positions)) true
       :else
-      (boolean
-       (some (fn [[producer-pos remaining]]
-               (<= remaining (grid/distance pos producer-pos)))
-             (theater-transport-producers pos))))))
+      (profiling/time-phase
+       (opening-phase "staging-membership")
+       #(contains? staging-allowed-positions pos))))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-13T21:05:59.722934-05:00", :module-hash "-925446871", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1659688238"} {:id "def/city-usable-coastal?", :kind "def", :line 7, :end-line 7, :hash "-347196069"} {:id "def/invasion-started?", :kind "def", :line 8, :end-line 8, :hash "607622252"} {:id "def/opening-active?", :kind "def", :line 9, :end-line 9, :hash "-581060577"} {:id "def/theater-summary", :kind "def", :line 10, :end-line 10, :hash "380656184"} {:id "def/desired-role-counts", :kind "def", :line 11, :end-line 11, :hash "1148564132"} {:id "defn/assigned-role", :kind "defn", :line 13, :end-line 16, :hash "-1590439152"} {:id "defn-/original-continent-city?", :kind "defn-", :line 18, :end-line 20, :hash "1203555759"} {:id "defn-/opening-satellite-ready?", :kind "defn-", :line 22, :end-line 31, :hash "-1700019421"} {:id "defn/opening-production", :kind "defn", :line 33, :end-line 39, :hash "-374953766"} {:id "defn/should-reset-lake-production?", :kind "defn", :line 41, :end-line 49, :hash "1416073797"} {:id "defn/opening-exploration-profile", :kind "defn", :line 51, :end-line 58, :hash "-385741527"} {:id "defn/theater-loading-transports", :kind "defn", :line 60, :end-line 69, :hash "-889714929"} {:id "defn-/theater-transport-producers", :kind "defn-", :line 71, :end-line 78, :hash "903840240"} {:id "defn/allow-coastal-staging?", :kind "defn", :line 80, :end-line 91, :hash "-252872511"}]}

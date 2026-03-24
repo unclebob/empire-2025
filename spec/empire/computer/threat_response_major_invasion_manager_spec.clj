@@ -272,13 +272,12 @@
         (manager/on-round-start! ctx))
       (should= 0 @rebuilds)))
 
-  (it "records threat-response round-start profiling phases"
+  (it "preserves active major-invasion state during round-start refresh"
     (let [world (atom [[{:type :sea}]])
           state (atom {:active? true
                        :decision :ready
                        :target-land-set #{[0 0]}
                        :detection-points #{[0 0]}})
-          recorded-phases (atom [])
           ctx {:load-major-invasion-state (fn [] @state)
                :update-major-invasion-state! (update-state-fn state)
                :current-world (fn [] @world)
@@ -294,24 +293,8 @@
                :recompute-major-invasion-target-land!-fn (fn [] nil)
                :recompute-sea-reachable-detection-points!-fn (fn [] nil)}]
       (with-redefs [empire.computer.threat-response.kamikazee/refresh-army-targets! (fn [& _] nil)]
-        (profiling/with-round-phase-recorder
-          (fn [phase _elapsed-ns]
-            (swap! recorded-phases conj phase))
-          #(manager/on-round-start! ctx)))
-      (should-contain :start-new-round/threat-response-dec-threat-rounds @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-target-land @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-sea-reachable @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-find-units @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-fighters @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-army-targets @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-armies @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-transports @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-ships @recorded-phases)
-      (should-contain :start-new-round/threat-response-refresh-active-assignments-non-fighters @recorded-phases)
-      (should-contain :start-new-round/threat-response-finalize @recorded-phases)
-      (should-contain :start-new-round/threat-response-country-defense @recorded-phases)))
+        (manager/on-round-start! ctx))
+      (should (:active? @state))))
 
   (it "refreshes kamikazee army targets only once during active round start"
     (let [world (atom [[{:type :sea}]])

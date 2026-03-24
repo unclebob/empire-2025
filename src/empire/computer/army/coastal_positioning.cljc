@@ -12,11 +12,14 @@
 (defn- adjacent-to-computer-city?
   "Returns true if position has an adjacent computer city."
   [pos]
-  (some (fn [neighbor]
-          (let [cell (get-in (sa/read-state :computer-map) neighbor)]
-            (and (= :city (:type cell))
-                 (= :computer (:city-status cell)))))
-        (world-query/get-neighbors pos)))
+  (let [cached-cities (or (sa/read-state :computer-city-positions) #{})]
+    (if (seq cached-cities)
+      (some cached-cities (world-query/get-neighbors pos))
+      (some (fn [neighbor]
+              (let [cell (get-in (sa/read-state :computer-map) neighbor)]
+                (and (= :city (:type cell))
+                     (= :computer (:city-status cell)))))
+            (world-query/get-neighbors pos)))))
 
 (defn- known-lake-cells
   []
@@ -32,6 +35,20 @@
               (and (= :sea (:type cell))
                    (not (contains? lakes neighbor)))))
           (world-query/get-neighbors pos))))
+
+(defn- coastal-cell-for-country?
+  [pos country-id]
+  (when country-id
+    (movement/ensure-coastal-registry country-id)
+    (let [computer-map (sa/read-state :computer-map)
+          cached-coastal (get (sa/read-state :coastal-cells-by-country) country-id #{})
+          cell (get-in computer-map pos)]
+      (or (and (contains? cached-coastal pos)
+               (adjacent-to-ocean? pos))
+          (and (= :land (:type cell))
+               (or (nil? (:country-id cell))
+                   (= country-id (:country-id cell)))
+               (adjacent-to-ocean? pos))))))
 
 (defn find-nearest-unoccupied-coastal-cell
   "Finds nearest coastal cell from registry with matching country-id, no unit.
@@ -55,13 +72,13 @@
 
 (defn should-sentry-on-coast? [pos country-id]
   (and country-id
-       (adjacent-to-ocean? pos)
+       (coastal-cell-for-country? pos country-id)
        (not= :city (:type (get-in (sa/read-state :computer-map) pos)))
        (not (adjacent-to-computer-city? pos))))
 
 (defn can-settle-here? [pos country-id]
   (and country-id
-       (adjacent-to-ocean? pos)
+       (coastal-cell-for-country? pos country-id)
        (not= :city (:type (get-in (sa/read-state :computer-map) pos)))))
 
 (defn- invasion-ctx

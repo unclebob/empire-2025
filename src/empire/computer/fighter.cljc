@@ -111,10 +111,21 @@
 (defn- adjacent-to-site? [site pos]
   (and site (<= (fm/distance-to pos site) 1)))
 
+(defn- refueling-site?
+  [site]
+  (let [cell (or (computer-cell-at site)
+                 (world-cell-at site))]
+    (or (and (= :city (:type cell))
+             (= :computer (:city-status cell)))
+        (and (= :carrier (get-in cell [:contents :type]))
+             (= :computer (get-in cell [:contents :owner]))
+             (= :holding (get-in cell [:contents :carrier-mode]))))))
+
 (defn- candidate-refueling-sites
   [pos unit]
   (->> [(:explore-landing-site unit)
-        (when (= :regular (:flight-mode unit))
+        (when (and (= :regular (:flight-mode unit))
+                   (refueling-site? (:flight-target-site unit)))
           (:flight-target-site unit))
         (:flight-origin-site unit)
         (fm/find-nearest-refueling-site pos)]

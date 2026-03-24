@@ -70,7 +70,7 @@
                                  (pos? (:awake-kamikazee-fighters current-cell 0))))]
     (when is-computer-city?
       (profiling/time-phase phase
-                            #(computer-production/process-computer-city coords)))
+                            #(computer-production/process-computer-city-with-current-visibility coords)))
       (let [launched-pos (when is-computer-city?
                          (threat-response/launch-kamikazee-from-airport! coords))
           new-coords (when (= (:owner (:contents cell)) :computer)

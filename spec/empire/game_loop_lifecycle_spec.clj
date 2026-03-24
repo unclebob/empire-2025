@@ -1,6 +1,7 @@
 (ns empire.game-loop-lifecycle-spec
   (:require [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map get-test-unit reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-unit set-test-world!]]
             [speclj.core :refer :all]))
@@ -122,15 +123,18 @@
   (it "formats one snapshot per computer unit with round and position"
     (set-test-world! (build-test-map ["ad"]))
     (test-utils/set-test-state! :round-number 7)
-    (let [entries (#'game-loop/computer-unit-snapshots
+    (let [entries (debug-logging/computer-unit-snapshots
                    (test-utils/read-test-world)
-                   (test-utils/read-test-state :round-number))]
+                   (test-utils/read-test-state :round-number)
+                   {})]
       (should= [{:round 7
                  :pos [0 0]
-                 :unit {:type :army :owner :computer :hits 1}}
+                 :unit {:type :army :owner :computer :hits 1}
+                 :discovered-cells 0}
                 {:round 7
                  :pos [1 0]
-                 :unit {:type :destroyer :owner :computer :hits 3}}]
+                 :unit {:type :destroyer :owner :computer :hits 3}
+                 :discovered-cells 0}]
                entries)))
 
   (it "appends all computer units when a log file is configured"
@@ -140,7 +144,7 @@
     (let [written (atom nil)]
       (with-redefs [spit (fn [path content & opts]
                            (reset! written {:path path :content content :opts opts}))]
-        (#'game-loop/log-computer-units!)
+        (debug-logging/log-computer-units!)
         (should= "empire-units-test.log" (:path @written))
         (should-contain "{:round 3, :pos [0 0]" (:content @written))
         (should-contain "{:round 3, :pos [1 0]" (:content @written))

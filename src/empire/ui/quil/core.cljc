@@ -9,7 +9,6 @@
             [empire.ui.quil.rendering.map :as render-map]
             [empire.ui.quil.rendering.messages :as render-messages]
             [empire.ui.quil.rendering.overlay :as render-overlay]
-            [empire.game.loop.profiling :as profiling]
             [empire.ui.util.core :as util-core]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.ui.util.rendering.display :as display]
@@ -206,207 +205,47 @@
     (when (> round-number last-reported-round)
       (print-headless-progress! round-number))))
 
-(defn- ns->ms
-  [elapsed-ns]
-  (/ (double elapsed-ns) 1000000.0))
-
-(defn- phase-label
-  [phase]
-  (if-let [phase-ns (namespace phase)]
-    (str phase-ns "/" (name phase))
-    (name phase)))
-
-(defn- phase-recorder
-  [phase-totals analysis-state]
-  (fn [phase elapsed-ns]
-    (when (:collecting? @analysis-state)
-      (swap! phase-totals update phase (fnil + 0) elapsed-ns))))
-
-(defn- top-phase
-  [phases]
-  (when-let [[phase elapsed-ns] (first (sort-by val > phases))]
-    {:phase phase
-     :elapsed-ms (ns->ms elapsed-ns)}))
-
-(defn- aggregate-phase-stats
-  [rounds]
-  (reduce (fn [stats {:keys [phases]}]
-            (reduce-kv (fn [acc phase elapsed-ns]
-                         (-> acc
-                             (update-in [phase :total-ns] (fnil + 0) elapsed-ns)
-                             (update-in [phase :max-ns] (fnil max 0) elapsed-ns)))
-                       stats
-                       phases))
-          {}
-          rounds))
-
-(defn- slow-round-report-lines
-  [{:keys [trigger rounds]}]
-  (let [phase-stats (aggregate-phase-stats rounds)
-        analyzed-rounds (count rounds)
-        total-duration-ms (reduce + (map :duration-ms rounds))
-        average-duration-ms (if (pos? analyzed-rounds)
-                              (/ total-duration-ms analyzed-rounds)
-                              0.0)
-        max-duration-ms (reduce max 0.0 (map :duration-ms rounds))
-        top-phases (take 10
-                         (sort-by (comp :total-ns val) >
-                                  phase-stats))
-        slowest-rounds (take 5
-                            (sort-by :duration-ms >
-                                     rounds))]
-    (concat
-     [(format "Slow round analysis triggered by round %d at %.1f ms."
-              (:round trigger)
-              (:duration-ms trigger))
-      (format "Analyzed %d round%s. Average %.1f ms, max %.1f ms."
-              analyzed-rounds
-              (if (= analyzed-rounds 1) "" "s")
-              average-duration-ms
-              max-duration-ms)
-      "Top phases by total time:"]
-     (map (fn [[phase {:keys [total-ns max-ns]}]]
-            (format "  %s total %.1f ms avg %.1f ms max %.1f ms"
-                    (phase-label phase)
-                    (ns->ms total-ns)
-                    (/ (ns->ms total-ns) analyzed-rounds)
-                    (ns->ms max-ns)))
-          top-phases)
-     ["Slowest analyzed rounds:"]
-     (map (fn [{:keys [round duration-ms phases]}]
-            (let [{:keys [phase elapsed-ms]} (top-phase phases)]
-              (format "  round %d %.1f ms top %s %.1f ms"
-                      round
-                      duration-ms
-                      (phase-label phase)
-                      elapsed-ms)))
-          slowest-rounds))))
-
-(defn- print-slow-round-report!
-  [report]
-  (println (str/join "\n" (slow-round-report-lines report))))
-
-(defn- begin-slow-round-analysis!
-  [analysis-state phase-totals completed-round duration-ms rounds-to-analyze current-round]
-  (reset! phase-totals {})
-  (swap! analysis-state assoc
-         :trigger {:round completed-round :duration-ms duration-ms}
-         :collecting? true
-         :rounds-remaining rounds-to-analyze
-         :rounds []
-         :current-round current-round
-         :current-round-start-ns (profiling/now-ns))
-  (println (format "Slow round detected at round %d: %.1f ms. Analyzing the next %d rounds."
-                   completed-round
-                   duration-ms
-                   rounds-to-analyze)))
-
-(defn- record-analyzed-round!
-  [analysis-state phase-totals completed-round duration-ms current-round]
-  (let [phases @phase-totals
-        state-after-round (swap! analysis-state
-                                 (fn [state]
-                                   (-> state
-                                       (update :rounds conj {:round completed-round
-                                                             :duration-ms duration-ms
-                                                             :phases phases})
-                                       (update :rounds-remaining dec)
-                                       (assoc :current-round current-round
-                                              :current-round-start-ns (profiling/now-ns)))))]
-    (reset! phase-totals {})
-    (when (<= (:rounds-remaining state-after-round) 0)
-      (print-slow-round-report! {:trigger (:trigger state-after-round)
-                                 :rounds (:rounds state-after-round)})
-      (swap! analysis-state assoc
-             :trigger nil
-             :collecting? false
-             :rounds-remaining 0
-             :rounds []))))
-
-(defn- maybe-analyze-round-transition!
-  [analysis-state phase-totals {:keys [threshold-ms rounds]} next-round]
-  (let [{:keys [current-round current-round-start-ns collecting?]} @analysis-state]
-    (when (> next-round current-round)
-      (let [completed-round current-round
-            duration-ms (ns->ms (- (profiling/now-ns) current-round-start-ns))]
-        (cond
-          (and collecting? (pos? completed-round))
-          (record-analyzed-round! analysis-state phase-totals completed-round duration-ms next-round)
-
-          (and (pos? completed-round)
-               (> duration-ms threshold-ms))
-          (begin-slow-round-analysis! analysis-state phase-totals completed-round duration-ms rounds next-round)
-
-          :else
-          (swap! analysis-state assoc
-                 :current-round next-round
-                 :current-round-start-ns (profiling/now-ns)))))))
-
-(defn- maybe-print-partial-slow-round-report!
-  [analysis-state]
-  (let [{:keys [collecting? trigger rounds]} @analysis-state]
-    (when (and collecting? trigger (seq rounds))
-      (println (format "Slow round analysis ended early after %d analyzed rounds." (count rounds)))
-      (print-slow-round-report! {:trigger trigger
-                                 :rounds rounds}))))
-
 (defn- finish-headless-run!
-  [last-reported-round analysis-state]
+  [last-reported-round]
   (maybe-print-final-headless-progress! last-reported-round)
-  (maybe-print-partial-slow-round-report! analysis-state)
   (sa/write-state! :headless-mode? false)
   (sa/write-state! :headless-stop-on-major-invasion? false)
   (maybe-write-debug-dump-on-exit!))
 
 (defn- run-headless-loop!
-  [headless-rounds slow-round-analysis analysis-state phase-totals]
+  [headless-rounds]
   (loop [last-reported-round 0]
     (let [round-number (sa/read-state :round-number)]
       (cond
         (>= round-number headless-rounds)
-        (finish-headless-run! last-reported-round analysis-state)
+        (finish-headless-run! last-reported-round)
 
         (sa/read-state :paused)
-        (finish-headless-run! last-reported-round analysis-state)
+        (finish-headless-run! last-reported-round)
 
         :else
         (do
           (game-loop/update-player-map)
           (game-loop/update-computer-map)
           (game-loop/advance-game-batch)
-          (let [next-round (sa/read-state :round-number)]
-            (when slow-round-analysis
-              (maybe-analyze-round-transition! analysis-state
-                                              phase-totals
-                                              slow-round-analysis
-                                              next-round))
-            (let [next-reported-round (if (and (> next-round last-reported-round)
-                                               (zero? (mod next-round 20)))
-                                        (do
-                                          (print-headless-progress! next-round)
-                                          next-round)
-                                        last-reported-round)]
-              (recur next-reported-round))))))))
+          (let [next-round (sa/read-state :round-number)
+                next-reported-round (if (and (> next-round last-reported-round)
+                                             (zero? (mod next-round 20)))
+                                      (do
+                                        (print-headless-progress! next-round)
+                                        next-round)
+                                      last-reported-round)]
+            (recur next-reported-round)))))))
 
 (defn- run-headless!
-  [{:keys [headless-rounds slow-round-analysis]}]
+  [{:keys [headless-rounds]}]
   (install-seeded-random!)
   (initialize-map!)
   (invasion-probe/clear-log!)
   (sa/write-state! :headless-mode? true)
   (sa/write-state! :headless-stop-on-major-invasion? false)
   (sa/write-state! :major-invasion-probe-hit? false)
-  (let [analysis-state (atom {:collecting? false
-                              :trigger nil
-                              :rounds-remaining 0
-                              :rounds []
-                              :current-round (sa/read-state :round-number)
-                              :current-round-start-ns (profiling/now-ns)})
-        phase-totals (atom {})]
-    (if slow-round-analysis
-      (profiling/with-round-phase-recorder (phase-recorder phase-totals analysis-state)
-        #(run-headless-loop! headless-rounds slow-round-analysis analysis-state phase-totals))
-      (run-headless-loop! headless-rounds slow-round-analysis analysis-state phase-totals))))
+  (run-headless-loop! headless-rounds))
 
 (defn- start-sketch!
   [{:keys [window-w window-h]}]
