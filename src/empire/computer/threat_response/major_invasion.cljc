@@ -152,14 +152,24 @@
        (= pos (:invasion-path-origin unit))
        (= target-revision (:invasion-plan-revision unit))))
 
+(defn- stamped-transport-target?
+  [unit target]
+  (and (:major-invasion unit)
+       (= target (:major-invasion-target unit))))
+
 (defn- stamp-transport-major-invasion-target!
   [ctx pos target target-revision]
-  ((:update-game-map! ctx) update-in (conj pos :contents)
-   #(cond-> (assoc % :major-invasion true :major-invasion-target target)
-      (not= target-revision (:major-invasion-skip-revision %))
-      (dissoc :major-invasion-skip-revision)))
-  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
-    (sync-ai-unit! pos)))
+  (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))
+        clear-skip? (and (contains? current-transport :major-invasion-skip-revision)
+                         (not= target-revision (:major-invasion-skip-revision current-transport)))]
+    (when (or clear-skip?
+              (not (stamped-transport-target? current-transport target)))
+      ((:update-game-map! ctx) update-in (conj pos :contents)
+       #(cond-> (assoc % :major-invasion true :major-invasion-target target)
+          clear-skip?
+          (dissoc :major-invasion-skip-revision)))
+      (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+        (sync-ai-unit! pos)))))
 
 (defn- should-plan-invasion-route?
   [pos unit army-count mission opted-out? target-revision]
@@ -225,14 +235,13 @@
 (defn- maybe-mark-find-armies-for-invasion!
   [ctx pos army-count target-revision]
   (when (zero? army-count)
-    ((:update-game-map! ctx) update-in (conj pos :contents)
-     (fn [transport]
-       (if (or (= :load-for-invasion (:transport-mission transport))
-               (= target-revision (:major-invasion-skip-revision transport)))
-         transport
-         (assoc transport :transport-mission :find-armies-for-invasion))))
-    (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
-      (sync-ai-unit! pos))))
+    (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))]
+      (when-not (or (= :load-for-invasion (:transport-mission current-transport))
+                    (= target-revision (:major-invasion-skip-revision current-transport))
+                    (= :find-armies-for-invasion (:transport-mission current-transport)))
+        ((:update-game-map! ctx) assoc-in (conj pos :contents :transport-mission) :find-armies-for-invasion)
+        (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+          (sync-ai-unit! pos))))))
 
 (defn- nearest-major-ship-target
   [ctx pos]

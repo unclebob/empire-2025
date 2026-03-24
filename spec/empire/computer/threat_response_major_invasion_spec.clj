@@ -145,7 +145,72 @@
                  :computer-sea-unit-types #{:transport}}]
         (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))
         (should= :sail-to-unload (get-in @world [0 0 :contents :transport-mission]))
-        (should-be-nil (get-in @world [0 0 :contents :invasion-target])))))
+        (should-be-nil (get-in @world [0 0 :contents :invasion-target]))))
+
+    (it "does not rewrite a transport when the major invasion target is already current"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer
+                                      :major-invasion true
+                                      :major-invasion-target [0 0]
+                                      :transport-mission :invading
+                                      :invasion-target [0 0]
+                                      :invasion-path [[0 0]]
+                                      :invasion-plan-revision 3
+                                      :invasion-path-origin [0 0]
+                                      :army-count 1}}]])
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 0]}
+                         :target-land-set #{[0 0]}})
+            updates (atom 0)
+            syncs (atom 0)
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map [[{:type :sea :contents {:type :transport :owner :computer}}]]
+                                         :round-number 10
+                                         nil))
+                 :update-major-invasion-state! (fn [f & args] (apply swap! state f args))
+                 :update-game-map! (fn [f & args]
+                                     (swap! updates inc)
+                                     (apply swap! world f args))
+                 :sync-ai-unit! (fn [_] (swap! syncs inc))
+                 :current-world (fn [] @world)
+                 :nearest-major-target (fn [_] [0 0])
+                 :computer-sea-unit-types #{:transport}}]
+        (with-redefs [pathfinding-bfs/bfs-to-land-ho-target (fn [_ _ _] (throw (ex-info "should not plan" {})))]
+          (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents])))
+        (should= 0 @updates)
+        (should= 0 @syncs)))
+
+    (it "does not rewrite find-armies mission when already marked"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer
+                                      :major-invasion true
+                                      :major-invasion-target [0 0]
+                                      :transport-mission :find-armies-for-invasion
+                                      :army-count 0}}]])
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 0]}
+                         :target-land-set #{[0 0]}})
+            updates (atom 0)
+            syncs (atom 0)
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map [[{:type :sea :contents {:type :transport :owner :computer}}]]
+                                         :round-number 10
+                                         nil))
+                 :update-major-invasion-state! (fn [f & args] (apply swap! state f args))
+                 :update-game-map! (fn [f & args]
+                                     (swap! updates inc)
+                                     (apply swap! world f args))
+                 :sync-ai-unit! (fn [_] (swap! syncs inc))
+                 :current-world (fn [] @world)
+                 :nearest-major-target (fn [_] [0 0])
+                 :computer-sea-unit-types #{:transport}}]
+        (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))
+        (should= 0 @updates)
+        (should= 0 @syncs))))
 
   (context "trim stale find-armies missions"
     (it "sets find-armies round when not timed out"

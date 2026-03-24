@@ -147,3 +147,29 @@ Result:
 - This removes one guaranteed full kamikazee target refresh from every active major-invasion round.
 - Follow-up profiling shows the remaining threat-response hotspot is no longer army-target refresh itself. The dominant subphase is now transport assignment inside `refresh-active-assignments`, for example:
   - `start-new-round/threat-response-refresh-active-assignments-transports` avg `340.7 ms` in the final analyzed window of `clj -M:run --headless=220 --slow-round-analysis=500:20 --seed=1774361658123`
+
+### Threat-response transport assignment no-op write elimination
+
+Change:
+- Stopped rewriting transport major-invasion state when the transport already has the current `:major-invasion-target`.
+- Stopped re-marking transports as `:find-armies-for-invasion` when they are already in that mission.
+- Stopped syncing AI visibility for those unchanged transport assignments.
+
+Files:
+- `src/empire/computer/threat_response/major_invasion.cljc`
+
+Verification:
+- Added regressions proving `prepare-transport-major-invasion!` does not write or sync for:
+  - an already-current invasion target
+  - an already-marked `:find-armies-for-invasion` transport
+
+Measurement:
+- Command: `clj -M:run --headless=220 --slow-round-analysis=500:20 --seed=1774361658123`
+- Before optimization, a late active-invasion window showed:
+  - `start-new-round/threat-response-refresh-active-assignments-transports` avg `340.7 ms`
+- After optimization, a comparable active-invasion window showed:
+  - `start-new-round/threat-response-refresh-active-assignments-transports` avg `170.8 ms`
+
+Result:
+- Transport assignment inside threat-response was roughly cut in half.
+- The remaining late-game hotspots are broader army processing and the remaining non-transport threat-response assignment work.
