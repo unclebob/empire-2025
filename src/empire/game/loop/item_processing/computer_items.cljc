@@ -3,6 +3,7 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.game-mechanics.visibility :as visibility]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.coordinator :as computer]
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing.computer-item-decisions :as decisions]
@@ -21,6 +22,19 @@
 (defn- next-computer-item-coords
   []
   (first (normalize-computer-items)))
+
+(defn- item-phase
+  [cell]
+  (cond
+    (and (= (:type cell) :city)
+         (= (:city-status cell) :computer))
+    :process-computer/city
+
+    (= (:owner (:contents cell)) :computer)
+    (keyword "process-computer" (name (:type (:contents cell))))
+
+    :else
+    :process-computer/other))
 
 (defn- make-empty-visible-map
   [game-map]
@@ -49,20 +63,24 @@
   (let [coords (next-computer-item-coords)
         cell (get-in (sa/current-world) coords)
         unit-id (get-in cell [:contents :computer-unit-id])
+        phase (item-phase cell)
         is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
         should-requeue-city? (fn [city-pos]
                                (let [current-cell (get-in (sa/current-world) city-pos)]
                                  (pos? (:awake-kamikazee-fighters current-cell 0))))]
     (when is-computer-city?
-      (computer-production/process-computer-city coords))
+      (profiling/time-phase phase
+                            #(computer-production/process-computer-city coords)))
       (let [launched-pos (when is-computer-city?
                          (threat-response/launch-kamikazee-from-airport! coords))
           new-coords (when (= (:owner (:contents cell)) :computer)
-                       (debug-logging/with-computer-unit-context
-                         unit-id
-                         #(let [coords* (computer/process-computer-unit coords)]
-                            (dispatch-detections!)
-                            coords*)))
+                       (profiling/time-phase phase
+                                             #(debug-logging/with-computer-unit-context
+                                                unit-id
+                                                (fn []
+                                                  (let [coords* (computer/process-computer-unit coords)]
+                                                    (dispatch-detections!)
+                                                    coords*)))))
           action (decisions/computer-item-action {:cell cell
                                                   :launched-pos launched-pos
                                                   :new-coords new-coords

@@ -2,11 +2,17 @@
   (:require [empire.game-mechanics.services.city-production :as city-production]
             [empire.state.api :as sa]
             [empire.config.core :as config]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.early-game.strategy :as opening]
             [empire.computer.production.selection-decisions :as selection]
             [empire.computer.production.stats :as stats]
             [empire.computer.ship :as ship]
             [empire.computer.threat-response.kamikazee :as kamikazee]))
+
+(defn- city-phase
+  [suffix]
+  (keyword "process-computer"
+           (str "city-" suffix)))
 
 
 (defn country-city-producing?
@@ -148,40 +154,65 @@
 
 (defn- opening-production
   [city-pos]
-  (when-let [item (opening/opening-production city-pos)]
-    (let [role (opening/assigned-role city-pos)]
-      (set-opening-role! city-pos role)
-      (when (= :satellite item)
-        (sa/write-state! :opening-satellite-produced? true))
-      item)))
+  (profiling/time-phase
+   (city-phase "opening-production")
+   (fn []
+     (when-let [item (opening/opening-production city-pos)]
+       (let [role (opening/assigned-role city-pos)]
+         (set-opening-role! city-pos role)
+         (when (= :satellite item)
+           (sa/write-state! :opening-satellite-produced? true))
+         item)))))
 
 (defn decide-production [city-pos]
   (let [city-cell (get-in (sa/read-state :computer-map) city-pos)
         country-id (:country-id city-cell)
         coastal? (stats/city-is-coastal? city-pos)
-        unit-counts (stats/count-computer-units)]
+        unit-counts (profiling/time-phase
+                     (city-phase "count-units")
+                     stats/count-computer-units)]
     (apply-production-limit
-     (selection/production-choice
-      {:override (or (kamikazee/invasion-production-override city-pos)
-                     (next-produced-transport-cycle-item city-pos))
-       :opening (opening-production city-pos)
-       :country-choice (when country-id
-                         (or (decide-country-production city-pos country-id coastal? unit-counts)
-                             (decide-global-production coastal? unit-counts)))
-       :global-choice nil
-       :fallback-army? (not (and country-id (stats/country-army-limit-reached? country-id)))})
+     (profiling/time-phase
+      (city-phase "select-production")
+      (fn []
+        (selection/production-choice
+         {:override (profiling/time-phase
+                     (city-phase "override")
+                     #(or (kamikazee/invasion-production-override city-pos)
+                          (next-produced-transport-cycle-item city-pos)))
+          :opening (opening-production city-pos)
+          :country-choice (when country-id
+                            (profiling/time-phase
+                             (city-phase "country-choice")
+                             #(or (decide-country-production city-pos country-id coastal? unit-counts)
+                                  (decide-global-production coastal? unit-counts))))
+          :global-choice nil
+          :fallback-army? (profiling/time-phase
+                           (city-phase "fallback-army")
+                           #(not (and country-id (stats/country-army-limit-reached? country-id))))})))
      unit-counts)))
 
 (defn process-computer-city [pos]
-  (let [action (selection/process-city-action
-                {:reset-lake-production? (opening/should-reset-lake-production? pos)
-                 :current-production (get (sa/read-state :production) pos)
-                 :unit-type (decide-production pos)})]
+  (let [action (profiling/time-phase
+                (city-phase "process-city-action")
+                (fn []
+                  (selection/process-city-action
+                   {:reset-lake-production? (profiling/time-phase
+                                             (city-phase "reset-lake-check")
+                                             #(opening/should-reset-lake-production? pos))
+                    :current-production (get (sa/read-state :production) pos)
+                    :unit-type (profiling/time-phase
+                                (city-phase "decide-production")
+                                #(decide-production pos))})))]
     (when (:reset-lake-production? action)
-    (sa/update-state! :production dissoc pos)
+      (profiling/time-phase
+       (city-phase "reset-lake-production")
+       #(sa/update-state! :production dissoc pos))
       (sa/update-world! update-in pos dissoc :opening-role))
     (when (:set-production? action)
-      (city-production/set-city-production pos (:unit-type action)))))
+      (profiling/time-phase
+       (city-phase "set-production")
+       #(city-production/set-city-production pos (:unit-type action))))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T14:22:37.555765-05:00", :module-hash "1952701047", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "-105405622"} {:id "defn/country-city-producing?", :kind "defn", :line 12, :end-line 22, :hash "1067317565"} {:id "defn/country-city-producing-armies?", :kind "defn", :line 24, :end-line 25, :hash "59819800"} {:id "defn-/country-city-producing-destroyers?", :kind "defn-", :line 27, :end-line 28, :hash "-2030098685"} {:id "defn-/should-rotate-transport?", :kind "defn-", :line 30, :end-line 32, :hash "1108334608"} {:id "defn-/should-produce-transport?", :kind "defn-", :line 34, :end-line 42, :hash "493925233"} {:id "defn-/should-produce-army?", :kind "defn-", :line 44, :end-line 46, :hash "-1108987839"} {:id "defn-/should-produce-patrol-boat?", :kind "defn-", :line 48, :end-line 50, :hash "-1013238048"} {:id "defn-/should-produce-destroyer?", :kind "defn-", :line 52, :end-line 56, :hash "1914888961"} {:id "defn-/should-produce-fighter?", :kind "defn-", :line 58, :end-line 60, :hash "-2121852493"} {:id "defn-/decide-country-production", :kind "defn-", :line 62, :end-line 69, :hash "248029671"} {:id "defn-/count-carrier-producers", :kind "defn-", :line 71, :end-line 75, :hash "395669148"} {:id "defn-/carrier-producible?", :kind "defn-", :line 77, :end-line 82, :hash "1054641972"} {:id "defn-/capital-ship-needed?", :kind "defn-", :line 84, :end-line 88, :hash "-477728056"} {:id "defn-/satellite-needed?", :kind "defn-", :line 90, :end-line 92, :hash "1660586830"} {:id "defn-/decide-global-production", :kind "defn-", :line 94, :end-line 98, :hash "-1013587949"} {:id "defn-/has-inland-computer-city?", :kind "defn-", :line 100, :end-line 109, :hash "-806656781"} {:id "defn-/set-opening-role!", :kind "defn-", :line 111, :end-line 113, :hash "-755314735"} {:id "defn-/opening-production", :kind "defn-", :line 115, :end-line 122, :hash "-129578558"} {:id "defn/decide-production", :kind "defn", :line 124, :end-line 136, :hash "1476585220"} {:id "defn/process-computer-city", :kind "defn", :line 138, :end-line 147, :hash "-897245648"}]}

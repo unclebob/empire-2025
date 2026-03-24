@@ -1,6 +1,7 @@
 (ns empire.computer.production.decisions-spec
   (:require [empire.test.utils :as test-utils]
             [empire.computer.production.decisions :as decisions]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.production.stats :as stats]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! update-test-world! set-test-computer-map!]]
             [speclj.core :refer :all]))
@@ -140,4 +141,21 @@
                     empire.game-mechanics.services.city-production/set-city-production (fn [pos unit-type]
                                                                                           (swap! calls conj [pos unit-type]))]
         (decisions/process-computer-city [3 2])
-        (should= [[[3 2] :fighter]] @calls)))))
+        (should= [[[3 2] :fighter]] @calls))))
+
+  (it "records city production subphases"
+    (let [phases (atom [])]
+      (with-redefs [empire.computer.early-game.strategy/should-reset-lake-production? (constantly false)
+                    empire.computer.production.decisions/decide-production (constantly :fighter)
+                    empire.computer.production.selection-decisions/process-city-action (fn [_]
+                                                                                         {:reset-lake-production? false
+                                                                                          :set-production? true
+                                                                                          :unit-type :fighter})
+                    empire.game-mechanics.services.city-production/set-city-production (fn [_ _] nil)]
+        (profiling/with-round-phase-recorder
+          (fn [phase _elapsed-ns] (swap! phases conj phase))
+          #(decisions/process-computer-city [3 2]))
+        (should-contain :process-computer/city-process-city-action @phases)
+        (should-contain :process-computer/city-reset-lake-check @phases)
+        (should-contain :process-computer/city-decide-production @phases)
+        (should-contain :process-computer/city-set-production @phases)))))

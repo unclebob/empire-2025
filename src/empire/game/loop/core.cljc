@@ -8,6 +8,7 @@
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game.loop.profiling :as profiling]
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.computer.army :as army]
@@ -22,20 +23,22 @@
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (when-let [updated (visibility/update-combatant-map-state
-                      (sa/read-state :player-map)
-                      :player
-                      (sa/current-world))]
-    (sa/write-state! :player-map updated)))
+  (profiling/time-phase :update-player-map
+                        #(when-let [updated (visibility/update-combatant-map-state
+                                             (sa/read-state :player-map)
+                                             :player
+                                             (sa/current-world))]
+                           (sa/write-state! :player-map updated))))
 
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (when-let [updated (visibility/update-combatant-map-state
-                      (sa/read-state :computer-map)
-                      :computer
-                      (sa/current-world))]
-    (sa/write-state! :computer-map updated)))
+  (profiling/time-phase :update-computer-map
+                        #(when-let [updated (visibility/update-combatant-map-state
+                                             (sa/read-state :computer-map)
+                                             :computer
+                                             (sa/current-world))]
+                           (sa/write-state! :computer-map updated))))
 
 (defn build-player-items
   "Builds list of player city/unit coordinates to process this round."
@@ -124,43 +127,63 @@
 (defn start-new-round
   "Starts a new round by building player and computer items lists and updating game state."
   []
-  (sa/update-state! :round-number inc)
-  (pathfinding/clear-path-cache)
-  (pathfinding-bfs/clear-bfs-caches)
-  (land-objectives/clear-continent-cache!)
-  (unit-stamping/backfill-missing-computer-unit-ids!)
-  (round-setup/move-satellites)
-  (round-setup/consume-sentry-fighter-fuel)
-  (round-setup/wake-sentries-seeing-enemy)
-  (round-setup/remove-dead-units)
-  (round-setup/mark-lake-locked-ships)
-  (round-setup/evacuate-lake-patrol-boats)
-  (player-production/update-production)
-  (round-setup/repair-damaged-ships)
-  (round-setup/reset-steps-remaining)
-  (round-setup/wake-airport-fighters)
-  (threat-response/on-round-start!)
+  (profiling/time-phase :start-new-round/increment-round
+                        #(sa/update-state! :round-number inc))
+  (profiling/time-phase :start-new-round/clear-path-cache
+                        #(pathfinding/clear-path-cache))
+  (profiling/time-phase :start-new-round/clear-bfs-caches
+                        #(pathfinding-bfs/clear-bfs-caches))
+  (profiling/time-phase :start-new-round/clear-continent-cache
+                        #(land-objectives/clear-continent-cache!))
+  (profiling/time-phase :start-new-round/backfill-unit-ids
+                        #(unit-stamping/backfill-missing-computer-unit-ids!))
+  (profiling/time-phase :start-new-round/move-satellites
+                        #(round-setup/move-satellites))
+  (profiling/time-phase :start-new-round/consume-sentry-fighter-fuel
+                        #(round-setup/consume-sentry-fighter-fuel))
+  (profiling/time-phase :start-new-round/wake-sentries-seeing-enemy
+                        #(round-setup/wake-sentries-seeing-enemy))
+  (profiling/time-phase :start-new-round/remove-dead-units
+                        #(round-setup/remove-dead-units))
+  (profiling/time-phase :start-new-round/mark-lake-locked-ships
+                        #(round-setup/mark-lake-locked-ships))
+  (profiling/time-phase :start-new-round/evacuate-lake-patrol-boats
+                        #(round-setup/evacuate-lake-patrol-boats))
+  (profiling/time-phase :start-new-round/update-production
+                        #(player-production/update-production))
+  (profiling/time-phase :start-new-round/repair-damaged-ships
+                        #(round-setup/repair-damaged-ships))
+  (profiling/time-phase :start-new-round/reset-steps-remaining
+                        #(round-setup/reset-steps-remaining))
+  (profiling/time-phase :start-new-round/wake-airport-fighters
+                        #(round-setup/wake-airport-fighters))
+  (profiling/time-phase :start-new-round/threat-response
+                        #(threat-response/on-round-start!))
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
   (sa/write-state! :claimed-objectives #{})
   (sa/write-state! :claimed-transport-targets #{})
   (sa/write-state! :claimed-patrol-targets #{})
-  (debug-logging/begin-computer-unit-log-round!)
-  (let [player-items (current-player-items)
-        computer-items (vec (build-computer-items))
-        round-state (decisions/round-start-state
-                     {:handicap-rounds-remaining (sa/read-state :handicap-rounds-remaining)
-                      :player-items player-items
-                      :computer-items computer-items
-                      :game-over-check-enabled (sa/read-state :game-over-check-enabled)})]
-    (apply-round-start-state! round-state)
-    (computer-production/rebuild-country-stats!)
-    (army/assign-city-attacks)
-    (army/assign-transport-staging)
-    nil)
-  (sa/write-state! :production-status
-                   (production-status/format-production-status (sa/current-world)
-                                                               (sa/read-state :player-map)))
-  (integrity/check-world-integrity!))
+  (profiling/time-phase :start-new-round/begin-unit-log-round
+                        #(debug-logging/begin-computer-unit-log-round!))
+  (profiling/time-phase :start-new-round/build-round-state
+                        #(let [player-items (current-player-items)
+                               computer-items (vec (build-computer-items))
+                               round-state (decisions/round-start-state
+                                            {:handicap-rounds-remaining (sa/read-state :handicap-rounds-remaining)
+                                             :player-items player-items
+                                             :computer-items computer-items
+                                             :game-over-check-enabled (sa/read-state :game-over-check-enabled)})]
+                           (apply-round-start-state! round-state)
+                           (computer-production/rebuild-country-stats!)
+                           (army/assign-city-attacks)
+                           (army/assign-transport-staging)
+                           nil))
+  (profiling/time-phase :start-new-round/format-production-status
+                        #(sa/write-state! :production-status
+                                          (production-status/format-production-status (sa/current-world)
+                                                                                      (sa/read-state :player-map))))
+  (profiling/time-phase :start-new-round/integrity-check
+                        #(integrity/check-world-integrity!)))
 
 (defn- both-lists-empty? []
   (and (empty? (sa/read-state :player-items))
@@ -168,7 +191,8 @@
 
 (defn- process-player-action!
   []
-  (item-processing/process-player-items-batch))
+  (profiling/time-phase :process-player
+                        #(item-processing/process-player-items-batch)))
 
 (defn- apply-advance-game-action!
   [action]
@@ -181,7 +205,8 @@
                    (update-handicap-before-round!))
                  (start-new-round))
     :process-player (process-player-action!)
-    :process-computer (item-processing/process-computer-items)
+    :process-computer (profiling/time-phase :process-computer
+                                            #(item-processing/process-computer-items))
     nil))
 
 (defn advance-game

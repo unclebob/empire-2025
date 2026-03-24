@@ -1,6 +1,7 @@
 (ns empire.computer.fighter.flight-plan
   (:require [empire.computer.ship :as ship]
             [empire.config.core :as config]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.fighter.flight-decisions :as decisions]))
 
 (defn assign-exploration-flight!
@@ -56,43 +57,47 @@
 
 (defn handle-arrival!
   [current-world update-game-map! read-runtime-state write-runtime-state! pos unit]
-  (let [decision (decisions/arrival-action (current-world)
-                                           (ship/find-refueling-sites)
-                                           (or (read-runtime-state :fighter-leg-records) {})
-                                           (or (read-runtime-state :round-number) 0)
-                                           pos
-                                           unit
-                                           (rand))]
-    (when-let [leg-record (:leg-record decision)]
-      (write-runtime-state! :fighter-leg-records
-                            (assoc (or (read-runtime-state :fighter-leg-records) {})
-                                   (:leg-key leg-record)
-                                   {:last-flown (:last-flown leg-record)})))
-    (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
-    (update-game-map! update-in (conj pos :contents)
-                      (fn [fighter]
-                        (let [base (-> fighter
-                                       (dissoc :explore-origin :explore-heading :explore-steps-remaining
-                                               :explore-landing-site :flight-mode)
-                                       (assoc :flight-origin-site (:target decision)))
-                              next-action (:next-action decision)]
-                          (case (:action next-action)
-                            :assign-regular-leg
-                            (assoc base
-                                   :flight-target-site (:target next-action)
-                                   :flight-mode :regular)
+  (let [decision (profiling/time-phase :process-computer/fighter-arrival-decision
+                                       (fn []
+                                         (decisions/arrival-action (current-world)
+                                                                   (ship/find-refueling-sites)
+                                                                   (or (read-runtime-state :fighter-leg-records) {})
+                                                                   (or (read-runtime-state :round-number) 0)
+                                                                   pos
+                                                                   unit
+                                                                   (rand))))]
+    (profiling/time-phase :process-computer/fighter-arrival-writeback
+                          (fn []
+                            (when-let [leg-record (:leg-record decision)]
+                              (write-runtime-state! :fighter-leg-records
+                                                    (assoc (or (read-runtime-state :fighter-leg-records) {})
+                                                           (:leg-key leg-record)
+                                                           {:last-flown (:last-flown leg-record)})))
+                            (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
+                            (update-game-map! update-in (conj pos :contents)
+                                              (fn [fighter]
+                                                (let [base (-> fighter
+                                                               (dissoc :explore-origin :explore-heading :explore-steps-remaining
+                                                                       :explore-landing-site :flight-mode)
+                                                               (assoc :flight-origin-site (:target decision)))
+                                                      next-action (:next-action decision)]
+                                                  (case (:action next-action)
+                                                    :assign-regular-leg
+                                                    (assoc base
+                                                           :flight-target-site (:target next-action)
+                                                           :flight-mode :regular)
 
-                            :assign-exploration-flight
-                            (assoc base
-                                   :flight-mode (:mode next-action)
-                                   :explore-origin (:origin next-action)
-                                   :explore-heading (:heading next-action)
-                                   :explore-steps-remaining (:steps-remaining next-action)
-                                   :explore-landing-site (:landing-site next-action)
-                                   :flight-target-site (:target next-action)
-                                   :flight-origin-site (:origin next-action))
+                                                    :assign-exploration-flight
+                                                    (assoc base
+                                                           :flight-mode (:mode next-action)
+                                                           :explore-origin (:origin next-action)
+                                                           :explore-heading (:heading next-action)
+                                                           :explore-steps-remaining (:steps-remaining next-action)
+                                                           :explore-landing-site (:landing-site next-action)
+                                                           :flight-target-site (:target next-action)
+                                                           :flight-origin-site (:origin next-action))
 
-                            (dissoc base :flight-target-site)))))
+                                                    (dissoc base :flight-target-site)))))))
     {:pos pos :hops (:hops decision)}))
 
 ;; clj-mutate-manifest-begin

@@ -5,6 +5,7 @@
             [empire.computer.fighter :as fighter]
             [empire.computer.fighter.flight-decisions :as flight-decisions]
             [empire.computer.fighter.movement :as fighter-movement]
+            [empire.game.loop.profiling :as profiling]
             [empire.game-mechanics.services.combat :as combat]
             [empire.config.core :as config]
             [empire.test.utils :refer [build-test-map set-test-unit
@@ -277,7 +278,26 @@
               (when result
                 (should= :explore (:flight-mode (:unit result)))
                 (should-not-be-nil (:flight-target-site (:unit result)))
-                (should-not-be-nil (:explore-landing-site (:unit result)))))))))
+                (should-not-be-nil (:explore-landing-site (:unit result))))))))
+
+    (it "records fighter action phases while processing"
+      (set-test-world! (build-test-map ["X####f######"]))
+      (set-test-unit (test-utils/game-map-atom) "f" :fuel 20
+                     :flight-mode :explore
+                     :explore-origin [0 0]
+                     :explore-landing-site [0 0]
+                     :explore-steps-remaining 3
+                     :flight-target-site [11 0]
+                     :flight-origin-site [0 0])
+      (set-test-computer-map! (build-test-map ["X####f......"]))
+      (let [unit (get-in (test-utils/read-test-state :game-map) [5 0 :contents])
+            phases (atom [])]
+        (profiling/with-round-phase-recorder
+          (fn [phase _elapsed-ns] (swap! phases conj phase))
+          #(fighter/process-fighter [5 0] unit))
+        (should-contain :process-computer/fighter-run-steps @phases)
+        (should-contain :process-computer/fighter-ensure-target @phases)
+        (should-contain :process-computer/fighter-explore @phases)))))
 
   (context "exploration target bounds"
     (it "keeps exploration flight target in bounds"
@@ -376,4 +396,4 @@
         ;; Fighter should have refueled
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
-          (should (> (:fuel (:unit result)) 2)))))))
+          (should (> (:fuel (:unit result)) 2))))))

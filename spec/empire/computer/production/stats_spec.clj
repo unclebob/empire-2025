@@ -51,6 +51,23 @@
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (should= 1 (stats/count-all-computer-fighters)))
 
+  (it "reuses cached computer counts after rebuilding country stats"
+    (set-test-world! (build-test-map ["aXd"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (stats/rebuild-country-stats!)
+    (should= {:army 1 :destroyer 1} (stats/count-computer-units))
+    (should= 1 (stats/count-computer-cities))
+    (should= 0 (stats/count-all-computer-fighters)))
+
+  (it "falls back to rescanning when the computer map changes after caching"
+    (set-test-world! (build-test-map ["a~"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (stats/rebuild-country-stats!)
+    (test-utils/set-test-computer-map! (build-test-map ["fX"]))
+    (should= {:fighter 1} (stats/count-computer-units))
+    (should= 1 (stats/count-computer-cities))
+    (should= 1 (stats/count-all-computer-fighters)))
+
   (it "covers private helper predicates"
     (should= {:c {:k 1}} (@#'empire.computer.production.stats/update-country {} :c :k inc))
     (should (@#'empire.computer.production.stats/unoccupied-coastal-land? :land {:type :land}))

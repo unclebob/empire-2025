@@ -10,6 +10,10 @@
    :fighter-leg-records {}
    :computer-city-positions #{}
    :computer-carrier-positions #{}
+   :computer-counts-source nil
+   :computer-unit-counts nil
+   :computer-city-count nil
+   :computer-fighter-count nil
    :country-stats {}
    :coastal-cells-by-country {}
    :coast-walkers-produced {}

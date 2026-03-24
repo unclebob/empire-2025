@@ -24,6 +24,19 @@
         (should= [1 0] (coastal/process-move-to-coast-for-invasion [0 0] 7))
         (should= [[[0 0] [3 3] 7]] @moves))))
 
+  (it "does not recompute a coast target when one is already cached"
+    (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)
+                  sa/read-state (fn [k]
+                                  (when (= k :computer-map)
+                                    [[{:contents {:coast-target [3 3]}}]]))
+                  coastal/find-coast-target-once
+                  (fn [& _] (should-not "should not recompute coast target when cached"))
+                  sa/update-world! (fn [& _] nil)
+                  empire.game-mechanics.visibility/sync-ai-unit-to-computer-map!
+                  (fn [_] nil)
+                  movement/move-toward-objective (fn [_ _ _] [1 0])]
+      (should= [1 0] (coastal/process-move-to-coast-for-invasion [0 0] 7))))
+
   (it "falls back to a local target when moving toward the main target fails"
     (let [moves (atom [])]
       (with-redefs [coastal/should-sentry-on-coast? (fn [_ _] false)

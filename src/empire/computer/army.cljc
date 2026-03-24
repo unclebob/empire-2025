@@ -10,7 +10,13 @@
             [empire.computer.army.exploration :as exploration]
             [empire.computer.army.movement :as movement]
             [empire.computer.army.transport :as transport]
+            [empire.game.loop.profiling :as profiling]
             [empire.game-mechanics.debug.logging :as debug]))
+
+(defn- army-phase
+  [suffix]
+  (keyword "process-computer"
+           (str "army-" suffix)))
 
 (defn- process-sentry-in-city [pos country-id cell]
   (when (= :city (:type cell))
@@ -81,10 +87,14 @@
         cell (get-in game-map pos)
         unit (:contents cell)]
     (when (and unit (= :computer (:owner unit)) (= :army (:type unit)))
-      (let [pos (exit-city pos (:country-id unit))
+      (let [pos (profiling/time-phase
+                 (army-phase "exit-city")
+                 #(exit-city pos (:country-id unit)))
             cell (get-in (sa/read-state :computer-map) pos)
             unit (:contents cell)
-            enemy-pos (army-combat/find-adjacent-enemy pos)
+            enemy-pos (profiling/time-phase
+                       (army-phase "find-adjacent-enemy")
+                       #(army-combat/find-adjacent-enemy pos))
             country-id (:country-id unit)
             mode (:mode unit)
             eid (:unload-event-id unit)]
@@ -93,7 +103,23 @@
                                      country-id (assoc :cid country-id)
                                      eid (assoc :eid eid)))
         (let [actions (build-army-actions pos country-id mode unit cell enemy-pos)]
-          (reduce (fn [_ [pred action]] (when pred (reduced (action)))) nil actions))))
+          (profiling/time-phase
+           (army-phase
+           (cond
+              enemy-pos "attack-adjacent"
+              (= :country-defense (:threat-mission unit)) "country-defense"
+              (:attack-target unit) "attack-target"
+              (= :coast-walk mode) "coast-walk"
+              (= :move-to-coast-for-invasion mode) "move-to-coast-for-invasion"
+              (= :move-to-coast-for-transport mode) "move-to-coast-for-transport"
+              (= :move-inland mode) "move-inland"
+              (= :random-explore mode) "random-explore"
+              (= :sentry mode) "sentry"
+              (:interior-explore-direction unit) "interior-explore"
+              (nil? country-id) "unowned"
+              :else "land-action"))
+           (fn []
+             (reduce (fn [_ [pred action]] (when pred (reduced (action)))) nil actions))))))
     nil))
 
 (defn assign-city-attacks

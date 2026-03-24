@@ -108,6 +108,34 @@
                                (>= land-armies (* 2/3 coastal-cells))))))))
     {} raw))
 
+(defn- scan-computer-assets [comp-map]
+  (reduce
+   (fn [{:keys [unit-counts computer-city-count computer-fighter-count] :as acc}
+        column]
+     (reduce
+      (fn [inner-acc cell]
+        (let [unit (:contents cell)
+              computer-unit? (and unit (= :computer (:owner unit)))
+              computer-city? (and (= :city (:type cell))
+                                  (= :computer (:city-status cell)))]
+          (cond-> inner-acc
+            computer-unit?
+            (update :unit-counts
+                    (fn [counts]
+                      (update (or counts {}) (:type unit) (fnil inc 0))))
+
+            computer-city?
+            (update :computer-city-count inc)
+
+            (and computer-unit? (= :fighter (:type unit)))
+            (update :computer-fighter-count inc))))
+      acc
+      column))
+   {:unit-counts {}
+    :computer-city-count 0
+    :computer-fighter-count 0}
+   comp-map))
+
 (defn rebuild-country-stats! []
   (let [comp-map (sa/read-state :computer-map)
         rows (count (first comp-map))
@@ -116,26 +144,30 @@
                       (reduce (fn [acc j]
                                 (scan-cell acc comp-map i j))
                               acc (range rows)))
-                    {} (range cols))]
-    (sa/write-state! :country-stats (derive-stats raw))))
+                    {} (range cols))
+        asset-counts (scan-computer-assets comp-map)]
+    (sa/write-state! :country-stats (derive-stats raw))
+    (sa/write-state! :computer-counts-source comp-map)
+    (sa/write-state! :computer-unit-counts (:unit-counts asset-counts))
+    (sa/write-state! :computer-city-count (:computer-city-count asset-counts))
+    (sa/write-state! :computer-fighter-count (:computer-fighter-count asset-counts))))
+
+(defn- cached-asset-counts []
+  (let [comp-map (sa/read-state :computer-map)]
+    (when (identical? comp-map (sa/read-state :computer-counts-source))
+      {:unit-counts (or (sa/read-state :computer-unit-counts) {})
+       :computer-city-count (sa/read-state :computer-city-count)
+       :computer-fighter-count (sa/read-state :computer-fighter-count)})))
+
+(defn- current-asset-counts []
+  (or (cached-asset-counts)
+      (scan-computer-assets (sa/read-state :computer-map))))
 
 (defn count-computer-units []
-  (let [game-map (sa/read-state :computer-map)
-        units (for [i (range (count game-map))
-                    j (range (count (first game-map)))
-                    :let [unit (:contents (get-in game-map [i j]))]
-                    :when (and unit (= :computer (:owner unit)))]
-                (:type unit))]
-    (frequencies units)))
+  (:unit-counts (current-asset-counts)))
 
 (defn count-computer-cities []
-  (let [game-map (sa/read-state :computer-map)]
-    (count (for [i (range (count game-map))
-                 j (range (count (first game-map)))
-                 :let [cell (get-in game-map [i j])]
-                 :when (and (= :city (:type cell))
-                            (= :computer (:city-status cell)))]
-             [i j]))))
+  (:computer-city-count (current-asset-counts)))
 
 (defn count-country-armies [country-id]
   (get-in (or (sa/read-state :country-stats) {}) [country-id :army-count] 0))
@@ -151,14 +183,7 @@
                    [country-id :has-waiting-armies?])))
 
 (defn count-all-computer-fighters []
-  (let [game-map (sa/read-state :computer-map)]
-    (count (for [i (range (count game-map))
-                 j (range (count (first game-map)))
-                 :let [unit (:contents (get-in game-map [i j]))]
-                 :when (and unit
-                            (= :computer (:owner unit))
-                            (= :fighter (:type unit)))]
-             true))))
+  (:computer-fighter-count (current-asset-counts)))
 
 (defn count-country-patrol-boats [country-id]
   (get-in (or (sa/read-state :country-stats) {}) [country-id :patrol-boat-count] 0))

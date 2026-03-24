@@ -1,5 +1,6 @@
 (ns empire.computer.fighter.flight-decisions-spec
   (:require [empire.computer.fighter.flight-decisions :as sut]
+            [empire.game.loop.profiling :as profiling]
             [empire.test.utils :refer [build-test-map]]
             [speclj.core :refer :all]))
 
@@ -50,8 +51,7 @@
                  (:landing-site (sut/exploration-flight-action world
                                                                sites
                                                                [0 0]
-                                                               [0 0]
-                                                               0.5))))))
+                                                               [0 0]))))))
 
   (it "chooses the reachable city closest to unexplored cells even when it requires hops"
     (let [world (build-test-map ["X###################X###################X########"])
@@ -90,4 +90,30 @@
                                                  [0 0]
                                                  {:type :fighter :owner :computer}
                                                  0.6
-                                                 0.6))))))
+                                                 0.6)))))
+
+  (it "records arrival planning phases while computing the next action"
+    (let [world (build-test-map ["X###################X###################X########"])
+          sites [[0 0] [20 0] [40 0]]
+          phases (atom [])]
+      (with-redefs [empire.computer.fighter.exploration/nearest-unexplored-distance
+                    (fn [site]
+                      (case site
+                        [0 0] 40
+                        [20 0] 10
+                        [40 0] 1
+                        99))
+                    rand-nth first]
+        (profiling/with-round-phase-recorder
+          (fn [phase _elapsed-ns] (swap! phases conj phase))
+          #(sut/arrival-action world
+                               sites
+                               {}
+                               12
+                               [20 0]
+                               {:flight-target-site [20 0]
+                                :flight-origin-site [0 0]}
+                               0.6))
+        (should-contain :process-computer/fighter-arrival-action @phases)
+        (should-contain :process-computer/fighter-arrival-staging-plan @phases)
+        (should-contain :process-computer/fighter-arrival-reachable-hop-paths @phases)))))

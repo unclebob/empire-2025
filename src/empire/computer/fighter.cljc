@@ -8,10 +8,15 @@
             [empire.computer.fighter.decisions :as decisions]
             [empire.computer.fighter.process-decisions :as process-decisions]
             [empire.computer.fighter.flight-plan :as flight-plan]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.fighter.movement :as fm]
             [empire.computer.fighter.exploration :as fe]
             [empire.computer.threat-response-port :as threat-response-port]
             [empire.game-mechanics.visibility :as visibility]))
+
+(defn- fighter-phase
+  [suffix]
+  (keyword "process-computer" (str "fighter-" suffix)))
 
 (defn- computer-unit-at
   [pos]
@@ -29,8 +34,10 @@
 
 (defn- ensure-flight-target
   [pos]
-  (flight-plan/ensure-flight-target! #(sa/read-state :computer-map) sa/update-world! sa/read-state pos)
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (profiling/time-phase (fighter-phase "ensure-target")
+                        (fn []
+                          (flight-plan/ensure-flight-target! #(sa/read-state :computer-map) sa/update-world! sa/read-state pos)
+                          (visibility/sync-ai-unit-to-computer-map! pos))))
 
 (defn- at-flight-target?
   [pos target]
@@ -43,9 +50,11 @@
 
 (defn- handle-arrival
   [pos unit]
-  (let [result (flight-plan/handle-arrival! #(sa/read-state :computer-map) sa/update-world! sa/read-state sa/write-state! pos unit)]
-    (visibility/sync-ai-unit-to-computer-map! pos)
-    result))
+  (profiling/time-phase (fighter-phase "arrive")
+                        (fn []
+                          (let [result (flight-plan/handle-arrival! #(sa/read-state :computer-map) sa/update-world! sa/read-state sa/write-state! pos unit)]
+                            (visibility/sync-ai-unit-to-computer-map! pos)
+                            result))))
 
 (defn- select-best-navigation-target
   "Score passable unoccupied neighbors by unexplored count, break ties by proximity."
@@ -132,19 +141,21 @@
   "Handle low-fuel: return to nearest refueling site or patrol desperately.
    Returns :landed, {:pos p :hops n}, or nil."
   [pos unit]
-  (let [site (nearest-recovery-site pos unit)]
-    (cond
-      (adjacent-to-city-site? site pos) (fm/land-at-city pos site)
-      (adjacent-to-site? site pos) {:pos (refuel-at-site pos site) :hops 1}
-      site (move-and-consume-toward pos site)
-      :else (desperate-patrol pos))))
+  (profiling/time-phase (fighter-phase "low-fuel")
+                        #(let [site (nearest-recovery-site pos unit)]
+                           (cond
+                             (adjacent-to-city-site? site pos) (fm/land-at-city pos site)
+                             (adjacent-to-site? site pos) {:pos (refuel-at-site pos site) :hops 1}
+                             site (move-and-consume-toward pos site)
+                             :else (desperate-patrol pos)))))
 
 (defn- handle-patrol
   "Execute one patrol step, consuming fuel."
   [pos]
-  (when-let [{:keys [pos hops]} (fm/do-patrol pos)]
-    (when (fm/consume-fighter-fuel pos)
-      {:pos pos :hops hops})))
+  (profiling/time-phase (fighter-phase "patrol")
+                        #(when-let [{:keys [pos hops]} (fm/do-patrol pos)]
+                           (when (fm/consume-fighter-fuel pos)
+                             {:pos pos :hops hops}))))
 
 (defn- exploring?
   "True if unit is on an outbound exploration sortie with steps remaining."
@@ -155,7 +166,8 @@
 (defn- handle-exploration
   "Process an outbound exploration sortie."
   [pos unit]
-  (fe/explore-step pos unit))
+  (profiling/time-phase (fighter-phase "explore")
+                        #(fe/explore-step pos unit)))
 
 (defn- move-fighter-toward-objective
   "Non-combat movement priorities: explore > arrival > low fuel > navigate > patrol. CC=5."
@@ -171,7 +183,8 @@
       :explore (handle-exploration pos unit)
       :arrive (handle-arrival pos unit)
       :low-fuel (handle-low-fuel pos unit)
-      :navigate (navigate-toward-target pos target fuel)
+      :navigate (profiling/time-phase (fighter-phase "navigate")
+                                      #(navigate-toward-target pos target fuel))
       (handle-patrol pos))))
 
 (defn- move-fighter-once
@@ -180,9 +193,10 @@
   [pos unit]
   (let [enemy-pos (fm/find-adjacent-enemy pos)]
     (case (decisions/fighter-step-action enemy-pos :objective)
-      :attack (when-let [new-pos (fm/attack-enemy pos enemy-pos)]
-                (when (fm/consume-fighter-fuel new-pos)
-                  {:pos new-pos :hops 1}))
+      :attack (profiling/time-phase (fighter-phase "attack")
+                                    #(when-let [new-pos (fm/attack-enemy pos enemy-pos)]
+                                       (when (fm/consume-fighter-fuel new-pos)
+                                         {:pos new-pos :hops 1})))
       (move-fighter-toward-objective pos unit))))
 
 (defn- fighter-at?
@@ -193,8 +207,9 @@
 (defn- burn-stuck-fuel
   "Burns fuel for a stuck fighter at pos. Returns pos if survived, nil if died."
   [pos]
-  (when (and (fighter-at? pos) (fm/consume-fighter-fuel pos))
-    pos))
+  (profiling/time-phase (fighter-phase "burn-stuck-fuel")
+                        #(when (and (fighter-at? pos) (fm/consume-fighter-fuel pos))
+                           pos)))
 
 (defn- step-fighter
   "Execute one step. Returns {:pos p :steps-used n} or nil (landed/died)."
@@ -214,17 +229,20 @@
 
 (defn- process-threat-fighter?
   [pos unit]
-  (threat-response-port/process-fighter-threat pos unit))
+  (profiling/time-phase (fighter-phase "threat")
+                        #(threat-response-port/process-fighter-threat pos unit)))
 
 (defn- run-fighter-steps!
   [pos]
-  (ensure-flight-target pos)
-  (loop [current-pos pos
-         steps-remaining fm/fighter-speed]
-    (let [step (when (pos? steps-remaining)
-                 (step-fighter current-pos))]
-      (when (process-decisions/continue-steps? steps-remaining step)
-        (recur (:pos step) (- steps-remaining (:steps-used step)))))))
+  (profiling/time-phase (fighter-phase "run-steps")
+                        #(do
+                           (ensure-flight-target pos)
+                           (loop [current-pos pos
+                                  steps-remaining fm/fighter-speed]
+                             (let [step (when (pos? steps-remaining)
+                                          (step-fighter current-pos))]
+                               (when (process-decisions/continue-steps? steps-remaining step)
+                                 (recur (:pos step) (- steps-remaining (:steps-used step)))))))))
 
 (defn process-fighter
   "Processes a computer fighter using VMS Empire style logic.

@@ -3,6 +3,7 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.army :as army]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.production :as production]
             [empire.computer.shared.stamping :as stamping]
@@ -147,6 +148,19 @@
       (let [result (army/process-army [0 0])]
         ;; Army should move to some passable cell
         (should (or (= [1 0] result) (nil? result)))))
+
+    (it "records army processing phases"
+      (set-test-world! (build-test-map ["a##"]))
+      (set-test-computer-map! (build-test-map ["a##"]))
+      (update-test-world! assoc-in [0 0 :contents :country-id] 1)
+      (test-utils/update-test-computer-map! assoc-in [0 0 :contents :country-id] 1)
+      (let [phases (atom [])]
+        (profiling/with-round-phase-recorder
+          (fn [phase _elapsed-ns] (swap! phases conj phase))
+          #(army/process-army [0 0]))
+        (should-contain :process-computer/army-exit-city @phases)
+        (should-contain :process-computer/army-find-adjacent-enemy @phases)
+        (should-contain :process-computer/army-land-action @phases)))
 
     (it "returns nil when no valid moves"
       ;; Army surrounded by sea

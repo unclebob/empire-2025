@@ -3,8 +3,9 @@
             [empire.computer.production :as computer-production]
             [empire.game.loop.item-processing :as ip]
             [empire.game.loop.item-processing.computer-items :as computer-items]
+            [empire.game.loop.profiling :as profiling]
             [empire.test.utils :as test-utils]
-            [empire.test.utils :refer [reset-all-atoms! set-test-world!]]
+            [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]
             [speclj.core :refer :all]))
 
 (defn- land-cell [] {:type :land})
@@ -142,4 +143,17 @@
       (test-utils/set-test-state! :computer-items (vec (apply concat (repeat 5 coords))))
       (should= 125 (count (test-utils/read-test-state :computer-items)))
       (ip/process-computer-items)
-      (should= 25 (count (test-utils/read-test-state :computer-items))))))
+      (should= 25 (count (test-utils/read-test-state :computer-items)))))
+
+  (it "records computer processing phases by unit type"
+    (set-test-world! [[{:type :land :contents {:type :fighter :owner :computer :mode :awake}}]])
+    (set-test-computer-map! [[{:type :land :contents {:type :fighter :owner :computer :mode :awake}}]])
+    (test-utils/set-test-state! :computer-items [[0 0]])
+    (let [phases (atom [])]
+      (with-redefs [computer-production/process-computer-city (fn [_] nil)
+                    empire.computer.threat-response-impl/launch-kamikazee-from-airport! (fn [_] nil)
+                    computer/process-computer-unit (fn [_] nil)]
+        (profiling/with-round-phase-recorder
+          (fn [phase _elapsed-ns] (swap! phases conj phase))
+          #(ip/process-computer-items))
+        (should-contain :process-computer/fighter @phases)))))

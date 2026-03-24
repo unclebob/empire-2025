@@ -105,6 +105,11 @@
     (let [result (util-core/parse-args ["--debug-dump"] 2000 2000)]
       (should= true (:debug-dump-enabled result))))
 
+  (it "extracts --slow-round-analysis=T:N"
+    (let [result (util-core/parse-args ["--slow-round-analysis=500:20"] 2000 2000)]
+      (should= {:threshold-ms 500 :rounds 20}
+               (:slow-round-analysis result))))
+
   (it "extracts --limits=SPEC"
     (let [result (util-core/parse-args ["--limits=t:8,p:4"] 2000 2000)]
       (should= {:transport 8 :patrol-boat 4}
@@ -168,6 +173,13 @@
       (should= 30 (:rows result))
       (should= true (:debug-dump-enabled result))))
 
+  (it "ignores slow-round-analysis arg when computing dimensions"
+    (let [result (util-core/parse-args ["--slow-round-analysis=750:12" "50" "30"] 2000 2000)]
+      (should= 50 (:cols result))
+      (should= 30 (:rows result))
+      (should= {:threshold-ms 750 :rounds 12}
+               (:slow-round-analysis result))))
+
   (it "ignores limits arg when computing dimensions"
     (let [result (util-core/parse-args ["--limits=t:8,p:4" "50" "30"] 2000 2000)]
       (should= 50 (:cols result))
@@ -180,6 +192,10 @@
       (should= 200 (:cols result))
       (should= 100 (:rows result))
       (should= 10 (:headless-rounds result))))
+
+  (it "rejects malformed slow-round-analysis values"
+    (should-throw clojure.lang.ExceptionInfo
+      (util-core/parse-args ["--slow-round-analysis=500"] 2000 2000)))
 
   )
 
@@ -214,6 +230,15 @@
   (it "returns false when debug dump is absent"
     (should-not (util-core/debug-dump-requested? ["--seed=42"]))))
 
+(describe "slow-round-analysis-requested?"
+  (it "parses threshold and round count"
+    (should= {:threshold-ms 500 :rounds 20}
+             (util-core/slow-round-analysis-requested? ["--slow-round-analysis=500:20"])))
+
+  (it "returns nil when slow round analysis is absent"
+    (should-be-nil
+     (util-core/slow-round-analysis-requested? ["--seed=42"]))))
+
 (describe "unit-log-filename"
   (it "uses the empire-units timestamped naming convention"
     (with-redefs [util-core/startup-timestamp (constantly "2026-03-19-120000")]
@@ -226,6 +251,7 @@
       (should-contain "--help" usage)
       (should-contain "--log" usage)
       (should-contain "--debug-dump" usage)
+      (should-contain "--slow-round-analysis=T:N" usage)
       (should-contain "--seed=N" usage)
       (should-contain "--limits=SPEC" usage)
       (should-contain "--headless=N" usage)
