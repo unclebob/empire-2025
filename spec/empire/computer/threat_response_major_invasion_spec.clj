@@ -3,6 +3,7 @@
             [empire.computer.threat-response.major-invasion :as mi]
             [empire.computer.threat-response.major-invasion-assignment :as assignment]
             [empire.computer.threat-response.invasion-state :as invasion-state]
+            [empire.game.loop.profiling :as profiling]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]))
 
 (defn- update-world-fn
@@ -182,6 +183,39 @@
         (should= 0 @updates)
         (should= 0 @syncs)))
 
+    (it "does not replan an invading transport that is already crawling with the current target revision"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer
+                                      :major-invasion true
+                                      :major-invasion-target [0 0]
+                                      :transport-mission :invading
+                                      :invasion-target [0 0]
+                                      :invasion-plan-revision 3
+                                      :army-count 1}}]])
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 0]}
+                         :target-land-set #{[0 0]}})
+            updates (atom 0)
+            syncs (atom 0)
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map [[{:type :sea :contents {:type :transport :owner :computer}}]]
+                                         :round-number 10
+                                         nil))
+                 :update-major-invasion-state! (fn [f & args] (apply swap! state f args))
+                 :update-game-map! (fn [f & args]
+                                     (swap! updates inc)
+                                     (apply swap! world f args))
+                 :sync-ai-unit! (fn [_] (swap! syncs inc))
+                 :current-world (fn [] @world)
+                 :nearest-major-target (fn [_] [0 0])
+                 :computer-sea-unit-types #{:transport}}]
+        (with-redefs [pathfinding-bfs/bfs-to-land-ho-target (fn [_ _ _] (throw (ex-info "should not plan" {})))]
+          (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents])))
+        (should= 0 @updates)
+        (should= 0 @syncs)))
+
     (it "does not rewrite find-armies mission when already marked"
       (let [world (atom [[{:type :sea
                            :contents {:type :transport :owner :computer
@@ -210,7 +244,72 @@
                  :computer-sea-unit-types #{:transport}}]
         (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))
         (should= 0 @updates)
-        (should= 0 @syncs))))
+        (should= 0 @syncs)))
+
+    (it "reuses the current invasion target before running the broader coastal search"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer
+                                      :major-invasion true
+                                      :major-invasion-target [0 2]
+                                      :transport-mission :sail-to-unload
+                                      :invasion-target [0 2]
+                                      :invasion-plan-revision 3
+                                      :army-count 1}}]])
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 2]}
+                         :target-land-set #{[0 2]}})
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map [[{:type :sea :contents {:type :transport :owner :computer}}
+                                                         {:type :sea}
+                                                         {:type :land}]]
+                                         :round-number 10
+                                         nil))
+                 :update-major-invasion-state! (fn [f & args] (apply swap! state f args))
+                 :update-game-map! (update-world-fn world)
+                 :current-world (fn [] @world)
+                 :nearest-major-target (fn [_] [0 2])
+                 :computer-sea-unit-types #{:transport}}]
+        (with-redefs [pathfinding-bfs/bfs-to-land-ho-target (fn [_ candidate _]
+                                                              (if (= candidate [0 2])
+                                                                [[0 1] [0 2]]
+                                                                (throw (ex-info "should not broaden search" {}))))]
+          (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents])))
+        (should= :invading (get-in @world [0 0 :contents :transport-mission]))
+        (should= [0 2] (get-in @world [0 0 :contents :invasion-target]))
+        (should= [[0 1] [0 2]] (get-in @world [0 0 :contents :invasion-path]))))
+
+    (it "records transport assignment profiling phases"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer
+                                      :transport-mission :sailing
+                                      :army-count 1}}]])
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 0]}
+                         :target-land-set #{[0 0]}})
+            recorded-phases (atom [])
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map [[{:type :sea :contents {:type :transport :owner :computer}}]]
+                                         :round-number 10
+                                         nil))
+                 :update-major-invasion-state! (fn [f & args] (apply swap! state f args))
+                 :update-game-map! (update-world-fn world)
+                 :current-world (fn [] @world)
+                 :sync-ai-unit! (fn [_] nil)
+                 :nearest-major-target (fn [_] [0 0])
+                 :computer-sea-unit-types #{:transport}}]
+        (with-redefs [pathfinding-bfs/bfs-to-land-ho-target (fn [_ _ _] [[0 0]])]
+          (profiling/with-round-phase-recorder
+            (fn [phase _elapsed-ns]
+              (swap! recorded-phases conj phase))
+            #(mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))))
+        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-target @recorded-phases)
+        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-stamp @recorded-phases)
+        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-route-plan @recorded-phases)
+        (should-contain :start-new-round/threat-response-refresh-active-assignments-transports-mark-find-armies @recorded-phases))))
 
   (context "trim stale find-armies missions"
     (it "sets find-armies round when not timed out"

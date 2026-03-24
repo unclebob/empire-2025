@@ -199,3 +199,31 @@ Measurement:
 Result:
 - Transport staging army work dropped substantially on this seeded path.
 - In the next measured active-invasion window, the dominant army cost shifted to `process-computer/army-move-to-coast-for-invasion`.
+
+### Threat-response transport route-target reuse
+
+Change:
+- When a transport already has an `:invasion-target` from the current `:invasion-plan-revision`, threat-response now tries a single BFS back to that same coastal target before running the broader multi-candidate coastal search.
+- Transports already in `:invading` mode with the current target revision and no stored path are no longer forced through a fresh route search just to keep crawling toward the same target.
+
+Files:
+- `src/empire/computer/threat_response/major_invasion.cljc`
+
+Verification:
+- Added regressions proving `prepare-transport-major-invasion!`:
+  - does not replan an already-invading crawler with the current revision
+  - reuses the current `:invasion-target` before broadening to the full coastal candidate search
+
+Measurement:
+- Command: `clj -M:run --headless=220 --slow-round-analysis=500:20 --seed=1774361658123`
+- Before optimization, a late active-invasion window showed:
+  - `start-new-round/threat-response-refresh-active-assignments-transports-route-plan` avg `360.7 ms`
+- After optimization, a comparable late active-invasion window showed:
+  - `start-new-round/threat-response-refresh-active-assignments-transports-route-plan` avg `68.0 ms`
+  - `start-new-round/threat-response-refresh-active-assignments-transports-route-plan-search` avg `65.9 ms`
+  - `start-new-round/threat-response-refresh-active-assignments-transports-route-plan-writeback` avg `0.0 ms`
+
+Result:
+- Transport route planning inside active threat-response dropped by about `81%` in the measured late window.
+- The remaining transport route-plan cost is almost entirely in search, not writeback or sync.
+- With this reduction, the late-game hotspots shifted back toward city production and broader army processing.

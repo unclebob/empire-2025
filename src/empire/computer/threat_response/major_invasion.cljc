@@ -4,6 +4,7 @@
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.computer.threat-response.invasion-state :as invasion-state]
             [empire.computer.threat-response.probe :as probe]
+            [empire.game.loop.profiling :as profiling]
             [empire.computer.shared.grid :as grid]
             [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.world-query :as world-query]
@@ -13,6 +14,11 @@
 (def ^:private max-invasion-coastal-candidates 24)
 (def ^:private preferred-invasion-landing-distance 8)
 (def ^:private invasion-load-timeout-rounds 5)
+
+(defn- transport-phase
+  [suffix]
+  (keyword "start-new-round"
+           (str "threat-response-refresh-active-assignments-transports-" suffix)))
 
 (defn- target-land-candidates-within-radius*
   [state target]
@@ -115,24 +121,30 @@
   [ctx pos target]
   (let [state ((:load-major-invasion-state ctx))
         computer-map ((:read-runtime-state ctx) :computer-map)
-        all-candidates (connected-coastal-candidates computer-map state target)
-        nearby-candidates (filter #(<= (grid/chebyshev-distance % target)
-                                       preferred-invasion-landing-distance)
-                                  all-candidates)
-        candidates-base (if (seq nearby-candidates) nearby-candidates all-candidates)
-        candidates (->> candidates-base
-                        (sort-by (fn [candidate]
-                                   [(grid/chebyshev-distance candidate target)
-                                    candidate]))
-                        (take max-invasion-coastal-candidates))
-        scored (keep (fn [candidate]
-                       (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
-                         {:target candidate
-                          :path (vec path)
-                          :score [(grid/chebyshev-distance candidate target)
-                                  (count path)
-                                  candidate]}))
-                     candidates)]
+        candidates (profiling/time-phase
+                    (transport-phase "route-plan-candidates")
+                    (fn []
+                      (let [all-candidates (connected-coastal-candidates computer-map state target)
+                            nearby-candidates (filter #(<= (grid/chebyshev-distance % target)
+                                                           preferred-invasion-landing-distance)
+                                                      all-candidates)
+                            candidates-base (if (seq nearby-candidates) nearby-candidates all-candidates)]
+                        (->> candidates-base
+                             (sort-by (fn [candidate]
+                                        [(grid/chebyshev-distance candidate target)
+                                         candidate]))
+                             (take max-invasion-coastal-candidates)))))
+        scored (profiling/time-phase
+                (transport-phase "route-plan-score-paths")
+                (fn []
+                  (keep (fn [candidate]
+                          (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
+                            {:target candidate
+                             :path (vec path)
+                             :score [(grid/chebyshev-distance candidate target)
+                                     (count path)
+                                     candidate]}))
+                        candidates)))]
     (when (seq scored)
       (let [{:keys [target path]} (first (sort-by :score scored))]
         {:target target :path path}))))
@@ -151,6 +163,12 @@
        (seq (:invasion-path unit))
        (= pos (:invasion-path-origin unit))
        (= target-revision (:invasion-plan-revision unit))))
+
+(defn- current-invading-mission?
+  [unit target-revision]
+  (and (= :invading (:transport-mission unit))
+       (= target-revision (:invasion-plan-revision unit))
+       (:invasion-target unit)))
 
 (defn- stamped-transport-target?
   [unit target]
@@ -177,30 +195,46 @@
        (not (zero? army-count))
        (not= mission :unloading)
        (not= mission :load-for-invasion)
+       (not (current-invading-mission? unit target-revision))
        (not (valid-invasion-plan? pos unit target-revision))))
+
+(defn- reuse-current-invasion-target-and-path
+  [ctx pos unit target-revision]
+  (let [current-target (:invasion-target unit)
+        computer-map ((:read-runtime-state ctx) :computer-map)]
+    (when (and current-target
+               (= target-revision (:invasion-plan-revision unit)))
+      (when-let [path (computer-movement/bfs-to-land-ho-target pos current-target computer-map)]
+        {:target current-target
+         :path (vec path)}))))
 
 (defn- update-transport-invasion-route!
   [ctx pos target target-revision]
   (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))
         current-mission (:transport-mission current-transport)
         {actual-target :target path :path}
-        (or (if-let [best-fn (:best-invasion-target-and-path-fn ctx)]
-              (best-fn pos target)
-              (best-invasion-target-and-path ctx pos target))
-            {:target target :path nil})]
+        (profiling/time-phase
+         (transport-phase "route-plan-search")
+         #(or (reuse-current-invasion-target-and-path ctx pos current-transport target-revision)
+              (if-let [best-fn (:best-invasion-target-and-path-fn ctx)]
+                (best-fn pos target)
+                (best-invasion-target-and-path ctx pos target))
+              {:target target :path nil}))]
     (when (some? path)
-      (if (empty? path)
-        ((:update-game-map! ctx) update-in (conj pos :contents)
-         assoc :transport-mission :unloading
-         :invasion-target actual-target
-         :invasion-plan-revision target-revision
-         :invasion-path-origin pos)
-        ((:update-game-map! ctx) update-in (conj pos :contents)
-         assoc :transport-mission :invading
-         :invasion-target actual-target
-         :invasion-path path
-         :invasion-plan-revision target-revision
-         :invasion-path-origin pos))
+      (profiling/time-phase
+       (transport-phase "route-plan-writeback")
+       #(if (empty? path)
+          ((:update-game-map! ctx) update-in (conj pos :contents)
+           assoc :transport-mission :unloading
+           :invasion-target actual-target
+           :invasion-plan-revision target-revision
+           :invasion-path-origin pos)
+          ((:update-game-map! ctx) update-in (conj pos :contents)
+           assoc :transport-mission :invading
+           :invasion-target actual-target
+           :invasion-path path
+           :invasion-plan-revision target-revision
+           :invasion-path-origin pos)))
       (when (and (seq path)
                  (not= current-mission :invading))
         (probe/log-event! :transport-entered-invading
@@ -210,8 +244,10 @@
                            :path path
                            :target-revision target-revision
                            :transport current-transport}))
-      (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
-        (sync-ai-unit! pos)))))
+      (profiling/time-phase
+       (transport-phase "route-plan-sync")
+       #(when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+          (sync-ai-unit! pos))))))
 
 (defn- clear-stale-invasion-routing!
   [ctx pos]
@@ -253,18 +289,28 @@
 (defn prepare-transport-major-invasion!
   [ctx pos unit]
   (let [army-count (:army-count unit 0)
-        target (nearest-major-ship-target ctx pos)
+        target (profiling/time-phase
+                (transport-phase "target")
+                #(nearest-major-ship-target ctx pos))
         mission (:transport-mission unit)
         target-revision (current-target-land-revision ctx)
         skip-revision (:major-invasion-skip-revision unit)
         opted-out? (= skip-revision target-revision)]
     (if target
       (do
-        (stamp-transport-major-invasion-target! ctx pos target target-revision)
+        (profiling/time-phase
+         (transport-phase "stamp")
+         #(stamp-transport-major-invasion-target! ctx pos target target-revision))
         (when (should-plan-invasion-route? pos unit army-count mission opted-out? target-revision)
-          (update-transport-invasion-route! ctx pos target target-revision)))
-      (clear-stale-invasion-routing! ctx pos))
-    (maybe-mark-find-armies-for-invasion! ctx pos army-count target-revision)))
+          (profiling/time-phase
+           (transport-phase "route-plan")
+           #(update-transport-invasion-route! ctx pos target target-revision))))
+      (profiling/time-phase
+       (transport-phase "clear-stale")
+       #(clear-stale-invasion-routing! ctx pos)))
+    (profiling/time-phase
+     (transport-phase "mark-find-armies")
+     #(maybe-mark-find-armies-for-invasion! ctx pos army-count target-revision))))
 
 (defn apply-major-invasion-assignment!
   [ctx pos unit]
