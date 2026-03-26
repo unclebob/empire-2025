@@ -171,13 +171,10 @@
 
 (defn- assign-load-target-staging-armies!
   [transport-id target]
-  (let [computer-map (sa/read-state :computer-map)
-        landing-zone-targets (or (seq (load-targeting/neighborhood-tile-coastal-targets target computer-map))
-                                 [target])
-        selected (vec (load-target-staging-armies transport-id target))]
+  (let [selected (vec (load-target-staging-armies transport-id target))]
     (doseq [{:keys [pos]} selected]
       (let [current (get-in (sa/read-state :computer-map) (conj pos :contents))
-            staging-target (choose-load-target-staging-target current landing-zone-targets)]
+            staging-target (choose-load-target-staging-target current [target])]
         (when (or (not= :move-to-coast-for-transport (:mode current))
                   (not= staging-target (:transport-staging-target current)))
           (sa/update-world! update-in (conj pos :contents)
@@ -204,7 +201,6 @@
   []
   (doseq [[pos prod] (sa/read-state :production)
           :when (and (= :transport (:item prod))
-                     (<= (:remaining-rounds prod 99) transport-staging-radius)
                      (opening/city-usable-coastal? pos))]
     (when-let [targets (seq (producer-staging-targets pos))]
       (assign-staging-armies! pos targets))))

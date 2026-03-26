@@ -242,6 +242,33 @@
                  (get-in (test-utils/read-test-state :game-map)
                          [5 5 :contents :mode])))))
 
+  (it "keeps returning transport staging focused on the chosen load target"
+    (let [world (build-test-map ["#~~~#"
+                                 "a~t~a"
+                                 "a~~~a"])]
+      (set-test-world! world)
+      (doseq [[id pos] (map vector [11 12 13 14] [[0 1] [0 2] [4 1] [4 2]])]
+        (update-test-world! assoc-in (conj pos :country-id) 1)
+        (update-test-world! assoc-in (conj pos :contents :computer-unit-id) id))
+      (doseq [pos [[0 0] [4 0]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (update-test-world! assoc-in [2 1 :contents]
+                         {:type :transport
+                          :owner :computer
+                          :hits 1
+                          :transport-id 7
+                          :transport-mission :sail-to-load
+                          :load-target-cell [4 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (with-redefs [rand-nth last]
+        (assignment/assign-returning-transport-staging-at! [2 1] [4 0]))
+      (let [assigned-targets (->> [[0 1] [0 2] [4 1] [4 2]]
+                                  (map #(get-in (test-utils/read-test-state :game-map)
+                                                (conj % :contents :transport-staging-target)))
+                                  (remove nil?)
+                                  distinct)]
+        (should= [[4 0]] assigned-targets))))
+
   (it "does not recruit armies already reserved for another transport"
     (let [world (build-test-map ["~~~~~#~~~~"
                                  "~~~~~a~~~~"

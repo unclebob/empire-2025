@@ -63,4 +63,23 @@
                                                     :transport-staging-target [3 0]}})
                     (test-utils/set-test-computer-map! (test-utils/read-test-state :game-map))
                     to)]
-      (should= [0 1] (coastal/process-move-to-coast-for-transport [0 0] 1)))))
+      (should= [0 1] (coastal/process-move-to-coast-for-transport [0 0] 1))))
+
+  (it "does not settle into sentry before reaching its assigned landing zone"
+    (set-test-world! [[{:type :land
+                        :country-id 1
+                        :contents {:type :army :owner :computer :hits 1
+                                   :mode :move-to-coast-for-transport
+                                   :country-id 1
+                                   :transport-staging-target [2 0]}}
+                       {:type :land :country-id 1}]
+                      [{:type :land :country-id 1}
+                       {:type :sea}]
+                      [{:type :land :country-id 1}
+                       {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (should= [1 0] (coastal/process-move-to-coast-for-transport [0 0] 1))
+    (should= :move-to-coast-for-transport
+             (get-in (test-utils/read-test-state :game-map) [1 0 :contents :mode]))
+    (should= [2 0]
+             (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-staging-target]))))

@@ -255,17 +255,8 @@
         (visibility/sync-ai-unit-to-computer-map! pos)
         nil)
 
-      (should-sentry-on-coast? pos country-id)
-      (do
-        (settle-transport-staging! pos)
-        pos)
-
-      (<= (grid/distance pos target) 2)
-      (let [result (fill-coastal-cell pos country-id)
-            settled-pos (or result pos)]
-        (when (= :sentry (get-in (sa/read-state :computer-map) (conj settled-pos :contents :mode)))
-          (settle-transport-staging! settled-pos))
-        result)
+      (= pos target)
+      pos
 
       :else
       (or (step-toward-target-cheap pos target country-id)

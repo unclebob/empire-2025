@@ -223,18 +223,22 @@
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))))
 
   (context "transport staging movement"
-    (it "staging army on coast settles into sentry and clears its target"
-      (set-test-world! [[{:type :land :country-id 1
+    (it "staging army on coast keeps its staging mission at the landing zone"
+      (set-test-world! (build-test-map ["##"
+                                        "~~"]))
+      (update-test-world! assoc-in [0 0]
+                         {:type :land :country-id 1
                           :contents {:type :army :owner :computer :hits 1
                                      :mode :move-to-coast-for-transport
                                      :country-id 1
-                                     :transport-staging-target [1 0]}}
-                         {:type :land :country-id 1}]
-                        [{:type :sea} {:type :sea}]])
+                                     :transport-staging-target [1 0]}})
+      (update-test-world! assoc-in [1 0] {:type :land :country-id 1})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (army/process-army [0 0])
-      (should= :sentry (get-in (test-utils/read-test-state :game-map) [0 0 :contents :mode]))
-      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-staging-target]))))
+      (should= :move-to-coast-for-transport
+               (get-in (test-utils/read-test-state :game-map) [1 0 :contents :mode]))
+      (should= [1 0]
+               (get-in (test-utils/read-test-state :game-map) [1 0 :contents :transport-staging-target]))))
 
   (context "city attack coordination"
     (it "assigns up to 6 closest armies to visible free city"
@@ -300,6 +304,24 @@
           (should= 6 (count assigned))
           (should (every? #(not= [2 0] (:transport-staging-target %)) assigned))
           (should (every? #{[2 1] [2 2]} (map :transport-staging-target assigned))))))
+
+    (it "starts producer staging as soon as a city commits to a transport"
+      (let [army-cell {:type :land :country-id 1
+                       :contents {:type :army :owner :computer :hits 1
+                                  :mode :awake :country-id 1}}]
+        (set-test-world! [[army-cell army-cell army-cell]
+                          [army-cell army-cell army-cell]
+                          [{:type :city :city-status :computer :country-id 1} army-cell army-cell]
+                          [{:type :sea} {:type :sea} {:type :sea}]])
+        (set-test-computer-map! (test-utils/read-test-state :game-map))
+        (test-utils/set-test-state! :production {[2 0] {:item :transport :remaining-rounds 30}})
+        (army/assign-transport-staging)
+        (let [assigned (for [x (range 4)
+                             y (range 3)
+                             :let [unit (get-in (test-utils/read-test-state :game-map) [x y :contents])]
+                             :when (= :move-to-coast-for-transport (:mode unit))]
+                         unit)]
+          (should= 6 (count assigned)))))
 
     (it "assigns nearby armies to the claimed coast targeted by a sail-to-load transport"
       (set-test-world! [[{:type :land :country-id 1
