@@ -70,8 +70,9 @@
     (when (#{:leave-city :sail-to-load :loading} (:transport-mission transport))
       :army)))
 
-(defn- should-produce-transport? [city-pos country-id coastal?]
+(defn- should-produce-transport? [city-pos country-id coastal? unit-counts]
   (when (and coastal?
+             (< (get unit-counts :transport 0) config/max-transports)
              (>= (stats/count-country-armies country-id) config/armies-before-transport)
              (stats/country-has-waiting-armies? country-id)
              (not (should-rotate-transport? city-pos country-id)))
@@ -84,8 +85,9 @@
   (and (stats/has-unoccupied-coastal-cells? country-id)
        (not (stats/country-army-limit-reached? country-id))))
 
-(defn- should-produce-patrol-boat? [country-id coastal?]
+(defn- should-produce-patrol-boat? [country-id coastal? unit-counts]
   (and coastal?
+       (< (get unit-counts :patrol-boat 0) config/max-patrol-boats)
        (< (stats/count-country-patrol-boats country-id) config/max-patrol-boats-per-country)))
 
 (defn- should-produce-destroyer? [city-pos country-id coastal? unit-counts]
@@ -103,11 +105,19 @@
   (when-let [limit (get (sa/read-state :computer-production-limits) unit-type)]
     (>= (get unit-counts unit-type 0) limit)))
 
+(defn- global-limit-reached?
+  [unit-type unit-counts]
+  (case unit-type
+    :patrol-boat (>= (get unit-counts :patrol-boat 0) config/max-patrol-boats)
+    :transport (>= (get unit-counts :transport 0) config/max-transports)
+    false))
+
 (defn- apply-production-limit
   [unit-type unit-counts]
   (if (and unit-type
            (not= :army unit-type)
-           (limit-reached? unit-type unit-counts))
+           (or (limit-reached? unit-type unit-counts)
+               (global-limit-reached? unit-type unit-counts)))
     :army
     unit-type))
 
@@ -115,9 +125,9 @@
   [city-pos country-id coastal? unit-counts]
   (or (next-produced-transport-cycle-item city-pos)
       (selection/country-production-choice
-       {:transport (should-produce-transport? city-pos country-id coastal?)
+       {:transport (should-produce-transport? city-pos country-id coastal? unit-counts)
         :army (when (should-produce-army? country-id) :army)
-        :patrol-boat (when (should-produce-patrol-boat? country-id coastal?) :patrol-boat)
+        :patrol-boat (when (should-produce-patrol-boat? country-id coastal? unit-counts) :patrol-boat)
         :destroyer (when (should-produce-destroyer? city-pos country-id coastal? unit-counts) :destroyer)
         :fighter (should-produce-fighter?)})))
 

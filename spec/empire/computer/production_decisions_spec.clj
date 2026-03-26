@@ -280,6 +280,38 @@
       (production/rebuild-country-stats!)
       (should= :army (production/decide-production [3 0]))))
 
+  (context "global unit limits"
+    (it "does not produce patrol-boat when global limit reached"
+      ;; Country 1: coastal city + 2 patrol boats (under per-country limit of 4)
+      ;; Country 2: 4 patrol boats
+      ;; Total: 6 = global limit
+      (set-test-world! (build-test-map ["~X~pp~pppp"
+                                        "~~~~~~~~~~"]))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (doseq [col [3 4]]
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (doseq [col (range 6 10)]
+        (update-test-world! assoc-in [col 0 :contents :country-id] 2))
+      (production/rebuild-country-stats!)
+      (should-not= :patrol-boat (production/decide-production [1 0])))
+
+    (it "does not produce transport when global limit reached"
+      ;; Coastal city with 6 waiting armies but 10 transports exist
+      (test-utils/set-test-state! :round-number 50)
+      (set-test-world! (build-test-map ["~Xaaaaaa~tttttttttt"
+                                        "~~~~~~~~~~~~~~~~~~~"]))
+      (update-test-world! assoc-in [1 0 :country-id] 1)
+      (doseq [col (range 2 8)]
+        (update-test-world! assoc-in [col 0 :country-id] 1)
+        (update-test-world! assoc-in [col 0 :contents :country-id] 1))
+      (doseq [col (range 9 19)]
+        (update-test-world! assoc-in [col 0 :contents :transport-mission] :loading)
+        (update-test-world! assoc-in [col 0 :contents :army-count] 0))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (stats/rebuild-country-stats!)
+      (should-not= :transport (production/decide-production [1 0]))))
+
   (context "army limit 2/3 of coastal cells"
 
     (it "army limit reached at 2/3 of coastal cells"

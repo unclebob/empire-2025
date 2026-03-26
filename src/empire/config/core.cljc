@@ -52,6 +52,8 @@
 ;; --- ai re-exports ---
 (def armies-before-transport ai/armies-before-transport)
 (def max-patrol-boats-per-country ai/max-patrol-boats-per-country)
+(def max-patrol-boats ai/max-patrol-boats)
+(def max-transports ai/max-transports)
 (def carrier-city-threshold ai/carrier-city-threshold)
 (def max-live-carriers ai/max-live-carriers)
 (def max-carrier-producers ai/max-carrier-producers)

@@ -78,7 +78,7 @@
     (with-redefs [empire.computer.production.stats/count-country-armies (constantly empire.config.core/armies-before-transport)
                   empire.computer.production.stats/country-has-waiting-armies? (constantly true)
                   empire.computer.production.stats/country-has-other-coastal-city? (constantly false)]
-      (should= :transport (#'decisions/should-produce-transport? [4 4] 2 true))
+      (should= :transport (#'decisions/should-produce-transport? [4 4] 2 true {}))
       (should= [4 4] (get (test-utils/read-test-state :last-transport-city) 2))))
 
   (it "suppresses transport production when rotation would repeat the same city"
@@ -86,7 +86,7 @@
     (with-redefs [empire.computer.production.stats/count-country-armies (constantly empire.config.core/armies-before-transport)
                   empire.computer.production.stats/country-has-waiting-armies? (constantly true)
                   empire.computer.production.stats/country-has-other-coastal-city? (constantly true)]
-      (should-be-nil (#'decisions/should-produce-transport? [4 4] 2 true))))
+      (should-be-nil (#'decisions/should-produce-transport? [4 4] 2 true {}))))
 
   (it "falls back to army when a transport production limit is reached"
     (test-utils/set-test-state! :computer-production-limits {:transport 2})

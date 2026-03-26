@@ -2,6 +2,8 @@
 
 (def armies-before-transport 6)
 (def max-patrol-boats-per-country 4)
+(def max-patrol-boats 6)
+(def max-transports 10)
 (def carrier-city-threshold 10)
 (def max-live-carriers 8)
 (def max-carrier-producers 2)
