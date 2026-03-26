@@ -60,6 +60,35 @@
         (update-cell-visibility! farthest :computer)
         farthest))))
 
+(defn nearby-patrol-boat-count
+  "Counts computer patrol boats within radius of pos, excluding the one at self-pos."
+  [pos self-pos radius]
+  (let [computer-map (sa/read-state :computer-map)
+        [px py] pos]
+    (count (for [dx (range (- radius) (inc radius))
+                 dy (range (- radius) (inc radius))
+                 :let [nx (+ px dx) ny (+ py dy)
+                       npos [nx ny]]
+                 :when (and (not= npos self-pos)
+                            (not (and (zero? dx) (zero? dy))))
+                 :let [unit (:contents (get-in computer-map npos))]
+                 :when (and (= :patrol-boat (:type unit))
+                            (= :computer (:owner unit)))]
+             npos))))
+
+(defn prefer-dispersed
+  "From candidates, pick the one farthest from other patrol boats.
+   Falls back to rand-nth if all equally clear."
+  [self-pos candidates current-pos]
+  (if (<= (count candidates) 1)
+    (first candidates)
+    (let [scored (map (fn [c] [c (nearby-patrol-boat-count c self-pos 3)]) candidates)
+          min-score (apply min (map second scored))
+          best (map first (filter #(= min-score (second %)) scored))]
+      (if (= (count best) 1)
+        (first best)
+        (rand-nth (vec best))))))
+
 (defn patrol-crawl-step
   "Crawl along coastline. Records position in seen-coast.
    Prefers unseen coastal cells. Switches to :exploring when
@@ -76,7 +105,7 @@
         targets (if (seq unseen) unseen coastal)
         switch? (empty? unseen)]
     (when (seq targets)
-      (let [target (rand-nth targets)]
+      (let [target (prefer-dispersed pos targets pos)]
         (action-resolution/move-unit-to pos target)
         (update-cell-visibility! pos :computer)
         (update-cell-visibility! target :computer)
@@ -147,7 +176,7 @@
             empty-nbrs (filter #(nil? (:contents (get-in computer-map %))) neighbors)]
         (if (empty? empty-nbrs)
           (when (seq path) path)
-          (let [next-pos (rand-nth empty-nbrs)]
+          (let [next-pos (prefer-dispersed start (vec empty-nbrs) pos)]
             (recur next-pos (dec steps) (conj path next-pos))))))))
 
 (defn- store-random-walk
@@ -215,7 +244,7 @@
   (let [computer-map (sa/read-state :computer-map)
         passable (ship-core/get-passable-sea-neighbors current-pos)
         empty-passable (filter #(nil? (:contents (get-in computer-map %))) passable)]
-    (if-let [target (when (seq empty-passable) (rand-nth empty-passable))]
+    (if-let [target (when (seq empty-passable) (prefer-dispersed current-pos (vec empty-passable) current-pos))]
       (do
         (action-resolution/move-unit-to current-pos target)
         (update-cell-visibility! current-pos :computer)
