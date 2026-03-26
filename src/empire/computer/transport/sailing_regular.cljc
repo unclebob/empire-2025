@@ -245,6 +245,22 @@
       (visibility/sync-ai-unit-to-computer-map! pos)
       (sail-follow-path pos (vec new-path)))))
 
+(defn- follow-unload-sail-path
+  [pos sail-path]
+  (let [result (sail-follow-path pos sail-path)]
+    (cond
+      (blocked-follow? result)
+      (replan-sail-path! pos support/compute-sail-to-unload-path)
+
+      (and result
+           (unloading/has-nearby-unloadable-land?
+            result
+            (get-in (sa/read-state :computer-map) (conj result :contents))
+            0))
+      (tc/set-transport-mission result :unloading)
+
+      :else result)))
+
 (defn- process-sail-to-unload-mission
   [pos transport]
   (let [computer-map (sa/read-state :computer-map)
@@ -258,23 +274,7 @@
       (handle-launch-and-follow! pos transport support/compute-sail-to-unload-path)
 
       (seq sail-path)
-      (let [result (sail-follow-path pos sail-path)]
-        (cond
-          (blocked-follow? result)
-          (replan-sail-path! pos support/compute-sail-to-unload-path)
-
-          (and result
-               (unloading/has-nearby-unloadable-land?
-                result
-                (get-in (sa/read-state :computer-map) (conj result :contents))
-                0))
-          (tc/set-transport-mission result :unloading)
-
-          :else
-          result))
-
-      (adjacent-claimed-land? pos)
-      (compute-and-follow-path! pos support/compute-sail-to-unload-path)
+      (follow-unload-sail-path pos sail-path)
 
       :else
       (compute-and-follow-path! pos support/compute-sail-to-unload-path))))
@@ -295,45 +295,50 @@
     (visibility/sync-ai-unit-to-computer-map! pos)
     true))
 
+(defn- ensure-sail-to-load-transport
+  [pos transport]
+  (if (or (:load-target-cell transport)
+          (seq (:sail-path transport))
+          (contains? transport :load-manifest))
+    transport
+    (enter-sail-to-load! pos)))
+
+(defn- arrived-at-load-target?
+  [pos transport]
+  (if-let [target (:load-target-cell transport)]
+    (load-targeting/target-reached? pos target)
+    (adjacent-claimed-land? pos)))
+
+(defn- sail-path-exhausted?
+  [transport]
+  (or (and (vector? (:load-manifest transport))
+           (empty? (:load-manifest transport)))
+      (empty? (:sail-path transport))))
+
+(defn- follow-load-sail-path
+  [pos sail-path load-target-cell]
+  (let [computer-map (sa/read-state :computer-map)
+        result (sail-follow-path pos sail-path)]
+    (if (blocked-follow? result)
+      (replan-sail-path! pos #(or (when load-target-cell
+                                    (load-targeting/path-to-load-target % computer-map load-target-cell))
+                                  (support/compute-sail-to-load-path %)))
+      result)))
+
 (defn- process-sail-to-load-mission
   [pos transport]
-  (let [transport (if (or (:load-target-cell transport)
-                          (seq (:sail-path transport))
-                          (contains? transport :load-manifest))
-                    transport
-                    (enter-sail-to-load! pos))
+  (let [transport (ensure-sail-to-load-transport pos transport)
         mission (:transport-mission transport)
-        computer-map (sa/read-state :computer-map)
-        city-cell? (= :city (:type (get-in computer-map pos)))
-        sail-path (:sail-path transport)
-        load-target-cell (:load-target-cell transport)]
+        city-cell? (= :city (:type (get-in (sa/read-state :computer-map) pos)))]
     (cond
-      (= :hold-sail-to-load mission)
-      nil
-
-      city-cell?
-      (process-leave-city-mission pos transport)
-
-      (if load-target-cell
-        (load-targeting/target-reached? pos load-target-cell)
-        (adjacent-claimed-land? pos))
-      (transition-to-loading! pos)
-
-      (or (and (vector? (:load-manifest transport))
-               (empty? (:load-manifest transport)))
-          (empty? sail-path))
-      (do
-        (reservations/release! (:transport-id transport))
-        (tc/enter-hold-sail-to-load! pos))
-
-      (seq sail-path)
-      (let [result (sail-follow-path pos sail-path)]
-        (if (blocked-follow? result)
-          (replan-sail-path! pos #(or (when load-target-cell
-                                        (load-targeting/path-to-load-target % computer-map load-target-cell))
-                                      (support/compute-sail-to-load-path %)))
-          result))
-
+      (= :hold-sail-to-load mission) nil
+      city-cell? (process-leave-city-mission pos transport)
+      (arrived-at-load-target? pos transport) (transition-to-loading! pos)
+      (sail-path-exhausted? transport)
+      (do (reservations/release! (:transport-id transport))
+          (tc/enter-hold-sail-to-load! pos))
+      (seq (:sail-path transport))
+      (follow-load-sail-path pos (:sail-path transport) (:load-target-cell transport))
       :else
       (compute-and-follow-load-target-path! pos transport))))
 
