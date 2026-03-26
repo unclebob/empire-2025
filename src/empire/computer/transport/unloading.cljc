@@ -262,20 +262,14 @@
            (world-query/get-neighbors pos))))
 
 (defn try-opportunistic-unload
-  "If transport has armies and there is adjacent unclaimed land,
+  "If transport has armies and there is adjacent empty land,
    unload all possible armies onto targets. Returns true if any unloaded."
   [pos]
   (let [game-map (sa/read-state :computer-map)
         transport (get-in game-map (conj pos :contents))
         army-count (:army-count transport 0)
-        exclude-ids (pickup-exclude-ids game-map transport)
-        major-invasion? (:major-invasion transport)
         targets (when (pos? army-count)
-                  (adjacent-empty-land game-map
-                                       world-query/get-neighbors
-                                       pos
-                                       exclude-ids
-                                       major-invasion?))
+                  (adjacent-empty-land-any game-map pos))
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [selected-targets (take to-unload targets)

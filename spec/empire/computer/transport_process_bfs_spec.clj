@@ -120,7 +120,7 @@
       (set-test-world! (build-test-map ["######~"
                                                "~t~~~~#"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      ;; Mark row-0 land as excluded (country-id 1)
+      ;; Mark row-0 land as claimed (country-id 1) — transport should still unload here
       (doseq [c (range 6)]
         (update-test-world! assoc-in [c 0 :country-id] 1))
       (update-test-world! assoc-in [1 1 :contents]
@@ -131,17 +131,18 @@
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (with-redefs [rand (constantly 0.0)]
         (transport/process-transport [1 1]))
-      ;; Transport should have crawled rightward (speed 2)
-      ;; Find transport and verify it's still unloading
+      ;; Transport unloads onto claimed land immediately (sorted: [0,0] and [1,0])
+      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))
                     (for [c (range 7) r (range 2)] [c r]))]
-        (should= :unloading (:transport-mission t)))))
+        (should= 0 (:army-count t)))))
 
-    (it "unloads immediately after first unloading crawl step when adjacent land becomes available"
-      ;; ###   land row (0,0) and (1,0) excluded by country-id 1; (2,0) unloadable
-      ;; t~~   transport starts at [0,1], can crawl to [1,1]
+    (it "unloads onto claimed land without needing to crawl"
+      ;; ###   land row (0,0) and (1,0) claimed by country-id 1; (2,0) unclaimed
+      ;; t~~   transport starts at [0,1], unloads immediately onto [0,0]
       (set-test-world! (build-test-map ["###"
                                         "t~~"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -154,8 +155,8 @@
                           :pickup-country-id 1})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Same round unload should happen at [2,0] after first crawl step.
-      (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
+      ;; Unloads immediately onto adjacent claimed land
+      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       (let [t (some (fn [[c r]]
                       (let [u (get-in (test-utils/read-test-state :game-map) [c r :contents])]
                         (when (= :transport (:type u)) u)))

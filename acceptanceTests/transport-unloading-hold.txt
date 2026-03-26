@@ -1,10 +1,10 @@
 ; Transport unloading hold
 ;
-; After first landing, a transport should hold position and keep trying to
-; unload in place for four rounds before resuming crawl.
+; An unloading transport unloads onto any adjacent empty land (claimed or not),
+; then holds position to let armies move away and frees cells for more unloads.
 
 ;===============================================================
-; Unloading transport holds position before crawling away.
+; Unloading transport unloads immediately onto adjacent land.
 ;===============================================================
 GIVEN game map
   ####
@@ -14,29 +14,28 @@ GIVEN computer map
   t~~~
 GIVEN t has transport-mission unloading.
 GIVEN t has 2 armies.
-GIVEN t has unloading-hold-since-round 10.
 GIVEN round-number is 13.
 
 WHEN computer transport t is processed.
 
-THEN t is at [1 1].
+THEN t is at [0 1].
+THEN t has 0 armies.
 THEN t has transport-mission sail-to-load.
 
 ;===============================================================
-; Unloading transport breaks hold after four rounds and resumes crawling.
+; Unloading transport with only one free cell unloads one army and holds.
 ;===============================================================
 GIVEN game map
-  ####
-  t~~~
+  A#
+  t~
 GIVEN computer map
-  ####
-  t~~~
+  A#
+  t~
 GIVEN t has transport-mission unloading.
 GIVEN t has 2 armies.
-GIVEN t has unloading-hold-since-round 10.
-GIVEN round-number is 14.
+GIVEN round-number is 13.
 
 WHEN computer transport t is processed.
 
-THEN t is at [1 1].
-THEN t has transport-mission sail-to-load.
+THEN t is at [0 1].
+THEN t has 1 armies.

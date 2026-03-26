@@ -152,11 +152,10 @@
         (should-not-be-nil transport-pos)
         (should= 1 (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents :army-count)))))
 
-    (it "unloading crawl moves toward unloadable coast and unloads as soon as possible"
-      ;; ########   land at row 0 (cols 0-1 excluded, cols 2+ unloadable)
+    (it "unloading unloads onto claimed land without crawling past it"
+      ;; ########   land at row 0 (cols 0-1 claimed, cols 2+ unclaimed)
       ;; t~~~~~~~   transport at [0,1] in unloading mode
-      ;; Adjacent land excluded → opportunistic unload fails.
-      ;; BFS finds unloadable land at col 2 → unloading-crawl-move fires.
+      ;; Claimed land is valid for unloading → unloads immediately at [0,0].
       (set-test-world! (build-test-map ["########"
                                                "t~~~~~~~"]))
       (set-test-computer-map! (test-utils/read-test-state :game-map))
@@ -169,11 +168,10 @@
               :pickup-country-id 1})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Transport crawls toward unloadable coast and unloads immediately on arrival.
-      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))
-      (should= :transport (get-in (test-utils/read-test-state :game-map) [1 1 :contents :type]))
-      (should= :army (get-in (test-utils/read-test-state :game-map) [2 0 :contents :type]))
-      (should= 1 (get-in (test-utils/read-test-state :game-map) [1 1 :contents :army-count])))
+      ;; Transport unloads both armies onto adjacent claimed land.
+      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
+      (should= :army (get-in (test-utils/read-test-state :game-map) [1 0 :contents :type]))
+      (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
 
     (it "changes to sail-to-load after full unload"
       (set-test-world! [[{:type :land}

@@ -286,13 +286,18 @@
       (do
         (try-opportunistic-unload pos)
         pos)
-      (if prefer-pickup?
-        (transition-to-loading pos)
-        (do
+      (do
+        (when (try-opportunistic-unload pos)
+          (visibility/sync-ai-unit-to-computer-map! pos))
+        (if (not= :unloading (:transport-mission (get-in (read-map) (conj pos :contents))))
+          pos
+        (if prefer-pickup?
+          (transition-to-loading pos)
+          (do
         (when hold-since-round
           (sa/update-world! update-in (conj pos :contents) dissoc :unloading-hold-since-round)
           (visibility/sync-ai-unit-to-computer-map! pos))
-        (loop [current-pos pos
+          (loop [current-pos pos
                moves-left (transport-speed)
                retried? false
                moved-any? false]
@@ -312,7 +317,7 @@
                 (do
                   (sa/update-world! assoc-in (conj current-pos :contents :crawl-history) [])
                   (visibility/sync-ai-unit-to-computer-map! current-pos)
-                  (recur current-pos moves-left true moved-any?)))))))))))
+                  (recur current-pos moves-left true moved-any?)))))))))))))
 
 (defn process-unloading-mission
   [{:keys [current-world
