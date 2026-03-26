@@ -182,6 +182,16 @@
       (and (outside-radius? start current coast-lookahead)
            (adjacent-to-land-kind? current computer-map claimed-land?)))))
 
+(defn- select-best-candidate [candidates came-from start]
+  (let [preferred (or (seq (filter #(>= (:immediate-slots %) 2) candidates))
+                      candidates)]
+    (when-let [best (first (sort-by (juxt :depth
+                                          (comp - :immediate-slots)
+                                          (comp - :connected-land-size)
+                                          :pos)
+                                    preferred))]
+      (vec (rest (map-utils/reconstruct-path came-from start (:pos best)))))))
+
 (defn- bfs-to-adjacent-target
   [start computer-map target?]
   (let [passable-sea? #(core/transport-passable-sea? computer-map start %)]
@@ -191,18 +201,8 @@
              came-from {}
              candidates []
              first-hit-depth nil]
-        (if (or (empty? queue)
-                (bfs-past-lookahead? queue first-hit-depth))
-          (let [preferred-candidates (or (seq (filter #(>= (:immediate-slots %) 2) candidates))
-                                         candidates)]
-            (when-let [best-target (first
-                                    (sort-by (juxt :depth
-                                                   (comp - :immediate-slots)
-                                                   (comp - :connected-land-size)
-                                                   :pos)
-                                             preferred-candidates))]
-            (vec (rest (map-utils/reconstruct-path came-from start (:pos best-target)))))
-            )
+        (if (or (empty? queue) (bfs-past-lookahead? queue first-hit-depth))
+          (select-best-candidate candidates came-from start)
           (let [[current depth] (peek queue)
                 neighbors (core/bfs-sea-neighbors current visited passable-sea?)
                 new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)
