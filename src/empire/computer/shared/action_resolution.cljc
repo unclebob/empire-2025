@@ -76,53 +76,54 @@
     (and (= :computer (:owner unit))
          (= :army (:type unit)))))
 
+(defn- flood-fill-country-region
+  [snapshot city-pos lost-army-pos country-id]
+  (loop [frontier #{city-pos}
+         visited #{}
+         cleared #{}
+         anchors #{}]
+    (if-let [current (first frontier)]
+      (let [frontier (disj frontier current)]
+        (if (visited current)
+          (recur frontier visited cleared anchors)
+          (let [cell (get-in snapshot current)
+                same-country? (= country-id (:country-id cell))
+                anchored? (and same-country?
+                               (not= current lost-army-pos)
+                               (computer-army-at? snapshot current))]
+            (cond
+              (not same-country?)
+              (recur frontier (conj visited current) cleared anchors)
+              anchored?
+              (recur frontier (conj visited current) cleared (conj anchors current))
+              :else
+              (recur (into frontier (remove visited) (world-query/get-neighbors current))
+                     (conj visited current)
+                     (conj cleared current)
+                     anchors)))))
+      {:cleared cleared :anchors anchors})))
+
+(defn- restamp-from-anchors! [cleared anchors country-id]
+  (loop [frontier anchors
+         seen anchors]
+    (when-let [current (first frontier)]
+      (let [frontier (disj frontier current)
+            restamp (->> (world-query/get-neighbors current)
+                         (filter cleared) (remove seen) set)]
+        (doseq [pos restamp]
+          (sa/update-world! assoc-in (conj pos :country-id) country-id)
+          (sa/update-state! :computer-map assoc-in (conj pos :country-id) country-id))
+        (recur (into frontier restamp) (into seen restamp))))))
+
 (defn- clear-country-id-region-after-failed-conquest!
   [city-pos lost-army-pos country-id]
   (when country-id
-    (let [snapshot (sa/read-state :computer-map)]
-      (loop [frontier #{city-pos}
-             visited #{}
-             cleared #{}
-             anchors #{}]
-        (if-let [current (first frontier)]
-          (let [frontier (disj frontier current)]
-            (if (visited current)
-              (recur frontier visited cleared anchors)
-              (let [cell (get-in snapshot current)
-                    same-country? (= country-id (:country-id cell))
-                    anchored? (and (not= current lost-army-pos)
-                                   (computer-army-at? snapshot current))]
-                (cond
-                  (not same-country?)
-                  (recur frontier (conj visited current) cleared anchors)
-
-                  anchored?
-                  (recur frontier (conj visited current) cleared (conj anchors current))
-
-                  :else
-                  (recur (into frontier
-                               (remove visited)
-                               (world-query/get-neighbors current))
-                         (conj visited current)
-                         (conj cleared current)
-                         anchors)))))
-          (do
-            (doseq [pos cleared]
-              (sa/update-world! assoc-in (conj pos :country-id) nil)
-              (sa/update-state! :computer-map assoc-in (conj pos :country-id) nil))
-            (loop [frontier anchors
-                   seen anchors]
-              (when-let [current (first frontier)]
-                (let [frontier (disj frontier current)
-                      restamp-neighbors (->> (world-query/get-neighbors current)
-                                             (filter cleared)
-                                             (remove seen)
-                                             set)]
-                  (doseq [pos restamp-neighbors]
-                    (sa/update-world! assoc-in (conj pos :country-id) country-id)
-                    (sa/update-state! :computer-map assoc-in (conj pos :country-id) country-id))
-                  (recur (into frontier restamp-neighbors)
-                         (into seen restamp-neighbors)))))))))))
+    (let [{:keys [cleared anchors]}
+          (flood-fill-country-region (sa/read-state :computer-map) city-pos lost-army-pos country-id)]
+      (doseq [pos cleared]
+        (sa/update-world! assoc-in (conj pos :country-id) nil)
+        (sa/update-state! :computer-map assoc-in (conj pos :country-id) nil))
+      (restamp-from-anchors! cleared anchors country-id))))
 
 (defn move-unit-to
   [from-pos to-pos]
