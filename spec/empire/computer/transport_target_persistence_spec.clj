@@ -224,10 +224,8 @@
           (should= :transport (:type t))
           (should= :sail-to-unload (:transport-mission t))))))
 
-  (context "no-reload from recently unloaded country"
-    (it "transport avoids armies from recently unloaded country"
-      ;; Transport adjacent to two armies: country-1 (recently unloaded) and country-2.
-      ;; Should only load the country-2 army during auto-load.
+  (context "reload after unloading"
+    (it "transport may load armies from a country it recently unloaded on"
       (test-utils/set-test-state! :round-number 10)
       (set-test-world! [[{:type :land :contents {:type :army :owner :computer :country-id 1}}
                                 {:type :sea :contents {:type :transport :owner :computer
@@ -236,32 +234,8 @@
                                 {:type :land :contents {:type :army :owner :computer :country-id 2}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Country-1 army should still be on land (skipped by filter)
-      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
-      ;; Country-2 army should be loaded
-      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 2 :contents]))
-      ;; Transport should have 1 army loaded
-      (let [t-pos (first (for [c (range 3)
-                               :when (= :transport (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
-                           [0 c]))
-            transport (get-in (test-utils/read-test-state :game-map) (conj t-pos :contents))]
-        (should= 1 (:army-count transport))))
-
-    (it "exclusion expires after 10 rounds"
-      ;; Same as avoidance test but round 20 (15 rounds since unload at round 5 - expired).
-      ;; Country-1 army should now be loadable again.
-      (test-utils/set-test-state! :round-number 20)
-      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :country-id 1}}
-                                {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :loading :army-count 0
-                                                        :unloaded-countries {1 5}}}
-                                {:type :land :contents {:type :army :owner :computer :country-id 2}}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
-      ;; Both armies should be loaded (exclusion expired)
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
       (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 2 :contents]))
-      ;; Transport should have 2 armies loaded
       (let [t-pos (first (for [c (range 3)
                                :when (= :transport (get-in (test-utils/read-test-state :game-map) [0 c :contents :type]))]
                            [0 c]))
@@ -316,14 +290,12 @@
               target (transport/find-unload-target pickup-continent [1 1])]
           (should= [0 2] target))))
 
-    (it "transport holds position when all armies are filtered"
+    (it "transport holds position when no load plan exists"
       (test-utils/set-test-state! :round-number 10)
       (let [game-map (build-test-map ["a~a"
                                       "~t~"
                                       "~~~"])]
         (set-test-world! game-map)
-        ;; The only unexplored cell is the southeast corner; the two visible armies belong to
-        ;; a recently unloaded country and must be ignored as pickup targets.
         (set-test-computer-map! (build-test-map ["a~a"
                                                     "~t~"
                                                     "~~-"]))

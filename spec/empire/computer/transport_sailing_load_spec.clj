@@ -102,14 +102,10 @@
             transport (:contents (get-in (test-utils/read-test-state :game-map) transport-pos))]
         (should= 5 (get-in transport [:unloaded-countries 33]))))
 
-    (it "transport does not reload armies it just unloaded (cycle-breaking)"
+    (it "transport may reload armies it just unloaded after returning to load mode"
       (reset-all-atoms!)
       (test-utils/set-test-state! :round-number 5)
       (test-utils/set-test-state! :next-country-id 100)
-      ;; Transport at [0,1] with 1 army, adjacent to empty land at [0,0].
-      ;; After unloading, army gets country-id 100 and land gets stamped.
-      ;; Transport transitions to loading but should NOT reload that army
-      ;; because its country-id was just recorded in unloaded-countries.
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
                                                         :transport-mission :unloading :army-count 1
@@ -117,9 +113,7 @@
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/unload-armies [0 1] nil)
-      ;; Army should be on land
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
-      ;; Transport should have 0 armies (did NOT reload)
       (let [transport-pos (first (for [x (range 3)
                                        y (range 3)
                                        :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]

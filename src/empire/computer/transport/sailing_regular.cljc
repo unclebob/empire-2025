@@ -44,8 +44,7 @@
                           pos
                           computer-map
                           {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
-                           :excluded-country-ids (disj (conj (set (keys (:unloaded-countries (get-in computer-map (conj pos :contents)))))
-                                                             (:pickup-country-id (get-in computer-map (conj pos :contents))))
+                           :excluded-country-ids (disj #{(:pickup-country-id (get-in computer-map (conj pos :contents)))}
                                                        nil)
                            :reserved-army-ids (reservations/reserved-army-ids transport-id)})
         sail-path (if load-target-cell

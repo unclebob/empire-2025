@@ -20,18 +20,13 @@
 
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."
-  [n game-map unloaded-countries unload-eid]
+  [n game-map unload-eid]
   (let [cell (get-in game-map n)
         unit (:contents cell)
         invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
     (and unit
          (= :army (:type unit))
          (= :computer (:owner unit))
-         (or invasion-pickup?
-             (not (and (seq unloaded-countries)
-                       (:country-id unit)
-                       (tc/recently-unloaded-country?
-                         unloaded-countries (:country-id unit)))))
          (or invasion-pickup?
              (not (and unload-eid
                        (= (:unload-event-id unit) unload-eid)))))))
@@ -57,10 +52,9 @@
   has a loadable computer army."
   [pos transport max-depth]
   (let [game-map (sa/read-state :computer-map)
-        unloaded-countries (:unloaded-countries transport)
         unload-eid (:unload-event-id transport)
         check-neighbors (fn [p]
-                          (some #(loadable-army-at? % game-map unloaded-countries unload-eid)
+                          (some #(loadable-army-at? % game-map unload-eid)
                                 (world-query/get-neighbors p)))]
     (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
            visited #{pos}]
@@ -77,13 +71,12 @@
 
 (defn load-adjacent-armies
   "Loads computer armies from adjacent land cells. Returns number loaded.
-   Skips armies from recently unloaded countries."
+   Skips armies unloaded in the same event to avoid immediate bounce-back."
   [pos]
   (let [computer-map (sa/read-state :computer-map)
         transport (get-in computer-map (conj pos :contents))
         army-count (:army-count transport 0)
         capacity (- 6 army-count)
-        unloaded-countries (:unloaded-countries transport)
         manifest-ids (when (contains? transport :load-manifest)
                        (set (:load-manifest transport)))
         neighbors (world-query/get-neighbors pos)
@@ -93,12 +86,7 @@
                              invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
                          (when (and unit
                                     (= :army (:type unit))
-                                    (= :computer (:owner unit))
-                                    (or invasion-pickup?
-                                        (not (and (seq unloaded-countries)
-                                                  (:country-id unit)
-                                                  (tc/recently-unloaded-country?
-                                                    unloaded-countries (:country-id unit))))))
+                                    (= :computer (:owner unit)))
                            {:pos n
                             :unit unit
                             :manifest-match? (and manifest-ids

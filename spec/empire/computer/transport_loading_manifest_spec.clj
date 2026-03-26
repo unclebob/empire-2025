@@ -265,7 +265,7 @@
        [0 0])
       (should= :start (first @called))))
 
-  (it "planned loading timeout with three or fewer armies starts sailing to unload"
+  (it "planned loading timeout with two or three armies starts sailing to unload"
     (test-utils/set-test-state! :round-number 20)
     (let [called (atom nil)]
       (mission-handlers/process-loading-mission
@@ -282,6 +282,24 @@
         :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
        [0 0])
       (should= [:start [0 0]] @called)))
+
+  (it "planned loading timeout with one army replans sail-to-load"
+    (test-utils/set-test-state! :round-number 20)
+    (let [called (atom nil)]
+      (mission-handlers/process-loading-mission
+       {:read-computer-map (constantly [[{:contents {:type :transport
+                                                     :owner :computer
+                                                     :transport-mission :loading
+                                                     :army-count 1
+                                                     :load-manifest [42]
+                                                     :loading-since-round 9}}]])
+        :load-adjacent-armies (fn [_] nil)
+        :should-start-sailing? (fn [& _] false)
+        :start-sailing (fn [pos _] (reset! called [:start pos]))
+        :coastal-crawl-move (fn [_] :crawl)
+        :transition-to-loading (fn [pos] (reset! called [:replan pos]))}
+       [0 0])
+      (should= [:replan [0 0]] @called)))
 
   (it "planned loading timeout with zero armies replans sail-to-load"
     (test-utils/set-test-state! :round-number 20)

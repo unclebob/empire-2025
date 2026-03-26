@@ -233,7 +233,7 @@
           (start-sailing pos transport'))
 
         loading-stale?
-        (if (<= army-count' 3)
+        (if (<= 2 army-count' 3)
           (if empty-transport?
             (transition-to-loading pos)
             (start-sailing pos transport'))
@@ -263,9 +263,7 @@
                           pos
                           computer-map
                           {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
-                           :excluded-country-ids (disj (conj (set (keys (:unloaded-countries transport)))
-                                                             (:pickup-country-id transport))
-                                                       nil)
+                           :excluded-country-ids (disj #{(:pickup-country-id transport)} nil)
                            :reserved-army-ids (reservations/reserved-army-ids transport-id)})
         load-path (if load-target-cell
                     (or (load-targeting/path-to-load-target pos computer-map load-target-cell)

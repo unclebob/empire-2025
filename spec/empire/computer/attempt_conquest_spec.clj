@@ -39,6 +39,34 @@
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should= :free (:city-status (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
+  (it "clears an unanchored stamped region after failed conquest"
+    (set-test-world! (build-test-map ["a+"]))
+    (update-test-world! assoc-in [0 0 :country-id] 7)
+    (update-test-world! assoc-in [0 0 :contents :country-id] 7)
+    (update-test-world! assoc-in [1 0 :country-id] 7)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [rand (constantly 0.9)]
+      (action-resolution/attempt-conquest-computer [0 0] [1 0])
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :country-id]))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :country-id]))
+      (should-be-nil (get-in (test-utils/read-test-state :computer-map) [0 0 :country-id]))
+      (should-be-nil (get-in (test-utils/read-test-state :computer-map) [1 0 :country-id]))))
+
+  (it "restamps cleared territory when another computer army anchors the region"
+    (set-test-world! (build-test-map ["a+a"]))
+    (update-test-world! assoc-in [0 0 :country-id] 7)
+    (update-test-world! assoc-in [0 0 :contents :country-id] 7)
+    (update-test-world! assoc-in [1 0 :country-id] 7)
+    (update-test-world! assoc-in [2 0 :country-id] 7)
+    (update-test-world! assoc-in [2 0 :contents :country-id] 7)
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (with-redefs [rand (constantly 0.9)]
+      (action-resolution/attempt-conquest-computer [0 0] [1 0])
+      (should= 7 (get-in (test-utils/read-test-state :game-map) [0 0 :country-id]))
+      (should= 7 (get-in (test-utils/read-test-state :game-map) [1 0 :country-id]))
+      (should= 7 (get-in (test-utils/read-test-state :computer-map) [0 0 :country-id]))
+      (should= 7 (get-in (test-utils/read-test-state :computer-map) [1 0 :country-id]))))
+
   (it "updates player-map city status when computer conquers a player city"
     (set-test-world! (build-test-map ["aO"]))
     (set-test-computer-map! (build-test-map ["aO"]))
