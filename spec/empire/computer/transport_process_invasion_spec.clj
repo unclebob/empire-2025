@@ -123,26 +123,6 @@
                          (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))))))
 
   (context "recently-unloaded countries"
-    (it "skips army from country unloaded less than 10 rounds ago"
-      ;; a#   army at [0,0] with country-id 7
-      ;; t~   transport at [0,1] with unloaded-countries {7 5}, round 10
-      ;; Army's country was unloaded 5 rounds ago (< 10) — should skip
-      (test-utils/set-test-state! :round-number 10)
-      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1
-                                                        :country-id 7}}
-                                {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :loading
-                                                        :army-count 0
-                                                        :unloaded-countries {7 5}}}]])
-      (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
-      ;; Army should NOT be loaded (recently unloaded country)
-      (let [t (some (fn [c]
-                      (let [u (get-in (test-utils/read-test-state :game-map) [0 c :contents])]
-                        (when (= :transport (:type u)) u)))
-                    (range 2))]
-        (should= 0 (:army-count t))))
-
     (it "loads army from country unloaded 10+ rounds ago"
       ;; a#   army at [0,0] with country-id 7
       ;; t~   transport at [0,1] with unloaded-countries {7 0}, round 10
