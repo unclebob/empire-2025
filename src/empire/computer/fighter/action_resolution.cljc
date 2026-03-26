@@ -40,34 +40,40 @@
     (visibility/update-cell-visibility pos :computer)
     :landed))
 
+(defn- build-crash-details [pos unit]
+  (let [target-site (:flight-target-site unit)
+        landing-site (:explore-landing-site unit)
+        target-cell (when target-site (get-in (sa/current-world) target-site))
+        landing-cell (when landing-site (get-in (sa/current-world) landing-site))]
+    {:target-site target-site
+     :target-cell-type (:type target-cell)
+     :target-city-status (:city-status target-cell)
+     :target-distance (when target-site (grid/distance pos target-site))
+     :landing-site landing-site
+     :landing-cell-type (:type landing-cell)
+     :landing-city-status (:city-status landing-cell)
+     :landing-distance (when landing-site (grid/distance pos landing-site))}))
+
+(defn- destroy-fighter! [pos unit]
+  (when (debug/computer-unit-logging-enabled?)
+    (let [crash-details (build-crash-details pos unit)]
+      (debug/log-computer-event! :fighter-crash pos (merge {:reason :fuel
+                                                             :computer-unit-id (:computer-unit-id unit)
+                                                             :flight-mode (:flight-mode unit)
+                                                             :flight-target-site (:flight-target-site unit)}
+                                                            crash-details))
+      (debug/log-computer-unit-crash! pos unit :fuel crash-details)))
+  (sa/update-world! update-in pos dissoc :contents)
+  (visibility/update-cell-visibility pos :computer)
+  false)
+
 (defn consume-fighter-fuel
   [pos]
   (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
-        target-site (:flight-target-site unit)
-        landing-site (:explore-landing-site unit)
-        target-cell (when target-site (get-in (sa/current-world) target-site))
-        landing-cell (when landing-site (get-in (sa/current-world) landing-site))
-        crash-details {:target-site target-site
-                       :target-cell-type (:type target-cell)
-                       :target-city-status (:city-status target-cell)
-                       :target-distance (when target-site (grid/distance pos target-site))
-                       :landing-site landing-site
-                       :landing-cell-type (:type landing-cell)
-                       :landing-city-status (:city-status landing-cell)
-                       :landing-distance (when landing-site (grid/distance pos landing-site))}
         action (decisions/fuel-action unit config/fighter-fuel)]
     (case (:action action)
       :invalid false
-      :destroy (do (when (debug/computer-unit-logging-enabled?)
-                     (debug/log-computer-event! :fighter-crash pos (merge {:reason :fuel
-                                                                           :computer-unit-id (:computer-unit-id unit)
-                                                                           :flight-mode (:flight-mode unit)
-                                                                           :flight-target-site (:flight-target-site unit)}
-                                                                          crash-details))
-                     (debug/log-computer-unit-crash! pos unit :fuel crash-details))
-                   (sa/update-world! update-in pos dissoc :contents)
-                   (visibility/update-cell-visibility pos :computer)
-                   false)
+      :destroy (destroy-fighter! pos unit)
       :update-fuel (do
                      (sa/update-world! assoc-in (conj pos :contents :fuel) (:fuel action))
                      (visibility/sync-ai-unit-to-computer-map! pos)

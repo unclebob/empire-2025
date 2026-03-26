@@ -275,6 +275,19 @@
                 (dispatch-transport-mission pos (:contents (get-in (sa/read-state :computer-map) pos))))
     nil))
 
+(defn- ensure-mission-assigned! [pos transport]
+  (when (and (= :transport (:type transport))
+             (= :computer (:owner transport))
+             (nil? (:transport-mission transport)))
+    (transition-to-loading pos)))
+
+(defn- check-random-walk [pos transport']
+  (when (and transport'
+             (= :computer (:owner transport'))
+             (= :transport (:type transport')))
+    (maybe-enter-transport-random-walk! pos))
+  (oscillation/in-random-walk? (get-in (sa/read-state :computer-map) (conj pos :contents))))
+
 (defn process-transport
   "Processes a transport unit using simplified 3-state mission flow.
    Returns nil after processing — transports only move once per round."
@@ -282,27 +295,15 @@
   (visibility/update-cell-visibility pos :computer)
   (visibility/sync-ai-unit-to-computer-map! pos)
   (let [transport (:contents (get-in (sa/read-state :computer-map) pos))]
-    (when (and (= :transport (:type transport))
-               (= :computer (:owner transport))
-               (nil? (:transport-mission transport)))
-      (transition-to-loading pos))
-    (when-not (and (= :transport (:type transport))
-                   (= :computer (:owner transport))
-                   (nil? (:transport-mission transport)))
-      (let [transport' (:contents (get-in (sa/read-state :computer-map) pos))]
-        (case (process-decisions/transport-process-action
-               {:transport? (= :transport (:type transport'))
-                :computer-owned? (= :computer (:owner transport'))
-                :random-walk? (do
-                                (when (and transport'
-                                           (= :computer (:owner transport'))
-                                           (= :transport (:type transport')))
-                                  (maybe-enter-transport-random-walk! pos))
-                                (oscillation/in-random-walk? (get-in (sa/read-state :computer-map)
-                                                                     (conj pos :contents))))})
-          :random-walk (process-transport-random-walk pos)
-          :active (process-active-transport pos (get-in (sa/read-state :computer-map) (conj pos :contents)))
-          nil))))
+    (ensure-mission-assigned! pos transport)
+    (let [transport' (:contents (get-in (sa/read-state :computer-map) pos))]
+      (case (process-decisions/transport-process-action
+             {:transport? (= :transport (:type transport'))
+              :computer-owned? (= :computer (:owner transport'))
+              :random-walk? (check-random-walk pos transport')})
+        :random-walk (process-transport-random-walk pos)
+        :active (process-active-transport pos transport')
+        nil)))
   nil)
 
 ;; clj-mutate-manifest-begin

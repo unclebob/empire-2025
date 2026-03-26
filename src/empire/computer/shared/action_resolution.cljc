@@ -37,6 +37,26 @@
                       (= country-id (:country-id cell))))))
         (sa/read-state :production)))
 
+(defn- flood-fill-unclaimed-land
+  [computer-map pos]
+  (loop [frontier #{pos}
+         visited #{}
+         to-claim #{}]
+    (if (empty? frontier)
+      to-claim
+      (let [current (first frontier)
+            remaining (disj frontier current)]
+        (if (visited current)
+          (recur remaining visited to-claim)
+          (let [cell (get-in computer-map current)
+                claimable? (and (= :land (:type cell))
+                                (nil? (:country-id cell)))]
+            (if claimable?
+              (recur (into remaining (remove visited (world-query/get-neighbors current)))
+                     (conj visited current)
+                     (conj to-claim current))
+              (recur remaining (conj visited current) to-claim))))))))
+
 (defn stamp-territory
   [pos unit]
   (when (and (= :army (:type unit))
@@ -46,28 +66,9 @@
     (let [computer-map (sa/read-state :computer-map)
           cell (get-in computer-map pos)
           country-id (:country-id unit)]
-      (if (and (= :land (:type cell))
-               (nil? (:country-id cell)))
-        (loop [frontier #{pos}
-               visited #{}
-               to-claim #{}]
-          (if (empty? frontier)
-            (doseq [claim-pos to-claim]
-              (sa/update-world! assoc-in (conj claim-pos :country-id) country-id))
-            (let [current (first frontier)
-                  remaining (disj frontier current)]
-              (if (visited current)
-                (recur remaining visited to-claim)
-                (let [current-cell (get-in computer-map current)
-                      claimable? (and (= :land (:type current-cell))
-                                      (nil? (:country-id current-cell)))]
-                  (if claimable?
-                    (recur (into remaining (remove visited (world-query/get-neighbors current)))
-                           (conj visited current)
-                           (conj to-claim current))
-                    (recur remaining
-                           (conj visited current)
-                           to-claim)))))))
+      (if (and (= :land (:type cell)) (nil? (:country-id cell)))
+        (doseq [claim-pos (flood-fill-unclaimed-land computer-map pos)]
+          (sa/update-world! assoc-in (conj claim-pos :country-id) country-id))
         (sa/update-world! assoc-in (conj pos :country-id) country-id)))))
 
 (defn- computer-army-at?

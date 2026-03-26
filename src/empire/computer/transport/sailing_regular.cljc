@@ -372,16 +372,20 @@
       (tc/hold-sail-to-load-elapsed? transport')
       (enter-sail-to-load! pos))))
 
+(defn- process-sailing-default
+  [pos transport]
+  (if (seq (:sail-path transport))
+    (follow-path-action pos (:sail-path transport))
+    (if (zero? (:army-count transport 0))
+      (process-sail-to-load-mission pos transport)
+      (process-sail-to-unload-mission pos transport))))
+
 (defn process-sailing-mission
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         mission (:transport-mission transport)]
     (case mission
-      :sailing (if (seq (:sail-path transport))
-                 (follow-path-action pos (:sail-path transport))
-                 (if (zero? (:army-count transport 0))
-                   (process-sail-to-load-mission pos transport)
-                   (process-sail-to-unload-mission pos transport)))
+      :sailing (process-sailing-default pos transport)
       :leave-city (process-leave-city-mission pos transport)
       :hold-sail-to-load (process-hold-sail-to-load-mission pos transport)
       :sail-to-load (process-sail-to-load-mission pos transport)
