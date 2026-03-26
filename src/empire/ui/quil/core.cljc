@@ -13,6 +13,7 @@
             [empire.ui.util.core :as util-core]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.ui.util.rendering.display :as display]
+            [empire.game.loop.monitor :as monitor]
             [clojure.string :as str]
             [quil.core :as q]
             [quil.middleware :as m]))
@@ -213,11 +214,43 @@
   (sa/write-state! :headless-stop-on-major-invasion? false)
   (maybe-write-debug-dump-on-exit!))
 
+(defn- run-headless-round!
+  [mon]
+  (let [recording (and mon (monitor/recording? mon))
+        phase-sink (when recording (atom []))
+        start-ms (monitor/now-ms)]
+    (if phase-sink
+      (do
+        (swap! phase-sink conj (monitor/time-phase :update-player-map (game-loop/update-player-map)))
+        (swap! phase-sink conj (monitor/time-phase :update-computer-map (game-loop/update-computer-map)))
+        (binding [monitor/*phase-sink* phase-sink]
+          (game-loop/advance-game-batch)))
+      (do
+        (game-loop/update-player-map)
+        (game-loop/update-computer-map)
+        (game-loop/advance-game-batch)))
+    (let [elapsed (- (monitor/now-ms) start-ms)
+          next-round (sa/read-state :round-number)]
+      (cond
+        recording
+        (monitor/record-round mon next-round
+                              {:phases @phase-sink
+                               :total-ms elapsed})
+        mon
+        (monitor/check-round mon next-round elapsed)
+
+        :else nil))))
+
 (defn- run-headless-loop!
-  [headless-rounds]
-  (loop [last-reported-round 0]
+  [headless-rounds monitor-threshold]
+  (loop [last-reported-round 0
+         mon (when monitor-threshold (monitor/create-monitor monitor-threshold))]
     (let [round-number (sa/read-state :round-number)]
       (cond
+        (and mon (monitor/done? mon))
+        (do (println (monitor/format-report mon))
+            (finish-headless-run! last-reported-round))
+
         (>= round-number headless-rounds)
         (finish-headless-run! last-reported-round)
 
@@ -225,21 +258,18 @@
         (finish-headless-run! last-reported-round)
 
         :else
-        (do
-          (game-loop/update-player-map)
-          (game-loop/update-computer-map)
-          (game-loop/advance-game-batch)
-          (let [next-round (sa/read-state :round-number)
-                next-reported-round (if (and (> next-round last-reported-round)
-                                             (zero? (mod next-round 20)))
-                                      (do
-                                        (print-headless-progress! next-round)
-                                        next-round)
-                                      last-reported-round)]
-            (recur next-reported-round)))))))
+        (let [mon (run-headless-round! mon)
+              next-round (sa/read-state :round-number)
+              next-reported-round (if (and (> next-round last-reported-round)
+                                           (zero? (mod next-round 20)))
+                                    (do
+                                      (print-headless-progress! next-round)
+                                      next-round)
+                                    last-reported-round)]
+          (recur next-reported-round mon))))))
 
 (defn- run-headless!
-  [{:keys [headless-rounds]}]
+  [{:keys [headless-rounds monitor-threshold]}]
   (install-seeded-random!)
   (initialize-map!)
   (debug-logging/log-game-map! 0)
@@ -247,7 +277,7 @@
   (sa/write-state! :headless-mode? true)
   (sa/write-state! :headless-stop-on-major-invasion? false)
   (sa/write-state! :major-invasion-probe-hit? false)
-  (run-headless-loop! headless-rounds))
+  (run-headless-loop! headless-rounds monitor-threshold))
 
 (defn- start-sketch!
   [{:keys [window-w window-h]}]

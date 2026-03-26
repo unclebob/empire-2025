@@ -9,7 +9,13 @@
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
             [empire.game-mechanics.visibility :as visibility]
-            [empire.config.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]
+            [empire.computer.fighter.movement-impl :as fighter-movement-impl]
+            [empire.computer.fighter.flight-decisions :as flight-decisions]
+            [empire.computer.fighter.exploration :as fighter-exploration]
+            [empire.computer.production.stats :as production-stats]
+            [empire.computer.production.decisions :as production-decisions]
+            [empire.computer.ship.carrier :as carrier]))
 
 (defn read-test-state
   [k]
@@ -325,6 +331,12 @@
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)
+  (fighter-movement-impl/clear-refueling-cache!)
+  (flight-decisions/clear-active-targets-cache!)
+  (fighter-exploration/clear-unexplored-distance-cache!)
+  (production-stats/clear-asset-cache!)
+  (production-decisions/clear-produced-transport-cache!)
+  (carrier/clear-carrier-caches!)
   (visibility/drain-detections!))
 
 (defn message-matches?

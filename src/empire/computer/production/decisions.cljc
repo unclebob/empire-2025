@@ -31,35 +31,38 @@
   (and (= city-pos (get (sa/read-state :last-transport-city) country-id))
        (stats/country-has-other-coastal-city? city-pos country-id)))
 
+(def ^:private produced-transport-cache (atom nil))
+
+(defn clear-produced-transport-cache! [] (reset! produced-transport-cache nil))
+
+(defn- scan-produced-transports [computer-map]
+  (reduce (fn [acc column]
+            (reduce (fn [inner-acc cell]
+                      (let [unit (:contents cell)
+                            produced-at (:produced-at unit)]
+                        (if (and (= :transport (:type unit))
+                                 (= :computer (:owner unit))
+                                 produced-at)
+                          (update inner-acc produced-at
+                                  (fn [existing]
+                                    (if (or (nil? existing)
+                                            (> (:transport-id unit 0)
+                                               (:transport-id existing 0)))
+                                      unit
+                                      existing)))
+                          inner-acc)))
+                    acc
+                    column))
+          {}
+          computer-map))
+
 (defn- produced-transport-at
   [city-pos]
-  (let [computer-map (sa/read-state :computer-map)
-        cached-source (sa/read-state :produced-transport-source)
-        cached-by-city (sa/read-state :produced-transport-by-city)]
-    (if (= computer-map cached-source)
-      (get cached-by-city city-pos)
-      (let [by-city (reduce (fn [acc column]
-                              (reduce (fn [inner-acc cell]
-                                        (let [unit (:contents cell)
-                                              produced-at (:produced-at unit)]
-                                          (if (and (= :transport (:type unit))
-                                                   (= :computer (:owner unit))
-                                                   produced-at)
-                                            (update inner-acc produced-at
-                                                    (fn [existing]
-                                                      (if (or (nil? existing)
-                                                              (> (:transport-id unit 0)
-                                                                 (:transport-id existing 0)))
-                                                        unit
-                                                        existing)))
-                                            inner-acc)))
-                                      acc
-                                      column))
-                            {}
-                            computer-map)]
-        (sa/write-state! :produced-transport-source computer-map)
-        (sa/write-state! :produced-transport-by-city by-city)
-        (get by-city city-pos)))))
+  (let [by-city (or @produced-transport-cache
+                    (let [result (scan-produced-transports (sa/read-state :computer-map))]
+                      (reset! produced-transport-cache result)
+                      result))]
+    (get by-city city-pos)))
 
 (defn- next-produced-transport-cycle-item
   [city-pos]

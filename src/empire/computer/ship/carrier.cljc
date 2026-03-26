@@ -13,6 +13,11 @@
   [pos]
   (:contents (get-in (sa/read-state :computer-map) pos)))
 
+(def ^:private carrier-position-cache (atom ::unset))
+
+(defn clear-carrier-caches! []
+  (reset! carrier-position-cache ::unset))
+
 (defn- find-computer-cities
   "Returns positions of all computer cities."
   []
@@ -129,13 +134,20 @@
   (concat (or (sa/read-state :computer-city-positions) #{})
           (or (sa/read-state :computer-carrier-positions) #{})))
 
+(defn- compute-carrier-position []
+  (when-let [pair (find-unreserved-pair)]
+    (when-let [pos (find-position-between-cities pair)]
+      {:position pos :pair pair})))
+
 (defn find-carrier-position
   "Finds a carrier position for an unreserved city pair.
    Returns {:position pos :pair city-pair} or nil if no pair needs a carrier."
   []
-  (when-let [pair (find-unreserved-pair)]
-    (when-let [pos (find-position-between-cities pair)]
-      {:position pos :pair pair})))
+  (if (= ::unset @carrier-position-cache)
+    (let [result (compute-carrier-position)]
+      (reset! carrier-position-cache result)
+      result)
+    @carrier-position-cache))
 
 (defn- find-carrier-exploration-target
   "Finds a frontier sea target for a known city pair when the midpoint is still unrevealed."

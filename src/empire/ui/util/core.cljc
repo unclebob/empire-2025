@@ -107,6 +107,10 @@
        "                    prints a progress line every 20 rounds.\n"
        "  --handicap=N      Let the computer play N rounds before the\n"
        "                    player gets the first turn. Default: 50.\n"
+       "  --monitor-threshold=N\n"
+       "                    Profile rounds that take longer than N ms.\n"
+       "                    Monitors 20 rounds after first trigger,\n"
+       "                    then prints a summary report.\n"
        "\n"
        "Arguments:\n"
        "  cols rows         Optional map size. Default: 100 60.\n"))
@@ -121,6 +125,8 @@
                                    (parse-production-limits (subs % 9))) args)
         log-enabled (log-requested? args)
         debug-dump-enabled (debug-dump-requested? args)
+        monitor-threshold (some #(when (.startsWith ^String % "--monitor-threshold=")
+                                  (Long/parseLong (subs % 20))) args)
         headless-rounds (some #(when (.startsWith ^String % "--headless=")
                                  (Long/parseLong (subs % 11))) args)
         handicap (or headless-rounds
@@ -132,7 +138,8 @@
                                  (= "--log" %)
                                  (= "--debug-dump" %)
                                  (.startsWith ^String % "--headless=")
-                                 (.startsWith ^String % "--handicap="))
+                                 (.startsWith ^String % "--handicap=")
+                                 (.startsWith ^String % "--monitor-threshold="))
                             args)
         [cols rows] (if (>= (count non-options) 2)
                       [(Integer/parseInt (first non-options))
@@ -158,6 +165,7 @@
      :debug-dump-enabled debug-dump-enabled
      :headless-rounds headless-rounds
      :handicap handicap
+     :monitor-threshold monitor-threshold
      :window-w window-w
      :window-h window-h}))
 

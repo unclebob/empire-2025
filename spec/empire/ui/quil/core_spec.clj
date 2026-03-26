@@ -1,6 +1,8 @@
 (ns empire.ui.quil.core-spec
   (:require [empire.ui.quil.core :as quil-core]
             [empire.ui.quil.input :as quil-input]
+            [empire.game.loop.core :as game-loop]
+            [empire.game.loop.monitor :as monitor]
             [empire.state.api :as sa]
             [empire.test.utils :refer [reset-all-atoms!]]
             [empire.ui.util.core :as util-core]
@@ -162,6 +164,28 @@
                           (#'quil-core/run-headless! {:headless-rounds 10})))
         (should= [:dump] @writes)
         (should (sa/read-state :debug-dump-written?)))))
+
+  (it "monitors rounds and prints report when threshold exceeded"
+    (sa/write-state! :computer-map [[{:type :sea} {:type :land}]
+                                    [{:type :unexplored} {:type :unexplored}]])
+    (sa/write-state! :major-invasion-state {:active? false})
+    (let [clock (atom 0)]
+      (with-redefs [empire.ui.quil.core/install-seeded-random! (fn [] nil)
+                    empire.ui.quil.core/initialize-map! (fn [] nil)
+                    empire.game.loop.core/update-player-map (fn [] nil)
+                    empire.game.loop.core/update-computer-map (fn [] nil)
+                    empire.game.loop.core/advance-game-batch
+                    (fn []
+                      (sa/update-state! :round-number inc)
+                      (when-let [sink monitor/*phase-sink*]
+                        (swap! sink conj [:phase-a 10] [:phase-b 20])))
+                    empire.game.loop.monitor/now-ms
+                    (fn [] (let [t @clock] (swap! clock + 600) t))]
+        (let [output (with-out-str
+                       (#'quil-core/run-headless! {:headless-rounds 100 :monitor-threshold 500}))]
+          (should-contain "Performance Monitor Report" output)
+          (should-contain "phase-a" output)
+          (should-contain "phase-b" output)))))
 
   (it "keeps major invasion probe stopping disabled while running headless"
     (let [observed-stop-flags (atom [])]

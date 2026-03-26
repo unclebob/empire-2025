@@ -30,19 +30,32 @@
                               (= :holding (get-in ncell [:contents :carrier-mode])))))
                      (neighbors world pos))))))
 
+(def ^:private active-targets-cache (atom nil))
+
+(defn clear-active-targets-cache! [] (reset! active-targets-cache nil))
+
+(defn scan-active-targets [world]
+  (set (for [c (range (count world))
+             r (range (count (first world)))
+             :let [u (get-in world [c r :contents])
+                   target (:flight-target-site u)]
+             :when (and (= :fighter (:type u))
+                        (= :computer (:owner u))
+                        target)]
+         target)))
+
+(defn- cached-active-targets [world]
+  (or @active-targets-cache
+      (let [result (scan-active-targets world)]
+        (reset! active-targets-cache result)
+        result)))
+
 (defn choose-leg
   [world sites leg-records current-site]
   (let [reachable (filter #(and (not= % current-site)
                                 (<= (fm/distance-to current-site %) config/fighter-fuel))
                           sites)
-        active-targets (set (for [c (range (count world))
-                                  r (range (count (first world)))
-                                  :let [u (get-in world [c r :contents])
-                                        target (:flight-target-site u)]
-                                  :when (and (= :fighter (:type u))
-                                             (= :computer (:owner u))
-                                             target)]
-                              target))
+        active-targets (cached-active-targets world)
         candidate-targets (let [unclaimed (remove active-targets reachable)]
                             (if (seq unclaimed) unclaimed reachable))
         scored (map (fn [target]

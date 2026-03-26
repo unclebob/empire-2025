@@ -135,10 +135,19 @@
   [fighter-pos enemy-pos]
   (fighter-action-resolution/attack-enemy fighter-pos enemy-pos attackable-enemy-cell?))
 
+(def ^:private refueling-cache (atom nil))
+
+(defn clear-refueling-cache! [] (reset! refueling-cache nil))
+
+(defn- cached-refueling-sites []
+  (or @refueling-cache
+      (let [result (refueling/scan-refueling-positions (sa/read-state :computer-map))]
+        (reset! refueling-cache result)
+        result)))
+
 (defn find-nearest-refueling-site
   [pos]
-  (let [{:keys [cities carriers]}
-        (refueling/scan-refueling-positions (sa/read-state :computer-map))
+  (let [{:keys [cities carriers]} (cached-refueling-sites)
         sites (concat cities carriers)]
     (when (seq sites)
       (apply min-key (partial grid/distance pos) sites))))

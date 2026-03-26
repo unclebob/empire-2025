@@ -59,11 +59,12 @@
     (should= 1 (stats/count-computer-cities))
     (should= 0 (stats/count-all-computer-fighters)))
 
-  (it "falls back to rescanning when the computer map changes after caching"
+  (it "falls back to rescanning when the computer map changes after cache clear"
     (set-test-world! (build-test-map ["a~"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (stats/rebuild-country-stats!)
     (test-utils/set-test-computer-map! (build-test-map ["fX"]))
+    (stats/clear-asset-cache!)
     (should= {:fighter 1} (stats/count-computer-units))
     (should= 1 (stats/count-computer-cities))
     (should= 1 (stats/count-all-computer-fighters)))

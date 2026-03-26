@@ -95,7 +95,7 @@
                            (:country-id (get-in computer-map %))))
        (remove reserved-coastal-cells)))
 
-(defn- all-coastal-army-positions
+(defn all-coastal-army-positions
   [computer-map reserved-army-ids]
   (->> (all-tiles computer-map)
        (map #(tile-summary computer-map % reserved-army-ids))
@@ -103,8 +103,8 @@
        distinct))
 
 (defn- target-summary
-  [transport-pos target computer-map reserved-army-ids]
-  (let [army-positions (->> (all-coastal-army-positions computer-map reserved-army-ids)
+  [transport-pos target all-armies]
+  (let [army-positions (->> all-armies
                             (filter #(<= (grid/chebyshev-distance target %) tile-size))
                             vec)]
     {:target target
@@ -119,10 +119,11 @@
                                 :or {reserved-coastal-cells #{}
                                      excluded-country-ids #{}
                                      reserved-army-ids #{}}}]
-   (let [candidates (->> (candidate-load-targets computer-map
+   (let [all-armies (all-coastal-army-positions computer-map reserved-army-ids)
+         candidates (->> (candidate-load-targets computer-map
                                                 reserved-coastal-cells
                                                 excluded-country-ids)
-                         (map #(target-summary transport-pos % computer-map reserved-army-ids))
+                         (map #(target-summary transport-pos % all-armies))
                          (filter #(>= (:army-count %) min-armies-near-target))
                          (sort-by (juxt :distance
                                         (comp - :army-count)

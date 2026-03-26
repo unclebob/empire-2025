@@ -108,7 +108,7 @@
                                (>= land-armies (* 2/3 coastal-cells))))))))
     {} raw))
 
-(defn- scan-computer-assets [comp-map]
+(defn scan-computer-assets [comp-map]
   (reduce
    (fn [{:keys [unit-counts computer-city-count computer-fighter-count] :as acc}
         column]
@@ -136,6 +136,10 @@
     :computer-fighter-count 0}
    comp-map))
 
+(def ^:private asset-cache (atom nil))
+
+(defn clear-asset-cache! [] (reset! asset-cache nil))
+
 (defn rebuild-country-stats! []
   (let [comp-map (sa/read-state :computer-map)
         rows (count (first comp-map))
@@ -147,21 +151,13 @@
                     {} (range cols))
         asset-counts (scan-computer-assets comp-map)]
     (sa/write-state! :country-stats (derive-stats raw))
-    (sa/write-state! :computer-counts-source comp-map)
-    (sa/write-state! :computer-unit-counts (:unit-counts asset-counts))
-    (sa/write-state! :computer-city-count (:computer-city-count asset-counts))
-    (sa/write-state! :computer-fighter-count (:computer-fighter-count asset-counts))))
-
-(defn- cached-asset-counts []
-  (let [comp-map (sa/read-state :computer-map)]
-    (when (identical? comp-map (sa/read-state :computer-counts-source))
-      {:unit-counts (or (sa/read-state :computer-unit-counts) {})
-       :computer-city-count (sa/read-state :computer-city-count)
-       :computer-fighter-count (sa/read-state :computer-fighter-count)})))
+    (reset! asset-cache asset-counts)))
 
 (defn- current-asset-counts []
-  (or (cached-asset-counts)
-      (scan-computer-assets (sa/read-state :computer-map))))
+  (or @asset-cache
+      (let [result (scan-computer-assets (sa/read-state :computer-map))]
+        (reset! asset-cache result)
+        result)))
 
 (defn count-computer-units []
   (:unit-counts (current-asset-counts)))

@@ -47,8 +47,11 @@
             0
             (range 1 (inc n)))))
 
-(defn nearest-unexplored-distance
-  "Return the distance from pos to the nearest unexplored cell on computer-map."
+(def ^:private unexplored-distance-cache (atom {}))
+
+(defn clear-unexplored-distance-cache! [] (reset! unexplored-distance-cache {}))
+
+(defn compute-nearest-unexplored-distance
   [pos]
   (let [computer-map (sa/read-state :computer-map)
         height (count computer-map)
@@ -58,6 +61,15 @@
                                     :when (nil? (get-in computer-map [r c]))]
                                 (fm/distance-to pos [r c])))]
       (apply min distances))))
+
+(defn nearest-unexplored-distance
+  "Return the distance from pos to the nearest unexplored cell on computer-map."
+  [pos]
+  (if (contains? @unexplored-distance-cache pos)
+    (get @unexplored-distance-cache pos)
+    (let [result (compute-nearest-unexplored-distance pos)]
+      (swap! unexplored-distance-cache assoc pos result)
+      result)))
 
 (defn best-exploration-heading
   "Score all 8 compass directions by unexplored cell count, return best.

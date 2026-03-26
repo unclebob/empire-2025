@@ -17,7 +17,14 @@
             [empire.game.loop.round-setup :as round-setup]
             [empire.game.loop.item-processing :as item-processing]
             [empire.player.production :as player-production]
-            [empire.game.loop.control-decisions :as decisions]))
+            [empire.game.loop.control-decisions :as decisions]
+            [empire.game.loop.monitor :as monitor]
+            [empire.computer.fighter.movement-impl :as fighter-movement-impl]
+            [empire.computer.fighter.flight-decisions :as flight-decisions]
+            [empire.computer.fighter.exploration :as fighter-exploration]
+            [empire.computer.production.stats :as production-stats]
+            [empire.computer.production.decisions :as production-decisions]
+            [empire.computer.ship.carrier :as carrier]))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -128,6 +135,12 @@
   (pathfinding/clear-path-cache)
   (pathfinding-bfs/clear-bfs-caches)
   (land-objectives/clear-continent-cache!)
+  (fighter-movement-impl/clear-refueling-cache!)
+  (flight-decisions/clear-active-targets-cache!)
+  (fighter-exploration/clear-unexplored-distance-cache!)
+  (production-stats/clear-asset-cache!)
+  (production-decisions/clear-produced-transport-cache!)
+  (carrier/clear-carrier-caches!)
   (unit-stamping/backfill-missing-computer-unit-ids!)
   (round-setup/move-satellites)
   (round-setup/consume-sentry-fighter-fuel)
@@ -161,6 +174,55 @@
                                                                (sa/read-state :player-map)))
   (integrity/check-world-integrity!))
 
+(defn start-new-round-timed
+  "Like start-new-round but returns a vector of [phase-name elapsed-ms] pairs."
+  []
+  (let [phases (transient [])]
+    (conj! phases (monitor/time-phase :increment-round (sa/update-state! :round-number inc)))
+    (conj! phases (monitor/time-phase :clear-path-cache (pathfinding/clear-path-cache)))
+    (conj! phases (monitor/time-phase :clear-bfs-caches (pathfinding-bfs/clear-bfs-caches)))
+    (conj! phases (monitor/time-phase :clear-continent-cache (land-objectives/clear-continent-cache!)))
+    (conj! phases (monitor/time-phase :clear-refueling-cache (fighter-movement-impl/clear-refueling-cache!)))
+    (conj! phases (monitor/time-phase :clear-flight-targets-cache (flight-decisions/clear-active-targets-cache!)))
+    (conj! phases (monitor/time-phase :clear-unexplored-cache (fighter-exploration/clear-unexplored-distance-cache!)))
+    (conj! phases (monitor/time-phase :clear-asset-cache (production-stats/clear-asset-cache!)))
+    (conj! phases (monitor/time-phase :clear-transport-cache (production-decisions/clear-produced-transport-cache!)))
+    (conj! phases (monitor/time-phase :clear-carrier-caches (carrier/clear-carrier-caches!)))
+    (conj! phases (monitor/time-phase :backfill-unit-ids (unit-stamping/backfill-missing-computer-unit-ids!)))
+    (conj! phases (monitor/time-phase :move-satellites (round-setup/move-satellites)))
+    (conj! phases (monitor/time-phase :consume-sentry-fuel (round-setup/consume-sentry-fighter-fuel)))
+    (conj! phases (monitor/time-phase :wake-sentries (round-setup/wake-sentries-seeing-enemy)))
+    (conj! phases (monitor/time-phase :remove-dead-units (round-setup/remove-dead-units)))
+    (conj! phases (monitor/time-phase :mark-lake-locked (round-setup/mark-lake-locked-ships)))
+    (conj! phases (monitor/time-phase :evacuate-lake-boats (round-setup/evacuate-lake-patrol-boats)))
+    (conj! phases (monitor/time-phase :update-production (player-production/update-production)))
+    (conj! phases (monitor/time-phase :repair-ships (round-setup/repair-damaged-ships)))
+    (conj! phases (monitor/time-phase :reset-steps (round-setup/reset-steps-remaining)))
+    (conj! phases (monitor/time-phase :wake-airport-fighters (round-setup/wake-airport-fighters)))
+    (conj! phases (monitor/time-phase :threat-response (threat-response/on-round-start!)))
+    (sa/write-state! :claimed-objectives #{})
+    (sa/write-state! :claimed-transport-targets #{})
+    (sa/write-state! :claimed-patrol-targets #{})
+    (debug-logging/begin-computer-unit-log-round!)
+    (conj! phases (monitor/time-phase :build-round-state
+                    (let [player-items (current-player-items)
+                          computer-items (vec (build-computer-items))
+                          round-state (decisions/round-start-state
+                                       {:handicap-rounds-remaining (sa/read-state :handicap-rounds-remaining)
+                                        :player-items player-items
+                                        :computer-items computer-items
+                                        :game-over-check-enabled (sa/read-state :game-over-check-enabled)})]
+                      (apply-round-start-state! round-state)
+                      (computer-production/rebuild-country-stats!)
+                      (army/assign-city-attacks)
+                      (army/assign-transport-staging))))
+    (conj! phases (monitor/time-phase :production-status
+                    (sa/write-state! :production-status
+                                     (production-status/format-production-status (sa/current-world)
+                                                                                 (sa/read-state :player-map)))))
+    (conj! phases (monitor/time-phase :integrity-check (integrity/check-world-integrity!)))
+    (persistent! phases)))
+
 (defn- both-lists-empty? []
   (and (empty? (sa/read-state :player-items))
        (empty? (sa/read-state :computer-items))))
@@ -178,8 +240,13 @@
     :new-round (do
                  (when (pos? (sa/read-state :round-number))
                    (update-handicap-before-round!))
-                 (start-new-round))
-    :process-player (process-player-action!)
+                 (if monitor/*phase-sink*
+                   (swap! monitor/*phase-sink* into (start-new-round-timed))
+                   (start-new-round)))
+    :process-player (if monitor/*phase-sink*
+                      (swap! monitor/*phase-sink* conj
+                             (monitor/time-phase :process-player (process-player-action!)))
+                      (process-player-action!))
     :process-computer (item-processing/process-computer-items)
     nil))
 
