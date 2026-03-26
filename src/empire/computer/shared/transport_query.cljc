@@ -20,30 +20,37 @@
        (< (:army-count unit 0) 6)
        (transport-compatible? unit army-unload-event-id)))
 
+(def ^:private loading-transport-cache (atom nil))
+
+(defn clear-loading-transport-cache! [] (reset! loading-transport-cache nil))
+
+(defn scan-loading-transports
+  [world army-unload-event-id]
+  (vec (for [i (range (count world))
+             j (range (count (first world)))
+             :let [unit (:contents (get-in world [i j]))]
+             :when (loading-transport? unit army-unload-event-id)]
+         [i j])))
+
+(defn- cached-loading-transports [army-unload-event-id]
+  (or @loading-transport-cache
+      (let [result (scan-loading-transports (sa/read-state :computer-map) army-unload-event-id)]
+        (reset! loading-transport-cache result)
+        result)))
+
 (defn find-loading-transport
   ([] (find-loading-transport nil))
   ([army-unload-event-id]
-   (let [world (sa/read-state :computer-map)]
-     (first (for [i (range (count world))
-                  j (range (count (first world)))
-                  :let [unit (:contents (get-in world [i j]))]
-                  :when (loading-transport? unit army-unload-event-id)]
-              [i j])))))
+   (first (cached-loading-transports army-unload-event-id))))
 
 (defn find-nearby-loading-transport
   ([pos max-distance]
    (find-nearby-loading-transport pos max-distance nil))
   ([pos max-distance army-unload-event-id]
-   (let [world (sa/read-state :computer-map)]
-     (->> (for [i (range (count world))
-                j (range (count (first world)))
-                :let [transport-pos [i j]
-                      unit (:contents (get-in world transport-pos))]
-                :when (and (loading-transport? unit army-unload-event-id)
-                           (<= (grid/chebyshev-distance pos transport-pos) max-distance))]
-            transport-pos)
-          (sort-by #(vector (grid/chebyshev-distance pos %) %))
-          first))))
+   (->> (cached-loading-transports army-unload-event-id)
+        (filter #(<= (grid/chebyshev-distance pos %) max-distance))
+        (sort-by #(vector (grid/chebyshev-distance pos %) %))
+        first)))
 
 (defn find-adjacent-loading-transport
   ([pos]
