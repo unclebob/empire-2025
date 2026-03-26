@@ -181,20 +181,6 @@
       (should= 100 (:rows result))
       (should= 10 (:headless-rounds result))))
 
-  (it "extracts --monitor-threshold=N"
-    (let [result (util-core/parse-args ["--monitor-threshold=500"] 2000 2000)]
-      (should= 500 (:monitor-threshold result))))
-
-  (it "returns nil monitor-threshold when absent"
-    (let [result (util-core/parse-args [] 2000 2000)]
-      (should-be-nil (:monitor-threshold result))))
-
-  (it "ignores monitor-threshold arg when computing dimensions"
-    (let [result (util-core/parse-args ["--monitor-threshold=500" "50" "30"] 2000 2000)]
-      (should= 50 (:cols result))
-      (should= 30 (:rows result))
-      (should= 500 (:monitor-threshold result))))
-
   )
 
 (describe "help-requested?"
@@ -244,5 +230,4 @@
       (should-contain "--limits=SPEC" usage)
       (should-contain "--headless=N" usage)
       (should-contain "--handicap=N" usage)
-      (should-contain "--monitor-threshold=N" usage)
       (should-contain "Default: 50" usage))))
