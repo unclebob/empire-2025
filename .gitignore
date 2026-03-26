@@ -21,3 +21,4 @@ saves/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+test.log

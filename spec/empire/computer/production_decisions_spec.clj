@@ -3,6 +3,8 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.production :as production]
+            [empire.computer.production.stats :as stats]
+            [empire.computer.early-game.theater :as theater]
             [empire.computer.ship :as ship]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]))
 (describe "production decisions"
@@ -174,17 +176,6 @@
       (production/rebuild-country-stats!)
       (should-not= :transport (production/decide-production [1 1])))
 
-    (it "does not treat a hidden inland city as known inland support"
-      (set-test-world! (build-test-map ["###X#"
-                                        "#####"
-                                        "~X###"]))
-      (set-test-computer-map! [[{:type :land} {:type :land} {:type :land} nil {:type :land}]
-                               [{:type :land} {:type :land} {:type :land} {:type :land} {:type :land}]
-                               [{:type :sea} {:type :city :city-status :computer :country-id 1} {:type :land} {:type :land} {:type :land}]])
-      (update-test-world! assoc-in [3 0 :country-id] 1)
-      (update-test-world! assoc-in [1 2 :country-id] 1)
-      (should-not (@#'empire.computer.production.decisions/has-inland-computer-city?)))
-
     (it "produces army when coastal cells not filled"
       ;; 2-row map: coastal city, 2 armies but unfilled coastal cells, 4 patrol boats
       ;; Row 0: ~ X # a a # # ~ p p p p
@@ -355,6 +346,7 @@
         (should= :fighter (production/decide-production [1 1]))))
 
     (it "immediately replaces a coastal opening role that becomes lake-locked"
+      (theater/clear-theater-caches!)
       (let [game-map (build-test-map ["~X~"
                                       "~~~"
                                       "###"])]

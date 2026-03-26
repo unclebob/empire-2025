@@ -15,7 +15,8 @@
             [empire.computer.fighter.exploration :as fighter-exploration]
             [empire.computer.production.stats :as production-stats]
             [empire.computer.production.decisions :as production-decisions]
-            [empire.computer.ship.carrier :as carrier]))
+            [empire.computer.ship.carrier :as carrier]
+            [empire.computer.early-game.theater :as theater]))
 
 (defn read-test-state
   [k]
@@ -337,6 +338,7 @@
   (production-stats/clear-asset-cache!)
   (production-decisions/clear-produced-transport-cache!)
   (carrier/clear-carrier-caches!)
+  (theater/clear-theater-caches!)
   (visibility/drain-detections!))
 
 (defn message-matches?

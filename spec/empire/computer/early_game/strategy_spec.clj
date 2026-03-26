@@ -1,5 +1,6 @@
 (ns empire.computer.early-game.strategy-spec
   (:require [empire.computer.early-game.strategy :as strategy]
+            [empire.computer.early-game.theater :as theater]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -98,6 +99,7 @@
     (test-utils/set-test-state! :round-number 30)
     (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 5}})
     (should-not (strategy/allow-coastal-staging? [0 2]))
+    (theater/clear-theater-caches!)
     (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 2}})
     (should (strategy/allow-coastal-staging? [0 2])))
 
@@ -208,6 +210,7 @@
                       (swap! calls inc)
                       (or (= pos [1 0]) (= pos [0 2])))]
         (strategy/theater-summary [0 2])
+        (theater/clear-theater-caches!)
         (test-utils/set-test-state! :production {[1 0] {:item :transport :remaining-rounds 2}})
         (strategy/theater-summary [0 2]))
       (should= 2 @calls))))

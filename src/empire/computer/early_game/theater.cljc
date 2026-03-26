@@ -44,19 +44,16 @@
                            (not (contains? lakes neighbor)))))
                   (world-query/get-neighbors pos)))])))
 
+(def ^:private usable-coastal-cache (atom nil))
+
 (defn city-usable-coastal?
   [city-pos]
-  (let [computer-map (sa/read-state :computer-map)
-        lake-max-cells (sa/read-state :lake-max-cells)]
-    (if (and (= computer-map (sa/read-state :usable-coastal-city-source))
-             (= lake-max-cells (sa/read-state :usable-coastal-city-lake-max-cells)))
-      (boolean (get (sa/read-state :usable-coastal-city-positions) city-pos))
-      (let [lakes (lake-cells)
-            positions (compute-usable-coastal-city-positions computer-map lakes)]
-        (sa/write-state! :usable-coastal-city-source computer-map)
-        (sa/write-state! :usable-coastal-city-lake-max-cells lake-max-cells)
-        (sa/write-state! :usable-coastal-city-positions positions)
-        (boolean (get positions city-pos))))))
+  (let [positions (or @usable-coastal-cache
+                      (let [result (compute-usable-coastal-city-positions
+                                    (sa/read-state :computer-map) (lake-cells))]
+                        (reset! usable-coastal-cache result)
+                        result))]
+    (boolean (get positions city-pos))))
 
 (defn- theater-positions
   [start-pos]
@@ -136,62 +133,56 @@
                       (:invasion-target unit)
                       (:major-invasion-target unit)))))))
 
+(def ^:private invasion-started-cache (atom ::unset))
+(def ^:private opening-active-cache (atom ::unset))
+(def ^:private theater-summary-cache (atom {}))
+
+(defn clear-theater-caches! []
+  (reset! invasion-started-cache ::unset)
+  (reset! opening-active-cache ::unset)
+  (reset! theater-summary-cache {})
+  (reset! usable-coastal-cache nil))
+
+(defn- compute-invasion-started? []
+  (let [world (sa/read-state :computer-map)]
+    (boolean
+     (or (some (fn [col]
+                 (some (fn [cell]
+                         (active-invasion-transport? (:contents cell)))
+                       col))
+               world)
+         (some (fn [col]
+                 (some (fn [cell]
+                         (= :move-to-coast-for-invasion
+                            (get-in cell [:contents :mode])))
+                       col))
+               world)))))
+
 (defn invasion-started?
   []
-  (let [world (sa/read-state :computer-map)]
-    (if (= world (sa/read-state :early-game-invasion-started-source))
-      (boolean (sa/read-state :early-game-invasion-started-result))
-      (let [started? (boolean
-                      (or (some (fn [col]
-                                  (some (fn [cell]
-                                          (active-invasion-transport? (:contents cell)))
-                                        col))
-                                world)
-                          (some (fn [col]
-                                  (some (fn [cell]
-                                          (= :move-to-coast-for-invasion
-                                             (get-in cell [:contents :mode])))
-                                        col))
-                                world)))]
-        (sa/write-state! :early-game-invasion-started-source world)
-        (sa/write-state! :early-game-invasion-started-result started?)
-        started?))))
+  (if (= ::unset @invasion-started-cache)
+    (let [result (compute-invasion-started?)]
+      (reset! invasion-started-cache result)
+      result)
+    @invasion-started-cache))
 
 (defn opening-active?
   []
-  (let [round-number (sa/read-state :round-number)
-        world (sa/read-state :computer-map)]
-    (if (and (= world (sa/read-state :early-game-opening-active-source))
-             (= round-number (sa/read-state :early-game-opening-active-round)))
-      (boolean (sa/read-state :early-game-opening-active-result))
-      (let [active? (and (number? round-number)
-                         (not (invasion-started?)))]
-        (sa/write-state! :early-game-opening-active-source world)
-        (sa/write-state! :early-game-opening-active-round round-number)
-        (sa/write-state! :early-game-opening-active-result active?)
-        active?))))
+  (if (= ::unset @opening-active-cache)
+    (let [result (and (number? (sa/read-state :round-number))
+                      (not (invasion-started?)))]
+      (reset! opening-active-cache result)
+      result)
+    @opening-active-cache))
 
 (defn- cached-theater-summary
-  [computer-map production invasion-started? start-pos]
-  (when (and (= computer-map (sa/read-state :early-game-theater-cache-source))
-             (= production (sa/read-state :early-game-theater-cache-production))
-             (= invasion-started? (sa/read-state :early-game-theater-cache-invasion-started?)))
-    (get (sa/read-state :early-game-theater-cache) start-pos)))
+  [_computer-map _production _invasion-started? start-pos]
+  (get @theater-summary-cache start-pos))
 
 (defn- store-theater-summary!
-  [computer-map production invasion-started? summary]
-  (when-not (= computer-map (sa/read-state :early-game-theater-cache-source))
-    (sa/write-state! :early-game-theater-cache-source computer-map))
-  (when-not (= production (sa/read-state :early-game-theater-cache-production))
-    (sa/write-state! :early-game-theater-cache-production production))
-  (when-not (= invasion-started? (sa/read-state :early-game-theater-cache-invasion-started?))
-    (sa/write-state! :early-game-theater-cache-invasion-started? invasion-started?))
-  (sa/update-state! :early-game-theater-cache
-                    (fn [cache]
-                      (reduce (fn [acc pos]
-                                (assoc acc pos summary))
-                              (or cache {})
-                              (:positions summary))))
+  [_computer-map _production _invasion-started? summary]
+  (doseq [pos (:positions summary)]
+    (swap! theater-summary-cache assoc pos summary))
   summary)
 
 (defn theater-summary

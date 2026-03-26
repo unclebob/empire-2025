@@ -10,24 +10,6 @@
    :fighter-leg-records {}
    :computer-city-positions #{}
    :computer-carrier-positions #{}
-   :computer-counts-source nil
-   :computer-unit-counts nil
-   :computer-city-count nil
-   :computer-fighter-count nil
-   :produced-transport-source nil
-   :produced-transport-by-city {}
-   :usable-coastal-city-source nil
-   :usable-coastal-city-lake-max-cells nil
-   :usable-coastal-city-positions {}
-   :early-game-invasion-started-source nil
-   :early-game-invasion-started-result nil
-   :early-game-opening-active-source nil
-   :early-game-opening-active-round nil
-   :early-game-opening-active-result nil
-   :early-game-theater-cache-source nil
-   :early-game-theater-cache-production nil
-   :early-game-theater-cache-invasion-started? nil
-   :early-game-theater-cache {}
    :country-stats {}
    :coastal-cells-by-country {}
    :coast-walkers-produced {}

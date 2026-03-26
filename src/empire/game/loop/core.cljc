@@ -24,7 +24,8 @@
             [empire.computer.fighter.exploration :as fighter-exploration]
             [empire.computer.production.stats :as production-stats]
             [empire.computer.production.decisions :as production-decisions]
-            [empire.computer.ship.carrier :as carrier]))
+            [empire.computer.ship.carrier :as carrier]
+            [empire.computer.early-game.theater :as theater]))
 
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
@@ -141,6 +142,7 @@
   (production-stats/clear-asset-cache!)
   (production-decisions/clear-produced-transport-cache!)
   (carrier/clear-carrier-caches!)
+  (theater/clear-theater-caches!)
   (unit-stamping/backfill-missing-computer-unit-ids!)
   (round-setup/move-satellites)
   (round-setup/consume-sentry-fighter-fuel)
@@ -188,6 +190,7 @@
     (conj! phases (monitor/time-phase :clear-asset-cache (production-stats/clear-asset-cache!)))
     (conj! phases (monitor/time-phase :clear-transport-cache (production-decisions/clear-produced-transport-cache!)))
     (conj! phases (monitor/time-phase :clear-carrier-caches (carrier/clear-carrier-caches!)))
+    (conj! phases (monitor/time-phase :clear-theater-caches (theater/clear-theater-caches!)))
     (conj! phases (monitor/time-phase :backfill-unit-ids (unit-stamping/backfill-missing-computer-unit-ids!)))
     (conj! phases (monitor/time-phase :move-satellites (round-setup/move-satellites)))
     (conj! phases (monitor/time-phase :consume-sentry-fuel (round-setup/consume-sentry-fighter-fuel)))

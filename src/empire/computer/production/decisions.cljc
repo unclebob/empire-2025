@@ -150,17 +150,6 @@
     :capital-ship (capital-ship-needed? coastal? unit-counts)
     :satellite (when (satellite-needed? unit-counts) :satellite)}))
 
-(defn- has-inland-computer-city? []
-  (let [game-map (sa/read-state :computer-map)]
-    (some (fn [i]
-            (some (fn [j]
-                    (let [cell (get-in game-map [i j])]
-                      (and (= :city (:type cell))
-                           (= :computer (:city-status cell))
-                           (not (stats/city-is-coastal? [i j])))))
-                  (range (count (first game-map)))))
-          (range (count game-map)))))
-
 (defn- set-opening-role!
   [city-pos role]
   (sa/update-world! assoc-in (conj city-pos :opening-role) role))
