@@ -2,6 +2,7 @@
   "Transport unloading — opportunistic and targeted army unloading."
   (:require [empire.state.api :as sa]
             [empire.computer.army.assignment :as army-assignment]
+            [empire.computer.land-objectives :as land-objectives]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.transport.core :as tc]
             [empire.computer.transport.load-targeting :as load-targeting]
@@ -41,10 +42,11 @@
   "Returns adjacent land/city positions that are empty (no unit).
    Excludes land belonging to any country-id in exclude-ids set."
   [world get-neighbors-fn pos exclude-ids major-invasion?]
-  (filter (fn [neighbor]
-            (unloadable-land-cell?
-              (get-in world neighbor) neighbor exclude-ids major-invasion?))
-          (get-neighbors-fn pos)))
+  (->> (get-neighbors-fn pos)
+       (filter (fn [neighbor]
+                 (unloadable-land-cell?
+                   (get-in world neighbor) neighbor exclude-ids major-invasion?)))
+       sort))
 
 (defn- passable-coastal-sea?
   "Returns true if pos is an unvisited coastal sea cell passable by a computer transport."
@@ -100,6 +102,9 @@
                           pos
                           computer-map
                           {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+                           :excluded-country-ids (disj (conj (set (keys (:unloaded-countries transport)))
+                                                             (:pickup-country-id transport))
+                                                       nil)
                            :reserved-army-ids (reservations/reserved-army-ids transport-id)})
         sail-path (if load-target-cell
                     (or (load-targeting/path-to-load-target pos computer-map load-target-cell)
@@ -129,6 +134,45 @@
       (visibility/sync-ai-unit-to-computer-map! pos)
       nil)))
 
+(defn- unload-continent-metrics
+  [transport land-pos]
+  (let [target-continent (land-objectives/flood-fill-continent land-pos)
+        continent-scan (when target-continent
+                         (land-objectives/scan-continent target-continent))
+        produced-at (:produced-at transport)
+        foreign-continent? (and target-continent
+                                produced-at
+                                (not (contains? target-continent produced-at)))
+        had-computer-presence? (and continent-scan
+                                    (or (pos? (:computer-cities continent-scan 0))
+                                        (pos? (:computer-units continent-scan 0))))]
+    {:foreign-continent? (boolean foreign-continent?)
+     :first-landing-on-continent? (and foreign-continent?
+                                      (not had-computer-presence?))
+     :continent-id (land-objectives/continent-id target-continent)
+     :continent-size (:size continent-scan 0)
+     :continent-computer-cities (:computer-cities continent-scan 0)
+     :continent-computer-units (:computer-units continent-scan 0)}))
+
+(defn- log-foreign-continent-landing!
+  [pos transport landing-pos landing-metrics]
+  (when (:first-landing-on-continent? landing-metrics)
+    (debug/log-computer-event! :transport-foreign-continent-landing
+                               pos
+                               {:to landing-pos
+                                :transport-id (:transport-id transport)
+                                :transport-mission (:transport-mission transport)
+                                :army-count-before (:army-count transport 0)
+                                :major-invasion (:major-invasion transport)
+                                :invasion-target (:invasion-target transport)
+                                :major-invasion-target (:major-invasion-target transport)
+                                :foreign-continent? true
+                                :first-landing-on-continent? true
+                                :continent-id (:continent-id landing-metrics)
+                                :continent-size (:continent-size landing-metrics)
+                                :continent-computer-cities (:continent-computer-cities landing-metrics)
+                                :continent-computer-units (:continent-computer-units landing-metrics)})))
+
 (defn- unload-army-template
   [transport]
   (let [unload-eid (:unload-event-id transport)
@@ -140,11 +184,31 @@
 
 (defn- place-unloaded-armies!
   [pos targets army unload-eid]
-  (doseq [land-pos targets]
-    (debug/log-computer-event! :transport-unload-army pos {:to land-pos :eid unload-eid})
-    (sa/update-world! assoc-in (conj land-pos :contents) army)
-    (action-resolution/stamp-territory land-pos army)
-    (computer-movement/update-cell-visibility! land-pos :computer)))
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
+        landing-metrics (when-let [landing-pos (first targets)]
+                          (unload-continent-metrics transport landing-pos))]
+    (when-let [landing-pos (first targets)]
+      (log-foreign-continent-landing! pos transport landing-pos landing-metrics))
+    (doseq [land-pos targets]
+      (debug/log-computer-event! :transport-unload-army
+                                 pos
+                                 {:to land-pos
+                                  :eid unload-eid
+                                  :transport-id (:transport-id transport)
+                                  :transport-mission (:transport-mission transport)
+                                  :army-count-before (:army-count transport 0)
+                                  :major-invasion (:major-invasion transport)
+                                  :invasion-target (:invasion-target transport)
+                                  :major-invasion-target (:major-invasion-target transport)
+                                  :foreign-continent? (:foreign-continent? landing-metrics)
+                                  :first-landing-on-continent? (:first-landing-on-continent? landing-metrics)
+                                  :continent-id (:continent-id landing-metrics)
+                                  :continent-size (:continent-size landing-metrics)
+                                  :continent-computer-cities (:continent-computer-cities landing-metrics)
+                                  :continent-computer-units (:continent-computer-units landing-metrics)})
+      (sa/update-world! assoc-in (conj land-pos :contents) army)
+      (action-resolution/stamp-territory land-pos army)
+      (computer-movement/update-cell-visibility! land-pos :computer))))
 
 (defn- record-unloaded-country!
   [pos targets]
@@ -159,6 +223,15 @@
 (defn- finish-unload!
   [pos army-count to-unload]
   (sa/update-world! update-in (conj pos :contents :army-count) - to-unload)
+  (sa/update-world! assoc-in (conj pos :contents :last-unload-round)
+                    (or (sa/read-state :round-number) 0))
+  (if (pos? (- army-count to-unload))
+    (sa/update-world! update-in (conj pos :contents)
+                      #(if (:unloading-hold-since-round %)
+                         %
+                         (assoc % :unloading-hold-since-round
+                                  (or (sa/read-state :round-number) 0))))
+    (sa/update-world! update-in (conj pos :contents) dissoc :unloading-hold-since-round))
   (visibility/sync-ai-unit-to-computer-map! pos)
   (when (<= (- army-count to-unload) 0)
     (transition-to-loading-inline pos)))
@@ -166,25 +239,27 @@
 (defn- adjacent-unloadable-neighbors
   [pos]
   (let [game-map (sa/read-state :computer-map)]
-    (filter (fn [neighbor]
-              (let [cell (get-in game-map neighbor)]
-                (and cell
-                     (or (and (= :land (:type cell))
-                              (nil? (:country-id cell)))
-                         (and (= :city (:type cell))
-                              (#{:free :player} (:city-status cell))))
-                     (nil? (:contents cell)))))
-            (world-query/get-neighbors pos))))
+    (sort
+     (filter (fn [neighbor]
+               (let [cell (get-in game-map neighbor)]
+                 (and cell
+                      (or (and (= :land (:type cell))
+                               (nil? (:country-id cell)))
+                          (and (= :city (:type cell))
+                               (#{:free :player} (:city-status cell))))
+                      (nil? (:contents cell)))))
+             (world-query/get-neighbors pos)))))
 
 (defn- adjacent-empty-land-any
   [game-map pos]
-  (filter (fn [neighbor]
-            (let [cell (get-in game-map neighbor)]
-              (and cell
-                   (or (= :land (:type cell))
-                       (#{:free :player :computer} (:city-status cell)))
-                   (nil? (:contents cell)))))
-          (world-query/get-neighbors pos)))
+  (sort
+   (filter (fn [neighbor]
+             (let [cell (get-in game-map neighbor)]
+               (and cell
+                    (or (= :land (:type cell))
+                        (#{:free :player :computer} (:city-status cell)))
+                    (nil? (:contents cell)))))
+           (world-query/get-neighbors pos))))
 
 (defn try-opportunistic-unload
   "If transport has armies and there is adjacent unclaimed land,

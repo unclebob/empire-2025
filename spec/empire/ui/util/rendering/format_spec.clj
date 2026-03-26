@@ -162,9 +162,17 @@
     (let [cell {:type :city :city-status :free :fighter-count 0}]
       (should= "[3,7] city:free" (fmt/format-hover-status [3 7] cell nil))))
 
-  (it "returns nil for empty non-city cell"
+  (it "returns land status with country-id for empty land"
+    (let [cell {:type :land :country-id 7}]
+      (should= "[0,0] land cid:7" (fmt/format-hover-status [0 0] cell nil))))
+
+  (it "returns nil country-id for unclaimed land"
     (let [cell {:type :land}]
-      (should-not (fmt/format-hover-status [0 0] cell nil))))
+      (should= "[0,0] land cid:nil" (fmt/format-hover-status [0 0] cell nil))))
+
+  (it "includes city country-id when present"
+    (let [cell {:type :city :city-status :computer :fighter-count 0 :country-id 3}]
+      (should= "[3,7] city:computer cid:3" (fmt/format-hover-status [3 7] cell nil))))
 
   (it "returns waypoint status with coordinates"
     (let [cell {:type :land :waypoint {:marching-orders [2 3]}}]
@@ -206,6 +214,11 @@
     (should= {:summary "[0,0] Free City"
               :detail nil}
              (fmt/split-hover-status "[0,0] city:free")))
+
+  (it "splits terrain hover into terrain summary and country-id detail"
+    (should= {:summary "[0,0] Land"
+              :detail "cid:7"}
+             (fmt/split-hover-status "[0,0] land cid:7")))
 
   (it "returns empty lines for blank hover text"
     (should= {:summary nil :detail nil}

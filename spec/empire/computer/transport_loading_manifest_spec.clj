@@ -86,6 +86,28 @@
      (get-in (test-utils/read-test-state :game-map) [0 2 :contents]))
     (should= {:type :army :owner :computer :hits 1 :computer-unit-id 7}
              (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+     (should-be-nil
+     (get-in (test-utils/read-test-state :game-map) [0 1 :contents :load-manifest]))
+    (should= {}
+             (test-utils/read-test-state :transport-load-reservations)))
+
+  (it "load-for-invasion prefers manifest armies over opportunistic adjacent armies"
+    (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 7}}
+                       {:type :sea :contents {:type :transport :owner :computer
+                                              :transport-id 4
+                                              :transport-mission :load-for-invasion
+                                              :army-count 5
+                                              :load-manifest [7]}}
+                       {:type :land :contents {:type :army :owner :computer :hits 1 :computer-unit-id 11}}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :transport-load-reservations
+                                {4 {:coastal-cell [0 0]
+                                    :army-ids #{7}}})
+    (should= 1 (loading/load-adjacent-armies [0 1]))
+    (should-be-nil
+     (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+    (should= {:type :army :owner :computer :hits 1 :computer-unit-id 11}
+             (get-in (test-utils/read-test-state :game-map) [0 2 :contents]))
     (should-be-nil
      (get-in (test-utils/read-test-state :game-map) [0 1 :contents :load-manifest]))
     (should= {}

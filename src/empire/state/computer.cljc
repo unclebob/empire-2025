@@ -55,6 +55,7 @@
    :early-satellite-produced? false
    :computer-event-log []
    :computer-unit-round-discoveries {}
+   :computer-unit-round-conquests {}
    :distant-city-pairs nil
    :lake-max-cells 0
    :known-lake-cells #{}

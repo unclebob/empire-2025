@@ -14,6 +14,10 @@
 
 (def ^:private max-loading-rounds 10)
 
+(defn- invasion-loading?
+  [transport]
+  (= :load-for-invasion (:transport-mission transport)))
+
 (defn- loadable-army-at?
   "Returns true if neighbor n has a loadable computer army."
   [n game-map unloaded-countries unload-eid]
@@ -100,8 +104,11 @@
                             :manifest-match? (and manifest-ids
                                                   (contains? manifest-ids (:computer-unit-id unit)))})))
                      neighbors)
-        prioritized-armies (concat (remove :manifest-match? armies)
-                                   (filter :manifest-match? armies))
+        prioritized-armies (if (invasion-loading? transport)
+                             (concat (filter :manifest-match? armies)
+                                     (remove :manifest-match? armies))
+                             (concat (remove :manifest-match? armies)
+                                     (filter :manifest-match? armies)))
         loaded-armies (vec (take capacity prioritized-armies))
         loaded-positions (mapv :pos loaded-armies)
         loaded-manifest-ids (->> loaded-armies
@@ -110,7 +117,14 @@
                                  set)
         to-load (count loaded-positions)]
     (doseq [army-pos loaded-positions]
-      (debug/log-computer-event! :transport-load-army pos {:from army-pos})
+      (debug/log-computer-event! :transport-load-army
+                                 pos
+                                 {:from army-pos
+                                  :transport-id (:transport-id transport)
+                                  :transport-mission (:transport-mission transport)
+                                  :army-count-before army-count
+                                  :load-target-cell (:load-target-cell transport)
+                                  :major-invasion (:major-invasion transport)})
       (sa/update-world! update-in army-pos dissoc :contents)
       (update-cell-visibility! army-pos :computer))
     (when (pos? to-load)

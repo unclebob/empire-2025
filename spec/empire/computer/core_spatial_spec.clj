@@ -121,6 +121,31 @@
     (action-resolution/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
     (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
+  (it "flood-fills contiguous unclaimed land from the computer-map"
+    (set-test-world! [[{:type :land} {:type :land} {:type :sea}]
+                      [{:type :land} {:type :land} {:type :sea}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (action-resolution/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 1])))
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [1 0])))
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [1 1]))))
+
+  (it "does not flood through already-claimed land"
+    (set-test-world! [[{:type :land} {:type :land :country-id 9} {:type :land}]])
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (action-resolution/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))
+    (should= 9 (:country-id (get-in (test-utils/read-test-state :game-map) [0 1])))
+    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 2]))))
+
+  (it "does not flood through land that is still unexplored on the computer-map"
+    (set-test-world! [[{:type :land} {:type :land}]])
+    (set-test-computer-map! [[{:type :land} nil]])
+    (action-resolution/stamp-territory [0 0] {:type :army :owner :computer :country-id 3})
+    (should= 3 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0])))
+    (should-be-nil (:country-id (get-in (test-utils/read-test-state :game-map) [0 1]))))
+
   (it "stamps city cell with army's country-id"
     (set-test-world! (build-test-map ["X"]))
     (set-test-computer-map! (test-utils/read-test-state :game-map))

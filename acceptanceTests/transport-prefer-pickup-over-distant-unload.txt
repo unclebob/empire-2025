@@ -1,0 +1,33 @@
+; Transport prefers nearby pickup over distant leftover unload
+;
+; A partially loaded ordinary transport should enter unloading first when it
+; reaches an unloadable coast, even if a nearby friendly pickup is no farther
+; away than the next unload target.
+
+;===============================================================
+; Partial cargo prefers nearby friendly pickup.
+;===============================================================
+GIVEN game map
+  X~~~~~~###
+  a~~~~~t~~~
+  b~~~~~~~~~
+  c~~~~~~###
+  d~~~~~~###
+GIVEN computer map
+  X~~~~~~###
+  a~~~~~t~~~
+  b~~~~~~~~~
+  c~~~~~~###
+  d~~~~~~###
+GIVEN X belongs to country 1.
+GIVEN a belongs to country 1.
+GIVEN b belongs to country 1.
+GIVEN c belongs to country 1.
+GIVEN d belongs to country 1.
+GIVEN t belongs to country 1.
+GIVEN t has 1 armies.
+GIVEN t has transport-mission sail-to-unload.
+
+WHEN computer transport t is processed.
+
+THEN t has transport-mission unloading.

@@ -1,0 +1,34 @@
+; Transport pickup targeting should avoid countries the transport just unloaded onto.
+
+;===============================================================
+; Returning transport avoids the beachhead it just created.
+;===============================================================
+GIVEN game map
+  #~~~~#~~~~
+  ~t~~~~~~~~
+  aaaa~aaaa~
+  ~~~~~~~~~~
+  ~~~~~~~~~~
+GIVEN computer map
+  #~~~~#~~~~
+  ~t~~~~~~~~
+  aaaa~aaaa~
+  ~~~~~~~~~~
+  ~~~~~~~~~~
+GIVEN cell [0 0] has country-id 2.
+GIVEN cell [5 0] has country-id 3.
+GIVEN a1 belongs to country 2.
+GIVEN a2 belongs to country 2.
+GIVEN a3 belongs to country 2.
+GIVEN a4 belongs to country 2.
+GIVEN a5 belongs to country 3.
+GIVEN a6 belongs to country 3.
+GIVEN a7 belongs to country 3.
+GIVEN a8 belongs to country 3.
+GIVEN t has transport-mission sail-to-load.
+GIVEN t has pickup-country-id 2.
+
+WHEN a new round starts.
+
+THEN t has transport-mission hold-sail-to-load.
+THEN t has load-target-cell nil.

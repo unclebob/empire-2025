@@ -14,8 +14,7 @@
             [empire.computer.threat-response.processing :as processing]
             [empire.game-mechanics.services.threat-policy :as threat-policy]
             [empire.game-mechanics.visibility :as visibility]
-            [empire.computer.shared.grid :as grid]
-            [empire.computer.shared.movement :as computer-movement]))
+            [empire.computer.shared.grid :as grid]))
 
 (defn- threat-radius []
   (threat-policy/threat-radius))
@@ -33,8 +32,6 @@
 
 (def ^:private computer-sea-unit-types
   (conj major-invasion-ship-types :transport))
-(def ^:private max-invasion-coastal-candidates 24)
-(def ^:private preferred-invasion-landing-distance 8)
 
 (defn load-major-invasion-state
   []
@@ -156,29 +153,7 @@
 
 (defn best-invasion-target-and-path
   [pos target]
-  (let [state (load-major-invasion-state)
-        computer-map (sa/read-state :computer-map)
-        all-candidates (connected-coastal-candidates computer-map state target)
-        nearby-candidates (filter #(<= (grid/chebyshev-distance % target)
-                                       preferred-invasion-landing-distance)
-                                  all-candidates)
-        candidates-base (if (seq nearby-candidates) nearby-candidates all-candidates)
-        candidates (->> candidates-base
-                        (sort-by (fn [candidate]
-                                   [(grid/chebyshev-distance candidate target)
-                                    candidate]))
-                        (take max-invasion-coastal-candidates))
-        scored (keep (fn [candidate]
-                       (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
-                         {:target candidate
-                          :path (vec path)
-                          :score [(grid/chebyshev-distance candidate target)
-                                  (count path)
-                                  candidate]}))
-                     candidates)]
-    (when (seq scored)
-      (let [{:keys [target path]} (first (sort-by :score scored))]
-        {:target target :path path}))))
+  (major-invasion/best-invasion-target-and-path (invasion-ctx) pos target))
 
 (defn prepare-transport-major-invasion!
   [pos unit]

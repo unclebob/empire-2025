@@ -108,6 +108,24 @@
       (should= 1 (loading/load-adjacent-armies [0 1]))
       (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
 
+    (it "records transport load events with transport metadata"
+      (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1}}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :transport-id 12
+                                                :transport-mission :load-for-invasion
+                                                :major-invasion true
+                                                :army-count 2
+                                                :load-target-cell [6 6]}}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (loading/load-adjacent-armies [0 1])
+      (let [entry (first (test-utils/read-test-state :computer-event-log))]
+        (should= :transport-load-army (:event entry))
+        (should= 12 (:transport-id entry))
+        (should= :load-for-invasion (:transport-mission entry))
+        (should= true (:major-invasion entry))
+        (should= 2 (:army-count-before entry))
+        (should= [6 6] (:load-target-cell entry))))
+
     (it "loads invasion-bound adjacent armies even from recently unloaded country"
       (test-utils/set-test-state! :round-number 20)
       (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1

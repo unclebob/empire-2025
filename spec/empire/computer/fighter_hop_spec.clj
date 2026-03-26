@@ -1,6 +1,7 @@
 (ns empire.computer.fighter-hop-spec
   "Tests for VMS Empire style computer fighter movement."
   (:require [clojure.edn :as edn]
+            [clojure.string :as str]
             [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.fighter :as fighter]
@@ -210,7 +211,13 @@
       (test-utils/set-test-state! :computer-unit-log-file log-file)
       (test-utils/set-test-state! :round-number 12)
       (fm/consume-hop-fuel [1 0] 3)
-      (let [entry (-> log-file slurp edn/read-string)]
+      (let [entry (->> (slurp log-file)
+                       str/split-lines
+                       (remove str/blank?)
+                       (map edn/read-string)
+                       (filter #(and (= :fighter-crash (:event %))
+                                     (get-in % [:unit :computer-unit-id])))
+                       first)]
         (should= :fighter-crash (:event entry))
         (should= [1 0] (:pos entry))
         (should= 19 (get-in entry [:unit :computer-unit-id]))

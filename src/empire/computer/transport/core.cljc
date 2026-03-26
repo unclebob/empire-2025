@@ -88,7 +88,11 @@
                                  {:from from-mission
                                   :to to-mission
                                   :transport-id (:transport-id transport)
-                                  :armies (:army-count transport 0)}))))
+                                  :armies (:army-count transport 0)
+                                  :major-invasion (:major-invasion transport)
+                                  :load-target-cell (:load-target-cell transport)
+                                  :invasion-target (:invasion-target transport)
+                                  :major-invasion-target (:major-invasion-target transport)}))))
 
 (defn set-transport-mission
   [pos mission]

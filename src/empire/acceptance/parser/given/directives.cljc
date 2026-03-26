@@ -85,7 +85,7 @@
     :handler given-handle-production}
    {:regex #"no\s+production"
     :handler given-handle-no-production}
-   {:regex #"round\s+(\d+)"
+   {:regex #"(?:round|round-number\s+is)\s+(\d+)"
     :handler given-handle-round}
    {:regex #"destination\s+\[(\d+)\s+(\d+)\]"
     :handler given-handle-destination}

@@ -9,10 +9,10 @@
       (should= "[0,0] player army [1/1] awake"
                (display/compute-hover-message the-map production [0 0]))))
 
-  (it "returns empty string for empty land cell"
+  (it "returns land status for empty land cell"
     (let [the-map [[{:type :land}]]
           production {}]
-      (should= "" (display/compute-hover-message the-map production [0 0]))))
+      (should= "[0,0] land cid:nil" (display/compute-hover-message the-map production [0 0]))))
 
   (it "returns city status with production"
     (let [the-map [[{:type :city :city-status :player :fighter-count 0}]]
@@ -64,9 +64,9 @@
       (should= "[0,0] city:computer"
                (display/compute-hover-result :computer-map player-map computer-map game-map {} [0 0]))))
 
-  (it "returns empty string for empty cell"
+  (it "returns land status for empty cell"
     (let [player-map [[{:type :land}]]
           computer-map [[{:type :sea}]]
           game-map [[{:type :land}]]]
-      (should= ""
+      (should= "[0,0] land cid:nil"
                (display/compute-hover-result :player-map player-map computer-map game-map {} [0 0])))))

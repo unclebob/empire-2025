@@ -142,8 +142,8 @@ GIVEN t has sail-path [[2 0]].
 WHEN a new round starts.
 
 THEN t is at [2 0].
-THEN t has transport-mission sailing.
-THEN t has 5 armies.
+THEN t has transport-mission unloading.
+THEN t has 6 armies.
 
 ;===============================================================
 ; Invading transport cuts across unexplored sea when the corridor

@@ -282,8 +282,10 @@ GIVEN computer map
 WHEN cell visibility updates for t.
 WHEN computer transport t is processed.
 
-THEN there is a a at [1 2].
-THEN t has 3 armies.
+THEN t is at [0 3].
+THEN t has transport-mission unloading.
+THEN t has 4 armies.
+THEN there is no a on the map.
 
 ;===============================================================
 ; Major invasion patrol boat yields to nearby invading transport.

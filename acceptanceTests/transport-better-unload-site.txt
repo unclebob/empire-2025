@@ -1,0 +1,26 @@
+; Transport unload target quality
+;
+; Loaded transports should prefer nearby coasts that can unload multiple armies
+; over closer one-slot corner beaches.
+
+;===============================================================
+; Loaded transport prefers higher-capacity unload coast.
+;===============================================================
+GIVEN game map
+  ~~~#~~~
+  ~t~~~~~
+  ~~~~~~~
+  ~~~~###
+  ~~~~###
+GIVEN computer map
+  ~~~#~~~
+  ~t~~~~~
+  ~~~~~~~
+  ~~~~###
+  ~~~~###
+GIVEN t has 6 armies.
+GIVEN t has transport-mission sail-to-unload.
+
+WHEN computer transport t is processed.
+
+THEN t is at [3 3].

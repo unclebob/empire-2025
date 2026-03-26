@@ -142,6 +142,45 @@
         (should= [5 0] (:load-target-cell unit))
         (should= [[2 0] [3 0] [4 0]] (:sail-path unit)))))
 
+  (it "chooses a nearer coast when enough coastal armies are nearby across neighboring tiles"
+    (let [world (build-test-map ["##~~~#~~~~"
+                                 "a~~~~a~~~~"
+                                 "a~t~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~#~~~~"])]
+      (set-test-world! world)
+      (doseq [pos [[0 0] [1 0] [5 0]
+                   [0 1] [5 1] [0 2] [5 2] [5 3] [5 4]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (doseq [[idx pos] (map-indexed vector [[0 1] [0 2] [5 1] [5 2] [5 3]])]
+        (update-test-world! assoc-in (conj pos :contents :computer-unit-id) idx))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should= [0 0]
+               (load-targeting/choose-load-target-cell [2 2]
+                                                       (test-utils/read-test-state :computer-map)))))
+
+  (it "does not choose a load target on a recently unloaded country"
+    (let [world (build-test-map ["#~~~~#~~~~"
+                                 "~t~~~~~~~~"
+                                 "aaaa~aaaa~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"])]
+      (set-test-world! world)
+      (doseq [pos [[0 0] [5 0]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (doseq [pos [[0 2] [1 2] [2 2] [3 2]]]
+        (update-test-world! assoc-in (conj pos :country-id) 2))
+      (doseq [pos [[5 2] [6 2] [7 2] [8 2]]]
+        (update-test-world! assoc-in (conj pos :country-id) 3))
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (should= [0 0]
+               (load-targeting/choose-load-target-cell [1 1]
+                                                       (test-utils/read-test-state :computer-map)))
+      (should= [5 0]
+               (load-targeting/choose-load-target-cell [1 1]
+                                                       (test-utils/read-test-state :computer-map)
+                                                       {:excluded-country-ids #{1}}))))
+
   (it "does not switch to loading when adjacent to the wrong claimed coast mid mission"
     (let [world (build-test-map ["#####"
                                  "~t~~~"])]
@@ -165,7 +204,7 @@
         (should= [4 0] (:load-target-cell unit))
         (should= [[3 1] [4 1]] (:sail-path unit)))))
 
-  (it "stages at most five random armies from the target tile neighborhood"
+  (it "stages the six nearest armies from the target tile neighborhood"
     (let [world (build-test-map ["~~~~~#~~~~"
                                  "~~~~~a~~~~"
                                  "~~~~~a~~~~"
@@ -188,13 +227,13 @@
                           :transport-mission :sail-to-load
                           :load-target-cell [5 0]})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [shuffle identity]
+      (with-redefs [rand-nth first]
         (assignment/assign-returning-transport-staging-at! [9 9]))
       (let [staged (for [pos [[0 5] [1 5] [2 5] [3 5] [4 5] [5 1] [5 2] [5 3] [5 4] [5 5]]
                          :let [unit (get-in (test-utils/read-test-state :game-map) (conj pos :contents))]
                          :when (= :move-to-coast-for-transport (:mode unit))]
                      pos)]
-        (should= [[0 5] [1 5] [2 5] [3 5] [4 5]] staged)
+        (should= [[5 1] [5 2] [5 3] [5 4] [0 5] [1 5]] staged)
         (should (every? #(= [5 0]
                             (get-in (test-utils/read-test-state :game-map)
                                     (conj % :contents :transport-staging-target)))
@@ -233,9 +272,9 @@
                                   {99 {:coastal-cell [0 0]
                                        :army-ids #{5 6}}})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [shuffle identity]
+      (with-redefs [rand-nth first]
         (let [assigned (assignment/assign-returning-transport-staging-at! [9 9])]
-          (should= 5 (count assigned))
+          (should= 6 (count assigned))
           (should-not-contain 5 assigned)
           (should-not-contain 6 assigned)))))
 
@@ -265,6 +304,39 @@
                           :transport-id 10
                           :transport-mission :sail-to-load})
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [shuffle identity]
+      (with-redefs [rand-nth first]
         (let [assigned (assignment/assign-returning-transport-staging-at! [9 9] [5 0])]
-          (should= 5 (count assigned))))))
+          (should= 6 (count assigned))))))
+
+  (it "keeps an army's existing landing-zone target when it is already valid"
+    (let [world (build-test-map ["~~~~~#~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "~~~~~a~~~~"
+                                 "aaaaaa~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"
+                                 "~~~~~~~~~~"])]
+      (set-test-world! world)
+      (doseq [pos [[5 0] [5 1] [5 2] [5 3] [5 4]
+                   [0 5] [1 5] [2 5] [3 5] [4 5] [5 5]]]
+        (update-test-world! assoc-in (conj pos :country-id) 1))
+      (update-test-world! assoc-in [5 1 :contents]
+                         {:type :army :owner :computer :hits 1
+                          :mode :move-to-coast-for-transport
+                          :transport-staging-target [5 0]})
+      (update-test-world! assoc-in [9 9 :contents]
+                         {:type :transport
+                          :owner :computer
+                          :hits 1
+                          :transport-id 10
+                          :transport-mission :sail-to-load
+                          :load-target-cell [5 0]})
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (with-redefs [rand-nth (fn [_] [4 5])]
+        (assignment/assign-returning-transport-staging-at! [9 9]))
+      (should= [5 0]
+               (get-in (test-utils/read-test-state :game-map)
+                       [5 1 :contents :transport-staging-target]))))

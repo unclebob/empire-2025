@@ -3,7 +3,8 @@
             [empire.game-mechanics.containers.visibility-port :as containers-visibility-port]
             [empire.game-mechanics.combat-visibility-port :as visibility-port]
             [empire.game-mechanics.debug.logging :as debug-logging]
-            [empire.config.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]
+            [empire.game-mechanics.spatial.neighbors :as neighbors]))
 
 (defn- update-game-map!
   [f & args]
@@ -148,6 +149,73 @@
         (merge-continents! stamp-id existing-cid)))
     (update-game-map! assoc-in [row col :country-id] stamp-id)))
 
+(defn- claimed-country-id
+  [cell]
+  (let [cell-cid (:country-id cell)
+        unit (:contents cell)
+        unit-cid (when (and (= :computer (:owner unit))
+                            (= :army (:type unit)))
+                   (:country-id unit))]
+    (when (or cell-cid unit-cid)
+      (min (or cell-cid Long/MAX_VALUE)
+           (or unit-cid Long/MAX_VALUE)))))
+
+(defn- unclaimed-visible-land?
+  [visible-map pos]
+  (let [cell (get-in visible-map pos)]
+    (and (= :land (:type cell))
+         (nil? (:country-id cell))
+         (nil? (claimed-country-id cell)))))
+
+(defn- connected-visible-land-component
+  [visible-map start valid-positions]
+  (loop [frontier [start]
+         seen #{}
+         component #{}]
+    (if-let [pos (peek frontier)]
+      (let [frontier (pop frontier)]
+        (if (seen pos)
+          (recur frontier seen component)
+          (let [neighbors (filter valid-positions
+                                  (neighbors/get-matching-neighbors pos visible-map neighbors/neighbor-offsets
+                                                                   (constantly true)))]
+            (recur (into frontier neighbors)
+                   (conj seen pos)
+                   (conj component pos)))))
+      component)))
+
+(defn- adjacent-claimed-cids
+  [visible-map positions]
+  (->> positions
+       (mapcat #(neighbors/get-matching-neighbors % visible-map neighbors/neighbor-offsets
+                                                  (comp some? claimed-country-id)))
+       (map #(claimed-country-id (get-in visible-map %)))
+       (remove nil?)
+       set))
+
+(defn- stamp-exposed-territory!
+  [visible-map-source exposed-positions]
+  (let [visible-map (read-visible-map visible-map-source)
+        exposed-land (set (filter #(unclaimed-visible-land? visible-map %) exposed-positions))
+        visible-unclaimed-land (set (for [row (range (count visible-map))
+                                          col (range (count (first visible-map)))
+                                          :let [pos [row col]]
+                                          :when (unclaimed-visible-land? visible-map pos)]
+                                      pos))]
+    (loop [remaining exposed-land]
+      (when-let [start (first remaining)]
+        (let [component (connected-visible-land-component visible-map start visible-unclaimed-land)
+              candidate-cids (adjacent-claimed-cids visible-map component)]
+          (when-let [claim-cid (when (seq candidate-cids) (apply min candidate-cids))]
+            (doseq [pos component]
+              (update-game-map! assoc-in (conj pos :country-id) claim-cid)
+              (update-visible-map! visible-map-source assoc-in (conj pos :country-id) claim-cid)))
+          (when (> (count candidate-cids) 1)
+            (let [lowest-cid (apply min candidate-cids)]
+              (doseq [other-cid (disj candidate-cids lowest-cid)]
+                (merge-continents! lowest-cid other-cid))))
+          (recur (reduce disj remaining component)))))))
+
 (defn- newly-discovered-free-city?
   "Returns true if game-cell is a free city and the same position
    on visible-map was unexplored."
@@ -237,15 +305,20 @@
          stamp-id (should-stamp-country? unit)
          detect-threats? (= owner :computer)]
      (when-let [visible-map (read-runtime-state visible-map-key)]
-       (let [[x y] pos
+      (let [[x y] pos
              height (count game-map)
-             width (count (first game-map))]
+             width (count (first game-map))
+             exposed-positions (atom [])]
          (doseq [di (range (- radius) (inc radius))
                  dj (range (- radius) (inc radius))
                  :let [ni (+ x di) nj (+ y dj)]
                  :when (in-bounds? ni nj height width)]
+           (when (was-unexplored? visible-map ni nj)
+             (swap! exposed-positions conj [ni nj]))
            (reveal-and-track! visible-map-key ni nj
                               stamp-id detect-threats? visible-map))
+         (when (= owner :computer)
+           (stamp-exposed-territory! visible-map-key @exposed-positions))
          nil)))))
 
 (defrecord MovementCombatVisibilityPort []

@@ -77,6 +77,10 @@
                                               :owner :computer
                                               :transport-id 17
                                               :army-count 3
+                                              :major-invasion true
+                                              :load-target-cell [4 5]
+                                              :invasion-target [6 7]
+                                              :major-invasion-target [8 9]
                                               :transport-mission :loading}}]])
     (transport-core/log-transport-mission-transition! [0 0] :loading :unloading)
     (let [entry (first (test-utils/read-test-state :computer-event-log))]
@@ -85,7 +89,24 @@
       (should= :loading (:from entry))
       (should= :unloading (:to entry))
       (should= 17 (:transport-id entry))
-      (should= 3 (:armies entry))))
+      (should= 3 (:armies entry))
+      (should= true (:major-invasion entry))
+      (should= [4 5] (:load-target-cell entry))
+      (should= [6 7] (:invasion-target entry))
+      (should= [8 9] (:major-invasion-target entry))))
+
+  (it "appends computer events to the unit log when logging is enabled"
+    (let [log-file "/tmp/empire-debug-logging-events.log"]
+      (spit log-file "")
+      (test-utils/set-test-state! :computer-unit-log-file log-file)
+      (test-utils/set-test-state! :round-number 12)
+      (debug-logging/log-computer-event! :transport-load-army [4 4] {:transport-id 9 :from [4 3]})
+      (let [entry (-> log-file slurp edn/read-string)]
+        (should= 12 (:round entry))
+        (should= :transport-load-army (:event entry))
+        (should= [4 4] (:pos entry))
+        (should= 9 (:transport-id entry))
+        (should= [4 3] (:from entry)))))
 
   (it "records transport write misses"
     (test-utils/set-test-world! [[{:type :sea}]])
@@ -116,6 +137,14 @@
     (should= {}
              (test-utils/read-test-state :computer-unit-round-discoveries)))
 
+  (it "attributes conquered cities to the bound computer unit"
+    (test-utils/set-test-state! :computer-unit-log-file "/tmp/enabled.log")
+    (debug-logging/with-computer-unit-context
+      17
+      #(debug-logging/record-active-computer-unit-conquest! 1))
+    (should= {17 1}
+             (test-utils/read-test-state :computer-unit-round-conquests)))
+
   (it "includes discovered cells for each computer unit"
     (let [world [[{:type :land
                    :contents {:type :army :owner :computer :computer-unit-id 11}}
@@ -124,12 +153,14 @@
       (should= [{:round 7
                  :pos [0 0]
                  :unit {:type :army :owner :computer :computer-unit-id 11}
-                 :discovered-cells 3}
+                 :discovered-cells 3
+                 :conquered-cities 1}
                 {:round 7
                  :pos [0 1]
                  :unit {:type :transport :owner :computer :computer-unit-id 22}
-                 :discovered-cells 0}]
-               (debug-logging/computer-unit-snapshots world 7 {11 3})))))
+                 :discovered-cells 0
+                 :conquered-cities 0}]
+               (debug-logging/computer-unit-snapshots world 7 {11 3} {11 1})))))
 
 (describe "log-computer-units!"
   (before (test-utils/reset-all-atoms!))
@@ -140,6 +171,7 @@
       (test-utils/set-test-state! :computer-unit-log-file log-file)
       (test-utils/set-test-state! :round-number 9)
       (test-utils/set-test-state! :computer-unit-round-discoveries {31 4})
+      (test-utils/set-test-state! :computer-unit-round-conquests {31 1})
       (test-utils/set-test-world! [[{:type :land
                                      :contents {:type :fighter
                                                 :owner :computer
@@ -148,7 +180,8 @@
       (let [entry (-> log-file slurp edn/read-string)]
         (should= 9 (:round entry))
         (should= [0 0] (:pos entry))
-        (should= 4 (:discovered-cells entry)))))
+        (should= 4 (:discovered-cells entry))
+        (should= 1 (:conquered-cities entry)))))
 
   (it "writes explicit fighter crash entries into the unit log"
     (let [log-file "/tmp/empire-debug-logging-spec.log"]

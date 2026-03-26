@@ -48,7 +48,7 @@ WHEN computer transport t is processed.
 THEN t is at [2 0].
 
 ;===============================================================
-; Sailing transport arrives at unowned land and unloads.
+; Sailing transport arrives at unowned land and enters unloading.
 ;===============================================================
 GIVEN game map
   ~~t#
@@ -60,7 +60,9 @@ GIVEN t has sail-path [].
 
 WHEN computer transport t is processed.
 
-THEN t has 5 armies.
+THEN t is at [2 0].
+THEN t has transport-mission unloading.
+THEN t has 6 armies.
 
 ;===============================================================
 ; Sailing transport with armies and exhausted path stays sailing.

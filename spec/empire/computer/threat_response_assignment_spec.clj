@@ -39,10 +39,10 @@
 
   (it "best-invasion-target-and-path prefers closer landing over shorter path"
     (with-redefs [empire.computer.threat-response.core/load-major-invasion-state
-                  (fn [] {:active? true :target-land-set #{[0 0]}})
+                  (fn [] {:active? true :target-land-set #{[0 0] [2 0]}})
                   empire.state.api/read-state
                   (fn [k] (case k :computer-map {} nil))
-                  empire.computer.threat-response.core/connected-coastal-candidates
+                  empire.computer.threat-response.major-invasion/connected-coastal-candidates
                   (fn [_ _ _] [[10 0] [2 0]])
                   empire.game-mechanics.movement.pathfinding-bfs/bfs-to-land-ho-target
                   (fn [_ candidate _]
@@ -53,6 +53,26 @@
       (let [result (@#'threat-response-core/best-invasion-target-and-path [0 0] [0 0])]
         (should= [2 0] (:target result))
         (should= [[1 0] [2 0]] (:path result)))))
+
+  (it "best-invasion-target-and-path prefers a wider landing zone over a closer narrow beach"
+    (let [computer-map [[{:type :sea} {:type :land} {:type :sea} {:type :sea} {:type :land}]
+                        [{:type :sea} {:type :land} {:type :sea} {:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :sea}]]]
+      (with-redefs [empire.computer.threat-response.core/load-major-invasion-state
+                    (fn [] {:active? true :target-land-set #{[0 1] [1 1] [0 4]}})
+                    empire.state.api/read-state
+                    (fn [k] (case k :computer-map computer-map nil))
+                    empire.computer.threat-response.major-invasion/connected-coastal-candidates
+                    (fn [_ _ _] [[0 1] [0 4]])
+                    empire.game-mechanics.movement.pathfinding-bfs/bfs-to-land-ho-target
+                    (fn [_ candidate _]
+                      (case candidate
+                        [0 1] [[0 0]]
+                        [0 4] [[0 3]]
+                        nil))]
+        (let [result (@#'threat-response-core/best-invasion-target-and-path [2 0] [0 4])]
+          (should= [0 1] (:target result))
+          (should= [[0 0]] (:path result))))))
 
   (it "reuses existing invasion plan when position and target revision are unchanged"
     (set-test-world! (build-test-map ["t~"

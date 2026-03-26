@@ -13,7 +13,7 @@
 
 (def ^:private transport-staging-radius 5)
 (def ^:private max-staging-armies 6)
-(def ^:private max-returning-staging-armies 5)
+(def ^:private max-returning-staging-armies 6)
 (def ^:private producer-staging-cells-per-side 3)
 
 (defn- transport-staging-mode?
@@ -150,27 +150,40 @@
     (->> (load-targeting/neighborhood-tile-army-positions target computer-map)
          (remove (comp (reservations/reserved-army-ids transport-id)
                        #(get-in computer-map (conj % :contents :computer-unit-id))))
-         shuffle
          (keep (fn [pos]
                  (let [unit (get-in computer-map (conj pos :contents))]
                    (when (assignable-load-target-army?
                           (reservations/reserved-army-ids transport-id)
                           unit)
                      {:pos pos
+                      :distance (grid/chebyshev-distance pos target)
+                      :already-staging? (transport-staging-mode? unit)
                       :computer-unit-id (:computer-unit-id unit)}))))
+         (sort-by (juxt :distance :already-staging? :pos))
          (take max-returning-staging-armies))))
+
+(defn- choose-load-target-staging-target
+  [current targets]
+  (let [current-target (:transport-staging-target current)]
+    (if (some #{current-target} targets)
+      current-target
+      (rand-nth (vec targets)))))
 
 (defn- assign-load-target-staging-armies!
   [transport-id target]
-  (let [selected (vec (load-target-staging-armies transport-id target))]
+  (let [computer-map (sa/read-state :computer-map)
+        landing-zone-targets (or (seq (load-targeting/neighborhood-tile-coastal-targets target computer-map))
+                                 [target])
+        selected (vec (load-target-staging-armies transport-id target))]
     (doseq [{:keys [pos]} selected]
-      (let [current (get-in (sa/read-state :computer-map) (conj pos :contents))]
+      (let [current (get-in (sa/read-state :computer-map) (conj pos :contents))
+            staging-target (choose-load-target-staging-target current landing-zone-targets)]
         (when (or (not= :move-to-coast-for-transport (:mode current))
-                  (not= target (:transport-staging-target current)))
+                  (not= staging-target (:transport-staging-target current)))
           (sa/update-world! update-in (conj pos :contents)
                             #(assoc %
                                     :mode :move-to-coast-for-transport
-                                    :transport-staging-target target))
+                                    :transport-staging-target staging-target))
           (visibility/sync-ai-unit-to-computer-map! pos))))
     (vec (keep :computer-unit-id selected))))
 

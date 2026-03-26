@@ -29,16 +29,15 @@
         (should= 6 (:army-count t)))))
 
   (context "unload-event-id propagation"
-    (it "opportunistic unload gives army the transport's unload-event-id"
+    (it "unload-armies gives army the transport's unload-event-id"
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing
+                                                        :transport-mission :unloading
                                                         :army-count 1
-                                                        :unload-event-id 99
-                                                        :sail-path [[0 2]]}}
+                                                        :unload-event-id 99}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
+      (transport/unload-armies [0 1] nil)
       (should= 99 (:unload-event-id (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))))
 
   (context "BFS army type and owner filtering"

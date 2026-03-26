@@ -1,0 +1,42 @@
+; Transport unloading hold
+;
+; After first landing, a transport should hold position and keep trying to
+; unload in place for four rounds before resuming crawl.
+
+;===============================================================
+; Unloading transport holds position before crawling away.
+;===============================================================
+GIVEN game map
+  ####
+  t~~~
+GIVEN computer map
+  ####
+  t~~~
+GIVEN t has transport-mission unloading.
+GIVEN t has 2 armies.
+GIVEN t has unloading-hold-since-round 10.
+GIVEN round-number is 13.
+
+WHEN computer transport t is processed.
+
+THEN t is at [1 1].
+THEN t has transport-mission sail-to-load.
+
+;===============================================================
+; Unloading transport breaks hold after four rounds and resumes crawling.
+;===============================================================
+GIVEN game map
+  ####
+  t~~~
+GIVEN computer map
+  ####
+  t~~~
+GIVEN t has transport-mission unloading.
+GIVEN t has 2 armies.
+GIVEN t has unloading-hold-since-round 10.
+GIVEN round-number is 14.
+
+WHEN computer transport t is processed.
+
+THEN t is at [1 1].
+THEN t has transport-mission sail-to-load.

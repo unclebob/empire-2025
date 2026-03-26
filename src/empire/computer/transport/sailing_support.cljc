@@ -1,7 +1,6 @@
 (ns empire.computer.transport.sailing-support
   (:require [empire.computer.transport.core :as tc]
             [empire.computer.transport.sailing-path :as sailing-path]
-            [empire.computer.transport.unloading :as unloading]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]))
@@ -64,10 +63,9 @@
   [pos]
   (sailing-path/compute-sail-to-load-path pos (sa/read-state :computer-map)))
 
-(defn set-unloading-and-try!
+(defn set-unloading!
   [pos]
-  (tc/set-transport-mission pos :unloading)
-  (unloading/try-opportunistic-unload pos))
+  (tc/set-transport-mission pos :unloading))
 
 (defn direct-step
   [from to]

@@ -65,12 +65,11 @@
       (reset-all-atoms!)
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing :army-count 2
-                                                        :sail-path [[0 2]]
+                                                        :transport-mission :unloading :army-count 2
                                                         :unload-country-id 77}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
+      (transport/unload-armies [0 1] nil)
       (let [army (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
         (should= :army (:type army))
         (should= 77 (:country-id army))))
@@ -79,12 +78,11 @@
       (reset-all-atoms!)
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing :army-count 1
-                                                        :sail-path [[0 2]]
+                                                        :transport-mission :unloading :army-count 1
                                                         :unload-country-id 88}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
+      (transport/unload-armies [0 1] nil)
       (should= 88 (:country-id (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
     (it "transport records unloaded country-id after unloading"
@@ -92,13 +90,16 @@
       (test-utils/set-test-state! :round-number 5)
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing :army-count 1
-                                                        :sail-path [[0 2]]
+                                                        :transport-mission :unloading :army-count 1
                                                         :unload-country-id 33}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
-      (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
+      (transport/unload-armies [0 1] nil)
+      (let [transport-pos (first (for [x (range 3)
+                                       y (range 3)
+                                       :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                                   [x y]))
+            transport (:contents (get-in (test-utils/read-test-state :game-map) transport-pos))]
         (should= 5 (get-in transport [:unloaded-countries 33]))))
 
     (it "transport does not reload armies it just unloaded (cycle-breaking)"
@@ -115,11 +116,15 @@
                                                         :unload-country-id 100}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
+      (transport/unload-armies [0 1] nil)
       ;; Army should be on land
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
       ;; Transport should have 0 armies (did NOT reload)
-      (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
+      (let [transport-pos (first (for [x (range 3)
+                                       y (range 3)
+                                       :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                                   [x y]))
+            transport (:contents (get-in (test-utils/read-test-state :game-map) transport-pos))]
         (should= :sail-to-load (:transport-mission transport))
         (should= 0 (:army-count transport)))))
 

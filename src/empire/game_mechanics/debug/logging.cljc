@@ -7,6 +7,13 @@
 (def ^:private max-computer-event-log-size 2000)
 (def ^:dynamic *computer-unit-id* nil)
 
+(defn- append-computer-log-entry!
+  [entry]
+  (when-let [log-file (sa/read-state :computer-unit-log-file)]
+    (spit log-file
+          (str (pr-str entry) "\n")
+          :append true)))
+
 (defn computer-unit-logging-enabled?
   []
   (boolean (sa/read-state :computer-unit-log-file)))
@@ -15,7 +22,8 @@
   "Clears per-unit discovery totals for the current computer turn."
   []
   (when (computer-unit-logging-enabled?)
-    (sa/write-state! :computer-unit-round-discoveries {})))
+    (sa/write-state! :computer-unit-round-discoveries {})
+    (sa/write-state! :computer-unit-round-conquests {})))
 
 (defn record-computer-unit-discovery!
   "Adds newly discovered cell count for the given computer unit id."
@@ -29,6 +37,18 @@
   [discovered-cells]
   (record-computer-unit-discovery! *computer-unit-id* discovered-cells))
 
+(defn record-computer-unit-conquest!
+  "Adds conquered city count for the given computer unit id."
+  [unit-id conquered-cities]
+  (when (and (computer-unit-logging-enabled?) unit-id (pos? conquered-cities))
+    (sa/update-state! :computer-unit-round-conquests
+                      #(update (or % {}) unit-id (fnil + 0) conquered-cities))))
+
+(defn record-active-computer-unit-conquest!
+  "Adds conquered cities for the computer unit currently being processed."
+  [conquered-cities]
+  (record-computer-unit-conquest! *computer-unit-id* conquered-cities))
+
 (defn with-computer-unit-context
   "Runs f while attributing discovery logging to the given computer unit id."
   [unit-id f]
@@ -39,7 +59,7 @@
 
 (defn computer-unit-snapshots
   "Build per-round computer unit snapshots with per-unit discovery totals."
-  [world round-number discovery-counts]
+  [world round-number discovery-counts conquest-counts]
   (vec
    (for [row (range (count world))
          col (range (count (first world)))
@@ -48,7 +68,8 @@
      {:round round-number
       :pos [row col]
       :unit unit
-      :discovered-cells (get discovery-counts (:computer-unit-id unit) 0)})))
+      :discovered-cells (get discovery-counts (:computer-unit-id unit) 0)
+      :conquered-cities (get conquest-counts (:computer-unit-id unit) 0)})))
 
 (defn log-computer-units!
   "Append current computer unit snapshots, including this round's discovered-cell counts."
@@ -56,25 +77,31 @@
   (when-let [log-file (sa/read-state :computer-unit-log-file)]
     (let [entries (computer-unit-snapshots (sa/current-world)
                                            (sa/read-state :round-number)
-                                           (or (sa/read-state :computer-unit-round-discoveries) {}))]
+                                           (or (sa/read-state :computer-unit-round-discoveries) {})
+                                           (or (sa/read-state :computer-unit-round-conquests) {}))]
       (when (seq entries)
         (spit log-file
               (apply str (map #(str (pr-str %) "\n") entries))
               :append true)))))
 
+(defn log-game-map!
+  "Append a full authoritative game-map snapshot to the unit log when enabled."
+  [round-number]
+  (append-computer-log-entry!
+   {:round round-number
+    :event :game-map-snapshot
+    :game-map (sa/current-world)}))
+
 (defn log-computer-unit-crash!
   "Append an explicit computer fighter crash entry to the unit log when enabled."
   [pos unit reason details]
-  (when-let [log-file (sa/read-state :computer-unit-log-file)]
-    (spit log-file
-          (str (pr-str (cond-> {:round (sa/read-state :round-number)
-                                :event :fighter-crash
-                                :pos pos
-                                :unit unit
-                                :reason reason}
-                         details (merge details)))
-               "\n")
-          :append true)))
+  (append-computer-log-entry!
+   (cond-> {:round (sa/read-state :round-number)
+            :event :fighter-crash
+            :pos pos
+            :unit unit
+            :reason reason}
+     details (merge details))))
 
 (defn log-player-movement!
   "Log a player unit movement for debugging.
@@ -101,6 +128,7 @@
   [event pos details]
   (let [entry (cond-> {:round (sa/read-state :round-number) :event event :pos pos}
                 details (merge details))]
+    (append-computer-log-entry! entry)
     (sa/update-state! :computer-event-log
                            (fn [log]
                              (let [new-log (conj (or log []) entry)]

@@ -194,6 +194,39 @@
       (should= [3 1] (first path))
       (should= [5 3] (last path))))
 
+  (it "prefers a slightly farther unload coast with more immediate unload slots"
+    (let [computer-map (build-test-map ["~~~#~~~"
+                                        "~t~~~~~"
+                                        "~~~~~~~"
+                                        "~~~~###"
+                                        "~~~~###"])
+          path (pathfinding-bfs/bfs-to-coast-target [1 1] computer-map 6)
+          end (last path)
+          unload-slots (fn [pos]
+                         (count (for [[dx dy] map-utils/neighbor-offsets
+                                      :let [n [(+ (first pos) dx) (+ (second pos) dy)]
+                                            cell (get-in computer-map n)]
+                                      :when (or (and (= :land (:type cell))
+                                                     (nil? (:country-id cell)))
+                                                (and (= :city (:type cell))
+                                                     (#{:free :player} (:city-status cell))))]
+                                  n)))]
+      (should-not-be-nil path)
+      (should= 1 (unload-slots [2 0]))
+      (should= 2 (unload-slots end))
+      (should= [3 3] end)))
+
+  (it "prefers the nearer unload coast when both candidates can unload at least two armies"
+    (let [computer-map (build-test-map ["~~~~~~~"
+                                        "~t~###~"
+                                        "~~~###~"
+                                        "~~~~~~~"
+                                        "~~~####"
+                                        "~~~####"])
+          path (pathfinding-bfs/bfs-to-coast-target [1 1] computer-map 6)]
+      (should-not-be-nil path)
+      (should= [2 1] (last path))))
+
   (it "does not route unload paths through occupied ships"
     (let [computer-map [[{:type :sea} {:type :sea}]
                         [{:type :sea

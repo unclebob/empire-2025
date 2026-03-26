@@ -115,8 +115,12 @@
                                                         :army-count 1
                                                         :unload-target-city [0 0]}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
-      (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))]
+      (transport/unload-armies [0 1] nil)
+      (let [transport-pos (first (for [x (range 3)
+                                       y (range 3)
+                                       :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                                   [x y]))
+            transport (:contents (get-in (test-utils/read-test-state :game-map) transport-pos))]
         (should= :sail-to-load (:transport-mission transport))
         (should-be-nil (:unload-target-city transport)))))
 

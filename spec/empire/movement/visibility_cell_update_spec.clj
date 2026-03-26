@@ -80,6 +80,46 @@
       (update-cell-visibility [1 1] :computer unit))
     (should= 5 (get-in (test-utils/read-test-state :game-map) [0 0 :country-id])))
 
+  (it "stamps newly exposed unclaimed land from adjacent claimed computer territory"
+    (set-test-world! (build-test-map ["X##"
+                                      "#f#"
+                                      "###"
+                                      "###"]))
+    (test-utils/update-test-world! assoc-in [0 0 :country-id] 3)
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
+    (update-cell-visibility [1 1] :computer {:type :fighter :owner :computer})
+    (should= 3 (get-in (test-utils/read-test-state :game-map) [0 1 :country-id]))
+    (should= 3 (get-in (test-utils/read-test-state :game-map) [1 0 :country-id]))
+    (should= 3 (get-in (test-utils/read-test-state :game-map) [2 2 :country-id]))
+    (should= 3 (get-in (test-utils/read-test-state :computer-map) [0 1 :country-id]))
+    (should= 3 (get-in (test-utils/read-test-state :computer-map) [1 0 :country-id]))
+    (should= 3 (get-in (test-utils/read-test-state :computer-map) [2 2 :country-id])))
+
+  (it "uses the lower adjacent claimed country-id when multiple claims border the exposure"
+    (set-test-world! (build-test-map ["X#X"
+                                      "#f#"
+                                      "###"]))
+    (test-utils/update-test-world! assoc-in [0 0 :country-id] 5)
+    (test-utils/update-test-world! assoc-in [2 0 :country-id] 2)
+    (set-test-computer-map! (make-initial-test-map 3 3 nil))
+    (update-cell-visibility [1 1] :computer {:type :fighter :owner :computer})
+    (should= 2 (get-in (test-utils/read-test-state :game-map) [0 1 :country-id]))
+    (should= 2 (get-in (test-utils/read-test-state :game-map) [1 0 :country-id]))
+    (should= 2 (get-in (test-utils/read-test-state :game-map) [2 2 :country-id])))
+
+  (it "claims previously visible connected unclaimed land when new exposure touches claimed territory"
+    (set-test-world! (build-test-map ["X#f"
+                                      "###"
+                                      "###"]))
+    (test-utils/update-test-world! assoc-in [0 0 :country-id] 4)
+    (set-test-computer-map! (-> (make-initial-test-map 3 3 nil)
+                                (assoc-in [0 0] {:type :land :country-id 4})
+                                (assoc-in [0 1] {:type :land})))
+    (update-cell-visibility [0 2] :computer {:type :fighter :owner :computer})
+    (should= 4 (get-in (test-utils/read-test-state :game-map) [0 1 :country-id]))
+    (should= 4 (get-in (test-utils/read-test-state :game-map) [1 1 :country-id]))
+    (should= 4 (get-in (test-utils/read-test-state :game-map) [1 2 :country-id])))
+
   (it "reveals two rectangular rings for satellites"
     (set-test-world! (build-test-map ["#####"
                                              "#####"

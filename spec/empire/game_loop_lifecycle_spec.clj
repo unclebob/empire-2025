@@ -126,15 +126,18 @@
     (let [entries (debug-logging/computer-unit-snapshots
                    (test-utils/read-test-world)
                    (test-utils/read-test-state :round-number)
+                   {}
                    {})]
       (should= [{:round 7
                  :pos [0 0]
                  :unit {:type :army :owner :computer :hits 1}
-                 :discovered-cells 0}
+                 :discovered-cells 0
+                 :conquered-cities 0}
                 {:round 7
                  :pos [1 0]
                  :unit {:type :destroyer :owner :computer :hits 3}
-                 :discovered-cells 0}]
+                 :discovered-cells 0
+                 :conquered-cities 0}]
                entries)))
 
   (it "appends all computer units when a log file is configured"

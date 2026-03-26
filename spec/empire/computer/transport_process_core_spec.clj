@@ -139,11 +139,18 @@
                                                         :army-count 2}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
-      ;; Should have unloaded an army onto land
-      (should= :army (:type (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
-      ;; Transport should have fewer armies
-      (should= 1 (:army-count (:contents (get-in (test-utils/read-test-state :game-map) [0 1])))))
+      (transport/unload-armies [0 1] nil)
+      (let [army-pos (first (for [x (range 3)
+                                  y (range 3)
+                                  :when (= :army (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                              [x y]))
+            transport-pos (first (for [x (range 3)
+                                       y (range 3)
+                                       :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                                   [x y]))]
+        (should-not-be-nil army-pos)
+        (should-not-be-nil transport-pos)
+        (should= 1 (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents :army-count)))))
 
     (it "unloading crawl moves toward unloadable coast and unloads as soon as possible"
       ;; ########   land at row 0 (cols 0-1 excluded, cols 2+ unloadable)
@@ -174,8 +181,12 @@
                                                         :transport-mission :unloading
                                                         :army-count 1}}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
-      (should= :sail-to-load (:transport-mission (:contents (get-in (test-utils/read-test-state :game-map) [0 1]))))))
+      (transport/unload-armies [0 1] nil)
+      (let [transport-pos (first (for [x (range 3)
+                                       y (range 3)
+                                       :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                                   [x y]))]
+        (should= :sail-to-load (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents :transport-mission))))))
 
   (context "sail-path sailing transition"
     (it "full transport enters sail-to-unload even when no unclaimed land target is visible"

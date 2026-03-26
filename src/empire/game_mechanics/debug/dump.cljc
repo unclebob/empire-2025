@@ -200,6 +200,18 @@
                      (str "  " (format-cell coord cell))))
          "\n")))
 
+(defn- full-map-data
+  []
+  (let [game-map (sa/current-world)
+        coords (for [row (range (count game-map))
+                     col (range (count (first game-map)))]
+                 [row col])]
+    (into {}
+          (for [coord coords
+                :let [cell (get-in game-map coord)]
+                :when cell]
+            [coord cell]))))
+
 (defn- format-path
   [path]
   (if (seq path)
@@ -344,7 +356,9 @@
         actions (take-last 50 (sa/read-state :action-log))
         header (str "=== Empire Debug Dump ===\n"
                     "Round: " round "\n"
-                    "Selection: [" start-row "," start-col "] to [" end-row "," end-col "]\n"
+                    "Selected Rectangle: [" start-row "," start-col "] to [" end-row "," end-col "]\n"
+                    "Selected Rectangle Size: "
+                    (inc (- end-row start-row)) "x" (inc (- end-col start-col)) "\n"
                     "Timestamp: " (System/currentTimeMillis) "\n\n")
         global-state (str "=== Global State ===\n"
                           "round-number: " round "\n"
@@ -375,12 +389,15 @@
         movement-section (format-movement-history-section)
         kamikazee-fighter-section (format-kamikazee-fighter-section (:game-map region-data))
         kamikazee-airport-section (format-kamikazee-airport-section (:game-map region-data))
-        maps-section (str "=== Map Data ===\n"
-                          (format-map-section "game-map" (:game-map region-data))
+        maps-section (str "=== Selected Region Map Data ===\n"
+                          (format-map-section "selected-region game-map" (:game-map region-data))
                           "\n"
-                          (format-map-section "player-map" (:player-map region-data))
+                          (format-map-section "selected-region player-map" (:player-map region-data))
                           "\n"
-                          (format-map-section "computer-map" (:computer-map region-data)))]
+                          (format-map-section "selected-region computer-map" (:computer-map region-data))
+                          "\n"
+                          "=== Full Game Map ===\n"
+                          (format-map-section "full game-map" (full-map-data)))]
     (str header global-state actions-section production-section invasion-section coastline-section reservation-section computer-event-section movement-section kamikazee-fighter-section kamikazee-airport-section maps-section)))
 
 (defn- screen->cell

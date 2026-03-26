@@ -127,6 +127,12 @@
         (should= [{:type :round :value 5}]
                  (:givens result))))
 
+    (it "parses round-number alias"
+      (let [lines ["GIVEN round-number is 13."]
+            result (given/parse-given lines {})]
+        (should= [{:type :round :value 13}]
+                 (:givens result))))
+
     (it "parses destination"
       (let [lines ["GIVEN destination [3 7]."]
             result (given/parse-given lines {})]

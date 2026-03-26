@@ -110,6 +110,25 @@
   (some reachable-land
         (adjacent-cells pos computer-map unclaimed-land?)))
 
+(defn- connected-unclaimed-land
+  [computer-map starts]
+  (loop [queue (reduce conj clojure.lang.PersistentQueue/EMPTY starts)
+         visited (set starts)]
+    (if (empty? queue)
+      visited
+      (let [current (peek queue)
+            neighbors (remove visited
+                              (adjacent-cells current computer-map unclaimed-land?))]
+        (recur (reduce conj (pop queue) neighbors)
+               (into visited neighbors))))))
+
+(defn- unload-capacity-score
+  [pos computer-map]
+  (let [adjacent-land (vec (adjacent-cells pos computer-map unclaimed-land?))
+        connected-land (connected-unclaimed-land computer-map adjacent-land)]
+    {:immediate-slots (count adjacent-land)
+     :connected-land-size (count connected-land)}))
+
 (defn- outside-radius?
   [start pos radius]
   (> (max (Math/abs (long (- (first pos) (first start))))
@@ -170,17 +189,31 @@
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [start 0])
              visited #{start}
              came-from {}
-             best-target nil]
-        (if (or (empty? queue) best-target)
-          (when best-target
-            (vec (rest (map-utils/reconstruct-path came-from start best-target))))
+             candidates []
+             first-hit-depth nil]
+        (if (or (empty? queue)
+                (bfs-past-lookahead? queue first-hit-depth))
+          (let [preferred-candidates (or (seq (filter #(>= (:immediate-slots %) 2) candidates))
+                                         candidates)]
+            (when-let [best-target (first
+                                    (sort-by (juxt :depth
+                                                   (comp - :immediate-slots)
+                                                   (comp - :connected-land-size)
+                                                   :pos)
+                                             preferred-candidates))]
+            (vec (rest (map-utils/reconstruct-path came-from start (:pos best-target)))))
+            )
           (let [[current depth] (peek queue)
                 neighbors (core/bfs-sea-neighbors current visited passable-sea?)
-                new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+                new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)
+                hit? (target? current)
+                score (when hit? (unload-capacity-score current computer-map))]
             (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
                    (into visited neighbors)
                    new-came-from
-                   (core/update-first-match (target? current) best-target current))))))))
+                   (cond-> candidates
+                     hit? (conj (assoc score :pos current :depth depth)))
+                   (or first-hit-depth (when hit? depth)))))))))
 
 (def ^:private preferred-load-target-distance 4)
 

@@ -41,6 +41,22 @@
       coastal
       (target-land-candidates-within-radius* state target))))
 
+(defn- unloadable-target-land?
+  [computer-map connected-land pos]
+  (let [cell (get-in computer-map pos)]
+    (and (contains? connected-land pos)
+         cell
+         (nil? (:contents cell))
+         (or (and (= :land (:type cell))
+                  (nil? (:country-id cell)))
+             (and (= :city (:type cell))
+                  (#{:free :player} (:city-status cell)))))))
+
+(defn- immediate-unload-slot-count
+  [computer-map connected-land sea-pos]
+  (count (filter #(unloadable-target-land? computer-map connected-land %)
+                 (world-query/get-neighbors sea-pos))))
+
 (defn- flood-sea-reachable
   [computer-map starts]
   (loop [queue (into clojure.lang.PersistentQueue/EMPTY starts)
@@ -111,7 +127,7 @@
 
       :else nil)))
 
-(defn- best-invasion-target-and-path
+(defn best-invasion-target-and-path
   [ctx pos target]
   (let [state ((:load-major-invasion-state ctx))
         computer-map ((:read-runtime-state ctx) :computer-map)
@@ -127,11 +143,16 @@
                           (take max-invasion-coastal-candidates)))
         scored (keep (fn [candidate]
                        (when-let [path (computer-movement/bfs-to-land-ho-target pos candidate computer-map)]
-                         {:target candidate
-                          :path (vec path)
-                          :score [(grid/chebyshev-distance candidate target)
-                                  (count path)
-                                  candidate]}))
+                         (let [path' (vec path)
+                               connected-land (connected-target-land computer-map state candidate)
+                               sea-pos (if (seq path') (last path') pos)
+                               unload-slots (immediate-unload-slot-count computer-map connected-land sea-pos)]
+                           {:target candidate
+                            :path path'
+                            :score [(- unload-slots)
+                                    (grid/chebyshev-distance candidate target)
+                                    (count path')
+                                    candidate]})))
                      candidates)]
     (when (seq scored)
       (let [{:keys [target path]} (first (sort-by :score scored))]

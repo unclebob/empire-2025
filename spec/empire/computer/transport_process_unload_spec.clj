@@ -81,7 +81,7 @@
     ;; heading-based sailing tests removed — replaced by sail-path sailing
 
 
-    (it "sailing transport with sail-path unloads at unexplored coast"
+    (it "sailing transport with sail-path enters unloading at unexplored coast"
       ;; Transport at [2 2] with sail-path toward col 3.
       ;; Land at col 4 is unexplored. Transport moves to [3 2] and
       ;; opportunistically unloads an army.
@@ -107,16 +107,17 @@
                            :transport-mission :sailing :army-count 6
                            :sail-path [[3 2]]}))
         (transport/process-transport [2 2])
-        ;; Transport should move to [3 2] and unload to 3 adjacent land cells
+        ;; Transport should move to [3 2] and enter unloading.
         (let [transport (:contents (get-in (test-utils/read-test-state :game-map) [3 2]))]
           (should= :transport (:type transport))
-          (should= 3 (:army-count transport)))
-        ;; 3 armies on adjacent land at [4,1],[4,2],[4,3]
+          (should= 6 (:army-count transport))
+          (should= :unloading (:transport-mission transport)))
+        ;; No armies are unloaded until the unloading state runs.
         (let [armies-on-land (count (for [r (range 5)
                                           :let [cell (get-in (test-utils/read-test-state :game-map) [4 r])]
                                           :when (= :army (:type (:contents cell)))]
                                      true))]
-          (should= 3 armies-on-land))))
+          (should= 0 armies-on-land))))
 
     (it "transport does NOT unload on same continent"
       ;; Integration test: full transport near origin continent, only city on origin continent
@@ -154,20 +155,25 @@
       ;; No army should appear on the claimed land
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
-    (it "sailing transport adjacent to empty land unloads opportunistically"
-      ;; Transport sailing with armies, adjacent to empty land.
-      ;; Opportunistic unload fires before sailing logic.
+    (it "sail-to-unload transport adjacent to empty land enters unloading instead of unloading immediately"
+      ;; Transport heading to unload, adjacent to empty land.
+      ;; It now transitions into :unloading and waits for that state to drop armies.
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing :army-count 2
+                                                        :transport-mission :sail-to-unload :army-count 2
                                                         :sail-path [[0 2]]}}
                                 {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
       (transport/process-transport [0 1])
-      ;; Army should be unloaded onto the empty land
-      (should= :army (get-in (test-utils/read-test-state :game-map) [0 0 :contents :type]))
-      ;; Transport should have fewer armies
-      (should= 1 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count]))))
+      (let [transport-pos (first (for [x (range 3)
+                                       y (range 3)
+                                       :when (= :transport (get-in (test-utils/read-test-state :game-map) [x y :contents :type]))]
+                                   [x y]))]
+        (should-not-be-nil transport-pos)
+        (should= :unloading (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents :transport-mission)))
+        (should= 2 (get-in (test-utils/read-test-state :game-map) (conj transport-pos :contents :army-count))))
+      (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
+      ))
 
   (context "sail trigger boundaries"
     (it "transport with 4 armies and no plan enters hold-sail-to-load"
@@ -233,17 +239,16 @@
       (should= 1 (:hits (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
       (should= 1 (:hits (:contents (get-in (test-utils/read-test-state :game-map) [0 2])))))
 
-    (it "opportunistic unload produces army with hits 1 and unload-event-id"
-      ;; #t#   transport at [1,0] sailing with unload-event-id 42
+    (it "unload-armies preserves unload-event-id on created armies"
+      ;; #t#   transport at [1,0] unloading with unload-event-id 42
       (set-test-world! [[{:type :land}
                                 {:type :sea :contents {:type :transport :owner :computer
-                                                        :transport-mission :sailing
+                                                        :transport-mission :unloading
                                                         :army-count 2
-                                                        :unload-event-id 42
-                                                        :sail-path [[0 2]]}}
-                                {:type :sea}]])
+                                                        :unload-event-id 42}}
+                                {:type :land}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (transport/process-transport [0 1])
+      (transport/unload-armies [0 1] nil)
       (should= 1 (:hits (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
       (should= 42 (:unload-event-id (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))))
 

@@ -299,6 +299,7 @@
       ;; Directly test move-unit-to stamps land
       (set-test-world! [[{:type :land :contents {:type :army :owner :computer :hits 1 :country-id 5}}
                                 {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
       (action-resolution/move-unit-to [0 0] [0 1])
       (should= 5 (:country-id (get-in (test-utils/read-test-state :game-map) [0 1])))))
 

@@ -47,6 +47,8 @@
     (let [result (debug-dump/format-dump [0 0] [1 1])]
       (should-contain "Empire Debug Dump" result)
       (should-contain "Round: 5" result)
+      (should-contain "Selected Rectangle: [0,0] to [1,1]" result)
+      (should-contain "Selected Rectangle Size: 2x2" result)
       (should-contain "Global State" result)
       (should-contain "waiting-for-input: true" result)))
 
@@ -55,10 +57,12 @@
     (set-test-player-map! (build-test-map ["##" "##"]))
     (set-test-computer-map! (build-test-map ["##" "##"]))
     (let [result (debug-dump/format-dump [0 0] [1 1])]
-      (should-contain "Map Data" result)
-      (should-contain "game-map" result)
-      (should-contain "player-map" result)
-      (should-contain "computer-map" result)
+      (should-contain "Selected Region Map Data" result)
+      (should-contain "selected-region game-map" result)
+      (should-contain "selected-region player-map" result)
+      (should-contain "selected-region computer-map" result)
+      (should-contain "Full Game Map" result)
+      (should-contain "full game-map" result)
       (should-contain "Production State" result)))
 
   (it "shows empty actions and production sections when no state is present"

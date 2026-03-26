@@ -218,10 +218,7 @@
                                   :manifest (:load-manifest transport)
                                   :reservation (when-let [transport-id (:transport-id transport)]
                                                  (get (sa/read-state :transport-load-reservations) transport-id))})
-      (if (and (targeting/should-try-opportunistic-unload? army-count current-mission)
-               (unloading/try-opportunistic-unload pos))
-        true
-        (run-transport-mission pos current-mission army-count)))))
+      (run-transport-mission pos current-mission army-count))))
 
 (defn- maybe-handle-lake-transport
   [pos transport]

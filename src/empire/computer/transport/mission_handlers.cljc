@@ -5,7 +5,10 @@
             [empire.computer.transport.mission-handler-decisions :as handler-decisions]
             [empire.computer.transport.decisions :as decisions]
             [empire.computer.transport.core :as tc]
+            [empire.computer.transport.load-targeting :as load-targeting]
             [empire.computer.transport.loading :as loading]
+            [empire.computer.transport.reservations :as reservations]
+            [empire.computer.transport.sailing-support :as sailing-support]
             [empire.computer.transport.unloading :as unloading]
             [empire.computer.threat-response-impl :as threat-response]
             [empire.game-mechanics.visibility :as visibility]
@@ -244,30 +247,72 @@
 (defn- process-unloading-with-armies
   [{:keys [current-world
            read-computer-map
+           transition-to-loading
            process-unloading-crawl
            try-opportunistic-unload]} pos transport]
-  (let [read-map (or read-computer-map current-world)]
-    (loop [current-pos pos
-           moves-left (transport-speed)
-           retried? false
-           moved-any? false]
-      (if (zero? moves-left)
-        (when moved-any? current-pos)
-        (if-let [next-pos (process-unloading-crawl current-pos)]
-          (let [still-unloading? (= :unloading
-                                    (:transport-mission (get-in (read-map) (conj next-pos :contents))))
-                unloaded-now? (and still-unloading?
-                                   (boolean (try-opportunistic-unload next-pos)))
-                continue? (and still-unloading? (not unloaded-now?))]
-            (if continue?
-              (recur next-pos (dec moves-left) false true)
-              next-pos))
-          (if retried?
+  (let [read-map (or read-computer-map current-world)
+        hold-since-round (:unloading-hold-since-round transport)
+        current-round (or (sa/read-state :round-number) 0)
+        hold-active? (and hold-since-round
+                          (< (- current-round hold-since-round) 4))
+        unloaded-last-round? (= (:last-unload-round transport)
+                                (dec current-round))
+        transport-id (:transport-id transport)
+        computer-map (read-map)
+        load-target-cell (load-targeting/choose-load-target-cell
+                          pos
+                          computer-map
+                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+                           :excluded-country-ids (disj (conj (set (keys (:unloaded-countries transport)))
+                                                             (:pickup-country-id transport))
+                                                       nil)
+                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
+        load-path (if load-target-cell
+                    (or (load-targeting/path-to-load-target pos computer-map load-target-cell)
+                        [])
+                    nil)
+        unload-path (or (sailing-support/compute-sail-to-unload-path pos)
+                        [])
+        prefer-pickup? (and transition-to-loading
+                            (pos? (:army-count transport 0))
+                            (< (:army-count transport 0) 6)
+                            (not unloaded-last-round?)
+                            load-target-cell
+                            (or (seq load-path)
+                                (load-targeting/target-reached? pos load-target-cell))
+                            (or (empty? unload-path)
+                                (<= (count load-path) (count unload-path))))]
+    (if hold-active?
+      (do
+        (try-opportunistic-unload pos)
+        pos)
+      (if prefer-pickup?
+        (transition-to-loading pos)
+        (do
+        (when hold-since-round
+          (sa/update-world! update-in (conj pos :contents) dissoc :unloading-hold-since-round)
+          (visibility/sync-ai-unit-to-computer-map! pos))
+        (loop [current-pos pos
+               moves-left (transport-speed)
+               retried? false
+               moved-any? false]
+          (if (zero? moves-left)
             (when moved-any? current-pos)
-            (do
-              (sa/update-world! assoc-in (conj current-pos :contents :crawl-history) [])
-              (visibility/sync-ai-unit-to-computer-map! current-pos)
-              (recur current-pos moves-left true moved-any?))))))))
+            (if-let [next-pos (process-unloading-crawl current-pos)]
+              (let [still-unloading? (= :unloading
+                                        (:transport-mission (get-in (read-map) (conj next-pos :contents))))
+                    unloaded-now? (and still-unloading?
+                                       (boolean (try-opportunistic-unload next-pos)))
+                    continue? (and still-unloading? (not unloaded-now?))]
+                (if continue?
+                  (recur next-pos (dec moves-left) false true)
+                  next-pos))
+              (if retried?
+                (when moved-any? current-pos)
+                (do
+                  (sa/update-world! assoc-in (conj current-pos :contents :crawl-history) [])
+                  (visibility/sync-ai-unit-to-computer-map! current-pos)
+                  (recur current-pos moves-left true moved-any?)))))))))))
 
 (defn process-unloading-mission
   [{:keys [current-world

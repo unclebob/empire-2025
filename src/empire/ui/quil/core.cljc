@@ -4,6 +4,7 @@
             [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
             [empire.game.initialization :as init]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.game-mechanics.debug.dump :as debug-dump]
             [empire.ui.quil.input :as quil-input]
             [empire.ui.quil.rendering.map :as render-map]
@@ -241,6 +242,7 @@
   [{:keys [headless-rounds]}]
   (install-seeded-random!)
   (initialize-map!)
+  (debug-logging/log-game-map! 0)
   (invasion-probe/clear-log!)
   (sa/write-state! :headless-mode? true)
   (sa/write-state! :headless-stop-on-major-invasion? false)

@@ -1,0 +1,21 @@
+; Computer visibility-driven territory claiming.
+
+;===============================================================
+; Exposed unclaimed land inherits the adjacent claimed cid.
+;===============================================================
+GIVEN game map
+  X##
+  #f#
+  ###
+GIVEN computer map
+  ...
+  ...
+  ...
+GIVEN X belongs to country 3.
+
+WHEN cell visibility updates for f.
+
+THEN territory map
+  333
+  333
+  333

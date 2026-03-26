@@ -1,0 +1,31 @@
+; Transport load targeting uses nearby coastal armies across neighboring tiles.
+
+;===============================================================
+; Nearby coastal armies across tiles qualify the nearest load target.
+;===============================================================
+GIVEN game map
+  ##~~~#~~~~
+  a~~~~a~~~~
+  a~t~~a~~~~
+  ~~~~~a~~~~
+  ~~~~~#~~~~
+GIVEN computer map
+  ##~~~#~~~~
+  a~~~~a~~~~
+  a~t~~a~~~~
+  ~~~~~a~~~~
+  ~~~~~#~~~~
+GIVEN cell [0 0] has country-id 1.
+GIVEN cell [1 0] has country-id 1.
+GIVEN cell [5 0] has country-id 1.
+GIVEN cell [5 4] has country-id 1.
+GIVEN a1 belongs to country 1.
+GIVEN a2 belongs to country 1.
+GIVEN a3 belongs to country 1.
+GIVEN a4 belongs to country 1.
+GIVEN a5 belongs to country 1.
+
+WHEN a new round starts.
+
+THEN t has transport-mission sail-to-load.
+THEN t has load-target-cell [0 0].

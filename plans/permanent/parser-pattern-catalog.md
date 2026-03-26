@@ -34,7 +34,7 @@ Matched after keyword stripping. Context tracks `:units-with-mode` set.
 | `production at <C> is <item> with <N> rounds remaining` | `{:type :production :city C :item :item :remaining-rounds N}` |
 | `production at <C> is <item>` | `{:type :production :city C :item :item}` |
 | `no production` | `{:type :no-production}` |
-| `round <N>` | `{:type :round :value N}` |
+| `round <N>` / `round-number is <N>` | `{:type :round :value N}` |
 | `destination [X Y]` | `{:type :destination :coords [X Y]}` |
 | `cell [X Y] has <k> <v> [and <k2> <v2>]` | `{:type :cell-props :coords [X Y] :props {k v ...}}` |
 | `player-items are <a>, <b>, ...` / `player units are <a>, <b>` | `{:type :player-items :items [a b ...]}` |

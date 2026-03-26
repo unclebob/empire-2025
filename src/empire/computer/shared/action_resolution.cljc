@@ -1,5 +1,7 @@
 (ns empire.computer.shared.action-resolution
-  (:require [empire.computer.shared.oscillation :as oscillation]
+  (:require [empire.computer.land-objectives :as land-objectives]
+            [empire.computer.shared.oscillation :as oscillation]
+            [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.debug.logging :as debug]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.city-production :as city-production]
@@ -41,7 +43,32 @@
              (= :computer (:owner unit))
              (:country-id unit)
              (#{:land :city} (:type (get-in (sa/read-state :computer-map) pos))))
-    (sa/update-world! assoc-in (conj pos :country-id) (:country-id unit))))
+    (let [computer-map (sa/read-state :computer-map)
+          cell (get-in computer-map pos)
+          country-id (:country-id unit)]
+      (if (and (= :land (:type cell))
+               (nil? (:country-id cell)))
+        (loop [frontier #{pos}
+               visited #{}
+               to-claim #{}]
+          (if (empty? frontier)
+            (doseq [claim-pos to-claim]
+              (sa/update-world! assoc-in (conj claim-pos :country-id) country-id))
+            (let [current (first frontier)
+                  remaining (disj frontier current)]
+              (if (visited current)
+                (recur remaining visited to-claim)
+                (let [current-cell (get-in computer-map current)
+                      claimable? (and (= :land (:type current-cell))
+                                      (nil? (:country-id current-cell)))]
+                  (if claimable?
+                    (recur (into remaining (remove visited (world-query/get-neighbors current)))
+                           (conj visited current)
+                           (conj to-claim current))
+                    (recur remaining
+                           (conj visited current)
+                           to-claim)))))))
+        (sa/update-world! assoc-in (conj pos :country-id) country-id)))))
 
 (defn move-unit-to
   [from-pos to-pos]
@@ -135,7 +162,13 @@
         city-cell (get-in (sa/current-world) city-pos)]
     (if (< (rand) 0.5)
       (do
-        (debug/log-computer-event! :army-conquest-success army-pos {:city city-pos})
+        (debug/record-active-computer-unit-conquest! 1)
+        (debug/log-computer-event! :army-conquest-success
+                                   army-pos
+                                   {:city city-pos
+                                    :continent-id (land-objectives/continent-id-for-pos city-pos)
+                                    :computer-unit-id (:computer-unit-id army)
+                                    :country-id (:country-id army)})
         (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
         (sa/update-world! assoc-in city-pos (assoc city-cell :city-status :computer))
         (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)

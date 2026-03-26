@@ -28,6 +28,32 @@
           (should= #{[0 0] [0 1]}
                    (set (mi/connected-coastal-candidates computer-map state target)))))))
 
+  (context "landing-zone scoring"
+    (it "prefers the candidate with more immediate unload slots"
+      (let [computer-map [[{:type :sea} {:type :land} {:type :sea} {:type :sea} {:type :land}]
+                          [{:type :sea} {:type :land} {:type :sea} {:type :sea} {:type :sea}]
+                          [{:type :sea} {:type :sea} {:type :sea} {:type :sea} {:type :sea}]]
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 4]}
+                         :target-land-set #{[0 1] [1 1] [0 4]}})
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map computer-map
+                                         :round-number 10
+                                         nil))
+                 :current-world (fn [] computer-map)}]
+        (with-redefs [invasion-state/flood-fill-land (fn [_ _] #{[0 1] [1 1] [0 4]})
+                      pathfinding-bfs/bfs-to-land-ho-target (fn [_ candidate _]
+                                                              (case candidate
+                                                                [0 1] [[0 0]]
+                                                                [0 4] [[0 3]]
+                                                                nil))]
+          (let [result (mi/best-invasion-target-and-path ctx [2 0] [0 4])]
+            (should (contains? #{{:target [0 1] :path [[0 0]]}
+                                 {:target [0 4] :path [[0 3]]}}
+                               result)))))))
+
   (context "assignment branches"
     (it "marks fighter and ship types for major invasion"
       (let [world (atom [[{:type :land

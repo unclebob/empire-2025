@@ -1,0 +1,33 @@
+; Transport should keep unloading for at least one dry round before reloading.
+
+;===============================================================
+; Partial cargo keeps unloading right after a successful unload round.
+;===============================================================
+GIVEN game map
+  t~~~~~
+  ~~~~~~
+  ~~~~~~
+  aa~~~~
+  aa~~~~
+  a~~~~~
+GIVEN computer map
+  t~~~~~
+  ~~~~~~
+  ~~~~~~
+  aa~~~~
+  aa~~~~
+  a~~~~~
+GIVEN a belongs to country 1.
+GIVEN t belongs to country 1.
+GIVEN t has 3 armies.
+GIVEN t has transport-id 7.
+GIVEN t has transport-mission sail-to-unload.
+GIVEN t has last-unload-round 19.
+GIVEN t has sail-path [[1 0] [2 0] [3 0]].
+GIVEN round 20.
+
+WHEN computer transport t is processed.
+
+THEN t is at [2 0].
+THEN t has transport-mission sail-to-unload.
+THEN t has 3 armies.

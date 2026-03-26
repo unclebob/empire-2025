@@ -1,5 +1,6 @@
 (ns empire.computer.attempt-conquest-spec
   (:require [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-player-map! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -9,14 +10,25 @@
 
   (it "conquers city on success (rand < 0.5)"
     (set-test-world! (build-test-map ["a+"]))
+    (update-test-world! assoc-in [0 0 :contents :computer-unit-id] 41)
     (set-test-computer-map! (build-test-map ["a+"]))
+    (test-utils/set-test-computer-map! (test-utils/read-test-state :game-map))
     (test-utils/set-test-state! :production {})
+    (test-utils/set-test-state! :computer-unit-log-file "test.log")
     (with-redefs [rand (constantly 0.1)]
-      (let [result (action-resolution/attempt-conquest-computer [0 0] [1 0])]
+      (let [result (debug-logging/with-computer-unit-context
+                     41
+                     #(action-resolution/attempt-conquest-computer [0 0] [1 0]))]
         (should-be-nil result)
         (should= :computer (:city-status (get-in (test-utils/read-test-state :game-map) [1 0])))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
-        (should= :army (:item (get (test-utils/read-test-state :production) [1 0]))))))
+        (should= :army (:item (get (test-utils/read-test-state :production) [1 0])))
+        (should= {41 1} (test-utils/read-test-state :computer-unit-round-conquests))
+        (let [entry (first (test-utils/read-test-state :computer-event-log))]
+          (should= :army-conquest-success (:event entry))
+          (should= [1 0] (:city entry))
+          (should= [0 0] (:continent-id entry))
+          (should= 41 (:computer-unit-id entry))))))
 
   (it "army dies on failure (rand >= 0.5)"
     (set-test-world! (build-test-map ["a+"]))

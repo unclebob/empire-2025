@@ -80,6 +80,8 @@
         fighters (:fighter-count cell 0)
         shipyard (uc/get-shipyard-ships cell)]
     (str "city:" (name status)
+         (when-let [country-id (:country-id cell)]
+           (str " cid:" country-id))
          (when (and (= status :player) production)
            (str " producing:" (if (= production :none) "none" (name (:item production)))))
          (when (pos? fighters) (str " fighters:" fighters))
@@ -87,6 +89,12 @@
            (if (= (:marching-orders cell) :lookaround) " lookaround" " march"))
          (when (:flight-path cell) " flight")
          (format-shipyard shipyard))))
+
+(defn- format-terrain-status
+  [cell]
+  (when (#{:land :sea} (:type cell))
+    (str (name (:type cell))
+         " cid:" (or (:country-id cell) "nil"))))
 
 (defn format-waypoint-status
   "Formats status string for a waypoint."
@@ -104,7 +112,7 @@
                       (:contents cell) (format-unit-status (:contents cell))
                       (= (:type cell) :city) (format-city-status cell production)
                       (:waypoint cell) (format-waypoint-status (:waypoint cell))
-                      :else nil)]
+                      :else (format-terrain-status cell))]
     (str "[" (first coords) "," (second coords) "] " status)))
 
 (declare compact-detail)
@@ -150,11 +158,20 @@
      :detail (when (seq detail-tokens)
                (compact-detail (clojure.string/join " " detail-tokens)))}))
 
+(defn- split-terrain-hover
+  [coords-part rest]
+  (let [[terrain & detail-tokens] (clojure.string/split rest #" ")]
+    {:summary (str coords-part " " (clojure.string/capitalize terrain))
+     :detail (when (seq detail-tokens)
+               (compact-detail (clojure.string/join " " detail-tokens)))}))
+
 (defn- hover-kind
   [rest]
   (cond
     (clojure.string/starts-with? rest "city:") :city
     (clojure.string/starts-with? rest "waypoint") :waypoint
+    (or (clojure.string/starts-with? rest "land ")
+        (clojure.string/starts-with? rest "sea ")) :terrain
     :else :unit))
 
 (defn split-hover-status
@@ -168,6 +185,7 @@
         (case (hover-kind rest)
           :city (split-city-hover coords-part rest)
           :waypoint (split-waypoint-hover coords-part rest)
+          :terrain (split-terrain-hover coords-part rest)
           (split-unit-hover coords-part rest))))))
 
 (defn format-production-status

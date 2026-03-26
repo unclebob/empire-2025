@@ -85,6 +85,17 @@
         (swap! continent-cache merge cache-entries))
       continent)))
 
+(defn continent-id
+  [continent]
+  (when (seq continent)
+    (first (sort continent))))
+
+(defn continent-id-for-pos
+  [start-pos]
+  (some-> start-pos
+          flood-fill-continent
+          continent-id))
+
 (def ^:private city-status->key
   {:computer :computer-cities
    :player :player-cities
