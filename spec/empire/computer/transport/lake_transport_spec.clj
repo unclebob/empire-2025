@@ -1,5 +1,6 @@
 (ns empire.computer.transport.lake-transport-spec
   (:require [empire.computer.transport.mission-handlers :as handlers]
+            [empire.computer.transport.mission-handlers.invasion :as invasion]
             [empire.computer.ship.lake-naval :as lake-naval]
             [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
@@ -67,9 +68,9 @@
     (let [world [[{:type :sea :contents {:type :army :owner :computer}}
                   {:type :sea}]]
           get-neighbors (fn [_] [[0 0]])]
-      (should (@#'handlers/loadable-army-neighbor? world get-neighbors [1 0]))))
+      (should (@#'invasion/loadable-army-neighbor? world get-neighbors [1 0]))))
 
   (it "returns nil when no army neighbors"
     (let [world [[{:type :sea} {:type :sea}]]
           get-neighbors (fn [_] [[0 0]])]
-      (should-be-nil (@#'handlers/loadable-army-neighbor? world get-neighbors [1 0])))))
+      (should-be-nil (@#'invasion/loadable-army-neighbor? world get-neighbors [1 0])))))

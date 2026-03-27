@@ -1,0 +1,103 @@
+(ns empire.computer.transport.mission-handlers.lake
+  (:require [empire.computer.transport.core :as tc]
+            [empire.computer.transport.mission-handler-decisions :as handler-decisions]))
+
+(defn- noop-sync! [_])
+
+(defn park-lake-transport-if-empty
+  [{:keys [current-world
+           read-computer-map
+           update-game-map!
+           sync-transport!
+           move-unit-to
+           retreat-step-from-shore
+           deep-water?]}
+   pos lake-cells-set]
+  (let [read-map (or read-computer-map current-world)
+        sync-transport! (or sync-transport! noop-sync!)
+        unit (get-in (read-map) (conj pos :contents))]
+    (if (zero? (:army-count unit 0))
+      (if-let [step (retreat-step-from-shore (read-map) lake-cells-set pos)]
+        (if (move-unit-to pos step)
+          (when (deep-water? (read-map) step)
+            (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+              (update-game-map! update-in (conj step :contents)
+                                #(assoc % :mode :sentry
+                                        :transport-mission :land-locked))
+              (sync-transport! step)
+              (tc/log-transport-mission-transition! step from-mission :land-locked)))
+          (do
+            (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+              (update-game-map! update-in (conj pos :contents)
+                                #(assoc % :mode :sentry
+                                        :transport-mission :land-locked))
+              (sync-transport! pos)
+              (tc/log-transport-mission-transition! pos from-mission :land-locked))))
+        (do
+          (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+            (update-game-map! update-in (conj pos :contents)
+                              #(assoc % :mode :sentry
+                                      :transport-mission :land-locked))
+            (sync-transport! pos)
+            (tc/log-transport-mission-transition! pos from-mission :land-locked))))
+      false)))
+
+(defn process-land-locked-mission
+  [{:keys [current-world
+           read-computer-map
+           process-unloading-crawl
+           try-opportunistic-unload-any-land]
+    :as deps}
+   pos lake-cells-set]
+  (let [unloaded-now? (boolean (try-opportunistic-unload-any-land pos))]
+    (or (park-lake-transport-if-empty deps pos lake-cells-set)
+        (let [read-map (or read-computer-map current-world)
+              unit (get-in (read-map) (conj pos :contents))
+              army-count (:army-count unit 0)]
+          (when (pos? army-count)
+            (if-let [next-pos (process-unloading-crawl pos)]
+              (do
+                (try-opportunistic-unload-any-land next-pos)
+                (park-lake-transport-if-empty deps next-pos lake-cells-set))
+              unloaded-now?))))))
+
+(defn fix-idle-mission
+  [set-transport-mission pos mission]
+  (when (or (nil? mission) (= :idle mission))
+    (set-transport-mission pos :sail-to-load)))
+
+(defn maybe-handle-lake-transport
+  [{:keys [current-world
+           read-computer-map
+           read-runtime-state
+           update-game-map!
+           sync-transport!
+           set-transport-mission
+           lake-cells]
+    :as deps}
+   pos transport]
+  (case (handler-decisions/lake-transport-action
+         {:sentry? (= :sentry (:mode transport))
+          :lake-locked? (:lake-locked? transport)
+          :has-armies? (pos? (:army-count transport 0))})
+    :already-handled true
+    (:land-locked-unload :park-empty)
+      (let [read-map (or read-computer-map current-world)
+            sync-transport! (or sync-transport! noop-sync!)
+            lake-cells-set (lake-cells (read-runtime-state :computer-map)
+                                       (read-runtime-state :lake-max-cells))]
+        (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
+        (sync-transport! pos)
+        (let [unit (get-in (read-map) (conj pos :contents))
+              army-count (:army-count unit 0)]
+          (if (pos? army-count)
+            (do
+              (set-transport-mission pos :land-locked)
+              (process-land-locked-mission deps pos lake-cells-set))
+            (park-lake-transport-if-empty deps pos lake-cells-set)))
+        true)
+    nil))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-27T09:51:18.36765-05:00", :module-hash "-1112659431", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "1941276428"} {:id "defn-/noop-sync!", :kind "defn-", :line 5, :end-line 5, :hash "-837411842"} {:id "defn/park-lake-transport-if-empty", :kind "defn", :line 7, :end-line 43, :hash "168321740"} {:id "defn/process-land-locked-mission", :kind "defn", :line 45, :end-line 62, :hash "1059021339"} {:id "defn/fix-idle-mission", :kind "defn", :line 64, :end-line 67, :hash "1763448864"} {:id "defn/maybe-handle-lake-transport", :kind "defn", :line 69, :end-line 99, :hash "-286489267"}]}
+;; clj-mutate-manifest-end
