@@ -9,7 +9,8 @@
             [empire.computer.shared.threat :as threat]
             [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.movement.map-utils :as map-utils]
-            [empire.game-mechanics.containers.helpers :as uc]))
+            [empire.game-mechanics.containers.helpers :as uc]
+            [empire.game-mechanics.movement.ray-pathfinding :as ray]))
 
 (def ^:private sea-path-inflation-threshold 2)
 
@@ -59,29 +60,22 @@
              (not target-sea?)
              (adjacent? current target)))))
 
-(defn- bfs-sea-path-to-target
-  "Path over known sea on computer-map.
+(defn- sea-path-to-target
+  "Path over known sea on computer-map using ray+crawl with BFS fallback.
    Returns sea path excluding start; for land targets, ends adjacent."
   [start target computer-map]
-  (let [passable-sea? (fn [pos] (= :sea (:type (get-in computer-map pos))))]
-    (when (and (not= start target)
-               (passable-sea? start)
-               (not (and (not= :sea (:type (get-in computer-map target)))
-                         (adjacent? start target))))
-      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
-             visited #{start}
-             came-from {}]
-        (when (seq queue)
-          (let [current (peek queue)]
-            (if (sea-path-target? current start target computer-map)
-              (vec (rest (map-utils/reconstruct-path came-from start current)))
-              (let [neighbors (->> (grid/neighbors-in-map computer-map current)
-                                   (filter passable-sea?)
-                                   (remove visited))
-                    next-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
-                (recur (reduce conj (pop queue) neighbors)
-                       (into visited neighbors)
-                       next-came-from)))))))))
+  (let [sea-target? (= :sea (:type (get-in computer-map target)))
+        effective-target (if sea-target?
+                           target
+                           ;; For land targets, find nearest sea cell adjacent to target
+                           (first (filter (fn [n]
+                                           (and (= :sea (:type (get-in computer-map n)))
+                                                (not= n start)))
+                                         (grid/neighbors-in-map computer-map target))))]
+    (when (and effective-target
+               (not= start effective-target)
+               (= :sea (:type (get-in computer-map start))))
+      (ray/find-sea-path start effective-target computer-map))))
 
 (defn- inflated-sea-path?
   [sea-path from target]
@@ -93,7 +87,7 @@
 (defn- select-next-sea-step
   [from target passable]
   (let [computer-map (sa/read-state :computer-map)
-        sea-path (bfs-sea-path-to-target from target computer-map)
+        sea-path (sea-path-to-target from target computer-map)
         use-direct? (and (inflated-sea-path? sea-path from target)
                          (direct-sea-corridor? from target computer-map))
         direct-next (grid/move-toward from target passable)

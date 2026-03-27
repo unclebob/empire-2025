@@ -1,6 +1,7 @@
 (ns empire.computer.transport.load-targeting
   (:require [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.game-mechanics.movement.pathfinding-bfs.core :as bfs-core]
+            [empire.game-mechanics.movement.ray-pathfinding :as ray]
             [empire.computer.shared.grid :as grid]))
 
 (def ^:private tile-size 5)

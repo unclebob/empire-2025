@@ -125,7 +125,7 @@
         [nil nil nil nil nil]
         [nil nil nil nil nil]])
       (let [long-path [[1 0] [0 0] [0 1] [0 2] [0 3] [0 4] [1 4] [2 4]]]
-        (with-redefs [empire.computer.ship.core/bfs-sea-path-to-target (fn [& _] long-path)]
+        (with-redefs [empire.computer.ship.core/sea-path-to-target (fn [& _] long-path)]
           (let [new-pos (ship-core/move-toward [2 0] [2 4])]
             (should= [2 1] new-pos))))
       )

@@ -150,12 +150,14 @@
 
 (defn find-sea-path
   "Find a sea path from start to target using ray+crawl with BFS fallback.
-   Returns vector of positions (excluding start, including target), or nil."
-  [start target]
-  (let [game-map (sa/current-world)
-        coastal-index (sa/read-state :coastal-index)]
-    (if (= start target)
-      []
-      (or (when coastal-index
-            (ray-crawl-path game-map coastal-index start target 4))
-          (bfs-sea-path game-map start target)))))
+   Returns vector of positions (excluding start, including target), or nil.
+   Uses game-map by default; pass explicit map for fog-of-war pathfinding."
+  ([start target]
+   (find-sea-path start target (sa/current-world)))
+  ([start target game-map]
+   (let [coastal-index (sa/read-state :coastal-index)]
+     (if (= start target)
+       []
+       (or (when coastal-index
+             (ray-crawl-path game-map coastal-index start target 4))
+           (bfs-sea-path game-map start target))))))
