@@ -166,7 +166,8 @@
       (do (update-game-map! assoc-in [cx cy :contents]
                  (-> contents
                      (assoc :mode :awake)
-                     (dissoc :coastline-steps :visited :start-pos :prev-pos :target :reason)))
+                     (dissoc :coastline-steps :visited :start-pos :prev-pos :target :reason
+                             :explore-steps :explore-heading :explore-origin)))
           true)
 
       :else nil)))
