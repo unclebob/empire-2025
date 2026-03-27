@@ -210,6 +210,8 @@
                           (clear-escort-on-death-world dead-unit))]
         {:world new-world
          :messages (resolution/turn-message-map message Long/MAX_VALUE)
+         :visibility [{:pos attacker-coords :owner (:owner attacker)}
+                      {:pos target-coords :owner (:owner attacker)}]
          :winner (:winner result)
          :combatant true}))))
 
