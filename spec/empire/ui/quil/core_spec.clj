@@ -81,14 +81,14 @@
        {:cols 80 :rows 40 :handicap 12 :log-enabled true}
        12345)
       (should= "empire-units2026-03-19-120000.log"
-               (sa/read-state :computer-unit-log-file)))))
+               (sa/read-state :computer-unit-log-file))))
 
   (it "stores debug dump startup flags"
     (#'quil-core/initialize-startup-state!
      {:cols 80 :rows 40 :handicap 12 :debug-dump-enabled true}
      12345)
     (should (sa/read-state :debug-dump-on-exit?))
-    (should-not (sa/read-state :debug-dump-written?)))
+    (should-not (sa/read-state :debug-dump-written?))))
 
 (describe "headless-progress-line"
   (it "reports explored percent and invasion state"
@@ -179,7 +179,7 @@
                                                                (sa/update-state! :round-number inc))]
         (#'quil-core/run-headless! {:headless-rounds 3})
         (should= [false false false] @observed-stop-flags)
-        (should-not (sa/read-state :headless-stop-on-major-invasion?)))))
+        (should-not (sa/read-state :headless-stop-on-major-invasion?))))))
 
 (describe "create-fonts"
   (before (reset-all-atoms!))
@@ -382,4 +382,3 @@
         (should= [[:drag-update 22 44]
                   [:drag-end 22 44 {:ctrl false :meta true :alt true}]]
                  @calls)))))
-)
