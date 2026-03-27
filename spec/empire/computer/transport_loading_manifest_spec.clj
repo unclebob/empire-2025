@@ -2,6 +2,7 @@
   (:require [empire.computer.transport :as transport]
             [empire.computer.transport.loading :as loading]
             [empire.computer.transport.mission-handlers :as mission-handlers]
+            [empire.computer.transport.sailing-regular.transitions]
             [empire.player.production :as player-prod]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [reset-all-atoms! set-test-computer-map! set-test-world!]]
@@ -219,7 +220,7 @@
     (should= :hold-sail-to-load
              (get-in (test-utils/read-test-state :game-map) [0 0 :contents :transport-mission]))
     (test-utils/set-test-state! :round-number 21)
-    (with-redefs [empire.computer.transport.sailing-regular/enter-sail-to-load! (fn [pos]
+    (with-redefs [empire.computer.transport.sailing-regular.transitions/enter-sail-to-load! (fn [pos]
                                                                                   (test-utils/update-test-world! assoc-in (conj pos :contents :transport-mission) :sail-to-load)
                                                                                   (test-utils/update-test-world! assoc-in (conj pos :contents :hold-sail-to-load-since-round) nil)
                                                                                   (test-utils/update-test-world! assoc-in (conj pos :contents :sail-path) [[1 0]])
