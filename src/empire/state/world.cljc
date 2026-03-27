@@ -12,6 +12,7 @@
    :player-map {}
    :computer-map {}
    :continent-groups {}
+   :coastal-index nil
    :next-country-id 1
    :integrity-check-enabled true
    :game-over-check-enabled true})

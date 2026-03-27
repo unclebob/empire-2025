@@ -34,6 +34,80 @@
                          (recur (smooth-map m) (dec cnt))))]
     smoothed-map))
 
+(defn- land-type? [cell]
+  (and cell (#{:land :city} (:type cell))))
+
+(defn- sea-type? [cell]
+  (and cell (= :sea (:type cell))))
+
+(defn diagonal-pinch?
+  "Returns true if [i j] is the top-left corner of a 2x2 diagonal pinch:
+   land at [i j] [i+1 j+1] with sea at [i j+1] [i+1 j], or vice versa."
+  [game-map [i j]]
+  (let [height (count game-map)
+        width (count (first game-map))]
+    (when (and (< (inc i) height) (< (inc j) width))
+      (let [tl (get-in game-map [i j])
+            tr (get-in game-map [(inc i) j])
+            bl (get-in game-map [i (inc j)])
+            br (get-in game-map [(inc i) (inc j)])]
+        (or (and (land-type? tl) (land-type? br) (sea-type? tr) (sea-type? bl))
+            (and (sea-type? tl) (sea-type? br) (land-type? tr) (land-type? bl)))))))
+
+(defn eliminate-pinches
+  "Scans for diagonal land pinches and fills one sea corner with land.
+   Repeats until no pinches remain."
+  [game-map]
+  (loop [m game-map]
+    (let [pinch (first (for [i (range (dec (count m)))
+                             j (range (dec (count (first m))))
+                             :when (diagonal-pinch? m [i j])]
+                         [i j]))]
+      (if-not pinch
+        m
+        (let [[i j] pinch
+              tl (get-in m [i j])]
+          (if (sea-type? tl)
+            (recur (assoc-in m [i j] {:type :land}))
+            (recur (assoc-in m [(inc i) j] {:type :land}))))))))
+
+(defn- has-adjacent-type? [game-map [i j] pred]
+  (let [height (count game-map)
+        width (count (first game-map))]
+    (some (fn [[di dj]]
+            (let [ni (+ i di) nj (+ j dj)]
+              (and (>= ni 0) (< ni height)
+                   (>= nj 0) (< nj width)
+                   (pred (get-in game-map [ni nj])))))
+          map-utils/neighbor-offsets)))
+
+(defn build-coastal-index
+  "Builds permanent coastal index: sets of coastal land/sea cells and
+   a neighbor map for coastal sea cells."
+  [game-map]
+  (let [height (count game-map)
+        width (count (first game-map))
+        all-coords (for [i (range height) j (range width)] [i j])
+        coastal-land (into #{} (filter (fn [pos]
+                                         (and (land-type? (get-in game-map pos))
+                                              (has-adjacent-type? game-map pos sea-type?)))
+                                       all-coords))
+        coastal-sea (into #{} (filter (fn [pos]
+                                        (and (sea-type? (get-in game-map pos))
+                                             (has-adjacent-type? game-map pos land-type?)))
+                                      all-coords))
+        neighbors (into {} (map (fn [pos]
+                                  (let [[i j] pos
+                                        nbrs (into #{} (for [[di dj] map-utils/neighbor-offsets
+                                                             :let [ni (+ i di) nj (+ j dj)]
+                                                             :when (contains? coastal-sea [ni nj])]
+                                                         [ni nj]))]
+                                    [pos nbrs]))
+                               coastal-sea))]
+    {:coastal-land-cells coastal-land
+     :coastal-sea-cells coastal-sea
+     :coastal-sea-neighbors neighbors}))
+
 (defn finalize-map
   "Converts a height map to a terrain map with land/sea types."
   [the-map sea-level]
@@ -157,7 +231,9 @@
         the-map (make-map width height smooth-count)
         sea-level (find-sea-level the-map land-fraction)
         finalized-map (finalize-map the-map sea-level)
-        map-with-cities (generate-cities finalized-map number-of-cities min-city-distance)
+        pinch-free-map (eliminate-pinches finalized-map)
+        coastal-index (build-coastal-index pinch-free-map)
+        map-with-cities (generate-cities pinch-free-map number-of-cities min-city-distance)
         map-with-player-city (occupy-random-free-city map-with-cities :player nil config/min-surrounding-land)
         [px py] (find-city-position map-with-player-city :player)
         min-start-distance (quot width 2)
@@ -171,6 +247,7 @@
       (sa/update-world! assoc-in (conj computer-city-pos :country-id) 1)
       (sa/write-state! :next-country-id 2)
       (city-production/set-city-production computer-city-pos :army))
+    (sa/write-state! :coastal-index coastal-index)
     (sa/write-state! :lake-max-cells (compute-lake-max-cells width height))
     (sa/write-state! :known-lake-cells #{})
     (sa/write-state! :player-map visibility-map)
