@@ -34,25 +34,25 @@
               :round-message "R1"
               :city-summary "A3 | 20%"
               :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected "3 armies."}
+              :expected "3 armies"}
              {:mouse-x 223
               :mouse-y 150
               :round-message "R1"
               :city-summary "A3 | 20%"
               :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected "3 armies."}
+              :expected "3 armies"}
              {:mouse-x 230
               :mouse-y 140
               :round-message "R1"
               :city-summary "A2 F1 T1 +2 | 75%"
               :production-status "A:2 F:1 T:1 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%"
-              :expected "Hidden counts: D1 C1."}
+              :expected "2 armies, 1 fighters, 1 transports, 1 destroyers, 1 carriers"}
              {:mouse-x 263
               :mouse-y 140
               :round-message "R1"
               :city-summary "A3 | 20%"
               :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected "20% of the map has been explored by the player."}
+              :expected "3 armies"}
              {:mouse-x 18
               :mouse-y 140
               :round-message "BOGUS"
@@ -88,4 +88,4 @@
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
         (should-contain [:stroke [70 64 40]] @calls)
-        (should-contain [:text ["3 armies." 241 168]] @calls)))))
+        (should-contain [:text ["3 armies" 241 168]] @calls)))))

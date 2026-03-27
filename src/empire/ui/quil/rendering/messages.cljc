@@ -66,7 +66,8 @@
         spans))
 
 (defn hud-tooltip
-  "Returns tooltip text for a recognized status-row token under the mouse."
+  "Returns tooltip text for a recognized status-row token under the mouse.
+   Hovering anywhere in the production count area returns the full summary."
   [mouse-x mouse-y text-x text-y text-w left center right production-status]
   (let [row-top (+ text-y rendering/msg-banner-separator-y)
         row-bottom (+ text-y config/msg-line-3-y)
@@ -74,13 +75,15 @@
         center-x (+ text-x (/ text-w 2))
         center-width (q/text-width (or center ""))
         center-start (- center-x (/ center-width 2))
-        right-start (- right-edge (q/text-width (or right "")))
-        spans (concat
-               (token-spans left (+ text-x rendering/status-left-padding) row-top row-bottom)
-               (token-spans center center-start row-top row-bottom)
-               (token-spans right right-start row-top row-bottom))]
-    (some-> (hovered-token mouse-x mouse-y spans)
-            (hud-tooltips/status-token-tooltip production-status))))
+        right-start (- right-edge (q/text-width (or right "")))]
+    (if (and (<= right-start mouse-x right-edge)
+             (<= row-top mouse-y row-bottom))
+      (hud-tooltips/full-production-tooltip production-status)
+      (let [spans (concat
+                   (token-spans left (+ text-x rendering/status-left-padding) row-top row-bottom)
+                   (token-spans center center-start row-top row-bottom))]
+        (some-> (hovered-token mouse-x mouse-y spans)
+                (hud-tooltips/status-token-tooltip production-status))))))
 
 (defn tooltip-box-position
   "Places the tooltip inside the current window bounds."

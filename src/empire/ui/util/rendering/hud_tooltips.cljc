@@ -52,6 +52,28 @@
       (round-tooltip token)
       (counted-token-tooltip token production-status)))
 
+(defn full-production-tooltip
+  "Builds a comprehensive production summary from the production-status string."
+  [production-status]
+  (when production-status
+    (let [tokens (clojure.string/split production-status #"\s+")
+          unit-lines (keep (fn [token]
+                             (when (re-matches #"[AFTDSPCBZ]:\d+" token)
+                               (let [label (subs token 0 1)
+                                     n (subs token 2)]
+                                 (when (not= n "0")
+                                   (str n " " (get production-token-labels label "units"))))))
+                           tokens)
+          extra-lines (keep (fn [token]
+                              (cond
+                                (re-matches #"Landed:\d+" token)
+                                (str (subs token 7) " fighters landed at airports")
+                                (re-matches #"Repair:\d+" token)
+                                (str (subs token 7) " ships in repair")
+                                :else nil))
+                            tokens)]
+      (clojure.string/join ", " (concat unit-lines extra-lines)))))
+
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T02:59:30.774241-05:00", :module-hash "990770620", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-1415477505"} {:id "def/production-token-labels", :kind "def", :line 4, :end-line 13, :hash "2064211572"} {:id "def/fixed-token-tooltips", :kind "def", :line 15, :end-line 23, :hash "-772142312"} {:id "defn-/round-tooltip", :kind "defn-", :line 25, :end-line 28, :hash "815943068"} {:id "defn-/counted-token-tooltip", :kind "defn-", :line 30, :end-line 46, :hash "40877624"} {:id "defn/status-token-tooltip", :kind "defn", :line 48, :end-line 53, :hash "1161146077"}]}
 ;; clj-mutate-manifest-end
