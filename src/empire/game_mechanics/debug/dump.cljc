@@ -1,9 +1,9 @@
 (ns empire.game-mechanics.debug.dump
   "Region-based debug dump rendering and file output helpers."
   (:require [clojure.string :as str]
-            [empire.state.api :as sa])
-  #?(:clj (:import [java.time LocalDateTime]
-                   [java.time.format DateTimeFormatter])))
+            [empire.game-mechanics.debug.dump.io :as io]
+            [empire.game-mechanics.debug.dump.sections :as sections]
+            [empire.state.api :as sa]))
 
 (defn dump-region
   "Extract cells from all three maps for a coordinate range.
@@ -98,97 +98,6 @@
   [{:keys [timestamp action]}]
   (str "  " timestamp " " (pr-str action)))
 
-(defn- find-coastline-units
-  "Find all units in coastline-follow mode."
-  []
-  (let [game-map (sa/current-world)]
-    (for [col (range (count game-map))
-          row (range (count (first game-map)))
-          :let [cell (get-in game-map [col row])
-                unit (:contents cell)]
-          :when (= (:mode unit) :coastline-follow)]
-      {:pos [col row]
-       :type (:type unit)
-       :owner (:owner unit)
-       :visited (count (:visited unit))
-       :steps-remaining (:coastline-steps unit)})))
-
-(defn- format-coastline-section
-  "Format coastline-follow units for debug dump."
-  []
-  (let [units (find-coastline-units)]
-    (str "=== Coastline-Follow Units ===\n"
-         (if (empty? units)
-           "  (none)\n"
-           (str (str/join "\n"
-                          (for [{:keys [pos type owner visited steps-remaining]} units]
-                            (str "  " pos " " (name type) " owner:" (name owner)
-                                 " visited:" visited " steps:" steps-remaining)))
-                "\n"))
-         "\n")))
-
-(defn- format-computer-event-entry
-  "Format a single computer event log entry."
-  [{:keys [event pos] :as entry}]
-  (let [extras (dissoc entry :round :event :pos)
-        extra-str (when (seq extras) (str " " (pr-str extras)))]
-    (str "    " (name event) " " pos extra-str)))
-
-(defn- format-computer-event-section
-  "Format computer unit event history for the last 50 rounds."
-  []
-  (let [current-round (sa/read-state :round-number)
-        min-round (max 1 (- current-round 49))
-        entries (sa/read-state :computer-event-log)
-        recent (filter #(<= min-round (:round %) current-round) entries)
-        by-round (group-by :round recent)
-        rounds (sort (keys by-round))]
-    (str "=== Computer Unit Events (last 50 rounds) ===\n"
-         (if (empty? rounds)
-           "  (no events logged)\n"
-           (str/join "\n"
-                     (for [r rounds]
-                       (str "  Round " r ":\n"
-                            (str/join "\n" (map format-computer-event-entry (get by-round r)))))))
-         "\n\n")))
-
-(defn- format-transport-reservations-section
-  []
-  (let [reservations (or (sa/read-state :transport-load-reservations) {})]
-    (str "=== Transport Load Reservations ===\n"
-         (if (empty? reservations)
-           "  (none)\n"
-           (str/join "\n"
-                     (for [[transport-id reservation] (sort-by key reservations)]
-                       (str "  " transport-id " " (pr-str reservation)))))
-         "\n\n")))
-
-(defn format-movement-entry
-  "Format a single movement log entry."
-  [{:keys [unit-type from to mode event reason]}]
-  (str "    " (name unit-type) " " from "→" to
-       " " (name mode)
-       (when (not= event :move) (str " " (name event)))
-       (when reason (str " (" (name reason) ")"))))
-
-(defn- format-movement-history-section
-  "Format player unit movement history for the last 20 rounds."
-  []
-  (let [current-round (sa/read-state :round-number)
-        min-round (max 1 (- current-round 19))
-        entries (sa/read-state :player-movement-log)
-        recent-entries (filter #(<= min-round (:round %) current-round) entries)
-        by-round (group-by :round recent-entries)
-        rounds-with-moves (sort (keys by-round))]
-    (str "=== Player Unit Movement History (last 20 rounds) ===\n"
-         (if (empty? rounds-with-moves)
-           "  (no movements logged)\n"
-           (str/join "\n"
-                     (for [r rounds-with-moves]
-                       (str "  Round " r ":\n"
-                            (str/join "\n" (map format-movement-entry (get by-round r)))))))
-         "\n\n")))
-
 (defn- format-map-section
   "Format a map section (game-map, player-map, or computer-map) for display."
   [label cell-map]
@@ -211,134 +120,6 @@
                 :let [cell (get-in game-map coord)]
                 :when cell]
             [coord cell]))))
-
-(defn- format-path
-  [path]
-  (if (seq path)
-    (str/join " -> " (map pr-str path))
-    "(none)"))
-
-(defn- route-from-node
-  [next-hop-fn start]
-  (loop [node start
-         seen #{}
-         path [start]]
-    (if-let [next-hop (and (not (seen node))
-                           (next-hop-fn node))]
-      (recur next-hop
-             (conj seen node)
-             (conj path next-hop))
-      path)))
-
-(defn- format-major-invasion-section
-  []
-  (let [state (sa/read-state :major-invasion-state)
-        city-next-hops (:kamikazee-city-next-hops state)
-        carrier-next-hops (:kamikazee-carrier-next-hops state)
-        next-hop-fn (fn [node]
-                      (or (get city-next-hops node)
-                          (get carrier-next-hops node)))
-        army-targets (mapv :pos (:kamikazee-army-targets state))
-        city-paths (->> (keys city-next-hops)
-                        sort
-                        (map (fn [city]
-                               (str "  " city " -> " (format-path (rest (route-from-node next-hop-fn city))))))
-                        vec)
-        carrier-paths (->> (keys carrier-next-hops)
-                           sort
-                           (map (fn [carrier]
-                                  (str "  " carrier " -> " (format-path (rest (route-from-node next-hop-fn carrier))))))
-                           vec)]
-    (str "=== Major Invasion State ===\n"
-         "active?: " (:active? state) "\n"
-         "decision: " (pr-str (:decision state)) "\n"
-         "failure-reason: " (pr-str (:failure-reason state)) "\n"
-         "started-round: " (pr-str (:started-round state)) "\n"
-         "first-landing-round: " (pr-str (:first-landing-round state)) "\n"
-         "next-review-round: " (pr-str (:next-review-round state)) "\n"
-         "detection-points: " (pr-str (sort (:detection-points state))) "\n"
-         "sea-reachable-detection-points: " (pr-str (sort (:sea-reachable-detection-points state))) "\n"
-         "target-land-set: " (pr-str (sort (:target-land-set state))) "\n"
-         "kamikazee-army-targets: " (pr-str army-targets) "\n"
-         "kamikazee-root-city: " (pr-str (:kamikazee-root-city state)) "\n"
-         "kamikazee-forward-carrier: " (pr-str (:kamikazee-forward-carrier state)) "\n"
-         "kamikazee-bridge-carriers: " (pr-str (sort (:kamikazee-bridge-carriers state))) "\n"
-         "kamikazee-terminal-sites: " (pr-str (sort (:kamikazee-terminal-sites state))) "\n"
-         "city-paths:\n"
-         (if (seq city-paths)
-           (str (str/join "\n" city-paths) "\n")
-           "  (none)\n")
-         "carrier-paths:\n"
-         (if (seq carrier-paths)
-           (str (str/join "\n" carrier-paths) "\n")
-           "  (none)\n")
-         "\n")))
-
-(defn- region-kamikazee-fighters
-  [cell-map]
-  (->> cell-map
-       (keep (fn [[coords cell]]
-               (let [unit (:contents cell)]
-                 (when (and (= :fighter (:type unit))
-                            (= :computer (:owner unit))
-                            (or (:kamikazee unit)
-                                (:major-invasion unit)))
-                   {:pos coords
-                    :fuel (:fuel unit)
-                    :stage (:kamikazee-stage unit)
-                    :major-target (:major-invasion-target unit)
-                    :targets (:kamikazee-targets unit)
-                    :route (:kamikazee-route unit)
-                    :terminal-site (:kamikazee-terminal-site unit)
-                    :wait-site (:kamikazee-wait-site unit)
-                    :resume-pos (:kamikazee-hunt-resume-pos unit)}))))
-       (sort-by :pos)
-       vec))
-
-(defn- format-kamikazee-fighter-section
-  [cell-map]
-  (let [fighters (region-kamikazee-fighters cell-map)]
-    (str "=== Kamikazee Fighters In Region ===\n"
-         (if (seq fighters)
-           (str/join
-            "\n"
-            (for [{:keys [pos fuel stage major-target targets route terminal-site wait-site resume-pos]} fighters]
-              (str "  " pos
-                   " fuel:" fuel
-                   " stage:" (pr-str stage)
-                   " major-target:" (pr-str major-target) "\n"
-                   "    targets: " (pr-str targets) "\n"
-                   "    route: " (pr-str route) "\n"
-                   "    terminal-site: " (pr-str terminal-site)
-                   " wait-site: " (pr-str wait-site)
-                   " resume-pos: " (pr-str resume-pos))))
-           "  (none)")
-         "\n\n")))
-
-(defn- format-kamikazee-airport-section
-  [cell-map]
-  (let [airports (->> cell-map
-                      (keep (fn [[coords cell]]
-                              (when (pos? (:kamikazee-fighter-count cell 0))
-                                {:pos coords
-                                 :fighters (:fighter-count cell 0)
-                                 :awake (:awake-fighters cell 0)
-                                 :kamikazees (:kamikazee-fighter-count cell 0)
-                                 :awake-kamikazees (:awake-kamikazee-fighters cell 0)})))
-                      (sort-by :pos)
-                      vec)]
-    (str "=== Kamikazee Airports In Region ===\n"
-         (if (seq airports)
-           (str/join
-            "\n"
-            (for [{:keys [pos fighters awake kamikazees awake-kamikazees]} airports]
-              (str "  " pos
-                   " fighters:" fighters
-                   " awake:" awake
-                   " kamikazees:" kamikazees
-                   " awake-kamikazees:" awake-kamikazees)))
-           "  (none)")
-         "\n\n")))
 
 (defn format-dump
   "Build complete dump string with:
@@ -382,13 +163,13 @@
                                               (for [[coords p] (sort-by first prod)]
                                                 (str "  " coords " " (pr-str p))))))
                                 "\n\n")
-        invasion-section (format-major-invasion-section)
-        coastline-section (format-coastline-section)
-        reservation-section (format-transport-reservations-section)
-        computer-event-section (format-computer-event-section)
-        movement-section (format-movement-history-section)
-        kamikazee-fighter-section (format-kamikazee-fighter-section (:game-map region-data))
-        kamikazee-airport-section (format-kamikazee-airport-section (:game-map region-data))
+        invasion-section (sections/format-major-invasion-section)
+        coastline-section (sections/format-coastline-section)
+        reservation-section (sections/format-transport-reservations-section)
+        computer-event-section (sections/format-computer-event-section)
+        movement-section (sections/format-movement-history-section)
+        kamikazee-fighter-section (sections/format-kamikazee-fighter-section (:game-map region-data))
+        kamikazee-airport-section (sections/format-kamikazee-airport-section (:game-map region-data))
         maps-section (str "=== Selected Region Map Data ===\n"
                           (format-map-section "selected-region game-map" (:game-map region-data))
                           "\n"
@@ -400,31 +181,10 @@
                           (format-map-section "full game-map" (full-map-data)))]
     (str header global-state actions-section production-section invasion-section coastline-section reservation-section computer-event-section movement-section kamikazee-fighter-section kamikazee-airport-section maps-section)))
 
-(defn- screen->cell
-  [pixel-x pixel-y map-pixel-width map-pixel-height map-rows map-cols]
-  (let [cell-w (/ map-pixel-width map-rows)
-        cell-h (/ map-pixel-height map-cols)]
-    [(int (Math/floor (/ pixel-x cell-w)))
-     (int (Math/floor (/ pixel-y cell-h)))]))
-
-(defn generate-dump-filename
-  "Generate a timestamped filename for the dump file.
-   Format: debug-YYYY-MM-DD-HHMMSS.txt"
-  []
-  #?(:clj
-     (let [now (LocalDateTime/now)
-           formatter (DateTimeFormatter/ofPattern "yyyy-MM-dd-HHmmss")]
-       (str "debug-" (.format now formatter) ".txt"))
-     :cljs
-     (let [now (js/Date.)
-           pad (fn [n] (if (< n 10) (str "0" n) (str n)))
-           year (.getFullYear now)
-           month (pad (inc (.getMonth now)))
-           day (pad (.getDate now))
-           hour (pad (.getHours now))
-           min (pad (.getMinutes now))
-           sec (pad (.getSeconds now))]
-       (str "debug-" year "-" month "-" day "-" hour min sec ".txt"))))
+;; Re-exports from daughter modules
+(def format-movement-entry sections/format-movement-entry)
+(def screen-coords-to-cell-range io/screen-coords-to-cell-range)
+(def generate-dump-filename io/generate-dump-filename)
 
 (defn write-dump!
   "Write formatted dump to timestamped file in project root.
@@ -444,28 +204,3 @@
   (let [[rows cols] (or (sa/read-state :map-size) [0 0])]
     (write-dump! [0 0] [(max 0 (dec rows)) (max 0 (dec cols))])))
 
-(defn screen-coords-to-cell-range
-  "Convert screen pixel coordinates to map cell coordinate range.
-   Takes two [x y] screen coordinate pairs (drag start and end).
-   Returns [[start-row start-col] [end-row end-col]] normalized so
-   start is top-left and coordinates are clamped to map bounds."
-  [[x1 y1] [x2 y2]]
-  (let [[map-w map-h] (sa/read-state :map-screen-dimensions)
-        game-map (sa/current-world)
-        map-rows (count game-map)
-        map-cols (count (first game-map))
-        [row1 col1] (screen->cell x1 y1 map-w map-h map-rows map-cols)
-        [row2 col2] (screen->cell x2 y2 map-w map-h map-rows map-cols)
-        start-row (min row1 row2)
-        end-row (max row1 row2)
-        start-col (min col1 col2)
-        end-col (max col1 col2)
-        start-row (max 0 start-row)
-        start-col (max 0 start-col)
-        end-row (min (dec map-rows) end-row)
-        end-col (min (dec map-cols) end-col)]
-    [[start-row start-col] [end-row end-col]]))
-
-;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T12:00:44.726874-05:00", :module-hash "1743426237", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-313872616"} {:id "defn/dump-region", :kind "defn", :line 8, :end-line 34, :hash "90180318"} {:id "defn-/format-contents", :kind "defn-", :line 36, :end-line 58, :hash "1258193189"} {:id "defn-/format-cell-data", :kind "defn-", :line 60, :end-line 71, :hash "-706070322"} {:id "defn/format-cell", :kind "defn", :line 73, :end-line 81, :hash "-2125203702"} {:id "defn-/format-action-entry", :kind "defn-", :line 83, :end-line 86, :hash "-120148540"} {:id "defn-/find-coastline-units", :kind "defn-", :line 88, :end-line 101, :hash "-1471486597"} {:id "defn-/format-coastline-section", :kind "defn-", :line 103, :end-line 115, :hash "-55142457"} {:id "defn-/format-computer-event-entry", :kind "defn-", :line 117, :end-line 122, :hash "-1993787720"} {:id "defn-/format-computer-event-section", :kind "defn-", :line 124, :end-line 140, :hash "-1569684083"} {:id "defn/format-movement-entry", :kind "defn", :line 142, :end-line 148, :hash "938588367"} {:id "defn-/format-movement-history-section", :kind "defn-", :line 150, :end-line 166, :hash "22924012"} {:id "defn-/format-map-section", :kind "defn-", :line 168, :end-line 177, :hash "1439044669"} {:id "defn/format-dump", :kind "defn", :line 179, :end-line 228, :hash "-62647181"} {:id "defn-/screen->cell", :kind "defn-", :line 230, :end-line 235, :hash "203161354"} {:id "defn/generate-dump-filename", :kind "defn", :line 237, :end-line 254, :hash "-1617652009"} {:id "defn/write-dump!", :kind "defn", :line 256, :end-line 267, :hash "-1382417262"} {:id "defn/screen-coords-to-cell-range", :kind "defn", :line 269, :end-line 289, :hash "1209818922"}]}
-;; clj-mutate-manifest-end
