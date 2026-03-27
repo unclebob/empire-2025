@@ -237,9 +237,9 @@ You can set standing orders for cities so that newly produced units automaticall
 
 | Key | Action |
 |-----|--------|
-| `.` | Set destination marker at mouse cursor |
-| `m` | Set marching orders on city/transport under mouse to destination |
-| `f` | Set flight path on city/carrier under mouse to destination |
+| `.` | Set destination marker at mouse cursor. If mouse is not on a cell, clears the destination. |
+| `m` | Set marching orders on city/transport under mouse to destination. If destination is cleared, clears marching orders. |
+| `f` | Set flight path on city/carrier under mouse to destination. If destination is cleared, clears the flight path. |
 | `l` | Set city under mouse marching orders to "lookaround" (explore mode) |
 | `Q W E A D Z X C` | Set city under mouse marching orders to map edge in that direction |
 
