@@ -79,12 +79,6 @@
         tile-y (range (long (Math/ceil (/ (double (map-height computer-map)) tile-size))))]
     [tile-x tile-y]))
 
-(defn- tile-target
-  [transport-pos {:keys [coastal-targets]}]
-  (first (sort-by (juxt #(grid/chebyshev-distance transport-pos %)
-                        identity)
-                  coastal-targets)))
-
 (defn- candidate-load-targets
   [computer-map reserved-coastal-cells excluded-country-ids]
   (->> (all-tiles computer-map)
@@ -178,19 +172,3 @@
     (vec (mapcat :army-positions
                  (map #(tile-summary computer-map % reserved-army-ids) neighbor-tiles))))))
 
-(defn neighborhood-tile-coastal-targets
-  [target computer-map]
-  (let [[tile-x tile-y] (tile-index-for-pos target)
-        neighbor-tiles (for [dx [-1 0 1]
-                             dy [-1 0 1]
-                             :let [tile [(+ tile-x dx) (+ tile-y dy)]]
-                             :when (and (<= 0 (first tile))
-                                        (<= 0 (second tile))
-                                        (< (first tile) (long (Math/ceil (/ (double (map-width computer-map)) tile-size))))
-                                        (< (second tile) (long (Math/ceil (/ (double (map-height computer-map)) tile-size)))))]
-                         tile)]
-    (->> neighbor-tiles
-         (map #(tile-summary computer-map % #{}))
-         (mapcat :coastal-targets)
-         distinct
-         vec)))

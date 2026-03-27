@@ -216,14 +216,6 @@
                 (merge-continents! lowest-cid other-cid))))
           (recur (reduce disj remaining component)))))))
 
-(defn- newly-discovered-free-city?
-  "Returns true if game-cell is a free city and the same position
-   on visible-map was unexplored."
-  [visible-map row col game-cell]
-  (and (= :city (:type game-cell))
-       (= :free (:city-status game-cell))
-       (was-unexplored? visible-map row col)))
-
 (defn- visible-map-key-for
   "Returns runtime-state key for the given owner's visible map."
   [owner]

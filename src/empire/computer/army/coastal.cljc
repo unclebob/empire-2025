@@ -28,15 +28,6 @@
     (log-missing-army-contents! :missing-contents-for-sentry
                                 (assoc context :pos pos :cell (get-in (sa/read-state :computer-map) pos)))))
 
-(defn- settle-transport-staging!
-  [pos]
-  (when (get-in (sa/read-state :computer-map) (conj pos :contents))
-    (sa/update-world! update-in (conj pos :contents)
-                      #(-> %
-                           (assoc :mode :sentry)
-                           (dissoc :transport-staging-target)))
-    (visibility/sync-ai-unit-to-computer-map! pos)))
-
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."
   [pos]

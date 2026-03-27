@@ -5,10 +5,6 @@
   []
   (or (sa/read-state :transport-load-reservations) {}))
 
-(defn reservation-for
-  [transport-id]
-  (get (reservations) transport-id))
-
 (defn reserved-coastal-cells
   ([] (reserved-coastal-cells nil))
   ([exclude-transport-id]

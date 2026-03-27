@@ -1,7 +1,5 @@
 (ns empire.computer.transport.sailing-support
-  (:require [empire.computer.transport.core :as tc]
-            [empire.computer.transport.sailing-path :as sailing-path]
-            [empire.game-mechanics.movement.map-utils :as map-utils]
+  (:require [empire.computer.transport.sailing-path :as sailing-path]
             [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]))
 
@@ -63,10 +61,6 @@
   [pos]
   (sailing-path/compute-sail-to-load-path pos (sa/read-state :computer-map)))
 
-(defn set-unloading!
-  [pos]
-  (tc/set-transport-mission pos :unloading))
-
 (defn direct-step
   [from to]
   (let [[fr fc] from
@@ -97,37 +91,6 @@
   (every? (fn [step]
             (sea-or-unexplored? (get-in computer-map step)))
           (between-cells from to)))
-
-(def ^:private random-sail-radius 4)
-
-(defn- claimed-land?
-  [cell]
-  (or (and (= :land (:type cell))
-           (some? (:country-id cell)))
-      (and (= :city (:type cell))
-           (= :computer (:city-status cell)))))
-
-(defn- safe-random-sail-cell?
-  [pos computer-map]
-  (let [cell (get-in computer-map pos)]
-    (and (= :sea (:type cell))
-         (nil? (:contents cell))
-         (not (map-utils/any-neighbor-matches? pos computer-map map-utils/neighbor-offsets claimed-land?)))))
-
-(defn random-sail-path
-  "Returns a random 4-step sea path that stays away from claimed land."
-  [pos]
-  (let [computer-map (sa/read-state :computer-map)
-        directions (shuffle map-utils/neighbor-offsets)]
-    (some (fn [[dr dc]]
-            (loop [current pos
-                   steps []]
-              (if (= random-sail-radius (count steps))
-                steps
-                (let [next-pos [(+ (first current) dr) (+ (second current) dc)]]
-                  (when (safe-random-sail-cell? next-pos computer-map)
-                    (recur next-pos (conj steps next-pos)))))))
-          directions)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-16T15:00:49.881765-05:00", :module-hash "1562060755", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-302277002"} {:id "def/invasion-unload-radius", :kind "def", :line 9, :end-line 9, :hash "244609358"} {:id "def/invasion-threat-unload-radius", :kind "def", :line 10, :end-line 10, :hash "1250298048"} {:id "def/invasion-threat-scan-radius", :kind "def", :line 11, :end-line 11, :hash "703933872"} {:id "def/sea-path-inflation-threshold", :kind "def", :line 12, :end-line 12, :hash "2026838488"} {:id "def/transport-random-walk-restore-keys", :kind "def", :line 15, :end-line 26, :hash "-1043576350"} {:id "def/player-ship-types", :kind "def", :line 28, :end-line 29, :hash "-889899963"} {:id "defn/update-cell-visibility!", :kind "defn", :line 31, :end-line 33, :hash "2091185304"} {:id "defn/enemy-ship-near-target?", :kind "defn", :line 35, :end-line 50, :hash "-201589004"} {:id "defn/compute-sail-path", :kind "defn", :line 52, :end-line 58, :hash "837981545"} {:id "defn/set-unloading-and-try!", :kind "defn", :line 60, :end-line 63, :hash "-263500716"} {:id "defn/direct-step", :kind "defn", :line 65, :end-line 71, :hash "-1268929394"} {:id "defn/between-cells", :kind "defn", :line 73, :end-line 82, :hash "206799869"} {:id "defn/sea-or-unexplored?", :kind "defn", :line 84, :end-line 88, :hash "890775111"} {:id "defn/direct-sea-corridor?", :kind "defn", :line 90, :end-line 94, :hash "-1197656732"}]}

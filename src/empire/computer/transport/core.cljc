@@ -134,23 +134,6 @@
        (visibility/sync-ai-unit-to-computer-map! pos)
        (log-transport-mission-transition! pos from-mission :hold-sail-to-load)))))
 
-(defn release-hold-sail-to-load!
-  [pos]
-  (let [from-mission (get-in (sa/read-state :computer-map) (conj pos :contents :transport-mission))]
-    (when (update-transport-contents!
-           pos
-           #(-> %
-                (assoc :transport-mission :sail-to-load
-                       :hold-sail-to-load-since-round nil
-                       :load-target-cell nil
-                       :load-manifest nil
-                       :loading-since-round nil
-                       :sail-path []
-                       :load-plan-failure nil)
-                (dissoc :unload-target-city)))
-      (visibility/sync-ai-unit-to-computer-map! pos)
-      (log-transport-mission-transition! pos from-mission :sail-to-load))))
-
 (defn hold-sail-to-load-elapsed?
   [transport]
   (when-let [started (:hold-sail-to-load-since-round transport)]
