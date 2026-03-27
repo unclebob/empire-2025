@@ -2,6 +2,8 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.computer.ship.patrol :as patrol]
+            [empire.computer.ship.patrol.crawl :as crawl]
+            [empire.computer.ship.patrol.explore :as explore]
             [empire.computer.ship.core :as ship-core]
             [empire.state.api]
             [empire.state.world :as world]
@@ -15,7 +17,7 @@
       ;; Patrol boat at [0,0], empty sea at [1,0], land at [2,0].
       ;; Walk steps to [1,0]. From [1,0]: [0,0] has contents (patrol boat),
       ;; [2,0] is land. No empty passable neighbors -> dead end with path [[1,0]].
-      (let [generate-random-sea-walk #'empire.computer.ship.patrol/generate-random-sea-walk]
+      (let [generate-random-sea-walk #'empire.computer.ship.patrol.explore/generate-random-sea-walk]
         (set-test-world! [[{:type :sea :contents {:type :patrol-boat :owner :computer :hits 1}}]
                           [{:type :sea}]
                           [{:type :land}]])
@@ -55,7 +57,7 @@
                                                  :patrol-mode :crawling}}
                          {:type :sea}]])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (with-redefs [patrol/patrol-crawl-step (fn [_] [0 1])]
+      (with-redefs [crawl/patrol-crawl-step (fn [_] [0 1])]
         (should= [0 1] (@#'patrol/patrol-boat-step [0 0])))))
 
   (context "random walk and major invasion hold branches"
