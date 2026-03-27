@@ -2,6 +2,7 @@
   "Runs a headless game under cloverage to find uncovered functions.
    Usage: clj -M:dead-code"
   (:require [empire.ui.quil.core :as quil-core]
+            [empire.ui.quil.headless :as headless]
             [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game.initialization :as init]
@@ -22,5 +23,5 @@
                       (constantly (fn [n] (.nextInt rng (int n))))))
     (sa/write-state! :game-over-check-enabled true)
     (with-out-str
-      (#'quil-core/run-headless! {:headless-rounds 50}))
+      (headless/run-headless! {:headless-rounds 50}))
     (should (>= (sa/read-state :round-number) 50))))
