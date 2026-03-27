@@ -80,3 +80,7 @@
                      (visibility/sync-ai-unit-to-computer-map! pos)
                      true)
       false)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-26T20:28:12.90299-05:00", :module-hash "-1481858975", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1891222262"} {:id "defn/attack-enemy", :kind "defn", :line 10, :end-line 29, :hash "1330624212"} {:id "defn/land-at-city", :kind "defn", :line 31, :end-line 41, :hash "-1480912104"} {:id "defn-/build-crash-details", :kind "defn-", :line 43, :end-line 56, :hash "-247128434"} {:id "defn-/destroy-fighter!", :kind "defn-", :line 58, :end-line 69, :hash "1412603462"} {:id "defn/consume-fighter-fuel", :kind "defn", :line 71, :end-line 82, :hash "1349908388"}]}
+;; clj-mutate-manifest-end
