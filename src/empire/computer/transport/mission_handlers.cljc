@@ -240,7 +240,8 @@
   [transition-to-loading pos transport read-map]
   (let [transport-id (:transport-id transport)
         current-round (or (sa/read-state :round-number) 0)
-        unloaded-last-round? (= (:last-unload-round transport) (dec current-round))
+        unloaded-recently? (when-let [last-unload (:last-unload-round transport)]
+                             (>= last-unload (dec current-round)))
         computer-map (read-map)
         load-target-cell (load-targeting/choose-load-target-cell
                           pos computer-map
@@ -253,7 +254,7 @@
     (and transition-to-loading
          (pos? (:army-count transport 0))
          (< (:army-count transport 0) 6)
-         (not unloaded-last-round?)
+         (not unloaded-recently?)
          load-target-cell
          (or (seq load-path) (load-targeting/target-reached? pos load-target-cell))
          (or (empty? unload-path) (<= (count load-path) (count unload-path))))))
