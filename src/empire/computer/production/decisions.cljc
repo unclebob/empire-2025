@@ -67,7 +67,7 @@
 (defn- next-produced-transport-cycle-item
   [city-pos]
   (when-let [transport (produced-transport-at city-pos)]
-    (when (#{:leave-city :sail-to-load :loading} (:transport-mission transport))
+    (when (#{:leave-city :sail-to-load :loading :hold-sail-to-load} (:transport-mission transport))
       :army)))
 
 (defn- should-produce-transport? [city-pos country-id coastal? unit-counts]
