@@ -18,5 +18,5 @@
   (unit-stamping/apply-random-explore-fields unit item cell coords))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T15:29:59.560906-05:00", :module-hash "-603777598", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-19604051"} {:id "defn/stamp-computer-fields", :kind "defn", :line 4, :end-line 6, :hash "-1339812224"} {:id "defn/apply-coast-walk-fields", :kind "defn", :line 8, :end-line 10, :hash "1168017948"} {:id "defn/apply-random-explore-fields", :kind "defn", :line 12, :end-line 14, :hash "45414821"}]}
+;; {:version 1, :tested-at "2026-03-26T23:16:20.354227-05:00", :module-hash "-2138598518", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "1343572095"} {:id "defn/stamp-computer-fields", :kind "defn", :line 4, :end-line 6, :hash "-1339812224"} {:id "defn/backfill-missing-computer-unit-ids!", :kind "defn", :line 8, :end-line 10, :hash "1225192560"} {:id "defn/apply-coast-walk-fields", :kind "defn", :line 12, :end-line 14, :hash "1168017948"} {:id "defn/apply-random-explore-fields", :kind "defn", :line 16, :end-line 18, :hash "45414821"}]}
 ;; clj-mutate-manifest-end

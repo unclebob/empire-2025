@@ -43,3 +43,7 @@
 
       :else {:position nil
              :conquered-city? false})))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-26T23:10:48.755693-05:00", :module-hash "-1974014945", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "1884798426"} {:id "defn/attack-enemy", :kind "defn", :line 8, :end-line 45, :hash "1207570243"}]}
+;; clj-mutate-manifest-end

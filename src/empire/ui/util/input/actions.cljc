@@ -37,5 +37,5 @@
       (apply-key-decision decision coords cell active-unit))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T15:39:43.974261-05:00", :module-hash "-2107557440", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1913745040"} {:id "def/army-aboard-action", :kind "def", :line 9, :end-line 9, :hash "-2006119160"} {:id "defn-/apply-unit-decision", :kind "defn-", :line 11, :end-line 18, :hash "1213856076"} {:id "defn-/apply-city-decision", :kind "defn-", :line 20, :end-line 25, :hash "572543254"} {:id "defn-/apply-key-decision", :kind "defn-", :line 27, :end-line 30, :hash "-558387725"} {:id "defn/handle-key", :kind "defn", :line 32, :end-line 37, :hash "-1466559726"}]}
+;; {:version 1, :tested-at "2026-03-27T02:47:09.999649-05:00", :module-hash "-2107557440", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1913745040"} {:id "def/army-aboard-action", :kind "def", :line 9, :end-line 9, :hash "-2006119160"} {:id "defn-/apply-unit-decision", :kind "defn-", :line 11, :end-line 18, :hash "1213856076"} {:id "defn-/apply-city-decision", :kind "defn-", :line 20, :end-line 25, :hash "572543254"} {:id "defn-/apply-key-decision", :kind "defn-", :line 27, :end-line 30, :hash "-558387725"} {:id "defn/handle-key", :kind "defn", :line 32, :end-line 37, :hash "-1466559726"}]}
 ;; clj-mutate-manifest-end

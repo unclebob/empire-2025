@@ -23,5 +23,5 @@
       (dispatch-unit pos unit))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T14:44:05.272015-05:00", :module-hash "-1868832207", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "747665866"} {:id "defn-/dispatch-unit", :kind "defn-", :line 10, :end-line 16, :hash "728412540"} {:id "defn/process-computer-unit", :kind "defn", :line 18, :end-line 23, :hash "-1014036518"}]}
+;; {:version 1, :tested-at "2026-03-26T22:36:45.598684-05:00", :module-hash "-1496519182", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "747665866"} {:id "defn-/dispatch-unit", :kind "defn-", :line 10, :end-line 16, :hash "728412540"} {:id "defn/process-computer-unit", :kind "defn", :line 18, :end-line 23, :hash "778807333"}]}
 ;; clj-mutate-manifest-end

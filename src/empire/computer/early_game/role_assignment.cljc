@@ -45,5 +45,5 @@
             cities)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T16:02:57.128702-05:00", :module-hash "343065411", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-1554357976"} {:id "defn-/pinned-role", :kind "defn-", :line 4, :end-line 8, :hash "536844627"} {:id "defn-/assign-random-role", :kind "defn-", :line 10, :end-line 26, :hash "319169559"} {:id "defn/theater-role-plan", :kind "defn", :line 28, :end-line 45, :hash "458882448"}]}
+;; {:version 1, :tested-at "2026-03-26T22:38:10.770307-05:00", :module-hash "-501718960", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-1554357976"} {:id "defn-/pinned-role", :kind "defn-", :line 4, :end-line 8, :hash "536844627"} {:id "defn-/assign-random-role", :kind "defn-", :line 10, :end-line 26, :hash "613998790"} {:id "defn/theater-role-plan", :kind "defn", :line 28, :end-line 45, :hash "-510842172"}]}
 ;; clj-mutate-manifest-end

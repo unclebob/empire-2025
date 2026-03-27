@@ -138,5 +138,5 @@
     :handler handlers/then-handle-unit-is-mode}])
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:00.096568-05:00", :module-hash "-1469556091", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-1218231702"} {:id "def/then-bare-patterns", :kind "def", :line 5, :end-line 96, :hash "838431004"} {:id "def/then-timed-patterns", :kind "def", :line 98, :end-line 138, :hash "-973123473"}]}
+;; {:version 1, :tested-at "2026-03-26T22:11:15.992213-05:00", :module-hash "-1469556091", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-1218231702"} {:id "def/then-bare-patterns", :kind "def", :line 5, :end-line 96, :hash "838431004"} {:id "def/then-timed-patterns", :kind "def", :line 98, :end-line 138, :hash "-973123473"}]}
 ;; clj-mutate-manifest-end

@@ -53,5 +53,5 @@
       (counted-token-tooltip token production-status)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T07:28:49.671345-05:00", :module-hash "1532960149", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-1309249959"} {:id "def/production-token-labels", :kind "def", :line 3, :end-line 12, :hash "2064211572"} {:id "def/fixed-token-tooltips", :kind "def", :line 14, :end-line 22, :hash "-772142312"} {:id "defn-/round-tooltip", :kind "defn-", :line 24, :end-line 27, :hash "815943068"} {:id "defn-/counted-token-tooltip", :kind "defn-", :line 29, :end-line 43, :hash "955361094"} {:id "defn/status-token-tooltip", :kind "defn", :line 45, :end-line 50, :hash "-1485482024"}]}
+;; {:version 1, :tested-at "2026-03-27T02:59:30.774241-05:00", :module-hash "990770620", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-1415477505"} {:id "def/production-token-labels", :kind "def", :line 4, :end-line 13, :hash "2064211572"} {:id "def/fixed-token-tooltips", :kind "def", :line 15, :end-line 23, :hash "-772142312"} {:id "defn-/round-tooltip", :kind "defn-", :line 25, :end-line 28, :hash "815943068"} {:id "defn-/counted-token-tooltip", :kind "defn-", :line 30, :end-line 46, :hash "40877624"} {:id "defn/status-token-tooltip", :kind "defn", :line 48, :end-line 53, :hash "1161146077"}]}
 ;; clj-mutate-manifest-end

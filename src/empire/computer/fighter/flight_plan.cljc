@@ -96,5 +96,5 @@
     {:pos pos :hops (:hops decision)}))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T16:29:00.222716-05:00", :module-hash "-22093989", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "-815924111"} {:id "defn/assign-exploration-flight!", :kind "defn", :line 6, :end-line 16, :hash "-1277964829"} {:id "defn/ensure-flight-target!", :kind "defn", :line 18, :end-line 46, :hash "1009996313"} {:id "defn/at-flight-target?", :kind "defn", :line 48, :end-line 50, :hash "-942003409"} {:id "defn/handle-arrival!", :kind "defn", :line 52, :end-line 71, :hash "1478044019"}]}
+;; {:version 1, :tested-at "2026-03-26T22:57:43.101829-05:00", :module-hash "-745766345", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "990494705"} {:id "defn/assign-exploration-flight!", :kind "defn", :line 6, :end-line 20, :hash "2051787068"} {:id "defn/ensure-flight-target!", :kind "defn", :line 22, :end-line 51, :hash "-2126986128"} {:id "defn/at-flight-target?", :kind "defn", :line 53, :end-line 55, :hash "-942003409"} {:id "defn/handle-arrival!", :kind "defn", :line 57, :end-line 96, :hash "312930749"}]}
 ;; clj-mutate-manifest-end

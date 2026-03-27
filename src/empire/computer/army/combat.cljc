@@ -40,5 +40,5 @@
           nil))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:17.012619-05:00", :module-hash "-1097092887", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "-594025972"} {:id "defn/find-adjacent-enemy", :kind "defn", :line 10, :end-line 17, :hash "672814064"} {:id "defn/attack-enemy", :kind "defn", :line 19, :end-line 49, :hash "-1633234980"} {:id "defn/process-attack-target", :kind "defn", :line 51, :end-line 61, :hash "304727400"}]}
+;; {:version 1, :tested-at "2026-03-26T22:27:31.466447-05:00", :module-hash "-1285913656", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "1781425452"} {:id "defn/find-adjacent-enemy", :kind "defn", :line 9, :end-line 16, :hash "-469903902"} {:id "defn/attack-enemy-result", :kind "defn", :line 18, :end-line 21, :hash "-1300851376"} {:id "defn/attack-enemy", :kind "defn", :line 23, :end-line 26, :hash "1908635276"} {:id "defn/process-attack-target", :kind "defn", :line 28, :end-line 40, :hash "-349334771"}]}
 ;; clj-mutate-manifest-end

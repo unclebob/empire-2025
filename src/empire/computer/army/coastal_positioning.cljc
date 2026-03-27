@@ -95,3 +95,7 @@
   "One-time land-only BFS target selection for invasion embarkation."
   [start country-id]
   (invasion/find-coast-target-once (invasion-ctx) start country-id))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-26T22:25:25.081199-05:00", :module-hash "764694871", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "-2139048253"} {:id "form/1/declare", :kind "declare", :line 10, :end-line 10, :hash "1944609974"} {:id "defn-/adjacent-to-computer-city?", :kind "defn-", :line 12, :end-line 22, :hash "-2103982590"} {:id "defn-/known-lake-cells", :kind "defn-", :line 24, :end-line 27, :hash "-816529896"} {:id "defn/adjacent-to-ocean?", :kind "defn", :line 29, :end-line 37, :hash "1188595514"} {:id "defn-/coastal-cell-for-country?", :kind "defn-", :line 39, :end-line 51, :hash "50964835"} {:id "defn/find-nearest-unoccupied-coastal-cell", :kind "defn", :line 53, :end-line 71, :hash "1045570962"} {:id "defn/should-sentry-on-coast?", :kind "defn", :line 73, :end-line 77, :hash "-1124014177"} {:id "defn/can-settle-here?", :kind "defn", :line 79, :end-line 82, :hash "-43219301"} {:id "defn-/invasion-ctx", :kind "defn-", :line 84, :end-line 92, :hash "1148739429"} {:id "defn/find-coast-target-once", :kind "defn", :line 94, :end-line 97, :hash "126024350"}]}
+;; clj-mutate-manifest-end

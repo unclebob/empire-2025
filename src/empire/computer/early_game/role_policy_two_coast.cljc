@@ -12,5 +12,5 @@
          {:CA landlocked-count :CF 1 :CT 1 :CP 0})))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T16:14:15.198807-05:00", :module-hash "-1833373316", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-799273982"} {:id "defn/two-coast-role-counts", :kind "defn", :line 3, :end-line 12, :hash "-1967803075"}]}
+;; {:version 1, :tested-at "2026-03-26T22:43:59.237569-05:00", :module-hash "-1833373316", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-799273982"} {:id "defn/two-coast-role-counts", :kind "defn", :line 3, :end-line 12, :hash "-1967803075"}]}
 ;; clj-mutate-manifest-end

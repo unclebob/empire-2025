@@ -20,5 +20,5 @@
         (apply min-key #(distance-fn transport-pos %) (:armies best-continent))))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T14:19:44.119659-05:00", :module-hash "953545863", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "575159759"} {:id "defn/claimed-target-choice", :kind "defn", :line 3, :end-line 10, :hash "-832415697"} {:id "defn/pickup-continent-choice", :kind "defn", :line 12, :end-line 20, :hash "-602823111"}]}
+;; {:version 1, :tested-at "2026-03-27T00:20:59.143613-05:00", :module-hash "-2046684331", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-656889309"} {:id "defn/claimed-target-choice", :kind "defn", :line 3, :end-line 10, :hash "-832415697"} {:id "defn/pickup-continent-choice", :kind "defn", :line 12, :end-line 20, :hash "-602823111"}]}
 ;; clj-mutate-manifest-end

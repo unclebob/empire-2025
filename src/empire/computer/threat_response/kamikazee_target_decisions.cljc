@@ -25,5 +25,5 @@
      :targets targets}))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T12:48:44.534134-05:00", :module-hash "-175981704", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "1920677497"} {:id "defn/trim-dead-army-targets-state", :kind "defn", :line 3, :end-line 13, :hash "208996487"} {:id "defn/fighter-target-writes", :kind "defn", :line 15, :end-line 25, :hash "-1952127639"}]}
+;; {:version 1, :tested-at "2026-03-26T23:44:02.897086-05:00", :module-hash "-175981704", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "1920677497"} {:id "defn/trim-dead-army-targets-state", :kind "defn", :line 3, :end-line 13, :hash "208996487"} {:id "defn/fighter-target-writes", :kind "defn", :line 15, :end-line 25, :hash "-1952127639"}]}
 ;; clj-mutate-manifest-end

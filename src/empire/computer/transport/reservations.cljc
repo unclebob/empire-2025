@@ -46,3 +46,7 @@
   [transport-id]
   (when transport-id
     (sa/update-state! :transport-load-reservations dissoc transport-id)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-27T00:11:25.525618-05:00", :module-hash "25048205", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "1538881731"} {:id "defn/reservations", :kind "defn", :line 4, :end-line 6, :hash "1259820045"} {:id "defn/reserved-coastal-cells", :kind "defn", :line 8, :end-line 16, :hash "1846612988"} {:id "defn/reserved-army-ids", :kind "defn", :line 18, :end-line 26, :hash "-1361175711"} {:id "defn/reserve!", :kind "defn", :line 28, :end-line 35, :hash "726379864"} {:id "defn/update-army-ids!", :kind "defn", :line 37, :end-line 43, :hash "-1354717537"} {:id "defn/release!", :kind "defn", :line 45, :end-line 48, :hash "-819621441"}]}
+;; clj-mutate-manifest-end

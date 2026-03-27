@@ -49,5 +49,5 @@
     (move-satellite-steps ctx coords)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-15T16:55:48.533136-05:00", :module-hash "1327348228", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "-551791313"} {:id "defn-/find-satellite-coords", :kind "defn-", :line 5, :end-line 12, :hash "1125499085"} {:id "defn-/move-satellite-steps", :kind "defn-", :line 14, :end-line 44, :hash "151377961"} {:id "defn/move-satellites!", :kind "defn", :line 46, :end-line 49, :hash "1438118815"}]}
+;; {:version 1, :tested-at "2026-03-27T02:06:16.030165-05:00", :module-hash "1327348228", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "-551791313"} {:id "defn-/find-satellite-coords", :kind "defn-", :line 5, :end-line 12, :hash "1125499085"} {:id "defn-/move-satellite-steps", :kind "defn-", :line 14, :end-line 44, :hash "151377961"} {:id "defn/move-satellites!", :kind "defn", :line 46, :end-line 49, :hash "1438118815"}]}
 ;; clj-mutate-manifest-end

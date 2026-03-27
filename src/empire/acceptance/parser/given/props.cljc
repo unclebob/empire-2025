@@ -93,5 +93,5 @@
       :else nil)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T21:29:23.795996-05:00", :module-hash "-2037724323", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1223534466"} {:id "def/unit-prop-extractors", :kind "def", :line 6, :end-line 54, :hash "-1185448182"} {:id "defn/parse-unit-props-line", :kind "defn", :line 56, :end-line 74, :hash "-1551467611"} {:id "defn/parse-container-state-line", :kind "defn", :line 76, :end-line 93, :hash "-2029154966"}]}
+;; {:version 1, :tested-at "2026-03-26T22:04:22.081901-05:00", :module-hash "-2037724323", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1223534466"} {:id "def/unit-prop-extractors", :kind "def", :line 6, :end-line 54, :hash "-1185448182"} {:id "defn/parse-unit-props-line", :kind "defn", :line 56, :end-line 74, :hash "-1551467611"} {:id "defn/parse-container-state-line", :kind "defn", :line 76, :end-line 93, :hash "-2029154966"}]}
 ;; clj-mutate-manifest-end

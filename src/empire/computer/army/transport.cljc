@@ -42,5 +42,5 @@
         (movement/move-toward-objective pos transport-pos country-id)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:57:25.063379-05:00", :module-hash "1491705333", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "1350358818"} {:id "defn/find-and-board-transport", :kind "defn", :line 9, :end-line 23, :hash "-1877571689"}]}
+;; {:version 1, :tested-at "2026-03-26T22:33:56.764206-05:00", :module-hash "-403407838", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "-323365915"} {:id "def/nearby-loading-transport-radius", :kind "def", :line 10, :end-line 10, :hash "1557696767"} {:id "defn/find-and-board-transport", :kind "defn", :line 12, :end-line 26, :hash "398630335"} {:id "defn/find-and-board-nearby-loading-transport", :kind "defn", :line 28, :end-line 42, :hash "-518958576"}]}
 ;; clj-mutate-manifest-end

@@ -43,5 +43,5 @@
     (apply min-key #(grid/distance pos %) pts)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-12T11:58:45.322195-05:00", :module-hash "-847766295", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-830954805"} {:id "defn/land-or-city?", :kind "defn", :line 4, :end-line 6, :hash "-177206691"} {:id "defn/flood-fill-land", :kind "defn", :line 8, :end-line 23, :hash "2146363231"} {:id "defn/recompute-target-land", :kind "defn", :line 25, :end-line 30, :hash "-61417461"} {:id "defn/activate-state", :kind "defn", :line 32, :end-line 37, :hash "1392644556"} {:id "defn/nearest-target", :kind "defn", :line 39, :end-line 42, :hash "-1523050205"}]}
+;; {:version 1, :tested-at "2026-03-26T23:39:56.324996-05:00", :module-hash "-511397461", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-1421237018"} {:id "defn/land-or-city?", :kind "defn", :line 5, :end-line 7, :hash "-177206691"} {:id "defn/flood-fill-land", :kind "defn", :line 9, :end-line 24, :hash "2079928900"} {:id "defn/recompute-target-land", :kind "defn", :line 26, :end-line 31, :hash "-61417461"} {:id "defn/activate-state", :kind "defn", :line 33, :end-line 38, :hash "1392644556"} {:id "defn/nearest-target", :kind "defn", :line 40, :end-line 43, :hash "1518767761"}]}
 ;; clj-mutate-manifest-end

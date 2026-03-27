@@ -19,5 +19,5 @@
 (def state (atom defaults))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T15:29:40.488909-05:00", :module-hash "721108106", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "1874570204"} {:id "def/defaults", :kind "def", :line 3, :end-line 18, :hash "-1855230863"} {:id "def/state", :kind "def", :line 20, :end-line 20, :hash "-1274501582"}]}
+;; {:version 1, :tested-at "2026-03-27T02:36:59.420274-05:00", :module-hash "1462789888", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "1874570204"} {:id "def/defaults", :kind "def", :line 3, :end-line 17, :hash "-34247758"} {:id "def/state", :kind "def", :line 19, :end-line 19, :hash "-1274501582"}]}
 ;; clj-mutate-manifest-end

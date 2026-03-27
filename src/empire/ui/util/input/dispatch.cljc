@@ -64,3 +64,7 @@
   (let [cell-coords (when (map-utils/on-map? mouse-x mouse-y)
                       (map-utils/determine-cell-coordinates mouse-x mouse-y))]
     (dispatch-key k cell-coords)))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-27T02:58:11.891715-05:00", :module-hash "-730155646", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "504870212"} {:id "defn/handle-key", :kind "defn", :line 9, :end-line 9, :hash "-464059951"} {:id "defn/handle-unit-click", :kind "defn", :line 11, :end-line 12, :hash "-19049557"} {:id "defn/handle-cell-click", :kind "defn", :line 14, :end-line 17, :hash "-379632507"} {:id "defn/handle-load-menu-click", :kind "defn", :line 19, :end-line 23, :hash "404954814"} {:id "defn/mouse-down", :kind "defn", :line 25, :end-line 28, :hash "-855754345"} {:id "defn/modifier-held?", :kind "defn", :line 32, :end-line 35, :hash "1979782730"} {:id "defn/debug-drag-start!", :kind "defn", :line 37, :end-line 40, :hash "-1454085744"} {:id "defn/debug-drag-update!", :kind "defn", :line 42, :end-line 45, :hash "-963926980"} {:id "defn/debug-drag-end!", :kind "defn", :line 47, :end-line 51, :hash "6691163"} {:id "defn/dispatch-key", :kind "defn", :line 53, :end-line 59, :hash "-1872497246"} {:id "defn/key-down", :kind "defn", :line 61, :end-line 66, :hash "-871610466"}]}
+;; clj-mutate-manifest-end

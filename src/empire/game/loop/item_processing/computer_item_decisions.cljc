@@ -64,5 +64,5 @@
              :done)})
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T12:52:03.54503-05:00", :module-hash "-1960337722", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "178836077"} {:id "defn/coord-pair?", :kind "defn", :line 3, :end-line 7, :hash "-447259980"} {:id "defn/normalize-computer-items", :kind "defn", :line 9, :end-line 14, :hash "925652102"} {:id "defn/computer-item-action", :kind "defn", :line 16, :end-line 35, :hash "566864413"} {:id "defn/next-computer-items", :kind "defn", :line 37, :end-line 57, :hash "-2053847841"} {:id "defn/computer-item-state", :kind "defn", :line 59, :end-line 64, :hash "977622679"}]}
+;; {:version 1, :tested-at "2026-03-27T01:54:03.544264-05:00", :module-hash "-1960337722", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "178836077"} {:id "defn/coord-pair?", :kind "defn", :line 3, :end-line 7, :hash "-447259980"} {:id "defn/normalize-computer-items", :kind "defn", :line 9, :end-line 14, :hash "925652102"} {:id "defn/computer-item-action", :kind "defn", :line 16, :end-line 35, :hash "566864413"} {:id "defn/next-computer-items", :kind "defn", :line 37, :end-line 57, :hash "-2053847841"} {:id "defn/computer-item-state", :kind "defn", :line 59, :end-line 64, :hash "977622679"}]}
 ;; clj-mutate-manifest-end

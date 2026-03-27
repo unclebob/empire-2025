@@ -38,3 +38,7 @@
   Satellites without a target don't move - they wait for user input."
   [[x y]]
   (impl/move-satellite bounce-direction [x y]))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-27T01:29:40.795483-05:00", :module-hash "1967884930", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 2, :hash "-1503290521"} {:id "defn/calculate-satellite-target", :kind "defn", :line 4, :end-line 7, :hash "1275272722"} {:id "defn-/boundary-type", :kind "defn-", :line 9, :end-line 11, :hash "2053793298"} {:id "defn-/bounce-direction", :kind "defn-", :line 13, :end-line 32, :hash "1823438433"} {:id "defn/move-satellite", :kind "defn", :line 34, :end-line 40, :hash "165262647"}]}
+;; clj-mutate-manifest-end

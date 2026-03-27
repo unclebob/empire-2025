@@ -51,3 +51,7 @@
     (sa/update-world! assoc-in city-pos updated-city)
     (visibility/update-cell-visibility city-pos :computer)
     city-pos))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-03-27T01:42:16.700032-05:00", :module-hash "179466291", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "2140282499"} {:id "defn-/set-turn-message!", :kind "defn-", :line 7, :end-line 12, :hash "961870185"} {:id "defn/attack-enemy", :kind "defn", :line 14, :end-line 42, :hash "568815755"} {:id "defn/dock-computer-ship", :kind "defn", :line 44, :end-line 53, :hash "-1631234714"}]}
+;; clj-mutate-manifest-end

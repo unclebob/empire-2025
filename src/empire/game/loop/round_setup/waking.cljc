@@ -31,5 +31,5 @@
       (sa/update-world! update-in path update-fn))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T12:54:12.743148-05:00", :module-hash "1811054114", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-2050897319"} {:id "defn/wake-airport-fighters", :kind "defn", :line 5, :end-line 13, :hash "-77071439"} {:id "defn/wake-carrier-fighters", :kind "defn", :line 15, :end-line 23, :hash "-1091345431"} {:id "defn/wake-sentries-seeing-enemy", :kind "defn", :line 25, :end-line 31, :hash "-1905827531"}]}
+;; {:version 1, :tested-at "2026-03-27T02:08:49.546299-05:00", :module-hash "1811054114", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-2050897319"} {:id "defn/wake-airport-fighters", :kind "defn", :line 5, :end-line 13, :hash "-77071439"} {:id "defn/wake-carrier-fighters", :kind "defn", :line 15, :end-line 23, :hash "-1091345431"} {:id "defn/wake-sentries-seeing-enemy", :kind "defn", :line 25, :end-line 31, :hash "-1905827531"}]}
 ;; clj-mutate-manifest-end

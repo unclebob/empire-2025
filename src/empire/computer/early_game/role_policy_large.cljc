@@ -12,5 +12,5 @@
        {:CA (dec landlocked-count) :CF 1 :CT (dec coastal-count) :CP 1}))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T16:17:05.23236-05:00", :module-hash "76161457", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-566336849"} {:id "defn/many-coast-role-counts", :kind "defn", :line 3, :end-line 12, :hash "49050565"}]}
+;; {:version 1, :tested-at "2026-03-26T22:39:42.053202-05:00", :module-hash "76161457", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "-566336849"} {:id "defn/many-coast-role-counts", :kind "defn", :line 3, :end-line 12, :hash "49050565"}]}
 ;; clj-mutate-manifest-end

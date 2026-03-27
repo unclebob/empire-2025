@@ -36,5 +36,5 @@
   (post-move/near-hostile-city? pos current-map))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T09:37:28.67875-05:00", :module-hash "1167832280", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-2049180236"} {:id "defn/friendly-city-in-range?", :kind "defn", :line 7, :end-line 19, :hash "-1492505997"} {:id "defn/enemy-unit-visible?", :kind "defn", :line 21, :end-line 24, :hash "1802689446"} {:id "defn/wake-before-move", :kind "defn", :line 26, :end-line 28, :hash "1606535952"} {:id "defn/wake-after-move", :kind "defn", :line 30, :end-line 32, :hash "1829619743"} {:id "defn/near-hostile-city?", :kind "defn", :line 34, :end-line 36, :hash "-193007792"}]}
+;; {:version 1, :tested-at "2026-03-27T01:32:07.800223-05:00", :module-hash "1167832280", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-2049180236"} {:id "defn/friendly-city-in-range?", :kind "defn", :line 7, :end-line 19, :hash "-1492505997"} {:id "defn/enemy-unit-visible?", :kind "defn", :line 21, :end-line 24, :hash "1802689446"} {:id "defn/wake-before-move", :kind "defn", :line 26, :end-line 28, :hash "1606535952"} {:id "defn/wake-after-move", :kind "defn", :line 30, :end-line 32, :hash "1829619743"} {:id "defn/near-hostile-city?", :kind "defn", :line 34, :end-line 36, :hash "-193007792"}]}
 ;; clj-mutate-manifest-end

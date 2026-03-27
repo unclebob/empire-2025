@@ -44,5 +44,5 @@
       best)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T14:20:27.122733-05:00", :module-hash "-1275047669", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-1919004257"} {:id "defn/adjacent-to-pickup-continent?", :kind "defn", :line 9, :end-line 23, :hash "-655962961"} {:id "defn-/score-target-city", :kind "defn-", :line 25, :end-line 37, :hash "1702347925"} {:id "defn/find-unload-target", :kind "defn", :line 39, :end-line 60, :hash "1436906733"} {:id "defn/find-next-pickup-continent-pos", :kind "defn", :line 62, :end-line 97, :hash "-523599609"} {:id "defn/should-try-opportunistic-unload?", :kind "defn", :line 99, :end-line 102, :hash "2063591989"}]}
+;; {:version 1, :tested-at "2026-03-27T00:22:19.510729-05:00", :module-hash "-955632872", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1784909429"} {:id "defn-/score-target-city", :kind "defn-", :line 9, :end-line 21, :hash "-781637387"} {:id "defn/find-unload-target", :kind "defn", :line 23, :end-line 44, :hash "-793128703"}]}
 ;; clj-mutate-manifest-end

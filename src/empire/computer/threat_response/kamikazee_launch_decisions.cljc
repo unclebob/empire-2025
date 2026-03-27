@@ -30,5 +30,5 @@
      :fighter (build-launched-fighter fighter-fuel major-target targets plan)}))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-16T08:11:56.794999-05:00", :module-hash "1134774238", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "1985685086"} {:id "defn/airport-kamikazee-ready?", :kind "defn", :line 3, :end-line 5, :hash "-972131625"} {:id "defn/build-launched-fighter", :kind "defn", :line 7, :end-line 20, :hash "1371288469"} {:id "defn/launch-decision", :kind "defn", :line 22, :end-line 30, :hash "1556357406"}]}
+;; {:version 1, :tested-at "2026-03-26T23:41:28.218765-05:00", :module-hash "1134774238", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "1985685086"} {:id "defn/airport-kamikazee-ready?", :kind "defn", :line 3, :end-line 5, :hash "-972131625"} {:id "defn/build-launched-fighter", :kind "defn", :line 7, :end-line 20, :hash "1371288469"} {:id "defn/launch-decision", :kind "defn", :line 22, :end-line 30, :hash "1556357406"}]}
 ;; clj-mutate-manifest-end

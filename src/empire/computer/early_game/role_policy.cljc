@@ -39,5 +39,5 @@
       (large/many-coast-role-counts coastal-count landlocked-count strong?))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-13T16:05:02.039107-05:00", :module-hash "1281412380", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-159998796"} {:id "def/role->item-map", :kind "def", :line 7, :end-line 11, :hash "-1533521591"} {:id "defn/role->item", :kind "defn", :line 13, :end-line 15, :hash "-2085333229"} {:id "defn-/strong-army-backlog?", :kind "defn-", :line 17, :end-line 19, :hash "1046624873"} {:id "defn/desired-role-counts", :kind "defn", :line 21, :end-line 39, :hash "23081746"}]}
+;; {:version 1, :tested-at "2026-03-26T22:45:25.70846-05:00", :module-hash "1281412380", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-159998796"} {:id "def/role->item-map", :kind "def", :line 7, :end-line 11, :hash "-1533521591"} {:id "defn/role->item", :kind "defn", :line 13, :end-line 15, :hash "-2085333229"} {:id "defn-/strong-army-backlog?", :kind "defn-", :line 17, :end-line 19, :hash "1046624873"} {:id "defn/desired-role-counts", :kind "defn", :line 21, :end-line 39, :hash "23081746"}]}
 ;; clj-mutate-manifest-end
