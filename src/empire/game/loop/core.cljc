@@ -56,16 +56,35 @@
                   (= (:owner (:contents cell)) :player))]
       [i j])))
 
+(defn- unit-processing-order
+  "Returns sort priority for computer unit processing.
+   Cities first, then transports, then naval, then fighters, then armies."
+  [cell]
+  (if (= :city (:type cell))
+    0
+    (case (:type (:contents cell))
+      :transport 1
+      :patrol-boat 2
+      :destroyer 2
+      :submarine 2
+      :battleship 2
+      :carrier 2
+      :fighter 3
+      :army 4
+      5)))
+
 (defn build-computer-items
-  "Builds list of computer city/unit coordinates to process this round."
+  "Builds list of computer city/unit coordinates to process this round.
+   Ordered: cities, transports, naval, fighters, armies."
   []
-  (let [world (sa/current-world)]
-    (for [i (range (count world))
-          j (range (count (first world)))
-          :let [cell (get-in world [i j])]
-        :when (or (= (:city-status cell) :computer)
-                  (= (:owner (:contents cell)) :computer))]
-      [i j])))
+  (let [world (sa/current-world)
+        items (for [i (range (count world))
+                    j (range (count (first world)))
+                    :let [cell (get-in world [i j])]
+                    :when (or (= (:city-status cell) :computer)
+                              (= (:owner (:contents cell)) :computer))]
+                [i j])]
+    (sort-by #(unit-processing-order (get-in world %)) items)))
 
 (defn- declare-game-over!
   [message]

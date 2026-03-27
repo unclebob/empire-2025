@@ -22,18 +22,26 @@
         (world-query/get-neighbors pos)))
 
 (defn- seed-coastal-registry
-  "One-time full-map scan to populate coastal cell registry for country-id.
-   Called only when the registry is empty for that country."
+  "Populate coastal cell registry for country-id using coastal index when available."
   [country-id]
   (let [gm (sa/read-state :computer-map)
-        coastal (for [i (range (count gm))
-                      j (range (count (first gm)))
-                      :let [cell (get-in gm [i j])]
-                      :when (and (= :land (:type cell))
-                                 (or (nil? (:country-id cell))
-                                     (= country-id (:country-id cell)))
-                                 (adjacent-to-sea? [i j]))]
-                  [i j])]
+        coastal-index (sa/read-state :coastal-index)
+        coastal (if coastal-index
+                  (filter (fn [pos]
+                            (let [cell (get-in gm pos)]
+                              (and cell
+                                   (= :land (:type cell))
+                                   (or (nil? (:country-id cell))
+                                       (= country-id (:country-id cell))))))
+                          (:coastal-land-cells coastal-index))
+                  (for [i (range (count gm))
+                        j (range (count (first gm)))
+                        :let [cell (get-in gm [i j])]
+                        :when (and (= :land (:type cell))
+                                   (or (nil? (:country-id cell))
+                                       (= country-id (:country-id cell)))
+                                   (adjacent-to-sea? [i j]))]
+                    [i j]))]
     (let [registry (or (sa/read-state :coastal-cells-by-country) {})]
       (sa/write-state! :coastal-cells-by-country
                             (assoc registry country-id (set coastal))))))

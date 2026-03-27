@@ -1,6 +1,7 @@
 (ns empire.computer.ship.patrol
   "Computer patrol boat movement - coastline crawling and BFS exploration."
   (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
+            [empire.game-mechanics.movement.ray-pathfinding :as ray]
             [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.computer.shared.action-resolution :as action-resolution]
@@ -123,20 +124,44 @@
                  (and cell (#{:land :city} (:type cell)))))
              (world-query/get-neighbors pos))))
 
-(defn- run-bfs-and-store-path
-  "Run BFS to find unseen coast, store full path on unit. Returns path or nil.
-   Excludes targets already claimed by other patrol boats this round."
+(defn- find-nearest-unseen-coast-target
+  "Uses coastal index to find nearest unseen coastal-sea-cell visible on computer-map."
   [pos]
-  (when-let [path (pathfinding-bfs/bfs-to-unseen-coast
-                    pos
-                    (sa/read-state :computer-map)
-                    (sa/read-state :claimed-patrol-targets))]
-    (let [claimed (or (sa/read-state :claimed-patrol-targets) #{})]
-      (sa/write-state! :claimed-patrol-targets (conj claimed (last path))))
-    (sa/update-world! assoc-in
-                      (conj pos :contents :explore-path) (vec path))
-    (visibility/sync-ai-unit-to-computer-map! pos)
-    path))
+  (let [coastal-index (sa/read-state :coastal-index)
+        computer-map (sa/read-state :computer-map)
+        seen-coast (or (sa/read-state :seen-coast) #{})
+        excluded (or (sa/read-state :claimed-patrol-targets) #{})
+        candidates (when coastal-index
+                     (filter (fn [c]
+                               (and (not (contains? seen-coast c))
+                                    (not (contains? excluded c))
+                                    (let [cell (get-in computer-map c)]
+                                      (and cell (= :sea (:type cell))))))
+                             (:coastal-sea-cells coastal-index)))]
+    (when (seq candidates)
+      (apply min-key (fn [[r c]]
+                       (+ (Math/abs (- r (first pos)))
+                          (Math/abs (- c (second pos)))))
+             candidates))))
+
+(defn- run-bfs-and-store-path
+  "Find unseen coast target and route to it. Uses coastal index when available,
+   falls back to BFS. Excludes targets claimed by other patrol boats this round."
+  [pos]
+  (let [target (find-nearest-unseen-coast-target pos)
+        path (if target
+               (ray/find-sea-path pos target (sa/read-state :computer-map))
+               (pathfinding-bfs/bfs-to-unseen-coast
+                 pos
+                 (sa/read-state :computer-map)
+                 (sa/read-state :claimed-patrol-targets)))]
+    (when (seq path)
+      (let [claimed (or (sa/read-state :claimed-patrol-targets) #{})]
+        (sa/write-state! :claimed-patrol-targets (conj claimed (last path))))
+      (sa/update-world! assoc-in
+                        (conj pos :contents :explore-path) (vec path))
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      path)))
 
 (defn- switch-to-crawling [next-pos]
   "Switch patrol boat to crawling mode and clear explore state."

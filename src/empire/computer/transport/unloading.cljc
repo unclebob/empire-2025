@@ -13,7 +13,8 @@
             [empire.game-mechanics.debug.logging :as debug]
             [empire.game-mechanics.visibility :as visibility]
             [empire.computer.shared.world-query :as world-query]
-            [empire.computer.shared.movement :as computer-movement]))
+            [empire.computer.shared.movement :as computer-movement]
+            [empire.computer.shared.grid :as grid]))
 
 
 (defn pickup-exclude-ids
@@ -63,33 +64,47 @@
                              (#{:land :city} (:type neighbor-cell)))))
                     (world-query/get-neighbors pos))))))
 
+(defn- has-unloadable-neighbor-at?
+  [game-map pos exclude-ids major-invasion?]
+  (some (fn [n]
+          (unloadable-land-cell? (get-in game-map n) n exclude-ids major-invasion?))
+        (world-query/get-neighbors pos)))
+
 (defn has-nearby-unloadable-land?
-  "BFS along coastal sea cells up to max-depth hops from pos.
-   Returns true if any visited position has adjacent empty land
-   not excluded by country-id or pickup continent."
+  "Check if any coastal sea cell within max-depth of pos has adjacent unloadable land.
+   Uses coastal index when available, falls back to BFS."
   [pos transport max-depth]
   (let [game-map (sa/read-state :computer-map)
         exclude-ids (pickup-exclude-ids game-map transport)
         major-invasion? (:major-invasion transport)
-        has-unloadable-neighbor? (fn [p]
-                                   (some (fn [n]
-                                           (unloadable-land-cell?
-                                             (get-in game-map n) n exclude-ids major-invasion?))
-                                         (world-query/get-neighbors p)))]
-    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
-           visited #{pos}]
-      (if (empty? queue)
-        false
-        (let [[current depth] (peek queue)]
-          (cond
-            (has-unloadable-neighbor? current) true
-            (>= depth max-depth) (recur (pop queue) visited)
-            :else
-            (let [coastal-neighbors
-                  (filter #(passable-coastal-sea? % visited game-map)
-                          (world-query/get-neighbors current))]
-              (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
-                     (into visited coastal-neighbors)))))))))
+        coastal-index (sa/read-state :coastal-index)]
+    (if (and coastal-index (pos? max-depth))
+      ;; Use coastal index: filter nearby coastal-sea-cells and check for unloadable neighbors
+      (let [candidates (filter (fn [c]
+                                 (and (<= (grid/chebyshev-distance pos c) max-depth)
+                                      (let [cell (get-in game-map c)]
+                                        (and cell (= :sea (:type cell))))))
+                               (:coastal-sea-cells coastal-index))]
+        (boolean (some #(has-unloadable-neighbor-at? game-map % exclude-ids major-invasion?)
+                       (cons pos candidates))))
+      ;; Depth 0 or no index: just check current position
+      (if (zero? max-depth)
+        (boolean (has-unloadable-neighbor-at? game-map pos exclude-ids major-invasion?))
+        ;; BFS fallback
+        (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
+               visited #{pos}]
+          (if (empty? queue)
+            false
+            (let [[current depth] (peek queue)]
+              (cond
+                (has-unloadable-neighbor-at? game-map current exclude-ids major-invasion?) true
+                (>= depth max-depth) (recur (pop queue) visited)
+                :else
+                (let [coastal-neighbors
+                      (filter #(passable-coastal-sea? % visited game-map)
+                              (world-query/get-neighbors current))]
+                  (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
+                         (into visited coastal-neighbors)))))))))))
 
 (defn- transition-to-loading-inline
   "Inline return-to-load transition — avoids circular dep with facade."
