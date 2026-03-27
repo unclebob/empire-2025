@@ -43,6 +43,13 @@
   (sa/write-state! :destination [cx cy])
   true)
 
+(defn clear-destination!
+  "Clears the destination."
+  []
+  (sa/write-state! :destination nil)
+  (set-turn-message! "Destination cleared" 2000)
+  true)
+
 (defn- apply-marching-orders [path dest]
   (let [{:keys [path dest clear-destination? message]}
         (decisions/marching-orders-state path dest)]
@@ -53,9 +60,10 @@
   true)
 
 (defn set-marching-orders-at
-  "Sets marching orders on a player city, transport, or waypoint at the given coordinates."
+  "Sets or clears marching orders on a player city, transport, or waypoint.
+   When destination is nil, clears marching orders on the city."
   [[cx cy]]
-  (when-let [dest (sa/read-state :destination)]
+  (if-let [dest (sa/read-state :destination)]
     (let [cell (get-in (sa/current-world) [cx cy])
           decision (decisions/marching-orders-action cell dest)]
       (case (:action decision)
@@ -65,12 +73,19 @@
         :set-waypoint-orders
         (do (waypoint/set-waypoint-orders [cx cy]) true)
 
-        nil))))
+        nil))
+    (let [cell (get-in (sa/current-world) [cx cy])]
+      (when (and (= :city (:type cell)) (= :player (:city-status cell))
+                 (:marching-orders cell))
+        (sa/update-world! update-in [cx cy] dissoc :marching-orders)
+        (set-turn-message! "Marching orders cleared" 2000)
+        true))))
 
 (defn set-flight-path-at
-  "Sets flight path on a player city or carrier at the given coordinates."
+  "Sets or clears flight path on a player city or carrier.
+   When destination is nil, clears the flight path."
   [[cx cy]]
-  (when-let [dest (sa/read-state :destination)]
+  (if-let [dest (sa/read-state :destination)]
     (let [cell (get-in (sa/current-world) [cx cy])
           decision (decisions/flight-path-action (sa/current-world) cell dest)]
       (when (= :set-flight-path (:action decision))
@@ -80,6 +95,13 @@
           (when clear-destination?
             (sa/write-state! :destination nil))
           (set-turn-message! message 2000))
+        true))
+    (let [cell (get-in (sa/current-world) [cx cy])]
+      (when (and (or (and (= :city (:type cell)) (= :player (:city-status cell)))
+                     (and (= :carrier (:type (:contents cell))) (= :player (:owner (:contents cell)))))
+                 (:flight-path cell))
+        (sa/update-world! update-in [cx cy] dissoc :flight-path)
+        (set-turn-message! "Flight path cleared" 2000)
         true))))
 
 (defn set-waypoint-at

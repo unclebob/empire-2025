@@ -118,12 +118,14 @@
     (= k caret-key) (do (save-load/open-load-menu!) true)))
 
 (defn dispatch-standing-order-key [k cell-coords]
-  (when-let [f (standing-order-handlers k)]
-    (when cell-coords (f cell-coords))))
+  (if (and (= k (keyword ".")) (nil? cell-coords))
+    (player-orders/clear-destination!)
+    (when-let [f (standing-order-handlers k)]
+      (when cell-coords (f cell-coords)))))
 
 (defn dispatch-coord-key [k cell-coords]
-  (when cell-coords
-    (or (dispatch-standing-order-key k cell-coords)
+  (or (dispatch-standing-order-key k cell-coords)
+      (when cell-coords
         (player-orders/set-city-marching-orders-by-direction-at cell-coords k))))
 
 (defn dispatch-normal-key [k cell-coords]
