@@ -18,8 +18,9 @@
 
 (defn- assign-threat-mission! [positions mission-kv]
   (doseq [pos positions]
-    (sa/update-world! update-in (conj pos :contents) merge mission-kv)
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+    (when (:type (get-in (sa/current-world) (conj pos :contents)))
+      (sa/update-world! update-in (conj pos :contents) merge mission-kv)
+      (visibility/sync-ai-unit-to-computer-map! pos))))
 
 (defn- closest-positions [origin positions n]
   (->> positions
