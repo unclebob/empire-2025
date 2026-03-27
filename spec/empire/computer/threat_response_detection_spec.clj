@@ -2,6 +2,7 @@
   (:require [empire.computer.shared.grid :as grid]
             [empire.computer.threat-response-impl :as threat-response]
             [empire.computer.threat-response.core :as threat-response-core]
+            [empire.computer.threat-response.detection :as threat-response-detection]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world! update-test-world!]]
             [speclj.core :refer :all]))
@@ -46,7 +47,7 @@
       (set-test-computer-map! gm)
       (test-utils/update-test-computer-map! assoc-in [0 2] nil)
       (should= [[0 0]]
-               (vec (@#'threat-response-core/find-computer-unit-positions
+               (vec (threat-response-detection/find-computer-unit-positions
                      #(= :fighter (:type %)))))))
 
   (it "assigns 2 patrol boats and 2 battleships when enemy ship detected"
