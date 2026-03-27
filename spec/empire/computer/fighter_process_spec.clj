@@ -227,7 +227,7 @@
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should-be-nil (get-test-unit (test-utils/game-map-atom) "f"))))
 
-    (it "uses the planned landing site even when that city is not visible on computer-map"
+    (it "uses the planned landing site when visible on computer-map"
       (set-test-world! (build-test-map ["Xf#####"]))
       (set-test-unit (test-utils/game-map-atom) "f" :fuel 1
                      :flight-target-site [6 0]
@@ -238,7 +238,6 @@
                      :explore-steps-remaining 3
                      :explore-landing-site [0 0])
       (set-test-computer-map! (test-utils/read-test-state :game-map))
-      (test-utils/update-test-computer-map! assoc-in [0 0] nil)
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))

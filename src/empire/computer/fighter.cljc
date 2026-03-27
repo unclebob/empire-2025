@@ -21,10 +21,6 @@
   [pos]
   (get-in (sa/read-state :computer-map) pos))
 
-(defn- world-cell-at
-  [pos]
-  (get-in (sa/current-world) pos))
-
 ;; --- Leg-based coverage ---
 
 (defn- ensure-flight-target
@@ -95,8 +91,7 @@
 
 (defn- adjacent-to-city-site? [site pos]
   (and site
-       (= :city (:type (or (computer-cell-at site)
-                           (world-cell-at site))))
+       (= :city (:type (computer-cell-at site)))
        (<= (fm/distance-to pos site) 1)))
 
 (defn- adjacent-to-site? [site pos]
@@ -104,8 +99,7 @@
 
 (defn- refueling-site?
   [site]
-  (let [cell (or (computer-cell-at site)
-                 (world-cell-at site))]
+  (let [cell (computer-cell-at site)]
     (or (and (= :city (:type cell))
              (= :computer (:city-status cell)))
         (and (= :carrier (get-in cell [:contents :type]))

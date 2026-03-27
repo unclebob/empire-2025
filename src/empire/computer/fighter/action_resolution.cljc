@@ -43,8 +43,9 @@
 (defn- build-crash-details [pos unit]
   (let [target-site (:flight-target-site unit)
         landing-site (:explore-landing-site unit)
-        target-cell (when target-site (get-in (sa/current-world) target-site))
-        landing-cell (when landing-site (get-in (sa/current-world) landing-site))]
+        computer-map (sa/read-state :computer-map)
+        target-cell (when target-site (get-in computer-map target-site))
+        landing-cell (when landing-site (get-in computer-map landing-site))]
     {:target-site target-site
      :target-cell-type (:type target-cell)
      :target-city-status (:city-status target-cell)
