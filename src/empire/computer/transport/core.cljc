@@ -59,10 +59,6 @@
                          (= :computer (:owner (:contents cell)))))))
             (world-query/get-neighbors pos))))
 
-(defn recently-unloaded-country?
-  [unloaded-countries country-id]
-  (when-let [unload-round (get unloaded-countries country-id)]
-    (< (- (or (sa/read-state :round-number) 0) unload-round) 10)))
 
 (defn adjacent-to-land?
   [pos]

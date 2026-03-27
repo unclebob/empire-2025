@@ -7,23 +7,6 @@
 (describe "transport-core"
   (before (reset-all-atoms!))
 
-  (context "recently-unloaded-country? (L21)"
-    (it "returns truthy when unloaded within 10 rounds"
-      (test-utils/set-test-state! :round-number 15)
-      (should (tc/recently-unloaded-country? {1 10} 1)))
-
-    (it "returns falsy when unloaded 10+ rounds ago"
-      (test-utils/set-test-state! :round-number 20)
-      (should-not (tc/recently-unloaded-country? {1 10} 1)))
-
-    (it "returns nil when country-id not in map"
-      (test-utils/set-test-state! :round-number 5)
-      (should-be-nil (tc/recently-unloaded-country? {2 1} 1)))
-
-    (it "boundary: exactly 10 rounds ago is not recent"
-      (test-utils/set-test-state! :round-number 15)
-      (should-not (tc/recently-unloaded-country? {1 5} 1))))
-
   (context "computer-map decisions"
     (it "treats sea hidden occupancy as passable"
       (set-test-world! [[{:type :sea :contents {:type :transport :owner :computer}}

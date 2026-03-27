@@ -17,6 +17,10 @@
 					 :cov {:main-opts ["-m" "speclj.cloverage" "--" "-p" "src" "-s" "spec" "--lcov"]
 					                  :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}}
 					                  :extra-paths ["spec"]}
+					 :dead-code {:main-opts ["-m" "speclj.cloverage" "--" "-p" "src" "-s" "spec"
+					                         "-t" "empire.dead-code-spec" "--lcov" "--no-text"]
+					             :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}}
+					             :extra-paths ["spec"]}
 					 :parse-tests {:main-opts ["-m" "empire.acceptance.parser"]
 					               :extra-paths ["spec"]}
            :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
