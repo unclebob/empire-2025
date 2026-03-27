@@ -78,5 +78,6 @@
                   ["Auditing AI game-map access..." ["bash" "scripts/check-ai-map-access.sh"]]
                   ["Checking architecture dependencies..." ["clj" "-M:check-dependencies"]]
                   ["Checking spec boundaries..." ["bash" "scripts/check-spec-boundary.sh"]]
+                  ["Checking spec structure..." ["clj" "-M:spec-structure-check" "spec/"]]
                   ["Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"]]]
                  @calls)))))

@@ -27,5 +27,6 @@
   (run-step! "Auditing AI game-map access..." ["bash" "scripts/check-ai-map-access.sh"])
   (run-step! "Checking architecture dependencies..." ["clj" "-M:check-dependencies"])
   (run-step! "Checking spec boundaries..." ["bash" "scripts/check-spec-boundary.sh"])
+  (run-step! "Checking spec structure..." ["clj" "-M:spec-structure-check" "spec/"])
   (run-step! "Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"])
   (println "All tests passed."))
