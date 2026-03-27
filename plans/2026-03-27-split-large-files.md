@@ -2,16 +2,13 @@
 
 27 files over 250 lines. Categorized by splittability.
 
-## Not Worth Splitting (cohesive or infrastructure)
+## Not Worth Splitting (truly cohesive)
 
 | Lines | File | Reason |
 |-------|------|--------|
-| 471 | debug/dump.cljc | All formatters serve one output. Cohesive. |
-| 361 | test/utils.cljc | Test infrastructure, shared helpers. |
-| 318 | acceptance/parser/ir_contracts.cljc | 2 functions, mostly data. |
-| 307 | acceptance/generator/then.cljc | All then-clause generators. |
-| 285 | acceptance/generator.cljc | Pipeline glue. |
-| 259 | ui/util/rendering/format.cljc | All formatting functions. |
+| 318 | acceptance/parser/ir_contracts.cljc | 2 functions, mostly data validation maps. |
+| 307 | acceptance/generator/then.cljc | 37 private helpers for one dispatch function. |
+| 285 | acceptance/generator.cljc | Pipeline stages, 15 functions. |
 
 ## Splittable by Mission/Phase
 
@@ -97,13 +94,38 @@ Split:
 | 260 | army/coastal.cljc | Coast walk + invasion movement. Could split. |
 | 256 | shared/action_resolution.cljc | Movement + combat + territory. Could split. |
 
-## UI Files (lower priority)
+## Previously Thought Cohesive — Actually Splittable
 
-| Lines | File | Action |
-|-------|------|--------|
-| 319 | ui/util/rendering/display.cljc | Map display helpers. Cohesive. |
-| 306 | ui/quil/core.cljc | Quil setup/draw. Hard to split without framework changes. |
-| 296 | game_mechanics/services/combat.cljc | Combat resolution. Cohesive. |
+### debug/dump.cljc (471 lines, 26 defns)
+Split into 3:
+- `dump/sections.cljc` — kamikazee sections (region-kamikazee-fighters, format-kamikazee-fighter-section, format-kamikazee-airport-section, format-major-invasion-section) ~80 lines
+- `dump/io.cljc` — file I/O (screen->cell, generate-dump-filename, write-dump!, write-full-dump!, screen-coords-to-cell-range) ~50 lines
+- Keep `dump.cljc` — cell/map formatters and format-dump assembly
+
+### test/utils.cljc (361 lines, 41 defns)
+Split into 2:
+- `test/state.cljc` — state manipulation (read/set/update world/map/player-map/computer-map, reset-all-atoms!) ~20 functions
+- `test/builders.cljc` — map builders (build-test-map, char->cell, set-test-unit, get-test-unit, visibility-mask, territory-mask) ~21 functions
+
+### ui/util/rendering/format.cljc (259 lines, 31 defns)
+Split into 2:
+- `format/hover.cljc` — unit/cell status formatting (format-unit-status through split-hover-status)
+- `format/production.cljc` — production summary (format-production-status through hidden-production-status)
+
+### ui/util/rendering/display.cljc (319 lines, 31 defns)
+Split into 2:
+- `display/colors.cljc` — cell color resolution (safe-color, cell-base-color, final-cell-color, group-cells-by-color, attention-unit-color)
+- `display/text.cljc` — status/banner/inspector text (resolve-banner through resolve-center-lines)
+
+### ui/quil/core.cljc (306 lines, 29 defns)
+Split into 2:
+- `quil/headless.cljc` — headless mode (run-headless!, run-headless-loop!, explored-percentage, progress printing, finish-headless-run!)
+- Keep `core.cljc` — GUI lifecycle (setup, draw, input, sketch)
+
+### game_mechanics/services/combat.cljc (296 lines, 30 defns)
+Split into 2:
+- `combat/resolution.cljc` — fight mechanics (fight-round, resolve-combat, apply-combat-result!, format-combat-log)
+- `combat/conquest.cljc` — city conquest and escort cleanup (conquer-city-contents, attempt-conquest, clear-escort-on-death, attempt-attack)
 
 ## Implementation Order
 
@@ -113,7 +135,12 @@ Split:
 4. **ship/patrol** — 3 clear splits
 5. **visibility** — 3 clear splits
 6. **game/loop/core** — 2 clear splits
-7. Remaining as needed
+7. **test/utils** — 2 clear splits, high impact (every spec imports it)
+8. **debug/dump** — 3 clear splits
+9. **quil/core** — headless extraction
+10. **combat** — resolution vs conquest
+11. **display, format** — UI text splits
+12. Borderline files as needed
 
 ## Rules
 
