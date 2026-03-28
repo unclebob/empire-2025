@@ -29,6 +29,10 @@
       (update count-key (fnil dec 0))
       (update awake-key (fnil dec 0))))
 
+(defn remove-one-fighter
+  [entity]
+  (update entity :fighter-count (fnil dec 0)))
+
 (defn wake-all
   [entity count-key awake-key]
   (assoc entity awake-key (get entity count-key 0)))

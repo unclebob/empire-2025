@@ -83,7 +83,14 @@
     (it "handles nil awake-key gracefully"
       (let [result (uc/remove-awake-unit {:fighter-count 1} :fighter-count :awake-fighters)]
         (should= 0 (:fighter-count result))
-        (should= -1 (:awake-fighters result))))))
+        (should= -1 (:awake-fighters result)))))
+
+  (context "remove-one-fighter"
+    (it "removes one fighter from count without touching awake"
+      (let [city {:type :city :fighter-count 3 :awake-fighters 0}
+            result (uc/remove-one-fighter city)]
+        (should= 2 (:fighter-count result))
+        (should= 0 (:awake-fighters result))))))
 
 (describe "wake and sleep"
   (context "wake-all"
