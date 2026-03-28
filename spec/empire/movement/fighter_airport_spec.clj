@@ -117,3 +117,29 @@
       (do-move from [1 0] cell unit)
       (should= 1 (get-in (test-utils/read-test-state :game-map) [1 0 :contents :fighter-count]))
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))))
+
+(describe "wake-fighters-on-airport"
+  (before (reset-all-atoms!))
+  (it "wakes all fighters on airport"
+    (set-test-world! (build-test-map ["-O"]))
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (update-test-world! assoc-in city-coords
+                          {:type :city :city-status :player :fighter-count 3 :awake-fighters 0})
+      (set-test-player-map! (make-initial-test-map 2 1 nil))
+      (container-ops/wake-fighters-on-airport city-coords)
+      (let [cell (get-in (test-utils/read-test-state :game-map) city-coords)]
+        (should= 3 (:awake-fighters cell))
+        (should= 3 (:fighter-count cell))))))
+
+(describe "sleep-fighters-on-airport"
+  (before (reset-all-atoms!))
+  (it "sleeps all fighters on airport"
+    (set-test-world! (build-test-map ["-O"]))
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (update-test-world! assoc-in city-coords
+                          {:type :city :city-status :player :fighter-count 3 :awake-fighters 2})
+      (set-test-player-map! (make-initial-test-map 2 1 nil))
+      (container-ops/sleep-fighters-on-airport city-coords)
+      (let [cell (get-in (test-utils/read-test-state :game-map) city-coords)]
+        (should= 0 (:awake-fighters cell))
+        (should= 3 (:fighter-count cell))))))

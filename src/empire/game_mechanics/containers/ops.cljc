@@ -189,6 +189,18 @@
 
 ;; Airport operations
 
+(defn wake-fighters-on-airport
+  [city-coords]
+  (let [cell (get-in (sa/current-world) city-coords)
+        updated-cell (uc/wake-all cell :fighter-count :awake-fighters)]
+    (sa/update-world! assoc-in city-coords updated-cell)))
+
+(defn sleep-fighters-on-airport
+  [city-coords]
+  (let [cell (get-in (sa/current-world) city-coords)
+        updated-cell (uc/sleep-all cell :awake-fighters)]
+    (sa/update-world! assoc-in city-coords updated-cell)))
+
 (defn launch-fighter-from-airport
   [city-coords target-coords]
   (let [world (sa/current-world)
