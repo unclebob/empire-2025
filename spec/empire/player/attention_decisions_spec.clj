@@ -19,8 +19,8 @@
                  nil))))
 
 (describe "world-item-needs-attention?"
-  (it "city with fighter-count > 0 and awake-fighters 0 needs attention"
-    (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 0}]
+  (it "city with fighter-count > 0 and awake-fighters > 0 needs attention"
+    (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 2}]
       (should (decisions/player-map-cell-needs-attention? cell {:item :army}))))
 
   (it "returns false for awake computer unit in player city"

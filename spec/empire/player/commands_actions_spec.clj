@@ -214,11 +214,11 @@
           (should-not @disembark-called))))))
 
   (context "u key - wake fighters on airport"
-    (it "calls wake-fighters-on-airport when city has fighters and u pressed"
+    (it "calls wake-fighters-on-airport when city has awake fighters and u pressed"
       (let [wake-called (atom false)]
         (set-test-world! (build-test-map ["O"]))
         (update-test-world! assoc-in [0 0 :fighter-count] 2)
-        (update-test-world! assoc-in [0 0 :awake-fighters] 0)
+        (update-test-world! assoc-in [0 0 :awake-fighters] 1)
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/wake-fighters-on-airport
                       (fn [_] (reset! wake-called true))]

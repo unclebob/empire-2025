@@ -58,8 +58,8 @@
         (should= :awake (:mode active))
         (should= true (:from-airport active)))))
 
-  (it "creates synthetic fighter when fighter-count > 0 and awake-fighters is 0"
-    (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 0}
+  (it "creates synthetic fighter when fighter-count > 0 and awake-fighters > 0"
+    (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 2}
           active (get-active-unit cell)]
       (should= :fighter (:type active))
       (should= true (:from-airport active))))
