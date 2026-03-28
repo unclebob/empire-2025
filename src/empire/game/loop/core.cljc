@@ -52,7 +52,6 @@
 ;; --- round-setup delegates ---
 (def remove-dead-units round-setup/remove-dead-units)
 (def reset-steps-remaining round-setup/reset-steps-remaining)
-(def wake-airport-fighters round-setup/wake-airport-fighters)
 (def wake-carrier-fighters round-setup/wake-carrier-fighters)
 (def consume-sentry-fighter-fuel round-setup/consume-sentry-fighter-fuel)
 (def wake-sentries-seeing-enemy round-setup/wake-sentries-seeing-enemy)

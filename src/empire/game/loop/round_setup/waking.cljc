@@ -2,16 +2,6 @@
   (:require [empire.state.api :as sa]
             [empire.game.loop.round-setup.waking-decisions :as decisions]))
 
-(defn wake-airport-fighters
-  "Wakes all fighters in player city airports at start of round.
-   Fighters will be auto-launched if the city has a flight-path,
-   otherwise they will demand attention."
-  []
-  (let [world (sa/current-world)]
-    (doseq [{:keys [path value]} (decisions/wake-updates :awake-fighters
-                                                         (decisions/airport-fighter-wakes world))]
-      (sa/update-world! assoc-in path value))))
-
 (defn wake-carrier-fighters
   "Wakes all fighters on player carriers at start of round.
    Fighters will be auto-launched if the carrier has a flight-path,
