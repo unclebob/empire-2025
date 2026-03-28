@@ -27,14 +27,15 @@
 
 (defn build-produced-unit
   [item owner marching-orders flight-path]
-  (-> (create-base-unit item owner)
-      (apply-unit-type-attributes item)
-      (apply-movement-orders item marching-orders flight-path)))
+  (when (not= item :fighter)
+    (-> (create-base-unit item owner)
+        (apply-unit-type-attributes item)
+        (apply-movement-orders item marching-orders flight-path))))
 
 (defn city-production-step
   [cell prod]
   (cond
-    (:contents cell) {:action :blocked}
+    (and (:contents cell) (not= (:item prod) :fighter)) {:action :blocked}
     :else
     (let [item (:item prod)
           remaining (dec (:remaining-rounds prod))]

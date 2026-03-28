@@ -38,7 +38,7 @@
       (production/update-production)
       (should= {:item :army :remaining-rounds 1} ((test-utils/read-test-state :production) city2-coords))
       (should= {:item :fighter :remaining-rounds 10} ((test-utils/read-test-state :production) city1-coords)) ; item-cost :fighter = 10
-      (should= {:type :fighter :hits 1 :mode :awake :owner :player :fuel 32} (:contents (get-in (test-utils/read-test-state :game-map) city1-coords)))))
+      (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) city1-coords)))))
 
   (it "ignores cities with :no-production"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O2"))]
@@ -79,26 +79,27 @@
         (should= :awake (:mode unit))
         (should-be-nil (:target unit)))))
 
-  (it "creates fighter with flight path when city has one"
+  (it "increments fighter-count when fighter production completes"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
-      (update-test-world! assoc-in (conj city-coords :flight-path) [10 10])
       (test-utils/update-test-state! :production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
-      (let [unit (:contents (get-in (test-utils/read-test-state :game-map) city-coords))]
-        (should= :fighter (:type unit))
-        (should= :moving (:mode unit))
-        (should= [10 10] (:target unit))
-        (should= config/fighter-fuel (:fuel unit)))))
+      (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) city-coords)))
+      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) city-coords)))))
 
-  (it "creates fighter without flight path when city has none"
+  (it "increments fighter-count multiple times with repeated fighter production"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (test-utils/update-test-state! :production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
-      (let [unit (:contents (get-in (test-utils/read-test-state :game-map) city-coords))]
-        (should= :fighter (:type unit))
-        (should= :awake (:mode unit))
-        (should-be-nil (:target unit))
-        (should= config/fighter-fuel (:fuel unit)))))
+      (test-utils/update-test-state! :production assoc city-coords {:item :fighter :remaining-rounds 1})
+      (production/update-production)
+      (should= 2 (:fighter-count (get-in (test-utils/read-test-state :game-map) city-coords)))))
+
+  (it "does not block fighter production when city has a unit in contents"
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (update-test-world! assoc-in (conj city-coords :contents) {:type :army :hits 1})
+      (test-utils/update-test-state! :production assoc city-coords {:item :fighter :remaining-rounds 1})
+      (production/update-production)
+      (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) city-coords)))))
 
   (it "ignores marching orders for non-army units"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O2"))]
@@ -150,15 +151,14 @@
         (should= :awake (:mode unit))
         (should-be-nil (:explore-steps unit)))))
 
-  (it "assigns country-id to fighter when city has country-id"
+  (it "increments fighter-count on computer city when fighter production completes"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (update-test-world! assoc-in (conj city-coords :city-status) :computer)
       (update-test-world! assoc-in (conj city-coords :country-id) 7)
       (test-utils/update-test-state! :production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
-      (let [unit (:contents (get-in (test-utils/read-test-state :game-map) city-coords))]
-        (should= :fighter (:type unit))
-        (should= 7 (:country-id unit)))))
+      (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) city-coords)))
+      (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) city-coords)))))
 
   (it "stamps country-id on adjacent land when computer army spawns"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O2"))]
@@ -170,14 +170,12 @@
       (let [land-cell (get-in (test-utils/read-test-state :game-map) [1 1])]
         (should= 3 (:country-id land-cell)))))
 
-  (it "does not assign country-id to fighter when city lacks country-id"
+  (it "increments fighter-count on computer city without country-id"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (update-test-world! assoc-in (conj city-coords :city-status) :computer)
       (test-utils/update-test-state! :production assoc city-coords {:item :fighter :remaining-rounds 1})
       (production/update-production)
-      (let [unit (:contents (get-in (test-utils/read-test-state :game-map) city-coords))]
-        (should= :fighter (:type unit))
-        (should-be-nil (:country-id unit))))))
+      (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) city-coords))))))
 
 (describe "coast-walk stamping"
   (before

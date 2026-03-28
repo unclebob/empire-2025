@@ -46,19 +46,21 @@
 (defn- spawn-unit
   "Creates and places a unit at the given city coordinates."
   [coords cell item]
-  (let [owner (:city-status cell)
-        marching-orders (:marching-orders cell)
-        flight-path (:flight-path cell)
-        unit (-> (decisions/build-produced-unit item owner marching-orders flight-path)
-                 (stamp-unit-fields cell)
-                 (apply-coast-walk-fields item cell coords)
-                 (apply-random-explore-fields item cell coords)
-                 (cond-> (= item :transport) (assoc :produced-at coords)))]
-    (sa/update-world! assoc-in (conj coords :contents) unit)
-    (when (and (= owner :computer) (= item :army) (:country-id cell))
-      (stamp-adjacent-land coords (:country-id cell)))
-    (when (and (= owner :computer) (= item :carrier))
-      (sa/update-state! :computer-carrier-positions conj coords))
+  (let [owner (:city-status cell)]
+    (if (= item :fighter)
+      (sa/update-world! update-in (conj coords :fighter-count) (fnil inc 0))
+      (let [marching-orders (:marching-orders cell)
+            flight-path (:flight-path cell)
+            unit (-> (decisions/build-produced-unit item owner marching-orders flight-path)
+                     (stamp-unit-fields cell)
+                     (apply-coast-walk-fields item cell coords)
+                     (apply-random-explore-fields item cell coords)
+                     (cond-> (= item :transport) (assoc :produced-at coords)))]
+        (sa/update-world! assoc-in (conj coords :contents) unit)
+        (when (and (= owner :computer) (= item :army) (:country-id cell))
+          (stamp-adjacent-land coords (:country-id cell)))
+        (when (and (= owner :computer) (= item :carrier))
+          (sa/update-state! :computer-carrier-positions conj coords))))
     owner))
 
 (defn- handle-production-complete

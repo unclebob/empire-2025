@@ -3,22 +3,24 @@
             [speclj.core :refer :all]))
 
 (describe "build-produced-unit"
-  (it "builds fighter with fuel"
-    (should= {:type :fighter :hits 1 :mode :awake :owner :player :fuel 32}
-             (decisions/build-produced-unit :fighter :player nil nil)))
+  (it "returns nil for fighter"
+    (should-be-nil (decisions/build-produced-unit :fighter :player nil nil)))
+
+  (it "returns nil for fighter even with flight path"
+    (should-be-nil (decisions/build-produced-unit :fighter :player nil [5 5])))
 
   (it "applies lookaround army orders"
     (should= {:type :army :hits 1 :mode :explore :owner :player :explore-steps 50}
-             (decisions/build-produced-unit :army :player :lookaround nil)))
-
-  (it "applies fighter flight path"
-    (should= [5 5]
-             (:target (decisions/build-produced-unit :fighter :player nil [5 5])))))
+             (decisions/build-produced-unit :army :player :lookaround nil))))
 
 (describe "city-production-step"
   (it "blocks when city already has contents"
     (should= {:action :blocked}
              (decisions/city-production-step {:contents {:type :army}} {:item :army :remaining-rounds 2})))
+
+  (it "does not block fighter production when city has contents"
+    (should= {:action :complete :item :fighter}
+             (decisions/city-production-step {:contents {:type :army}} {:item :fighter :remaining-rounds 1})))
 
   (it "decrements unfinished production"
     (should= {:action :decrement :production {:item :army :remaining-rounds 1}}
