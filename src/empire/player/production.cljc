@@ -48,7 +48,8 @@
   [coords cell item]
   (let [owner (:city-status cell)]
     (if (= item :fighter)
-      (sa/update-world! update-in (conj coords :fighter-count) (fnil inc 0))
+      (do (sa/update-world! update-in (conj coords :fighter-count) (fnil inc 0))
+          (sa/update-world! update-in (conj coords :awake-fighters) (fnil inc 0)))
       (let [marching-orders (:marching-orders cell)
             flight-path (:flight-path cell)
             unit (-> (decisions/build-produced-unit item owner marching-orders flight-path)
