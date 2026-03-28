@@ -66,7 +66,7 @@
       (test-utils/set-test-state! :waiting-for-input false)
       (game-loop/advance-game)
       (let [city (get-in (test-utils/read-test-state :game-map) [0 0])]
-        (should= 0 (:awake-fighters city 0)))
+        (should= 1 (:awake-fighters city 0)))
       (let [fighter-at-target (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= :fighter (:type (:contents fighter-at-target)))))
 

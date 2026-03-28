@@ -215,7 +215,7 @@
                          (launch/launch-steps-toward city-coords target-coords))
         target-cell (get-in world first-step)]
     (when first-step
-      (let [after-remove (uc/remove-awake-unit cell :fighter-count :awake-fighters)
+      (let [after-remove (uc/remove-one-fighter cell)
             moving-fighter (-> (domain-containers/launched-fighter
                                 owner
                                 target-coords

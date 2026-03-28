@@ -139,7 +139,7 @@
 (describe "launch-fighter-from-airport"
   (before (reset-all-atoms!))
 
-  (it "removes awake fighter from airport and places it moving"
+  (it "removes fighter from airport and places it moving"
     (set-test-world! (build-test-map ["-O#-"]))
     (update-test-world! assoc-in [1 0 :fighter-count] 2)
     (update-test-world! assoc-in [1 0 :awake-fighters] 2)
@@ -148,7 +148,7 @@
           city (get-in world [1 0])
           fighter (get-in world [2 0 :contents])]
       (should= 1 (:fighter-count city))
-      (should= 1 (:awake-fighters city))
+      (should= 2 (:awake-fighters city))
       (should= :fighter (:type fighter))
       (should= :moving (:mode fighter))
       (should= [3 0] (:target fighter))
