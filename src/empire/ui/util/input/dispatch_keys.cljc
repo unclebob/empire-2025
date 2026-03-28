@@ -3,6 +3,7 @@
             [empire.game.save-load :as save-load]
             [empire.state.api :as sa]
             [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.player.orders :as player-orders]
             [empire.ui.util.input.actions :as actions]))
 
@@ -128,12 +129,15 @@
       (when cell-coords
         (player-orders/set-city-marching-orders-by-direction-at cell-coords k))))
 
-(def ^:private attention-priority-keys #{:u :s :space :l})
+(defn- unit-has-attention? []
+  (when-let [coords (first (sa/read-state :cells-needing-attention))]
+    (let [cell (get-in (sa/current-world) coords)]
+      (movement-state/get-active-unit cell))))
 
 (defn dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)
       (dispatch-save-load-key k)
-      (when (and (attention-priority-keys k) (sa/read-state :waiting-for-input))
+      (when (and (sa/read-state :waiting-for-input) (unit-has-attention?))
         (actions/handle-key k))
       (dispatch-coord-key k cell-coords)
       (actions/handle-key k)))
