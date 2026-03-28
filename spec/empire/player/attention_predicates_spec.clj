@@ -58,7 +58,7 @@
     (should-not (attention/is-unit-needing-attention? [[0 0]])))
 
   (it "returns true when city has awake airport fighters"
-    (set-test-world! (assoc-in (build-test-map ["O"]) [0 0 :awake-fighters] 1))
+    (set-test-world! (assoc-in (build-test-map ["O"]) [0 0 :fighter-count] 1))
     (should (attention/is-unit-needing-attention? [[0 0]]))))
 
 (describe "needs-attention?"
@@ -87,7 +87,7 @@
     (should-not (attention/needs-attention? 0 0)))
 
   (it "returns true for city with awake airport fighter"
-    (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0 :awake-fighters] 1))
+    (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0 :fighter-count] 1))
     (test-utils/set-test-state! :production {[0 0] :army})
     (should (attention/needs-attention? 0 0)))
 
