@@ -180,7 +180,7 @@
 (defn- apply-unit-decision [decision coords cell active-unit]
   (case (:action decision)
     :skip (actions/handle-space-key (actions-ctx) coords)
-    :unload (actions/handle-unload-key (actions-ctx) coords cell)
+    :unload (actions/handle-unload-key (actions-ctx) coords cell active-unit)
     :sentry (actions/handle-sentry-key (actions-ctx) coords cell active-unit)
     :look-around (actions/handle-look-around-key (actions-ctx) coords cell active-unit)
     :move (handle-unit-movement-decision decision coords cell active-unit)

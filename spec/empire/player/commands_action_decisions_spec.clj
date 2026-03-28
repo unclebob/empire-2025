@@ -31,4 +31,56 @@
                                [0 0]
                                [1 1]
                                :normal
-                               {:type :army}))))
+                               {:type :army})))
+
+  (context "unload-key-action"
+    (it "returns wake-armies-on-transport when transport has armies"
+      (should= {:action :wake-armies-on-transport}
+               (sut/unload-key-action {:type :transport :army-count 2}
+                                      {:type :sea}
+                                      nil)))
+
+    (it "returns wake-fighters-on-carrier when carrier has fighters"
+      (should= {:action :wake-fighters-on-carrier}
+               (sut/unload-key-action {:type :carrier :fighter-count 1}
+                                      {:type :sea}
+                                      nil)))
+
+    (it "returns wake-fighters-on-airport when city has fighters"
+      (should= {:action :wake-fighters-on-airport}
+               (sut/unload-key-action nil
+                                      {:type :city :fighter-count 2}
+                                      nil)))
+
+    (it "returns nil when city has no fighters"
+      (should-be-nil (sut/unload-key-action nil
+                                            {:type :city :fighter-count 0}
+                                            nil)))
+
+    (it "returns nil when no applicable condition"
+      (should-be-nil (sut/unload-key-action nil {:type :land} nil))))
+
+  (context "sentry-key-action"
+    (it "returns sleep-armies-on-transport for army aboard transport"
+      (should= {:action :sleep-armies-on-transport}
+               (sut/sentry-key-action {:type :sea}
+                                      {:type :army :mode :sentry :aboard-transport true})))
+
+    (it "returns sleep-fighters-on-carrier for carrier fighter"
+      (should= {:action :sleep-fighters-on-carrier}
+               (sut/sentry-key-action {:type :sea}
+                                      {:type :fighter :mode :sentry :from-carrier true})))
+
+    (it "returns sleep-fighters-on-airport for airport fighter"
+      (should= {:action :sleep-fighters-on-airport}
+               (sut/sentry-key-action {:type :city}
+                                      {:type :fighter :mode :awake :from-airport true})))
+
+    (it "returns set-sentry-mode for a unit on non-city land"
+      (should= {:action :set-sentry-mode}
+               (sut/sentry-key-action {:type :land}
+                                      {:type :army :mode :awake})))
+
+    (it "returns nil for a regular unit at a city"
+      (should-be-nil (sut/sentry-key-action {:type :city}
+                                            {:type :army :mode :awake})))))

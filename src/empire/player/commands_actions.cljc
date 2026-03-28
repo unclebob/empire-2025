@@ -53,8 +53,8 @@
   (item-processed! ctx)
   true)
 
-(defn handle-unload-key [ctx coords cell]
-  (case (:action (decisions/unload-key-action (:contents cell)))
+(defn handle-unload-key [ctx coords cell active-unit]
+  (case (:action (decisions/unload-key-action (:contents cell) cell active-unit))
       :wake-armies-on-transport
       (do (container-ops/wake-armies-on-transport coords)
           (item-processed! ctx)
@@ -62,6 +62,13 @@
 
       :wake-fighters-on-carrier
       (do (container-ops/wake-fighters-on-carrier coords)
+          (item-processed! ctx)
+          true)
+
+      :wake-fighters-on-airport
+      (do (container-ops/wake-fighters-on-airport coords)
+          (when (movement-state/is-fighter-from-airport? active-unit)
+            ((:update-game-map! ctx) update-in (conj coords :awake-fighters) dec))
           (item-processed! ctx)
           true)
 
@@ -76,6 +83,11 @@
 
       :sleep-fighters-on-carrier
       (do (container-ops/sleep-fighters-on-carrier coords)
+          (item-processed! ctx)
+          true)
+
+      :sleep-fighters-on-airport
+      (do (container-ops/sleep-fighters-on-airport coords)
           (item-processed! ctx)
           true)
 

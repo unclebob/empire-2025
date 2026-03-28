@@ -213,6 +213,43 @@
           (commands/handle-key :d)
           (should-not @disembark-called))))))
 
+  (context "u key - wake fighters on airport"
+    (it "calls wake-fighters-on-airport when city has fighters and u pressed"
+      (let [wake-called (atom false)]
+        (set-test-world! (build-test-map ["O"]))
+        (update-test-world! assoc-in [0 0 :fighter-count] 2)
+        (update-test-world! assoc-in [0 0 :awake-fighters] 0)
+        (setup-unit-attention [0 0])
+        (with-redefs [container-ops/wake-fighters-on-airport
+                      (fn [_] (reset! wake-called true))]
+          (commands/handle-key :u)
+          (should @wake-called)
+          (should= false (test-utils/read-test-state :waiting-for-input)))))
+
+    (it "does not call wake-fighters-on-airport when city has no fighters"
+      (let [wake-called (atom false)]
+        (set-test-world! (build-test-map ["O"]))
+        (update-test-world! assoc-in [0 0 :fighter-count] 0)
+        (setup-unit-attention [0 0])
+        (with-redefs [container-ops/wake-fighters-on-airport
+                      (fn [_] (reset! wake-called true))]
+          (commands/handle-key :u)
+          (should-not @wake-called)))))
+
+  (context "s key - sleep fighters on airport"
+    (it "calls sleep-fighters-on-airport when airport fighter is active and s pressed"
+      (let [sleep-called (atom false)]
+        (set-test-world! (build-test-map ["O"]))
+        (update-test-world! assoc-in [0 0 :fighter-count] 2)
+        (update-test-world! assoc-in [0 0 :awake-fighters] 1)
+        (update-test-world! assoc-in [0 0 :contents] {:type :fighter :owner :player :from-airport true :mode :awake})
+        (setup-unit-attention [0 0])
+        (with-redefs [container-ops/sleep-fighters-on-airport
+                      (fn [_] (reset! sleep-called true))]
+          (commands/handle-key :s)
+          (should @sleep-called)
+          (should= false (test-utils/read-test-state :waiting-for-input))))))
+
 ;; ========== click handlers ==========
 
 (describe "click handlers"

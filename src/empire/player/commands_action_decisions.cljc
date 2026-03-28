@@ -23,10 +23,12 @@
        :reason :skipping-this-round})))
 
 (defn unload-key-action
-  [contents]
+  [contents cell active-unit]
   (cond
     (uc/transport-with-armies? contents) {:action :wake-armies-on-transport}
     (uc/carrier-with-fighters? contents) {:action :wake-fighters-on-carrier}
+    (and (= :city (:type cell)) (pos? (:fighter-count cell 0)))
+    {:action :wake-fighters-on-airport}
     :else nil))
 
 (defn sentry-key-action
@@ -37,7 +39,8 @@
     (cond
       is-army-aboard? {:action :sleep-armies-on-transport}
       is-carrier-fighter? {:action :sleep-fighters-on-carrier}
-      (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
+      is-airport-fighter? {:action :sleep-fighters-on-airport}
+      (not= :city (:type cell))
       {:action :set-sentry-mode}
       :else nil)))
 
