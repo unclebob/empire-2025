@@ -123,6 +123,10 @@ The player can direct cities to produce new pieces according to the production c
 
 **Fighters** move over both land and sea at 8 squares per round. Their high speed makes them ideal for exploring. However, fighters must periodically land at player-owned cities or carriers for refueling. A fighter can travel 32 squares without refueling. Fighters are shot down if they attempt to fly over an enemy city.
 
+Fighters land at player cities and enter the city's **airport**. Airport fighters are stored as a count on the city, not as individual units on the map. Each round, every city with airport fighters presents one fighter for attention. The player can give it a direction to launch, press `Space` to skip it for this round, or press `s` to dismiss it. If a city has a flight path set, one fighter is also auto-launched on the flight path each round (in addition to the one asking for attention).
+
+Press `u` on a city with airport fighters to wake all fighters for individual attention. Each woken fighter is presented in turn. After a fighter is launched with an extended direction (`Shift` + direction), it completes its full movement before the next fighter asks for attention. Press `s` while a fighter has attention to put all remaining queued fighters back to sleep and stop the attention cycle.
+
 **Patrol Boats** are fast but lightly armored. They are useful for patrolling ocean waters and exploring coastlines. They can use coastline-follow mode to automatically explore along shores.
 
 **Destroyers** are fairly heavily armored and reasonably quick to produce. They are useful for hunting enemy transports.
@@ -202,9 +206,9 @@ When a unit needs attention (highlighted on map):
 | `q w e a d z x c` | Move one square in that direction |
 | `Q W E A D Z X C` | Set destination to map edge in that direction |
 | `Space` | Skip this turn (wait in place) |
-| `s` | Set to Sentry mode (sleep until enemy appears) |
+| `s` | Set to Sentry mode (sleep until enemy appears). On airport fighter: dismiss all queued fighters |
 | `l` | Set to Explore/Lookaround mode |
-| `u` | Unload - wake armies on transport or fighters on carrier |
+| `u` | Unload - wake armies on transport, fighters on carrier, or all airport fighters for attention |
 
 **Explore Mode (`l`):**
 - Armies enter explore mode and automatically move toward unexplored areas
@@ -239,8 +243,9 @@ You can set standing orders for cities so that newly produced units automaticall
 |-----|--------|
 | `.` | Set destination marker at mouse cursor. If mouse is not on a cell, clears the destination. |
 | `m` | Set marching orders on city/transport under mouse to destination. If destination is cleared, clears marching orders. |
-| `f` | Set flight path on city/carrier under mouse to destination. If destination is cleared, clears the flight path. |
+| `f` | Set flight path on city/carrier under mouse to destination. If destination is cleared, clears the flight path. Cities with a flight path auto-launch one airport fighter per round toward that destination. |
 | `l` | Set city under mouse marching orders to "lookaround" (explore mode) |
+| `u` | Wake all airport fighters in city under mouse for individual attention |
 | `Q W E A D Z X C` | Set city under mouse marching orders to map edge in that direction |
 
 **Note:** Be mindful of the mouse position when you use these commands.  They apply only the cell under the mouse. For example, if a city is requesting production and you hit `a` while the mouse is on the city, you are setting the marching orders and not telling the city to produce armies.
