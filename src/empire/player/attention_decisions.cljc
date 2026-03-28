@@ -125,11 +125,11 @@
          (or (fuel-string active-unit) ""))))
 
 (defn attention-message
-  [{:keys [world coords unit active-unit airport-fighter? carrier-fighter? transport-army?]}]
+  [{:keys [world coords cell unit active-unit airport-fighter? carrier-fighter? transport-army?]}]
   (cond
     airport-fighter?
-    (str "Fighter" (:unit-needs-attention config/messages) " - "
-         (:fighter-landed-and-refueled config/messages)
+    (str "Fighter" (:unit-needs-attention config/messages)
+         " (" (:fighter-count cell 0) " in airport)"
          (fuel-string active-unit))
 
     carrier-fighter?

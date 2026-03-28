@@ -47,6 +47,7 @@
                     (decisions/attention-message
                      {:world world
                       :coords coords
+                      :cell cell
                       :unit unit
                       :active-unit active-unit
                       :airport-fighter? (movement-state/is-fighter-from-airport? active-unit)
