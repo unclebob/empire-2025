@@ -30,7 +30,8 @@
   true)
 
 (defn handle-unload-key [coords cell]
-  (let [contents (:contents cell)]
+  (let [contents (:contents cell)
+        active-unit (movement-state/get-active-unit cell)]
     (cond
       (uc/transport-with-armies? contents)
       (do (container-ops/wake-armies-on-transport coords)
@@ -39,6 +40,13 @@
 
       (uc/carrier-with-fighters? contents)
       (do (container-ops/wake-fighters-on-carrier coords)
+          (helpers/item-processed!)
+          true)
+
+      (and (= :city (:type cell)) (pos? (:fighter-count cell 0)))
+      (do (container-ops/wake-fighters-on-airport coords)
+          (when (movement-state/is-fighter-from-airport? active-unit)
+            (sa/update-world! update-in (conj coords :awake-fighters) dec))
           (helpers/item-processed!)
           true)
 
@@ -59,7 +67,13 @@
           (helpers/item-processed!)
           true)
 
-      (and (not= :city (:type cell)) (not is-airport-fighter?) (not is-carrier-fighter?))
+      is-airport-fighter?
+      (do (container-ops/sleep-fighters-on-airport coords)
+          (sa/update-state! :player-items rest)
+          (helpers/item-processed!)
+          true)
+
+      (not= :city (:type cell))
       (do (movement-state/set-unit-mode coords :sentry)
           (helpers/item-processed!)
           true)

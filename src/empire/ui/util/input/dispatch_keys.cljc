@@ -128,9 +128,13 @@
       (when cell-coords
         (player-orders/set-city-marching-orders-by-direction-at cell-coords k))))
 
+(def ^:private attention-priority-keys #{:u :s :space :l})
+
 (defn dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)
       (dispatch-save-load-key k)
+      (when (and (attention-priority-keys k) (sa/read-state :waiting-for-input))
+        (actions/handle-key k))
       (dispatch-coord-key k cell-coords)
       (actions/handle-key k)))
 

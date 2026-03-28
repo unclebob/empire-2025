@@ -10,6 +10,7 @@
             [empire.player.commands :as player-commands]
             [empire.ui.util.input.actions.helpers :as helpers]
             [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.game-mechanics.containers.helpers :as uc]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (defn- calculate-extended-target [coords [dx dy]]
@@ -24,12 +25,25 @@
           (recur nx ny)
           [tx ty])))))
 
+(defn- decrement-awake-fighters! [coords]
+  (let [cell (get-in (sa/current-world) coords)]
+    (when (uc/has-awake? cell :awake-fighters)
+      (sa/update-world! update-in (conj coords :awake-fighters) dec))))
+
+(defn- requeue-airport? [coords]
+  (let [cell (get-in (sa/current-world) coords)]
+    (and (= :city (:type cell))
+         (uc/has-awake? cell :awake-fighters))))
+
 (defn- launch-fighter-and-update [launch-fn coords target]
   (let [fighter-pos (launch-fn coords target)]
+    (decrement-awake-fighters! coords)
     (sa/write-state! :waiting-for-input false)
     (sa/write-state! :attention-message "")
     (sa/write-state! :cells-needing-attention [])
-    (sa/update-state! :player-items #(cons fighter-pos (rest %)))
+    (sa/update-state! :player-items
+                      #(cond-> (cons fighter-pos (rest %))
+                         (requeue-airport? coords) (cons coords)))
     true))
 
 (defn army-aboard-action [extended? target-cell hostile-city?]
