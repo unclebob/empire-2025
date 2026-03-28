@@ -24,7 +24,7 @@
   [col row cell attention-coords]
   (and (= :city (:type cell))
        (nil? (:contents cell))
-       (uc/has-awake? cell :awake-fighters)
+       (pos? (:fighter-count cell 0))
        (= [col row] (first attention-coords))))
 
 (defn- city-production-overrides-airport?

@@ -20,18 +20,18 @@
    blink? is the current blink state for contained unit display."
   [col row cell attention-coords blink?]
   (let [contents (:contents cell)
+        has-airport-fighter? (pos? (:fighter-count cell 0))
         has-awake-airport? (uc/has-awake? cell :awake-fighters)
-        has-any-airport? (pos? (uc/get-count cell :fighter-count))
         has-awake-carrier? (uc/has-awake-carrier-fighter? contents)
         has-awake-army? (uc/has-awake-army-aboard? contents)
-        has-contained-unit? (or has-awake-airport? has-awake-carrier? has-awake-army?)
+        has-contained-unit? (or has-airport-fighter? has-awake-carrier? has-awake-army?)
         is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))]
     (cond
       (and is-attention-cell? has-contained-unit?)
-      (uc/blinking-contained-unit has-awake-airport? has-awake-carrier? has-awake-army?)
+      (uc/blinking-contained-unit has-airport-fighter? has-awake-carrier? has-awake-army?)
 
       :else
-      (uc/normal-display-unit cell contents has-awake-airport? has-any-airport?))))
+      (uc/normal-display-unit cell contents has-awake-airport? has-airport-fighter?))))
 
 (defn attention-unit-color
   "Returns the color for a displayed unit, overriding attention cells for stronger blink contrast."
