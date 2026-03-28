@@ -11,17 +11,17 @@
 (defn player-map-cell-needs-attention?
   [cell production-entry]
   (let [unit (:contents cell)
-        has-airport-fighter? (pos? (:fighter-count cell 0))
+        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
                                         (uc/has-awake? unit :awake-fighters))]
     (and (not (satellite-with-target? unit))
          (or (= (:city-status cell) :player)
              (= (:owner unit) :player)
-             has-airport-fighter?
+             has-awake-airport-fighter?
              has-awake-carrier-fighter?)
          (or (= (:mode unit) :awake)
-             has-airport-fighter?
+             has-awake-airport-fighter?
              has-awake-army-aboard?
              has-awake-carrier-fighter?
              (and (= (:type cell) :city)
@@ -31,14 +31,14 @@
   [cell production-entry]
   (let [unit (:contents cell)
         player-owned-unit? (= (:owner unit) :player)
-        has-airport-fighter? (pos? (:fighter-count cell 0))
+        has-awake-airport-fighter? (uc/has-awake? cell :awake-fighters)
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
                                         player-owned-unit?
                                         (uc/has-awake? unit :awake-fighters))]
     (and (not (satellite-with-target? unit))
          (or (and player-owned-unit? (= (:mode unit) :awake))
-             has-airport-fighter?
+             has-awake-airport-fighter?
              has-awake-army-aboard?
              has-awake-carrier-fighter?
              (and (= (:type cell) :city)
@@ -65,7 +65,7 @@
        (let [first-cell (get-in world (first attention-coords))
              unit (:contents first-cell)]
          (or unit
-             (pos? (:fighter-count first-cell 0))
+             (uc/has-awake? first-cell :awake-fighters)
              (pos? (:awake-armies unit 0))))))
 
 (defn- cargo-string
