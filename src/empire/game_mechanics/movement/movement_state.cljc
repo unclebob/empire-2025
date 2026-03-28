@@ -146,11 +146,17 @@
 (defn wake-at
   "Wakes a city (removes production so it needs attention) or a sleeping unit.
    For transports with armies, also wakes the armies aboard.
+   For cities with fighters, wakes the airport fighters.
    Returns true if something was woken, nil otherwise."
   [[cx cy]]
   (let [cell (get-in (current-world) [cx cy])
         contents (:contents cell)]
     (cond
+      (and (player-city? cell) (pos? (:fighter-count cell 0)))
+      (do (update-game-map! update-in [cx cy]
+                            uc/wake-all :fighter-count :awake-fighters)
+          true)
+
       (player-city? cell)
       (do (update-runtime-state! :production dissoc [cx cy])
           true)
