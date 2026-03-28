@@ -95,8 +95,8 @@
         (fighter/process-fighter [2 0] unit)
         ;; Fighter should have landed at city [1 0]
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [1 0])))
-        ;; Fighter should NOT be on the map as a unit
-        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
+        ;; Fighter should NOT be on the map as a unit (may be in airport)
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f" :from-airport nil)))))
 
     (it "logs and skips fuel burn when position no longer contains a computer fighter"
       (set-test-world! [[{:type :land}]])

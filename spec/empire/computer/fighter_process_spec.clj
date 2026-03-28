@@ -209,7 +209,7 @@
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
-        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f"))))
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f" :from-airport nil))))
 
     (it "breaks off exploration to land when fuel is critical and a city is adjacent"
       (set-test-world! (build-test-map ["Xf#####"]))
@@ -225,7 +225,7 @@
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
-        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f"))))
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f" :from-airport nil))))
 
     (it "uses the planned landing site when visible on computer-map"
       (set-test-world! (build-test-map ["Xf#####"]))
@@ -241,7 +241,7 @@
       (let [unit (get-in (test-utils/read-test-state :game-map) [1 0 :contents])]
         (fighter/process-fighter [1 0] unit)
         (should= 1 (:fighter-count (get-in (test-utils/read-test-state :game-map) [0 0])))
-        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f")))))
+        (should-be-nil (get-test-unit (test-utils/game-map-atom) "f" :from-airport nil)))))
 
   (context "navigation toward target (L460-479)"
     (it "navigates toward flight target with fuel margin"

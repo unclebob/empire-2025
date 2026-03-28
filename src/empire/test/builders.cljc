@@ -1,5 +1,6 @@
 (ns empire.test.builders
   (:require [clojure.string :as str]
+            [empire.config.units.config :as unit-config]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.test.state :as state]))
 
@@ -166,15 +167,31 @@
             (Integer/parseInt (subs unit-spec 1))
             1)
         game-map (map-value game-map-atom)
-        matches (for [row-idx (range (count game-map))
-                      col-idx (range (count (nth game-map row-idx)))
-                      :let [cell (get-in game-map [row-idx col-idx])
-                            contents (:contents cell)]
-                      :when (and contents
-                                 (= unit-type (:type contents))
-                                 (= owner (:owner contents))
-                                 (matches-filters? contents filters))]
-                  {:pos [row-idx col-idx] :unit contents})]
+        contents-matches (for [row-idx (range (count game-map))
+                               col-idx (range (count (nth game-map row-idx)))
+                               :let [cell (get-in game-map [row-idx col-idx])
+                                     contents (:contents cell)]
+                               :when (and contents
+                                          (= unit-type (:type contents))
+                                          (= owner (:owner contents))
+                                          (matches-filters? contents filters))]
+                           {:pos [row-idx col-idx] :unit contents})
+        airport-matches (when (= unit-type :fighter)
+                          (for [row-idx (range (count game-map))
+                                col-idx (range (count (nth game-map row-idx)))
+                                :let [cell (get-in game-map [row-idx col-idx])
+                                      city-owner (case (:city-status cell)
+                                                   :player :player
+                                                   :computer :computer
+                                                   nil)
+                                      airport-unit {:type :fighter :mode :awake :owner owner
+                                                    :fuel unit-config/fighter-fuel :from-airport true}]
+                                :when (and (= :city (:type cell))
+                                           (= owner city-owner)
+                                           (pos? (:fighter-count cell 0))
+                                           (matches-filters? airport-unit filters))]
+                            {:pos [row-idx col-idx] :unit airport-unit}))
+        matches (concat contents-matches airport-matches)]
     (nth matches (dec n) nil)))
 
 (def ^:private char->city-status

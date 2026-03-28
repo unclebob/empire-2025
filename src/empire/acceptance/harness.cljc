@@ -88,6 +88,12 @@
   [unit-spec & {:as filters}]
   (apply test-utils/get-test-unit (read-state :game-map) unit-spec (mapcat identity filters)))
 
+(defn get-map-unit
+  "Like get-unit but excludes airport fighters (only finds units in :contents)."
+  [unit-spec & {:as filters}]
+  (apply test-utils/get-test-unit (read-state :game-map) unit-spec
+         (mapcat identity (merge {:from-airport nil} filters))))
+
 (defn get-city
   [city-spec]
   (test-utils/get-test-city (read-state :game-map) city-spec))

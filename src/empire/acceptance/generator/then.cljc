@@ -8,7 +8,7 @@
     (str "    (should= " (pr-str expected) " (:" (name property) " (:unit (h/get-unit \"" unit "\"))))")))
 
 (defn- generate-unit-absent-then [{:keys [unit]}]
-  (str "    (should-be-nil (h/get-unit \"" unit "\"))"))
+  (str "    (should-be-nil (h/get-map-unit \"" unit "\"))"))
 
 (defn- generate-unit-present-then [{:keys [unit coords target]}]
   (if target
