@@ -51,6 +51,16 @@
      :move-satellite satellite/move-satellite
      :satellite-speed (config/unit-speed :satellite)})))
 
+(defn clear-flight-path-launched
+  "Clears the :flight-path-launched flag on all cities at start of round."
+  []
+  (let [world (sa/current-world)]
+    (doseq [i (range (count world))
+            j (range (count (first world)))
+            :let [cell (get-in world [i j])]
+            :when (:flight-path-launched cell)]
+      (sa/update-world! update-in [i j] dissoc :flight-path-launched))))
+
 ;; Delegated to sub-modules
 (def wake-carrier-fighters waking/wake-carrier-fighters)
 (def wake-sentries-seeing-enemy waking/wake-sentries-seeing-enemy)

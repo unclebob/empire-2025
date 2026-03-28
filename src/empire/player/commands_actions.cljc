@@ -88,6 +88,7 @@
 
       :sleep-fighters-on-airport
       (do (container-ops/sleep-fighters-on-airport coords)
+          (update-runtime-state! ctx :player-items rest)
           (item-processed! ctx)
           true)
 

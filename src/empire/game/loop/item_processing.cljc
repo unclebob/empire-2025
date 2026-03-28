@@ -94,13 +94,16 @@
          (uc/has-awake? cell :awake-fighters))))
 
 (defn- launch-airport-flight-path-fighter
-  "If city has fighters and a flight-path, launch one. Does not affect processing flow."
+  "If city has fighters, a flight-path, and hasn't launched this round,
+   launch one. Marks city so it won't launch again this round."
   [coords cell]
   (when (and (= :city (:type cell))
              (pos? (:fighter-count cell 0))
+             (not (:flight-path-launched cell))
              (not (:contents cell))
              (:flight-path cell))
-    (container-ops/launch-fighter-from-airport coords (:flight-path cell))))
+    (container-ops/launch-fighter-from-airport coords (:flight-path cell))
+    (sa/update-world! assoc-in (conj coords :flight-path-launched) true)))
 
 (defn- auto-launch-fighter [coords cell]
   "Auto-launches a fighter from carrier if flight-path is set.
