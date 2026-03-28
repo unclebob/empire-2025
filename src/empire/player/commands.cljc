@@ -87,8 +87,10 @@
     (sa/write-state! :attention-message "")
     (sa/write-state! :cells-needing-attention [])
     (sa/update-state! :player-items
-                      #(cond-> (cons fighter-pos (rest %))
-                         (requeue-airport? coords) (cons coords)))
+                      #(let [remaining (rest %)]
+                         (if (requeue-airport? coords)
+                           (cons fighter-pos (cons coords remaining))
+                           (cons fighter-pos remaining))))
     true))
 
 (defn- actions-ctx []
