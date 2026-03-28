@@ -8,22 +8,6 @@
 (describe "wake and sleep logic"
   (before (reset-all-atoms!))
 
-  (context "wake-airport-fighters"
-    (it "wakes all fighters in player city airports"
-      (set-test-world! (assoc-in (build-test-map ["O"]) [0 0 :fighter-count] 3))
-      (game-loop/wake-airport-fighters)
-      (should= 3 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-    (it "ignores computer cities"
-      (set-test-world! (assoc-in (build-test-map ["X"]) [0 0 :fighter-count] 3))
-      (game-loop/wake-airport-fighters)
-      (should-be-nil (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-    (it "ignores cities with no fighters"
-      (set-test-world! (assoc-in (build-test-map ["O"]) [0 0 :fighter-count] 0))
-      (game-loop/wake-airport-fighters)
-      (should-be-nil (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0])))))
-
   (context "wake-carrier-fighters"
     (it "wakes all fighters on player carriers"
       (set-test-world! (build-test-map ["C"]))

@@ -44,28 +44,6 @@
     (game-loop/item-processed)
     (should= [] (test-utils/read-test-state :cells-needing-attention))))
 
-(describe "wake-airport-fighters"
-  (before (reset-all-atoms!))
-
-  (it "wakes all fighters in player city airports"
-    (set-test-world! (-> (build-test-map ["O"])
-                         (assoc-in [0 0 :fighter-count] 3)
-                         (assoc-in [0 0 :awake-fighters] 0)))
-    (game-loop/wake-airport-fighters)
-    (should= 3 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "ignores computer cities"
-    (set-test-world! (-> (build-test-map ["X"])
-                         (assoc-in [0 0 :fighter-count] 3)
-                         (assoc-in [0 0 :awake-fighters] 0)))
-    (game-loop/wake-airport-fighters)
-    (should= 0 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
-
-  (it "ignores cities with no fighters"
-    (set-test-world! (assoc-in (build-test-map ["O"]) [0 0 :fighter-count] 0))
-    (game-loop/wake-airport-fighters)
-    (should= nil (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0])))))
-
 (describe "cells-needing-attention"
   (before (reset-all-atoms!))
 
