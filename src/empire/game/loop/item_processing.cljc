@@ -83,9 +83,6 @@
 (defn- airport-flight-path [cell]
   (or (:flight-path cell) (:flight-path (:contents cell))))
 
-(defn- awake-airport-fighter? [cell]
-  (and (not (:contents cell)) (uc/has-awake? cell :awake-fighters)))
-
 (defn- awake-carrier-fighter? [cell]
   (let [contents (:contents cell)]
     (and (= :carrier (:type contents)) (uc/has-awake? contents :awake-fighters))))
@@ -94,18 +91,22 @@
   [coords]
   (let [cell (get-in (sa/current-world) coords)]
     (and (= :city (:type cell))
-         (uc/has-awake? cell :awake-fighters)
-         (airport-flight-path cell))))
+         (uc/has-awake? cell :awake-fighters))))
+
+(defn- launch-airport-flight-path-fighter
+  "If city has fighters and a flight-path, launch one. Does not affect processing flow."
+  [coords cell]
+  (when (and (= :city (:type cell))
+             (pos? (:fighter-count cell 0))
+             (not (:contents cell))
+             (:flight-path cell))
+    (container-ops/launch-fighter-from-airport coords (:flight-path cell))))
 
 (defn- auto-launch-fighter [coords cell]
-  "Auto-launches a fighter from city airport or carrier if flight-path is set.
+  "Auto-launches a fighter from carrier if flight-path is set.
    Returns new coords if launched, nil otherwise."
   (when-let [flight-path (airport-flight-path cell)]
-    (cond
-      (awake-airport-fighter? cell)
-      (container-ops/launch-fighter-from-airport coords flight-path)
-
-      (awake-carrier-fighter? cell)
+    (when (awake-carrier-fighter? cell)
       (container-ops/launch-fighter-from-carrier coords flight-path))))
 
 (defn- auto-disembark-army [coords cell]
@@ -154,33 +155,35 @@
   []
   (sa/update-state! :player-items decisions/normalize-item-queue)
   (let [coords (first (sa/read-state :player-items))
-        cell (get-in (sa/current-world) coords)
-        unit (:contents cell)
-        sat-moving? (decisions/satellite-with-target? unit)
-        unit-in-auto-mode? (decisions/unit-auto-mode? unit)
-        auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))
-        action (decisions/player-item-action
-                {:sat-moving? sat-moving?
-                 :auto-coords auto-coords
-                 :unit-in-auto-mode? unit-in-auto-mode?
-                 :needs-attention? (player-attention/item-needs-attention? coords)})]
-    (case action
-      :skip-satellite
-      (do (sa/update-state! :player-items rest) :done)
+        cell (get-in (sa/current-world) coords)]
+    (launch-airport-flight-path-fighter coords cell)
+    (let [cell (get-in (sa/current-world) coords)
+          unit (:contents cell)
+          sat-moving? (decisions/satellite-with-target? unit)
+          unit-in-auto-mode? (decisions/unit-auto-mode? unit)
+          auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))
+          action (decisions/player-item-action
+                  {:sat-moving? sat-moving?
+                   :auto-coords auto-coords
+                   :unit-in-auto-mode? unit-in-auto-mode?
+                   :needs-attention? (player-attention/item-needs-attention? coords)})]
+      (case action
+        :skip-satellite
+        (do (sa/update-state! :player-items rest) :done)
 
-      :auto-move
-      (if auto-coords
-        (do (sa/update-state! :player-items
-                              #(cond-> (cons auto-coords (rest %))
-                                 (should-requeue-airport? coords) (cons coords)))
-            :continue)
-        (process-auto-movement coords unit))
+        :auto-move
+        (if auto-coords
+          (do (sa/update-state! :player-items
+                                #(cond-> (cons auto-coords (rest %))
+                                   (should-requeue-airport? coords) (cons coords)))
+              :continue)
+          (process-auto-movement coords unit))
 
-      :attention
-      (do (sa/write-state! :cells-needing-attention [coords])
-          (player-attention/set-attention-message coords)
-          (sa/write-state! :waiting-for-input true)
-          :waiting))))
+        :attention
+        (do (sa/write-state! :cells-needing-attention [coords])
+            (player-attention/set-attention-message coords)
+            (sa/write-state! :waiting-for-input true)
+            :waiting)))))
 
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."

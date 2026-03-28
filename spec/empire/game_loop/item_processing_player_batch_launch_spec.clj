@@ -56,7 +56,49 @@
                     attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
         (ip/process-player-items-batch)
-        (should-not @launched?)))))
+        (should-not @launched?))))
+
+  (it "launches one fighter on flight-path then presents city for attention"
+    (set-test-world! [[{:type :city :city-status :player
+                        :flight-path [1 0]
+                        :fighter-count 3}
+                       (land-cell)]])
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (let [launch-count (atom 0)]
+      (with-redefs [container-ops/launch-fighter-from-airport
+                    (fn [_coords _fp]
+                      (swap! launch-count inc)
+                      (test-utils/update-test-world! update-in [0 0 :fighter-count] dec)
+                      [1 0])
+                    attention/item-needs-attention? (fn [_] true)
+                    attention/set-attention-message (fn [_])]
+        (ip/process-player-items-batch)
+        (should= 1 @launch-count)
+        (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention))
+        (should (test-utils/read-test-state :waiting-for-input)))))
+
+  (it "city with fighter-count but no flight-path gets attention without launching"
+    (set-test-world! [[{:type :city :city-status :player
+                        :fighter-count 2}]])
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (let [launched? (atom false)]
+      (with-redefs [container-ops/launch-fighter-from-airport
+                    (fn [_ _] (reset! launched? true) [1 0])
+                    attention/item-needs-attention? (fn [_] true)
+                    attention/set-attention-message (fn [_])]
+        (ip/process-player-items-batch)
+        (should-not @launched?)
+        (should (test-utils/read-test-state :waiting-for-input)))))
+
+  (it "requeues city when awake-fighters > 0 after processing"
+    (set-test-world! [[{:type :city :city-status :player
+                        :awake-fighters 2 :fighter-count 3}]])
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (with-redefs [attention/item-needs-attention? (fn [_] true)
+                  attention/set-attention-message (fn [_])]
+      (ip/process-player-items-batch)
+      (let [items (test-utils/read-test-state :player-items)]
+        (should (some #(= [0 0] %) items))))))
 
 (describe "process-player-items-batch auto-disembark-army"
   (before (reset-all-atoms!))
