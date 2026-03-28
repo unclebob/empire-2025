@@ -58,6 +58,12 @@
         (should= :awake (:mode active))
         (should= true (:from-airport active)))))
 
+  (it "creates synthetic fighter when fighter-count > 0 and awake-fighters is 0"
+    (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 0}
+          active (get-active-unit cell)]
+      (should= :fighter (:type active))
+      (should= true (:from-airport active))))
+
   (it "is-fighter-from-airport? returns true for synthetic airport fighter"
     (let [fighter {:type :fighter :mode :awake :owner :player :from-airport true}]
       (should= true (is-fighter-from-airport? fighter))))
