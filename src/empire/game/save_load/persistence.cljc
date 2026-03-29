@@ -96,6 +96,22 @@
        (spit filepath (pr-str data))
        save-filename))))
 
+(defn- clear-ghost-contents!
+  "Clears :contents maps missing :type from all map cells."
+  [map-key]
+  (let [world (sa/read-state map-key)]
+    (when (sequential? world)
+      (doseq [i (range (count world))
+              j (range (count (first world)))
+              :let [contents (get-in world [i j :contents])]
+              :when (and contents (not (:type contents)))]
+        (sa/update-state! map-key assoc-in [i j :contents] nil)))))
+
+(defn- sanitize-loaded-maps! []
+  (clear-ghost-contents! :game-map)
+  (clear-ghost-contents! :player-map)
+  (clear-ghost-contents! :computer-map))
+
 (defn load-game!
   ([filename] (load-game! "saves" filename))
   ([dir-path filename]
@@ -104,6 +120,7 @@
      (doseq [[k _] saveable-atoms]
        (when-let [value (get data k)]
          (write-save-key! k value)))
+     (sanitize-loaded-maps!)
      (sa/write-state! :load-menu-open false)
      (sa/write-state! :load-menu-files [])
      (sa/write-state! :load-menu-hovered nil)
