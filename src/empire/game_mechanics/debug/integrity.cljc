@@ -162,12 +162,20 @@
      :cljs
      nil))
 
+(defn- clear-ghost-contents!
+  "Clears :contents maps missing :type from the game map."
+  [invalids]
+  (doseq [{:keys [pos cell]} invalids]
+    (when (and (:contents cell) (not (:type (:contents cell))))
+      (sa/update-world! assoc-in (conj pos :contents) nil))))
+
 (defn check-world-integrity!
   []
   (when (sa/read-state :integrity-check-enabled)
     (let [world (sa/current-world)
           invalids (when (seq world) (invalid-cells world))]
       (when (seq invalids)
+        (clear-ghost-contents! invalids)
         (let [filename (write-integrity-error-log! invalids)]
           (binding [*out* *err*]
             (println "World integrity violation; wrote" filename))
