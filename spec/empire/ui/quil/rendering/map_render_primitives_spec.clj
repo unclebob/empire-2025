@@ -42,7 +42,7 @@
                     (fn [& _] [255 255 255])
                     q/fill (fn [& args] (swap! calls conj [:fill args]))
                     q/text (fn [& args] (swap! calls conj [:text args]))]
-        (#'map-render/draw-unit 0 0 {:contents {:type :army :owner :player}} 10 10 [[0 0]] false false)
+        (#'map-render/draw-unit 0 0 {:contents {:type :army :owner :player}} 10 10 [[0 0]] false false true)
         (should-contain [:fill [255 255 255]] @calls)
         (should-contain [:text ["A" config/cell-char-x-offset config/cell-char-y-offset]] @calls))))
 
@@ -54,7 +54,7 @@
                     (fn [& _] [1 2 3])
                     q/fill (fn [& _] nil)
                     q/text (fn [& args] (swap! calls conj args))]
-        (#'map-render/draw-unit 0 0 {:contents {:type :destroyer :owner :computer}} 10 10 nil false false)
+        (#'map-render/draw-unit 0 0 {:contents {:type :destroyer :owner :computer}} 10 10 nil false false false)
         (should= [["d" config/cell-char-x-offset config/cell-char-y-offset]] @calls)))))
 
 (describe "draw-waypoint"

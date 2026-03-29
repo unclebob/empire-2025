@@ -173,10 +173,10 @@
         (should= 3 (count (get result [0 120 220])))))))
 
 (describe "attention-unit-color"
-  (it "always uses normal unit color regardless of attention state"
+  (it "uses black when cell is flashing"
+    (should= [0 0 0]
+             (display/attention-unit-color {:type :army :owner :player} true)))
+
+  (it "uses normal color when cell is not flashing"
     (should= (config/unit->color {:type :army :owner :player})
-             (display/attention-unit-color {:type :army :owner :player} 0 0 [[0 0]] true))
-    (should= (config/unit->color {:type :army :owner :player})
-             (display/attention-unit-color {:type :army :owner :player} 0 0 [[0 0]] false))
-    (should= (config/unit->color {:type :army :owner :player})
-             (display/attention-unit-color {:type :army :owner :player} 1 0 [[0 0]] true))))
+             (display/attention-unit-color {:type :army :owner :player} false))))

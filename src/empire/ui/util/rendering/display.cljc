@@ -27,6 +27,7 @@
 (def attention-unit-color colors/attention-unit-color)
 (def production-indicator-data colors/production-indicator-data)
 (def group-cells-by-color colors/group-cells-by-color)
+(def completed-production-city? colors/completed-production-city?)
 
 ;; text
 (def should-show-error? text/should-show-error?)

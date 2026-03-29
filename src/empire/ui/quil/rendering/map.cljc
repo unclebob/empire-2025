@@ -37,9 +37,9 @@
 (defn- draw-unit
   "Draws a unit on the map cell, handling attention blinking for contained units.
    Assumes font is already set. Computer units show as lowercase."
-  [col row cell cell-w cell-h attention-coords blink-attention? blink-unit?]
+  [col row cell cell-w cell-h attention-coords blink-attention? blink-unit? cell-flashing?]
   (when-let [display-unit (display/determine-display-unit col row cell attention-coords blink-unit?)]
-    (let [[r g b] (display/attention-unit-color display-unit col row attention-coords blink-attention?)
+    (let [[r g b] (display/attention-unit-color display-unit cell-flashing?)
           char (config/item-chars (:type display-unit))
           char (if (= :computer (:owner display-unit)) (str/lower-case char) char)]
       (q/fill r g b)
@@ -164,7 +164,11 @@
           (when-not hide-production?
             (draw-production-indicators row col cell cell-w cell-h production map-to-display))
           (when-not hide-airport-unit?
-            (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit?)))
+            (let [flash-attention? (and is-attention-cell? blink-attention?)
+                  flash-completed? (and (display/completed-production-city? cell production [col row])
+                                        blink-completed?)
+                  cell-flashing? (or flash-attention? flash-completed?)]
+              (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit? cell-flashing?))))
         (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))
     (draw-attention-ring attention-coords cell-w cell-h map-to-display)))
 

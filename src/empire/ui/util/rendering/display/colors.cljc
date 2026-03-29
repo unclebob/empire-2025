@@ -36,11 +36,8 @@
 (defn attention-unit-color
   "Returns the color for a displayed unit. Black when cell is flashing white,
    normal color otherwise."
-  [display-unit col row attention-coords blink-attention?]
-  (if (and display-unit
-           (seq attention-coords)
-           (= [col row] (first attention-coords))
-           blink-attention?)
+  [display-unit cell-flashing?]
+  (if (and display-unit cell-flashing?)
     attention-flash-unit-color
     (config/unit->color display-unit)))
 
@@ -83,7 +80,7 @@
             computed)))
       #{})))
 
-(defn- completed-production-city? [cell production current]
+(defn completed-production-city? [cell production current]
   (and (= (:type cell) :city)
        (= :player (:city-status cell))
        (let [prod (production current)]
