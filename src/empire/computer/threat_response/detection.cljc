@@ -55,13 +55,14 @@
             j (range (count (first game-map)))
             :let [unit (get-in game-map [i j :contents])]
             :when (homeland-defense-unit? unit)]
-      (let [cid (:country-id unit)
-            targets (get targets-by-country cid)]
-        (sa/update-world! update-in [i j :contents]
-                          (if (seq targets)
-                            #(country-defense/apply-country-defense % [i j] targets radius)
-                            country-defense/clear-country-defense))
-        (visibility/sync-ai-unit-to-computer-map! [i j])))))
+      (when (:type (get-in (sa/current-world) [i j :contents]))
+        (let [cid (:country-id unit)
+              targets (get targets-by-country cid)]
+          (sa/update-world! update-in [i j :contents]
+                            (if (seq targets)
+                              #(country-defense/apply-country-defense % [i j] targets radius)
+                              country-defense/clear-country-defense))
+          (visibility/sync-ai-unit-to-computer-map! [i j]))))))
 
 (defn handle-country-defense-detection! [_pos]
   (refresh-country-defense!))

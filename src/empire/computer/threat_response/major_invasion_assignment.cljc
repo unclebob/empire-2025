@@ -27,9 +27,10 @@
                   :plan plan})]
     ((:update-game-map! ctx) update-in (conj pos :contents)
      (fn [current]
-       (apply dissoc
-              (merge current (dissoc updates :clear-keys))
-              (:clear-keys updates))))))
+       (when (:type current)
+         (apply dissoc
+                (merge current (dissoc updates :clear-keys))
+                (:clear-keys updates)))))))
 
 (defn- assign-carrier-major-invasion!
   [ctx pos]
@@ -39,12 +40,13 @@
                   :ship-target (when-not support-target
                                  ((:nearest-major-ship-target-fn ctx) pos))})]
     ((:update-game-map! ctx) update-in (conj pos :contents)
-     merge updates)))
+     #(when (:type %) (merge % updates)))))
 
 (defn- assign-ship-major-invasion!
   [ctx pos]
-  ((:update-game-map! ctx) update-in (conj pos :contents)
-   merge (decisions/ship-assignment ((:nearest-major-ship-target-fn ctx) pos))))
+  (let [updates (decisions/ship-assignment ((:nearest-major-ship-target-fn ctx) pos))]
+    ((:update-game-map! ctx) update-in (conj pos :contents)
+     #(when (:type %) (merge % updates)))))
 
 (defn- assign-army-invasion-embark!
   [ctx pos unit]
@@ -53,7 +55,7 @@
       (let [target (or (:coast-target unit)
                        (coastal-positioning/find-coast-target-once pos country-id))]
         ((:update-game-map! ctx) update-in (conj pos :contents)
-         #(merge % (decisions/army-coast-assignment target)))))))
+         #(when (:type %) (merge % (decisions/army-coast-assignment target))))))))
 
 (defn apply-major-invasion-assignment!
   [ctx pos unit]

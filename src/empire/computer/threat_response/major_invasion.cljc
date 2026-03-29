@@ -189,8 +189,9 @@
   (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))
         clear-skip? (and (contains? current-transport :major-invasion-skip-revision)
                          (not= target-revision (:major-invasion-skip-revision current-transport)))]
-    (when (or clear-skip?
-              (not (stamped-transport-target? current-transport target)))
+    (when (and (:type current-transport)
+               (or clear-skip?
+                   (not (stamped-transport-target? current-transport target))))
       ((:update-game-map! ctx) update-in (conj pos :contents)
        #(cond-> (assoc % :major-invasion true :major-invasion-target target)
           clear-skip?
@@ -227,7 +228,7 @@
               (best-fn pos target)
               (best-invasion-target-and-path ctx pos target))
             {:target target :path nil})]
-    (when (some? path)
+    (when (and (:type current-transport) (some? path))
       (if (empty? path)
         ((:update-game-map! ctx) update-in (conj pos :contents)
          assoc :transport-mission :unloading
@@ -254,20 +255,21 @@
 
 (defn- clear-stale-invasion-routing!
   [ctx pos]
-  ((:update-game-map! ctx) update-in (conj pos :contents)
-   (fn [transport]
-     (let [transport' (-> transport
-                          (assoc :major-invasion true
-                                 :major-invasion-target nil)
-                          (dissoc :invasion-target
-                                  :invasion-path
-                                  :invasion-plan-revision
-                                  :invasion-path-origin))]
-       (if (= :invading (:transport-mission transport'))
-         (assoc transport' :transport-mission (if (zero? (:army-count transport' 0))
-                                                :sail-to-load
-                                                :sail-to-unload))
-         transport'))))
+  (when (:type (get-in ((:current-world ctx)) (conj pos :contents)))
+    ((:update-game-map! ctx) update-in (conj pos :contents)
+     (fn [transport]
+       (let [transport' (-> transport
+                            (assoc :major-invasion true
+                                   :major-invasion-target nil)
+                            (dissoc :invasion-target
+                                    :invasion-path
+                                    :invasion-plan-revision
+                                    :invasion-path-origin))]
+         (if (= :invading (:transport-mission transport'))
+           (assoc transport' :transport-mission (if (zero? (:army-count transport' 0))
+                                                  :sail-to-load
+                                                  :sail-to-unload))
+           transport')))))
   (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
     (sync-ai-unit! pos)))
 
@@ -275,9 +277,10 @@
   [ctx pos army-count target-revision]
   (when (zero? army-count)
     (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))]
-      (when-not (or (= :load-for-invasion (:transport-mission current-transport))
-                    (= target-revision (:major-invasion-skip-revision current-transport))
-                    (= :find-armies-for-invasion (:transport-mission current-transport)))
+      (when (and (:type current-transport)
+                 (not (or (= :load-for-invasion (:transport-mission current-transport))
+                          (= target-revision (:major-invasion-skip-revision current-transport))
+                          (= :find-armies-for-invasion (:transport-mission current-transport)))))
         ((:update-game-map! ctx) assoc-in (conj pos :contents :transport-mission) :find-armies-for-invasion)
         (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
           (sync-ai-unit! pos))))))
