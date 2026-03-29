@@ -159,6 +159,12 @@
                       (uc/wake-all :army-count :awake-armies)))
           true)
 
+      (and contents (= :carrier (:type contents)) (= :player (:owner contents))
+           (pos? (:fighter-count contents 0)))
+      (do (update-game-map! update-in [cx cy :contents]
+                 uc/wake-all :fighter-count :awake-fighters)
+          true)
+
       (sleeping-player-unit? contents)
       (do (update-game-map! assoc-in [cx cy :contents]
                  (-> contents
