@@ -34,10 +34,15 @@
       (uc/normal-display-unit cell contents has-awake-airport? has-airport-fighter?))))
 
 (defn attention-unit-color
-  "Returns the color for a displayed unit. Unit character is always its normal color;
-   only the cell background flashes for attention."
-  [display-unit _col _row _attention-coords _blink-attention?]
-  (config/unit->color display-unit))
+  "Returns the color for a displayed unit. Black when cell is flashing white,
+   normal color otherwise."
+  [display-unit col row attention-coords blink-attention?]
+  (if (and display-unit
+           (seq attention-coords)
+           (= [col row] (first attention-coords))
+           blink-attention?)
+    attention-flash-unit-color
+    (config/unit->color display-unit)))
 
 (defn- show-city-production?
   [cell map-to-display]
