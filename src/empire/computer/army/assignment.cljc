@@ -195,8 +195,8 @@
                                                   land-objectives/flood-fill-continent
                                                   grid/distance)]
     (doseq [{:keys [pos target]} assignments]
-      (when (:type (get-in (sa/current-world) (conj pos :contents)))
-        (sa/update-world! assoc-in (conj pos :contents :attack-target) target)))))
+      (sa/update-world! update-in (conj pos :contents)
+                        #(when (:type %) (assoc % :attack-target target))))))
 
 (defn assign-producer-transport-staging!
   []

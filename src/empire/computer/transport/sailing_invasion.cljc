@@ -11,18 +11,16 @@
 
 (defn- clear-invasion-path!
   [pos]
-  (when (:type (get-in (sa/current-world) (conj pos :contents)))
-    (sa/update-world! update-in (conj pos :contents)
-                      dissoc :invasion-path :invasion-path-origin)
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+  (sa/update-world! update-in (conj pos :contents)
+                    #(when (:type %) (dissoc % :invasion-path :invasion-path-origin)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- store-invasion-path!
   [pos remaining]
-  (when (:type (get-in (sa/current-world) (conj pos :contents)))
-    (sa/update-world! update-in (conj pos :contents)
-                      assoc :invasion-path remaining
-                      :invasion-path-origin pos)
-    (visibility/sync-ai-unit-to-computer-map! pos)))
+  (sa/update-world! update-in (conj pos :contents)
+                    #(when (:type %) (assoc % :invasion-path remaining
+                                             :invasion-path-origin pos)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn- move-invasion-step!
   [from to]
@@ -99,10 +97,9 @@
                       :moved1? (boolean moved1)
                       :moved2? (boolean moved2)
                       :unload-zone? (unload-zone? pos2 target transport2)})]
-      (when (and (:start-random-walk? follow-up)
-                 (:type (get-in (sa/current-world) (conj pos :contents))))
+      (when (:start-random-walk? follow-up)
         (sa/update-world! update-in (conj pos :contents)
-                          #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
+                          #(when (:type %) (oscillation/start-random-walk % support/transport-random-walk-restore-keys)))
         (visibility/sync-ai-unit-to-computer-map! pos))
       (when-let [mission (:set-mission follow-up)]
         (tc/set-transport-mission pos2 mission)))
@@ -155,18 +152,17 @@
       (support/update-cell-visibility! chosen :computer)
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
-      (when (:type (get-in (sa/current-world) (conj chosen :contents)))
-        (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from))
+      (sa/update-world! update-in (conj chosen :contents)
+                        #(when (:type %) (assoc % :invasion-last-pos from)))
       (visibility/sync-ai-unit-to-computer-map! chosen)
       chosen)))
 
 (defn- handle-blocked-invading-path!
   [pos target]
   (let [sidestep-succeeded? (boolean (invading-step pos target))]
-    (when (and (:start-random-walk? (decisions/blocked-path-follow-up sidestep-succeeded?))
-               (:type (get-in (sa/current-world) (conj pos :contents))))
+    (when (:start-random-walk? (decisions/blocked-path-follow-up sidestep-succeeded?))
       (sa/update-world! update-in (conj pos :contents)
-                        #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
+                        #(when (:type %) (oscillation/start-random-walk % support/transport-random-walk-restore-keys)))
       (visibility/sync-ai-unit-to-computer-map! pos))))
 
 (defn process-invading-mission

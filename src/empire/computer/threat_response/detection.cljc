@@ -18,9 +18,9 @@
 
 (defn- assign-threat-mission! [positions mission-kv]
   (doseq [pos positions]
-    (when (:type (get-in (sa/current-world) (conj pos :contents)))
-      (sa/update-world! update-in (conj pos :contents) merge mission-kv)
-      (visibility/sync-ai-unit-to-computer-map! pos))))
+    (sa/update-world! update-in (conj pos :contents)
+                      #(when (:type %) (merge % mission-kv)))
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- closest-positions [origin positions n]
   (->> positions
@@ -55,14 +55,15 @@
             j (range (count (first game-map)))
             :let [unit (get-in game-map [i j :contents])]
             :when (homeland-defense-unit? unit)]
-      (when (:type (get-in (sa/current-world) [i j :contents]))
-        (let [cid (:country-id unit)
-              targets (get targets-by-country cid)]
-          (sa/update-world! update-in [i j :contents]
-                            (if (seq targets)
-                              #(country-defense/apply-country-defense % [i j] targets radius)
-                              country-defense/clear-country-defense))
-          (visibility/sync-ai-unit-to-computer-map! [i j]))))))
+      (let [cid (:country-id unit)
+            targets (get targets-by-country cid)]
+        (sa/update-world! update-in [i j :contents]
+                          (fn [current]
+                            (when (:type current)
+                              (if (seq targets)
+                                (country-defense/apply-country-defense current [i j] targets radius)
+                                (country-defense/clear-country-defense current)))))
+        (visibility/sync-ai-unit-to-computer-map! [i j])))))
 
 (defn handle-country-defense-detection! [_pos]
   (refresh-country-defense!))

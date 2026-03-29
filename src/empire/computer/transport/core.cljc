@@ -29,10 +29,10 @@
 
 (defn assoc-transport-field!
   [pos k v]
-  (if (and (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
-           (:type (get-in (sa/current-world) (conj pos :contents))))
+  (if (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
     (do
-      (sa/update-world! assoc-in (conj pos :contents k) v)
+      (sa/update-world! update-in (conj pos :contents)
+                        #(when (:type %) (assoc % k v)))
       true)
     (do
       (log-transport-write-miss! pos :assoc-transport-field {:field k :value v})
@@ -40,10 +40,10 @@
 
 (defn update-transport-contents!
   [pos f]
-  (if (and (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
-           (:type (get-in (sa/current-world) (conj pos :contents))))
+  (if (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
     (do
-      (sa/update-world! update-in (conj pos :contents) f)
+      (sa/update-world! update-in (conj pos :contents)
+                        #(when (:type %) (f %)))
       true)
     (do
       (log-transport-write-miss! pos :update-transport-contents {})
