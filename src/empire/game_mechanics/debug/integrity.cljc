@@ -163,11 +163,13 @@
      nil))
 
 (defn- clear-ghost-contents!
-  "Clears :contents maps missing :type from the game map."
+  "Clears :contents maps missing :type from all three maps."
   [invalids]
   (doseq [{:keys [pos cell]} invalids]
     (when (and (:contents cell) (not (:type (:contents cell))))
-      (sa/update-world! assoc-in (conj pos :contents) nil))))
+      (sa/update-world! assoc-in (conj pos :contents) nil)
+      (sa/update-state! :player-map assoc-in (conj pos :contents) nil)
+      (sa/update-state! :computer-map assoc-in (conj pos :contents) nil))))
 
 (defn check-world-integrity!
   []
