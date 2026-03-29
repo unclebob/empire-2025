@@ -35,8 +35,9 @@
              (#{:free :player} (:city-status comp-cell)))
       (movement/move-toward-objective pos target country-id)
       (do
-          (sa/update-world! update-in (conj pos :contents) dissoc :attack-target)
-          (visibility/sync-ai-unit-to-computer-map! pos)
+          (when (:type (get-in (sa/current-world) (conj pos :contents)))
+            (sa/update-world! update-in (conj pos :contents) dissoc :attack-target)
+            (visibility/sync-ai-unit-to-computer-map! pos))
           nil))))
 
 ;; clj-mutate-manifest-begin

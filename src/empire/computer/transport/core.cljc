@@ -29,7 +29,8 @@
 
 (defn assoc-transport-field!
   [pos k v]
-  (if (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
+  (if (and (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
+           (:type (get-in (sa/current-world) (conj pos :contents))))
     (do
       (sa/update-world! assoc-in (conj pos :contents k) v)
       true)
@@ -39,7 +40,8 @@
 
 (defn update-transport-contents!
   [pos f]
-  (if (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
+  (if (and (computer-transport? (get-in (sa/read-state :computer-map) (conj pos :contents)))
+           (:type (get-in (sa/current-world) (conj pos :contents))))
     (do
       (sa/update-world! update-in (conj pos :contents) f)
       true)

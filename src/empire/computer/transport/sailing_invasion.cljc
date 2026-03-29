@@ -11,16 +11,18 @@
 
 (defn- clear-invasion-path!
   [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    dissoc :invasion-path :invasion-path-origin)
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (when (:type (get-in (sa/current-world) (conj pos :contents)))
+    (sa/update-world! update-in (conj pos :contents)
+                      dissoc :invasion-path :invasion-path-origin)
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- store-invasion-path!
   [pos remaining]
-  (sa/update-world! update-in (conj pos :contents)
-                    assoc :invasion-path remaining
-                    :invasion-path-origin pos)
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (when (:type (get-in (sa/current-world) (conj pos :contents)))
+    (sa/update-world! update-in (conj pos :contents)
+                      assoc :invasion-path remaining
+                      :invasion-path-origin pos)
+    (visibility/sync-ai-unit-to-computer-map! pos)))
 
 (defn- move-invasion-step!
   [from to]
@@ -97,7 +99,8 @@
                       :moved1? (boolean moved1)
                       :moved2? (boolean moved2)
                       :unload-zone? (unload-zone? pos2 target transport2)})]
-      (when (:start-random-walk? follow-up)
+      (when (and (:start-random-walk? follow-up)
+                 (:type (get-in (sa/current-world) (conj pos :contents))))
         (sa/update-world! update-in (conj pos :contents)
                           #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
         (visibility/sync-ai-unit-to-computer-map! pos))
@@ -152,14 +155,16 @@
       (support/update-cell-visibility! chosen :computer)
       ;; Force recompute from new position next round.
       (clear-invasion-path! chosen)
-      (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from)
+      (when (:type (get-in (sa/current-world) (conj chosen :contents)))
+        (sa/update-world! assoc-in (conj chosen :contents :invasion-last-pos) from))
       (visibility/sync-ai-unit-to-computer-map! chosen)
       chosen)))
 
 (defn- handle-blocked-invading-path!
   [pos target]
   (let [sidestep-succeeded? (boolean (invading-step pos target))]
-    (when (:start-random-walk? (decisions/blocked-path-follow-up sidestep-succeeded?))
+    (when (and (:start-random-walk? (decisions/blocked-path-follow-up sidestep-succeeded?))
+               (:type (get-in (sa/current-world) (conj pos :contents))))
       (sa/update-world! update-in (conj pos :contents)
                         #(oscillation/start-random-walk % support/transport-random-walk-restore-keys))
       (visibility/sync-ai-unit-to-computer-map! pos))))
