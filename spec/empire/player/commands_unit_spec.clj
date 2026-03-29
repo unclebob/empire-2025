@@ -4,6 +4,7 @@
             [empire.game-mechanics.movement.coastline :as coastline]
             [empire.game-mechanics.movement.explore :as explore]
             [empire.player.commands :as commands]
+            [empire.player.orders :as player-orders]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-unit set-test-world!]]
             [speclj.core :refer :all]))
@@ -96,24 +97,18 @@
 
   (context "unload key"
     (it "wakes armies on transport"
-      (let [wake-called (atom false)]
-        (set-test-world! (build-test-map ["T"]))
-        (set-test-unit (test-utils/game-map-atom) "T" :mode :awake :army-count 3 :awake-armies 0)
-        (setup-unit-attention [0 0])
-        (with-redefs [container-ops/wake-armies-on-transport
-                      (fn [_] (reset! wake-called true))]
-          (commands/handle-key :u)
-          (should @wake-called))))
+      (set-test-world! (build-test-map ["T"]))
+      (set-test-unit (test-utils/game-map-atom) "T" :mode :awake :army-count 3 :awake-armies 0)
+      (setup-unit-attention [0 0])
+      (player-orders/wake-at [0 0])
+      (should= 3 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :awake-armies])))
 
     (it "wakes fighters on carrier"
-      (let [wake-called (atom false)]
-        (set-test-world! (build-test-map ["C"]))
-        (set-test-unit (test-utils/game-map-atom) "C" :mode :awake :fighter-count 3 :awake-fighters 0)
-        (setup-unit-attention [0 0])
-        (with-redefs [container-ops/wake-fighters-on-carrier
-                      (fn [_] (reset! wake-called true))]
-          (commands/handle-key :u)
-          (should @wake-called))))
+      (set-test-world! (build-test-map ["C"]))
+      (set-test-unit (test-utils/game-map-atom) "C" :mode :awake :fighter-count 3 :awake-fighters 0)
+      (setup-unit-attention [0 0])
+      (player-orders/wake-at [0 0])
+      (should= 3 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :awake-fighters])))
 
     (it "returns nil for unit without cargo"
       (set-test-world! (build-test-map ["D"]))

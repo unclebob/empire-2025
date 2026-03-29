@@ -11,6 +11,7 @@
             [empire.game-mechanics.movement.explore :as explore]
             [empire.game-mechanics.movement.api :as movement]
             [empire.player.production :as production]
+            [empire.player.orders :as player-orders]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-unit set-test-world! update-test-world!]]))
 
@@ -214,17 +215,13 @@
           (should-not @disembark-called))))))
 
   (context "u key - wake fighters on airport"
-    (it "calls wake-fighters-on-airport when city has awake fighters and u pressed"
-      (let [wake-called (atom false)]
-        (set-test-world! (build-test-map ["O"]))
-        (update-test-world! assoc-in [0 0 :fighter-count] 2)
-        (update-test-world! assoc-in [0 0 :awake-fighters] 1)
-        (setup-unit-attention [0 0])
-        (with-redefs [container-ops/wake-fighters-on-airport
-                      (fn [_] (reset! wake-called true))]
-          (commands/handle-key :u)
-          (should @wake-called)
-          (should= false (test-utils/read-test-state :waiting-for-input)))))
+    (it "wakes all fighters on airport when city has fighters and u pressed"
+      (set-test-world! (build-test-map ["O"]))
+      (update-test-world! assoc-in [0 0 :fighter-count] 2)
+      (update-test-world! assoc-in [0 0 :awake-fighters] 0)
+      (setup-unit-attention [0 0])
+      (player-orders/wake-at [0 0])
+      (should= 2 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-fighters])))
 
     (it "does not call wake-fighters-on-airport when city has no fighters"
       (let [wake-called (atom false)]

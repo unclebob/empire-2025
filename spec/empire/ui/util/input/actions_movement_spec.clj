@@ -227,8 +227,7 @@
     (let [coords (:pos (get-test-unit (test-utils/game-map-atom) "T"))]
       (test-utils/set-test-state! :cells-needing-attention [coords])
       (test-utils/set-test-state! :player-items [coords])
-      (test-utils/set-test-state! :waiting-for-input true)
-      (actions/handle-key :u)
+      (orders/wake-at coords)
       (let [transport (:contents (get-in (test-utils/read-test-state :game-map) coords))]
         (should= 2 (:awake-armies transport)))))
 
@@ -240,8 +239,7 @@
     (let [coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
       (test-utils/set-test-state! :cells-needing-attention [coords])
       (test-utils/set-test-state! :player-items [coords])
-      (test-utils/set-test-state! :waiting-for-input true)
-      (actions/handle-key :u)
+      (orders/wake-at coords)
       (let [carrier (:contents (get-in (test-utils/read-test-state :game-map) coords))]
         (should= 2 (:awake-fighters carrier)))))
 
