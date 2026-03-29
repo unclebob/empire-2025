@@ -137,6 +137,8 @@
 (defn dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)
       (dispatch-save-load-key k)
+      (when (and (= k :u) cell-coords)
+        (dispatch-standing-order-key k cell-coords))
       (when (and (sa/read-state :waiting-for-input) (unit-has-attention?))
         (actions/handle-key k))
       (dispatch-coord-key k cell-coords)

@@ -14,6 +14,7 @@
   [k active-unit]
   (when (= :player (:owner active-unit))
     (or ({:space {:scope :unit :action :skip}
+          :u {:scope :unit :action :unload}
           :s {:scope :unit :action :sentry}
           :l {:scope :unit :action :look-around}}
          k)
