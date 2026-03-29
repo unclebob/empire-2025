@@ -156,8 +156,9 @@
     (doseq [[_ cells] cells-by-color]
       (doseq [{:keys [col row cell]} cells]
         (let [production-indicator (display/production-indicator-data row col cell production map-to-display)
+              is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
               attention-airport? (attention-airport-fighter? col row cell attention-coords)
-              hide-production? attention-airport?
+              hide-production? (or attention-airport? is-attention-cell?)
               hide-airport-unit? (and (not attention-airport?)
                                       (city-production-overrides-airport? cell production-indicator))]
           (when-not hide-production?
