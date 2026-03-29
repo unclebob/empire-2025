@@ -152,15 +152,6 @@
   (let [cell (get-in (current-world) [cx cy])
         contents (:contents cell)]
     (cond
-      (and (player-city? cell) (pos? (:fighter-count cell 0)))
-      (do (update-game-map! update-in [cx cy]
-                            uc/wake-all :fighter-count :awake-fighters)
-          true)
-
-      (player-city? cell)
-      (do (update-runtime-state! :production dissoc [cx cy])
-          true)
-
       (player-transport-with-armies? contents)
       (do (update-game-map! update-in [cx cy :contents]
                  #(-> %
@@ -174,6 +165,15 @@
                      (assoc :mode :awake)
                      (dissoc :coastline-steps :visited :start-pos :prev-pos :target :reason
                              :explore-steps :explore-heading :explore-origin)))
+          true)
+
+      (and (player-city? cell) (pos? (:fighter-count cell 0)))
+      (do (update-game-map! update-in [cx cy]
+                            uc/wake-all :fighter-count :awake-fighters)
+          true)
+
+      (player-city? cell)
+      (do (update-runtime-state! :production dissoc [cx cy])
           true)
 
       :else nil)))
