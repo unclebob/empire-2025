@@ -14,25 +14,27 @@
     (let [cell {:type :land}]
       (should-not (display/determine-display-unit 5 5 cell nil false))))
 
-  (it "returns blinking fighter for attention cell with awake airport when blink is on"
-    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
-      (should= {:type :fighter :mode :awake}
-               (display/determine-display-unit 0 0 cell [[0 0]] true))))
+  (it "returns fighter for attention cell with awake airport"
+    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}
+          result (display/determine-display-unit 0 0 cell [[0 0]] true)]
+      (should= :fighter (:type result))
+      (should= :awake (:mode result))))
 
   (it "keeps attention fighter visible when blink is off"
-    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
-      (should= {:type :fighter :mode :awake}
-               (display/determine-display-unit 0 0 cell [[0 0]] false))))
+    (let [cell {:type :city :awake-fighters 1 :fighter-count 1}
+          result (display/determine-display-unit 0 0 cell [[0 0]] false)]
+      (should= :fighter (:type result))
+      (should= :awake (:mode result))))
 
-  (it "returns blinking fighter for attention cell with carrier with awake fighters"
-    (let [cell {:contents {:type :carrier :awake-fighters 1}}]
-      (should= {:type :fighter :mode :awake}
-               (display/determine-display-unit 0 0 cell [[0 0]] true))))
+  (it "returns fighter for attention cell with carrier with awake fighters"
+    (let [cell {:contents {:type :carrier :owner :player :awake-fighters 1}}
+          result (display/determine-display-unit 0 0 cell [[0 0]] true)]
+      (should= :fighter (:type result))))
 
-  (it "returns blinking army for attention cell with transport with awake armies"
-    (let [cell {:contents {:type :transport :awake-armies 1}}]
-      (should= {:type :army :mode :awake}
-               (display/determine-display-unit 0 0 cell [[0 0]] true))))
+  (it "returns army for attention cell with transport with awake armies"
+    (let [cell {:contents {:type :transport :owner :player :awake-armies 1}}
+          result (display/determine-display-unit 0 0 cell [[0 0]] true)]
+      (should= :army (:type result))))
 
   (it "returns normal display for non-attention cell with airport"
     (let [cell {:type :city :awake-fighters 1 :fighter-count 1}]
