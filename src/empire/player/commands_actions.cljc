@@ -130,33 +130,54 @@
   [ctx clicked-coords attention-coords]
   (let [attn-coords (first attention-coords)
         attn-cell (get-in (current-world ctx) attn-coords)
-        active-unit (movement-state/get-active-unit attn-cell)
+        active-unit (movement-state/get-active-unit attn-cell attn-coords)
         context (movement-state/movement-context attn-cell active-unit)
         decision (decisions/click-action (current-world ctx) attn-coords clicked-coords context active-unit)]
     (case (:action decision)
       :launch-fighter-from-airport
-      ((:launch-fighter-and-update ctx)
-       container-ops/launch-fighter-from-airport
-       attn-coords
-       (:target decision))
+      (do
+        ((:launch-fighter-and-update ctx)
+         container-ops/launch-fighter-from-airport
+         attn-coords
+         (:target decision))
+        true)
 
       :disembark-army-from-transport
-      (container-ops/disembark-army-from-transport attn-coords (:target decision))
+      (do
+        (container-ops/disembark-army-from-transport attn-coords (:target decision))
+        (item-processed! ctx)
+        true)
 
       :coastal-army-attack
-      (combat/apply-combat-result! (combat/attempt-coastal-army-attack (current-world ctx) attn-coords (:target decision)))
+      (do
+        (combat/apply-combat-result! (combat/attempt-coastal-army-attack (current-world ctx) attn-coords (:target decision)))
+        (item-processed! ctx)
+        true)
 
       :attempt-conquest
-      (combat/apply-combat-result! (combat/attempt-conquest (current-world ctx) attn-coords (:target decision)))
+      (do
+        (combat/apply-combat-result! (combat/attempt-conquest (current-world ctx) attn-coords (:target decision)))
+        (item-processed! ctx)
+        true)
 
       :attempt-fighter-overfly
-      (combat/apply-combat-result! (combat/attempt-fighter-overfly (current-world ctx) attn-coords (:target decision)))
+      (do
+        (combat/apply-combat-result! (combat/attempt-fighter-overfly (current-world ctx) attn-coords (:target decision)))
+        (item-processed! ctx)
+        true)
 
       :set-unit-movement
-      (movement-api/set-unit-movement attn-coords (:target decision))
+      (do
+        (movement-api/set-unit-movement attn-coords (:target decision))
+        (item-processed! ctx)
+        true)
 
-      nil)
-    (item-processed! ctx)))
+      :reject
+      (do
+        (write-runtime-state! ctx :attention-message (:message decision))
+        true)
+
+      nil)))
 
 (defn handle-cell-click
   "Handles clicking on a map cell, prioritizing attention-needing items."

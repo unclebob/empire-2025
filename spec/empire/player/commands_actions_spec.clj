@@ -151,6 +151,7 @@
         (set-test-world! (build-test-map ["O#"]))
         (update-test-world! assoc-in [0 0 :awake-fighters] 1)
         (update-test-world! assoc-in [0 0 :fighter-count] 1)
+        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 5}})
         (setup-unit-attention [0 0])
         (with-redefs [container-ops/launch-fighter-from-airport
                       (fn [_ _] (reset! launch-called true) [0 0])]
@@ -303,6 +304,7 @@
                                                  "###"]))
         (update-test-world! assoc-in [0 0 :awake-fighters] 1)
         (update-test-world! assoc-in [0 0 :fighter-count] 1)
+        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 5}})
         (test-utils/set-test-state! :cells-needing-attention [[0 0]])
         (test-utils/set-test-state! :player-items (list [0 0]))
         (with-redefs [container-ops/launch-fighter-from-airport
@@ -327,10 +329,22 @@
       (set-test-unit (test-utils/game-map-atom) "T" :mode :sentry :army-count 2 :awake-armies 2)
       (test-utils/set-test-state! :cells-needing-attention [[0 0]])
       (test-utils/set-test-state! :player-items (list [0 0]))
+      (test-utils/set-test-state! :waiting-for-input true)
       ;; Click on sea cell - should be ignored for army disembark
       (commands/handle-unit-click [1 0] [[0 0]])
-      ;; item-processed still gets called at the end of handle-unit-click
-      (should= [] (test-utils/read-test-state :cells-needing-attention)))
+      (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention))
+      (should= true (test-utils/read-test-state :waiting-for-input)))
+
+    (it "keeps attention on the unit after an invalid standard click"
+      (set-test-world! (build-test-map ["A~"]))
+      (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+      (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+      (test-utils/set-test-state! :player-items (list [0 0]))
+      (test-utils/set-test-state! :waiting-for-input true)
+      (commands/handle-unit-click [1 0] [[0 0]])
+      (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention))
+      (should= true (test-utils/read-test-state :waiting-for-input))
+      (should= "Can't move into water." (test-utils/read-test-state :attention-message)))
 
     (it "attempts conquest when army clicks adjacent hostile city"
       (let [conquest-called (atom false)]
@@ -378,6 +392,7 @@
         (set-test-world! (build-test-map ["O##" "###" "###"]))
         (update-test-world! assoc-in [0 0 :awake-fighters] 1)
         (update-test-world! assoc-in [0 0 :fighter-count] 1)
+        (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 5}})
         (test-utils/set-test-state! :cells-needing-attention [[0 0]])
         (test-utils/set-test-state! :player-items (list [0 0]))
         (test-utils/set-test-state! :waiting-for-input true)

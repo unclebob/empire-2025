@@ -4,7 +4,9 @@
             [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.game-mechanics.services.combat :as combat]
             [empire.game-mechanics.containers.helpers :as uc]
-            [empire.config.core :as config]))
+            [empire.config.core :as config]
+            [empire.config.messages :as messages]
+            [empire.config.units.dispatcher :as dispatcher]))
 
 (defn space-key-action
   [unit]
@@ -111,9 +113,31 @@
 (defn- standard-click-action
   [world attn-coords clicked-coords active-unit]
   (let [target-cell (get-in world clicked-coords)
-        target-unit (:contents target-cell)]
+        target-unit (:contents target-cell)
+        blocking-reason (cond
+                          (nil? target-cell) :not-on-map
+                          (and target-unit
+                               (not (and (= (:type active-unit) :fighter)
+                                         (= (:type target-unit) :carrier)
+                                         (= (:owner target-unit) (:owner active-unit))))
+                               (not (and (= (:type active-unit) :fighter)
+                                         (= (:type target-cell) :city)
+                                         (= (:city-status target-cell) :player))))
+                          :somethings-in-the-way
+                          (= (:type active-unit) :army)
+                          (cond
+                            (= (:type target-cell) :sea) :cant-move-into-water
+                            (and (= (:type target-cell) :city)
+                                 (= (:city-status target-cell) :player)) :cant-move-into-city)
+                          (dispatcher/naval-unit? (:type active-unit))
+                          (cond
+                            (= (:type target-cell) :land) :ships-cant-drive-on-land
+                            (= (:type target-cell) :city) :ships-cant-enter-city))]
     (or (army-coastal-attack-action attn-coords clicked-coords active-unit target-cell target-unit)
         (hostile-city-action world attn-coords clicked-coords active-unit)
+        (when blocking-reason
+          {:action :reject
+           :message (blocking-reason messages/messages)})
         {:action :set-unit-movement
          :target clicked-coords})))
 

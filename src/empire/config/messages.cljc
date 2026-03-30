@@ -17,6 +17,7 @@
    :cant-move-into-water "Can't move into water."
    :cant-move-into-city "Can't move into city."
    :ships-cant-drive-on-land "Ships don't drive on land."
+   :ships-cant-enter-city "Ships can't enter city."
    :transport-at-beach "At beach."
    :transport-found-land "Found land!"
    :found-a-bay "Found a bay!"
