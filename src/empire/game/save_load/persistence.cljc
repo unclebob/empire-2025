@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.string :as string]
             [empire.config.domain.core.messages :as messages]
+            [empire.player.attention :as attention]
             [empire.game.production-status :as production-status]
             [empire.state.api :as sa]))
 
@@ -129,6 +130,10 @@
                       (production-status/format-production-status
                        (sa/current-world)
                        (sa/read-state :player-map)))
+     (if (and (sa/read-state :waiting-for-input)
+              (seq (sa/read-state :cells-needing-attention)))
+       (attention/set-attention-message (first (sa/read-state :cells-needing-attention)))
+       (sa/write-state! :attention-message ""))
      (sa/write-state! :turn-message (str "Loaded " filename))
      (sa/write-state! :turn-message-until
                       (messages/expires-at (System/currentTimeMillis) 3000)))))

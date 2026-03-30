@@ -188,6 +188,42 @@
                    (test-utils/read-test-state :production-status)))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
+          (.delete (java.io.File. dir))))))
+
+  (it "rebuilds attention-message from restored attention state"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")
+          fighter-map [[{:type :sea
+                         :contents {:type :fighter :owner :player :mode :awake :hits 1 :fuel 29}}]]]
+      (set-test-world! fighter-map)
+      (set-test-player-map! fighter-map)
+      (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+      (test-utils/set-test-state! :player-items [[0 0]])
+      (test-utils/set-test-state! :waiting-for-input true)
+      (test-utils/set-test-state! :attention-message "City needs attention")
+      (try
+        (let [filename (save-load/save-game! dir)]
+          (test-utils/set-test-state! :attention-message "stale")
+          (save-load/load-game! dir filename)
+          (should= "fighter needs attention (fuel:29)"
+                   (test-utils/read-test-state :attention-message)))
+        (finally
+          (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
+          (.delete (java.io.File. dir))))))
+
+  (it "clears stale attention-message when no attention is pending after load"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
+      (set-test-world! [[{:type :land}]])
+      (set-test-player-map! [[{:type :land}]])
+      (test-utils/set-test-state! :cells-needing-attention [])
+      (test-utils/set-test-state! :waiting-for-input false)
+      (test-utils/set-test-state! :attention-message "City needs attention")
+      (try
+        (let [filename (save-load/save-game! dir)]
+          (test-utils/set-test-state! :attention-message "stale")
+          (save-load/load-game! dir filename)
+          (should= "" (test-utils/read-test-state :attention-message)))
+        (finally
+          (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir)))))))
 
 (describe "open-load-menu!"
