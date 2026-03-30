@@ -27,11 +27,12 @@
                              :city-status :player
                              :contents {:type :fighter :owner :computer :mode :awake}})))
 
-  (it "wakes player city and removes production"
+  (it "does not clear production for a player city"
     (update-test-world! assoc-in [1 1] {:type :city :city-status :player})
     (test-utils/set-test-state! :production {[1 1] {:item :army :remaining-rounds 3}})
-    (should (state/wake-at [1 1]))
-    (should-be-nil (get (test-utils/read-test-state :production) [1 1])))
+    (should-be-nil (state/wake-at [1 1]))
+    (should= {:item :army :remaining-rounds 3}
+             (get (test-utils/read-test-state :production) [1 1])))
 
   (it "does not wake enemy transports or empty player transports"
     (update-test-world! assoc-in [1 1 :contents]
