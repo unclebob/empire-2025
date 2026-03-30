@@ -119,6 +119,7 @@
   (round-setup/consume-sentry-fighter-fuel)
   (round-setup/wake-sentries-seeing-enemy)
   (round-setup/remove-dead-units)
+  (round-setup/remove-armies-at-sea)
   (round-setup/mark-lake-locked-ships)
   (round-setup/evacuate-lake-patrol-boats)
   (player-production/update-production)

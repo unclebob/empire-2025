@@ -31,6 +31,19 @@
       (sa/update-world! assoc-in pos cell-without-contents)
       (visibility/update-cell-visibility pos owner))))
 
+(defn remove-armies-at-sea
+  "Removes any army found on a sea cell — armies cannot exist at sea."
+  []
+  (let [world (sa/current-world)]
+    (doseq [i (range (count world))
+            j (range (count (first world)))
+            :let [cell (get-in world [i j])
+                  unit (:contents cell)]
+            :when (and (= :sea (:type cell))
+                       (= :army (:type unit)))]
+      (sa/update-world! assoc-in [i j :contents] nil)
+      (visibility/update-cell-visibility [i j] (:owner unit)))))
+
 (defn reset-steps-remaining
   "Resets steps-remaining for all player units at start of round."
   []
