@@ -22,12 +22,12 @@
       (with-redefs [container-ops/launch-fighter-from-airport
                     (fn [_coords _fp]
                       (reset! launched? true)
-                      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
                       [1 0])
                     attention/item-needs-attention? (fn [_] false)
                     attention/set-attention-message (fn [_])]
         (ip/process-player-items-batch)
-        (should @launched?))))
+        (should @launched?)
+        (should= 0 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-fighters])))))
 
   (it "launches fighter from carrier with flight-path"
     (set-test-world! [[{:type :sea :contents {:type :carrier :owner :player

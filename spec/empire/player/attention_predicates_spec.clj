@@ -59,7 +59,12 @@
 
   (it "returns true when city has awake airport fighters"
     (set-test-world! (assoc-in (build-test-map ["O"]) [0 0] {:type :city :city-status :player :fighter-count 1 :awake-fighters 1}))
-    (should (attention/is-unit-needing-attention? [[0 0]]))))
+    (should (attention/is-unit-needing-attention? [[0 0]])))
+
+  (it "returns false when city has stale awake airport fighters but no stored fighters"
+    (set-test-world! (assoc-in (build-test-map ["O"]) [0 0] {:type :city :city-status :player :fighter-count 0 :awake-fighters 1}))
+    (should-not (attention/is-unit-needing-attention? [[0 0]])))
+  )
 
 (describe "needs-attention?"
   (before (reset-all-atoms!))
@@ -96,6 +101,11 @@
     (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0] {:type :city :city-status :player :fighter-count 1 :awake-fighters 1}))
     (test-utils/set-test-state! :production {[0 0] :army})
     (should (attention/needs-attention? 0 0)))
+
+  (it "returns false for city with stale awake airport fighter and no stored fighters"
+    (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0] {:type :city :city-status :player :fighter-count 0 :awake-fighters 1}))
+    (test-utils/set-test-state! :production {[0 0] :army})
+    (should-not (attention/needs-attention? 0 0)))
 
   (it "returns false for computer city"
     (set-test-player-map! (build-test-map ["X"]))
@@ -178,6 +188,14 @@
     (set-test-unit (test-utils/game-map-atom) "C" :mode :sentry :awake-fighters 1)
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "C"))]
       (should (attention/item-needs-attention? unit-coords))))
+
+  (it "returns false for city with stale awake airport fighter and no stored fighters"
+    (set-test-world! (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (update-test-world! assoc-in city-coords
+                          {:type :city :city-status :player :fighter-count 0 :awake-fighters 1})
+      (test-utils/set-test-state! :production {city-coords :army})
+      (should-not (attention/item-needs-attention? city-coords))))
 
   (it "returns true for transport with awake armies"
     (set-test-world! (build-test-map ["T"]))

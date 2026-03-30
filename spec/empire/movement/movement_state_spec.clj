@@ -21,6 +21,10 @@
              (:from-airport
                (state/get-active-unit {:type :city :awake-fighters 1 :fighter-count 1}))))
 
+  (it "does not build a synthetic airport fighter without a stored fighter"
+    (should-be-nil
+     (state/get-active-unit {:type :city :city-status :player :awake-fighters 1 :fighter-count 0})))
+
   (it "ignores awake non-player units as active units"
     (should-be-nil
      (state/get-active-unit {:type :city

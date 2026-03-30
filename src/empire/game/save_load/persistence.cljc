@@ -108,10 +108,41 @@
               :when (and contents (not (:type contents)))]
         (sa/update-state! map-key assoc-in [i j :contents] nil)))))
 
+(defn- clamp-awake-count
+  [entity count-key awake-key]
+  (if (contains? entity awake-key)
+    (assoc entity awake-key (min (get entity awake-key 0)
+                                 (get entity count-key 0)))
+    entity))
+
+(defn- normalize-container-counts!
+  [map-key]
+  (let [world (sa/read-state map-key)]
+    (when (sequential? world)
+      (doseq [i (range (count world))
+              j (range (count (first world)))
+              :let [cell (get-in world [i j])
+                    contents (:contents cell)
+                    normalized-cell (-> cell
+                                        (clamp-awake-count :fighter-count :awake-fighters)
+                                        (clamp-awake-count :kamikazee-fighter-count :awake-fighters))
+                    normalized-contents (cond-> contents
+                                          (= (:type contents) :carrier)
+                                          (clamp-awake-count :fighter-count :awake-fighters)
+
+                                          (= (:type contents) :transport)
+                                          (clamp-awake-count :army-count :awake-armies))]
+              :when (or (not= normalized-cell cell)
+                        (not= normalized-contents contents))]
+        (sa/update-state! map-key assoc-in [i j] (assoc normalized-cell :contents normalized-contents))))))
+
 (defn- sanitize-loaded-maps! []
   (clear-ghost-contents! :game-map)
   (clear-ghost-contents! :player-map)
-  (clear-ghost-contents! :computer-map))
+  (clear-ghost-contents! :computer-map)
+  (normalize-container-counts! :game-map)
+  (normalize-container-counts! :player-map)
+  (normalize-container-counts! :computer-map))
 
 (defn load-game!
   ([filename] (load-game! "saves" filename))

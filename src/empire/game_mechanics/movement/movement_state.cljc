@@ -57,7 +57,8 @@
 
 (defn- active-airport-fighter
   [cell]
-  (when (pos? (:fighter-count cell 0))
+  (when (and (pos? (:fighter-count cell 0))
+             (pos? (:awake-fighters cell 0)))
     {:type :fighter :mode :awake :owner :player :fuel config/fighter-fuel :from-airport true}))
 
 (defn get-active-unit

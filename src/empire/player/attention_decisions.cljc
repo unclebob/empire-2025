@@ -11,7 +11,8 @@
 (defn player-map-cell-needs-attention?
   [cell production-entry]
   (let [unit (:contents cell)
-        has-airport-fighter? (pos? (:awake-fighters cell 0))
+        has-airport-fighter? (and (pos? (:fighter-count cell 0))
+                                  (pos? (:awake-fighters cell 0)))
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
                                         (uc/has-awake? unit :awake-fighters))]
@@ -31,7 +32,8 @@
   [cell production-entry]
   (let [unit (:contents cell)
         player-owned-unit? (= (:owner unit) :player)
-        has-airport-fighter? (pos? (:awake-fighters cell 0))
+        has-airport-fighter? (and (pos? (:fighter-count cell 0))
+                                  (pos? (:awake-fighters cell 0)))
         has-awake-army-aboard? (pos? (:awake-armies unit 0))
         has-awake-carrier-fighter? (and (= (:type unit) :carrier)
                                         player-owned-unit?
@@ -65,7 +67,8 @@
        (let [first-cell (get-in world (first attention-coords))
              unit (:contents first-cell)]
          (or unit
-             (pos? (:fighter-count first-cell 0))
+             (and (pos? (:fighter-count first-cell 0))
+                  (pos? (:awake-fighters first-cell 0)))
              (pos? (:awake-armies unit 0))))))
 
 (defn- cargo-string
