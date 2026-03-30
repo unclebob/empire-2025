@@ -79,7 +79,7 @@
 
   (it "formats city with marching orders"
     (let [cell {:type :city :city-status :player :fighter-count 0 :marching-orders [[1 2]]}]
-      (should= "city:player march" (fmt/format-city-status cell nil))))
+      (should= "city:player march:1,2" (fmt/format-city-status cell nil))))
 
   (it "formats computer city"
     (let [cell {:type :city :city-status :computer :fighter-count 2}]
@@ -130,7 +130,13 @@
   (it "formats city with flight path"
     (let [cell {:type :city :city-status :player :fighter-count 0
                 :flight-path [5 10]}]
-      (should= "city:player flight" (fmt/format-city-status cell nil))))
+      (should= "city:player flight:5,10" (fmt/format-city-status cell nil))))
+
+  (it "formats city with both marching orders and flight path coordinates"
+    (let [cell {:type :city :city-status :player :fighter-count 0
+                :marching-orders [1 2]
+                :flight-path [5 10]}]
+      (should= "city:player march:1,2 flight:5,10" (fmt/format-city-status cell nil))))
 
   (it "formats free city"
     (let [cell {:type :city :city-status :free :fighter-count 0}]
@@ -205,6 +211,12 @@
               :detail "prod:army rnd:3 ftrs:2 dock:S[1/2]"}
              (fmt/split-hover-status
               "[3,7] city:player producing:army rounds:3 fighters:2 dock:S[1/2]")))
+
+  (it "keeps city order coordinates in the detail line"
+    (should= {:summary "[3,7] Player City"
+              :detail "march:1,2 flight:5,10"}
+             (fmt/split-hover-status
+              "[3,7] city:player march:1,2 flight:5,10")))
 
   (it "shortens verbose detail tokens for unit inspector text"
     (should= {:summary "[12,7] computer transport [1/1]"

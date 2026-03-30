@@ -20,6 +20,14 @@
       (should= "[0,0] city:player producing:army rounds:3"
                (display/compute-hover-message the-map production [0 0]))))
 
+  (it "returns city status with flight and marching coordinates"
+    (let [the-map [[{:type :city :city-status :player :fighter-count 0
+                     :marching-orders [1 2]
+                     :flight-path [5 10]}]]
+          production {}]
+      (should= "[0,0] city:player march:1,2 flight:5,10"
+               (display/compute-hover-message the-map production [0 0]))))
+
   (it "returns city status for occupied city cells"
     (let [the-map [[{:type :city
                      :city-status :player

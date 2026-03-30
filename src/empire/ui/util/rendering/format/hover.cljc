@@ -82,9 +82,26 @@
 
 (defn- city-orders-str
   [cell]
-  (str (when (:marching-orders cell)
-         (if (= (:marching-orders cell) :lookaround) " lookaround" " march"))
-       (when (:flight-path cell) " flight")))
+  (let [marching-orders (:marching-orders cell)
+        flight-path (:flight-path cell)
+        march-target (cond
+                       (and (vector? marching-orders)
+                            (= 2 (count marching-orders))
+                            (number? (first marching-orders))
+                            (number? (second marching-orders)))
+                       marching-orders
+
+                       (and (sequential? marching-orders)
+                            (vector? (first marching-orders)))
+                       (first marching-orders)
+
+                       :else nil)]
+    (str (cond
+           (= marching-orders :lookaround) " lookaround"
+           march-target (str " march:" (first march-target) "," (second march-target))
+           marching-orders " march")
+         (when (vector? flight-path)
+           (str " flight:" (first flight-path) "," (second flight-path))))))
 
 (defn format-city-status
   "Formats status string for a city. Production is the production entry for this city, or nil."
