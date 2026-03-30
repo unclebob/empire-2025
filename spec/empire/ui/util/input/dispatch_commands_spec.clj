@@ -123,6 +123,21 @@
       (dispatch/dispatch-key :p city-coords)
       (should-be-nil (get (test-utils/read-test-state :production) city-coords))))
 
+  (it ":u key wakes the hovered unit"
+    (with-redefs [orders/wake-at (fn [coords]
+                                   (test-utils/set-test-state! :destination coords)
+                                   true)]
+      (dispatch/dispatch-key :u [1 2])
+      (should= [1 2] (test-utils/read-test-state :destination))))
+
+  (it ":u key uses hovered cell even when waiting for input"
+    (test-utils/set-test-state! :waiting-for-input true)
+    (with-redefs [orders/wake-at (fn [coords]
+                                   (test-utils/set-test-state! :destination coords)
+                                   true)]
+      (dispatch/dispatch-key :u [2 1])
+      (should= [2 1] (test-utils/read-test-state :destination))))
+
   (it ":l key sets lookaround on player city"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (dispatch/dispatch-key :l city-coords)

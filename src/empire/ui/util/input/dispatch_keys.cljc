@@ -20,6 +20,7 @@
    (keyword "*") (fn [coords] (player-orders/set-waypoint-at coords))
    :l (fn [coords] (player-orders/set-city-lookaround coords))
    :p (fn [coords] (player-orders/clear-city-production-at coords))
+   :u (fn [coords] (player-orders/wake-at coords))
    :m (fn [coords] (player-orders/set-marching-orders-at coords))
    :f (fn [coords] (player-orders/set-flight-path-at coords))})
 
