@@ -38,12 +38,18 @@
   "Draws a unit on the map cell, handling attention blinking for contained units.
    Assumes font is already set. Computer units show as lowercase."
   [col row cell cell-w cell-h attention-coords blink-attention? blink-unit? cell-flashing?]
-  (when-let [display-unit (display/determine-display-unit col row cell attention-coords blink-unit?)]
-    (let [[r g b] (display/attention-unit-color display-unit cell-flashing?)
-          char (config/item-chars (:type display-unit))
-          char (if (= :computer (:owner display-unit)) (str/lower-case char) char)]
-      (q/fill r g b)
-      (q/text char (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))))
+  (let [display-unit (display/determine-display-unit col row cell attention-coords blink-unit?)
+        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))]
+    (if display-unit
+      (let [[r g b] (display/attention-unit-color display-unit cell-flashing?)
+            char (config/item-chars (:type display-unit))
+            char (if (= :computer (:owner display-unit)) (str/lower-case char) char)]
+        (q/fill r g b)
+        (q/text char (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))
+      (when (and is-attention-cell? (= :city (:type cell)))
+        (let [[r g b] (if cell-flashing? [0 0 0] [255 255 255])]
+          (q/fill r g b)
+          (q/text "?" (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))))))
 
 (defn- draw-waypoint
   "Draws a waypoint marker on the map cell if it has a waypoint and no contents.

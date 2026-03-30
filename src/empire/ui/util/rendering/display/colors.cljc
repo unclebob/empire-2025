@@ -30,7 +30,7 @@
     (cond
       (and is-attention-cell? (or (and contents (:type contents))
                                   has-contained-unit?))
-      (or (movement-state/get-active-unit cell) contents)
+      (or (movement-state/get-active-unit cell [col row]) contents)
 
       :else
       (uc/normal-display-unit cell contents has-awake-airport? has-airport-fighter?))))
