@@ -35,6 +35,14 @@
     (game-loop/start-new-round)
     (should= [] (vec (test-utils/read-test-state :player-items))))
 
+  (it "pauses and reports an impossible player-phase skip"
+    (with-redefs [empire.game.loop.round-start/current-player-items (fn [_] [])]
+      (game-loop/start-new-round)
+      (should= true (test-utils/read-test-state :paused))
+      (should= [[0 0]] (vec (test-utils/read-test-state :player-items)))
+      (should-contain "Player phase skip detected" (test-utils/read-test-state :error-message))
+      (should= Long/MAX_VALUE (test-utils/read-test-state :error-until)))))
+
   (it "resets waiting-for-input to false"
     (game-loop/start-new-round)
     (should= false (test-utils/read-test-state :waiting-for-input)))
@@ -76,4 +84,4 @@
     (set-test-computer-map! (build-test-map ["~"]))
     (game-loop/start-new-round)
     (let [carrier (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
-      (should= 0 (:awake-fighters carrier 0)))))
+      (should= 0 (:awake-fighters carrier 0))))

@@ -63,6 +63,17 @@
   (sa/write-state! :attention-message attention-message)
   (sa/write-state! :cells-needing-attention cells-needing-attention))
 
+(defn- apply-player-phase-guard!
+  [guard]
+  (when guard
+    (debug-logging/log-player-phase-guard! guard)
+    (when (= :error (:severity guard))
+      (sa/write-state! :paused true)
+      (sa/write-state! :error-message (:message guard))
+      (sa/write-state! :error-until Long/MAX_VALUE)
+      (sa/write-state! :turn-message "")
+      (sa/write-state! :turn-message-until 0))))
+
 (defn build-player-items
   "Builds list of player city/unit coordinates to process this round."
   []
@@ -136,9 +147,16 @@
         player-items (current-player-items raw-player-items)
         computer-items (vec (build-computer-items))
         handicap-rounds-remaining (sa/read-state :handicap-rounds-remaining)
+        guard (decisions/player-phase-guard
+               {:round-number (sa/read-state :round-number)
+                :handicap-rounds-remaining handicap-rounds-remaining
+                :built-player-items-count (count raw-player-items)
+                :current-player-items-count (count player-items)})
         round-state (decisions/round-start-state
                      {:handicap-rounds-remaining handicap-rounds-remaining
-                      :player-items player-items
+                      :player-items (if (= :error (:severity guard))
+                                      raw-player-items
+                                      player-items)
                       :computer-items computer-items
                       :game-over-check-enabled (sa/read-state :game-over-check-enabled)})]
     (debug-logging/log-round-start-state!
@@ -147,6 +165,7 @@
       :current-player-items-count (count player-items)
       :computer-items-count (count computer-items)})
     (apply-round-start-state! round-state)
+    (apply-player-phase-guard! guard)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)
     (army/assign-transport-staging))

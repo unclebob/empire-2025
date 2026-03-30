@@ -139,6 +139,13 @@
            :event :round-start-state}
           details)))
 
+(defn log-player-phase-guard!
+  "Append a player-phase guard event to the unit log when enabled."
+  [details]
+  (append-computer-log-entry!
+   (merge {:round (sa/read-state :round-number)}
+          details)))
+
 (defn log-computer-event!
   "Log a computer unit event. event is a keyword like :army-move, :army-die, etc.
    pos is the unit's position. details is an optional map of extra info."
