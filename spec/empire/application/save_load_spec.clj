@@ -173,6 +173,20 @@
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir))))))
 
+  (it "clears startup handicap after loading a saved game"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
+      (test-utils/set-test-state! :round-number 42)
+      (try
+        (let [filename (save-load/save-game! dir)]
+          (test-utils/set-test-state! :handicap-rounds-remaining 23)
+          (test-utils/set-test-state! :handicap-display-rounds 23)
+          (save-load/load-game! dir filename)
+          (should= 0 (test-utils/read-test-state :handicap-rounds-remaining))
+          (should-be-nil (test-utils/read-test-state :handicap-display-rounds)))
+        (finally
+          (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
+          (.delete (java.io.File. dir))))))
+
   (it "rebuilds production-status after loading"
     (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")]
       (set-test-world! [[{:type :land :contents {:type :army :owner :player}}]])

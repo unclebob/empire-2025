@@ -80,24 +80,6 @@
         (should= 0 (:current-player-items-count entry))
         (should= 15 (:computer-items-count entry))))))
 
-(describe "log-player-phase-guard!"
-  (before (test-utils/reset-all-atoms!))
-
-  (it "appends guard events to the unit log when logging is enabled"
-    (let [log-file "/tmp/empire-debug-player-phase-guard.log"]
-      (spit log-file "")
-      (test-utils/set-test-state! :computer-unit-log-file log-file)
-      (test-utils/set-test-state! :round-number 303)
-      (debug-logging/log-player-phase-guard!
-       {:event :player-phase-skip-detected
-        :severity :error
-        :message "Player phase skip detected."})
-      (let [entry (-> log-file slurp edn/read-string)]
-        (should= 303 (:round entry))
-        (should= :player-phase-skip-detected (:event entry))
-        (should= :error (:severity entry))
-        (should= "Player phase skip detected." (:message entry))))))
-
 (describe "log-action!"
   (before (test-utils/reset-all-atoms!))
 

@@ -125,6 +125,8 @@
      (sa/write-state! :load-menu-open false)
      (sa/write-state! :load-menu-files [])
      (sa/write-state! :load-menu-hovered nil)
+     (sa/write-state! :handicap-rounds-remaining 0)
+     (sa/write-state! :handicap-display-rounds nil)
      (sa/rebuild-refueling-caches!)
      (sa/write-state! :production-status
                       (production-status/format-production-status

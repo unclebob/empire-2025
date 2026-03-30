@@ -88,23 +88,6 @@
    :attention-message ""
    :cells-needing-attention []})
 
-(defn player-phase-guard
-  [{:keys [round-number handicap-rounds-remaining built-player-items-count current-player-items-count]}]
-  (when (and (pos? built-player-items-count)
-             (zero? current-player-items-count))
-    (if (handicap-active? handicap-rounds-remaining)
-      {:event :player-phase-suppressed
-       :severity :info
-       :message (format "Player phase suppressed at round %d: handicap %d hid %d player items."
-                        round-number
-                        handicap-rounds-remaining
-                        built-player-items-count)}
-      {:event :player-phase-skip-detected
-       :severity :error
-       :message (format "Player phase skip detected at round %d: built %d player items but current queue is empty."
-                        round-number
-                        built-player-items-count)})))
-
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T01:50:27.760138-05:00", :module-hash "1435071677", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "2005738187"} {:id "defn/handicap-active?", :kind "defn", :line 3, :end-line 5, :hash "372465724"} {:id "defn/current-player-items", :kind "defn", :line 7, :end-line 11, :hash "2008481851"} {:id "defn/handicap-update", :kind "defn", :line 13, :end-line 25, :hash "380936411"} {:id "defn-/round-end-action", :kind "defn-", :line 27, :end-line 30, :hash "1785046917"} {:id "defn/game-over-action", :kind "defn", :line 32, :end-line 44, :hash "705515003"} {:id "defn/advance-game-action", :kind "defn", :line 46, :end-line 56, :hash "1898346841"} {:id "defn/continue-batch?", :kind "defn", :line 58, :end-line 64, :hash "1811766690"} {:id "defn/toggle-pause-action", :kind "defn", :line 66, :end-line 70, :hash "-205862481"} {:id "defn/step-one-round-action", :kind "defn", :line 72, :end-line 77, :hash "-881642960"} {:id "defn/round-start-state", :kind "defn", :line 79, :end-line 89, :hash "-1580191887"} {:id "defn/player-phase-guard", :kind "defn", :line 91, :end-line 107, :hash "-101917281"}]}
+;; {:version 1, :tested-at "2026-03-27T01:50:27.760138-05:00", :module-hash "1435071677", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "2005738187"} {:id "defn/handicap-active?", :kind "defn", :line 3, :end-line 5, :hash "372465724"} {:id "defn/current-player-items", :kind "defn", :line 7, :end-line 11, :hash "2008481851"} {:id "defn/handicap-update", :kind "defn", :line 13, :end-line 25, :hash "380936411"} {:id "defn-/round-end-action", :kind "defn-", :line 27, :end-line 30, :hash "1785046917"} {:id "defn/game-over-action", :kind "defn", :line 32, :end-line 44, :hash "705515003"} {:id "defn/advance-game-action", :kind "defn", :line 46, :end-line 56, :hash "1898346841"} {:id "defn/continue-batch?", :kind "defn", :line 58, :end-line 64, :hash "1811766690"} {:id "defn/toggle-pause-action", :kind "defn", :line 66, :end-line 70, :hash "-205862481"} {:id "defn/step-one-round-action", :kind "defn", :line 72, :end-line 77, :hash "-881642960"} {:id "defn/round-start-state", :kind "defn", :line 79, :end-line 89, :hash "-1580191887"}]}
 ;; clj-mutate-manifest-end
