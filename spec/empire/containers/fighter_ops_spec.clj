@@ -148,7 +148,7 @@
           city (get-in world [1 0])
           fighter (get-in world [2 0 :contents])]
       (should= 1 (:fighter-count city))
-      (should= 2 (:awake-fighters city))
+      (should= 1 (:awake-fighters city))
       (should= :fighter (:type fighter))
       (should= :moving (:mode fighter))
       (should= [3 0] (:target fighter))

@@ -1,5 +1,6 @@
 (ns empire.ui.util.rendering.display.colors
-  (:require [empire.state.api :as sa]
+  (:require [clojure.string :as str]
+            [empire.state.api :as sa]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.movement.movement-state :as movement-state]
@@ -48,7 +49,32 @@
   (and (= :city (:type cell))
        (or (= :player (:city-status cell))
            (and (= :computer (:city-status cell))
-                (= :computer-map map-to-display)))))
+                (contains? #{:computer-map :player-map} map-to-display)))))
+
+(defn- production-entry-for-display
+  [cell production coords map-to-display]
+  (cond
+    (and (= :player (:city-status cell))
+         (contains? #{:player-map :actual-map} map-to-display))
+    (get production coords)
+
+    (and (= :computer (:city-status cell))
+         (= :computer-map map-to-display))
+    (get production coords)
+
+    (and (= :computer (:city-status cell))
+         (= :player-map map-to-display))
+    (:known-production cell)
+
+    :else nil))
+
+(defn- production-char-for-display
+  [cell item map-to-display]
+  (let [char (config/item-chars item)]
+    (if (and (= :computer (:city-status cell))
+             (= :player-map map-to-display))
+      (str/lower-case char)
+      char)))
 
 (defn production-indicator-data
   "Returns production indicator rendering data for a cell, or nil if none needed."
@@ -56,7 +82,7 @@
    (production-indicator-data row col cell production :player-map))
   ([row col cell production map-to-display]
    (when-let [prod (and (show-city-production? cell map-to-display)
-                        (get production [col row]))]
+                        (production-entry-for-display cell production [col row] map-to-display))]
     (when (and (map? prod) (:item prod))
       (let [item (:item prod)
             total (config/item-cost item)
@@ -64,7 +90,7 @@
             progress (/ (- total remaining) (double total))
             base-color (safe-color cell)
             dark-color (mapv #(* % 0.5) base-color)]
-        {:prod-char (config/item-chars item)
+        {:prod-char (production-char-for-display cell item map-to-display)
          :progress progress
          :remaining remaining
          :dark-color dark-color})))))

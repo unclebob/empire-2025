@@ -126,7 +126,12 @@
 
 (defn reveal-cell!
   [visible-map-source row col game-cell stamp-id visible-map]
-  (update-visible-map! visible-map-source assoc-in [row col] game-cell)
+  (let [production-entry (when (= :city (:type game-cell))
+                           (get (read-runtime-state :production) [row col]))
+        visible-cell (cond-> game-cell
+                       (and (map? production-entry) (:item production-entry))
+                       (assoc :known-production production-entry))]
+    (update-visible-map! visible-map-source assoc-in [row col] visible-cell))
   (when (and stamp-id
              (was-unexplored? visible-map row col)
              (= :land (:type game-cell)))

@@ -114,15 +114,16 @@
   [world attn-coords clicked-coords active-unit]
   (let [target-cell (get-in world clicked-coords)
         target-unit (:contents target-cell)
-        blocking-reason (cond
-                          (nil? target-cell) :not-on-map
-                          (and target-unit
+        friendly-blocker? (and target-unit
+                               (= (:owner target-unit) (:owner active-unit))
                                (not (and (= (:type active-unit) :fighter)
-                                         (= (:type target-unit) :carrier)
-                                         (= (:owner target-unit) (:owner active-unit))))
+                                         (= (:type target-unit) :carrier)))
                                (not (and (= (:type active-unit) :fighter)
                                          (= (:type target-cell) :city)
                                          (= (:city-status target-cell) :player))))
+        blocking-reason (cond
+                          (nil? target-cell) :not-on-map
+                          friendly-blocker?
                           :somethings-in-the-way
                           (= (:type active-unit) :army)
                           (cond

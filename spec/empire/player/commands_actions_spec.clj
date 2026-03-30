@@ -346,6 +346,18 @@
       (should= true (test-utils/read-test-state :waiting-for-input))
       (should= "Can't move into water." (test-utils/read-test-state :attention-message)))
 
+    (it "sets movement toward a distant hostile unit click"
+      (let [movement-called (atom nil)]
+        (set-test-world! (build-test-map ["A#a"]))
+        (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+        (set-test-unit (test-utils/game-map-atom) "a" :owner :computer :mode :awake :hits 1)
+        (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+        (test-utils/set-test-state! :player-items (list [0 0]))
+        (with-redefs [movement/set-unit-movement (fn [from to]
+                                                    (reset! movement-called [from to]))]
+          (commands/handle-unit-click [2 0] [[0 0]])
+          (should= [[0 0] [2 0]] @movement-called))))
+
     (it "attempts conquest when army clicks adjacent hostile city"
       (let [conquest-called (atom false)]
         (set-test-world! (build-test-map ["AX"]))

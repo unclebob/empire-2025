@@ -27,6 +27,18 @@
     (should= nil (get-in (test-utils/read-test-state :player-map) [0 0]))
     (should= nil (get-in (test-utils/read-test-state :player-map) [8 8])))
 
+  (it "stores last-known production on revealed computer cities in the player map"
+    (set-test-world! (build-test-map ["----"
+                                      "-A+-"
+                                      "----"
+                                      "----"]))
+    (set-test-unit (test-utils/game-map-atom) "A" :mode :awake)
+    (test-utils/set-test-state! :production {[2 1] {:item :fighter :remaining-rounds 4}})
+    (set-test-player-map! (make-initial-test-map 4 4 nil))
+    (update-cell-visibility [1 1] :player)
+    (should= {:item :fighter :remaining-rounds 4}
+             (get-in (test-utils/read-test-state :player-map) [2 1 :known-production])))
+
   (it "stamps country-id when 3-arity called with computer army unit"
     (set-test-world! (build-test-map ["###"
                                              "#a#"

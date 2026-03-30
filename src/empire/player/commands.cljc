@@ -70,11 +70,6 @@
           (recur nx ny)
           [tx ty])))))
 
-(defn- decrement-awake-fighters! [coords]
-  (let [cell (get-in (sa/current-world) coords)]
-    (when (uc/has-awake? cell :awake-fighters)
-      (sa/update-world! update-in (conj coords :awake-fighters) dec))))
-
 (defn- requeue-airport? [coords]
   (let [cell (get-in (sa/current-world) coords)]
     (and (= :city (:type cell))
@@ -82,7 +77,6 @@
 
 (defn- launch-fighter-and-update [launch-fn coords target]
   (let [fighter-pos (launch-fn coords target)]
-    (decrement-awake-fighters! coords)
     (sa/write-state! :waiting-for-input false)
     (sa/write-state! :attention-message "")
     (sa/write-state! :cells-needing-attention [])

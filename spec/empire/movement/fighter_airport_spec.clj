@@ -86,7 +86,7 @@
             city (get-in world city-coords)
             fighter (get-in world [2 0 :contents])]
         (should= 1 (:fighter-count city))
-        (should= 2 (:awake-fighters city))
+        (should= 1 (:awake-fighters city))
         (should= :fighter (:type fighter))
         (should= :moving (:mode fighter))
         (should= target-coords (:target fighter)))))
@@ -119,6 +119,22 @@
       (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
         (should= 1 (:fighter-count city))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))))
+
+  (it "normalizes stale awake airport fighters when a fighter lands"
+    (set-test-world! (build-test-map ["-O"
+                                      "-#"]))
+    (update-test-world! assoc-in [0 0 :contents]
+                        {:type :fighter :owner :player :hits 1 :fuel 10 :mode :moving :target [1 0]})
+    (update-test-world! assoc-in [1 0 :fighter-count] 3)
+    (update-test-world! assoc-in [1 0 :awake-fighters] 3)
+    (set-test-player-map! (make-initial-test-map 2 2 nil))
+    (let [from [0 0]
+          cell (get-in (test-utils/read-test-state :game-map) from)
+          unit (:contents cell)]
+      (do-move from [1 0] cell unit)
+      (let [city (get-in (test-utils/read-test-state :game-map) [1 0])]
+        (should= 4 (:fighter-count city))
+        (should= 3 (:awake-fighters city)))))
 
   (it "fighter lands on friendly carrier and is added to carrier"
     (set-test-world! (build-test-map ["~~"

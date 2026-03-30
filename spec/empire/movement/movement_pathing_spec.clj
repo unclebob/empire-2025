@@ -71,12 +71,13 @@
            {:type :army :owner :computer :mode :sentry})
     (should-not (wake-at [1 1])))
 
-  (it "wakes player city and removes production"
+  (it "does not clear production for an empty player city"
     (update-test-world! assoc-in [1 1]
            {:type :city :city-status :player :sleeping-fighters 0 :awake-fighters 0})
     (test-utils/set-test-state! :production {[1 1] {:item :army :remaining-rounds 5}})
-    (should (wake-at [1 1]))
-    (should-not (get (test-utils/read-test-state :production) [1 1])))
+    (should-not (wake-at [1 1]))
+    (should= {:item :army :remaining-rounds 5}
+             (get (test-utils/read-test-state :production) [1 1])))
 
   (it "returns nil for empty cell"
     (should-not (wake-at [1 1])))

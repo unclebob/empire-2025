@@ -66,9 +66,14 @@
   (it "returns nil for city with no production"
     (should-not (display/production-indicator-data 0 0 {:type :city :city-status :player} {})))
 
-  (it "returns nil for computer city production on player-map"
-    (should-not (display/production-indicator-data 0 0 {:type :city :city-status :computer}
-                                                   {[0 0] {:item :army :remaining-rounds 3}})))
+  (it "returns last-known computer city production on player-map"
+    (let [cell {:type :city
+                :city-status :computer
+                :known-production {:item :fighter :remaining-rounds 3}}
+          result (display/production-indicator-data 0 0 cell {} :player-map)]
+      (should-not-be-nil result)
+      (should= "f" (:prod-char result))
+      (should= 3 (:remaining result))))
 
   (it "returns data for computer city production on computer-map"
     (let [cell {:type :city :city-status :computer}

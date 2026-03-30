@@ -47,7 +47,9 @@
     :else :normal-move))
 
 (defn- land-fighter-at-city [to-cell _unit]
-  (uc/add-unit to-cell :fighter-count))
+  (-> to-cell
+      (uc/add-unit :fighter-count)
+      (uc/normalize-airport-awake-fighters)))
 
 (defn- land-fighter-on-carrier [to-cell _unit]
   (update to-cell :contents uc/add-unit :fighter-count))

@@ -33,6 +33,13 @@
   [entity]
   (update entity :fighter-count (fnil dec 0)))
 
+(defn normalize-airport-awake-fighters
+  [city]
+  (if (= :city (:type city))
+    (assoc city :awake-fighters (min (get city :fighter-count 0)
+                                     (get city :awake-fighters 0)))
+    city))
+
 (defn wake-all
   [entity count-key awake-key]
   (assoc entity awake-key (get entity count-key 0)))

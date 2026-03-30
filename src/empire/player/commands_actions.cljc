@@ -67,8 +67,6 @@
 
       :wake-fighters-on-airport
       (do (container-ops/wake-fighters-on-airport coords)
-          (when (movement-state/is-fighter-from-airport? active-unit)
-            ((:update-game-map! ctx) update-in (conj coords :awake-fighters) dec))
           (item-processed! ctx)
           true)
 

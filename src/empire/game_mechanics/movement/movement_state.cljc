@@ -182,7 +182,10 @@
 
       (and (player-city? cell) (pos? (:fighter-count cell 0)))
       (do (update-game-map! update-in [cx cy]
-                            uc/wake-all :fighter-count :awake-fighters)
+                            (fn [city]
+                              (-> city
+                                  (assoc :awake-fighters (:fighter-count city 0))
+                                  (uc/normalize-airport-awake-fighters))))
           true)
 
       :else nil)))

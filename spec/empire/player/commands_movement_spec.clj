@@ -82,6 +82,7 @@
       (update-test-world! assoc-in [0 0 :awake-fighters] 1)
       (update-test-world! assoc-in [0 0 :fighter-count] 1)
       (setup-unit-attention [0 0])
+      (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 5}})
       (test-utils/set-test-state! :waiting-for-input true)
       (with-redefs [container-ops/launch-fighter-from-airport (fn [_ _] [1 0])]
         (commands/handle-key :d)

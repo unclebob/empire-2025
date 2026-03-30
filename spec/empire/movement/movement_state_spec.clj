@@ -48,4 +48,9 @@
 
   (it "does not wake an already awake player unit"
     (update-test-world! assoc-in [1 1 :contents] {:type :army :owner :player :mode :awake})
-    (should-be-nil (state/wake-at [1 1]))))
+    (should-be-nil (state/wake-at [1 1])))
+
+  (it "wakes all airport fighters for a player city"
+    (update-test-world! assoc-in [1 1] {:type :city :city-status :player :fighter-count 4 :awake-fighters 0})
+    (should (state/wake-at [1 1]))
+    (should= 4 (get-in (test-utils/read-test-state :game-map) [1 1 :awake-fighters]))))

@@ -110,10 +110,19 @@
 
 (defn- clamp-awake-count
   [entity count-key awake-key]
-  (if (contains? entity awake-key)
+  (if (and (contains? entity awake-key)
+           (contains? entity count-key))
     (assoc entity awake-key (min (get entity awake-key 0)
                                  (get entity count-key 0)))
     entity))
+
+(defn- normalize-airport-awake-count
+  [cell]
+  (if (and (= :city (:type cell))
+           (contains? cell :awake-fighters))
+    (assoc cell :awake-fighters (min (get cell :fighter-count 0)
+                                     (get cell :awake-fighters 0)))
+    cell))
 
 (defn- normalize-container-counts!
   [map-key]
@@ -125,6 +134,7 @@
                     contents (:contents cell)
                     normalized-cell (-> cell
                                         (clamp-awake-count :fighter-count :awake-fighters)
+                                        (normalize-airport-awake-count)
                                         (clamp-awake-count :kamikazee-fighter-count :awake-fighters))
                     normalized-contents (cond-> contents
                                           (= (:type contents) :carrier)

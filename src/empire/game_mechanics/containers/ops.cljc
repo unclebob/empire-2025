@@ -192,7 +192,11 @@
 (defn wake-fighters-on-airport
   [city-coords]
   (let [cell (get-in (sa/current-world) city-coords)
-        updated-cell (uc/wake-all cell :fighter-count :awake-fighters)]
+        updated-cell (cond-> cell
+                       (pos? (:fighter-count cell 0))
+                       (assoc :awake-fighters (:fighter-count cell 0))
+                       true
+                       (uc/normalize-airport-awake-fighters))]
     (sa/update-world! assoc-in city-coords updated-cell)))
 
 (defn sleep-fighters-on-airport
@@ -215,7 +219,11 @@
                          (launch/launch-steps-toward city-coords target-coords))
         target-cell (get-in world first-step)]
     (when first-step
-      (let [after-remove (uc/remove-one-fighter cell)
+      (let [after-remove (cond-> (if (pos? (:awake-fighters cell 0))
+                                   (uc/remove-awake-unit cell :fighter-count :awake-fighters)
+                                   (uc/remove-one-fighter cell))
+                           true
+                           (uc/normalize-airport-awake-fighters))
             moving-fighter (-> (domain-containers/launched-fighter
                                 owner
                                 target-coords

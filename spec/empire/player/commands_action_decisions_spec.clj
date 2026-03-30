@@ -33,6 +33,28 @@
                                :normal
                                {:type :army})))
 
+  (it "allows movement targeting a distant hostile unit"
+    (should= {:action :set-unit-movement
+              :target [2 0]}
+             (sut/click-action [[{:type :land}]
+                                [{:type :land}]
+                                [{:type :land :contents {:type :army :owner :computer}}]]
+                               [0 0]
+                               [2 0]
+                               :normal
+                               {:type :army :owner :player})))
+
+  (it "rejects movement targeting a distant friendly unit"
+    (should= {:action :reject
+              :message "Something's in the way."}
+             (sut/click-action [[{:type :land}]
+                                [{:type :land}]
+                                [{:type :land :contents {:type :army :owner :player}}]]
+                               [0 0]
+                               [2 0]
+                               :normal
+                               {:type :army :owner :player})))
+
   (context "unload-key-action"
     (it "returns wake-armies-on-transport when transport has armies"
       (should= {:action :wake-armies-on-transport}

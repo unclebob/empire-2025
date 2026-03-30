@@ -253,6 +253,21 @@
           (should= 0 (get-in (test-utils/read-test-state :player-map) [0 0 :awake-fighters])))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
+          (.delete (java.io.File. dir))))))
+
+  (it "clamps loaded airport awake fighters to stored fighter count"
+    (let [dir (str (java.io.File/createTempFile "saves" "") "-dir")
+          bad-city {:type :city :city-status :player :fighter-count 5 :awake-fighters 4}
+          bad-map [[bad-city]]]
+      (set-test-world! bad-map)
+      (set-test-player-map! bad-map)
+      (try
+        (let [filename (save-load/save-game! dir)]
+          (save-load/load-game! dir filename)
+          (should= 4 (get-in (test-utils/read-test-state :game-map) [0 0 :awake-fighters]))
+          (should= 4 (get-in (test-utils/read-test-state :player-map) [0 0 :awake-fighters])))
+        (finally
+          (doseq [f (.listFiles (java.io.File. dir))] (.delete f))
           (.delete (java.io.File. dir)))))))
 
 (describe "open-load-menu!"

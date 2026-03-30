@@ -104,8 +104,6 @@
              (not (:contents cell))
              (:flight-path cell))
     (when (container-ops/launch-fighter-from-airport coords (:flight-path cell))
-      (when (pos? (:awake-fighters cell 0))
-        (sa/update-world! update-in (conj coords :awake-fighters) dec))
       (sa/update-world! assoc-in (conj coords :flight-path-launched) true))))
 
 (defn- auto-launch-fighter [coords cell]
