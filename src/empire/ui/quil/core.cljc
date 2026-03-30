@@ -29,9 +29,12 @@
   (q/frame-rate 30)
   {})
 
+(declare sync-window-focus!)
+
 (defn update-state
   "Update the game state."
   [state]
+  (sync-window-focus!)
   (game-loop/update-player-map)
   (game-loop/update-computer-map)
   (game-loop/advance-game-batch)
@@ -83,6 +86,22 @@
      :meta (:meta mods)
      :alt (:alt mods)}))
 
+(defn- sync-window-focus!
+  []
+  (let [focused? (boolean (q/focused))
+        previous-focus? (boolean (sa/read-state :window-focused?))]
+    (when (not= focused? previous-focus?)
+      (sa/write-state! :window-focused? focused?)
+      (sa/write-state! :last-key nil)
+      (sa/write-state! :backtick-pressed false)
+      (if focused?
+        (do
+          (sa/write-state! :refocus-click-armed? true)
+          (sa/write-state! :refocus-click-saw-press? false))
+        (do
+          (sa/write-state! :refocus-click-armed? false)
+          (sa/write-state! :refocus-click-saw-press? false))))))
+
 (defn mouse-pressed [state _]
   (let [x (q/mouse-x)
         y (q/mouse-y)
@@ -90,7 +109,11 @@
         mods (get-modifiers)]
     (if (dispatch/modifier-held? mods)
       (dispatch/debug-drag-start! x y)
-      (dispatch/mouse-down x y button)))
+      (do
+        (when (sa/read-state :refocus-click-armed?)
+          (sa/write-state! :refocus-click-saw-press? true)
+          (sa/write-state! :refocus-click-armed? false))
+        (dispatch/mouse-down x y button))))
   state)
 
 (defn mouse-dragged [state _]
@@ -98,6 +121,17 @@
   state)
 
 (defn mouse-released [state _]
+  (let [x (q/mouse-x)
+        y (q/mouse-y)
+        button (q/mouse-button)
+        mods (get-modifiers)]
+    (when (and (sa/read-state :refocus-click-armed?)
+               (not (sa/read-state :refocus-click-saw-press?))
+               (not (dispatch/modifier-held? mods))
+               (= button :left))
+      (dispatch/mouse-down x y button))
+    (sa/write-state! :refocus-click-armed? false)
+    (sa/write-state! :refocus-click-saw-press? false))
   (dispatch/debug-drag-end! (q/mouse-x) (q/mouse-y) (get-modifiers))
   state)
 

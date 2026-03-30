@@ -20,6 +20,15 @@
 (defn wake-at [coords]
   (movement-state/wake-at coords))
 
+(defn clear-city-production-at
+  "Clears production on a player city at the given coordinates so it needs attention."
+  [[cx cy]]
+  (let [cell (get-in (sa/current-world) [cx cy])]
+    (when (and (= :city (:type cell))
+               (= :player (:city-status cell)))
+      (sa/update-state! :production dissoc [cx cy])
+      true)))
+
 (defn own-city-at
   "Claims a city at the given coordinates for the player."
   [[cx cy]]

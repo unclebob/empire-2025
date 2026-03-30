@@ -19,7 +19,7 @@
   {(keyword ".") (fn [coords] (player-orders/set-destination-at coords))
    (keyword "*") (fn [coords] (player-orders/set-waypoint-at coords))
    :l (fn [coords] (player-orders/set-city-lookaround coords))
-   :u (fn [coords] (player-orders/wake-at coords))
+   :p (fn [coords] (player-orders/clear-city-production-at coords))
    :m (fn [coords] (player-orders/set-marching-orders-at coords))
    :f (fn [coords] (player-orders/set-flight-path-at coords))})
 
@@ -137,7 +137,7 @@
 (defn dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)
       (dispatch-save-load-key k)
-      (when (and (= k :u) cell-coords)
+      (when (and (= k :p) cell-coords)
         (dispatch-standing-order-key k cell-coords))
       (when (and (sa/read-state :waiting-for-input)
                  (not (and cell-coords (standing-order-handlers k))))

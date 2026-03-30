@@ -28,6 +28,9 @@
    :save-menu-open false
    :save-menu-input ""
    :save-menu-default-active false
+   :window-focused? false
+   :refocus-click-armed? false
+   :refocus-click-saw-press? false
    :computer-unit-log-file nil
    :debug-dump-on-exit? false
    :debug-dump-written? false

@@ -104,17 +104,24 @@
       (dispatch/dispatch-key :f city-coords)
       (should-be-nil (get-in (test-utils/read-test-state :game-map) (conj city-coords :flight-path)))))
 
-  (it ":u key wakes player city"
+  (it ":p key clears production on player city"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (test-utils/update-test-state! :production assoc city-coords :army)
-      (dispatch/dispatch-key :u city-coords)
+      (dispatch/dispatch-key :p city-coords)
       (should-be-nil (get (test-utils/read-test-state :production) city-coords))))
 
-  (it ":u key does nothing with nil coords"
+  (it ":p key does nothing with nil coords"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (test-utils/update-test-state! :production assoc city-coords :army)
-      (dispatch/dispatch-key :u nil)
+      (dispatch/dispatch-key :p nil)
       (should= :army (get (test-utils/read-test-state :production) city-coords))))
+
+  (it ":p key clears production even when the city contains an awake army"
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (test-utils/update-test-world! assoc-in (conj city-coords :contents) {:type :army :owner :player :mode :awake :hits 1})
+      (test-utils/update-test-state! :production assoc city-coords :army)
+      (dispatch/dispatch-key :p city-coords)
+      (should-be-nil (get (test-utils/read-test-state :production) city-coords))))
 
   (it ":l key sets lookaround on player city"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]

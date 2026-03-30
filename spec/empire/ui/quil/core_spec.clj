@@ -181,12 +181,38 @@
 (describe "update-state"
   (it "runs the game-loop and hover update before returning state"
     (let [calls (atom [])]
-      (with-redefs [empire.game.loop.core/update-player-map (fn [] (swap! calls conj :player))
+      (with-redefs [quil.core/focused (constantly true)
+                    empire.game.loop.core/update-player-map (fn [] (swap! calls conj :player))
                     empire.game.loop.core/update-computer-map (fn [] (swap! calls conj :computer))
                     empire.game.loop.core/advance-game-batch (fn [] (swap! calls conj :advance))
                     empire.ui.quil.rendering.overlay/update-hover-status (fn [] (swap! calls conj :hover))]
         (should= :state (quil-core/update-state :state))
         (should= [:player :computer :advance :hover] @calls)))))
+
+(describe "sync-window-focus!"
+  (before (reset-all-atoms!))
+
+  (it "arms the refocus click fallback when focus returns"
+    (sa/write-state! :window-focused? false)
+    (sa/write-state! :last-key :a)
+    (sa/write-state! :backtick-pressed true)
+    (with-redefs [quil.core/focused (constantly true)]
+      (#'quil-core/sync-window-focus!)
+      (should (sa/read-state :window-focused?))
+      (should (sa/read-state :refocus-click-armed?))
+      (should-not (sa/read-state :refocus-click-saw-press?))
+      (should-be-nil (sa/read-state :last-key))
+      (should-not (sa/read-state :backtick-pressed))))
+
+  (it "clears fallback flags when focus is lost"
+    (sa/write-state! :window-focused? true)
+    (sa/write-state! :refocus-click-armed? true)
+    (sa/write-state! :refocus-click-saw-press? true)
+    (with-redefs [quil.core/focused (constantly false)]
+      (#'quil-core/sync-window-focus!)
+      (should-not (sa/read-state :window-focused?))
+      (should-not (sa/read-state :refocus-click-armed?))
+      (should-not (sa/read-state :refocus-click-saw-press?)))))
 
 (describe "draw-state"
   (before (reset-all-atoms!))
@@ -280,10 +306,25 @@
                   [:mouse-down 12 34 :right]]
                  @calls))))
 
+  (it "consumes the refocus fallback when a press event arrives"
+    (let [calls (atom [])]
+      (sa/write-state! :refocus-click-armed? true)
+      (with-redefs [quil.core/mouse-x (constantly 12)
+                    quil.core/mouse-y (constantly 34)
+                    quil.core/mouse-button (constantly :left)
+                    quil.core/key-modifiers (constantly {:control false :meta false :alt false})
+                    empire.ui.util.input.dispatch/modifier-held? (constantly false)
+                    empire.ui.util.input.dispatch/mouse-down (fn [x y button] (swap! calls conj [:mouse-down x y button]))]
+        (should= :state (quil-core/mouse-pressed :state nil))
+        (should= [[:mouse-down 12 34 :left]] @calls)
+        (should-not (sa/read-state :refocus-click-armed?))
+        (should (sa/read-state :refocus-click-saw-press?)))))
+
   (it "forwards drag and release coordinates"
     (let [calls (atom [])]
       (with-redefs [quil.core/mouse-x (constantly 22)
                     quil.core/mouse-y (constantly 44)
+                    quil.core/mouse-button (constantly :left)
                     quil.core/key-modifiers (constantly {:control false :meta true :alt true})
                     empire.ui.util.input.dispatch/debug-drag-update! (fn [x y] (swap! calls conj [:drag-update x y]))
                     empire.ui.util.input.dispatch/debug-drag-end! (fn [x y mods] (swap! calls conj [:drag-end x y mods]))]
@@ -292,3 +333,21 @@
         (should= [[:drag-update 22 44]
                   [:drag-end 22 44 {:ctrl false :meta true :alt true}]]
                  @calls)))))
+
+  (it "treats the first post-focus mouse release as a click when no press arrived"
+    (let [calls (atom [])]
+      (sa/write-state! :refocus-click-armed? true)
+      (sa/write-state! :refocus-click-saw-press? false)
+      (with-redefs [quil.core/mouse-x (constantly 22)
+                    quil.core/mouse-y (constantly 44)
+                    quil.core/mouse-button (constantly :left)
+                    quil.core/key-modifiers (constantly {:control false :meta false :alt false})
+                    empire.ui.util.input.dispatch/modifier-held? (constantly false)
+                    empire.ui.util.input.dispatch/mouse-down (fn [x y button] (swap! calls conj [:mouse-down x y button]))
+                    empire.ui.util.input.dispatch/debug-drag-end! (fn [x y mods] (swap! calls conj [:drag-end x y mods]))]
+        (should= :state (quil-core/mouse-released :state nil))
+        (should= [[:mouse-down 22 44 :left]
+                  [:drag-end 22 44 {:ctrl false :meta false :alt false}]]
+                 @calls)
+        (should-not (sa/read-state :refocus-click-armed?))
+        (should-not (sa/read-state :refocus-click-saw-press?)))))

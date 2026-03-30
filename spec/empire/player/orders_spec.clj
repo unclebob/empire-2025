@@ -67,6 +67,32 @@
                                             "~~"]))
     (should-be-nil (orders/set-city-lookaround [0 0]))))
 
+(describe "clear-city-production-at"
+  (before (reset-all-atoms!))
+
+  (it "clears production on a player city"
+    (set-test-world! (build-test-map ["O~"
+                                      "~~"]))
+    (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 3}})
+    (should (orders/clear-city-production-at [0 0]))
+    (should-be-nil (get (test-utils/read-test-state :production) [0 0])))
+
+  (it "clears production even when the player city contains an awake army"
+    (set-test-world! (build-test-map ["O~"
+                                      "~~"]))
+    (test-utils/update-test-world! assoc-in [0 0 :contents] {:type :army :owner :player :mode :awake :hits 1})
+    (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 3}})
+    (should (orders/clear-city-production-at [0 0]))
+    (should-be-nil (get (test-utils/read-test-state :production) [0 0])))
+
+  (it "returns nil for a non-player city"
+    (set-test-world! (build-test-map ["X~"
+                                      "~~"]))
+    (test-utils/set-test-state! :production {[0 0] {:item :army :remaining-rounds 3}})
+    (should-be-nil (orders/clear-city-production-at [0 0]))
+    (should= {:item :army :remaining-rounds 3}
+             (get (test-utils/read-test-state :production) [0 0]))))
+
 (describe "set-destination-at"
   (before (reset-all-atoms!))
 
