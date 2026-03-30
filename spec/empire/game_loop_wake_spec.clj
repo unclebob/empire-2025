@@ -8,6 +8,29 @@
 (describe "wake and sleep logic"
   (before (reset-all-atoms!))
 
+  (context "wake-airport-fighters"
+    (it "wakes one fighter in an empty player city airport"
+      (set-test-world! (build-test-map ["O"]))
+      (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 4)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
+      (game-loop/wake-airport-fighters)
+      (should= 1 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
+
+    (it "does not wake airport fighters in an occupied city"
+      (set-test-world! (build-test-map ["O"]))
+      (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 4)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
+      (test-utils/update-test-world! assoc-in [0 0 :contents] {:type :army :owner :player :mode :awake :hits 1})
+      (game-loop/wake-airport-fighters)
+      (should= 0 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
+
+    (it "does not change a city that already has an awake airport fighter"
+      (set-test-world! (build-test-map ["O"]))
+      (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 4)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 1)
+      (game-loop/wake-airport-fighters)
+      (should= 1 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0])))))
+
   (context "wake-carrier-fighters"
     (it "wakes all fighters on player carriers"
       (set-test-world! (build-test-map ["C"]))

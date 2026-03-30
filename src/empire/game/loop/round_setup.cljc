@@ -75,6 +75,7 @@
       (sa/update-world! update-in [i j] dissoc :flight-path-launched))))
 
 ;; Delegated to sub-modules
+(def wake-airport-fighters waking/wake-airport-fighters)
 (def wake-carrier-fighters waking/wake-carrier-fighters)
 (def wake-sentries-seeing-enemy waking/wake-sentries-seeing-enemy)
 (def consume-sentry-fighter-fuel fuel/consume-sentry-fighter-fuel)

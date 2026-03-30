@@ -10,8 +10,10 @@
               total (uc/get-count cell :fighter-count)]
         :when (and (= (:type cell) :city)
                    (= (:city-status cell) :player)
-                   (pos? total))]
-    {:pos [i j] :awake-fighters total}))
+                   (pos? total)
+                   (not (:contents cell))
+                   (zero? (:awake-fighters cell 0)))]
+    {:pos [i j] :awake-fighters 1}))
 
 (defn carrier-fighter-wakes
   [world]

@@ -3,10 +3,21 @@
             [empire.game.loop.round-setup.waking-decisions :as decisions]))
 
 (describe "round-setup-waking-decisions"
-  (it "finds player airport fighters to wake"
-    (let [world [[{:type :city :city-status :player :fighter-count 2}]
+  (it "finds one airport fighter to wake in an empty player city"
+    (let [world [[{:type :city :city-status :player :fighter-count 2 :awake-fighters 0}]
                  [{:type :city :city-status :computer :fighter-count 4}]]]
-      (should= [{:pos [0 0] :awake-fighters 2}]
+      (should= [{:pos [0 0] :awake-fighters 1}]
+               (vec (decisions/airport-fighter-wakes world)))))
+
+  (it "does not wake airport fighters when the city is occupied"
+    (let [world [[{:type :city :city-status :player :fighter-count 2 :awake-fighters 0
+                   :contents {:type :army :owner :player :mode :awake}}]]]
+      (should= []
+               (vec (decisions/airport-fighter-wakes world)))))
+
+  (it "does not wake airport fighters when one is already awake"
+    (let [world [[{:type :city :city-status :player :fighter-count 2 :awake-fighters 1}]]]
+      (should= []
                (vec (decisions/airport-fighter-wakes world)))))
 
   (it "finds player carrier fighters to wake"

@@ -137,6 +137,7 @@
   (round-setup/repair-damaged-ships)
   (round-setup/reset-steps-remaining)
   (round-setup/clear-flight-path-launched)
+  (round-setup/wake-airport-fighters)
   (threat-response/on-round-start!)
   ;; Carrier fighters stay asleep until 'u' is pressed - do not auto-wake at round start
   (sa/write-state! :claimed-objectives #{})
