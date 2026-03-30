@@ -27,6 +27,9 @@
         has-contained-unit? (or has-airport-fighter? has-awake-carrier? has-awake-army?)
         is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))]
     (cond
+      (and is-attention-cell? contents (:type contents) (= :awake (:mode contents)))
+      contents
+
       (and is-attention-cell? has-contained-unit?)
       (uc/blinking-contained-unit has-airport-fighter? has-awake-carrier? has-awake-army?)
 
