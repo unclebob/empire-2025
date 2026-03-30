@@ -86,6 +86,12 @@
     (test-utils/set-test-state! :production {[0 0] {:item :army :remaining 5}})
     (should-not (attention/needs-attention? 0 0)))
 
+  (it "returns false for city with stored airport fighters but none awake"
+    (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0]
+                                    {:type :city :city-status :player :fighter-count 27 :awake-fighters 0}))
+    (test-utils/set-test-state! :production {[0 0] :army})
+    (should-not (attention/needs-attention? 0 0)))
+
   (it "returns true for city with awake airport fighter"
     (set-test-player-map! (assoc-in (build-test-map ["O"]) [0 0] {:type :city :city-status :player :fighter-count 1 :awake-fighters 1}))
     (test-utils/set-test-state! :production {[0 0] :army})
@@ -156,6 +162,14 @@
   (it "returns false for player city with production"
     (set-test-world! (build-test-map ["O"]))
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (test-utils/set-test-state! :production {city-coords :army})
+      (should-not (attention/item-needs-attention? city-coords))))
+
+  (it "returns false for player city with stored airport fighters but none awake"
+    (set-test-world! (build-test-map ["O"]))
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
+      (update-test-world! assoc-in (conj city-coords :fighter-count) 27)
+      (update-test-world! assoc-in (conj city-coords :awake-fighters) 0)
       (test-utils/set-test-state! :production {city-coords :army})
       (should-not (attention/item-needs-attention? city-coords))))
 

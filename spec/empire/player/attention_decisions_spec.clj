@@ -23,6 +23,11 @@
     (let [cell {:type :city :city-status :player :fighter-count 2 :awake-fighters 2}]
       (should (decisions/player-map-cell-needs-attention? cell {:item :army}))))
 
+  (it "city with stored fighters but no awake fighters does not need airport attention"
+    (let [cell {:type :city :city-status :player :fighter-count 27 :awake-fighters 0}]
+      (should-not (decisions/player-map-cell-needs-attention? cell {:item :army}))
+      (should-not (decisions/world-item-needs-attention? cell {:item :army}))))
+
   (it "returns false for awake computer unit in player city"
     (should-not (decisions/world-item-needs-attention?
                  {:type :city :city-status :player :contents {:type :fighter :owner :computer :mode :awake}}
