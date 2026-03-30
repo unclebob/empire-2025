@@ -12,8 +12,24 @@
                    (= (:city-status cell) :player)
                    (pos? total)
                    (not (:contents cell))
-                   (zero? (:awake-fighters cell 0)))]
+                   (zero? (:awake-fighters cell 0))
+                   (not (:flight-path cell)))]
     {:pos [i j] :awake-fighters 1}))
+
+(defn airport-flight-path-launches
+  [world]
+  (for [i (range (count world))
+        j (range (count (first world)))
+        :let [cell (get-in world [i j])
+              total (uc/get-count cell :fighter-count)
+              flight-path (:flight-path cell)]
+        :when (and (= (:type cell) :city)
+                   (= (:city-status cell) :player)
+                   (pos? total)
+                   (not (:contents cell))
+                   (zero? (:awake-fighters cell 0))
+                   flight-path)]
+    {:pos [i j] :flight-path flight-path}))
 
 (defn carrier-fighter-wakes
   [world]

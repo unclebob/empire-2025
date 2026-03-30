@@ -1,12 +1,16 @@
 (ns empire.game.loop.round-setup.waking
   (:require [empire.state.api :as sa]
+            [empire.game-mechanics.containers.ops :as container-ops]
             [empire.game.loop.round-setup.waking-decisions :as decisions]))
 
 (defn wake-airport-fighters
-  "Wakes one fighter in each empty player city with stored airport fighters.
-   This creates a single airport attention item without waking the whole stack."
+  "For each empty player city with stored airport fighters:
+   wake one fighter if there is no flight-path, otherwise launch one fighter."
   []
   (let [world (sa/current-world)]
+    (doseq [{:keys [pos flight-path]} (decisions/airport-flight-path-launches world)]
+      (when (container-ops/launch-fighter-from-airport pos flight-path)
+        (sa/update-world! assoc-in (conj pos :flight-path-launched) true)))
     (doseq [{:keys [path value]} (decisions/wake-updates :awake-fighters
                                                          (decisions/airport-fighter-wakes world))]
       (sa/update-world! assoc-in path value))))

@@ -1,6 +1,7 @@
 (ns empire.game-loop-wake-spec
   (:require [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
+            [empire.game-mechanics.containers.ops :as container-ops]
             [empire.test.utils :as test-utils]
             [empire.test.utils :refer [build-test-map make-initial-test-map reset-all-atoms! set-test-unit set-test-world!]]
             [speclj.core :refer :all]))
@@ -29,7 +30,37 @@
       (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 4)
       (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 1)
       (game-loop/wake-airport-fighters)
-      (should= 1 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0])))))
+      (should= 1 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))
+
+    (it "launches one fighter when an empty player city has a flight-path"
+      (set-test-world! (build-test-map ["O#"]))
+      (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 4)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
+      (test-utils/update-test-world! assoc-in [0 0 :flight-path] [1 0])
+      (let [launches (atom [])]
+        (with-redefs [container-ops/launch-fighter-from-airport
+                      (fn [coords target]
+                        (swap! launches conj [coords target])
+                        (test-utils/update-test-world! update-in [0 0 :fighter-count] dec)
+                        [1 0])]
+          (game-loop/wake-airport-fighters)
+          (should= [[[0 0] [1 0]]] @launches)
+          (let [city (get-in (test-utils/read-test-state :game-map) [0 0])]
+            (should= 3 (:fighter-count city))
+            (should= 0 (:awake-fighters city 0))
+            (should= true (:flight-path-launched city))))))
+
+    (it "does not wake a fighter when the city launches one on its flight-path"
+      (set-test-world! (build-test-map ["O#"]))
+      (test-utils/update-test-world! assoc-in [0 0 :fighter-count] 4)
+      (test-utils/update-test-world! assoc-in [0 0 :awake-fighters] 0)
+      (test-utils/update-test-world! assoc-in [0 0 :flight-path] [1 0])
+        (with-redefs [container-ops/launch-fighter-from-airport
+                      (fn [_ _]
+                        (test-utils/update-test-world! update-in [0 0 :fighter-count] dec)
+                        [1 0])]
+          (game-loop/wake-airport-fighters)
+          (should= 0 (:awake-fighters (get-in (test-utils/read-test-state :game-map) [0 0]))))))
 
   (context "wake-carrier-fighters"
     (it "wakes all fighters on player carriers"
