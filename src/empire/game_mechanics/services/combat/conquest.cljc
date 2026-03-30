@@ -181,6 +181,15 @@
   [unit owner]
   (domain-combat/hostile-unit? unit owner))
 
+(defn- combat-visibility-effects
+  [attacker-coords target-coords attacker defender]
+  (->> [(:owner attacker) (:owner defender)]
+       distinct
+       (mapcat (fn [owner]
+                 [{:pos attacker-coords :owner owner}
+                  {:pos target-coords :owner owner}]))
+       vec))
+
 (defn- valid-combatant?
   [unit]
   (and unit
@@ -210,8 +219,7 @@
                           (clear-escort-on-death-world dead-unit))]
         {:world new-world
          :messages (resolution/turn-message-map message Long/MAX_VALUE)
-         :visibility [{:pos attacker-coords :owner (:owner attacker)}
-                      {:pos target-coords :owner (:owner attacker)}]
+         :visibility (combat-visibility-effects attacker-coords target-coords attacker defender)
          :winner (:winner result)
          :combatant true}))))
 

@@ -78,6 +78,19 @@
         (should= :destroyer (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))
         (should= :player (:owner (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))))
 
+    (it "clears a killed player unit from player-map after a computer attack"
+      (set-test-world! (build-test-map ["dP"]))
+      (set-test-player-map! (build-test-map ["dP"]))
+      (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
+      (set-test-unit (test-utils/game-map-atom) "P" :hits 1)
+      (set-test-unit (test-utils/player-map-atom) "P" :hits 1)
+      (with-redefs [rand (constantly 0.4)]
+        (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
+        (should= (get-in (test-utils/read-test-state :game-map) [1 0])
+                 (get-in (test-utils/read-test-state :player-map) [1 0]))
+        (should= :destroyer
+                 (get-in (test-utils/read-test-state :player-map) [1 0 :contents :type])))))
+
     (it "removes attacker from original cell even when losing"
       (set-test-world! (build-test-map ["Tb"]))
       (set-test-unit (test-utils/game-map-atom) "T" :hits 1)
@@ -230,7 +243,7 @@
         (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
               city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))
               result (combat/attempt-conquest (test-utils/read-test-state :game-map) army-coords city-coords)]
-          (should (:world result)))))))
+          (should (:world result))))))
 
   (context "attempt-city-conquest"
     (it "converts city to player on successful roll"

@@ -132,13 +132,20 @@
   (sa/write-state! :claimed-transport-targets #{})
   (sa/write-state! :claimed-patrol-targets #{})
   (debug-logging/begin-computer-unit-log-round!)
-  (let [player-items (current-player-items (build-player-items))
+  (let [raw-player-items (vec (build-player-items))
+        player-items (current-player-items raw-player-items)
         computer-items (vec (build-computer-items))
+        handicap-rounds-remaining (sa/read-state :handicap-rounds-remaining)
         round-state (decisions/round-start-state
-                     {:handicap-rounds-remaining (sa/read-state :handicap-rounds-remaining)
+                     {:handicap-rounds-remaining handicap-rounds-remaining
                       :player-items player-items
                       :computer-items computer-items
                       :game-over-check-enabled (sa/read-state :game-over-check-enabled)})]
+    (debug-logging/log-round-start-state!
+     {:handicap-rounds-remaining handicap-rounds-remaining
+      :built-player-items-count (count raw-player-items)
+      :current-player-items-count (count player-items)
+      :computer-items-count (count computer-items)})
     (apply-round-start-state! round-state)
     (computer-production/rebuild-country-stats!)
     (army/assign-city-attacks)

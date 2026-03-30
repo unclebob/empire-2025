@@ -59,6 +59,27 @@
         (should= true (:needs-attention? entry))
         (should= :attention (:action entry))))))
 
+(describe "log-round-start-state!"
+  (before (test-utils/reset-all-atoms!))
+
+  (it "appends round-start diagnostics to the unit log when logging is enabled"
+    (let [log-file "/tmp/empire-debug-round-start.log"]
+      (spit log-file "")
+      (test-utils/set-test-state! :computer-unit-log-file log-file)
+      (test-utils/set-test-state! :round-number 297)
+      (debug-logging/log-round-start-state!
+       {:handicap-rounds-remaining 19
+        :built-player-items-count 42
+        :current-player-items-count 0
+        :computer-items-count 15})
+      (let [entry (-> log-file slurp edn/read-string)]
+        (should= 297 (:round entry))
+        (should= :round-start-state (:event entry))
+        (should= 19 (:handicap-rounds-remaining entry))
+        (should= 42 (:built-player-items-count entry))
+        (should= 0 (:current-player-items-count entry))
+        (should= 15 (:computer-items-count entry))))))
+
 (describe "log-action!"
   (before (test-utils/reset-all-atoms!))
 
