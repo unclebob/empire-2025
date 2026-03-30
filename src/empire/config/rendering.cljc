@@ -49,6 +49,7 @@
 (def sleeping-unit-color [0 0 0])
 (def sentry-unit-color [255 128 128])
 (def explore-unit-color [144 238 144])
+(def coastline-follow-unit-color [0 180 0])
 
 (defn city-color-key [city-status]
   (case city-status
@@ -75,7 +76,7 @@
     :awake awake-unit-color
     :sentry sentry-unit-color
     :explore explore-unit-color
-    :coastline-follow explore-unit-color
+    :coastline-follow coastline-follow-unit-color
     sleeping-unit-color))
 
 (defn unit->color
