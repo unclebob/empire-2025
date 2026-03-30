@@ -65,13 +65,19 @@
    then awake contents, then awake airport fighter.
    For armies aboard transport, returns a synthetic army map with :aboard-transport true.
    For fighters on carrier, returns a synthetic fighter map with :from-carrier true.
-   For fighters in airport, returns a synthetic fighter map with :from-airport true."
-  [cell]
-  (let [contents (:contents cell)]
-    (or (active-transport-army contents)
-        (active-carrier-fighter contents)
-        (active-awake-player-unit contents)
-        (active-airport-fighter cell))))
+   For fighters in airport, returns a synthetic fighter map with :from-airport true.
+   When coords are provided, skips airport fighter if city needs production."
+  ([cell] (get-active-unit cell nil))
+  ([cell coords]
+   (let [contents (:contents cell)]
+     (or (active-transport-army contents)
+         (active-carrier-fighter contents)
+         (active-awake-player-unit contents)
+         (when-not (and coords
+                        (= :city (:type cell))
+                        (= :player (:city-status cell))
+                        (not ((sa/read-state :production) coords)))
+           (active-airport-fighter cell))))))
 
 (defn is-army-aboard-transport?
   "Returns true if the active unit is an army aboard a transport."

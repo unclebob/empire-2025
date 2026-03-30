@@ -42,7 +42,7 @@
   (let [world (sa/current-world)
         cell (get-in world coords)
         unit (:contents cell)
-        active-unit (movement-state/get-active-unit cell)]
+        active-unit (movement-state/get-active-unit cell coords)]
     (sa/write-state! :attention-message
                     (decisions/attention-message
                      {:world world

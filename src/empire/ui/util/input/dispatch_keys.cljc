@@ -132,7 +132,7 @@
 (defn- unit-has-attention? []
   (when-let [coords (first (sa/read-state :cells-needing-attention))]
     (let [cell (get-in (sa/current-world) coords)]
-      (movement-state/get-active-unit cell))))
+      (movement-state/get-active-unit cell coords))))
 
 (defn dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)

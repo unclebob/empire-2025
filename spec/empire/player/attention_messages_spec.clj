@@ -12,6 +12,7 @@
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (update-test-world! assoc-in (conj city-coords :awake-fighters) 1)
       (update-test-world! assoc-in (conj city-coords :fighter-count) 1)
+      (test-utils/set-test-state! :production {city-coords {:item :fighter :remaining-rounds 10}})
       (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
       (should-contain "Fighter" (test-utils/read-test-state :attention-message))
@@ -141,6 +142,7 @@
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (update-test-world! assoc-in (conj city-coords :awake-fighters) 1)
       (update-test-world! assoc-in (conj city-coords :fighter-count) 1)
+      (test-utils/set-test-state! :production {city-coords {:item :fighter :remaining-rounds 10}})
       (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
       (should-contain "fuel:32" (test-utils/read-test-state :attention-message))))

@@ -263,6 +263,7 @@
       ;; Set up airport with awake fighter
       (update-test-world! update-in city-coords
              merge {:fighter-count 1 :awake-fighters 1})
+      (test-utils/set-test-state! :production {city-coords {:item :fighter :remaining-rounds 10}})
       (test-utils/set-test-state! :cells-needing-attention [city-coords])
       (test-utils/set-test-state! :player-items [city-coords])
       (test-utils/set-test-state! :waiting-for-input true)
