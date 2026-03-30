@@ -138,6 +138,21 @@
       (should= :army (get-in (test-utils/read-test-state :game-map) [0 2 :contents :type]))
       (should= 0 (get-in (test-utils/read-test-state :game-map) [0 1 :contents :army-count])))
 
+    (it "creates distinct computer-unit-ids for each unloaded army"
+      (test-utils/set-test-state! :next-computer-unit-id 41)
+      (set-test-world! [[{:type :land}
+                         {:type :sea :contents {:type :transport :owner :computer
+                                                :transport-mission :unloading
+                                                :army-count 2}}
+                         {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (unloading/unload-armies [0 1] nil)
+      (let [left-id (get-in (test-utils/read-test-state :game-map) [0 0 :contents :computer-unit-id])
+            right-id (get-in (test-utils/read-test-state :game-map) [0 2 :contents :computer-unit-id])]
+        (should= 41 left-id)
+        (should= 42 right-id)
+        (should-not= left-id right-id)))
+
     (it "records transport unload events with transport metadata"
       (set-test-world! [[{:type :land}
                          {:type :sea :contents {:type :transport :owner :computer

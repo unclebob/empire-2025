@@ -196,13 +196,13 @@
       unload-cid (assoc :country-id unload-cid))))
 
 (defn- place-unloaded-armies!
-  [pos targets army unload-eid]
-  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        landing-metrics (when-let [landing-pos (first targets)]
+  [pos targets transport unload-eid]
+  (let [landing-metrics (when-let [landing-pos (first targets)]
                           (unload-continent-metrics transport landing-pos))]
     (when-let [landing-pos (first targets)]
       (log-foreign-continent-landing! pos transport landing-pos landing-metrics))
     (doseq [land-pos targets]
+      (let [army (unload-army-template transport)]
       (debug/log-computer-event! :transport-unload-army
                                  pos
                                  {:to land-pos
@@ -219,9 +219,9 @@
                                   :continent-size (:continent-size landing-metrics)
                                   :continent-computer-cities (:continent-computer-cities landing-metrics)
                                   :continent-computer-units (:continent-computer-units landing-metrics)})
-      (sa/update-world! assoc-in (conj land-pos :contents) army)
-      (action-resolution/stamp-territory land-pos army)
-      (computer-movement/update-cell-visibility! land-pos :computer))))
+        (sa/update-world! assoc-in (conj land-pos :contents) army)
+        (action-resolution/stamp-territory land-pos army)
+        (computer-movement/update-cell-visibility! land-pos :computer)))))
 
 (defn- record-unloaded-country!
   [pos targets]
@@ -286,9 +286,8 @@
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [selected-targets (take to-unload targets)
-            unload-eid (:unload-event-id transport)
-            army (unload-army-template transport)]
-        (place-unloaded-armies! pos selected-targets army unload-eid)
+            unload-eid (:unload-event-id transport)]
+        (place-unloaded-armies! pos selected-targets transport unload-eid)
         (record-unloaded-country! pos selected-targets)
         (finish-unload! pos army-count to-unload)
         true))))
@@ -305,9 +304,8 @@
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [unload-eid (:unload-event-id transport)
-            army (unload-army-template transport)
             selected-targets (take to-unload targets)]
-        (place-unloaded-armies! pos selected-targets army unload-eid)
+        (place-unloaded-armies! pos selected-targets transport unload-eid)
         (finish-unload! pos army-count to-unload)
         true))))
 
@@ -323,9 +321,8 @@
              to-unload (min army-count (count land-neighbors))]
          (when (pos? to-unload)
            (let [selected-targets (take to-unload land-neighbors)
-                 unload-eid (:unload-event-id transport)
-                 army (unload-army-template transport)]
-             (place-unloaded-armies! pos selected-targets army unload-eid)
+                 unload-eid (:unload-event-id transport)]
+             (place-unloaded-armies! pos selected-targets transport unload-eid)
              (record-unloaded-country! pos selected-targets)
              (finish-unload! pos army-count to-unload))
            true))))))
