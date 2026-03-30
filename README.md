@@ -170,7 +170,7 @@ Units operate in different modes:
 - **Awake** (white) - Waiting for orders; you will be prompted to move them
 - **Sentry** (pink) - Sleeping; will wake if an enemy appears nearby
 - **Explore** (light green) - Auto-exploring toward unexplored territory
-- **Coastline-Follow** (light green) - Ships automatically following coastlines
+- **Coastline-Follow** (dark green) - Ships automatically following coastlines
 - **Moving** (black) - Executing movement orders toward a destination
 
 ### Movement Keys
@@ -199,7 +199,8 @@ Each key moves in its relative direction:
 
 ### Unit Commands
 
-When a unit needs attention (highlighted on map):
+When a unit or city needs attention, the cell background flashes white. The unit character displays in black during the flash and its normal color otherwise. The character shown is the unit that needs orders — for example, an army aboard a transport shows `A`, not `T`. Cities needing production show `?`.
+
 
 | Key | Action |
 |-----|--------|
