@@ -2,6 +2,7 @@
   "Player and computer item processing, movement execution with sidestep logic."
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.api :as movement-api]
+            [empire.game-mechanics.debug.logging :as debug-logging]
             [empire.game-mechanics.visibility :as visibility]
             [empire.config.core :as config]
             [empire.game-mechanics.containers.ops :as container-ops]
@@ -165,11 +166,23 @@
           sat-moving? (decisions/satellite-with-target? unit)
           unit-in-auto-mode? (decisions/unit-auto-mode? unit)
           auto-coords (when-not sat-moving? (try-auto-launch-or-disembark coords cell))
+          needs-attention? (player-attention/item-needs-attention? coords)
           action (decisions/player-item-action
                   {:sat-moving? sat-moving?
                    :auto-coords auto-coords
                    :unit-in-auto-mode? unit-in-auto-mode?
-                   :needs-attention? (player-attention/item-needs-attention? coords)})]
+                   :needs-attention? needs-attention?})]
+      (debug-logging/log-player-item-decision!
+       coords
+       {:cell-type (:type cell)
+        :city-status (:city-status cell)
+        :unit-type (:type unit)
+        :unit-mode (:mode unit)
+        :sat-moving? sat-moving?
+        :unit-in-auto-mode? unit-in-auto-mode?
+        :auto-coords auto-coords
+        :needs-attention? needs-attention?
+        :action action})
       (case action
         :skip-satellite
         (do (sa/update-state! :player-items rest) :done)

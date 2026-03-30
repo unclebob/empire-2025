@@ -101,6 +101,27 @@
       (should (test-utils/read-test-state :waiting-for-input))
       (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention)))))
 
+  (it "logs the player item decision before stopping for attention"
+    (set-test-world! [[{:type :land :contents {:type :army :owner :player
+                                               :mode :awake :steps-remaining 1}}]])
+    (test-utils/set-test-state! :player-items [[0 0]])
+    (let [calls (atom [])]
+      (with-redefs [empire.player.attention/item-needs-attention? (fn [_] true)
+                    empire.player.attention/set-attention-message (fn [_])
+                    empire.game-mechanics.debug.logging/log-player-item-decision!
+                    (fn [coords details] (swap! calls conj [coords details]))]
+        (ip/process-player-items-batch)
+        (should= [[[0 0] {:cell-type :land
+                          :city-status nil
+                          :unit-type :army
+                          :unit-mode :awake
+                          :sat-moving? false
+                          :unit-in-auto-mode? false
+                          :auto-coords nil
+                          :needs-attention? true
+                          :action :attention}]]
+                 @calls))))
+
 (describe "satellite-with-target?"
   (it "returns truthy for satellite with target"
     (should (decisions/satellite-with-target?

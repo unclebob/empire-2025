@@ -36,6 +36,29 @@
     (debug-logging/log-player-movement! :army [0 0] [0 1] :explore :wake :steps-exhausted)
     (should= :steps-exhausted (:reason (first (test-utils/read-test-state :player-movement-log))))))
 
+(describe "log-player-item-decision!"
+  (before (test-utils/reset-all-atoms!))
+
+  (it "appends player item decisions to the unit log when logging is enabled"
+    (let [log-file "/tmp/empire-debug-player-item.log"]
+      (spit log-file "")
+      (test-utils/set-test-state! :computer-unit-log-file log-file)
+      (test-utils/set-test-state! :round-number 276)
+      (debug-logging/log-player-item-decision!
+       [9 37]
+       {:unit-type :patrol-boat
+        :unit-mode :awake
+        :needs-attention? true
+        :action :attention})
+      (let [entry (-> log-file slurp edn/read-string)]
+        (should= 276 (:round entry))
+        (should= :player-item-decision (:event entry))
+        (should= [9 37] (:pos entry))
+        (should= :patrol-boat (:unit-type entry))
+        (should= :awake (:unit-mode entry))
+        (should= true (:needs-attention? entry))
+        (should= :attention (:action entry))))))
+
 (describe "log-action!"
   (before (test-utils/reset-all-atoms!))
 

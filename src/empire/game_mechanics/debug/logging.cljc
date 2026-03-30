@@ -122,6 +122,15 @@
                                  (vec (drop (- (count new-log) max-movement-log-size) new-log))
                                  new-log))))))
 
+(defn log-player-item-decision!
+  "Append a player-item decision entry to the unit log when enabled."
+  [coords details]
+  (append-computer-log-entry!
+   (merge {:round (sa/read-state :round-number)
+           :event :player-item-decision
+           :pos coords}
+          details)))
+
 (defn log-computer-event!
   "Log a computer unit event. event is a keyword like :army-move, :army-die, etc.
    pos is the unit's position. details is an optional map of extra info."
