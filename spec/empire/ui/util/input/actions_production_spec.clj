@@ -49,6 +49,21 @@
       (should-be-nil
        (production/handle-city-production-decision {:action :skip} [0 0] {:type :city :city-status :computer}))))
 
+  (it "allows production when a city needs production even if it has airport fighters"
+    (let [calls (atom [])]
+      (with-redefs [empire.game-mechanics.movement.movement-state/get-active-unit
+                    (fn [cell coords]
+                      (if coords nil {:type :fighter :mode :awake :owner :player :from-airport true}))
+                    empire.game-mechanics.movement.map-utils/on-coast? (constantly true)
+                    empire.config.units.dispatcher/naval-units (constantly false)
+                    empire.player.production/set-city-production (fn [coords item]
+                                                                   (swap! calls conj [:set coords item]))
+                    empire.ui.util.input.actions.helpers/item-processed! (fn [] (swap! calls conj :processed))]
+        (should (production/handle-city-production-decision {:action :set-production :item :fighter}
+                                                            [0 35]
+                                                            {:type :city :city-status :player :fighter-count 5 :awake-fighters 4}))
+        (should= [[:set [0 35] :fighter] :processed] @calls))))
+
   (it "delegates key handling through city-key-action"
     (with-redefs [empire.player.command-decisions/city-key-action (fn [k cell]
                                                                     (should= :a k)

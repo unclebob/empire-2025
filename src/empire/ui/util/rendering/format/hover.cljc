@@ -75,7 +75,10 @@
 (defn- city-production-str
   [status production]
   (when (and (= status :player) production)
-    (str " producing:" (if (= production :none) "none" (name (:item production))))))
+    (if (= production :none)
+      " producing:none"
+      (str " producing:" (name (:item production))
+           " rounds:" (:remaining-rounds production)))))
 
 (defn- city-orders-str
   [cell]
@@ -115,8 +118,8 @@
    Coords is [col row] of the cell being hovered."
   [coords cell production]
   (when-let [status (cond
-                      (:contents cell) (format-unit-status (:contents cell))
                       (= (:type cell) :city) (format-city-status cell production)
+                      (:contents cell) (format-unit-status (:contents cell))
                       (:waypoint cell) (format-waypoint-status (:waypoint cell))
                       :else (format-terrain-status cell))]
     (str "[" (first coords) "," (second coords) "] " status)))
@@ -134,6 +137,7 @@
   [token]
   (cond
     (clojure.string/starts-with? token "producing:") (clojure.string/replace token "producing:" "prod:")
+    (clojure.string/starts-with? token "rounds:") (clojure.string/replace token "rounds:" "rnd:")
     (clojure.string/starts-with? token "fighters:") (clojure.string/replace token "fighters:" "ftrs:")
     (clojure.string/starts-with? token "timeout:") (clojure.string/replace token "timeout:" "to:")
     (clojure.string/starts-with? token "mission:") (clojure.string/replace token "mission:" "mis:")

@@ -62,7 +62,15 @@
                          {:type :army :mode :awake :owner :player :hits 1})
       (setup-unit-attention [0 0])
       (let [result (commands/handle-key :a)]
-        (should-not (get (test-utils/read-test-state :production) [0 0])))))
+        (should-not (get (test-utils/read-test-state :production) [0 0]))))
+
+    (it "sets production for a city with airport fighters when the city itself needs production"
+      (set-test-world! (build-test-map ["O"]))
+      (update-test-world! assoc-in [0 0 :fighter-count] 5)
+      (update-test-world! assoc-in [0 0 :awake-fighters] 4)
+      (setup-unit-attention [0 0])
+      (commands/handle-key :f)
+      (should= :fighter (:item (get (test-utils/read-test-state :production) [0 0])))))
 
   (context "production variants"
     (it "sets destroyer production"

@@ -22,7 +22,7 @@
 (defn handle-city-production-decision [decision coords cell]
   (when (and (= (:type cell) :city)
              (= (:city-status cell) :player)
-             (not (movement-state/get-active-unit cell)))
+             (not (movement-state/get-active-unit cell coords)))
     (case (:action decision)
       :skip (do (sa/update-state! :player-items rest)
                 (helpers/item-processed!)

@@ -67,7 +67,7 @@
   (it "formats player city with production"
     (let [cell {:type :city :city-status :player :fighter-count 0}
           production {:item :army :remaining-rounds 5}]
-      (should= "city:player producing:army" (fmt/format-city-status cell production))))
+      (should= "city:player producing:army rounds:5" (fmt/format-city-status cell production))))
 
   (it "formats player city with no production"
     (let [cell {:type :city :city-status :player :fighter-count 0}]
@@ -100,7 +100,7 @@
     (let [cell {:type :city :city-status :player :fighter-count 2
                 :shipyard [{:type :submarine :hits 1}]}
           production {:item :army :remaining-rounds 3}]
-      (should= "city:player producing:army fighters:2 dock:S[1/2]"
+      (should= "city:player producing:army rounds:3 fighters:2 dock:S[1/2]"
                (fmt/format-city-status cell production))))
 
   (it "formats city with transport in shipyard"
@@ -162,6 +162,13 @@
     (let [cell {:type :city :city-status :free :fighter-count 0}]
       (should= "[3,7] city:free" (fmt/format-hover-status [3 7] cell nil))))
 
+  (it "prefers city status over unit status for occupied cities"
+    (let [cell {:type :city
+                :city-status :player
+                :fighter-count 0
+                :contents {:type :army :hits 1 :mode :awake :owner :player}}]
+      (should= "[3,7] city:player" (fmt/format-hover-status [3 7] cell nil))))
+
   (it "returns land status with country-id for empty land"
     (let [cell {:type :land :country-id 7}]
       (should= "[0,0] land cid:7" (fmt/format-hover-status [0 0] cell nil))))
@@ -195,9 +202,9 @@
 
   (it "keeps city summary compact and moves the rest into detail"
     (should= {:summary "[3,7] Player City"
-              :detail "prod:army ftrs:2 dock:S[1/2]"}
+              :detail "prod:army rnd:3 ftrs:2 dock:S[1/2]"}
              (fmt/split-hover-status
-              "[3,7] city:player producing:army fighters:2 dock:S[1/2]")))
+              "[3,7] city:player producing:army rounds:3 fighters:2 dock:S[1/2]")))
 
   (it "shortens verbose detail tokens for unit inspector text"
     (should= {:summary "[12,7] computer transport [1/1]"

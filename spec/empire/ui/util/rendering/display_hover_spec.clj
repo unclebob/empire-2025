@@ -17,7 +17,16 @@
   (it "returns city status with production"
     (let [the-map [[{:type :city :city-status :player :fighter-count 0}]]
           production {[0 0] {:item :army :remaining-rounds 3}}]
-      (should= "[0,0] city:player producing:army"
+      (should= "[0,0] city:player producing:army rounds:3"
+               (display/compute-hover-message the-map production [0 0]))))
+
+  (it "returns city status for occupied city cells"
+    (let [the-map [[{:type :city
+                     :city-status :player
+                     :fighter-count 0
+                     :contents {:type :army :hits 1 :mode :awake :owner :player}}]]
+          production {}]
+      (should= "[0,0] city:player"
                (display/compute-hover-message the-map production [0 0]))))
 
   (it "looks up correct cell in multi-cell map"

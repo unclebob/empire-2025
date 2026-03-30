@@ -226,7 +226,7 @@
 (defn handle-key [k]
   (when-let [coords (first (sa/read-state :cells-needing-attention))]
     (let [cell (get-in (sa/current-world) coords)
-          active-unit (movement-state/get-active-unit cell)
+          active-unit (movement-state/get-active-unit cell coords)
           decision (decisions/attention-key-action k cell active-unit)]
       (apply-key-decision decision coords cell active-unit))))
 

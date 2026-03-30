@@ -246,6 +246,7 @@ You can set standing orders for cities so that newly produced units automaticall
 | `m` | Set marching orders on city/transport under mouse to destination. If destination is cleared, clears marching orders. |
 | `f` | Set flight path on city/carrier under mouse to destination. If destination is cleared, clears the flight path. Cities with a flight path auto-launch one airport fighter per round toward that destination. |
 | `l` | Set city under mouse marching orders to "lookaround" (explore mode) |
+| `p` | Clear production on city under mouse |
 | `u` | Wake all airport fighters in city under mouse for individual attention |
 | `Q W E A D Z X C` | Set city under mouse marching orders to map edge in that direction |
 
