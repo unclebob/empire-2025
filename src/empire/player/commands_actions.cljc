@@ -146,6 +146,12 @@
         (item-processed! ctx)
         true)
 
+      :disembark-army-with-target
+      (do
+        (container-ops/disembark-army-with-target attn-coords (:target decision) (:extended-target decision))
+        (item-processed! ctx)
+        true)
+
       :coastal-army-attack
       (do
         (combat/apply-combat-result! (combat/attempt-coastal-army-attack (current-world ctx) attn-coords (:target decision)))

@@ -90,6 +90,26 @@
     (and (<= (abs (- ax cx)) 1)
          (<= (abs (- ay cy)) 1))))
 
+(defn- chebyshev-distance
+  [[ax ay] [bx by]]
+  (max (abs (- ax bx))
+       (abs (- ay by))))
+
+(defn- adjacent-open-land-target
+  [world coords clicked-coords]
+  (let [[x y] coords]
+    (->> (for [dx [-1 0 1]
+               dy [-1 0 1]
+               :when (not (and (zero? dx) (zero? dy)))
+               :let [target [(+ x dx) (+ y dy)]
+                     tcell (get-in world target)]
+               :when (and tcell
+                          (= :land (:type tcell))
+                          (not (:contents tcell)))]
+           target)
+         (sort-by #(chebyshev-distance % clicked-coords))
+         first)))
+
 (defn- army-coastal-attack-action
   [attn-coords clicked-coords active-unit target-cell target-unit]
   (when (and (adjacent-coords? attn-coords clicked-coords)
@@ -147,12 +167,24 @@
   (case context
     :airport-fighter {:action :launch-fighter-from-airport
                       :target clicked-coords}
-    :army-aboard (let [target-cell (get-in world clicked-coords)]
-                   (when (and (adjacent-coords? attn-coords clicked-coords)
-                              (= (:type target-cell) :land)
-                              (not (:contents target-cell)))
-                     {:action :disembark-army-from-transport
-                      :target clicked-coords}))
+    :army-aboard (let [target-cell (get-in world clicked-coords)
+                       target-unit (:contents target-cell)
+                       adjacent-land-target (adjacent-open-land-target world attn-coords clicked-coords)]
+                   (or
+                    (when (and (adjacent-coords? attn-coords clicked-coords)
+                               (combat/hostile-unit? target-unit (:owner active-unit)))
+                      {:action :coastal-army-attack
+                       :target clicked-coords})
+                    (hostile-city-action world attn-coords clicked-coords active-unit)
+                    (when (and (adjacent-coords? attn-coords clicked-coords)
+                               (= (:type target-cell) :land)
+                               (not (:contents target-cell)))
+                      {:action :disembark-army-from-transport
+                       :target clicked-coords})
+                    (when adjacent-land-target
+                      {:action :disembark-army-with-target
+                       :target adjacent-land-target
+                       :extended-target clicked-coords})))
     (standard-click-action world attn-coords clicked-coords active-unit)))
 
 (defn city-production-action

@@ -9,6 +9,12 @@
       (should= "[0,0] player army [1/1] awake"
                (display/compute-hover-message the-map production [0 0]))))
 
+  (it "returns moving unit target in hover text"
+    (let [the-map [[{:type :land :contents {:type :army :hits 1 :mode :moving :target [4 2] :owner :player}}]]
+          production {}]
+      (should= "[0,0] player army [1/1] target:4,2 moving"
+               (display/compute-hover-message the-map production [0 0]))))
+
   (it "returns land status for empty land cell"
     (let [the-map [[{:type :land}]]
           production {}]

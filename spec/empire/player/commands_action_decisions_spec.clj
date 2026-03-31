@@ -44,6 +44,29 @@
                                :normal
                                {:type :army :owner :player})))
 
+  (it "disembarks army aboard with target on distant click"
+    (should= {:action :disembark-army-with-target
+              :target [1 0]
+              :extended-target [2 0]}
+             (sut/click-action [[{:type :sea}]
+                                [{:type :land}]
+                                [{:type :land}]]
+                               [0 0]
+                               [2 0]
+                               :army-aboard
+                               {:type :army :owner :player})))
+
+  (it "attacks adjacent hostile unit for army aboard transport click"
+    (should= {:action :coastal-army-attack
+              :target [1 0]}
+             (sut/click-action [[{:type :sea}]
+                                [{:type :land
+                                  :contents {:type :army :owner :computer}}]]
+                               [0 0]
+                               [1 0]
+                               :army-aboard
+                               {:type :army :owner :player})))
+
   (it "rejects movement targeting a distant friendly unit"
     (should= {:action :reject
               :message "Something's in the way."}

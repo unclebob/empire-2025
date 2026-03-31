@@ -324,6 +324,29 @@
           (commands/handle-unit-click [1 0] [[0 0]])
           (should @disembark-called))))
 
+    (it "disembarks army from transport with target on distant click"
+      (let [disembark-called (atom nil)]
+        (set-test-world! (build-test-map ["T##"]))
+        (set-test-unit (test-utils/game-map-atom) "T" :mode :sentry :army-count 2 :awake-armies 2)
+        (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+        (test-utils/set-test-state! :player-items (list [0 0]))
+        (with-redefs [container-ops/disembark-army-with-target
+                      (fn [_ adjacent target] (reset! disembark-called [adjacent target]))]
+          (commands/handle-unit-click [2 0] [[0 0]])
+          (should= [[1 0] [2 0]] @disembark-called))))
+
+    (it "attacks adjacent hostile unit for army aboard transport click"
+      (let [attack-called (atom false)]
+        (set-test-world! (build-test-map ["Ta"]))
+        (set-test-unit (test-utils/game-map-atom) "T" :mode :sentry :army-count 2 :awake-armies 2)
+        (set-test-unit (test-utils/game-map-atom) "a" :owner :computer :mode :awake :hits 1)
+        (test-utils/set-test-state! :cells-needing-attention [[0 0]])
+        (test-utils/set-test-state! :player-items (list [0 0]))
+        (with-redefs [combat/attempt-coastal-army-attack (fn [_ _ _] (reset! attack-called true) {})
+                      combat/apply-combat-result! (fn [_] nil)]
+          (commands/handle-unit-click [1 0] [[0 0]])
+          (should @attack-called))))
+
     (it "ignores invalid army-aboard click targets"
       (set-test-world! (build-test-map ["T~"]))
       (set-test-unit (test-utils/game-map-atom) "T" :mode :sentry :army-count 2 :awake-armies 2)

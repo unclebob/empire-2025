@@ -41,6 +41,10 @@
     (let [unit {:type :fighter :hits 1 :mode :moving :fuel 10 :flight-path [[1 2]] :owner :player}]
       (should= "player fighter [1/1] fuel:10 flight moving" (fmt/format-unit-status unit))))
 
+  (it "formats moving unit with target coordinates"
+    (let [unit {:type :army :hits 1 :mode :moving :target [5 9] :owner :player}]
+      (should= "player army [1/1] target:5,9 moving" (fmt/format-unit-status unit))))
+
   (it "formats army with mission"
     (let [unit {:type :army :hits 1 :mode :sentry :owner :computer :mission :loading}]
       (should= "computer army [1/1] mission:loading sentry" (fmt/format-unit-status unit))))
@@ -164,6 +168,11 @@
     (let [cell {:contents {:type :army :hits 1 :mode :awake :owner :player}}]
       (should= "[5,10] player army [1/1] awake" (fmt/format-hover-status [5 10] cell nil))))
 
+  (it "returns moving unit target with coordinates"
+    (let [cell {:contents {:type :army :hits 1 :mode :moving :target [8 6] :owner :player}}]
+      (should= "[5,10] player army [1/1] target:8,6 moving"
+               (fmt/format-hover-status [5 10] cell nil))))
+
   (it "returns city status with coordinates"
     (let [cell {:type :city :city-status :free :fighter-count 0}]
       (should= "[3,7] city:free" (fmt/format-hover-status [3 7] cell nil))))
@@ -205,6 +214,11 @@
     (should= {:summary "[12,7] player carrier [5/8]"
               :detail "cargo:3 sentry"}
              (fmt/split-hover-status "[12,7] player carrier [5/8] cargo:3 sentry")))
+
+  (it "keeps moving target coordinates in unit detail"
+    (should= {:summary "[12,7] player army [1/1]"
+              :detail "target:5,9 moving"}
+             (fmt/split-hover-status "[12,7] player army [1/1] target:5,9 moving")))
 
   (it "keeps city summary compact and moves the rest into detail"
     (should= {:summary "[3,7] Player City"

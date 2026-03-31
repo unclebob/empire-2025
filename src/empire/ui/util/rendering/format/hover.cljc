@@ -43,6 +43,12 @@
     (:flight-path unit) " flight"
     :else nil))
 
+(defn- unit-target-str [unit]
+  (when (and (= :moving (:mode unit))
+             (vector? (:target unit))
+             (= 2 (count (:target unit))))
+    (str " target:" (first (:target unit)) "," (second (:target unit)))))
+
 (defn format-unit-status
   "Formats status string for a unit."
   [unit]
@@ -57,6 +63,7 @@
          (army-mission-str unit)
          (patrol-mode-str unit)
          (unit-orders-str unit)
+         (unit-target-str unit)
          " " (safe-name (:mode unit) "unknown"))))
 
 (defn- format-ship-for-dock
