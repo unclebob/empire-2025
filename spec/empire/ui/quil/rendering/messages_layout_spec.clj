@@ -8,7 +8,7 @@
 (describe "draw-message-area layout"
   (before (reset-all-atoms!))
 
-  (it "shows attention-cell order context in the status center when there is no destination"
+  (it "shows round and map status in the right-column status zone at grid-row-1 position"
     (let [calls (atom [])]
       (sa/write-state! :text-area-dimensions [0 100 300 80])
       (sa/write-state! :text-font :fake-font)
@@ -17,10 +17,7 @@
                              :city-status :player
                              :flight-path [9 4]}]]))
       (sa/write-state! :cells-needing-attention [[0 0]])
-      (sa/write-state! :error-message "")
-      (sa/write-state! :error-until 0)
       (sa/write-state! :attention-message "")
-      (sa/write-state! :turn-message "")
       (sa/write-state! :round-number 6)
       (sa/write-state! :paused false)
       (sa/write-state! :pause-requested false)
@@ -39,8 +36,7 @@
                     q/mouse-y (fn [] 0)
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
-        (should-contain [:text ["R6" 14 140]] @calls)
-        (should-contain [:text ["Flight 9,4" 110 140]] @calls)))))
+        (should-contain [:text ["R6" 179.0 120]] @calls)))))
 
 (describe "tooltip-box-position"
   (it "places the tooltip down and right when there is room"

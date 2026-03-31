@@ -8,14 +8,11 @@
 (describe "draw-message-area"
   (before (reset-all-atoms!))
 
-  (it "draws the redesigned four-line HUD with banner, status, and inspector"
+  (it "draws the 3x2 zone-based HUD with attention, status, and inspector zones"
     (let [calls (atom [])]
       (sa/write-state! :text-area-dimensions [0 100 300 80])
       (sa/write-state! :text-font :fake-font)
-      (sa/write-state! :error-message "")
-      (sa/write-state! :error-until 0)
       (sa/write-state! :attention-message "Fighter needs attention...")
-      (sa/write-state! :turn-message "Moved")
       (sa/write-state! :round-number 17)
       (sa/write-state! :paused false)
       (sa/write-state! :pause-requested false)
@@ -40,26 +37,23 @@
         (should-contain [:stroke [120 128 136]] @calls)
         (should-contain [:line [0 96 300 96]] @calls)
         (should-contain [:stroke [54 60 66]] @calls)
-        (should-contain [:line [0 126 300 126]] @calls)
+        (should-contain [:line [165.0 100 165.0 180]] @calls)
+        (should-contain [:stroke [30 36 40]] @calls)
+        (should-contain [:line [0 128 300 128]] @calls)
+        (should-contain [:line [0 154 300 154]] @calls)
         (should-contain [:text-font [:fake-font]] @calls)
         (should-contain [:fill [255 215 64]] @calls)
-        (should-contain [:text ["Fighter needs attention..." 14 116]] @calls)
+        (should-contain [:text ["Fighter needs attention..." 14 120]] @calls)
         (should-contain [:fill [190 198 208]] @calls)
-        (should-contain [:text ["R17  Comp" 14 140]] @calls)
-        (should-contain [:fill [230 230 230]] @calls)
-        (should-contain [:text ["Dest 12,7" 114 140]] @calls)
-        (should-contain [:text ["Prod: fighter 2r" 158 140]] @calls)
-        (should-contain [:text ["[12,7] player carrier [5/8]" 14 160]] @calls)
-        (should-contain [:text ["sentry" 14 176]] @calls))))
+        (should-contain [:text ["R17  Comp" 179.0 120]] @calls)
+        (should-contain [:text ["[12,7] player carrier [5/8]" 179.0 146]] @calls)
+        (should-contain [:text ["sentry" 179.0 172]] @calls))))
 
-  (it "prefers an error banner and leaves lower inspector rows empty when there is no hover text"
+  (it "draws attention zone and status zone, leaves other zones empty when no hover text"
     (let [calls (atom [])]
       (sa/write-state! :text-area-dimensions [0 100 240 80])
       (sa/write-state! :text-font :fake-font)
-      (sa/write-state! :error-message "Conquest Failed")
-      (sa/write-state! :error-until (+ (System/currentTimeMillis) 1000))
       (sa/write-state! :attention-message "Need orders")
-      (sa/write-state! :turn-message "Moved")
       (sa/write-state! :round-number 2)
       (sa/write-state! :paused true)
       (sa/write-state! :pause-requested false)
@@ -78,23 +72,17 @@
                     q/mouse-y (fn [] 0)
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
-        (should-contain [:fill [255 80 80]] @calls)
-        (should-contain [:text ["Conquest Failed" 14 116]] @calls)
-        (should-contain [:fill [223 199 108]] @calls)
-        (should-contain [:text [" | Need orders" 134 116]] @calls)
-        (should-contain [:fill [211 217 223]] @calls)
-        (should-contain [:text [" | Moved" 246 116]] @calls)
-        (should-contain [:text ["PAUSED  R2" 14 140]] @calls)
-        (should-not-contain [:text [nil 14 160]] @calls))))
+        (should-contain [:fill [255 215 64]] @calls)
+        (should-contain [:text ["Need orders" 14 120]] @calls)
+        (should-contain [:fill [190 198 208]] @calls)
+        (should-contain [:text ["PAUSED  R2" 146.0 120]] @calls)
+        (should-not-contain [:text [nil 14 146]] @calls))))
 
-  (it "shows additional active banner messages inline after the primary message"
+  (it "draws the attention zone with the stored attention message"
     (let [calls (atom [])]
       (sa/write-state! :text-area-dimensions [0 100 300 80])
       (sa/write-state! :text-font :fake-font)
-      (sa/write-state! :error-message "")
-      (sa/write-state! :error-until 0)
       (sa/write-state! :attention-message "City needs attention")
-      (sa/write-state! :turn-message "City conquered.")
       (with-redefs [q/no-stroke (fn [& _] nil)
                     q/rect (fn [& _] nil)
                     q/stroke (fn [& _] nil)
@@ -106,6 +94,5 @@
                     q/mouse-y (fn [] 0)
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
-        (should-contain [:text ["City needs attention" 14 116]] @calls)
-        (should-contain [:fill [211 217 223]] @calls)
-        (should-contain [:text [" | City conquered." 174 116]] @calls)))))
+        (should-contain [:fill [255 215 64]] @calls)
+        (should-contain [:text ["City needs attention" 14 120]] @calls)))))
