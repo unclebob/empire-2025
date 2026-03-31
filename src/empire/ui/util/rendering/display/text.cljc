@@ -175,6 +175,21 @@
        (filter seq)
        vec))
 
+(defn resolve-attention-zone
+  "Returns the attention zone text, or nil if empty."
+  [attention-message]
+  (when (seq attention-message) attention-message))
+
+(defn resolve-warning-zone
+  "Returns the warning zone text, or nil if empty."
+  [warning-message]
+  (when (seq warning-message) warning-message))
+
+(defn resolve-command-zone
+  "Returns the command response zone text, or nil if empty."
+  [command-message]
+  (when (seq command-message) command-message))
+
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T12:04:09.175173-05:00", :module-hash "565093956", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "833626816"} {:id "def/inspector-summary-max", :kind "def", :line 6, :end-line 6, :hash "1852984366"} {:id "def/inspector-detail-max", :kind "def", :line 7, :end-line 7, :hash "1224724967"} {:id "def/status-center-max", :kind "def", :line 8, :end-line 8, :hash "-580134895"} {:id "def/status-right-max", :kind "def", :line 9, :end-line 9, :hash "-539755630"} {:id "defn/should-show-error?", :kind "defn", :line 11, :end-line 14, :hash "1593526722"} {:id "defn/resolve-banner", :kind "defn", :line 16, :end-line 30, :hash "1089634649"} {:id "defn-/active-banners", :kind "defn-", :line 32, :end-line 40, :hash "1327196984"} {:id "defn/resolve-banner-pair", :kind "defn", :line 42, :end-line 49, :hash "169264082"} {:id "defn/resolve-banner-list", :kind "defn", :line 51, :end-line 62, :hash "1958103346"} {:id "defn-/map-display-label", :kind "defn-", :line 64, :end-line 68, :hash "-1751761517"} {:id "defn-/round-label", :kind "defn-", :line 70, :end-line 72, :hash "2093795019"} {:id "defn-/handicap-label", :kind "defn-", :line 74, :end-line 77, :hash "-1493260915"} {:id "defn-/ellipsize", :kind "defn-", :line 79, :end-line 85, :hash "969107049"} {:id "defn-/format-coords", :kind "defn-", :line 87, :end-line 89, :hash "1411646979"} {:id "defn-/order-context-text", :kind "defn-", :line 91, :end-line 98, :hash "1958696046"} {:id "defn-/cell-order-context", :kind "defn-", :line 100, :end-line 110, :hash "-1545886776"} {:id "defn-/unit-order-context", :kind "defn-", :line 112, :end-line 120, :hash "-1291338553"} {:id "defn-/resolve-order-context", :kind "defn-", :line 122, :end-line 127, :hash "-1106020974"} {:id "defn/resolve-status-line", :kind "defn", :line 129, :end-line 143, :hash "-1283773035"} {:id "defn/resolve-inspector-lines", :kind "defn", :line 145, :end-line 151, :hash "1384942978"} {:id "defn/resolve-turn-text", :kind "defn", :line 153, :end-line 159, :hash "218744102"} {:id "defn/resolve-round-status-text", :kind "defn", :line 161, :end-line 167, :hash "2046987515"} {:id "defn/resolve-center-lines", :kind "defn", :line 169, :end-line 176, :hash "245117443"}]}
 ;; clj-mutate-manifest-end

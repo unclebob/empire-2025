@@ -225,3 +225,30 @@
 
   (it "returns empty vector for blank debug message outside computer-map"
     (should= [] (display/resolve-center-lines :actual-map {} 10 ""))))
+
+(describe "resolve-attention-zone"
+  (it "returns attention text when present"
+    (should= "Fighter [23,15] - Bingo!"
+             (display/resolve-attention-zone "Fighter [23,15] - Bingo!")))
+
+  (it "returns nil for empty string"
+    (should-be-nil (display/resolve-attention-zone "")))
+
+  (it "returns nil for nil"
+    (should-be-nil (display/resolve-attention-zone nil))))
+
+(describe "resolve-warning-zone"
+  (it "returns warning text when present"
+    (should= "Can't move into water."
+             (display/resolve-warning-zone "Can't move into water.")))
+
+  (it "returns nil for empty string"
+    (should-be-nil (display/resolve-warning-zone ""))))
+
+(describe "resolve-command-zone"
+  (it "returns command text when present"
+    (should= "Marching orders set to 5,12"
+             (display/resolve-command-zone "Marching orders set to 5,12")))
+
+  (it "returns nil for empty string"
+    (should-be-nil (display/resolve-command-zone ""))))
