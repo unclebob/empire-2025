@@ -25,6 +25,8 @@
 (defn mouse-down
   "Handles mouse click events."
   [x y button]
+  (sa/write-state! :warning-message "")
+  (sa/write-state! :command-message "")
   (mouse/mouse-down x y button))
 
 ;; Debug drag functions
@@ -61,6 +63,8 @@
 (defn key-down
   "Process a key press with explicit mouse coordinates."
   [k mouse-x mouse-y]
+  (sa/write-state! :warning-message "")
+  (sa/write-state! :command-message "")
   (let [cell-coords (when (map-utils/on-map? mouse-x mouse-y)
                       (map-utils/determine-cell-coordinates mouse-x mouse-y))]
     (dispatch-key k cell-coords)))
