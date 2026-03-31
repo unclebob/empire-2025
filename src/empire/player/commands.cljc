@@ -15,12 +15,13 @@
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.player.production :as production]
-            [empire.config.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]
+            [empire.ui.sound :as sound]))
 
-(defn- set-error-message!
-  [msg ms]
-  (sa/write-state! :error-message msg)
-  (sa/write-state! :error-until (+ (System/currentTimeMillis) ms)))
+(defn- set-warning-message!
+  [msg]
+  (sa/write-state! :warning-message msg)
+  (sound/play-bonk!))
 
 (defn- item-processed!
   []
@@ -40,7 +41,7 @@
                                                          :item item})]
     (case (:action action)
       :reject-production
-      (set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
+      (set-warning-message! (format "Must be coastal city to produce %s." (name item)))
       :set-production
       (do
         (production/set-city-production coords item)
@@ -161,7 +162,7 @@
     :fighter-overfly (do (combat/apply-combat-result! (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target))
                          (item-processed!)
                          true)
-    :reject-undamaged-ship (do (set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
+    :reject-undamaged-ship (do (set-warning-message! "Ship not damaged, entry denied.")
                                true)
     (do (movement-api/set-unit-movement coords target)
         (item-processed!)

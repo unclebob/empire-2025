@@ -2,11 +2,13 @@
   (:require [empire.game-mechanics.containers.helpers :as uc]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.combat :as combat]
-            [empire.state.api :as sa]))
+            [empire.state.api :as sa]
+            [empire.ui.sound :as sound]))
 
 (defn- set-warning-message!
   [msg]
-  (sa/write-state! :warning-message msg))
+  (sa/write-state! :warning-message msg)
+  (sound/play-bonk!))
 
 (defn attack-enemy
   [ship-pos enemy-pos]

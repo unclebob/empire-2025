@@ -21,7 +21,8 @@
             [empire.computer.production.decisions :as production-decisions]
             [empire.computer.ship.carrier :as carrier]
             [empire.computer.early-game.theater :as theater]
-            [empire.computer.shared.transport-query :as transport-query]))
+            [empire.computer.shared.transport-query :as transport-query]
+            [empire.ui.sound :as sound]))
 
 (defn handicap-active?
   []
@@ -47,8 +48,8 @@
 (defn declare-game-over!
   [message]
   (sa/write-state! :paused true)
-  (sa/write-state! :error-message message)
-  (sa/write-state! :error-until Long/MAX_VALUE)
+  (sa/write-state! :warning-message message)
+  (sound/play-bonk!)
   (sa/write-state! :map-to-display :actual-map)
   (sa/write-state! :player-items [])
   (sa/write-state! :computer-items []))

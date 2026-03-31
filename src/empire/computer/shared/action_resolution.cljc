@@ -6,7 +6,8 @@
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.services.combat :as combat]
-            [empire.state.api :as sa]))
+            [empire.state.api :as sa]
+            [empire.ui.sound :as sound]))
 
 (defn- update-cell-visibility!
   ([pos owner]
@@ -205,8 +206,8 @@
 (defn- declare-game-over!
   [message]
   (sa/write-state! :paused true)
-  (sa/write-state! :error-message message)
-  (sa/write-state! :error-until Long/MAX_VALUE)
+  (sa/write-state! :warning-message message)
+  (sound/play-bonk!)
   (sa/write-state! :map-to-display :actual-map)
   (sa/write-state! :player-items [])
   (sa/write-state! :computer-items []))

@@ -4,7 +4,8 @@
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.movement.wake-conditions.fighter :as fighter-wake]
-            [empire.game-mechanics.movement.wake-conditions.transport :as transport-wake]))
+            [empire.game-mechanics.movement.wake-conditions.transport :as transport-wake]
+            [empire.ui.sound :as sound]))
 
 (defn- map-data
   [current-map]
@@ -14,10 +15,10 @@
   [k v]
   (sa/write-state! k v))
 
-(defn- set-error-message!
-  [msg ms]
-  (write-runtime-state! :error-message msg)
-  (write-runtime-state! :error-until (+ (System/currentTimeMillis) ms)))
+(defn- set-warning-message!
+  [msg]
+  (write-runtime-state! :warning-message msg)
+  (sound/play-bonk!))
 
 (defn near-hostile-city?
   [pos current-map]
@@ -93,8 +94,7 @@
 
 (defn- apply-wake-action [unit final-result waypoint-orders wake-up?]
   (when (:shot-down? final-result)
-    (set-error-message! (:fighter-destroyed-by-city config/messages)
-                        config/error-message-duration))
+    (set-warning-message! (:fighter-destroyed-by-city config/messages)))
   (cond
     waypoint-orders
     (-> unit

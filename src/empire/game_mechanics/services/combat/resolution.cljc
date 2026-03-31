@@ -2,7 +2,8 @@
   (:require [empire.state.api :as sa]
             [empire.config.domain.model.combat :as domain-combat]
             [empire.game-mechanics.combat-visibility-port :as visibility-port]
-            [empire.config.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]
+            [empire.ui.sound :as sound]))
 
 (defn warning-message-map
   [msg]
@@ -18,7 +19,9 @@
   (when world
     (sa/update-world! (constantly world)))
   (doseq [[k v] messages]
-    (sa/write-state! k v))
+    (sa/write-state! k v)
+    (when (and (= k :warning-message) (seq v))
+      (sound/play-bonk!)))
   (doseq [[k v] state-updates]
     (if (fn? v)
       (sa/update-state! k v)

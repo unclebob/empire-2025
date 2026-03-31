@@ -10,6 +10,7 @@
             [empire.ui.util.core :as util-core]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.ui.util.rendering.display :as display]
+            [empire.ui.sound :as sound]
             [quil.core :as q]
             [quil.middleware :as m]))
 
@@ -23,6 +24,7 @@
   "Initial setup for the game state."
   []
   (create-fonts)
+  (sound/init-sound!)
   (util-core/calculate-screen-dimensions)
   (headless/install-seeded-random!)
   (headless/initialize-map!)
