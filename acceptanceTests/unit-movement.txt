@@ -236,7 +236,7 @@ GIVEN A is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :cant-move-into-water.
+THEN at the next step the error message contains :cant-move-into-water.
 
 ;===============================================================
 ; Army conquers computer city when conquest succeeds.

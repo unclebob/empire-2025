@@ -12,7 +12,7 @@ WHEN the player presses D and the game advances until F is waiting for input.
 
 THEN F is at =.
 THEN F has fuel 30.
-THEN the attention message contains :hit-edge.
+THEN the error message contains :hit-edge.
 
 ;===============================================================
 ; Fighter refuels at player city.
@@ -36,7 +36,7 @@ F is sentry with fuel 9.
 WHEN a new round starts and F is waiting for input.
 
 THEN F has mode awake.
-and the attention message for F contains :fighter-bingo.
+and the error message contains :fighter-bingo.
 
 ;===============================================================
 ; Fighter does not bingo when a friendly city is on its current path.
@@ -60,7 +60,7 @@ F is sentry with fuel 2.
 WHEN a new round starts.
 
 THEN F wakes up and asks for input,
-and the attention message contains :fighter-out-of-fuel.
+and the error message contains :fighter-out-of-fuel.
 
 ;===============================================================
 ; Fighter crashes when fuel reaches zero.

@@ -15,7 +15,7 @@ T's target is %
 
 WHEN a new round starts and T is waiting for input.
 
-THEN the attention message contains :transport-at-beach.
+THEN the error message contains :transport-at-beach.
 
 ;===============================================================
 ; Transport does not wake at beach with no armies.
@@ -57,7 +57,7 @@ GIVEN A has mode sentry.
 WHEN a new round starts and A is waiting for input.
 
 THEN A is awake.
-THEN the attention message contains :enemy-spotted.
+THEN the error message contains :enemy-spotted.
 
 ;===============================================================
 ; Sentry army does not wake when no enemy visible.
@@ -80,4 +80,4 @@ D is sentry.
 WHEN a new round starts and D is waiting for input.
 
 THEN D is awake.
-THEN the attention message contains :enemy-spotted.
+THEN the error message contains :enemy-spotted.

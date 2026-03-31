@@ -55,7 +55,7 @@ GIVEN B is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :ships-cant-drive-on-land.
+THEN at the next step the error message contains :ships-cant-drive-on-land.
 
 ;===============================================================
 ; Battleship blocked by friendly ship.
@@ -66,7 +66,7 @@ GIVEN B is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :somethings-in-the-way.
+THEN at the next step the error message contains :somethings-in-the-way.
 
 ;===============================================================
 ; Damaged battleship attention message.
@@ -101,4 +101,4 @@ B is sentry.
 WHEN a new round starts and B is waiting for input.
 
 THEN B is awake.
-THEN the attention message contains :enemy-spotted.
+THEN the error message contains :enemy-spotted.

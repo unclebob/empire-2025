@@ -64,23 +64,27 @@
       (should-contain "carrier" (test-utils/read-test-state :attention-message))
       (should-contain "3 fighters" (test-utils/read-test-state :attention-message))))
 
-  (it "sets message for unit with reason"
+  (it "sets reason as warning for unit with reason"
     (set-test-world! (build-test-map ["A"]))
     (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1 :reason :somethings-in-the-way)
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (test-utils/set-test-state! :attention-message "")
-      (attention/set-attention-message unit-coords)
+      (test-utils/set-test-state! :warning-message "")
+      (with-redefs [empire.ui.sound/play-bonk! (fn [])]
+        (attention/set-attention-message unit-coords))
       (should-contain "army" (test-utils/read-test-state :attention-message))
-      (should-contain "Something's in the way" (test-utils/read-test-state :attention-message))))
+      (should= "Something's in the way." (test-utils/read-test-state :warning-message))))
 
-  (it "sets message for army adjacent to enemy city"
+  (it "sets reason as warning for army adjacent to enemy city"
     (set-test-world! (build-test-map ["AX"]))
     (set-test-unit (test-utils/game-map-atom) "A" :mode :awake :hits 1)
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (test-utils/set-test-state! :attention-message "")
-      (attention/set-attention-message unit-coords)
+      (test-utils/set-test-state! :warning-message "")
+      (with-redefs [empire.ui.sound/play-bonk! (fn [])]
+        (attention/set-attention-message unit-coords))
       (should-contain "army" (test-utils/read-test-state :attention-message))
-      (should-contain "Army found a city!" (test-utils/read-test-state :attention-message))))
+      (should= "Army found a city!" (test-utils/read-test-state :warning-message))))
 
   (it "sets message for player city without production"
     (set-test-world! (build-test-map ["O"]))

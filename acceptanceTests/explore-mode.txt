@@ -50,7 +50,7 @@ GIVEN A has explore-steps 10.
 
 WHEN a new round starts and A is waiting for input.
 
-THEN the attention message contains :army-found-city.
+THEN the error message contains :army-found-city.
 
 ;===============================================================
 ; Explore marks visited cells and avoids revisiting.

@@ -193,7 +193,7 @@
       (set-test-unit (test-utils/game-map-atom) "T" :mode :awake)
       (setup-unit-attention [1 0])
       (commands/handle-key :l)
-      (should-contain "coast" (test-utils/read-test-state :attention-message))))
+      (should-contain "coast" (test-utils/read-test-state :warning-message))))
 
   (context "fighter fuel edge cases"
     (it "sets fuel-based reason string when fuel remains"

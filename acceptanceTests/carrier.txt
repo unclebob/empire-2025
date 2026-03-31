@@ -89,4 +89,4 @@ GIVEN C is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :ships-cant-drive-on-land.
+THEN at the next step the error message contains :ships-cant-drive-on-land.

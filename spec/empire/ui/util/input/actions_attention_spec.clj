@@ -172,4 +172,4 @@
       (test-utils/set-test-state! :waiting-for-input true)
       (test-utils/set-test-state! :attention-message "")
       (actions/handle-key :l)
-      (should-contain "coast" (test-utils/read-test-state :attention-message)))))
+      (should-contain "coast" (test-utils/read-test-state :warning-message)))))

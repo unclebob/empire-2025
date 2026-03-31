@@ -9,7 +9,8 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.player.commands-action-decisions :as decisions]
-            [empire.config.units.dispatcher :as dispatcher]))
+            [empire.config.units.dispatcher :as dispatcher]
+            [empire.ui.sound :as sound]))
 
 (defn- current-world [ctx]
   ((:current-world ctx)))
@@ -118,7 +119,8 @@
           true)
 
       :reject
-      (do (write-runtime-state! ctx :attention-message (:message decision))
+      (do (write-runtime-state! ctx :warning-message (:message decision))
+          (sound/play-bonk!)
           true)
 
       nil)))

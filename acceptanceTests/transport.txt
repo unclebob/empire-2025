@@ -95,7 +95,7 @@ GIVEN T is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :ships-cant-drive-on-land.
+THEN at the next step the error message contains :ships-cant-drive-on-land.
 
 ;===============================================================
 ; Transport blocked by friendly ship.
@@ -106,7 +106,7 @@ GIVEN T is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :somethings-in-the-way.
+THEN at the next step the error message contains :somethings-in-the-way.
 
 ;===============================================================
 ; Transport sentry mode.

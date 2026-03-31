@@ -106,7 +106,7 @@
   true)
 
 (defn- show-coastline-rejection! [rejection-reason]
-  (sa/write-state! :attention-message (rejection-reason config/messages))
+  (helpers/set-warning-message! (rejection-reason config/messages))
   true)
 
 (defn handle-look-around-key [coords cell active-unit]

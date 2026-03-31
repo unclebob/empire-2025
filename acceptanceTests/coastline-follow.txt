@@ -25,7 +25,7 @@ GIVEN T has start-pos [0 0].
 WHEN a new round starts and T is waiting for input.
 
 THEN T has mode awake.
-THEN the attention message contains :steps-exhausted.
+THEN the error message contains :steps-exhausted.
 
 ;===============================================================
 ; Pressing l on transport in open ocean is rejected.
@@ -37,7 +37,7 @@ GIVEN T is waiting for input.
 
 WHEN the player presses l.
 
-THEN the attention message contains :not-near-coast.
+THEN the error message contains :not-near-coast.
 
 ;===============================================================
 ; Coastline-follow wakes when blocked with no valid moves.
@@ -52,7 +52,7 @@ GIVEN T has start-pos [1 0].
 WHEN a new round starts and T is waiting for input.
 
 THEN T has mode awake.
-THEN the attention message contains :blocked.
+THEN the error message contains :blocked.
 
 ;===============================================================
 ; Coastline-follow wakes at map edge when start was not at edge.
@@ -68,7 +68,7 @@ GIVEN T has start-pos [1 1].
 WHEN a new round starts and T is waiting for input.
 
 THEN T has mode awake.
-THEN the attention message contains :hit-edge.
+THEN the error message contains :hit-edge.
 
 ;===============================================================
 ; Pressing l on patrol-boat near coast sets coastline-follow mode.

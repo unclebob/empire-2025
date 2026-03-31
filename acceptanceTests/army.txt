@@ -32,7 +32,7 @@ A's target is +
 
 WHEN a new round starts and A is waiting for input.
 
-THEN the attention message contains :army-found-city.
+THEN the error message contains :army-found-city.
 
 ;===============================================================
 ; Army conquers free city.
@@ -65,7 +65,7 @@ GIVEN A is waiting for input.
 
 WHEN the player presses d.
 
-THEN at the next step the attention message contains :cant-move-into-city.
+THEN at the next step the error message contains :cant-move-into-city.
 
 ;===============================================================
 ; Coastal army can attack enemy ship and drowns after winning.
