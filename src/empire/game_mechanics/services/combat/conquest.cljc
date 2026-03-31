@@ -204,8 +204,7 @@
             (not (hostile-unit? defender (:owner attacker))))
       false
       (let [result (resolution/resolve-combat attacker defender)
-            message (resolution/format-combat-status (:log result)
-                                          (:type attacker)
+            message (resolution/format-combat-outcome (:type attacker)
                                           (:type defender)
                                           (:winner result))
             dead-unit (if (= :attacker (:winner result)) defender attacker)

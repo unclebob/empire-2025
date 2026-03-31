@@ -76,7 +76,7 @@
                                                       :log [{:hit :defender :damage 1}]})
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
-      (should= "Patrol-boat destroyed."
+      (should= "Combat. Patrol-boat destroyed."
                (test-utils/read-test-state :warning-message))))
 
   (context "retreat-if-damaged (L129)"

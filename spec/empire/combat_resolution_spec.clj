@@ -98,20 +98,20 @@
                  (combat/format-combat-log log attacker-type defender-type :defender)))))
 
   (context "format-combat-outcome"
-    (it "formats combat outcome with only the result - attacker wins"
-      (should= "Submarine destroyed."
+    (it "formats combat outcome with Combat prefix - attacker wins"
+      (should= "Combat. Submarine destroyed."
                (combat/format-combat-outcome :destroyer :submarine :attacker)))
 
-    (it "formats combat outcome with only the result - defender wins"
-      (should= "Destroyer destroyed."
+    (it "formats combat outcome with Combat prefix - defender wins"
+      (should= "Combat. Destroyer destroyed."
                (combat/format-combat-outcome :destroyer :submarine :defender)))
 
     (it "shows army destroyed when army is loser"
-      (should= "Army destroyed."
+      (should= "Combat. Army destroyed."
                (combat/format-combat-outcome :destroyer :army :attacker)))
 
     (it "shows carrier destroyed when carrier is loser"
-      (should= "Carrier destroyed."
+      (should= "Combat. Carrier destroyed."
                (combat/format-combat-outcome :submarine :carrier :attacker))))
 
   (context "fight-round"

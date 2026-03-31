@@ -78,7 +78,7 @@ WHEN the player presses d and wins the battle.
 
 THEN there is no A on the map.
 THEN there is no d on the map.
-THEN the error message contains "That army drowned."
+THEN the error message contains "Army drowned."
 
 ;===============================================================
 ; Computer map updated when player conquers computer city.

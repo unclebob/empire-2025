@@ -44,7 +44,7 @@ WHEN the player presses d and loses the battle.
 
 THEN at the next round s remains unmoved.
 and there is no B on the map.
-and the error message contains "destroyed."
+and the error message contains "Combat."
 
 ;===============================================================
 ; Battleship blocked by land.

@@ -9,7 +9,7 @@
    :fighter-shot-down "Incoming anti-aircraft fire!"
    :fighter-destroyed-by-city "Fighter destroyed by city defenses."
    :fighter-crashed "Fighter crashed."
-   :army-drowned "That army drowned."
+   :army-drowned "Army drowned."
    :failed-to-conquer "Failed to conquer city."
    :conquest-failed "Conquest Failed"
    :cant-move-into-water "Can't move into water."

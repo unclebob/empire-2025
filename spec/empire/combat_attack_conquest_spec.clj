@@ -119,20 +119,20 @@
       (test-utils/set-test-state! :warning-message "")
       (with-redefs [rand (constantly 0.4)]
         (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
-        (should= "Battle: a-1. Army destroyed. Damage: Destroyer lost 0, Army lost 1."
+        (should= "Combat. Army destroyed."
                  (test-utils/read-test-state :warning-message))))
 
-    (it "displays combat log when attacker loses"
+    (it "displays combat outcome when attacker loses"
       (set-test-world! (build-test-map ["Ad"]))
       (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
       (test-utils/set-test-state! :warning-message "")
       (with-redefs [rand (constantly 0.6)]
         (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
-        (should= "Battle: A-1. Army destroyed. Damage: Army lost 1, Destroyer lost 0."
+        (should= "Combat. Army destroyed."
                  (test-utils/read-test-state :warning-message))))
 
-    (it "displays combat log with multiple exchanges"
+    (it "displays combat outcome with multiple exchanges"
       (set-test-world! (build-test-map ["Dd"]))
       (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
@@ -141,10 +141,10 @@
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
-          (should= "Battle: d-1,D-1,d-1,d-1. Destroyer destroyed. Damage: Destroyer lost 1, Destroyer lost 3."
+          (should= "Combat. Destroyer destroyed."
                    (test-utils/read-test-state :warning-message)))))
 
-    (it "displays combat log for submarine vs carrier"
+    (it "displays combat outcome for submarine vs carrier"
       (set-test-world! (build-test-map ["Sc"]))
       (set-test-unit (test-utils/game-map-atom) "S" :hits 2)
       (set-test-unit (test-utils/game-map-atom) "c" :hits 8)
@@ -153,10 +153,10 @@
       (let [rolls (atom [0.6 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
-          (should= "Battle: S-1,S-1. Submarine destroyed. Damage: Submarine lost 2, Carrier lost 0."
+          (should= "Combat. Submarine destroyed."
                    (test-utils/read-test-state :warning-message)))))
 
-    (it "displays combat log for submarine defeating carrier"
+    (it "displays combat outcome for submarine defeating carrier"
       (set-test-world! (build-test-map ["Sc"]))
       (set-test-unit (test-utils/game-map-atom) "S" :hits 2)
       (set-test-unit (test-utils/game-map-atom) "c" :hits 8)
@@ -165,7 +165,7 @@
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
-          (should= "Battle: c-3,S-1,c-3,c-3. Carrier destroyed. Damage: Submarine lost 1, Carrier lost 9."
+          (should= "Combat. Carrier destroyed."
                    (test-utils/read-test-state :warning-message)))))
 
     (it "coastal army attack removes both units when the army wins"
@@ -179,7 +179,7 @@
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))
         (should-be-nil (get-in (test-utils/read-test-state :player-map) [0 0 :contents]))
-        (should-contain "That army drowned." (test-utils/read-test-state :warning-message))))
+        (should-contain "Army drowned." (test-utils/read-test-state :warning-message))))
 
     (it "coastal army attack leaves the ship when the army loses"
       (set-test-world! (build-test-map ["Ad"]))
@@ -190,7 +190,7 @@
         (combat/apply-combat-result! (combat/attempt-coastal-army-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should= :destroyer (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))
-        (should-contain "That army drowned." (test-utils/read-test-state :warning-message)))))
+        (should-contain "Army drowned." (test-utils/read-test-state :warning-message)))))
 
   (context "attempt-conquest"
     (it "removes army from original cell on success"
