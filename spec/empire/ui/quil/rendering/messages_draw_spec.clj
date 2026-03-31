@@ -95,4 +95,42 @@
                     q/text (fn [& args] (swap! calls conj [:text args]))]
         (messages-render/draw-message-area)
         (should-contain [:fill [255 215 64]] @calls)
-        (should-contain [:text ["City needs attention" 14 120]] @calls)))))
+        (should-contain [:text ["City needs attention" 14 120]] @calls))))
+
+  (it "draws warning zone with warning message in red"
+    (let [calls (atom [])]
+      (sa/write-state! :text-area-dimensions [0 100 300 80])
+      (sa/write-state! :text-font :fake-font)
+      (sa/write-state! :warning-message "Can't move into water.")
+      (with-redefs [q/no-stroke (fn [& _] nil)
+                    q/rect (fn [& _] nil)
+                    q/stroke (fn [& _] nil)
+                    q/line (fn [& _] nil)
+                    q/text-font (fn [& _] nil)
+                    q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/text-width (fn [text] (* 8 (count text)))
+                    q/mouse-x (fn [] 0)
+                    q/mouse-y (fn [] 0)
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (messages-render/draw-message-area)
+        (should-contain [:fill [255 80 80]] @calls)
+        (should-contain [:text ["Can't move into water." 14 146]] @calls))))
+
+  (it "draws command zone with command message in light blue"
+    (let [calls (atom [])]
+      (sa/write-state! :text-area-dimensions [0 100 300 80])
+      (sa/write-state! :text-font :fake-font)
+      (sa/write-state! :command-message "Marching orders set to 5,12")
+      (with-redefs [q/no-stroke (fn [& _] nil)
+                    q/rect (fn [& _] nil)
+                    q/stroke (fn [& _] nil)
+                    q/line (fn [& _] nil)
+                    q/text-font (fn [& _] nil)
+                    q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/text-width (fn [text] (* 8 (count text)))
+                    q/mouse-x (fn [] 0)
+                    q/mouse-y (fn [] 0)
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (messages-render/draw-message-area)
+        (should-contain [:fill [235 245 255]] @calls)
+        (should-contain [:text ["Marching orders set to 5,12" 14 172]] @calls)))))

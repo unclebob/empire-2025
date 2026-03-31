@@ -9,7 +9,6 @@
 (def ^:private attention-color [255 215 64])
 (def ^:private warning-color [255 80 80])
 (def ^:private command-color [235 245 255])
-(def ^:private command-color-opacity 0.7)
 (def ^:private status-color [190 198 208])
 (def ^:private inspector-color [190 198 208])
 (def ^:private hud-tooltip-background [245 239 200])
