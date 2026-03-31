@@ -16,6 +16,8 @@
    :hover-cell nil
    :error-message ""
    :error-until 0
+   :warning-message ""
+   :command-message ""
    :production-status ""
    :debug-drag-start nil
    :debug-drag-current nil
