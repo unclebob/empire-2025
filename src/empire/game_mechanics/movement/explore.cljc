@@ -84,7 +84,7 @@
       (do
         (update-game-map! assoc-in coords
                           (assoc cell :contents (-> unit
-                                                    (assoc :mode :awake)
+                                                    (assoc :mode :awake :reason :steps-exhausted)
                                                     (dissoc :explore-steps :visited))))
         nil)
       ;; Try to move (return nil to limit to one step per round)
@@ -106,7 +106,7 @@
         (do
           (update-game-map! assoc-in coords
                             (assoc cell :contents (-> unit
-                                                      (assoc :mode :awake)
+                                                      (assoc :mode :awake :reason :steps-exhausted)
                                                       (dissoc :explore-steps :visited))))
           nil)))))
 
