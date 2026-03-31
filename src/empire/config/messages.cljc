@@ -25,7 +25,7 @@
    :returned-to-start "Returned to start."
    :hit-edge "Hit map edge."
    :blocked "Blocked."
-   :steps-exhausted "Lookaround limit reached."
+   :steps-exhausted "Done looking around."
    :not-near-coast "Not near coast."
    :skipping-this-round "Skipping this round."
    :marching-orders-set "Marching orders set to %d,%d"
