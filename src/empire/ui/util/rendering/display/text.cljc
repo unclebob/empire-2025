@@ -8,59 +8,6 @@
 (def ^:private status-center-max 18)
 (def ^:private status-right-max 24)
 
-(defn should-show-error?
-  "Returns true if the error message should be shown."
-  [error-until]
-  (< (System/currentTimeMillis) error-until))
-
-(defn resolve-banner
-  "Resolves the highest-priority banner message for the HUD."
-  [error-message error-until attention-message turn-message]
-  (cond
-    (and (should-show-error? error-until) (seq error-message))
-    {:kind :error :text error-message}
-
-    (seq attention-message)
-    {:kind :attention :text attention-message}
-
-    (seq turn-message)
-    {:kind :result :text turn-message}
-
-    :else
-    {:kind :empty :text nil}))
-
-(defn- active-banners
-  [error-message error-until attention-message turn-message]
-  (remove nil?
-          [(when (and (should-show-error? error-until) (seq error-message))
-             {:kind :error :text error-message})
-           (when (seq attention-message)
-             {:kind :attention :text attention-message})
-           (when (seq turn-message)
-             {:kind :result :text turn-message})]))
-
-(defn resolve-banner-pair
-  "Resolves the primary and secondary banner messages for the HUD."
-  [error-message error-until attention-message turn-message]
-  (let [[primary secondary] (active-banners error-message error-until attention-message turn-message)]
-    {:primary (or primary {:kind :empty :text nil})
-     :secondary (when (and secondary
-                           (not= (:text primary) (:text secondary)))
-                  secondary)}))
-
-(defn resolve-banner-list
-  "Resolves up to three active banner messages in priority order."
-  [error-message error-until attention-message turn-message]
-  (->> [(when (and (should-show-error? error-until) (seq error-message))
-          {:kind :error :text error-message})
-        (when (seq attention-message)
-          {:kind :attention :text attention-message})
-        (when (seq turn-message)
-          {:kind :result :text turn-message})]
-       (remove nil?)
-       (distinct)
-       (take 3)))
-
 (defn- map-display-label
   [map-to-display]
   ({:player-map nil
@@ -149,31 +96,6 @@
   (let [{:keys [summary detail]} (fmt/split-hover-status hover-message)]
     {:summary (ellipsize summary inspector-summary-max)
      :detail (ellipsize detail inspector-detail-max)}))
-
-(defn resolve-turn-text
-  "Returns the turn text to display, falling back to destination."
-  [turn-message destination]
-  (cond
-    (seq turn-message) turn-message
-    destination (format (:destination config/messages) (first destination) (second destination))
-    :else nil))
-
-(defn resolve-round-status-text
-  "Returns the round status text with optional PAUSED prefix."
-  [round-number paused pause-requested]
-  (let [round-str (str "Round: " round-number)]
-    (if (fmt/should-show-paused? paused pause-requested)
-      {:text (str "PAUSED  " round-str) :paused? true :round-str round-str}
-      {:text round-str :paused? false})))
-
-(defn resolve-center-lines
-  "Returns up to three center-region lines.
-   Always derived from debug-message text."
-  [_map-to-display _major-invasion-state _round-number debug-message]
-  (->> (str/split (or debug-message "") #"\n")
-       (take 3)
-       (filter seq)
-       vec))
 
 (defn resolve-attention-zone
   "Returns the attention zone text, or nil if empty."

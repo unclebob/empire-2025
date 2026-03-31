@@ -61,7 +61,6 @@
 (def key->production-item keys/key->production-item)
 
 ;; --- messages re-exports ---
-(def error-message-duration msg/error-message-duration)
 (def messages msg/messages)
 
 ;; --- facade-owned defs (depend on units-config/ships) ---

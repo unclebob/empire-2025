@@ -116,10 +116,10 @@
     (update-game-map! assoc-in from-coords updated-origin)
     (update-game-map! assoc-in city-coords updated-city)
     (visibility/update-cell-visibility city-coords (:owner unit))
-    (write-runtime-state! :turn-message (format (:docked-for-repair config/messages)
-                                                type-name
-                                                current-hits
-                                                max-hits))
+    (write-runtime-state! :command-message (format (:docked-for-repair config/messages)
+                                                   type-name
+                                                   current-hits
+                                                   max-hits))
     (decisions/movement-result :docked city-coords)))
 
 (defn- woke-and-blocked? [woke? woken-unit]

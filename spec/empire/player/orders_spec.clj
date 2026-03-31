@@ -50,7 +50,7 @@
     (set-test-world! (build-test-map ["O~"
                                             "~~"]))
     (orders/set-city-lookaround [0 0])
-    (should= "Marching orders set to lookaround" (test-utils/read-test-state :turn-message)))
+    (should= "Marching orders set to lookaround" (test-utils/read-test-state :command-message)))
 
   (it "returns nil for a computer city"
     (set-test-world! (build-test-map ["X~"
@@ -123,7 +123,7 @@
                                             "~~"]))
     (test-utils/set-test-state! :destination [5 10])
     (orders/set-marching-orders-at [0 0])
-    (should= "Marching orders set to 5,10" (test-utils/read-test-state :turn-message)))
+    (should= "Marching orders set to 5,10" (test-utils/read-test-state :command-message)))
 
   (it "sets marching orders on a player transport when destination exists"
     (set-test-world! (build-test-map ["~T"
@@ -176,7 +176,7 @@
                                             "~~"]))
     (test-utils/set-test-state! :destination [8 12])
     (orders/set-flight-path-at [0 0])
-    (should= "Flight path set to 1,1" (test-utils/read-test-state :turn-message)))
+    (should= "Flight path set to 1,1" (test-utils/read-test-state :command-message)))
 
   (it "sets flight path on a player carrier when destination exists"
     (set-test-world! (build-test-map ["~C"
@@ -249,13 +249,13 @@
     (set-test-world! (build-test-map ["#~"
                                             "~~"]))
     (orders/set-waypoint-at [0 0])
-    (should= "Waypoint placed at 0,0" (test-utils/read-test-state :turn-message)))
+    (should= "Waypoint placed at 0,0" (test-utils/read-test-state :command-message)))
 
   (it "toggles waypoint off and sets removed message"
     (set-test-world! (build-test-map ["*~"
                                             "~~"]))
     (orders/set-waypoint-at [0 0])
-    (should= "Waypoint removed from 0,0" (test-utils/read-test-state :turn-message))
+    (should= "Waypoint removed from 0,0" (test-utils/read-test-state :command-message))
     (should-not (:waypoint (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
   (it "returns nil when create-waypoint fails"
@@ -300,7 +300,7 @@
                                             "~~~"
                                             "~~~"]))
     (orders/set-city-marching-orders-by-direction-at [0 0] :d)
-    (should= "Marching orders set to 2,0" (test-utils/read-test-state :turn-message)))
+    (should= "Marching orders set to 2,0" (test-utils/read-test-state :command-message)))
 
   (it "returns nil for a non-player city"
     (set-test-world! (build-test-map ["X~~"

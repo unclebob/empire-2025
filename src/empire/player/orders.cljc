@@ -7,12 +7,9 @@
             [empire.config.core :as config]
             [empire.player.orders-decisions :as decisions]))
 
-(defn- set-turn-message!
-  [msg ms]
-  (let [{:keys [turn-message turn-message-until]}
-        (decisions/turn-message-state msg ms (System/currentTimeMillis))]
-    (sa/write-state! :turn-message turn-message)
-    (sa/write-state! :turn-message-until turn-message-until)))
+(defn- set-command-message!
+  [msg]
+  (sa/write-state! :command-message msg))
 
 (defn add-unit-at [coords unit-type owner]
   (movement-state/add-unit-at coords unit-type owner))
@@ -43,7 +40,7 @@
   (let [cell (get-in (sa/current-world) [cx cy])]
     (when-let [decision (decisions/city-lookaround-action cell)]
       (sa/update-world! assoc-in [cx cy :marching-orders] :lookaround)
-      (set-turn-message! (:message decision) 2000)
+      (set-command-message! (:message decision))
       true)))
 
 (defn set-destination-at
@@ -56,7 +53,7 @@
   "Clears the destination."
   []
   (sa/write-state! :destination nil)
-  (set-turn-message! "Destination cleared" 2000)
+  (set-command-message! "Destination cleared")
   true)
 
 (defn- apply-marching-orders [path dest]
@@ -65,7 +62,7 @@
     (sa/update-world! assoc-in path dest)
     (when clear-destination?
       (sa/write-state! :destination nil))
-    (set-turn-message! message 2000))
+    (set-command-message! message))
   true)
 
 (defn set-marching-orders-at
@@ -87,7 +84,7 @@
       (when (and (= :city (:type cell)) (= :player (:city-status cell))
                  (:marching-orders cell))
         (sa/update-world! update-in [cx cy] dissoc :marching-orders)
-        (set-turn-message! "Marching orders cleared" 2000)
+        (set-command-message! "Marching orders cleared")
         true))))
 
 (defn set-flight-path-at
@@ -103,14 +100,14 @@
           (sa/update-world! assoc-in path dest)
           (when clear-destination?
             (sa/write-state! :destination nil))
-          (set-turn-message! message 2000))
+          (set-command-message! message))
         true))
     (let [cell (get-in (sa/current-world) [cx cy])]
       (when (and (or (and (= :city (:type cell)) (= :player (:city-status cell)))
                      (and (= :carrier (:type (:contents cell))) (= :player (:owner (:contents cell)))))
                  (:flight-path cell))
         (sa/update-world! update-in [cx cy] dissoc :flight-path)
-        (set-turn-message! "Flight path cleared" 2000)
+        (set-command-message! "Flight path cleared")
         true))))
 
 (defn set-waypoint-at
@@ -118,7 +115,7 @@
   [[cx cy]]
   (when (waypoint/create-waypoint [cx cy])
     (let [cell (get-in (sa/current-world) [cx cy])]
-      (set-turn-message! (decisions/waypoint-message [cx cy] cell) 2000))
+      (set-command-message! (decisions/waypoint-message [cx cy] cell)))
     true))
 
 (defn set-city-marching-orders-by-direction-at
@@ -131,7 +128,7 @@
         :set-marching-orders
         (let [target (:dest decision)]
           (sa/update-world! assoc-in [cx cy :marching-orders] target)
-          (set-turn-message! (str "Marching orders set to " (first target) "," (second target)) 2000)
+          (set-command-message! (str "Marching orders set to " (first target) "," (second target)))
           true)
 
         :set-waypoint-orders-by-direction

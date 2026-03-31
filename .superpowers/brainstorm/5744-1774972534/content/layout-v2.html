@@ -1,0 +1,54 @@
+<h2>Refined Layout</h2>
+<p class="subtitle">Top-left: Attention (action required). Below it: Warning/result (what happened). Top-right: Status + Inspector.</p>
+
+<div class="mockup">
+  <div class="mockup-header">HUD &mdash; 1100 x 80px</div>
+  <div class="mockup-body" style="background:#0e1216; padding:0; font-family:'Courier New',monospace; color:#ccc;">
+    <div style="display:grid; grid-template-columns:55% 45%; grid-template-rows:1fr 1fr; height:72px; gap:0;">
+      <!-- Top-left: Attention -->
+      <div style="border-right:1px solid #363c42; border-bottom:1px solid #242a30; padding:4px 10px; display:flex; align-items:center;">
+        <span style="color:#ffd740; font-size:13px;">&#9658; Fighter needs attention - Bingo! Refuel?</span>
+      </div>
+      <!-- Top-right: Game status -->
+      <div style="border-bottom:1px solid #242a30; padding:4px 10px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="color:#bec6d0; font-size:12px;">Round 47</span>
+        <span style="color:#ff6666; font-size:12px;">PAUSED</span>
+        <span style="color:#90ee90; font-size:12px;">45%</span>
+        <span style="color:#778; font-size:10px;">A:5 F:3 T:2 D:1 S:0</span>
+      </div>
+      <!-- Bottom-left: Warning / command result -->
+      <div style="border-right:1px solid #363c42; padding:4px 10px; display:flex; align-items:center;">
+        <span style="color:#ff5050; font-size:12px;">&#9888; Can't move into water</span>
+      </div>
+      <!-- Bottom-right: Inspector / hover -->
+      <div style="padding:4px 10px; display:flex; align-items:center;">
+        <span style="color:#a0a6ae; font-size:11px;">[23,15] Destroyer 3/3 sentry</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">Open questions</h3>
+<div class="options">
+  <div class="option" data-choice="command-in-warning" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Command feedback shares the warning zone</h3>
+      <p>"Marching orders set to 45,12" and "S-1,D-2. Sub destroyed." both appear in the bottom-left zone. Warnings flash + bonk; command results just appear quietly.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="command-own-zone" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Command feedback gets its own line</h3>
+      <p>Add a third row (or subdivide bottom-left) so commands like "Waypoint placed" don't compete with warnings. Costs vertical space.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="command-in-attention" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Command feedback replaces attention when no attention pending</h3>
+      <p>When there's nothing needing attention, the top-left zone shows the last command result instead. Attention always takes priority when present.</p>
+    </div>
+  </div>
+</div>

@@ -45,7 +45,7 @@
       (setup-unit-attention [1 1])
       (commands/handle-key :t)
       (should-not (get (test-utils/read-test-state :production) [1 1]))
-      (should-contain "coastal" (test-utils/read-test-state :error-message)))
+      (should-contain "coastal" (test-utils/read-test-state :warning-message)))
 
     (it "allows naval production on coastal city"
       (set-test-world! (build-test-map ["~##"

@@ -8,7 +8,7 @@
 (describe "movement-resolution"
   (before
     (reset-all-atoms!)
-    (test-utils/set-test-state! :turn-message ""))
+    (test-utils/set-test-state! :command-message ""))
 
   (it "sidesteps around a friendly city for army movement"
     (set-test-world! (build-test-map ["AO#" "###"]))

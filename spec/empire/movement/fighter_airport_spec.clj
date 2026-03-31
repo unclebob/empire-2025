@@ -15,7 +15,7 @@
           city-coords (:pos (get-test-city (test-utils/game-map-atom) "X"))]
       (set-test-unit (test-utils/game-map-atom) "F" :mode :moving :target city-coords :fuel 10 :steps-remaining 1 :hits 1)
       (set-test-player-map! (make-initial-test-map 1 3 nil))
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (let [cell (get-in (test-utils/read-test-state :game-map) fighter-coords)
             unit (:contents cell)
             result (wake/wake-after-move unit fighter-coords city-coords (test-utils/game-map-atom))]

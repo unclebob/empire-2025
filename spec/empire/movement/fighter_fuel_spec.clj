@@ -58,12 +58,12 @@
           city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (set-test-unit (test-utils/game-map-atom) "F" :mode :moving :target city-coords :fuel 10 :steps-remaining 1)
       (set-test-player-map! (make-initial-test-map 1 3 nil))
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (game-loop/move-current-unit fighter-coords)
       (let [city-cell (get-in (test-utils/read-test-state :game-map) city-coords)]
         (should= 1 (:fighter-count city-cell))
         (should= 0 (:awake-fighters city-cell 0)))
-      (should= "" (test-utils/read-test-state :error-message))))
+      (should= "" (test-utils/read-test-state :warning-message))))
 
   (it "fighter wakes before flying over free city"
     (set-test-world! (build-test-map ["F+#"]))

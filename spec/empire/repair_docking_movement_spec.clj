@@ -62,22 +62,22 @@
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :command-message "")
       (tu/set-test-unit (test-utils/game-map-atom) "D" :hits 2 :mode :moving :target [1 1])
       (movement/move-unit [1 0] [1 1]
                           (get-in (test-utils/read-test-state :game-map) [1 0])
                           (test-utils/game-map-atom))
-      (should= "Destroyer docked for repair. 2/3 hits remain." (test-utils/read-test-state :turn-message))))
+      (should= "Destroyer docked for repair. 2/3 hits remain." (test-utils/read-test-state :command-message))))
 
   (it "displays dock message for battleship"
     (let [game-map (tu/build-test-map ["~B~"
                                        "~O~"
                                        "~~~"])]
       (tu/set-test-world! game-map)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :command-message "")
       (tu/set-test-unit (test-utils/game-map-atom) "B" :hits 5 :mode :moving :target [1 1])
       (movement/move-unit [1 0] [1 1]
                           (get-in (test-utils/read-test-state :game-map) [1 0])
                           (test-utils/game-map-atom))
-      (should= "Battleship docked for repair. 5/10 hits remain." (test-utils/read-test-state :turn-message)))))
+      (should= "Battleship docked for repair. 5/10 hits remain." (test-utils/read-test-state :command-message)))))
 (run-specs)

@@ -7,14 +7,14 @@
     (let [calls (atom [])]
       (with-redefs [empire.game-mechanics.movement.map-utils/on-coast? (fn [& _] false)
                     empire.config.units.dispatcher/naval-units (fn [item] (= item :destroyer))
-                    empire.ui.util.input.actions.helpers/set-error-message! (fn [msg duration]
-                                                                              (swap! calls conj [:error msg duration]))
+                    empire.ui.util.input.actions.helpers/set-warning-message! (fn [msg]
+                                                                               (swap! calls conj [:error msg]))
                     empire.player.production/set-city-production (fn [& args] (swap! calls conj [:set args]))
                     empire.ui.util.input.actions.helpers/item-processed! (fn [] (swap! calls conj :processed))]
         (should (production/handle-city-production-decision {:action :set-production :item :destroyer}
                                                             [2 2]
                                                             {:type :city :city-status :player}))
-        (should= [[:error "Must be coastal city to produce destroyer." empire.config.core/error-message-duration]]
+        (should= [[:error "Must be coastal city to produce destroyer."]]
                  @calls))))
 
   (it "sets production and marks the item processed for allowed units"

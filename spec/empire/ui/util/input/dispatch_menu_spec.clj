@@ -19,7 +19,7 @@
     (test-utils/set-test-state! :map-screen-dimensions [0 0])
     (with-redefs [save-load/save-game! (fn [_] "auto-save.edn")]
       (dispatch/dispatch-key (keyword "!") nil)
-      (should (string/includes? (test-utils/read-test-state :turn-message) "auto-save.edn"))))
+      (should (string/includes? (test-utils/read-test-state :command-message) "auto-save.edn"))))
 
   (it "^ key opens load menu"
     (dispatch/dispatch-key (keyword "^") nil)
@@ -67,7 +67,7 @@
                                               "named-save.edn")]
       (dispatch/dispatch-key :enter nil)
       (should= false (test-utils/read-test-state :save-menu-open))
-      (should (string/includes? (test-utils/read-test-state :turn-message) "named-save.edn"))))
+      (should (string/includes? (test-utils/read-test-state :command-message) "named-save.edn"))))
 
   (it "newline saves and shows confirmation"
     (with-redefs [save-load/save-from-menu! (fn []
@@ -75,7 +75,7 @@
                                               "named-save.edn")]
       (dispatch/dispatch-key :newline nil)
       (should= false (test-utils/read-test-state :save-menu-open))
-      (should (string/includes? (test-utils/read-test-state :turn-message) "named-save.edn")))))
+      (should (string/includes? (test-utils/read-test-state :command-message) "named-save.edn")))))
 
 (describe "save menu default input behavior"
   (around [it]

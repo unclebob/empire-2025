@@ -95,7 +95,7 @@
       (set-test-world! @game-map)
       (let [unit {:type :fighter :mode :moving :owner :player :target [1 0] :fuel 10}]
         (wake-after-move unit [0 0] [1 0] game-map)
-        (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :error-message)))))
+        (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :warning-message)))))
 
   (it "wakes fighter at bingo fuel near friendly city"
     (let [game-map (atom (build-test-map ["O####"]))]

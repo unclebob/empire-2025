@@ -53,7 +53,7 @@
                                                                  "debug-dump.txt")]
       (dispatch/debug-drag-end! 20 30 {:ctrl true})
       (should= "Debug: debug-dump.txt" (test-utils/read-test-state :debug-message))
-      (should= "Debug log written: debug-dump.txt" (test-utils/read-test-state :turn-message)))
+      (should= "Debug log written: debug-dump.txt" (test-utils/read-test-state :command-message)))
     (should-be-nil (test-utils/read-test-state :debug-drag-start))
     (should-be-nil (test-utils/read-test-state :debug-drag-current)))
 

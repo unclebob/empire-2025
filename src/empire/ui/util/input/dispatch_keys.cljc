@@ -65,9 +65,8 @@
   [k]
   (cond
     (= k :escape) (do (save-load/close-save-menu!) true)
-    (enter-key? k) (do (sa/write-state! :turn-message
+    (enter-key? k) (do (sa/write-state! :command-message
                                         (str "Saved to " (save-load/save-from-menu!)))
-                       (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
                        true)
     :else (do
             (clear-default-save-input!)
@@ -113,9 +112,8 @@
     (= k bang-key) (do
                      (if (save-dialog-available?)
                        (save-load/open-save-menu!)
-                       (sa/write-state! :turn-message
+                       (sa/write-state! :command-message
                                         (str "Saved to " (save-load/save-game! "saves"))))
-                     (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 3000))
                      true)
     (= k caret-key) (do (save-load/open-load-menu!) true)))
 

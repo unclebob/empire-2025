@@ -79,7 +79,7 @@
   (it "shoots down fighter when flying over free city"
     (set-test-world! (build-test-map ["F+"]))
     (set-test-unit (test-utils/game-map-atom) "F" :mode :awake)
-    (test-utils/set-test-state! :error-message "")
+    (test-utils/set-test-state! :warning-message "")
     (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
     (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
     (let [fighter (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
@@ -87,12 +87,12 @@
       (should= 0 (:steps-remaining fighter))
       (should= :awake (:mode fighter))
       (should= :fighter-shot-down (:reason fighter)))
-    (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :error-message)))
+    (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :warning-message)))
 
   (it "shoots down fighter when flying over computer city"
     (set-test-world! (build-test-map ["FX"]))
     (set-test-unit (test-utils/game-map-atom) "F" :mode :awake)
-    (test-utils/set-test-state! :error-message "")
+    (test-utils/set-test-state! :warning-message "")
     (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
     (should= nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
     (let [fighter (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
@@ -100,7 +100,7 @@
       (should= 0 (:steps-remaining fighter))
       (should= :awake (:mode fighter))
       (should= :fighter-shot-down (:reason fighter)))
-    (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :error-message))))
+    (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :warning-message))))
 
 (describe "sentry mode"
   (before (reset-all-atoms!))

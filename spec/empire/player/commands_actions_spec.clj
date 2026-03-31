@@ -94,7 +94,7 @@
       (set-test-unit (test-utils/game-map-atom) "D" :mode :awake :hits (dispatcher/hits :destroyer))
       (setup-unit-attention [0 0])
       (commands/handle-key :d)
-      (should-contain "not damaged" (test-utils/read-test-state :error-message)))
+      (should-contain "not damaged" (test-utils/read-test-state :warning-message)))
 
     (it "allows damaged destroyer to enter player city (sets movement)"
       (set-test-world! (build-test-map ["DO"]))

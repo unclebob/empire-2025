@@ -2,31 +2,8 @@
   (:require [empire.test.utils :as test-utils]
             [speclj.core :refer :all]
             [empire.state.api :as sa]
-            [empire.config.core :as config]
-            [empire.config.domain.core.messages :as messages]
             [empire.config.domain.core.refueling :as refueling]
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-computer-map! set-test-world!]]))
-
-(describe "set-error-message"
-  (before (reset-all-atoms!))
-
-  (it "sets the error message text"
-    (sa/write-state! :error-message "test error")
-    (sa/write-state! :error-until (messages/expires-at (System/currentTimeMillis) config/error-message-duration))
-    (should= "test error" (test-utils/read-test-state :error-message)))
-
-  (it "sets error-until to a future timestamp"
-    (let [before (System/currentTimeMillis)]
-      (sa/write-state! :error-message "test error")
-      (sa/write-state! :error-until (messages/expires-at (System/currentTimeMillis) config/error-message-duration))
-      (should (>= (test-utils/read-test-state :error-until) (+ before config/error-message-duration)))))
-
-  (it "error expires after the specified duration"
-    (sa/write-state! :error-message "vanishing error")
-    (sa/write-state! :error-until (messages/expires-at (System/currentTimeMillis) 50))
-    (should (< (System/currentTimeMillis) (test-utils/read-test-state :error-until)))
-    (Thread/sleep 60)
-    (should (>= (System/currentTimeMillis) (test-utils/read-test-state :error-until)))))
 
 (describe "computer-city-cell?"
   (it "returns true for computer city"

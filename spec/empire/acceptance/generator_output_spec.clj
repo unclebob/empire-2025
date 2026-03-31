@@ -103,7 +103,7 @@
 
   (it "generates message-contains with turn area"
     (let [result (gen/generate-then {:type :message-contains :area :turn :text "Destroyer destroyed"} [])]
-      (should-contain "(h/read-state :turn-message)" result)))
+      (should-contain "(h/read-state :command-message)" result)))
 
   (it "generates message-contains with :at-next-round and timeout check"
     (let [result (gen/generate-then {:type :message-contains :area :attention :config-key :cant-move-into-city :at-next-round true} [])]
@@ -134,29 +134,29 @@
     (let [result (gen/generate-then {:type :message-is :area :turn :config-key :hit-edge} [])]
       (should-contain "should=" result)
       (should-contain ":hit-edge" result)
-      (should-contain "(h/read-state :turn-message)" result)))
+      (should-contain "(h/read-state :command-message)" result)))
 
   (it "generates message-is with format and no args"
     (let [result (gen/generate-then {:type :message-is
                                      :area :error
                                      :format {:key :fighter-bingo :args []}} [])]
       (should-contain "(format (:fighter-bingo config/messages)" result)
-      (should-contain "(h/read-state :error-message)" result)))
+      (should-contain "(h/read-state :warning-message)" result)))
 
   (it "generates message-is with format and args"
     (let [result (gen/generate-then {:type :message-is
                                      :area :error
                                      :format {:key :coastal-city-required :args ["transport"]}} [])]
       (should-contain "(format (:coastal-city-required config/messages) \"transport\")" result)
-      (should-contain "(h/read-state :error-message)" result)))
+      (should-contain "(h/read-state :warning-message)" result)))
 
   (it "generates no-message assertion for turn area"
     (let [result (gen/generate-then {:type :no-message :area :turn} [])]
-      (should-contain "(should= \"\" (h/read-state :turn-message))" result)))
+      (should-contain "(should= \"\" (h/read-state :command-message))" result)))
 
   (it "generates no-message assertion for error area"
     (let [result (gen/generate-then {:type :no-message :area :error} [])]
-      (should-contain "(should= \"\" (h/read-state :error-message))" result)))
+      (should-contain "(should= \"\" (h/read-state :warning-message))" result)))
 
   (it "generates message-for-unit assertion for turn area"
     (let [result (gen/generate-then {:type :message-for-unit
@@ -164,7 +164,7 @@
                                      :unit "F"
                                      :config-key :fighter-bingo} [])]
       (should-contain "loop [n 100]" result)
-      (should-contain "(h/read-state :turn-message)" result)))
+      (should-contain "(h/read-state :command-message)" result)))
 
   (it "generates cell-prop then"
     (let [result (gen/generate-then {:type :cell-prop :coords [1 0] :property :city-status :expected :player} [])]

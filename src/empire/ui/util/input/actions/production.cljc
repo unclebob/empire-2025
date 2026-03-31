@@ -13,7 +13,7 @@
         coastal? (map-utils/on-coast? x y)
         naval? (dispatcher/naval-units item)]
     (if (and naval? (not coastal?))
-        (helpers/set-error-message! (format "Must be coastal city to produce %s." (name item)) config/error-message-duration)
+        (helpers/set-warning-message! (format "Must be coastal city to produce %s." (name item)))
       (do
         (player-production/set-city-production coords item)
         (helpers/item-processed!)))

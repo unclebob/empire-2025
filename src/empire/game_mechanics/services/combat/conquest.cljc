@@ -122,8 +122,7 @@
 (defn- city-elimination-game-over-updates
   [message]
   {:paused true
-   :error-message message
-   :error-until Long/MAX_VALUE
+   :warning-message message
    :map-to-display :actual-map
    :player-items []
    :computer-items []})
@@ -140,9 +139,7 @@
                           captured-computer-city?
                           (not (has-city? new-world :computer)))]
         {:world new-world
-         :messages (merge {:error-message ""
-                           :error-until 0}
-                          (resolution/turn-message-map "City conquered." 2000))
+         :messages (resolution/command-message-map "City conquered.")
          :state-updates (cond-> {:production #(dissoc % city-coords)
                                  :computer-carrier-positions #(disj % city-coords)
                                  :computer-map #(assoc-in % (conj city-coords :city-status) :player)}
@@ -154,9 +151,7 @@
          :visibility [{:pos city-coords :owner :player}]
          :combatant true})
       {:world world
-       :messages (merge {:error-message ""
-                         :error-until 0}
-                        (resolution/turn-message-map (:conquest-failed config/messages) 2000))
+       :messages (resolution/warning-message-map (:conquest-failed config/messages))
        :combatant true})))
 
 (defn attempt-conquest
@@ -174,7 +169,7 @@
         shot-down-fighter (assoc fighter :mode :awake :hits 0 :steps-remaining 0 :reason :fighter-shot-down)
         new-world (domain-combat/apply-fighter-overfly-world world fighter-coords city-coords shot-down-fighter)]
     {:world new-world
-     :messages (resolution/error-message-map (:fighter-destroyed-by-city config/messages) config/error-message-duration)
+     :messages (resolution/warning-message-map (:fighter-destroyed-by-city config/messages))
      :combatant true}))
 
 (defn hostile-unit?
@@ -218,7 +213,7 @@
                           (resolution/drown-excess-cargo-world target-coords (:survivor result))
                           (clear-escort-on-death-world dead-unit))]
         {:world new-world
-         :messages (resolution/turn-message-map message Long/MAX_VALUE)
+         :messages (resolution/warning-message-map message)
          :visibility (combat-visibility-effects attacker-coords target-coords attacker defender)
          :winner (:winner result)
          :combatant true}))))
@@ -232,13 +227,13 @@
                           (:world result))
           visibility [{:pos army-coords :owner :player}
                       {:pos target-coords :owner :player}]
-          drowned-message (str (get-in result [:messages :turn-message])
+          drowned-message (str (get-in result [:messages :warning-message])
                                " "
                                (:army-drowned config/messages))]
       (assoc result
              :world updated-world
              :visibility visibility
-             :messages (resolution/turn-message-map drowned-message Long/MAX_VALUE)))))
+             :messages (resolution/warning-message-map drowned-message)))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T11:49:45.486828-05:00", :module-hash "1315548920", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "309402068"} {:id "defn/dead-escort-destroyer?", :kind "defn", :line 7, :end-line 10, :hash "737415372"} {:id "defn/dead-escort-transport?", :kind "defn", :line 12, :end-line 15, :hash "1031563454"} {:id "defn-/find-units-where", :kind "defn-", :line 17, :end-line 23, :hash "-81025216"} {:id "defn-/clear-dead-escort-from-carrier", :kind "defn-", :line 25, :end-line 37, :hash "-733742303"} {:id "defn-/release-carrier-escorts", :kind "defn-", :line 39, :end-line 47, :hash "1253875709"} {:id "defn-/clear-carrier-group-on-death", :kind "defn-", :line 49, :end-line 60, :hash "-1988931291"} {:id "defn-/clear-destroyer-escort", :kind "defn-", :line 62, :end-line 70, :hash "-898033435"} {:id "defn-/clear-transport-escort", :kind "defn-", :line 72, :end-line 82, :hash "196027487"} {:id "defn/clear-escort-on-death-world", :kind "defn", :line 84, :end-line 90, :hash "752680484"} {:id "defn/clear-escort-on-death", :kind "defn", :line 92, :end-line 95, :hash "-2078012011"} {:id "defn/conquer-city-contents-pure", :kind "defn", :line 97, :end-line 100, :hash "1854750815"} {:id "defn/conquer-city-contents", :kind "defn", :line 102, :end-line 107, :hash "308072096"} {:id "defn/hostile-city?", :kind "defn", :line 109, :end-line 111, :hash "1158340970"} {:id "defn-/has-city?", :kind "defn-", :line 113, :end-line 120, :hash "-451495346"} {:id "defn-/city-elimination-game-over-updates", :kind "defn-", :line 122, :end-line 129, :hash "1302793836"} {:id "defn/attempt-city-conquest", :kind "defn", :line 131, :end-line 160, :hash "-702606488"} {:id "defn/attempt-conquest", :kind "defn", :line 162, :end-line 168, :hash "-614548960"} {:id "defn/attempt-fighter-overfly", :kind "defn", :line 170, :end-line 178, :hash "-1425906069"} {:id "defn/hostile-unit?", :kind "defn", :line 180, :end-line 182, :hash "1440002517"} {:id "defn-/valid-combatant?", :kind "defn-", :line 184, :end-line 188, :hash "1499655824"} {:id "defn/attempt-attack", :kind "defn", :line 190, :end-line 214, :hash "1622214336"} {:id "defn/attempt-coastal-army-attack", :kind "defn", :line 216, :end-line 231, :hash "1646130995"}]}

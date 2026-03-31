@@ -17,13 +17,9 @@
   [k v]
   (sa/write-state! k v))
 
-(defn- set-turn-message!
-  [msg ms]
-  (write-runtime-state! :turn-message msg)
-  (write-runtime-state! :turn-message-until
-                        (if (= ms Long/MAX_VALUE)
-                          Long/MAX_VALUE
-                          (+ (System/currentTimeMillis) ms))))
+(defn- set-command-message!
+  [msg]
+  (write-runtime-state! :command-message msg))
 
 (defn create-waypoint
   "Creates a waypoint at the given coordinates if it's an empty land cell.
@@ -54,7 +50,7 @@
       (when (:waypoint cell)
         (update-game-map! assoc-in [cx cy :waypoint :marching-orders] dest)
         (write-runtime-state! :destination nil)
-        (set-turn-message! (str "Waypoint orders set to " (first dest) "," (second dest)) 2000)
+        (set-command-message! (str "Waypoint orders set to " (first dest) "," (second dest)))
         true))))
 
 (defn set-waypoint-orders-by-direction
@@ -73,7 +69,7 @@
                          (recur nx ny)
                          [tx ty])))]
         (update-game-map! assoc-in [cx cy :waypoint :marching-orders] target)
-        (set-turn-message! (str "Waypoint orders set to " (first target) "," (second target)) 2000)
+        (set-command-message! (str "Waypoint orders set to " (first target) "," (second target)))
         true))))
 
 ;; clj-mutate-manifest-begin

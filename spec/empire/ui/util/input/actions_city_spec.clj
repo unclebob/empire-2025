@@ -31,10 +31,10 @@
       (test-utils/set-test-state! :cells-needing-attention [city-coords])
       (test-utils/set-test-state! :player-items [city-coords])
       (test-utils/set-test-state! :waiting-for-input true)
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (actions/handle-key :d)
       ;; Should show error message about coastal city
-      (should-contain "coastal" (test-utils/read-test-state :error-message))
+      (should-contain "coastal" (test-utils/read-test-state :warning-message))
       ;; Should NOT set production
       (should-be-nil (get (test-utils/read-test-state :production) city-coords))))
 

@@ -107,7 +107,7 @@
       (set-test-world! (build-test-map ["F"]))
       (set-test-unit (test-utils/game-map-atom) "F" :mode :sentry :fuel 1)
       (game-loop/consume-sentry-fighter-fuel)
-      (should-contain (:fighter-crashed config/messages) (test-utils/read-test-state :error-message)))
+      (should-contain (:fighter-crashed config/messages) (test-utils/read-test-state :warning-message)))
 
     (it "does not affect moving fighters"
       (set-test-world! (build-test-map ["F"]))

@@ -116,81 +116,81 @@
       (set-test-world! (build-test-map ["Da"]))
       (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
       (set-test-unit (test-utils/game-map-atom) "a" :hits 1)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       (with-redefs [rand (constantly 0.4)]
         (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
         (should= "Battle: a-1. Army destroyed. Damage: Destroyer lost 0, Army lost 1."
-                 (test-utils/read-test-state :turn-message))))
+                 (test-utils/read-test-state :warning-message))))
 
     (it "displays combat log when attacker loses"
       (set-test-world! (build-test-map ["Ad"]))
       (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       (with-redefs [rand (constantly 0.6)]
         (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
         (should= "Battle: A-1. Army destroyed. Damage: Army lost 1, Destroyer lost 0."
-                 (test-utils/read-test-state :turn-message))))
+                 (test-utils/read-test-state :warning-message))))
 
     (it "displays combat log with multiple exchanges"
       (set-test-world! (build-test-map ["Dd"]))
       (set-test-unit (test-utils/game-map-atom) "D" :hits 3)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       ;; Rolls: 0.4 (D hits d:2), 0.6 (d hits D:2), 0.4 (D hits d:1), 0.4 (D hits d:0)
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (should= "Battle: d-1,D-1,d-1,d-1. Destroyer destroyed. Damage: Destroyer lost 1, Destroyer lost 3."
-                   (test-utils/read-test-state :turn-message)))))
+                   (test-utils/read-test-state :warning-message)))))
 
     (it "displays combat log for submarine vs carrier"
       (set-test-world! (build-test-map ["Sc"]))
       (set-test-unit (test-utils/game-map-atom) "S" :hits 2)
       (set-test-unit (test-utils/game-map-atom) "c" :hits 8)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       ;; Rolls: 0.6 (c hits S:1), 0.6 (c hits S:0)
       (let [rolls (atom [0.6 0.6])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (should= "Battle: S-1,S-1. Submarine destroyed. Damage: Submarine lost 2, Carrier lost 0."
-                   (test-utils/read-test-state :turn-message)))))
+                   (test-utils/read-test-state :warning-message)))))
 
     (it "displays combat log for submarine defeating carrier"
       (set-test-world! (build-test-map ["Sc"]))
       (set-test-unit (test-utils/game-map-atom) "S" :hits 2)
       (set-test-unit (test-utils/game-map-atom) "c" :hits 8)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       ;; Rolls: 0.4 (S hits c:5), 0.6 (c hits S:1), 0.4 (S hits c:2), 0.4 (S hits c:0)
       (let [rolls (atom [0.4 0.6 0.4 0.4])]
         (with-redefs [rand (fn [] (let [v (first @rolls)] (swap! rolls rest) v))]
           (combat/apply-combat-result! (combat/attempt-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
           (should= "Battle: c-3,S-1,c-3,c-3. Carrier destroyed. Damage: Submarine lost 1, Carrier lost 9."
-                   (test-utils/read-test-state :turn-message)))))
+                   (test-utils/read-test-state :warning-message)))))
 
     (it "coastal army attack removes both units when the army wins"
       (set-test-world! (build-test-map ["Ad"]))
       (set-test-player-map! (build-test-map ["Ad"]))
       (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       (with-redefs [rand (constantly 0.4)]
         (combat/apply-combat-result! (combat/attempt-coastal-army-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))
         (should-be-nil (get-in (test-utils/read-test-state :player-map) [0 0 :contents]))
-        (should-contain "That army drowned." (test-utils/read-test-state :turn-message))))
+        (should-contain "That army drowned." (test-utils/read-test-state :warning-message))))
 
     (it "coastal army attack leaves the ship when the army loses"
       (set-test-world! (build-test-map ["Ad"]))
       (set-test-unit (test-utils/game-map-atom) "A" :hits 1)
       (set-test-unit (test-utils/game-map-atom) "d" :hits 3)
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       (with-redefs [rand (constantly 0.6)]
         (combat/apply-combat-result! (combat/attempt-coastal-army-attack (test-utils/read-test-state :game-map) [0 0] [1 0]))
         (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0])))
         (should= :destroyer (:type (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))
-        (should-contain "That army drowned." (test-utils/read-test-state :turn-message)))))
+        (should-contain "That army drowned." (test-utils/read-test-state :warning-message)))))
 
   (context "attempt-conquest"
     (it "removes army from original cell on success"
@@ -212,7 +212,7 @@
     (it "removes army from original cell on failure"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["A+"]))
-        (test-utils/set-test-state! :error-message "")
+        (test-utils/set-test-state! :warning-message "")
         (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
               city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-conquest (test-utils/read-test-state :game-map) army-coords city-coords))
@@ -221,7 +221,7 @@
     (it "keeps city status on failure"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["A+"]))
-        (test-utils/set-test-state! :error-message "")
+        (test-utils/set-test-state! :warning-message "")
         (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
               city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-conquest (test-utils/read-test-state :game-map) army-coords city-coords))
@@ -230,12 +230,13 @@
     (it "sets failure message on failed conquest"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["A+"]))
-        (test-utils/set-test-state! :error-message "")
+        (test-utils/set-test-state! :warning-message "")
+        (test-utils/set-test-state! :command-message "")
         (let [army-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))
               city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-conquest (test-utils/read-test-state :game-map) army-coords city-coords))
-          (should= (:conquest-failed config/messages) (test-utils/read-test-state :turn-message))
-          (should= "" (test-utils/read-test-state :error-message)))))
+          (should= (:conquest-failed config/messages) (test-utils/read-test-state :warning-message))
+          (should= "" (test-utils/read-test-state :command-message)))))
 
     (it "returns a result map regardless of outcome"
       (with-redefs [rand (constantly 0.5)]
@@ -256,13 +257,10 @@
     (it "sets a success turn message and clears stale conquest error on successful roll"
       (with-redefs [rand (constantly 0.1)]
         (set-test-world! (build-test-map ["+"]))
-        (test-utils/set-test-state! :error-message (:conquest-failed config/messages))
-        (test-utils/set-test-state! :error-until Long/MAX_VALUE)
+        (test-utils/set-test-state! :warning-message (:conquest-failed config/messages))
         (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords))
-          (should= "City conquered." (test-utils/read-test-state :turn-message))
-          (should= "" (test-utils/read-test-state :error-message))
-          (should= 0 (test-utils/read-test-state :error-until)))))
+          (should= "City conquered." (test-utils/read-test-state :command-message)))))
 
     (it "returns a result map on successful roll"
       (with-redefs [rand (constantly 0.1)]
@@ -274,7 +272,7 @@
     (it "does not convert city on failed roll"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["+"]))
-        (test-utils/set-test-state! :error-message "")
+        (test-utils/set-test-state! :warning-message "")
         (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords))
           (should= :free (:city-status (get-in (test-utils/read-test-state :game-map) city-coords))))))
@@ -282,16 +280,17 @@
     (it "sets failure message on failed roll"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["+"]))
-        (test-utils/set-test-state! :error-message "")
+        (test-utils/set-test-state! :warning-message "")
+        (test-utils/set-test-state! :command-message "")
         (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))]
           (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords))
-          (should= (:conquest-failed config/messages) (test-utils/read-test-state :turn-message))
-          (should= "" (test-utils/read-test-state :error-message)))))
+          (should= (:conquest-failed config/messages) (test-utils/read-test-state :warning-message))
+          (should= "" (test-utils/read-test-state :command-message)))))
 
     (it "returns a result map on failed roll"
       (with-redefs [rand (constantly 0.9)]
         (set-test-world! (build-test-map ["+"]))
-        (test-utils/set-test-state! :error-message "")
+        (test-utils/set-test-state! :warning-message "")
         (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "+"))
               result (combat/attempt-city-conquest (test-utils/read-test-state :game-map) city-coords)]
           (should (:world result)))))
@@ -320,7 +319,7 @@
         (test-utils/set-test-state! :computer-items [[1 0]])
         (combat/apply-combat-result! (combat/attempt-city-conquest (test-utils/read-test-state :game-map) [0 0]))
         (should (test-utils/read-test-state :paused))
-        (should-contain "I Resign" (test-utils/read-test-state :error-message))
+        (should-contain "I Resign" (test-utils/read-test-state :warning-message))
         (should= :actual-map (test-utils/read-test-state :map-to-display))
         (should= [] (vec (test-utils/read-test-state :player-items)))
         (should= [] (vec (test-utils/read-test-state :computer-items))))))
@@ -330,7 +329,7 @@
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (let [result (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0])]
         (should (:world result))
         (should (:messages result))))
@@ -340,7 +339,7 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
       (let [shot-down (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))]
         (should= :fighter (:type shot-down))
@@ -353,7 +352,7 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
       (should-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))))
 
@@ -362,7 +361,7 @@
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
       (should= :fighter-shot-down (:reason (:contents (get-in (test-utils/read-test-state :game-map) [1 0])))))
 
@@ -370,15 +369,15 @@
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :awake :hits 1 :fuel 20})
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
-      (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :error-message)))
+      (should= (:fighter-destroyed-by-city config/messages) (test-utils/read-test-state :warning-message)))
 
     (it "preserves fighter owner on shot-down fighter"
       (set-test-world! (build-test-map ["FX"]))
       (update-test-world! assoc-in [0 0 :contents]
              {:type :fighter :owner :player :mode :moving :hits 1 :fuel 20
               :steps-remaining 5})
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       (combat/apply-combat-result! (combat/attempt-fighter-overfly (test-utils/read-test-state :game-map) [0 0] [1 0]))
       (should= :player (:owner (:contents (get-in (test-utils/read-test-state :game-map) [1 0]))))))

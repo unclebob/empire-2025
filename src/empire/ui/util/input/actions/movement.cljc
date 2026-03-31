@@ -88,7 +88,7 @@
     :coastal-army-attack (combat/apply-combat-result! (combat/attempt-coastal-army-attack (sa/current-world) coords adjacent-target))
     :army-conquest (combat/apply-combat-result! (combat/attempt-conquest (sa/current-world) coords adjacent-target))
     :fighter-overfly (combat/apply-combat-result! (combat/attempt-fighter-overfly (sa/current-world) coords adjacent-target))
-    :reject-undamaged-ship (helpers/set-error-message! "Ship not damaged, entry denied." config/error-message-duration)
+    :reject-undamaged-ship (helpers/set-warning-message! "Ship not damaged, entry denied.")
     :normal-move (movement-api/set-unit-movement coords target extended?))
   (when (not= :reject-undamaged-ship action)
     (helpers/item-processed!))

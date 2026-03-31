@@ -22,13 +22,6 @@
   (when (= (:type cell) :city)
     {:action :claim-city}))
 
-(defn turn-message-state
-  [msg ms now]
-  {:turn-message msg
-   :turn-message-until (if (= ms Long/MAX_VALUE)
-                         Long/MAX_VALUE
-                         (+ now ms))})
-
 (defn city-lookaround-action
   [cell]
   (when (player-city? cell)

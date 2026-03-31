@@ -10,12 +10,8 @@
    :text-font nil
    :production-char-font nil
    :attention-message ""
-   :turn-message ""
-   :turn-message-until 0
    :hover-message ""
    :hover-cell nil
-   :error-message ""
-   :error-until 0
    :warning-message ""
    :command-message ""
    :production-status ""

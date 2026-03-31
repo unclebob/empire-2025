@@ -67,8 +67,7 @@
         (when (has-area? cell-range)
           (let [filename (debug-dump/write-dump! (first cell-range) (second cell-range))]
             (sa/write-state! :debug-message (str "Debug: " filename))
-            (sa/write-state! :turn-message (str "Debug log written: " filename))
-            (sa/write-state! :turn-message-until (+ (System/currentTimeMillis) 5000))))))
+            (sa/write-state! :command-message (str "Debug log written: " filename))))))
     (sa/write-state! :debug-drag-start nil)
     (sa/write-state! :debug-drag-current nil)))
 

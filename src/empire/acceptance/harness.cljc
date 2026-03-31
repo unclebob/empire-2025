@@ -27,8 +27,8 @@
     :last-key
     :production
     :attention-message
-    :turn-message
-    :error-message
+    :warning-message
+    :command-message
     :map-to-display
     :load-menu-open
     :destination})

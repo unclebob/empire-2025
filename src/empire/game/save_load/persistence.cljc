@@ -177,9 +177,7 @@
               (seq (sa/read-state :cells-needing-attention)))
        (attention/set-attention-message (first (sa/read-state :cells-needing-attention)))
        (sa/write-state! :attention-message ""))
-     (sa/write-state! :turn-message (str "Loaded " filename))
-     (sa/write-state! :turn-message-until
-                      (messages/expires-at (System/currentTimeMillis) 3000)))))
+     (sa/write-state! :command-message (str "Loaded " filename)))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T02:14:21.663309-05:00", :module-hash "-565560700", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-216890708"} {:id "def/saveable-atoms", :kind "def", :line 8, :end-line 40, :hash "-652094246"} {:id "defn-/timestamp", :kind "defn-", :line 42, :end-line 45, :hash "1770911414"} {:id "defn/default-save-basename", :kind "defn", :line 47, :end-line 49, :hash "-67941117"} {:id "defn/normalize-save-filename", :kind "defn", :line 51, :end-line 59, :hash "-1419190907"} {:id "defn-/read-save-key", :kind "defn-", :line 61, :end-line 65, :hash "1502581137"} {:id "defn-/write-save-key!", :kind "defn-", :line 67, :end-line 71, :hash "-861186194"} {:id "defn/list-save-files", :kind "defn", :line 73, :end-line 82, :hash "936793038"} {:id "defn/save-game!", :kind "defn", :line 84, :end-line 97, :hash "1456296839"} {:id "defn/load-game!", :kind "defn", :line 99, :end-line 117, :hash "513559975"}]}

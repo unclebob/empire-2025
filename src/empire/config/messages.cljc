@@ -1,7 +1,5 @@
 (ns empire.config.messages)
 
-(def error-message-duration 10000)
-
 (def messages
   {:army-found-city "Army found a city!"
    :fighter-bingo "Bingo! Refuel?"

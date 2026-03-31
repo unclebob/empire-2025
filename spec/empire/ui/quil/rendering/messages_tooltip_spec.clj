@@ -14,10 +14,9 @@
   []
   (sa/write-state! :text-area-dimensions [0 100 300 80])
   (sa/write-state! :text-font :fake-font)
-  (sa/write-state! :error-message "")
-  (sa/write-state! :error-until 0)
   (sa/write-state! :attention-message "")
-  (sa/write-state! :turn-message "")
+  (sa/write-state! :warning-message "")
+  (sa/write-state! :command-message "")
   (sa/write-state! :round-number 1)
   (sa/write-state! :paused false)
   (sa/write-state! :pause-requested false)

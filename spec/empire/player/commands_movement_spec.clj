@@ -111,7 +111,7 @@
       (with-redefs [movement/set-unit-movement (fn [_ _] nil)
                     game-loop/item-processed (fn [])]
         (commands/handle-key :d)
-        (should-contain "not damaged" (test-utils/read-test-state :error-message)))))
+        (should-contain "not damaged" (test-utils/read-test-state :warning-message)))))
 
   (context "army conquest via direction key (L82)"
     (it "attempts conquest when moving to hostile city"

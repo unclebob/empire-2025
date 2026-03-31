@@ -75,11 +75,11 @@
       (test-utils/set-test-state! :cells-needing-attention [ship-coords])
       (test-utils/set-test-state! :player-items [ship-coords])
       (test-utils/set-test-state! :waiting-for-input true)
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       ;; Press 'x' to move down toward city
       (actions/handle-key :x)
       ;; Should show error message
-      (should= "Ship not damaged, entry denied." (test-utils/read-test-state :error-message))
+      (should= "Ship not damaged, entry denied." (test-utils/read-test-state :warning-message))
       ;; Ship should still be awake (command rejected, not processed)
       (let [ship (:contents (get-in (test-utils/read-test-state :game-map) ship-coords))]
         (should= :awake (:mode ship)))
@@ -96,11 +96,11 @@
       (test-utils/set-test-state! :cells-needing-attention [ship-coords])
       (test-utils/set-test-state! :player-items [ship-coords])
       (test-utils/set-test-state! :waiting-for-input true)
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       ;; Press 'x' to move down toward city
       (actions/handle-key :x)
       ;; Should NOT show error message
-      (should= "" (test-utils/read-test-state :error-message))
+      (should= "" (test-utils/read-test-state :warning-message))
       ;; Ship should be in moving mode with city as target
       (let [ship (:contents (get-in (test-utils/read-test-state :game-map) ship-coords))]
         (should= :moving (:mode ship))
@@ -303,7 +303,7 @@
       (test-utils/set-test-state! :cells-needing-attention [fighter-coords])
       (test-utils/set-test-state! :player-items [fighter-coords])
       (test-utils/set-test-state! :waiting-for-input true)
-      (test-utils/set-test-state! :error-message "")
+      (test-utils/set-test-state! :warning-message "")
       ;; Press 'x' to move down toward hostile city
       (actions/handle-key :x)
       ;; Fighter should be shot down (hits = 0) at city

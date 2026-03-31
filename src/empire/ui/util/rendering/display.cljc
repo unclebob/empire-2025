@@ -30,15 +30,8 @@
 (def completed-production-city? colors/completed-production-city?)
 
 ;; text
-(def should-show-error? text/should-show-error?)
-(def resolve-banner text/resolve-banner)
-(def resolve-banner-pair text/resolve-banner-pair)
-(def resolve-banner-list text/resolve-banner-list)
 (def resolve-status-line text/resolve-status-line)
 (def resolve-inspector-lines text/resolve-inspector-lines)
-(def resolve-turn-text text/resolve-turn-text)
-(def resolve-round-status-text text/resolve-round-status-text)
-(def resolve-center-lines text/resolve-center-lines)
 (def resolve-attention-zone text/resolve-attention-zone)
 (def resolve-warning-zone text/resolve-warning-zone)
 (def resolve-command-zone text/resolve-command-zone)

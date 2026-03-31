@@ -1,0 +1,113 @@
+<h2>Refined Layout &mdash; 3 Left Rows</h2>
+<p class="subtitle">Left column: Attention (top), Warning (middle), Command response (bottom). Right column: Status (top), Inspector (bottom).</p>
+
+<div class="mockup">
+  <div class="mockup-header">HUD &mdash; 1100 x 80px</div>
+  <div class="mockup-body" style="background:#0e1216; padding:0; font-family:'Courier New',monospace; color:#ccc;">
+    <div style="display:grid; grid-template-columns:55% 45%; grid-template-rows:26px 26px 26px; height:78px; gap:0;">
+      <!-- Row 1 left: Attention -->
+      <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#ffd740; font-size:13px;">&#9658; Fighter needs attention - Bingo! Refuel?</span>
+      </div>
+      <!-- Row 1 right: Game status -->
+      <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="color:#bec6d0; font-size:12px;">Round 47</span>
+        <span style="color:#ff6666; font-size:12px;">PAUSED</span>
+        <span style="color:#90ee90; font-size:12px;">45%</span>
+        <span style="color:#778; font-size:10px;">A:5 F:3 T:2 D:1 S:0</span>
+      </div>
+      <!-- Row 2 left: Warning -->
+      <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#ff5050; font-size:12px;">&#9888; Can't move into water</span>
+      </div>
+      <!-- Row 2 right: Inspector line 1 -->
+      <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#a0a6ae; font-size:11px;">[23,15] Destroyer 3/3 sentry</span>
+      </div>
+      <!-- Row 3 left: Command response -->
+      <div style="border-right:1px solid #363c42; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#ebf5ff; font-size:11px; opacity:0.7;">Marching orders set to 45,12</span>
+      </div>
+      <!-- Row 3 right: Inspector line 2 (detail) -->
+      <div style="padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#707880; font-size:10px;">owner:player mode:sentry fuel:-- cargo:0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:24px;">Populated vs. Sparse States</h3>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Busy &mdash; all zones filled</div>
+    <div class="mockup-body" style="background:#0e1216; padding:0; font-family:'Courier New',monospace; color:#ccc;">
+      <div style="display:grid; grid-template-columns:55% 45%; grid-template-rows:26px 26px 26px; height:78px; gap:0;">
+        <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#ffd740; font-size:13px;">&#9658; City needs attention</span>
+        </div>
+        <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center; justify-content:space-between;">
+          <span style="color:#bec6d0; font-size:12px;">Round 47</span>
+          <span style="color:#ff6666;">PAUSED</span>
+          <span style="color:#90ee90;">45%</span>
+          <span style="color:#778; font-size:10px;">A:5 F:3 T:2</span>
+        </div>
+        <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#ff5050; font-size:12px;">&#9888; S-1,D-2. Submarine destroyed.</span>
+        </div>
+        <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#a0a6ae; font-size:11px;">[45,12] player city producing:Destroyer 3/8</span>
+        </div>
+        <div style="border-right:1px solid #363c42; padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#ebf5ff; font-size:11px; opacity:0.7;">Flight path set to 30,8</span>
+        </div>
+        <div style="padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#707880; font-size:10px;">fighters:2 dock:destroyer 3/8</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Quiet &mdash; just status + hover</div>
+    <div class="mockup-body" style="background:#0e1216; padding:0; font-family:'Courier New',monospace; color:#ccc;">
+      <div style="display:grid; grid-template-columns:55% 45%; grid-template-rows:26px 26px 26px; height:78px; gap:0;">
+        <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#555; font-size:11px;"></span>
+        </div>
+        <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center; justify-content:space-between;">
+          <span style="color:#bec6d0; font-size:12px;">Round 47</span>
+          <span style="color:#90ee90;">45%</span>
+          <span style="color:#778; font-size:10px;">A:5 F:3 T:2 D:1 S:0</span>
+        </div>
+        <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        </div>
+        <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+          <span style="color:#a0a6ae; font-size:11px;">[10,22] sea</span>
+        </div>
+        <div style="border-right:1px solid #363c42; padding:2px 10px; display:flex; align-items:center;">
+        </div>
+        <div style="padding:2px 10px; display:flex; align-items:center;">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:20px;">Does this feel right?</h3>
+<div class="options">
+  <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+    <div class="letter">&#10003;</div>
+    <div class="content">
+      <h3>Yes, this layout works</h3>
+      <p>3 left rows (attention / warning / command) + right column (status / inspector). Ready to discuss details.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="adjust" onclick="toggleSelect(this)">
+    <div class="letter">&#9998;</div>
+    <div class="content">
+      <h3>Needs adjustment</h3>
+      <p>The zones are right but sizing, proportions, or something else needs tweaking.</p>
+    </div>
+  </div>
+</div>

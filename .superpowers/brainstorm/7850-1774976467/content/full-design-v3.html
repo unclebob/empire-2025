@@ -1,0 +1,141 @@
+<h2>Full Design &mdash; HUD Redesign</h2>
+<p class="subtitle">3-row &times; 2-column dedicated-zone layout with audible warning</p>
+
+<div class="section">
+<h3>Zone Map</h3>
+<div class="mockup">
+  <div class="mockup-header">HUD &mdash; 1100 &times; 80px (same rectangle)</div>
+  <div class="mockup-body" style="background:#0e1216; padding:0; font-family:'Courier New',monospace; color:#ccc;">
+    <div style="display:grid; grid-template-columns:55% 45%; grid-template-rows:26px 26px 26px; height:78px; gap:0;">
+      <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#ffd740; font-size:13px;">&#9658; Fighter [23,15] - Bingo! Refuel?</span>
+      </div>
+      <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="color:#bec6d0; font-size:13px;">Round 47</span>
+        <span style="color:#ff6666; font-size:13px;">PAUSED</span>
+        <span style="color:#90ee90; font-size:13px;">45%</span>
+        <span style="color:#99a0a8; font-size:12px;">A:5 F:3 T:2 D:1 C:1</span>
+      </div>
+      <div style="border-right:1px solid #363c42; border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#ff5050; font-size:13px;">&#9888; Can't move into water</span>
+      </div>
+      <div style="border-bottom:1px solid #1e2428; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#bec6d0; font-size:13px;">[23,15] Destroyer 3/3 sentry</span>
+      </div>
+      <div style="border-right:1px solid #363c42; padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#ebf5ff; font-size:13px; opacity:0.7;">Marching orders set to 45,12</span>
+      </div>
+      <div style="padding:2px 10px; display:flex; align-items:center;">
+        <span style="color:#bec6d0; font-size:13px;">owner:player mode:sentry fuel:-- cargo:0</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+<h3>Zone Definitions</h3>
+<table style="width:100%; border-collapse:collapse; font-size:14px;">
+  <tr style="border-bottom:2px solid #444;">
+    <th style="text-align:left; padding:8px;">Zone</th>
+    <th style="text-align:left; padding:8px;">Position</th>
+    <th style="text-align:left; padding:8px;">Content</th>
+    <th style="text-align:left; padding:8px;">Color</th>
+    <th style="text-align:left; padding:8px;">Lifetime</th>
+  </tr>
+  <tr style="border-bottom:1px solid #333;">
+    <td style="padding:8px;"><strong>Attention</strong></td>
+    <td style="padding:8px;">Row 1, Left</td>
+    <td style="padding:8px;">Unit/city description + reason. No "needs attention" text. E.g., "Fighter [23,15] - Bingo! Refuel?"</td>
+    <td style="padding:8px; color:#ffd740;">Gold</td>
+    <td style="padding:8px;">Persists until unit/city is dealt with</td>
+  </tr>
+  <tr style="border-bottom:1px solid #333;">
+    <td style="padding:8px;"><strong>Warning</strong></td>
+    <td style="padding:8px;">Row 2, Left</td>
+    <td style="padding:8px;">Blocked movement, combat results, environmental alerts, critical errors. Audible "bonk" on appear.</td>
+    <td style="padding:8px; color:#ff5050;">Red</td>
+    <td style="padding:8px;">Clears on next player action</td>
+  </tr>
+  <tr style="border-bottom:1px solid #333;">
+    <td style="padding:8px;"><strong>Command Response</strong></td>
+    <td style="padding:8px;">Row 3, Left</td>
+    <td style="padding:8px;">Order confirmations, save/load, waypoints. Quiet &mdash; no sound.</td>
+    <td style="padding:8px; color:#ebf5ff; opacity:0.7;">Light blue (muted)</td>
+    <td style="padding:8px;">Clears on next player action</td>
+  </tr>
+  <tr style="border-bottom:1px solid #333;">
+    <td style="padding:8px;"><strong>Game Status</strong></td>
+    <td style="padding:8px;">Row 1, Right</td>
+    <td style="padding:8px;">Round #, PAUSED, exploration %, compact production counts (zeros dropped). Tooltip popup for full detail.</td>
+    <td style="padding:8px; color:#bec6d0;">Light gray / green / red</td>
+    <td style="padding:8px;">Always visible, updated every round</td>
+  </tr>
+  <tr style="border-bottom:1px solid #333;">
+    <td style="padding:8px;"><strong>Inspector Summary</strong></td>
+    <td style="padding:8px;">Row 2, Right</td>
+    <td style="padding:8px;">Hover cell info: coordinates, unit type, hits, mode</td>
+    <td style="padding:8px; color:#bec6d0;">Light gray</td>
+    <td style="padding:8px;">Visible while hovering; clears when mouse leaves map</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;"><strong>Inspector Detail</strong></td>
+    <td style="padding:8px;">Row 3, Right</td>
+    <td style="padding:8px;">Additional hover detail: cargo, fuel, production, dock status</td>
+    <td style="padding:8px; color:#bec6d0;">Light gray</td>
+    <td style="padding:8px;">Visible while hovering; clears when mouse leaves map</td>
+  </tr>
+</table>
+</div>
+
+<div class="section">
+<h3>Message Classification</h3>
+<table style="width:100%; border-collapse:collapse; font-size:13px;">
+  <tr style="border-bottom:2px solid #444;">
+    <th style="text-align:left; padding:6px;">Message</th>
+    <th style="text-align:left; padding:6px;">Zone</th>
+    <th style="text-align:left; padding:6px;">Bonk?</th>
+  </tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">City [x,y]</td><td>Attention</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Fighter [x,y] - Bingo! Refuel?</td><td>Attention</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Army [x,y] - aboard transport - At beach</td><td>Attention</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Damaged Destroyer [x,y] 2/3 hits</td><td>Attention</td><td>No</td></tr>
+
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Can't move into water</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Something's in the way</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">S-1,D-2. Submarine destroyed.</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Fighter destroyed by city defenses</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Failed to conquer city</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Enemy spotted</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Fighter out of fuel</td><td>Warning</td><td>Yes</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Hit map edge</td><td>Warning</td><td>Yes</td></tr>
+
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Marching orders set to x,y</td><td>Command</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Flight path set to x,y</td><td>Command</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Waypoint placed at x,y</td><td>Command</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Saved to / Loaded from file</td><td>Command</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Landed and refueled</td><td>Command</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Docked for repair. 2/3 hits</td><td>Command</td><td>No</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">At beach / Found land!</td><td>Command</td><td>No</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>Audio</h3>
+<p style="font-size:14px;">Single "bonk" sound effect via <code>javax.sound.sampled</code>. One bundled <code>.wav</code> file in <code>resources/</code>. Plays once on every warning zone write. No other sounds.</p>
+</div>
+
+<div class="section">
+<h3>Clearing Rules</h3>
+<table style="width:100%; border-collapse:collapse; font-size:14px;">
+  <tr style="border-bottom:2px solid #444;">
+    <th style="text-align:left; padding:6px;">Zone</th>
+    <th style="text-align:left; padding:6px;">Clears when...</th>
+  </tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Attention</td><td>Unit/city is given orders or dismissed</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Warning</td><td>Next player action (any keypress/click)</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Command Response</td><td>Next player action (any keypress/click)</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Game Status</td><td>Never (always visible, updated each round)</td></tr>
+  <tr style="border-bottom:1px solid #222;"><td style="padding:6px;">Inspector</td><td>Mouse leaves map area</td></tr>
+</table>
+</div>
