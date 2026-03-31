@@ -6,12 +6,12 @@
             [empire.ui.util.rendering.hud-tooltips :as hud-tooltips]
             [quil.core :as q]))
 
-(def ^:private banner-error-color [255 80 80])
-(def ^:private banner-attention-color [255 215 64])
-(def ^:private banner-result-color [235 245 255])
-(def ^:private hud-text-color [230 230 230])
-(def ^:private hud-status-color [190 198 208])
-(def ^:private hud-secondary-color [160 166 174])
+(def ^:private attention-color [255 215 64])
+(def ^:private warning-color [255 80 80])
+(def ^:private command-color [235 245 255])
+(def ^:private command-color-opacity 0.7)
+(def ^:private status-color [190 198 208])
+(def ^:private inspector-color [190 198 208])
 (def ^:private hud-tooltip-background [245 239 200])
 (def ^:private hud-tooltip-border [70 64 40])
 (def ^:private hud-tooltip-text [20 20 20])
@@ -22,17 +22,6 @@
   (let [text-width (q/text-width text)
         x (- right-edge text-width)]
     (q/text text x y)))
-
-(defn- banner-color [kind]
-  (case kind
-    :error banner-error-color
-    :attention banner-attention-color
-    :result banner-result-color
-    hud-text-color))
-
-(defn- soften-color
-  [color]
-  (mapv #(int (+ (* % 0.6) 70)) color))
 
 (defn- token-spans
   [text start-x y1 y2]
@@ -69,8 +58,8 @@
   "Returns tooltip text for a recognized status-row token under the mouse.
    Hovering anywhere in the production count area returns the full summary."
   [mouse-x mouse-y text-x text-y text-w left center right production-status]
-  (let [row-top (+ text-y rendering/msg-banner-separator-y)
-        row-bottom (+ text-y config/msg-line-3-y)
+  (let [row-top (+ text-y rendering/grid-row-1-y)
+        row-bottom (+ text-y rendering/grid-row-1-y rendering/grid-row-height)
         right-edge (- (+ text-x text-w) rendering/status-right-padding)
         center-x (+ text-x (/ text-w 2))
         center-width (q/text-width (or center ""))
@@ -111,35 +100,42 @@
     (apply q/fill hud-tooltip-background)
     (q/rect box-x box-y box-w box-h)
     (apply q/fill hud-tooltip-text)
-    (q/text tooltip (+ box-x padding) (+ box-y 16))
-    (apply q/fill hud-text-color)))
+    (q/text tooltip (+ box-x padding) (+ box-y 16))))
 
-(defn- draw-banner
+(defn- draw-zone-text
+  [text x y color]
+  (when (seq text)
+    (apply q/fill color)
+    (q/text text x y)))
+
+(defn- draw-attention-zone
   [text-x text-y]
-  (let [banners (display/resolve-banner-list (sa/read-state :error-message)
-                                             (sa/read-state :error-until)
-                                             (sa/read-state :attention-message)
-                                             (sa/read-state :turn-message))]
-    (when (seq banners)
-      (let [base-x (+ text-x config/msg-left-padding)
-            y (+ text-y config/msg-line-1-y)]
-        (loop [remaining banners
-               x base-x
-               first? true]
-          (when-let [{:keys [kind text]} (first remaining)]
-            (let [render-text (str (when-not first? " | ") text)
-                  color (banner-color kind)
-                  render-color (if first? color (soften-color color))]
-              (apply q/fill render-color)
-              (q/text render-text x y)
-              (recur (next remaining)
-                     (+ x (q/text-width render-text))
-                     false)))))
-      (apply q/fill hud-text-color))))
+  (let [text (display/resolve-attention-zone (sa/read-state :attention-message))]
+    (draw-zone-text text
+                    (+ text-x rendering/msg-left-padding)
+                    (+ text-y rendering/grid-row-1-y 16)
+                    attention-color)))
 
-(defn- draw-status
+(defn- draw-warning-zone
+  [text-x text-y]
+  (let [text (display/resolve-warning-zone (sa/read-state :warning-message))]
+    (draw-zone-text text
+                    (+ text-x rendering/msg-left-padding)
+                    (+ text-y rendering/grid-row-2-y 16)
+                    warning-color)))
+
+(defn- draw-command-zone
+  [text-x text-y]
+  (let [text (display/resolve-command-zone (sa/read-state :command-message))]
+    (draw-zone-text text
+                    (+ text-x rendering/msg-left-padding)
+                    (+ text-y rendering/grid-row-3-y 16)
+                    command-color)))
+
+(defn- draw-status-zone
   [text-x text-y text-w]
-  (let [{:keys [left center right]}
+  (let [left-x (+ text-x (* text-w rendering/grid-left-fraction) rendering/status-left-padding)
+        {:keys [left right]}
         (display/resolve-status-line (sa/read-state :round-number)
                                      (sa/read-state :handicap-display-rounds)
                                      (sa/read-state :paused)
@@ -150,69 +146,68 @@
                                      (sa/current-world)
                                      (sa/read-state :cells-needing-attention))
         right-edge (- (+ text-x text-w) rendering/status-right-padding)
-        center-x (+ text-x (/ text-w 2))]
+        y (+ text-y rendering/grid-row-1-y 16)]
     (when left
-      (apply q/fill hud-status-color)
-      (q/text left (+ text-x rendering/status-left-padding) (+ text-y config/msg-line-2-y)))
-    (when center
-      (apply q/fill hud-text-color)
-      (let [msg-width (q/text-width center)]
-        (q/text center (- center-x (/ msg-width 2)) (+ text-y config/msg-line-2-y))))
+      (apply q/fill status-color)
+      (q/text left left-x y))
     (when right
-      (apply q/fill hud-status-color)
-      (draw-text-right-justified right right-edge (+ text-y config/msg-line-2-y)))
-    (apply q/fill hud-text-color)))
+      (apply q/fill status-color)
+      (draw-text-right-justified right right-edge y))))
 
-(defn- draw-inspector
-  [text-x text-y]
-  (let [{:keys [summary detail]}
+(defn- draw-inspector-zones
+  [text-x text-y text-w]
+  (let [left-x (+ text-x (* text-w rendering/grid-left-fraction) rendering/status-left-padding)
+        {:keys [summary detail]}
         (display/resolve-inspector-lines (sa/read-state :hover-message))]
-    (apply q/fill hud-text-color)
-    (when summary
-      (q/text summary (+ text-x config/msg-left-padding) (+ text-y config/msg-line-3-y)))
-    (when detail
-      (apply q/fill hud-secondary-color)
-      (q/text detail (+ text-x config/msg-left-padding) (+ text-y rendering/msg-line-4-y))
-      (apply q/fill hud-text-color))))
+    (draw-zone-text summary left-x
+                    (+ text-y rendering/grid-row-2-y 16)
+                    inspector-color)
+    (draw-zone-text detail left-x
+                    (+ text-y rendering/grid-row-3-y 16)
+                    inspector-color)))
+
+(defn- draw-grid-separators
+  [text-x text-y text-w text-h]
+  (let [col-x (+ text-x (* text-w rendering/grid-left-fraction))]
+    (apply q/stroke rendering/grid-vertical-separator-color)
+    (q/line col-x text-y col-x (+ text-y text-h))
+    (apply q/stroke rendering/grid-separator-color)
+    (q/line text-x (+ text-y rendering/grid-row-2-y -2)
+            (+ text-x text-w) (+ text-y rendering/grid-row-2-y -2))
+    (q/line text-x (+ text-y rendering/grid-row-3-y -2)
+            (+ text-x text-w) (+ text-y rendering/grid-row-3-y -2))))
 
 ;; --- Message area master function ---
 
 (defn draw-message-area
-  "Draws the redesigned bottom HUD."
+  "Draws the 3x2 zone-based HUD."
   []
-  (let [[text-x text-y text-w _] (sa/read-state :text-area-dimensions)
-        [_ _ _ text-h] (sa/read-state :text-area-dimensions)
-        top-separator-y (- text-y config/msg-separator-offset)
-        banner-separator-y (+ text-y rendering/msg-banner-separator-y)
-        {:keys [left center right]}
-        (display/resolve-status-line (sa/read-state :round-number)
-                                     (sa/read-state :handicap-display-rounds)
-                                     (sa/read-state :paused)
-                                     (sa/read-state :pause-requested)
-                                     (sa/read-state :map-to-display)
-                                     (sa/read-state :destination)
-                                     (sa/read-state :production-status)
-                                     (sa/current-world)
-                                     (sa/read-state :cells-needing-attention))
-        production-status (sa/read-state :production-status)
-        mouse-x (q/mouse-x)
-        mouse-y (q/mouse-y)
-        tooltip (hud-tooltip mouse-x mouse-y text-x text-y text-w left center right production-status)]
+  (let [[text-x text-y text-w text-h] (sa/read-state :text-area-dimensions)
+        top-separator-y (- text-y config/msg-separator-offset)]
     (q/no-stroke)
     (apply q/fill rendering/hud-background-color)
     (q/rect text-x text-y text-w text-h)
     (apply q/stroke rendering/hud-top-separator-color)
     (q/line text-x top-separator-y (+ text-x text-w) top-separator-y)
-    (apply q/stroke rendering/hud-banner-separator-color)
-    (q/line text-x banner-separator-y (+ text-x text-w) banner-separator-y)
+    (draw-grid-separators text-x text-y text-w text-h)
     (q/text-font (sa/read-state :text-font))
-    (apply q/fill hud-text-color)
-    (draw-banner text-x text-y)
-    (draw-status text-x text-y text-w)
-    (draw-inspector text-x text-y)
-    (when tooltip
-      (draw-tooltip tooltip mouse-x mouse-y))))
-
-;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:42:20.853292-05:00", :module-hash "492272842", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "1580887966"} {:id "def/banner-error-color", :kind "def", :line 9, :end-line 9, :hash "117545043"} {:id "def/banner-attention-color", :kind "def", :line 10, :end-line 10, :hash "-320121614"} {:id "def/banner-result-color", :kind "def", :line 11, :end-line 11, :hash "1601020709"} {:id "def/hud-text-color", :kind "def", :line 12, :end-line 12, :hash "-1064068390"} {:id "def/hud-status-color", :kind "def", :line 13, :end-line 13, :hash "-673357353"} {:id "def/hud-secondary-color", :kind "def", :line 14, :end-line 14, :hash "942372744"} {:id "def/hud-tooltip-background", :kind "def", :line 15, :end-line 15, :hash "-1470863357"} {:id "def/hud-tooltip-border", :kind "def", :line 16, :end-line 16, :hash "-1372214356"} {:id "def/hud-tooltip-text", :kind "def", :line 17, :end-line 17, :hash "-1497255467"} {:id "defn-/draw-text-right-justified", :kind "defn-", :line 19, :end-line 24, :hash "-787062085"} {:id "defn-/banner-color", :kind "defn-", :line 26, :end-line 31, :hash "1492030370"} {:id "defn-/soften-color", :kind "defn-", :line 33, :end-line 35, :hash "-1707812362"} {:id "defn-/token-spans", :kind "defn-", :line 37, :end-line 54, :hash "-336658796"} {:id "defn-/inside-span?", :kind "defn-", :line 56, :end-line 59, :hash "-1589197964"} {:id "defn-/hovered-token", :kind "defn-", :line 61, :end-line 66, :hash "-1016660004"} {:id "defn/hud-tooltip", :kind "defn", :line 68, :end-line 83, :hash "-838720228"} {:id "defn/tooltip-box-position", :kind "defn", :line 85, :end-line 98, :hash "837235884"} {:id "defn-/draw-tooltip", :kind "defn-", :line 100, :end-line 112, :hash "1779301122"} {:id "defn-/draw-banner", :kind "defn-", :line 114, :end-line 135, :hash "694854181"} {:id "defn-/draw-status", :kind "defn-", :line 137, :end-line 161, :hash "1284236922"} {:id "defn-/draw-inspector", :kind "defn-", :line 163, :end-line 173, :hash "1866044165"} {:id "defn/draw-message-area", :kind "defn", :line 177, :end-line 211, :hash "-1286985703"}]}
-;; clj-mutate-manifest-end
+    (draw-attention-zone text-x text-y)
+    (draw-warning-zone text-x text-y)
+    (draw-command-zone text-x text-y)
+    (draw-status-zone text-x text-y text-w)
+    (draw-inspector-zones text-x text-y text-w)
+    (let [mouse-x (q/mouse-x) mouse-y (q/mouse-y)
+          {:keys [left center right]}
+          (display/resolve-status-line (sa/read-state :round-number)
+                                       (sa/read-state :handicap-display-rounds)
+                                       (sa/read-state :paused)
+                                       (sa/read-state :pause-requested)
+                                       (sa/read-state :map-to-display)
+                                       (sa/read-state :destination)
+                                       (sa/read-state :production-status)
+                                       (sa/current-world)
+                                       (sa/read-state :cells-needing-attention))
+          tooltip (hud-tooltip mouse-x mouse-y text-x text-y text-w left center right
+                               (sa/read-state :production-status))]
+      (when tooltip
+        (draw-tooltip tooltip mouse-x mouse-y)))))
