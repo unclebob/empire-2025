@@ -119,7 +119,7 @@ The player can direct cities to produce new pieces according to the production c
 
 ### Unit Descriptions
 
-**Armies** can only move on land and are the only units that can capture cities. This means you must produce armies to win the game. Armies have a 50% chance of capturing a city when they attack. Armies can be carried by troop transports (up to 6 per transport). While aboard, armies can disembark onto empty land or attack an adjacent city, but cannot attack enemy armies.
+**Armies** can only move on land and are the only units that can capture cities. This means you must produce armies to win the game. Armies have a 50% chance of capturing a city when they attack. Armies can be carried by troop transports (up to 6 per transport). While aboard, armies can disembark onto empty land or attack an adjacent city, but cannot attack enemy armies. If a transport is adjacent to land and its armies are awake for attention, clicking a distant land cell disembarks an army onto a legal adjacent beachhead and gives it marching orders toward the clicked cell. Clicking an adjacent hostile unit instead orders an immediate attack.
 
 **Fighters** move over both land and sea at 8 squares per round. Their high speed makes them ideal for exploring. However, fighters must periodically land at player-owned cities or carriers for refueling. A fighter can travel 32 squares without refueling. Fighters are shot down if they attempt to fly over an enemy city.
 
@@ -195,7 +195,7 @@ Each key moves in its relative direction:
 
 **Extended Movement:** Hold Shift with a direction key (`Q W E A D Z X C`) to set a destination at the map edge in that direction. The unit will automatically move toward that destination each turn.
 
-**Mouse:** When a unit needs attention, click on an adjacent cell to move there, or click on a distant cell to set it as a destination.
+**Mouse:** When a unit needs attention, click on an adjacent cell to move there, or click on a distant cell to set it as a destination. For awake armies aboard a transport, clicking a distant cell disembarks the army onto adjacent land and sets it moving toward the clicked cell; clicking an adjacent hostile unit attacks it instead.
 
 ### Unit Commands
 
