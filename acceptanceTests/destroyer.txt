@@ -33,7 +33,7 @@ WHEN the player presses d and loses the battle.
 
 THEN at the next round s remains unmoved.
 and there is no D on the map.
-and the turn message contains :combat-result.
+and the error message contains "destroyed."
 
 ;===============================================================
 ; Destroyer put to sentry mode.

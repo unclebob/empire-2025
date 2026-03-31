@@ -67,7 +67,7 @@ C has hits 5 and no fighters.
 
 WHEN C is waiting for input.
 
-THEN the attention message contains :damaged-unit-attention.
+THEN the attention message contains "Damaged carrier".
 
 ;===============================================================
 ; Carrier speed is 2 per round.

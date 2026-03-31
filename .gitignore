@@ -15,6 +15,7 @@ debug-*.txt
 acceptanceTests/edn/*.edn
 generated-acceptance-specs/acceptance/*.clj
 /.worktrees/
+/.superpowers/
 saves/
 /docs/uml/
 

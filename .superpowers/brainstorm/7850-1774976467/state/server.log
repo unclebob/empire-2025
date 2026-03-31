@@ -1,5 +1,0 @@
-{"type":"server-started","port":61658,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:61658","screen_dir":"/Users/unclebob/projects/clojure/empire/empire-2025/.superpowers/brainstorm/7850-1774976467/content","state_dir":"/Users/unclebob/projects/clojure/empire/empire-2025/.superpowers/brainstorm/7850-1774976467/state"}
-{"type":"screen-added","file":"/Users/unclebob/projects/clojure/empire/empire-2025/.superpowers/brainstorm/7850-1774976467/content/full-design.html"}
-{"type":"screen-added","file":"/Users/unclebob/projects/clojure/empire/empire-2025/.superpowers/brainstorm/7850-1774976467/content/full-design-v2.html"}
-{"type":"screen-added","file":"/Users/unclebob/projects/clojure/empire/empire-2025/.superpowers/brainstorm/7850-1774976467/content/full-design-v3.html"}
-{"type":"server-stopped","reason":"idle timeout"}

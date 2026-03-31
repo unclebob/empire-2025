@@ -52,7 +52,7 @@ WHEN the player presses d and loses the battle.
 
 THEN at the next round s remains unmoved.
 and there is no P on the map.
-and the turn message contains :combat-result.
+and the error message contains "destroyed."
 
 ;===============================================================
 ; Patrol-boat blocked by land.
