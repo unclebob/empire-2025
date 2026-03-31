@@ -22,7 +22,7 @@
    :somethings-in-the-way "Something's in the way."
    :enemy-spotted "Enemy spotted."
    :not-on-map "That's not on the map!"
-   :returned-to-start "Returned to start."
+   :returned-to-start "Done looking around."
    :hit-edge "Hit map edge."
    :blocked "Blocked."
    :steps-exhausted "Done looking around."
