@@ -56,7 +56,7 @@
              [[1 1] [2 2]])))
 
   (it "builds attention messages for active units"
-    (should-contain "destroyer needs attention"
+    (should-contain "destroyer"
                     (decisions/attention-message
                      {:world [[{:type :sea
                                 :contents {:type :destroyer :owner :player :mode :awake :hits 3}}]]

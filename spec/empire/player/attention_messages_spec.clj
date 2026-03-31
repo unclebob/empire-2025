@@ -16,7 +16,7 @@
       (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
       (should-contain "Fighter" (test-utils/read-test-state :attention-message))
-      (should-contain "needs attention" (test-utils/read-test-state :attention-message))))
+      (should-contain "in airport" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for carrier fighter"
     (set-test-world! (build-test-map ["C"]))
@@ -44,8 +44,7 @@
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message unit-coords)
-      (should-contain "army" (test-utils/read-test-state :attention-message))
-      (should-contain "needs attention" (test-utils/read-test-state :attention-message))))
+      (should-contain "army" (test-utils/read-test-state :attention-message))))
 
   (it "sets message for transport with cargo count"
     (set-test-world! (build-test-map ["T"]))
@@ -88,8 +87,7 @@
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]
       (test-utils/set-test-state! :attention-message "")
       (attention/set-attention-message city-coords)
-      (should-contain "City" (test-utils/read-test-state :attention-message))
-      (should-contain "needs" (test-utils/read-test-state :attention-message))))
+      (should= "City" (test-utils/read-test-state :attention-message))))
 
   (it "includes Damaged for damaged carrier"
     (set-test-world! (build-test-map ["C"]))

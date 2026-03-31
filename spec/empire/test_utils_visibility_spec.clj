@@ -25,7 +25,7 @@
                               "Destroyer docked for repair. 2/3 hits remain.")))
 
   (it "matches template with multiple %s placeholders"
-    (should (message-matches? "Damaged %s needs attention%s%s%s" "Damaged Battleship needs attention - hits:5")))
+    (should (message-matches? "Damaged %s%s%s%s" "Damaged Battleship (hits:5/8) - Enemy spotted.")))
 
   (it "matches format template embedded in longer message"
     (should (message-matches? "%s. %s destroyed." "c-3,S-1. Submarine destroyed.")))

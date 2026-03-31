@@ -218,7 +218,7 @@
         (let [filename (save-load/save-game! dir)]
           (test-utils/set-test-state! :attention-message "stale")
           (save-load/load-game! dir filename)
-          (should= "fighter needs attention (fuel:29)"
+          (should= "fighter (fuel:29)"
                    (test-utils/read-test-state :attention-message)))
         (finally
           (doseq [f (.listFiles (java.io.File. dir))] (.delete f))

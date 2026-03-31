@@ -23,8 +23,6 @@
    :found-a-bay "Found a bay!"
    :somethings-in-the-way "Something's in the way."
    :enemy-spotted "Enemy spotted."
-   :city-needs-attention "City needs attention"
-   :unit-needs-attention " needs attention"
    :not-on-map "That's not on the map!"
    :returned-to-start "Returned to start."
    :hit-edge "Hit map edge."
@@ -41,12 +39,7 @@
    :docked-for-repair "%s docked for repair. %d/%d hits remain."
    :combat-result "%s. %s destroyed."
    :destination "Dest: %d,%d"
-   :coastal-city-required "Must be coastal city to produce %s."
-   :fighter-airport-attention "Fighter needs attention - Landed and refueled.%s"
-   :fighter-carrier-attention "Fighter needs attention - aboard carrier (%d fighters)%s"
-   :army-transport-attention "Army needs attention - aboard transport (%d armies) - At beach."
-   :damaged-unit-attention "Damaged %s needs attention%s%s%s"
-   :unit-attention "%s needs attention%s%s%s"})
+   :coastal-city-required "Must be coastal city to produce %s."})
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T00:37:22.795158-05:00", :module-hash "-955726927", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "917790933"} {:id "def/error-message-duration", :kind "def", :line 3, :end-line 3, :hash "-2136737491"} {:id "def/messages", :kind "def", :line 5, :end-line 48, :hash "1834249931"}]}
