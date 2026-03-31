@@ -4,24 +4,20 @@
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]))
 
-(defn- set-turn-message!
-  [msg ms]
-  (sa/write-state! :turn-message msg)
-  (sa/write-state! :turn-message-until (if (= ms Long/MAX_VALUE)
-                                         Long/MAX_VALUE
-                                         (+ (System/currentTimeMillis) ms))))
+(defn- set-warning-message!
+  [msg]
+  (sa/write-state! :warning-message msg))
 
 (defn attack-enemy
   [ship-pos enemy-pos]
   (let [attacker (get-in (sa/current-world) (conj ship-pos :contents))
         defender (get-in (sa/current-world) (conj enemy-pos :contents))
         result (combat/resolve-combat attacker defender)
-        message (combat/format-combat-status (:log result)
-                                             (:type attacker)
-                                             (:type defender)
-                                             (:winner result))
+        message (combat/format-combat-outcome (:type attacker)
+                                              (:type defender)
+                                              (:winner result))
         dead-unit (if (= :attacker (:winner result)) defender attacker)]
-    (set-turn-message! message Long/MAX_VALUE)
+    (set-warning-message! message)
     (sa/update-world! update-in ship-pos dissoc :contents)
     (if (= :attacker (:winner result))
       (do

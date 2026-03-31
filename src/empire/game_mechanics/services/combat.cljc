@@ -6,6 +6,7 @@
 (def apply-combat-result! resolution/apply-combat-result!)
 (def format-combat-log resolution/format-combat-log)
 (def format-combat-status resolution/format-combat-status)
+(def format-combat-outcome resolution/format-combat-outcome)
 (def fight-round resolution/fight-round)
 (def resolve-combat resolution/resolve-combat)
 (def drown-excess-cargo-world resolution/drown-excess-cargo-world)

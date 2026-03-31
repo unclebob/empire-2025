@@ -4,17 +4,13 @@
             [empire.game-mechanics.combat-visibility-port :as visibility-port]
             [empire.config.units.dispatcher :as dispatcher]))
 
-(defn error-message-map
-  [msg ms]
-  {:error-message msg
-   :error-until (+ (System/currentTimeMillis) ms)})
+(defn warning-message-map
+  [msg]
+  {:warning-message msg})
 
-(defn turn-message-map
-  [msg ms]
-  {:turn-message msg
-   :turn-message-until (if (= ms Long/MAX_VALUE)
-                         Long/MAX_VALUE
-                         (+ (System/currentTimeMillis) ms))})
+(defn command-message-map
+  [msg]
+  {:command-message msg})
 
 (defn apply-combat-result!
   "Applies a combat result map's side effects: world update, messages, state changes, visibility."
@@ -55,6 +51,10 @@
 (defn format-combat-status
   [log attacker-type defender-type winner]
   (domain-combat/format-combat-status log attacker-type defender-type winner))
+
+(defn format-combat-outcome
+  [attacker-type defender-type winner]
+  (domain-combat/format-combat-outcome attacker-type defender-type winner))
 
 (defn fight-round
   [attacker defender]

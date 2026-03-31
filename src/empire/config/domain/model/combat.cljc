@@ -64,6 +64,12 @@
          attacker-name " lost " attacker ", "
          defender-name " lost " defender ".")))
 
+(defn format-combat-outcome
+  "Returns just the outcome: 'Submarine destroyed.'"
+  [attacker-type defender-type winner]
+  (let [loser-type (if (= winner :attacker) defender-type attacker-type)]
+    (str (unit-name loser-type) " destroyed.")))
+
 (defn fight-round
   [attacker defender]
   (if (< (rand) 0.5)

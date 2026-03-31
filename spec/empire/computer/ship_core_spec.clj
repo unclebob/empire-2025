@@ -70,14 +70,14 @@
     (it "sets turn message describing battle and damage"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}
                          {:type :sea :contents {:type :patrol-boat :owner :player :hits 1}}]])
-      (test-utils/set-test-state! :turn-message "")
+      (test-utils/set-test-state! :warning-message "")
       (with-redefs [combat/resolve-combat (fn [_ _] {:winner :attacker
                                                       :survivor {:type :destroyer :owner :computer :hits 3}
                                                       :log [{:hit :defender :damage 1}]})
                     combat/clear-escort-on-death (fn [_])]
         (ship-core/attack-enemy [0 0] [0 1]))
-      (should= "Battle: p-1. Patrol-boat destroyed. Damage: Destroyer lost 0, Patrol-boat lost 1."
-               (test-utils/read-test-state :turn-message))))
+      (should= "Patrol-boat destroyed."
+               (test-utils/read-test-state :warning-message))))
 
   (context "retreat-if-damaged (L129)"
     (it "retreats with passable sea neighbors when ship should retreat"

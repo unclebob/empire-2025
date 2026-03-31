@@ -97,6 +97,23 @@
         (should= "T-1. Transport destroyed."
                  (combat/format-combat-log log attacker-type defender-type :defender)))))
 
+  (context "format-combat-outcome"
+    (it "formats combat outcome with only the result - attacker wins"
+      (should= "Submarine destroyed."
+               (combat/format-combat-outcome :destroyer :submarine :attacker)))
+
+    (it "formats combat outcome with only the result - defender wins"
+      (should= "Destroyer destroyed."
+               (combat/format-combat-outcome :destroyer :submarine :defender)))
+
+    (it "shows army destroyed when army is loser"
+      (should= "Army destroyed."
+               (combat/format-combat-outcome :destroyer :army :attacker)))
+
+    (it "shows carrier destroyed when carrier is loser"
+      (should= "Carrier destroyed."
+               (combat/format-combat-outcome :submarine :carrier :attacker))))
+
   (context "fight-round"
     (it "attacker hits when rand < 0.5"
       (with-redefs [rand (constantly 0.4)]
