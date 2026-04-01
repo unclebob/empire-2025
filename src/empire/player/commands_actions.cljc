@@ -180,7 +180,8 @@
 
       :reject
       (do
-        (write-runtime-state! ctx :attention-message (:message decision))
+        (write-runtime-state! ctx :warning-message (:message decision))
+        (sound/play-bonk!)
         true)
 
       nil)))

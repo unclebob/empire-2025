@@ -367,7 +367,7 @@
       (commands/handle-unit-click [1 0] [[0 0]])
       (should= [[0 0]] (test-utils/read-test-state :cells-needing-attention))
       (should= true (test-utils/read-test-state :waiting-for-input))
-      (should= "Can't move into water." (test-utils/read-test-state :attention-message)))
+      (should= "Can't move into water." (test-utils/read-test-state :warning-message)))
 
     (it "sets movement toward a distant hostile unit click"
       (let [movement-called (atom nil)]
