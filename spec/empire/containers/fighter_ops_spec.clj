@@ -167,3 +167,15 @@
       (should= :fighter (get-in world [2 0 :contents :type]))
       (should= 0 (get-in world [1 1 :awake-fighters]))
       (should= 0 (get-in world [1 1 :fighter-count]))))
+
+  (it "finishes the launch when the target is the adjacent land cell"
+    (set-test-world! (build-test-map ["-O#"]))
+    (update-test-world! assoc-in [1 0 :fighter-count] 1)
+    (update-test-world! assoc-in [1 0 :awake-fighters] 1)
+    (launch-fighter-from-airport [1 0] [2 0])
+    (let [world (test-utils/read-test-state :game-map)
+          fighter (get-in world [2 0 :contents])]
+      (should= :fighter (:type fighter))
+      (should= :awake (:mode fighter))
+      (should= 0 (:steps-remaining fighter))
+      (should-be-nil (:target fighter))))

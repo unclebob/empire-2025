@@ -166,6 +166,17 @@
         updated-cell (assoc cell :contents updated-carrier)]
     (sa/update-world! assoc-in carrier-coords updated-cell)))
 
+(defn- launched-fighter-for-step
+  [owner target-coords first-step]
+  (cond-> (domain-containers/launched-fighter
+           owner
+           target-coords
+           (dec (config/unit-speed :fighter)))
+    (= first-step target-coords)
+    (-> (assoc :mode :awake
+               :steps-remaining 0)
+        (dissoc :target))))
+
 (defn launch-fighter-from-carrier
   [carrier-coords target-coords]
   (let [world (sa/current-world)
@@ -224,10 +235,7 @@
                                    (uc/remove-one-fighter cell))
                            true
                            (uc/normalize-airport-awake-fighters))
-            moving-fighter (-> (domain-containers/launched-fighter
-                                owner
-                                target-coords
-                                (dec (config/unit-speed :fighter)))
+            moving-fighter (-> (launched-fighter-for-step owner target-coords first-step)
                                (stamp-computer-unit-id))]
         (sa/update-world! assoc-in city-coords after-remove)
         (sa/update-world! assoc-in first-step (assoc target-cell :contents moving-fighter))

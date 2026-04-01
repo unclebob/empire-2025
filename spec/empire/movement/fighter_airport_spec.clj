@@ -74,6 +74,7 @@
 
 (describe "launch-fighter-from-airport"
   (before (reset-all-atoms!))
+
   (it "removes fighter from airport and places it moving"
     (set-test-world! (build-test-map ["-O#-"]))
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))
@@ -101,7 +102,20 @@
       (container-ops/launch-fighter-from-airport city-coords target-coords)
       (let [cell (get-in (test-utils/read-test-state :game-map) city-coords)]
         (should= 1 (:fighter-count cell))
-        (should= 0 (:awake-fighters cell))))))
+        (should= 0 (:awake-fighters cell)))))
+
+  (it "does not wake with something in the way after an adjacent-target launch"
+    (set-test-world! (build-test-map ["-O#"]))
+    (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))
+          target-coords [(inc (first city-coords)) (second city-coords)]]
+      (update-test-world! assoc-in (conj city-coords :fighter-count) 1)
+      (update-test-world! assoc-in (conj city-coords :awake-fighters) 1)
+      (set-test-player-map! (make-initial-test-map 1 3 nil))
+      (container-ops/launch-fighter-from-airport city-coords target-coords)
+      (should-be-nil (game-loop/move-current-unit target-coords))
+      (let [fighter (:contents (get-in (test-utils/read-test-state :game-map) target-coords))]
+        (should= :awake (:mode fighter))
+        (should-not= :somethings-in-the-way (:reason fighter))))))
 
 (describe "fighter landing via do-move"
   (before (reset-all-atoms!))
