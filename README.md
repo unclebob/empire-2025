@@ -163,6 +163,71 @@ Damaged ships have significantly worse odds. A healthy submarine has a 25% chanc
 
 ## User Manual
 
+### Screen Layout
+
+The game window is divided into a map area and a bottom message area. The
+map uses one character-sized cell per terrain square; the message area is a
+three-row HUD split into left and right columns.
+
+```text
++------------------------------------------------------------------------+
+| Map Area                                                               |
+|                                                                        |
+|  terrain, cities, units, waypoints, fog of war                         |
+|  units/cities needing attention flash in place                         |
+|                                                                        |
++------------------------------------------------------------------------+
+| Attention                         | Status: pause/round/orders/counts   |
+| Warning                           | Inspector summary                   |
+| Command response                  | Inspector detail                    |
++------------------------------------------------------------------------+
+```
+
+#### Map Area
+
+- **Terrain** — sea is blue, land is brown, free cities are white,
+  player cities are green, computer cities are red, and unexplored cells are
+  black.
+- **Units** — player units use uppercase letters, computer units use
+  lowercase letters. Unit colors show mode: awake units are white, sentries
+  are pink, exploring units are light green, coastline-follow ships are dark
+  green, and moving or sleeping units are black.
+- **Attention flash** — the current unit or city waiting for input flashes
+  on the map. Cities needing production show `?`.
+- **Waypoints** — waypoint markers are shown on land cells and can carry
+  marching orders.
+
+#### Message Area
+
+The bottom HUD is five text rows tall, with three active rows. The left column
+uses about 55% of the width for player-facing messages. The right column uses
+the remaining width for stable game status and mouse inspection.
+
+```text
++-----------------------------------+------------------------------------+
+| Attention                         | Status                             |
+| Warning                           | Inspector Summary                  |
+| Command Response                  | Inspector Detail                   |
++-----------------------------------+------------------------------------+
+```
+
+- **Attention** — gold text. Shows the unit or city currently asking for
+  orders, such as a fighter needing fuel, a city needing production, or an
+  army ready to move.
+- **Warning** — red text. Shows blocked moves, failed actions, combat
+  outcomes, crashes, illegal production choices, and other urgent feedback.
+- **Command Response** — light blue text. Shows successful commands and
+  confirmations, such as marching orders, flight paths, save/load messages,
+  docking, landing, and waypoint changes.
+- **Status** — gray text. Shows pause state, round number, handicap countdown
+  when active, debug map mode, destination or current order context, and a
+  compact production/exploration summary.
+- **Inspector Summary** — gray text. Shows the primary mouse-over summary for
+  the cell under the cursor, usually coordinates plus terrain, city, or unit.
+- **Inspector Detail** — gray text. Shows secondary mouse-over detail such as
+  fuel, cargo, production, docked ships, missions, orders, or target
+  coordinates.
+
 ### Unit Modes
 
 Units operate in different modes:

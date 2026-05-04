@@ -1,0 +1,54 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Helvetica;}{\f1 Courier New;}}
+{\colortbl;\red0\green0\blue0;}
+\paperw12240\paperh15840\margl1440\margr1440\margt1440\margb1440
+\f0\fs32\b Screen Layout\b0\fs24\par
+\par
+The game window is divided into a map area and a bottom message area. The map uses one character-sized cell per terrain square; the message area is a three-row HUD split into left and right columns.\par
+\par
+\f1
++------------------------------------------------------------------------+\par
+| Map Area                                                               |\par
+|                                                                        |\par
+|  terrain, cities, units, waypoints, fog of war                         |\par
+|  units/cities needing attention flash in place                         |\par
+|                                                                        |\par
++------------------------------------------------------------------------+\par
+| Attention                         | Status: pause/round/orders/counts   |\par
+| Warning                           | Inspector summary                   |\par
+| Command response                  | Inspector detail                    |\par
++------------------------------------------------------------------------+\par
+\f0\par
+\fs28\b Map Area\b0\fs24\par
+\par
+\b Terrain\b0 - sea is blue, land is brown, free cities are white, player cities are green, computer cities are red, and unexplored cells are black.\par
+\par
+\b Units\b0 - player units use uppercase letters, computer units use lowercase letters. Unit colors show mode: awake units are white, sentries are pink, exploring units are light green, coastline-follow ships are dark green, and moving or sleeping units are black.\par
+\par
+\b Attention flash\b0 - the current unit or city waiting for input flashes on the map. Cities needing production show ?.\par
+\par
+\b Waypoints\b0 - waypoint markers are shown on land cells and can carry marching orders.\par
+\par
+\fs28\b Message Area\b0\fs24\par
+\par
+The bottom HUD is five text rows tall, with three active rows. The left column uses about 55% of the width for player-facing messages. The right column uses the remaining width for stable game status and mouse inspection.\par
+\par
+\f1
++-----------------------------------+------------------------------------+\par
+| Attention                         | Status                             |\par
+| Warning                           | Inspector Summary                  |\par
+| Command Response                  | Inspector Detail                   |\par
++-----------------------------------+------------------------------------+\par
+\f0\par
+\b Attention\b0 - gold text. Shows the unit or city currently asking for orders, such as a fighter needing fuel, a city needing production, or an army ready to move.\par
+\par
+\b Warning\b0 - red text. Shows blocked moves, failed actions, combat outcomes, crashes, illegal production choices, and other urgent feedback.\par
+\par
+\b Command Response\b0 - light blue text. Shows successful commands and confirmations, such as marching orders, flight paths, save/load messages, docking, landing, and waypoint changes.\par
+\par
+\b Status\b0 - gray text. Shows pause state, round number, handicap countdown when active, debug map mode, destination or current order context, and a compact production/exploration summary.\par
+\par
+\b Inspector Summary\b0 - gray text. Shows the primary mouse-over summary for the cell under the cursor, usually coordinates plus terrain, city, or unit.\par
+\par
+\b Inspector Detail\b0 - gray text. Shows secondary mouse-over detail such as fuel, cargo, production, docked ships, missions, orders, or target coordinates.\par
+}
