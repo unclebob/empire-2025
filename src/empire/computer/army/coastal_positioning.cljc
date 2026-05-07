@@ -21,15 +21,10 @@
                      (= :computer (:city-status cell)))))
             (world-query/get-neighbors pos)))))
 
-(defn- known-lake-cells
-  []
-  (lake-naval/lake-cells (sa/read-state :computer-map)
-                         (sa/read-state :lake-max-cells)))
-
 (defn adjacent-to-ocean?
   [pos]
   (let [world (sa/read-state :computer-map)
-        lakes (known-lake-cells)]
+        lakes (lake-naval/known-lake-cells)]
     (some (fn [neighbor]
             (let [cell (get-in world neighbor)]
               (and (= :sea (:type cell))

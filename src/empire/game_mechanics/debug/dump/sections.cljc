@@ -39,23 +39,31 @@
         extra-str (when (seq extras) (str " " (pr-str extras)))]
     (str "    " (name event) " " pos extra-str)))
 
-(defn format-computer-event-section
-  "Format computer unit event history for the last 50 rounds."
-  []
+(defn- format-round-log-section
+  [title state-key round-window empty-message format-entry]
   (let [current-round (sa/read-state :round-number)
-        min-round (max 1 (- current-round 49))
-        entries (sa/read-state :computer-event-log)
+        min-round (max 1 (- current-round round-window))
+        entries (sa/read-state state-key)
         recent (filter #(<= min-round (:round %) current-round) entries)
         by-round (group-by :round recent)
         rounds (sort (keys by-round))]
-    (str "=== Computer Unit Events (last 50 rounds) ===\n"
+    (str "=== " title " ===\n"
          (if (empty? rounds)
-           "  (no events logged)\n"
+           empty-message
            (str/join "\n"
                      (for [r rounds]
                        (str "  Round " r ":\n"
-                            (str/join "\n" (map format-computer-event-entry (get by-round r)))))))
+                            (str/join "\n" (map format-entry (get by-round r)))))))
          "\n\n")))
+
+(defn format-computer-event-section
+  "Format computer unit event history for the last 50 rounds."
+  []
+  (format-round-log-section "Computer Unit Events (last 50 rounds)"
+                            :computer-event-log
+                            49
+                            "  (no events logged)\n"
+                            format-computer-event-entry))
 
 (defn format-transport-reservations-section
   []
@@ -79,20 +87,11 @@
 (defn format-movement-history-section
   "Format player unit movement history for the last 20 rounds."
   []
-  (let [current-round (sa/read-state :round-number)
-        min-round (max 1 (- current-round 19))
-        entries (sa/read-state :player-movement-log)
-        recent-entries (filter #(<= min-round (:round %) current-round) entries)
-        by-round (group-by :round recent-entries)
-        rounds-with-moves (sort (keys by-round))]
-    (str "=== Player Unit Movement History (last 20 rounds) ===\n"
-         (if (empty? rounds-with-moves)
-           "  (no movements logged)\n"
-           (str/join "\n"
-                     (for [r rounds-with-moves]
-                       (str "  Round " r ":\n"
-                            (str/join "\n" (map format-movement-entry (get by-round r)))))))
-         "\n\n")))
+  (format-round-log-section "Player Unit Movement History (last 20 rounds)"
+                            :player-movement-log
+                            19
+                            "  (no movements logged)\n"
+                            format-movement-entry))
 
 (defn- format-path
   [path]

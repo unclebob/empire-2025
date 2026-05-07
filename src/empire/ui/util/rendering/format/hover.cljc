@@ -87,28 +87,39 @@
       (str " producing:" (name (:item production))
            " rounds:" (:remaining-rounds production)))))
 
+(defn- coordinate-pair?
+  [value]
+  (and (vector? value)
+       (= 2 (count value))
+       (number? (first value))
+       (number? (second value))))
+
+(defn- march-target
+  [marching-orders]
+  (cond
+    (coordinate-pair? marching-orders) marching-orders
+    (and (sequential? marching-orders)
+         (vector? (first marching-orders))) (first marching-orders)))
+
+(defn- marching-orders-str
+  [marching-orders]
+  (let [target (march-target marching-orders)]
+    (cond
+      (= marching-orders :lookaround) " lookaround"
+      target (str " march:" (first target) "," (second target))
+      marching-orders " march")))
+
+(defn- flight-path-str
+  [flight-path]
+  (when (vector? flight-path)
+    (str " flight:" (first flight-path) "," (second flight-path))))
+
 (defn- city-orders-str
   [cell]
   (let [marching-orders (:marching-orders cell)
-        flight-path (:flight-path cell)
-        march-target (cond
-                       (and (vector? marching-orders)
-                            (= 2 (count marching-orders))
-                            (number? (first marching-orders))
-                            (number? (second marching-orders)))
-                       marching-orders
-
-                       (and (sequential? marching-orders)
-                            (vector? (first marching-orders)))
-                       (first marching-orders)
-
-                       :else nil)]
-    (str (cond
-           (= marching-orders :lookaround) " lookaround"
-           march-target (str " march:" (first march-target) "," (second march-target))
-           marching-orders " march")
-         (when (vector? flight-path)
-           (str " flight:" (first flight-path) "," (second flight-path))))))
+        flight-path (:flight-path cell)]
+    (str (marching-orders-str marching-orders)
+         (flight-path-str flight-path))))
 
 (defn format-city-status
   "Formats status string for a city. Production is the production entry for this city, or nil."
@@ -185,19 +196,20 @@
      :detail (when (seq detail-tokens)
                (compact-detail (clojure.string/join " " detail-tokens)))}))
 
-(defn- split-waypoint-hover
+(defn- split-capitalized-hover
   [coords-part rest]
-  (let [[waypoint-text & detail-tokens] (clojure.string/split rest #" ")]
-    {:summary (str coords-part " " (clojure.string/capitalize waypoint-text))
+  (let [[summary-token & detail-tokens] (clojure.string/split rest #" ")]
+    {:summary (str coords-part " " (clojure.string/capitalize summary-token))
      :detail (when (seq detail-tokens)
                (compact-detail (clojure.string/join " " detail-tokens)))}))
 
+(defn- split-waypoint-hover
+  [coords-part rest]
+  (split-capitalized-hover coords-part rest))
+
 (defn- split-terrain-hover
   [coords-part rest]
-  (let [[terrain & detail-tokens] (clojure.string/split rest #" ")]
-    {:summary (str coords-part " " (clojure.string/capitalize terrain))
-     :detail (when (seq detail-tokens)
-               (compact-detail (clojure.string/join " " detail-tokens)))}))
+  (split-capitalized-hover coords-part rest))
 
 (defn- hover-kind
   [rest]

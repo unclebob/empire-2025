@@ -9,15 +9,22 @@
 
 (def army-aboard-action movement/army-aboard-action)
 
+(defn- reject-unit-decision
+  [decision _coords _cell _active-unit]
+  (helpers/set-warning-message! (:message decision))
+  true)
+
+(def ^:private unit-decision-handlers
+  {:skip (fn [_decision coords _cell _active-unit] (modes/handle-space-key coords))
+   :unload (fn [_decision coords cell _active-unit] (modes/handle-unload-key coords cell))
+   :sentry (fn [_decision coords cell active-unit] (modes/handle-sentry-key coords cell active-unit))
+   :look-around (fn [_decision coords cell active-unit] (modes/handle-look-around-key coords cell active-unit))
+   :move (fn [decision coords cell _active-unit] (movement/handle-unit-movement-decision decision coords cell))
+   :reject reject-unit-decision})
+
 (defn- apply-unit-decision [decision coords cell active-unit]
-  (case (:action decision)
-    :skip (modes/handle-space-key coords)
-    :unload (modes/handle-unload-key coords cell)
-    :sentry (modes/handle-sentry-key coords cell active-unit)
-    :look-around (modes/handle-look-around-key coords cell active-unit)
-    :move (movement/handle-unit-movement-decision decision coords cell)
-    :reject (do (helpers/set-warning-message! (:message decision)) true)
-    nil))
+  (when-let [handler (unit-decision-handlers (:action decision))]
+    (handler decision coords cell active-unit)))
 
 (defn- apply-city-decision [decision coords cell]
   (case (:action decision)

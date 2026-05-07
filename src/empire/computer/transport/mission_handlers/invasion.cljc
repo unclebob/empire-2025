@@ -73,48 +73,60 @@
     (load-adjacent-armies step)
     step))
 
-(defn process-find-armies-for-invasion
-  [{:keys [current-world
-           read-computer-map
-           read-runtime-state
-           update-game-map!
-           sync-transport!
-           get-neighbors
-           update-cell-visibility!
-           bfs-to-land-ho-target
-           load-adjacent-armies
-           coastal-crawl-move
-           move-unit-to]} pos]
+(defn- find-armies-context
+  [{:keys [current-world read-computer-map read-runtime-state get-neighbors
+           bfs-to-land-ho-target load-adjacent-armies]} pos]
   (load-adjacent-armies pos)
   (let [read-map (or read-computer-map current-world)
-        sync-transport! (or sync-transport! noop-sync!)
         world (read-map)
         transport (get-in world (conj pos :contents))
-        army-count (:army-count transport 0)
-        nearest-army (nearest-reachable-coastal-army world read-runtime-state get-neighbors bfs-to-land-ho-target pos)]
-    (case (handler-decisions/find-armies-for-invasion-action
-           {:army-count army-count
-            :loadable-neighbor? (loadable-army-neighbor? world get-neighbors pos)
-            :reachable-path? (boolean nearest-army)})
-      :start-load-for-invasion
-      (load-for-invasion-start! update-game-map! read-runtime-state sync-transport! pos)
-      :follow-path
-      (if-let [{:keys [path]} nearest-army]
-        (if (seq path)
-          (or (move-to-sea-step move-unit-to update-cell-visibility! load-adjacent-armies pos (first path))
-              (coastal-crawl-move pos))
-          (load-for-invasion-start! update-game-map! read-runtime-state sync-transport! pos))
-        nil)
-      :revert-loading
-      (do
-        (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
-          (update-game-map! update-in (conj pos :contents)
-                            #(assoc %
-                                    :transport-mission :loading
-                                    :major-invasion-skip-revision
-                                    (threat-response/major-invasion-target-revision)))
-          (sync-transport! pos)
-          (tc/log-transport-mission-transition! pos from-mission :loading))))))
+        nearest-army (nearest-reachable-coastal-army
+                      world read-runtime-state get-neighbors bfs-to-land-ho-target pos)]
+    {:read-map read-map
+     :world world
+     :transport transport
+     :nearest-army nearest-army
+     :action (handler-decisions/find-armies-for-invasion-action
+              {:army-count (:army-count transport 0)
+               :loadable-neighbor? (loadable-army-neighbor? world get-neighbors pos)
+               :reachable-path? (boolean nearest-army)})}))
+
+(defn- start-load-for-invasion-action!
+  [{:keys [read-runtime-state update-game-map! sync-transport!]} pos _context]
+  (load-for-invasion-start! update-game-map! read-runtime-state sync-transport! pos))
+
+(defn- follow-nearest-army-path!
+  [{:keys [read-runtime-state update-game-map! sync-transport!
+           update-cell-visibility! load-adjacent-armies coastal-crawl-move move-unit-to]}
+   pos {:keys [nearest-army]}]
+  (if-let [{:keys [path]} nearest-army]
+    (if (seq path)
+      (or (move-to-sea-step move-unit-to update-cell-visibility! load-adjacent-armies pos (first path))
+          (coastal-crawl-move pos))
+      (load-for-invasion-start! update-game-map! read-runtime-state sync-transport! pos))
+    nil))
+
+(defn- revert-to-loading!
+  [{:keys [update-game-map! sync-transport!]} pos {:keys [read-map]}]
+  (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+    (update-game-map! update-in (conj pos :contents)
+                      #(assoc %
+                              :transport-mission :loading
+                              :major-invasion-skip-revision
+                              (threat-response/major-invasion-target-revision)))
+    (sync-transport! pos)
+    (tc/log-transport-mission-transition! pos from-mission :loading)))
+
+(def ^:private find-armies-handlers
+  {:start-load-for-invasion start-load-for-invasion-action!
+   :follow-path follow-nearest-army-path!
+   :revert-loading revert-to-loading!})
+
+(defn process-find-armies-for-invasion
+  [deps pos]
+  (let [deps (update deps :sync-transport! #(or % noop-sync!))
+        context (find-armies-context deps pos)]
+    ((find-armies-handlers (:action context)) deps pos context)))
 
 (defn process-load-for-invasion-with-armies
   [{:keys [transition-to-sailing

@@ -23,11 +23,6 @@
   (let [cell (get-in computer-map pos)]
     (contains? #{:land :city} (:type cell))))
 
-(defn- lake-cells
-  []
-  (lake-naval/lake-cells (sa/read-state :computer-map)
-                         (sa/read-state :lake-max-cells)))
-
 (defn- compute-usable-coastal-city-positions
   [computer-map lakes]
   (into {}
@@ -50,7 +45,7 @@
   [city-pos]
   (let [positions (or @usable-coastal-cache
                       (let [result (compute-usable-coastal-city-positions
-                                    (sa/read-state :computer-map) (lake-cells))]
+                                    (sa/read-state :computer-map) (lake-naval/known-lake-cells))]
                         (reset! usable-coastal-cache result)
                         result))]
     (boolean (get positions city-pos))))

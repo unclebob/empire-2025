@@ -28,15 +28,21 @@
 (def process-leave-city-mission missions/process-leave-city-mission)
 (def process-sailing-default missions/process-sailing-default)
 
+(def ^:private mission-handlers
+  {:sailing missions/process-sailing-default
+   :leave-city missions/process-leave-city-mission
+   :hold-sail-to-load missions/process-hold-sail-to-load-mission
+   :sail-to-load missions/process-sail-to-load-mission
+   :sail-to-unload missions/process-sail-to-unload-mission})
+
+(defn- follow-existing-sail-path
+  [pos transport]
+  (when-let [sail-path (:sail-path transport)]
+    (follow/follow-path-action pos sail-path)))
+
 (defn process-sailing-mission
   [pos]
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-        mission (:transport-mission transport)]
-    (case mission
-      :sailing (missions/process-sailing-default pos transport)
-      :leave-city (missions/process-leave-city-mission pos transport)
-      :hold-sail-to-load (missions/process-hold-sail-to-load-mission pos transport)
-      :sail-to-load (missions/process-sail-to-load-mission pos transport)
-      :sail-to-unload (missions/process-sail-to-unload-mission pos transport)
-      (when-let [sail-path (:sail-path transport)]
-        (follow/follow-path-action pos sail-path)))))
+        mission (:transport-mission transport)
+        handler (get mission-handlers mission follow-existing-sail-path)]
+    (handler pos transport)))

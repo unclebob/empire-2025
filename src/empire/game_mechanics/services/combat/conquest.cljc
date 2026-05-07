@@ -4,15 +4,18 @@
             [empire.config.domain.model.combat :as domain-combat]
             [empire.game-mechanics.services.combat.resolution :as resolution]))
 
+(defn- dead-escort-unit?
+  [dead-unit unit-type escort-id-key]
+  (and (= unit-type (:type dead-unit))
+       (escort-id-key dead-unit)))
+
 (defn dead-escort-destroyer?
   [dead-unit]
-  (and (= :destroyer (:type dead-unit))
-       (:escort-transport-id dead-unit)))
+  (dead-escort-unit? dead-unit :destroyer :escort-transport-id))
 
 (defn dead-escort-transport?
   [dead-unit]
-  (and (= :transport (:type dead-unit))
-       (:escort-destroyer-id dead-unit)))
+  (dead-escort-unit? dead-unit :transport :escort-destroyer-id))
 
 (defn- find-units-where
   [world pred]
@@ -34,6 +37,20 @@
                 :battleship (assoc-in w (conj pos :contents :group-battleship-id) nil)
                 :submarine (update-in w (conj pos :contents :group-submarine-ids)
                                       (fn [ids] (vec (remove #{escort-id} ids))))))
+	            world coords)))
+
+(defn- release-escort
+  [unit & keys-to-clear]
+  (apply dissoc (assoc unit :escort-mode :seeking) keys-to-clear))
+
+(defn- update-linked-units
+  [world dead-unit dead-id-key target-type target-id-key update-unit & args]
+  (let [dead-id (dead-id-key dead-unit)
+        coords (find-units-where world
+                #(and (= target-type (:type %))
+                      (= dead-id (target-id-key %))))]
+    (reduce (fn [w pos]
+              (apply update-in w (conj pos :contents) update-unit args))
             world coords)))
 
 (defn- release-carrier-escorts
@@ -41,9 +58,7 @@
   (let [carrier-id (:carrier-id dead-unit)
         coords (find-units-where world #(= carrier-id (:escort-carrier-id %)))]
     (reduce (fn [w pos]
-              (update-in w (conj pos :contents)
-                         #(-> % (assoc :escort-mode :seeking)
-                              (dissoc :escort-carrier-id :orbit-angle))))
+              (update-in w (conj pos :contents) release-escort :escort-carrier-id :orbit-angle))
             world coords)))
 
 (defn- clear-carrier-group-on-death
@@ -61,25 +76,21 @@
 
 (defn- clear-destroyer-escort
   [world dead-unit]
-  (let [tid (:escort-transport-id dead-unit)
-        coords (find-units-where world
-                #(and (= :transport (:type %))
-                      (= tid (:transport-id %))))]
-    (reduce (fn [w pos]
-              (update-in w (conj pos :contents) dissoc :escort-destroyer-id))
-            world coords)))
+  (update-linked-units world dead-unit
+                       :escort-transport-id
+                       :transport
+                       :transport-id
+                       dissoc
+                       :escort-destroyer-id))
 
 (defn- clear-transport-escort
   [world dead-unit]
-  (let [did (:escort-destroyer-id dead-unit)
-        coords (find-units-where world
-                #(and (= :destroyer (:type %))
-                      (= did (:destroyer-id %))))]
-    (reduce (fn [w pos]
-              (update-in w (conj pos :contents)
-                         #(-> % (assoc :escort-mode :seeking)
-                              (dissoc :escort-transport-id))))
-            world coords)))
+  (update-linked-units world dead-unit
+                       :escort-destroyer-id
+                       :destroyer
+                       :destroyer-id
+                       release-escort
+                       :escort-transport-id))
 
 (defn clear-escort-on-death-world
   [world dead-unit]

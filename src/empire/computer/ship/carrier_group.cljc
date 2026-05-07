@@ -94,10 +94,10 @@
 (defn- revert-escort-to-seeking
   "Reverts an escort to seeking mode, clearing carrier reference."
   [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    #(-> % (assoc :escort-mode :seeking)
-                         (dissoc :escort-carrier-id :orbit-angle)))
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (computer-movement/update-unit-and-sync!
+   pos
+   #(-> % (assoc :escort-mode :seeking)
+        (dissoc :escort-carrier-id :orbit-angle))))
 
 (defn- process-escort-seeking
   "Escort seeking: find a carrier with an open slot and adopt it."

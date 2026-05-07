@@ -1,5 +1,5 @@
 (ns empire.computer.shared.threat
-  (:require [empire.state.api :as sa]
+  (:require [empire.computer.shared.world-query :as world-query]
             [empire.config.units.dispatcher :as dispatcher]))
 
 (def ^:private threat-values
@@ -59,17 +59,6 @@
       ;; Severely damaged (< 50% health)
       (< current-hits (/ max-hits 2)))))
 
-(defn- find-visible-cities
-  "Finds cities visible on computer-map matching the status predicate."
-  [status-pred]
-  (let [comp-map (sa/read-state :computer-map)]
-    (for [i (range (count comp-map))
-          j (range (count (first comp-map)))
-          :let [cell (get-in comp-map [i j])]
-        :when (and (= (:type cell) :city)
-                   (status-pred (:city-status cell)))]
-      [i j])))
-
 (defn distance
   "Manhattan distance between two positions."
   [[x1 y1] [x2 y2]]
@@ -78,7 +67,7 @@
 (defn find-nearest-friendly-base
   "Finds the nearest computer-owned city."
   [pos _unit-type]
-  (let [cities (find-visible-cities #{:computer})]
+  (let [cities (world-query/find-visible-cities #{:computer})]
     (when (seq cities)
       (apply min-key #(distance pos %) cities))))
 

@@ -64,16 +64,19 @@
   (sa/write-state! :attention-message attention-message)
   (sa/write-state! :cells-needing-attention cells-needing-attention))
 
+(defn- owned-item-coordinates
+  [world owner]
+  (for [i (range (count world))
+        j (range (count (first world)))
+        :let [cell (get-in world [i j])]
+        :when (or (= (:city-status cell) owner)
+                  (= (:owner (:contents cell)) owner))]
+    [i j]))
+
 (defn build-player-items
   "Builds list of player city/unit coordinates to process this round."
   []
-  (let [world (sa/current-world)]
-    (for [i (range (count world))
-          j (range (count (first world)))
-          :let [cell (get-in world [i j])]
-        :when (or (= (:city-status cell) :player)
-                  (= (:owner (:contents cell)) :player))]
-      [i j])))
+  (owned-item-coordinates (sa/current-world) :player))
 
 (def ^:private type->priority
   {:transport 1 :patrol-boat 2 :destroyer 2 :submarine 2
@@ -92,12 +95,7 @@
    Ordered: cities, transports, naval, fighters, armies."
   []
   (let [world (sa/current-world)
-        items (for [i (range (count world))
-                    j (range (count (first world)))
-                    :let [cell (get-in world [i j])]
-                    :when (or (= (:city-status cell) :computer)
-                              (= (:owner (:contents cell)) :computer))]
-                [i j])]
+        items (owned-item-coordinates world :computer)]
     (sort-by #(unit-processing-order (get-in world %)) items)))
 
 (defn start-new-round
@@ -158,5 +156,5 @@
   (integrity/check-world-integrity!))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T11:49:35.575891-05:00", :module-hash "153878891", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 24, :hash "1882679365"} {:id "defn/handicap-active?", :kind "defn", :line 26, :end-line 28, :hash "1445275643"} {:id "defn/current-player-items", :kind "defn", :line 30, :end-line 33, :hash "-1375653350"} {:id "defn/update-handicap-before-round!", :kind "defn", :line 35, :end-line 45, :hash "-1774148636"} {:id "defn/declare-game-over!", :kind "defn", :line 47, :end-line 54, :hash "-1723377422"} {:id "defn-/apply-round-start-state!", :kind "defn-", :line 56, :end-line 64, :hash "-1011890827"} {:id "defn/build-player-items", :kind "defn", :line 66, :end-line 75, :hash "1741102605"} {:id "defn-/unit-processing-order", :kind "defn-", :line 77, :end-line 92, :hash "1278546162"} {:id "defn/build-computer-items", :kind "defn", :line 94, :end-line 105, :hash "-1523296034"} {:id "defn/start-new-round", :kind "defn", :line 107, :end-line 153, :hash "553208786"}]}
+;; {:version 1, :tested-at "2026-05-07T10:36:51.735789-05:00", :module-hash "-1790788514", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 25, :hash "1623434577"} {:id "defn/handicap-active?", :kind "defn", :line 27, :end-line 29, :hash "1445275643"} {:id "defn/current-player-items", :kind "defn", :line 31, :end-line 34, :hash "-1375653350"} {:id "defn/update-handicap-before-round!", :kind "defn", :line 36, :end-line 46, :hash "-1774148636"} {:id "defn/declare-game-over!", :kind "defn", :line 48, :end-line 55, :hash "924669775"} {:id "defn-/apply-round-start-state!", :kind "defn-", :line 57, :end-line 65, :hash "-1011890827"} {:id "defn-/owned-item-coordinates", :kind "defn-", :line 67, :end-line 74, :hash "604747286"} {:id "defn/build-player-items", :kind "defn", :line 76, :end-line 79, :hash "-2116360024"} {:id "def/type->priority", :kind "def", :line 81, :end-line 83, :hash "1946935597"} {:id "defn-/unit-processing-order", :kind "defn-", :line 85, :end-line 91, :hash "-780389486"} {:id "defn/build-computer-items", :kind "defn", :line 93, :end-line 99, :hash "-1567124204"} {:id "defn/start-new-round", :kind "defn", :line 101, :end-line 156, :hash "1266033542"}]}
 ;; clj-mutate-manifest-end

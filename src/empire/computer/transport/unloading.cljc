@@ -70,6 +70,36 @@
           (unloadable-land-cell? (get-in game-map n) n exclude-ids major-invasion?))
         (world-query/get-neighbors pos)))
 
+(defn- nearby-indexed-coastal-candidates
+  [game-map coastal-index pos max-depth]
+  (filter (fn [c]
+            (and (<= (grid/chebyshev-distance pos c) max-depth)
+                 (= :sea (:type (get-in game-map c)))))
+          (:coastal-sea-cells coastal-index)))
+
+(defn- indexed-nearby-unloadable-land?
+  [game-map coastal-index pos max-depth exclude-ids major-invasion?]
+  (boolean
+   (some #(has-unloadable-neighbor-at? game-map % exclude-ids major-invasion?)
+         (cons pos (nearby-indexed-coastal-candidates game-map coastal-index pos max-depth)))))
+
+(defn- bfs-nearby-unloadable-land?
+  [game-map pos max-depth exclude-ids major-invasion?]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
+         visited #{pos}]
+    (if (empty? queue)
+      false
+      (let [[current depth] (peek queue)]
+        (cond
+          (has-unloadable-neighbor-at? game-map current exclude-ids major-invasion?) true
+          (>= depth max-depth) (recur (pop queue) visited)
+          :else
+          (let [coastal-neighbors
+                (filter #(passable-coastal-sea? % visited game-map)
+                        (world-query/get-neighbors current))]
+            (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
+                   (into visited coastal-neighbors))))))))
+
 (defn has-nearby-unloadable-land?
   "Check if any coastal sea cell within max-depth of pos has adjacent unloadable land.
    Uses coastal index when available, falls back to BFS."
@@ -78,33 +108,59 @@
         exclude-ids (pickup-exclude-ids game-map transport)
         major-invasion? (:major-invasion transport)
         coastal-index (sa/read-state :coastal-index)]
-    (if (and coastal-index (pos? max-depth))
-      ;; Use coastal index: filter nearby coastal-sea-cells and check for unloadable neighbors
-      (let [candidates (filter (fn [c]
-                                 (and (<= (grid/chebyshev-distance pos c) max-depth)
-                                      (let [cell (get-in game-map c)]
-                                        (and cell (= :sea (:type cell))))))
-                               (:coastal-sea-cells coastal-index))]
-        (boolean (some #(has-unloadable-neighbor-at? game-map % exclude-ids major-invasion?)
-                       (cons pos candidates))))
-      ;; Depth 0 or no index: just check current position
-      (if (zero? max-depth)
-        (boolean (has-unloadable-neighbor-at? game-map pos exclude-ids major-invasion?))
-        ;; BFS fallback
-        (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
-               visited #{pos}]
-          (if (empty? queue)
-            false
-            (let [[current depth] (peek queue)]
-              (cond
-                (has-unloadable-neighbor-at? game-map current exclude-ids major-invasion?) true
-                (>= depth max-depth) (recur (pop queue) visited)
-                :else
-                (let [coastal-neighbors
-                      (filter #(passable-coastal-sea? % visited game-map)
-                              (world-query/get-neighbors current))]
-                  (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
-                         (into visited coastal-neighbors)))))))))))
+    (cond
+      (and coastal-index (pos? max-depth))
+      (indexed-nearby-unloadable-land? game-map coastal-index pos max-depth exclude-ids major-invasion?)
+
+      (zero? max-depth)
+      (boolean (has-unloadable-neighbor-at? game-map pos exclude-ids major-invasion?))
+
+      :else
+      (bfs-nearby-unloadable-land? game-map pos max-depth exclude-ids major-invasion?))))
+
+(defn- return-load-target
+  [pos computer-map transport]
+  (let [transport-id (:transport-id transport)]
+    (load-targeting/choose-load-target-cell
+     pos
+     computer-map
+     {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+      :excluded-country-ids (disj #{(:pickup-country-id transport)} nil)
+      :reserved-army-ids (reservations/reserved-army-ids transport-id)})))
+
+(defn- return-load-sail-path
+  [pos computer-map load-target-cell]
+  (if load-target-cell
+    (or (load-targeting/path-to-load-target pos computer-map load-target-cell) [])
+    (or (sailing-path/compute-sail-to-load-path pos computer-map) [])))
+
+(defn- path-ready-for-load?
+  [pos load-target-cell sail-path]
+  (and load-target-cell
+       (or (seq sail-path)
+           (load-targeting/target-reached? pos load-target-cell))))
+
+(defn- reset-return-loading-fields!
+  [pos load-target-cell sail-path stored-manifest]
+  (tc/set-transport-mission pos :sail-to-load)
+  (tc/update-transport-contents! pos #(dissoc % :unload-target-city))
+  (doseq [[field value] {:load-target-cell load-target-cell
+                         :load-manifest nil
+                         :load-plan-failure nil
+                         :hold-sail-to-load-since-round nil
+                         :loading-since-round nil
+                         :sail-path (vec sail-path)}]
+    (tc/assoc-transport-field! pos field value))
+  (tc/assoc-transport-field! pos :load-manifest stored-manifest))
+
+(defn- reserve-return-load!
+  [transport-id load-target-cell stored-manifest path-ready?]
+  (when (and load-target-cell
+             (seq stored-manifest)
+             path-ready?)
+    (reservations/reserve! transport-id
+                           load-target-cell
+                           stored-manifest)))
 
 (defn- transition-to-loading-inline
   "Inline return-to-load transition — avoids circular dep with facade."
@@ -113,37 +169,13 @@
         transport-id (:transport-id transport)
         _ (reservations/release! transport-id)
         computer-map (sa/read-state :computer-map)
-        load-target-cell (load-targeting/choose-load-target-cell
-                          pos
-                          computer-map
-                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
-                           :excluded-country-ids (disj #{(:pickup-country-id transport)} nil)
-                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
-        sail-path (if load-target-cell
-                    (or (load-targeting/path-to-load-target pos computer-map load-target-cell)
-                        [])
-                    (or (sailing-path/compute-sail-to-load-path pos computer-map)
-                        []))
-        path-ready? (and load-target-cell
-                         (or (seq sail-path)
-                             (load-targeting/target-reached? pos load-target-cell)))]
+        load-target-cell (return-load-target pos computer-map transport)
+        sail-path (return-load-sail-path pos computer-map load-target-cell)
+        path-ready? (path-ready-for-load? pos load-target-cell sail-path)]
     (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos load-target-cell))
           stored-manifest (when (seq manifest) manifest)]
-      (tc/set-transport-mission pos :sail-to-load)
-      (tc/update-transport-contents! pos #(dissoc % :unload-target-city))
-      (tc/assoc-transport-field! pos :load-target-cell load-target-cell)
-      (tc/assoc-transport-field! pos :load-manifest nil)
-      (tc/assoc-transport-field! pos :load-plan-failure nil)
-      (tc/assoc-transport-field! pos :hold-sail-to-load-since-round nil)
-      (tc/assoc-transport-field! pos :loading-since-round nil)
-      (tc/assoc-transport-field! pos :sail-path (vec sail-path))
-      (tc/assoc-transport-field! pos :load-manifest stored-manifest)
-      (when (and load-target-cell
-                 (seq stored-manifest)
-                 path-ready?)
-        (reservations/reserve! transport-id
-                               load-target-cell
-                               stored-manifest))
+      (reset-return-loading-fields! pos load-target-cell sail-path stored-manifest)
+      (reserve-return-load! transport-id load-target-cell stored-manifest path-ready?)
       (visibility/sync-ai-unit-to-computer-map! pos)
       nil)))
 

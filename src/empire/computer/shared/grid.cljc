@@ -18,6 +18,18 @@
         [nr nc]))
     []))
 
+(defn in-bounds?
+  [the-map [r c]]
+  (and (<= 0 r) (< r (count the-map))
+       (<= 0 c) (< c (count (first the-map)))))
+
+(defn bounded-conj
+  [coll value limit]
+  (let [v (conj (or coll []) value)]
+    (if (> (count v) limit)
+      (subvec v (- (count v) limit))
+      v)))
+
 (defn adjacent?
   "Returns true if pos1 and pos2 are adjacent (including diagonally)."
   [pos1 pos2]
@@ -34,6 +46,13 @@
 (defn chebyshev-distance
   [[r1 c1] [r2 c2]]
   (max (Math/abs (- r2 r1)) (Math/abs (- c2 c1))))
+
+(defn inflated-path?
+  [path from target threshold]
+  (let [cheb (chebyshev-distance from target)]
+    (and (seq path)
+         (pos? cheb)
+         (>= (count path) (* threshold cheb)))))
 
 (defn move-toward
   [pos target passable-neighbors]

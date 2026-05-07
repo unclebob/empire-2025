@@ -77,49 +77,46 @@
 (def carrier-spacing 22)
 (def bingo-fuel-divisor 4)
 
-(def ^:private unit-costs
-  {:army units-config/army-cost
-   :fighter units-config/fighter-cost
-   :satellite units-config/satellite-cost
-   :transport units-config/transport-cost
-   :carrier units-config/carrier-cost
-   :patrol-boat (ships/config :patrol-boat :cost)
-   :destroyer (ships/config :destroyer :cost)
-   :submarine (ships/config :submarine :cost)
-   :battleship (ships/config :battleship :cost)})
+(def ^:private core-unit-attributes
+  {:army {:cost units-config/army-cost
+          :display-char units-config/army-display-char
+          :hits units-config/army-hits
+          :speed units-config/army-speed}
+   :fighter {:cost units-config/fighter-cost
+             :display-char units-config/fighter-display-char
+             :hits units-config/fighter-hits
+             :speed units-config/fighter-speed}
+   :satellite {:cost units-config/satellite-cost
+               :display-char units-config/satellite-display-char
+               :hits units-config/satellite-hits
+               :speed units-config/satellite-speed}
+   :transport {:cost units-config/transport-cost
+               :display-char units-config/transport-display-char
+               :hits units-config/transport-hits
+               :speed units-config/transport-speed}
+   :carrier {:cost units-config/carrier-cost
+             :display-char units-config/carrier-display-char
+             :hits units-config/carrier-hits
+             :speed units-config/carrier-speed}})
 
-(def ^:private unit-display-chars
-  {:army units-config/army-display-char
-   :fighter units-config/fighter-display-char
-   :satellite units-config/satellite-display-char
-   :transport units-config/transport-display-char
-   :carrier units-config/carrier-display-char
-   :patrol-boat (ships/config :patrol-boat :display-char)
-   :destroyer (ships/config :destroyer :display-char)
-   :submarine (ships/config :submarine :display-char)
-   :battleship (ships/config :battleship :display-char)})
+(def ^:private ship-types
+  [:patrol-boat :destroyer :submarine :battleship])
 
-(def ^:private unit-hit-points
-  {:army units-config/army-hits
-   :fighter units-config/fighter-hits
-   :satellite units-config/satellite-hits
-   :transport units-config/transport-hits
-   :carrier units-config/carrier-hits
-   :patrol-boat (ships/config :patrol-boat :hits)
-   :destroyer (ships/config :destroyer :hits)
-   :submarine (ships/config :submarine :hits)
-   :battleship (ships/config :battleship :hits)})
+(defn- unit-attribute-map
+  [attribute]
+  (into (sorted-map)
+        (concat
+         (map (fn [[unit-type attributes]]
+                [unit-type (attribute attributes)])
+              core-unit-attributes)
+         (map (fn [unit-type]
+                [unit-type (ships/config unit-type attribute)])
+              ship-types))))
 
-(def ^:private unit-speeds
-  {:army units-config/army-speed
-   :fighter units-config/fighter-speed
-   :satellite units-config/satellite-speed
-   :transport units-config/transport-speed
-   :carrier units-config/carrier-speed
-   :patrol-boat (ships/config :patrol-boat :speed)
-   :destroyer (ships/config :destroyer :speed)
-   :submarine (ships/config :submarine :speed)
-   :battleship (ships/config :battleship :speed)})
+(def ^:private unit-costs (unit-attribute-map :cost))
+(def ^:private unit-display-chars (unit-attribute-map :display-char))
+(def ^:private unit-hit-points (unit-attribute-map :hits))
+(def ^:private unit-speeds (unit-attribute-map :speed))
 
 (defn item-cost [unit-type]
   (get unit-costs unit-type))

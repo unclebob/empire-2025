@@ -17,17 +17,19 @@
   [entity count-key]
   (update entity count-key (fnil inc 0)))
 
+(defn- update-container-counts
+  [entity f count-key awake-key]
+  (-> entity
+      (update count-key (fnil f 0))
+      (update awake-key (fnil f 0))))
+
 (defn add-awake-unit
   [entity count-key awake-key]
-  (-> entity
-      (update count-key (fnil inc 0))
-      (update awake-key (fnil inc 0))))
+  (update-container-counts entity inc count-key awake-key))
 
 (defn remove-awake-unit
   [entity count-key awake-key]
-  (-> entity
-      (update count-key (fnil dec 0))
-      (update awake-key (fnil dec 0))))
+  (update-container-counts entity dec count-key awake-key))
 
 (defn remove-one-fighter
   [entity]
@@ -69,15 +71,18 @@
   (and (= (:type contents) :carrier)
        (pos? (get-count contents :fighter-count))))
 
+(defn- has-awake-contained-unit?
+  [contents unit-type awake-key]
+  (and (= (:type contents) unit-type)
+       (has-awake? contents awake-key)))
+
 (defn has-awake-carrier-fighter?
   [contents]
-  (and (= (:type contents) :carrier)
-       (has-awake? contents :awake-fighters)))
+  (has-awake-contained-unit? contents :carrier :awake-fighters))
 
 (defn has-awake-army-aboard?
   [contents]
-  (and (= (:type contents) :transport)
-       (has-awake? contents :awake-armies)))
+  (has-awake-contained-unit? contents :transport :awake-armies))
 
 (defn blinking-contained-unit
   [has-awake-airport? has-awake-carrier? has-awake-army?]

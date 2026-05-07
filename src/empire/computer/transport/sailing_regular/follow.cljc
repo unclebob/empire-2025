@@ -34,6 +34,28 @@
   [sail-path]
   (if (seq sail-path) (vec (rest sail-path)) []))
 
+(defn- after-sail-step
+  [next-pos path-after-step moves-left]
+  (let [transport (get-in (sa/read-state :computer-map) (conj next-pos :contents))]
+    (if (or (zero? (dec moves-left))
+            (zero? (:army-count transport 0)))
+      {:done? true :pos next-pos}
+      {:pos next-pos
+       :remaining-path path-after-step
+       :moves-left (dec moves-left)
+       :moved-any? true})))
+
+(defn- sail-step
+  [current-pos next-pos path-after-step moves-left]
+  (if (action-resolution/move-unit-to current-pos next-pos)
+    (do
+      (support/update-cell-visibility! current-pos :computer)
+      (support/update-cell-visibility! next-pos :computer)
+      (sync-sail-path! next-pos path-after-step)
+      (after-sail-step next-pos path-after-step moves-left))
+    {:done? true
+     :pos (blocked-follow-result current-pos)}))
+
 (defn sail-follow-path
   [pos sail-path]
   (loop [current-pos pos
@@ -45,17 +67,11 @@
       (when moved-any? current-pos)
       (if-let [next-pos (next-sail-step previous-pos current-pos remaining-path)]
         (let [path-after-step (remaining-sail-path remaining-path)]
-          (if (action-resolution/move-unit-to current-pos next-pos)
-            (do
-              (support/update-cell-visibility! current-pos :computer)
-              (support/update-cell-visibility! next-pos :computer)
-              (sync-sail-path! next-pos path-after-step)
-              (let [transport (get-in (sa/read-state :computer-map) (conj next-pos :contents))]
-                (if (or (zero? (dec moves-left))
-                        (zero? (:army-count transport 0)))
-                  next-pos
-                  (recur next-pos current-pos path-after-step (dec moves-left) true))))
-            (blocked-follow-result current-pos)))
+          (let [{:keys [done? pos remaining-path moves-left moved-any?]}
+                (sail-step current-pos next-pos path-after-step moves-left)]
+            (if done?
+              pos
+              (recur pos current-pos remaining-path moves-left moved-any?))))
         (when moved-any?
           current-pos)))))
 

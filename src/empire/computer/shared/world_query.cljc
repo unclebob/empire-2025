@@ -24,6 +24,18 @@
                      (status-pred (:city-status cell)))]
       [i j])))
 
+(defn passable-sea-neighbors
+  [pos allowed-occupant-owner]
+  (let [game-map (sa/read-state :computer-map)]
+    (filter (fn [neighbor]
+              (let [cell (get-in game-map neighbor)]
+                (and (or (nil? cell)
+                         (= :sea (:type cell))
+                         (= :unexplored (:type cell)))
+                     (or (nil? (:contents cell))
+                         (= allowed-occupant-owner (:owner (:contents cell)))))))
+            (get-neighbors pos))))
+
 (defn adjacent-to-computer-unexplored?
   [pos]
   (let [comp-map (sa/read-state :computer-map)]

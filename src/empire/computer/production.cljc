@@ -1,7 +1,6 @@
 (ns empire.computer.production
   "Computer production module - priority-based production."
-  (:require [empire.state.api :as sa]
-            [empire.game-mechanics.visibility :as visibility]
+  (:require [empire.game-mechanics.visibility :as visibility]
             [empire.computer.production.decisions :as decisions]
             [empire.computer.production.stats :as stats]))
 
@@ -43,10 +42,7 @@
 (def ^:private country-army-limit-reached? stats/country-army-limit-reached?)
 (def ^:private country-has-other-coastal-city? stats/country-has-other-coastal-city?)
 (defn- count-carrier-producers []
-  (count (filter (fn [[_coords prod]]
-                   (and (map? prod)
-                        (= :carrier (:item prod))))
-                 (sa/read-state :production))))
+  (stats/count-carrier-producers))
 
 (defn decide-production [city-pos]
   (refresh-computer-map!)

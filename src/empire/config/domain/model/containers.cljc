@@ -20,19 +20,28 @@
   [entity awake-key]
   (pos? (get entity awake-key 0)))
 
+(defn- wake-contained-units
+  [entity count-key awake-key extra-fields]
+  (-> entity
+      (wake-all count-key awake-key)
+      (merge extra-fields)
+      (dissoc :reason)))
+
+(defn- sleep-contained-units
+  [entity awake-key]
+  (-> entity
+      (sleep-all awake-key)
+      (assoc :mode :awake)
+      (dissoc :reason)))
+
 (defn wake-transport-armies
   [transport]
-  (-> transport
-      (wake-all :army-count :awake-armies)
-      (assoc :mode :sentry :steps-remaining 0)
-      (dissoc :reason)))
+  (wake-contained-units transport :army-count :awake-armies
+                        {:mode :sentry :steps-remaining 0}))
 
 (defn sleep-transport-armies
   [transport]
-  (-> transport
-      (sleep-all :awake-armies)
-      (assoc :mode :awake)
-      (dissoc :reason)))
+  (sleep-contained-units transport :awake-armies))
 
 (defn remove-awake-transport-army
   [transport]
@@ -71,17 +80,11 @@
 
 (defn wake-carrier-fighters
   [carrier]
-  (-> carrier
-      (wake-all :fighter-count :awake-fighters)
-      (assoc :mode :sentry)
-      (dissoc :reason)))
+  (wake-contained-units carrier :fighter-count :awake-fighters {:mode :sentry}))
 
 (defn sleep-carrier-fighters
   [carrier]
-  (-> carrier
-      (sleep-all :awake-fighters)
-      (assoc :mode :awake)
-      (dissoc :reason)))
+  (sleep-contained-units carrier :awake-fighters))
 
 (defn first-step-toward
   [[cx cy] [tx ty]]

@@ -13,31 +13,27 @@
   (get-in (sa/read-state :computer-map) (conj pos :contents)))
 
 
-(defn find-carrier-by-id
-  "Finds the position of a carrier with the given carrier-id."
-  [carrier-id]
+(defn- find-unit-by-id
+  [unit-type id-key id-value]
   (let [game-map (sa/read-state :computer-map)]
     (first (for [i (range (count game-map))
                  j (range (count (first game-map)))
                  :let [cell (get-in game-map [i j])
                        unit (:contents cell)]
                  :when (and unit
-                            (= :carrier (:type unit))
-                            (= carrier-id (:carrier-id unit)))]
+                            (= unit-type (:type unit))
+                            (= id-value (id-key unit)))]
              [i j]))))
+
+(defn find-carrier-by-id
+  "Finds the position of a carrier with the given carrier-id."
+  [carrier-id]
+  (find-unit-by-id :carrier :carrier-id carrier-id))
 
 (defn- find-transport-by-id
   "Finds the position of a transport with the given transport-id."
   [transport-id]
-  (let [game-map (sa/read-state :computer-map)]
-    (first (for [i (range (count game-map))
-                 j (range (count (first game-map)))
-                 :let [cell (get-in game-map [i j])
-                       unit (:contents cell)]
-                 :when (and unit
-                            (= :transport (:type unit))
-                            (= transport-id (:transport-id unit)))]
-             [i j]))))
+  (find-unit-by-id :transport :transport-id transport-id))
 
 (defn find-enemy-near-positions
   "Finds a player ship adjacent to any of the given positions.
@@ -159,10 +155,10 @@
 (defn- revert-destroyer-to-seeking
   "Reverts a destroyer escort to seeking mode, clearing transport reference."
   [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    #(-> % (assoc :escort-mode :seeking)
-                         (dissoc :escort-transport-id)))
-  (visibility/sync-ai-unit-to-computer-map! pos)
+  (computer-movement/update-unit-and-sync!
+   pos
+   #(-> % (assoc :escort-mode :seeking)
+        (dissoc :escort-transport-id)))
   nil)
 
 (defn- process-destroyer-seeking [pos]

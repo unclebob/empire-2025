@@ -80,23 +80,25 @@
                         (not ((sa/read-state :production) coords)))
            (active-airport-fighter cell))))))
 
+(defn- has-active-unit-flag?
+  [active-unit flag]
+  (and active-unit
+       (flag active-unit)))
+
 (defn is-army-aboard-transport?
   "Returns true if the active unit is an army aboard a transport."
   [active-unit]
-  (and active-unit
-       (:aboard-transport active-unit)))
+  (has-active-unit-flag? active-unit :aboard-transport))
 
 (defn is-fighter-from-airport?
   "Returns true if the active unit is a fighter from the airport."
   [active-unit]
-  (and active-unit
-       (:from-airport active-unit)))
+  (has-active-unit-flag? active-unit :from-airport))
 
 (defn is-fighter-from-carrier?
   "Returns true if the active unit is a fighter from a carrier."
   [active-unit]
-  (and active-unit
-       (:from-carrier active-unit)))
+  (has-active-unit-flag? active-unit :from-carrier))
 
 (defn movement-context
   "Determines the movement context for a cell and active unit.

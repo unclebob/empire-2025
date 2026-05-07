@@ -51,15 +51,7 @@
 
 (defn get-passable-sea-neighbors
   [pos]
-  (let [game-map (sa/read-state :computer-map)]
-            (filter (fn [neighbor]
-              (let [cell (get-in game-map neighbor)]
-                (and (or (nil? cell)
-                         (= :sea (:type cell))
-                         (= :unexplored (:type cell)))
-                     (or (nil? (:contents cell))
-                         (= :computer (:owner (:contents cell)))))))
-            (world-query/get-neighbors pos))))
+  (world-query/passable-sea-neighbors pos :computer))
 
 
 (defn adjacent-to-land?
@@ -142,19 +134,20 @@
     (>= (- (or (sa/read-state :round-number) 0) started)
         hold-sail-to-load-rounds)))
 
+(defn- mint-unload-id
+  [pos state-key unit-key]
+  (let [id (or (sa/read-state state-key) 0)]
+    (sa/write-state! state-key (inc id))
+    (when (assoc-transport-field! pos unit-key id)
+      (visibility/sync-ai-unit-to-computer-map! pos))))
+
 (defn mint-unload-event-id
   [pos _transport]
-  (let [id (or (sa/read-state :next-unload-event-id) 0)]
-    (sa/write-state! :next-unload-event-id (inc id))
-    (when (assoc-transport-field! pos :unload-event-id id)
-      (visibility/sync-ai-unit-to-computer-map! pos))))
+  (mint-unload-id pos :next-unload-event-id :unload-event-id))
 
 (defn mint-unload-country-id
   [pos]
-  (let [cid (or (sa/read-state :next-country-id) 0)]
-    (sa/write-state! :next-country-id (inc cid))
-    (when (assoc-transport-field! pos :unload-country-id cid)
-      (visibility/sync-ai-unit-to-computer-map! pos))))
+  (mint-unload-id pos :next-country-id :unload-country-id))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T00:01:59.014983-05:00", :module-hash "1688052436", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-572253242"} {:id "defn/computer-transport?", :kind "defn", :line 8, :end-line 12, :hash "817746107"} {:id "defn/log-transport-write-miss!", :kind "defn", :line 19, :end-line 28, :hash "1522214814"} {:id "defn/assoc-transport-field!", :kind "defn", :line 30, :end-line 38, :hash "-1946238572"} {:id "defn/update-transport-contents!", :kind "defn", :line 40, :end-line 48, :hash "-1406208418"} {:id "defn/get-passable-sea-neighbors", :kind "defn", :line 50, :end-line 60, :hash "290979142"} {:id "defn/adjacent-to-land?", :kind "defn", :line 63, :end-line 68, :hash "870012466"} {:id "defn/find-adjacent-land-pos", :kind "defn", :line 70, :end-line 76, :hash "-2064088485"} {:id "defn/log-transport-mission-transition!", :kind "defn", :line 78, :end-line 91, :hash "2076077910"} {:id "defn/set-transport-mission", :kind "defn", :line 93, :end-line 99, :hash "685119280"} {:id "def/hold-sail-to-load-rounds", :kind "def", :line 101, :end-line 101, :hash "-1479745939"} {:id "defn/load-plan-failure", :kind "defn", :line 103, :end-line 116, :hash "-1027820484"} {:id "defn/enter-hold-sail-to-load!", :kind "defn", :line 118, :end-line 135, :hash "595926306"} {:id "defn/hold-sail-to-load-elapsed?", :kind "defn", :line 137, :end-line 141, :hash "-205920922"} {:id "defn/mint-unload-event-id", :kind "defn", :line 143, :end-line 148, :hash "1536039978"} {:id "defn/mint-unload-country-id", :kind "defn", :line 150, :end-line 155, :hash "967535281"}]}

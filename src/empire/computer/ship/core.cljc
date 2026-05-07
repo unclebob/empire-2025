@@ -1,11 +1,11 @@
 (ns empire.computer.ship.core
   "Core ship utilities shared by patrol, escort, and carrier sub-modules."
   (:require [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.visibility :as visibility]
             [empire.state.api :as sa]
             [empire.game-mechanics.services.ship-action-resolution :as ship-action-resolution]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.threat :as threat]
             [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.movement.map-utils :as map-utils]
@@ -51,14 +51,15 @@
        (<= (Math/abs (- c2 c1)) 1)
        (not= [r1 c1] [r2 c2])))
 
+(def ^:private sea-path-target-predicates
+  {true #(= %1 %3)
+   false #(and (not= %1 %2) (adjacent? %1 %3))})
+
 (defn- sea-path-target?
   [current start target computer-map]
   (let [target-cell (get-in computer-map target)
         target-sea? (= :sea (:type target-cell))]
-    (or (and target-sea? (= current target))
-        (and (not= current start)
-             (not target-sea?)
-             (adjacent? current target)))))
+    ((sea-path-target-predicates target-sea?) current start target)))
 
 (defn- sea-path-to-target
   "Path over known sea on computer-map using ray+crawl with BFS fallback.
@@ -79,10 +80,7 @@
 
 (defn- inflated-sea-path?
   [sea-path from target]
-  (let [cheb (grid/chebyshev-distance from target)]
-    (and (seq sea-path)
-         (pos? cheb)
-         (>= (count sea-path) (* sea-path-inflation-threshold cheb)))))
+  (grid/inflated-path? sea-path from target sea-path-inflation-threshold))
 
 (defn- select-next-sea-step
   [from target passable]
@@ -98,23 +96,9 @@
         sea-next
         direct-next)))
 
-(defn- update-cell-visibility!
-  ([pos owner]
-   (visibility/update-cell-visibility pos owner))
-  ([pos owner unit]
-   (visibility/update-cell-visibility pos owner unit)))
-
 (defn get-passable-sea-neighbors
   [pos]
-  (let [game-map (sa/read-state :computer-map)]
-    (filter (fn [neighbor]
-              (let [cell (get-in game-map neighbor)]
-                (and (or (nil? cell)
-                         (= :sea (:type cell))
-                         (= :unexplored (:type cell)))
-                     (or (nil? (:contents cell))
-                         (= :player (:owner (:contents cell)))))))
-            (world-query/get-neighbors pos))))
+  (world-query/passable-sea-neighbors pos :player))
 
 (defn find-adjacent-enemy-ship
   [pos]
@@ -138,8 +122,8 @@
         closest (select-next-sea-step pos target passable)]
     (when closest
       (action-resolution/move-unit-to pos closest)
-      (update-cell-visibility! pos :computer)
-      (update-cell-visibility! closest :computer)
+      (computer-movement/update-cell-visibility! pos :computer)
+      (computer-movement/update-cell-visibility! closest :computer)
       closest)))
 
 (defn explore-sea

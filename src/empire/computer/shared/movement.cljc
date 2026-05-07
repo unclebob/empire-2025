@@ -3,7 +3,8 @@
   (:require [empire.game-mechanics.movement.lakes :as lakes]
             [empire.game-mechanics.movement.pathfinding :as pathfinding]
             [empire.game-mechanics.movement.pathfinding-bfs :as pathfinding-bfs]
-            [empire.game-mechanics.visibility :as visibility]))
+            [empire.game-mechanics.visibility :as visibility]
+            [empire.state.api :as sa]))
 
 (defn update-cell-visibility!
   [pos owner]
@@ -12,6 +13,11 @@
 (defn update-cell-visibility-with-unit!
   [pos owner unit]
   (visibility/update-cell-visibility pos owner unit))
+
+(defn update-unit-and-sync!
+  [pos f & args]
+  (apply sa/update-world! update-in (conj pos :contents) f args)
+  (visibility/sync-ai-unit-to-computer-map! pos))
 
 (defn find-nearest-unexplored
   [pos unit-type]

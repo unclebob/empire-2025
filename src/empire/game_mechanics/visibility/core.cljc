@@ -43,15 +43,18 @@
 
 ;; -- ownership predicates --
 
+(defn- owned-by?
+  [cell owner]
+  (or (= (:city-status cell) owner)
+      (= (:owner (:contents cell)) owner)))
+
 (defn is-players?
   [cell]
-  (or (= (:city-status cell) :player)
-      (= (:owner (:contents cell)) :player)))
+  (owned-by? cell :player))
 
 (defn is-computers?
   [cell]
-  (or (= (:city-status cell) :computer)
-      (= (:owner (:contents cell)) :computer)))
+  (owned-by? cell :computer))
 
 ;; -- visibility helpers --
 
@@ -124,14 +127,16 @@
           updated (process-map-cells transient-map game-map ownership-predicate height width)]
       (mapv persistent! (persistent! updated)))))
 
-(defn reveal-cell!
-  [visible-map-source row col game-cell stamp-id visible-map]
+(defn- visible-cell-with-production
+  [row col game-cell]
   (let [production-entry (when (= :city (:type game-cell))
-                           (get (read-runtime-state :production) [row col]))
-        visible-cell (cond-> game-cell
-                       (and (map? production-entry) (:item production-entry))
-                       (assoc :known-production production-entry))]
-    (update-visible-map! visible-map-source assoc-in [row col] visible-cell))
+                           (get (read-runtime-state :production) [row col]))]
+    (cond-> game-cell
+      (and (map? production-entry) (:item production-entry))
+      (assoc :known-production production-entry))))
+
+(defn- stamp-revealed-country!
+  [row col game-cell stamp-id visible-map]
   (when (and stamp-id
              (was-unexplored? visible-map row col)
              (= :land (:type game-cell)))
@@ -139,6 +144,12 @@
       (when (and existing-cid (not= stamp-id existing-cid))
         (merge-continents! stamp-id existing-cid)))
     (update-game-map! assoc-in [row col :country-id] stamp-id)))
+
+(defn reveal-cell!
+  [visible-map-source row col game-cell stamp-id visible-map]
+  (update-visible-map! visible-map-source assoc-in [row col]
+                       (visible-cell-with-production row col game-cell))
+  (stamp-revealed-country! row col game-cell stamp-id visible-map))
 
 (defn reveal-and-track!
   [visible-map-source ni nj stamp-id detect-threats? visible-map queue-detection-fn]

@@ -30,6 +30,40 @@
           #{}
           detection-points))
 
+(defn- sea-unit-starts
+  [computer-map computer-sea-unit-types]
+  (for [i (range (count computer-map))
+        j (range (count (first computer-map)))
+        :let [unit (get-in computer-map [i j :contents])]
+        :when (and unit
+                   (= :computer (:owner unit))
+                   (computer-sea-unit-types (:type unit))
+                   (= :sea (get-in computer-map [i j :type])))]
+    [i j]))
+
+(defn- flood-sea-reachable
+  [computer-map starts]
+  (loop [queue (into clojure.lang.PersistentQueue/EMPTY starts)
+         visited (set starts)]
+    (if (empty? queue)
+      visited
+      (let [current (peek queue)
+            rest-queue (pop queue)
+            sea-neighbors (for [n (grid/neighbors-in-map computer-map current)
+                                :let [cell (get-in computer-map n)]
+                                :when (and (= :sea (:type cell))
+                                           (not (contains? visited n)))]
+                            n)]
+        (recur (into rest-queue sea-neighbors)
+               (into visited sea-neighbors))))))
+
+(defn reachable-sea-set
+  [computer-map computer-sea-unit-types]
+  (let [starts (sea-unit-starts computer-map computer-sea-unit-types)]
+    (if (seq starts)
+      (flood-sea-reachable computer-map starts)
+      #{})))
+
 (defn activate-state
   [state pos round-number]
   (-> state

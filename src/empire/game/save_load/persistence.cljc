@@ -124,27 +124,42 @@
                                      (get cell :awake-fighters 0)))
     cell))
 
+(defn- normalize-cell-counts
+  [cell]
+  (-> cell
+      (clamp-awake-count :fighter-count :awake-fighters)
+      (normalize-airport-awake-count)
+      (clamp-awake-count :kamikazee-fighter-count :awake-fighters)))
+
+(defn- normalize-contents-counts
+  [contents]
+  (case (:type contents)
+    :carrier (clamp-awake-count contents :fighter-count :awake-fighters)
+    :transport (clamp-awake-count contents :army-count :awake-armies)
+    contents))
+
+(defn- map-coords
+  [world]
+  (for [i (range (count world))
+        j (range (count (first world)))]
+    [i j]))
+
+(defn- update-normalized-cell!
+  [map-key pos cell contents normalized-cell normalized-contents]
+  (when (or (not= normalized-cell cell)
+            (not= normalized-contents contents))
+    (sa/update-state! map-key assoc-in pos (assoc normalized-cell :contents normalized-contents))))
+
 (defn- normalize-container-counts!
   [map-key]
   (let [world (sa/read-state map-key)]
     (when (sequential? world)
-      (doseq [i (range (count world))
-              j (range (count (first world)))
-              :let [cell (get-in world [i j])
+      (doseq [pos (map-coords world)
+              :let [cell (get-in world pos)
                     contents (:contents cell)
-                    normalized-cell (-> cell
-                                        (clamp-awake-count :fighter-count :awake-fighters)
-                                        (normalize-airport-awake-count)
-                                        (clamp-awake-count :kamikazee-fighter-count :awake-fighters))
-                    normalized-contents (cond-> contents
-                                          (= (:type contents) :carrier)
-                                          (clamp-awake-count :fighter-count :awake-fighters)
-
-                                          (= (:type contents) :transport)
-                                          (clamp-awake-count :army-count :awake-armies))]
-              :when (or (not= normalized-cell cell)
-                        (not= normalized-contents contents))]
-        (sa/update-state! map-key assoc-in [i j] (assoc normalized-cell :contents normalized-contents))))))
+                    normalized-cell (normalize-cell-counts cell)
+                    normalized-contents (normalize-contents-counts contents)]]
+        (update-normalized-cell! map-key pos cell contents normalized-cell normalized-contents)))))
 
 (defn- sanitize-loaded-maps! []
   (clear-ghost-contents! :game-map)

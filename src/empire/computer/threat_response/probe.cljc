@@ -17,27 +17,12 @@
                vec)
      :cljs []))
 
-(defn- visible-player-evidence
-  [computer-map]
+(defn- player-evidence
+  [world]
   (vec
-   (for [x (range (count computer-map))
-         y (range (count (first computer-map)))
-         :let [cell (get-in computer-map [x y])
-               unit (:contents cell)]
-         :when (or (= :player (:city-status cell))
-                   (= :player (:owner unit)))]
-     {:pos [x y]
-      :cell-type (:type cell)
-      :city-status (:city-status cell)
-      :unit-type (:type unit)
-      :unit-owner (:owner unit)})))
-
-(defn- actual-player-evidence
-  [game-map]
-  (vec
-   (for [x (range (count game-map))
-         y (range (count (first game-map)))
-         :let [cell (get-in game-map [x y])
+   (for [x (range (count world))
+         y (range (count (first world)))
+         :let [cell (get-in world [x y])
                unit (:contents cell)]
          :when (or (= :player (:city-status cell))
                    (= :player (:owner unit)))]
@@ -51,8 +36,8 @@
   [kind payload]
   (let [computer-map (sa/read-state :computer-map)
         game-map (sa/read-state :game-map)
-        visible-player (visible-player-evidence computer-map)
-        actual-player (actual-player-evidence game-map)]
+        visible-player (player-evidence computer-map)
+        actual-player (player-evidence game-map)]
     (str "=== " (name kind) " ===\n"
          "round: " (pr-str (sa/read-state :round-number)) "\n"
          "payload: " (pr-str payload) "\n"

@@ -1,6 +1,7 @@
 (ns empire.computer.fighter.flight-decisions
   (:require [empire.computer.fighter.exploration :as fe]
             [empire.computer.fighter.movement :as fm]
+            [empire.computer.shared.grid :as grid]
             [empire.config.core :as config]))
 
 (def neighbor-offsets
@@ -89,6 +90,31 @@
   (reduce + 0 (map (fn [[from to]] (fm/distance-to from to))
                    (partition 2 1 path))))
 
+(defn- direct-city-hop-paths
+  [paths start city-sites]
+  (reduce (fn [acc city]
+            (if (or (contains? acc city)
+                    (> (fm/distance-to start city) config/fighter-fuel))
+              acc
+              (assoc acc city [start city])))
+          paths
+          city-sites))
+
+(defn- city-hop-neighbors
+  [paths city-sites node]
+  (for [city city-sites
+        :when (and (not (contains? paths city))
+                   (not= city node)
+                   (<= (fm/distance-to node city) config/fighter-fuel))]
+    city))
+
+(defn- add-city-hop-paths
+  [paths node neighbors]
+  (reduce (fn [acc city]
+            (assoc acc city (conj (get acc node [node]) city)))
+          paths
+          neighbors))
+
 (defn- reachable-city-hop-paths
   [world start sites]
   (let [city-sites (vec (computer-city-sites world sites))
@@ -99,24 +125,10 @@
                   (computer-city-site? world start) (into city-sites))
            paths start-paths]
       (if (empty? queue)
-        (reduce (fn [acc city]
-                  (if (contains? acc city)
-                    acc
-                    (if (<= (fm/distance-to start city) config/fighter-fuel)
-                      (assoc acc city [start city])
-                      acc)))
-                paths
-                city-sites)
+        (direct-city-hop-paths paths start city-sites)
         (let [node (first queue)
-              neighbors (for [city city-sites
-                              :when (and (not (contains? paths city))
-                                         (not= city node)
-                                         (<= (fm/distance-to node city) config/fighter-fuel))]
-                          city)
-              next-paths (reduce (fn [acc city]
-                                   (assoc acc city (conj (get acc node [node]) city)))
-                                 paths
-                                 neighbors)]
+              neighbors (city-hop-neighbors paths city-sites node)
+              next-paths (add-city-hop-paths paths node neighbors)]
           (recur (into (vec (rest queue)) neighbors)
                  (into seen neighbors)
                  next-paths))))))
@@ -178,18 +190,13 @@
        :target (second path)
        :origin site-pos})))
 
-(defn- in-bounds?
-  [world [r c]]
-  (and (<= 0 r) (< r (count world))
-       (<= 0 c) (< c (count (first world)))))
-
 (defn- projected-endpoint
   [world start direction steps]
   (reduce (fn [last-pos step]
             (let [[dr dc] direction
                   next-pos [(+ (first start) (* step dr))
                             (+ (second start) (* step dc))]]
-              (if (in-bounds? world next-pos)
+              (if (grid/in-bounds? world next-pos)
                 next-pos
                 (reduced last-pos))))
           start

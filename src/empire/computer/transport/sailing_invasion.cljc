@@ -1,6 +1,7 @@
 (ns empire.computer.transport.sailing-invasion
   (:require [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.oscillation :as oscillation]
             [empire.computer.transport.core :as tc]
             [empire.computer.transport.sailing-decisions :as decisions]
@@ -11,9 +12,9 @@
 
 (defn- clear-invasion-path!
   [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    #(when (:type %) (dissoc % :invasion-path :invasion-path-origin)))
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (computer-movement/update-unit-and-sync!
+   pos
+   #(when (:type %) (dissoc % :invasion-path :invasion-path-origin))))
 
 (defn- store-invasion-path!
   [pos remaining]
@@ -81,43 +82,55 @@
              (support/enemy-ship-near-target? target support/invasion-threat-scan-radius))
     (if-let [retreated (retreat-away-from-target! pos target)]
       (tc/set-transport-mission retreated :unloading)
-      (tc/set-transport-mission pos :unloading))
+    (tc/set-transport-mission pos :unloading))
     true))
+
+(defn- crawl-two-steps
+  [pos invading-step]
+  (let [moved1 (invading-step pos)
+        pos1 (or moved1 pos)
+        moved2 (invading-step pos1)
+        pos2 (or moved2 pos1)]
+    {:moved1 moved1
+     :moved2 moved2
+     :pos2 pos2}))
+
+(defn- start-random-walk-from!
+  [pos]
+  (sa/update-world! update-in (conj pos :contents)
+                    #(when (:type %) (oscillation/start-random-walk %
+                                                                    support/transport-random-walk-restore-keys)))
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn- apply-crawl-follow-up!
+  [pos pos2 follow-up]
+  (when (:start-random-walk? follow-up)
+    (start-random-walk-from! pos))
+  (when-let [mission (:set-mission follow-up)]
+    (tc/set-transport-mission pos2 mission)))
+
+(defn- target-crawl-follow-up
+  [target {:keys [moved1 moved2 pos2]}]
+  (let [transport2 (get-in (sa/read-state :computer-map) (conj pos2 :contents))]
+    (decisions/crawl-follow-up
+     {:target? true
+      :moved1? (boolean moved1)
+      :moved2? (boolean moved2)
+      :unload-zone? (unload-zone? pos2 target transport2)})))
 
 (defn- continue-invading-without-path!
   [pos target invading-step]
   (if target
-    (let [moved1 (invading-step pos)
-          pos1 (or moved1 pos)
-          moved2 (invading-step pos1)
-          pos2 (or moved2 pos1)
-          transport2 (get-in (sa/read-state :computer-map) (conj pos2 :contents))
-          follow-up (decisions/crawl-follow-up
-                     {:target? (boolean target)
-                      :moved1? (boolean moved1)
-                      :moved2? (boolean moved2)
-                      :unload-zone? (unload-zone? pos2 target transport2)})]
-      (when (:start-random-walk? follow-up)
-        (sa/update-world! update-in (conj pos :contents)
-                          #(when (:type %) (oscillation/start-random-walk % support/transport-random-walk-restore-keys)))
-        (visibility/sync-ai-unit-to-computer-map! pos))
-      (when-let [mission (:set-mission follow-up)]
-        (tc/set-transport-mission pos2 mission)))
+    (let [{:keys [pos2] :as crawl-result} (crawl-two-steps pos invading-step)]
+      (apply-crawl-follow-up! pos pos2 (target-crawl-follow-up target crawl-result)))
     (when-let [mission (:set-mission (decisions/crawl-follow-up {:target? false}))]
       (tc/set-transport-mission pos mission))))
-
-(defn- inflated-sea-path?
-  [path from target]
-  (let [cheb (grid/chebyshev-distance from target)]
-    (and (seq path)
-         (pos? cheb)
-         (>= (count path) (* support/sea-path-inflation-threshold cheb)))))
 
 (defn- use-direct-invasion-shortcut?
   [pos target path]
   (let [computer-map (sa/read-state :computer-map)]
     (and target
-         (inflated-sea-path? path pos target)
+         (grid/inflated-path? path pos target support/sea-path-inflation-threshold)
          (support/direct-sea-corridor? pos target computer-map))))
 
 (defn- choose-invading-step

@@ -25,12 +25,16 @@
     (sa/write-state! :computer-unit-round-discoveries {})
     (sa/write-state! :computer-unit-round-conquests {})))
 
+(defn- record-computer-unit-total!
+  [state-key unit-id amount]
+  (when (and (computer-unit-logging-enabled?) unit-id (pos? amount))
+    (sa/update-state! state-key
+                      #(update (or % {}) unit-id (fnil + 0) amount))))
+
 (defn record-computer-unit-discovery!
   "Adds newly discovered cell count for the given computer unit id."
   [unit-id discovered-cells]
-  (when (and (computer-unit-logging-enabled?) unit-id (pos? discovered-cells))
-    (sa/update-state! :computer-unit-round-discoveries
-                      #(update (or % {}) unit-id (fnil + 0) discovered-cells))))
+  (record-computer-unit-total! :computer-unit-round-discoveries unit-id discovered-cells))
 
 (defn record-active-computer-unit-discovery!
   "Adds newly discovered cells for the computer unit currently being processed."
@@ -40,9 +44,7 @@
 (defn record-computer-unit-conquest!
   "Adds conquered city count for the given computer unit id."
   [unit-id conquered-cities]
-  (when (and (computer-unit-logging-enabled?) unit-id (pos? conquered-cities))
-    (sa/update-state! :computer-unit-round-conquests
-                      #(update (or % {}) unit-id (fnil + 0) conquered-cities))))
+  (record-computer-unit-total! :computer-unit-round-conquests unit-id conquered-cities))
 
 (defn record-active-computer-unit-conquest!
   "Adds conquered cities for the computer unit currently being processed."

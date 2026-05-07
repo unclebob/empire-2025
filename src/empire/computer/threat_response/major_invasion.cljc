@@ -57,37 +57,6 @@
   (count (filter #(unloadable-target-land? computer-map connected-land %)
                  (world-query/get-neighbors sea-pos))))
 
-(defn- flood-sea-reachable
-  [computer-map starts]
-  (loop [queue (into clojure.lang.PersistentQueue/EMPTY starts)
-         visited (set starts)]
-    (if (empty? queue)
-      visited
-      (let [current (peek queue)
-            rest-queue (pop queue)
-            sea-neighbors (for [n (world-query/get-neighbors current)
-                                :let [cell (get-in computer-map n)]
-                                :when (and cell
-                                           (= :sea (:type cell))
-                                           (not (contains? visited n)))]
-                            n)]
-        (recur (into rest-queue sea-neighbors)
-               (into visited sea-neighbors))))))
-
-(defn- reachable-sea-set
-  [computer-map computer-sea-unit-types]
-  (let [starts (for [i (range (count computer-map))
-                     j (range (count (first computer-map)))
-                     :let [unit (get-in computer-map [i j :contents])]
-                     :when (and unit
-                                (= :computer (:owner unit))
-                                (computer-sea-unit-types (:type unit))
-                                (= :sea (get-in computer-map [i j :type])))]
-                 [i j])]
-    (if (seq starts)
-      (flood-sea-reachable computer-map starts)
-      #{})))
-
 (defn- land-has-reachable-sea-neighbor?
   [computer-map reachable-sea land-pos]
   (some (fn [n]
@@ -99,7 +68,7 @@
 
 (defn- sea-reachable-detection-points
   [state computer-map computer-sea-unit-types]
-  (let [reachable-sea (reachable-sea-set computer-map computer-sea-unit-types)]
+  (let [reachable-sea (invasion-state/reachable-sea-set computer-map computer-sea-unit-types)]
     (if (empty? reachable-sea)
       #{}
       (set (filter (fn [target]
@@ -218,38 +187,45 @@
         {:target current-target
          :path (vec path)}))))
 
+(defn- choose-invasion-target-and-path
+  [ctx pos transport target target-revision]
+  (or (reuse-current-invasion-target-and-path ctx pos transport target-revision)
+      (if-let [best-fn (:best-invasion-target-and-path-fn ctx)]
+        (best-fn pos target)
+        (best-invasion-target-and-path ctx pos target))
+      {:target target :path nil}))
+
+(defn- route-fields
+  [pos target target-revision path]
+  (cond-> {:transport-mission (if (empty? path) :unloading :invading)
+           :invasion-target target
+           :invasion-plan-revision target-revision
+           :invasion-path-origin pos}
+    (seq path)
+    (assoc :invasion-path path)))
+
+(defn- log-invading-transition!
+  [pos current-mission target path target-revision transport]
+  (when (and (seq path)
+             (not= current-mission :invading))
+    (probe/log-event! :transport-entered-invading
+                      {:pos pos
+                       :from-mission current-mission
+                       :target target
+                       :path path
+                       :target-revision target-revision
+                       :transport transport})))
+
 (defn- update-transport-invasion-route!
   [ctx pos target target-revision]
   (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))
         current-mission (:transport-mission current-transport)
         {actual-target :target path :path}
-        (or (reuse-current-invasion-target-and-path ctx pos current-transport target-revision)
-            (if-let [best-fn (:best-invasion-target-and-path-fn ctx)]
-              (best-fn pos target)
-              (best-invasion-target-and-path ctx pos target))
-            {:target target :path nil})]
+        (choose-invasion-target-and-path ctx pos current-transport target target-revision)]
     (when (and (:type current-transport) (some? path))
-      (if (empty? path)
-        ((:update-game-map! ctx) update-in (conj pos :contents)
-         assoc :transport-mission :unloading
-         :invasion-target actual-target
-         :invasion-plan-revision target-revision
-         :invasion-path-origin pos)
-        ((:update-game-map! ctx) update-in (conj pos :contents)
-         assoc :transport-mission :invading
-         :invasion-target actual-target
-         :invasion-path path
-         :invasion-plan-revision target-revision
-         :invasion-path-origin pos))
-      (when (and (seq path)
-                 (not= current-mission :invading))
-        (probe/log-event! :transport-entered-invading
-                          {:pos pos
-                           :from-mission current-mission
-                           :target actual-target
-                           :path path
-                           :target-revision target-revision
-                           :transport current-transport}))
+      ((:update-game-map! ctx) update-in (conj pos :contents)
+       merge (route-fields pos actual-target target-revision path))
+      (log-invading-transition! pos current-mission actual-target path target-revision current-transport)
       (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
         (sync-ai-unit! pos)))))
 

@@ -50,8 +50,7 @@
 
 (defn should-return-to-refuel?
   [pos fuel]
-  (let [return-distance (fuel-to-return pos)]
-    (<= fuel (+ return-distance 2))))
+  (impl/low-fuel-for-return? (fuel-to-return pos) fuel))
 
 (def fighter-speed impl/fighter-speed)
 

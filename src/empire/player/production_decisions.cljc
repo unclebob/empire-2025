@@ -11,19 +11,26 @@
     (= item :fighter) (assoc :fuel config/fighter-fuel)
     (= item :satellite) (assoc :turns-remaining config/satellite-turns)))
 
+(defn- movement-order-action
+  [item marching-orders flight-path]
+  (cond
+    (and (= item :army) (= marching-orders :lookaround)) :army-explore
+    (and (= item :army) marching-orders) :army-move
+    (and (= item :fighter) flight-path) :fighter-move))
+
+(def ^:private movement-order-handlers
+  {:army-explore (fn [unit _marching-orders _flight-path]
+                   (assoc unit :mode :explore :explore-steps 50))
+   :army-move (fn [unit marching-orders _flight-path]
+                (assoc unit :mode :moving :target marching-orders))
+   :fighter-move (fn [unit _marching-orders flight-path]
+                   (assoc unit :mode :moving :target flight-path))})
+
 (defn apply-movement-orders
   [unit item marching-orders flight-path]
-  (cond
-    (and (= item :army) (= marching-orders :lookaround))
-    (assoc unit :mode :explore :explore-steps 50)
-
-    (and (= item :army) marching-orders)
-    (assoc unit :mode :moving :target marching-orders)
-
-    (and (= item :fighter) flight-path)
-    (assoc unit :mode :moving :target flight-path)
-
-    :else unit))
+  (if-let [handler (movement-order-handlers (movement-order-action item marching-orders flight-path))]
+    (handler unit marching-orders flight-path)
+    unit))
 
 (defn build-produced-unit
   [item owner marching-orders flight-path]

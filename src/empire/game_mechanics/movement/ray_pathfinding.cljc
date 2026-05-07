@@ -51,6 +51,11 @@
                         (Math/abs (- c (second pos)))))
            coastal-sea-cells)))
 
+(defn- manhattan-distance
+  [[r1 c1] [r2 c2]]
+  (+ (Math/abs (- r1 r2))
+     (Math/abs (- c1 c2))))
+
 (defn- crawl-to-clear-ray
   "Walk the coastal-sea neighbor map in one direction from start-cell,
    looking for a cell with a clear ray to target.
@@ -66,11 +71,7 @@
         (let [nbrs (remove visited (get neighbors current))
               ;; prefer neighbor that reduces distance to target
               best (when (seq nbrs)
-                     (apply min-key
-                            (fn [[r c]]
-                              (+ (Math/abs (- r (first target)))
-                                 (Math/abs (- c (second target)))))
-                            nbrs))]
+                     (apply min-key #(manhattan-distance % target) nbrs))]
           (when best
             (recur best
                    (conj visited best)
@@ -87,13 +88,31 @@
                       all-nbrs)]
     (first (sort-by (comp count second) results))))
 
+(defn- max-crawl-steps
+  [start target]
+  (* 2 (manhattan-distance start target)))
+
+(defn- ray-crawl-continuation
+  [game-map coastal-sea-cells coastal-sea-neighbors current target max-crawl-steps]
+  (when-let [hit (first-land-hit game-map current target)]
+    (when-let [coast-entry (nearest-coastal-sea coastal-sea-cells hit)]
+      (when-let [[exit-cell coast-path] (dual-crawl-to-clear-ray
+                                         game-map coastal-sea-neighbors
+                                         coast-entry target max-crawl-steps)]
+        {:exit-cell exit-cell
+         :ray-to-coast (vec (rest (bresenham-line current coast-entry)))
+         :coast-path coast-path}))))
+
+(defn- append-ray-crawl-continuation
+  [path {:keys [ray-to-coast coast-path]}]
+  (into (into path ray-to-coast) (rest coast-path)))
+
 (defn- ray-crawl-path
   "Build a path using ray+crawl. Returns path vector or nil.
    Tries up to max-rays rays with coast crawls between them."
   [game-map coastal-index start target max-rays]
   (let [{:keys [coastal-sea-cells coastal-sea-neighbors]} coastal-index
-        max-crawl-steps (* 2 (+ (Math/abs (- (first start) (first target)))
-                                 (Math/abs (- (second start) (second target)))))]
+        max-crawl-steps (max-crawl-steps start target)]
     (loop [current start
            path []
            rays-used 0]
@@ -108,18 +127,31 @@
         (into path (rest (bresenham-line current target)))
 
         :else
-        (let [hit (first-land-hit game-map current target)]
-          (when hit
-            (let [coast-entry (nearest-coastal-sea coastal-sea-cells hit)]
-              (when coast-entry
-                (let [ray-to-coast (vec (rest (bresenham-line current coast-entry)))
-                      crawl-result (dual-crawl-to-clear-ray
-                                    game-map coastal-sea-neighbors
-                                    coast-entry target max-crawl-steps)]
-                  (when crawl-result
-                    (let [[exit-cell coast-path] crawl-result
-                          new-path (into (into path ray-to-coast) (rest coast-path))]
-                      (recur exit-cell new-path (inc rays-used)))))))))))))
+        (when-let [{:keys [exit-cell] :as continuation}
+                   (ray-crawl-continuation
+                    game-map coastal-sea-cells coastal-sea-neighbors
+                    current target max-crawl-steps)]
+          (recur exit-cell
+                 (append-ray-crawl-continuation path continuation)
+                 (inc rays-used)))))))
+
+(defn- reconstruct-path
+  [came-from start target]
+  (loop [path [] pos target]
+    (if (= pos start)
+      (vec (reverse path))
+      (recur (conj path pos) (get came-from pos)))))
+
+(defn- sea-neighbors
+  [game-map visited current]
+  (for [[dr dc] map-utils/neighbor-offsets
+        :let [nr (+ (first current) dr)
+              nc (+ (second current) dc)
+              npos [nr nc]]
+        :when (and (not (visited npos))
+                   (let [cell (get-in game-map npos)]
+                     (and cell (= :sea (:type cell)))))]
+    npos))
 
 (defn- bfs-sea-path
   "BFS fallback for complex geography. Returns path or nil."
@@ -131,18 +163,8 @@
       (when (seq queue)
         (let [current (peek queue)]
           (if (= current target)
-            (loop [path [] pos target]
-              (if (= pos start)
-                (vec (reverse path))
-                (recur (conj path pos) (get came-from pos))))
-            (let [neighbors (for [[dr dc] map-utils/neighbor-offsets
-                                  :let [nr (+ (first current) dr)
-                                        nc (+ (second current) dc)
-                                        npos [nr nc]]
-                                  :when (and (not (visited npos))
-                                             (let [cell (get-in game-map npos)]
-                                               (and cell (= :sea (:type cell)))))]
-                              npos)
+            (reconstruct-path came-from start target)
+            (let [neighbors (sea-neighbors game-map visited current)
                   new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
               (recur (into (pop queue) neighbors)
                      (into visited neighbors)

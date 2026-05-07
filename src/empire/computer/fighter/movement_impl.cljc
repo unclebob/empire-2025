@@ -162,10 +162,13 @@
     (distance-to pos site)
     999))
 
+(defn low-fuel-for-return?
+  [return-distance fuel]
+  (<= fuel (+ return-distance 2)))
+
 (defn should-return-to-refuel?
   [pos fuel]
-  (let [return-distance (fuel-to-return pos)]
-    (<= fuel (+ return-distance 2))))
+  (low-fuel-for-return? (fuel-to-return pos) fuel))
 
 (defn find-patrol-target
   [pos]

@@ -1,5 +1,7 @@
 (ns empire.computer.threat-response.invasion-decision
-  "Decision helpers for major invasion feasibility and attrition fallback.")
+  "Decision helpers for major invasion feasibility and attrition fallback."
+  (:require [empire.computer.shared.grid :as grid]
+            [empire.computer.threat-response.invasion-state :as invasion-state]))
 
 (def review-interval-rounds 10)
 (def early-failure-reasons #{:no-sea-path :insufficient-resources})
@@ -7,20 +9,13 @@
 (def ^:private active-invasion-transport-missions
   #{:invading :unloading :load-for-invasion :find-armies-for-invasion})
 
-(defn- in-bounds?
-  [computer-map [x y]]
-  (and (<= 0 x)
-       (<= 0 y)
-       (< x (count computer-map))
-       (< y (count (first computer-map)))))
-
 (defn- neighbors
   [computer-map [x y]]
   (for [dx [-1 0 1]
         dy [-1 0 1]
         :when (not (and (zero? dx) (zero? dy)))
         :let [pos [(+ x dx) (+ y dy)]]
-        :when (in-bounds? computer-map pos)]
+        :when (grid/in-bounds? computer-map pos)]
     pos))
 
 (defn- land-or-city?
@@ -67,36 +62,6 @@
   (count (filter (fn [[_ unit]] (= :transport (:type unit)))
                  (computer-unit-entries world))))
 
-(defn- flood-sea-reachable
-  [computer-map starts]
-  (loop [queue (into clojure.lang.PersistentQueue/EMPTY starts)
-         visited (set starts)]
-    (if (empty? queue)
-      visited
-      (let [current (peek queue)
-            rest-queue (pop queue)
-            sea-neighbors (for [n (neighbors computer-map current)
-                                :let [cell (get-in computer-map n)]
-                                :when (and (= :sea (:type cell))
-                                           (not (contains? visited n)))]
-                            n)]
-        (recur (into rest-queue sea-neighbors)
-               (into visited sea-neighbors))))))
-
-(defn- reachable-sea-set
-  [computer-map computer-sea-unit-types]
-  (let [starts (for [x (range (count computer-map))
-                     y (range (count (first computer-map)))
-                     :let [unit (get-in computer-map [x y :contents])]
-                     :when (and unit
-                                (= :computer (:owner unit))
-                                (computer-sea-unit-types (:type unit))
-                                (= :sea (get-in computer-map [x y :type])))]
-                 [x y])]
-    (if (seq starts)
-      (flood-sea-reachable computer-map starts)
-      #{})))
-
 (defn- coastal-land?
   [computer-map land-pos]
   (some (fn [n]
@@ -111,7 +76,7 @@
 
 (defn sea-reachable-detection-points
   [computer-map detection-points computer-sea-unit-types]
-  (let [reachable-sea (reachable-sea-set computer-map computer-sea-unit-types)]
+  (let [reachable-sea (invasion-state/reachable-sea-set computer-map computer-sea-unit-types)]
     (if (empty? reachable-sea)
       #{}
       (set (filter (fn [target]

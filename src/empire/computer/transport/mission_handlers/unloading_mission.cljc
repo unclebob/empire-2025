@@ -26,13 +26,37 @@
         load-path (when load-target-cell
                     (or (load-targeting/path-to-load-target pos computer-map load-target-cell) []))
         unload-path (or (sailing-support/compute-sail-to-unload-path pos) [])]
-    (and transition-to-loading
-         (pos? (:army-count transport 0))
-         (< (:army-count transport 0) 6)
-         (not unloaded-recently?)
-         load-target-cell
-         (or (seq load-path) (load-targeting/target-reached? pos load-target-cell))
-         (or (empty? unload-path) (<= (count load-path) (count unload-path))))))
+    (every? true?
+            [(boolean transition-to-loading)
+             (pos? (:army-count transport 0))
+             (< (:army-count transport 0) 6)
+             (not unloaded-recently?)
+             (boolean load-target-cell)
+             (boolean (or (seq load-path) (load-targeting/target-reached? pos load-target-cell)))
+             (or (empty? unload-path) (<= (count load-path) (count unload-path)))])))
+
+(declare crawl-step-result)
+
+(defn- retry-unloading-crawl
+  [current-pos moves-left moved-any?]
+  (sa/update-world! assoc-in (conj current-pos :contents :crawl-history) [])
+  (visibility/sync-ai-unit-to-computer-map! current-pos)
+  {:pos current-pos
+   :moves-left moves-left
+   :retried? true
+   :moved-any? moved-any?})
+
+(defn- crawl-loop-next-state
+  [read-map process-unloading-crawl try-opportunistic-unload
+   current-pos moves-left retried? moved-any?]
+  (if-let [{:keys [action pos]} (crawl-step-result read-map process-unloading-crawl
+                                                    try-opportunistic-unload current-pos)]
+    (case action
+      :continue {:pos pos :moves-left (dec moves-left) :retried? false :moved-any? true}
+      :stop {:done? true :pos pos})
+    (if retried?
+      {:done? true :pos (when moved-any? current-pos)}
+      (retry-unloading-crawl current-pos moves-left moved-any?))))
 
 (defn- crawl-step-result
   "Returns :continue, :stop, or nil (blocked) after one crawl step."
@@ -53,17 +77,12 @@
          moved-any? false]
     (if (zero? moves-left)
       (when moved-any? current-pos)
-      (if-let [{:keys [action pos]} (crawl-step-result read-map process-unloading-crawl
-                                                        try-opportunistic-unload current-pos)]
-        (case action
-          :continue (recur pos (dec moves-left) false true)
-          :stop pos)
-        (if retried?
-          (when moved-any? current-pos)
-          (do
-            (sa/update-world! assoc-in (conj current-pos :contents :crawl-history) [])
-            (visibility/sync-ai-unit-to-computer-map! current-pos)
-            (recur current-pos moves-left true moved-any?)))))))
+      (let [{:keys [done? pos moves-left retried? moved-any?]}
+            (crawl-loop-next-state read-map process-unloading-crawl try-opportunistic-unload
+                                   current-pos moves-left retried? moved-any?)]
+        (if done?
+          pos
+          (recur pos moves-left retried? moved-any?))))))
 
 (defn- clear-hold-and-crawl
   [read-map process-unloading-crawl try-opportunistic-unload pos hold-since-round]
@@ -72,28 +91,59 @@
     (visibility/sync-ai-unit-to-computer-map! pos))
   (unloading-crawl-loop read-map process-unloading-crawl try-opportunistic-unload pos))
 
+(defn- unload-active-hold!
+  [try-opportunistic-unload pos]
+  (try-opportunistic-unload pos)
+  pos)
+
+(defn- refresh-opportunistic-unload!
+  [try-opportunistic-unload pos]
+  (when (try-opportunistic-unload pos)
+    (visibility/sync-ai-unit-to-computer-map! pos)))
+
+(defn- unloading-with-armies-action
+  [transition-to-loading pos transport read-map hold-active?]
+  (if hold-active?
+    :hold
+    (let [transport' (get-in (read-map) (conj pos :contents))]
+      (cond
+        (not= :unloading (:transport-mission transport')) :stay
+        (prefer-pickup-over-unload? transition-to-loading pos transport read-map) :transition-to-loading
+        :else :crawl))))
+
+(defn- unloading-hold-active?
+  [transport]
+  (let [hold-since-round (:unloading-hold-since-round transport)]
+    (and hold-since-round
+         (< (- (or (sa/read-state :round-number) 0) hold-since-round) 4))))
+
+(defn- refresh-unless-holding!
+  [hold-active? try-opportunistic-unload pos]
+  (when-not hold-active?
+    (refresh-opportunistic-unload! try-opportunistic-unload pos)))
+
+(defn- apply-unloading-with-armies-action
+  [{:keys [transition-to-loading process-unloading-crawl try-opportunistic-unload]}
+   pos read-map hold-since-round action]
+  (case action
+    :hold (unload-active-hold! try-opportunistic-unload pos)
+    :stay pos
+    :transition-to-loading (transition-to-loading pos)
+    :crawl (clear-hold-and-crawl read-map process-unloading-crawl
+                                 try-opportunistic-unload pos hold-since-round)))
+
 (defn- process-unloading-with-armies
   [{:keys [current-world
            read-computer-map
            transition-to-loading
-           process-unloading-crawl
-           try-opportunistic-unload]} pos transport]
+           try-opportunistic-unload]
+    :as deps} pos transport]
   (let [read-map (or read-computer-map current-world)
         hold-since-round (:unloading-hold-since-round transport)
-        hold-active? (and hold-since-round
-                          (< (- (or (sa/read-state :round-number) 0) hold-since-round) 4))]
-    (if hold-active?
-      (do (try-opportunistic-unload pos) pos)
-      (do
-        (when (try-opportunistic-unload pos)
-          (visibility/sync-ai-unit-to-computer-map! pos))
-        (let [transport' (get-in (read-map) (conj pos :contents))]
-          (cond
-            (not= :unloading (:transport-mission transport')) pos
-            (prefer-pickup-over-unload? transition-to-loading pos transport read-map)
-            (transition-to-loading pos)
-            :else
-            (clear-hold-and-crawl read-map process-unloading-crawl try-opportunistic-unload pos hold-since-round)))))))
+        hold-active? (unloading-hold-active? transport)
+        _ (refresh-unless-holding! hold-active? try-opportunistic-unload pos)
+        action (unloading-with-armies-action transition-to-loading pos transport read-map hold-active?)]
+    (apply-unloading-with-armies-action deps pos read-map hold-since-round action)))
 
 (defn process-unloading-mission
   [{:keys [current-world

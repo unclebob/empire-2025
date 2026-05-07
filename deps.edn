@@ -21,6 +21,10 @@
 					                         "-t" "empire.dead-code-spec" "--lcov" "--no-text"]
 					             :extra-deps {cloverage/cloverage {:mvn/version "1.2.4"}}
 					             :extra-paths ["spec"]}
+					 :dry4clj {:extra-deps {io.github.unclebob/dry4clj
+					                       {:git/url "https://github.com/unclebob/dry4clj"
+					                        :git/sha "6069cfd624b2b225f61c690e3dbc75c6d541c068"}}
+					           :main-opts ["-m" "dry4clj.core"]}
 					 :parse-tests {:main-opts ["-m" "empire.acceptance.parser"]
 					               :extra-paths ["spec"]}
            :generate-specs {:main-opts ["-m" "empire.acceptance.generator"]
@@ -46,7 +50,7 @@
 					                        :main-opts ["-m" "speclj-structure-check.core"]}
 						 :crap {:extra-deps {io.github.unclebob/crap4clj
 						                      {:git/url "https://github.com/unclebob/crap4clj"
-						                       :git/sha "992a5dd41bb337a843c02fb4829a69af7bfcf595"}}
+						                       :git/sha "977c26cc2d4318294917242c313106e1507bd4f6"}}
 						        :extra-paths ["spec"]
 						        :main-opts ["-m" "crap4clj.core"]}
 						 :scrap {:extra-deps {io.github.unclebob/scrap

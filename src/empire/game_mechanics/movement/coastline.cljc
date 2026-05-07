@@ -44,15 +44,12 @@
 (defn valid-coastline-cell?
   "Returns true if a cell is valid for coastline movement (sea, no unit)."
   [cell]
-  (and cell
-       (= :sea (:type cell))
-       (nil? (:contents cell))))
+  (map-utils/valid-empty-cell? :sea cell))
 
 (defn get-valid-coastline-moves
   "Returns list of valid adjacent sea positions for coastline following."
   [pos current-map]
-  (map-utils/get-matching-neighbors pos (map-utils/resolve-map-source current-map) map-utils/neighbor-offsets
-                                    valid-coastline-cell?))
+  (map-utils/get-valid-empty-neighbor-moves pos current-map :sea))
 
 (defn- rand-nth-non-empty
   "Returns (rand-nth coll) for the first non-empty collection, or nil."

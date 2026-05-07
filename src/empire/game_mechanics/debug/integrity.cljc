@@ -112,13 +112,25 @@
      :cljs
      (str prefix "cljs.log")))
 
+(defn- log-section
+  [title entries formatter]
+  (str "\n=== " title " ===\n"
+       (if (seq entries)
+         (str (str/join "\n" (map formatter entries)) "\n")
+         "  (none)\n")))
+
+(defn- stacktrace-log-context
+  []
+  (let [round (sa/read-state :round-number)]
+    {:round round
+     :actions (take-last 50 (or (sa/read-state :action-log) []))
+     :player-moves (filter #(= round (:round %)) (or (sa/read-state :player-movement-log) []))
+     :computer-events (filter #(= round (:round %)) (or (sa/read-state :computer-event-log) []))}))
+
 (defn- format-stacktrace-report
   [context throwable]
   #?(:clj
-     (let [round (sa/read-state :round-number)
-           actions (take-last 50 (or (sa/read-state :action-log) []))
-           player-moves (filter #(= round (:round %)) (or (sa/read-state :player-movement-log) []))
-           computer-events (filter #(= round (:round %)) (or (sa/read-state :computer-event-log) []))]
+     (let [{:keys [round actions player-moves computer-events]} (stacktrace-log-context)]
        (str "=== Empire Error ===\n"
             "Round: " round "\n"
             "Timestamp: " (System/currentTimeMillis) "\n\n"
@@ -126,18 +138,9 @@
             (with-out-str (pprint/pprint context))
             "\n=== Stack Trace ===\n"
             (with-out-str (.printStackTrace throwable (java.io.PrintWriter. *out*)))
-            "\n=== Actions (last 50) ===\n"
-            (if (seq actions)
-              (str (str/join "\n" (map format-action-entry actions)) "\n")
-              "  (none)\n")
-            "\n=== Computer Events (this round) ===\n"
-            (if (seq computer-events)
-              (str (str/join "\n" (map format-computer-event-entry computer-events)) "\n")
-              "  (none)\n")
-            "\n=== Player Movements (this round) ===\n"
-            (if (seq player-moves)
-              (str (str/join "\n" (map format-movement-entry player-moves)) "\n")
-              "  (none)\n")))
+            (log-section "Actions (last 50)" actions format-action-entry)
+            (log-section "Computer Events (this round)" computer-events format-computer-event-entry)
+            (log-section "Player Movements (this round)" player-moves format-movement-entry)))
      :cljs
      (str "=== Empire Error ===\n"
           "Context: " (pr-str context) "\n"

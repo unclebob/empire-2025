@@ -44,6 +44,17 @@
   [pos the-map offsets pred]
   (neighbors/get-matching-neighbors pos the-map offsets pred))
 
+(defn valid-empty-cell?
+  [terrain-type cell]
+  (and cell
+       (= terrain-type (:type cell))
+       (nil? (:contents cell))))
+
+(defn get-valid-empty-neighbor-moves
+  [pos current-map terrain-type]
+  (get-matching-neighbors pos (resolve-map-source current-map) neighbor-offsets
+                          #(valid-empty-cell? terrain-type %)))
+
 (defn on-coast?
   [cell-x cell-y]
   (any-neighbor-matches? [cell-x cell-y] (current-world) neighbor-offsets
@@ -75,15 +86,18 @@
 
 ;; Terrain geometry helpers
 
+(defn- adjacent-to-terrain?
+  [pos current-map offsets terrain-type]
+  (any-neighbor-matches? pos (resolve-map-source current-map) offsets
+                         #(= terrain-type (:type %))))
+
 (defn adjacent-to-land?
   [pos current-map]
-  (any-neighbor-matches? pos (resolve-map-source current-map) neighbor-offsets
-                         #(= :land (:type %))))
+  (adjacent-to-terrain? pos current-map neighbor-offsets :land))
 
 (defn orthogonally-adjacent-to-land?
   [pos current-map]
-  (any-neighbor-matches? pos (resolve-map-source current-map) orthogonal-offsets
-                         #(= :land (:type %))))
+  (adjacent-to-terrain? pos current-map orthogonal-offsets :land))
 
 (defn completely-surrounded-by-sea?
   [pos current-map]
@@ -97,8 +111,7 @@
 
 (defn adjacent-to-sea?
   [pos current-map]
-  (any-neighbor-matches? pos (resolve-map-source current-map) neighbor-offsets
-                         #(= :sea (:type %))))
+  (adjacent-to-terrain? pos current-map neighbor-offsets :sea))
 
 (defn at-map-edge?
   [pos current-map]

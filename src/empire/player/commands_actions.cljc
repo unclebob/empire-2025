@@ -54,24 +54,20 @@
   (item-processed! ctx)
   true)
 
+(def ^:private unload-handlers
+  {:wake-armies-on-transport container-ops/wake-armies-on-transport
+   :wake-fighters-on-carrier container-ops/wake-fighters-on-carrier
+   :wake-fighters-on-airport container-ops/wake-fighters-on-airport})
+
+(defn- run-unload-action!
+  [coords action]
+  ((unload-handlers action) coords))
+
 (defn handle-unload-key [ctx coords cell active-unit]
-  (case (:action (decisions/unload-key-action (:contents cell) cell active-unit))
-      :wake-armies-on-transport
-      (do (container-ops/wake-armies-on-transport coords)
-          (item-processed! ctx)
-          true)
-
-      :wake-fighters-on-carrier
-      (do (container-ops/wake-fighters-on-carrier coords)
-          (item-processed! ctx)
-          true)
-
-      :wake-fighters-on-airport
-      (do (container-ops/wake-fighters-on-airport coords)
-          (item-processed! ctx)
-          true)
-
-      nil))
+  (when-let [action (:action (decisions/unload-key-action (:contents cell) cell active-unit))]
+    (run-unload-action! coords action)
+    (item-processed! ctx)
+    true))
 
 (defn handle-sentry-key [ctx coords cell active-unit]
   (case (:action (decisions/sentry-key-action cell active-unit))
@@ -125,6 +121,55 @@
 
       nil)))
 
+(defn- launch-airport-fighter!
+  [ctx attn-coords decision]
+  ((:launch-fighter-and-update ctx)
+   container-ops/launch-fighter-from-airport
+   attn-coords
+   (:target decision))
+  true)
+
+(defn- disembark-from-transport!
+  [ctx attn-coords decision]
+  (container-ops/disembark-army-from-transport attn-coords (:target decision))
+  (item-processed! ctx)
+  true)
+
+(defn- disembark-with-target!
+  [ctx attn-coords decision]
+  (container-ops/disembark-army-with-target attn-coords (:target decision) (:extended-target decision))
+  (item-processed! ctx)
+  true)
+
+(defn- apply-combat-action!
+  [ctx combat-action attn-coords decision]
+  (combat/apply-combat-result!
+   (combat-action (current-world ctx) attn-coords (:target decision)))
+  (item-processed! ctx)
+  true)
+
+(defn- set-unit-movement!
+  [ctx attn-coords decision]
+  (movement-api/set-unit-movement attn-coords (:target decision))
+  (item-processed! ctx)
+  true)
+
+(defn- reject-click!
+  [ctx _attn-coords decision]
+  (write-runtime-state! ctx :warning-message (:message decision))
+  (sound/play-bonk!)
+  true)
+
+(def ^:private click-handlers
+  {:launch-fighter-from-airport launch-airport-fighter!
+   :disembark-army-from-transport disembark-from-transport!
+   :disembark-army-with-target disembark-with-target!
+   :coastal-army-attack #(apply-combat-action! %1 combat/attempt-coastal-army-attack %2 %3)
+   :attempt-conquest #(apply-combat-action! %1 combat/attempt-conquest %2 %3)
+   :attempt-fighter-overfly #(apply-combat-action! %1 combat/attempt-fighter-overfly %2 %3)
+   :set-unit-movement set-unit-movement!
+   :reject reject-click!})
+
 (defn handle-unit-click
   "Handles interaction with an attention-needing unit."
   [ctx clicked-coords attention-coords]
@@ -133,58 +178,8 @@
         active-unit (movement-state/get-active-unit attn-cell attn-coords)
         context (movement-state/movement-context attn-cell active-unit)
         decision (decisions/click-action (current-world ctx) attn-coords clicked-coords context active-unit)]
-    (case (:action decision)
-      :launch-fighter-from-airport
-      (do
-        ((:launch-fighter-and-update ctx)
-         container-ops/launch-fighter-from-airport
-         attn-coords
-         (:target decision))
-        true)
-
-      :disembark-army-from-transport
-      (do
-        (container-ops/disembark-army-from-transport attn-coords (:target decision))
-        (item-processed! ctx)
-        true)
-
-      :disembark-army-with-target
-      (do
-        (container-ops/disembark-army-with-target attn-coords (:target decision) (:extended-target decision))
-        (item-processed! ctx)
-        true)
-
-      :coastal-army-attack
-      (do
-        (combat/apply-combat-result! (combat/attempt-coastal-army-attack (current-world ctx) attn-coords (:target decision)))
-        (item-processed! ctx)
-        true)
-
-      :attempt-conquest
-      (do
-        (combat/apply-combat-result! (combat/attempt-conquest (current-world ctx) attn-coords (:target decision)))
-        (item-processed! ctx)
-        true)
-
-      :attempt-fighter-overfly
-      (do
-        (combat/apply-combat-result! (combat/attempt-fighter-overfly (current-world ctx) attn-coords (:target decision)))
-        (item-processed! ctx)
-        true)
-
-      :set-unit-movement
-      (do
-        (movement-api/set-unit-movement attn-coords (:target decision))
-        (item-processed! ctx)
-        true)
-
-      :reject
-      (do
-        (write-runtime-state! ctx :warning-message (:message decision))
-        (sound/play-bonk!)
-        true)
-
-      nil)))
+    (when-let [handler (click-handlers (:action decision))]
+      (handler ctx attn-coords decision))))
 
 (defn handle-cell-click
   "Handles clicking on a map cell, prioritizing attention-needing items."

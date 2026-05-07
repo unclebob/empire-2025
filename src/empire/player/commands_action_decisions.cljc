@@ -130,61 +130,94 @@
                :set-unit-movement)
      :target clicked-coords}))
 
+(defn- friendly-blocker?
+  [target-cell target-unit active-unit]
+  (and target-unit
+       (= (:owner target-unit) (:owner active-unit))
+       (not (and (= (:type active-unit) :fighter)
+                 (= (:type target-unit) :carrier)))
+       (not (and (= (:type active-unit) :fighter)
+                 (= (:type target-cell) :city)
+                 (= (:city-status target-cell) :player)))))
+
+(defn- army-blocking-reason
+  [target-cell]
+  (case (:type target-cell)
+    :sea :cant-move-into-water
+    :city (when (= (:city-status target-cell) :player)
+            :cant-move-into-city)
+    nil))
+
+(defn- naval-blocking-reason
+  [target-cell]
+  ({:land :ships-cant-drive-on-land
+    :city :ships-cant-enter-city} (:type target-cell)))
+
+(defn- movement-blocking-reason
+  [target-cell target-unit active-unit]
+  (cond
+    (nil? target-cell) :not-on-map
+    (friendly-blocker? target-cell target-unit active-unit) :somethings-in-the-way
+    (= (:type active-unit) :army) (army-blocking-reason target-cell)
+    (dispatcher/naval-unit? (:type active-unit)) (naval-blocking-reason target-cell)))
+
+(defn- rejection-action
+  [reason]
+  (when reason
+    {:action :reject
+     :message (reason messages/messages)}))
+
 (defn- standard-click-action
   [world attn-coords clicked-coords active-unit]
   (let [target-cell (get-in world clicked-coords)
         target-unit (:contents target-cell)
-        friendly-blocker? (and target-unit
-                               (= (:owner target-unit) (:owner active-unit))
-                               (not (and (= (:type active-unit) :fighter)
-                                         (= (:type target-unit) :carrier)))
-                               (not (and (= (:type active-unit) :fighter)
-                                         (= (:type target-cell) :city)
-                                         (= (:city-status target-cell) :player))))
-        blocking-reason (cond
-                          (nil? target-cell) :not-on-map
-                          friendly-blocker?
-                          :somethings-in-the-way
-                          (= (:type active-unit) :army)
-                          (cond
-                            (= (:type target-cell) :sea) :cant-move-into-water
-                            (and (= (:type target-cell) :city)
-                                 (= (:city-status target-cell) :player)) :cant-move-into-city)
-                          (dispatcher/naval-unit? (:type active-unit))
-                          (cond
-                            (= (:type target-cell) :land) :ships-cant-drive-on-land
-                            (= (:type target-cell) :city) :ships-cant-enter-city))]
-    (or (army-coastal-attack-action attn-coords clicked-coords active-unit target-cell target-unit)
-        (hostile-city-action world attn-coords clicked-coords active-unit)
-        (when blocking-reason
-          {:action :reject
-           :message (blocking-reason messages/messages)})
+        blocking-reason (movement-blocking-reason target-cell target-unit active-unit)]
+    (or (some identity
+              [(army-coastal-attack-action attn-coords clicked-coords active-unit target-cell target-unit)
+               (hostile-city-action world attn-coords clicked-coords active-unit)
+               (rejection-action blocking-reason)])
         {:action :set-unit-movement
          :target clicked-coords})))
+
+(defn- army-aboard-attack-action
+  [attn-coords clicked-coords active-unit target-unit]
+  (when (and (adjacent-coords? attn-coords clicked-coords)
+             (combat/hostile-unit? target-unit (:owner active-unit)))
+    {:action :coastal-army-attack
+     :target clicked-coords}))
+
+(defn- army-aboard-disembark-action
+  [attn-coords clicked-coords target-cell]
+  (when (and (adjacent-coords? attn-coords clicked-coords)
+             (= (:type target-cell) :land)
+             (not (:contents target-cell)))
+    {:action :disembark-army-from-transport
+     :target clicked-coords}))
+
+(defn- army-aboard-extended-disembark-action
+  [adjacent-land-target clicked-coords]
+  (when adjacent-land-target
+    {:action :disembark-army-with-target
+     :target adjacent-land-target
+     :extended-target clicked-coords}))
+
+(defn- army-aboard-click-action
+  [world attn-coords clicked-coords active-unit]
+  (let [target-cell (get-in world clicked-coords)
+        target-unit (:contents target-cell)
+        adjacent-land-target (adjacent-open-land-target world attn-coords clicked-coords)]
+    (some identity
+          [(army-aboard-attack-action attn-coords clicked-coords active-unit target-unit)
+           (hostile-city-action world attn-coords clicked-coords active-unit)
+           (army-aboard-disembark-action attn-coords clicked-coords target-cell)
+           (army-aboard-extended-disembark-action adjacent-land-target clicked-coords)])))
 
 (defn click-action
   [world attn-coords clicked-coords context active-unit]
   (case context
     :airport-fighter {:action :launch-fighter-from-airport
                       :target clicked-coords}
-    :army-aboard (let [target-cell (get-in world clicked-coords)
-                       target-unit (:contents target-cell)
-                       adjacent-land-target (adjacent-open-land-target world attn-coords clicked-coords)]
-                   (or
-                    (when (and (adjacent-coords? attn-coords clicked-coords)
-                               (combat/hostile-unit? target-unit (:owner active-unit)))
-                      {:action :coastal-army-attack
-                       :target clicked-coords})
-                    (hostile-city-action world attn-coords clicked-coords active-unit)
-                    (when (and (adjacent-coords? attn-coords clicked-coords)
-                               (= (:type target-cell) :land)
-                               (not (:contents target-cell)))
-                      {:action :disembark-army-from-transport
-                       :target clicked-coords})
-                    (when adjacent-land-target
-                      {:action :disembark-army-with-target
-                       :target adjacent-land-target
-                       :extended-target clicked-coords})))
+    :army-aboard (army-aboard-click-action world attn-coords clicked-coords active-unit)
     (standard-click-action world attn-coords clicked-coords active-unit)))
 
 (defn city-production-action

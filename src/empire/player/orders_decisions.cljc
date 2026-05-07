@@ -73,19 +73,20 @@
     (str "Waypoint placed at " (first coords) "," (second coords))
     (str "Waypoint removed from " (first coords) "," (second coords))))
 
-(defn marching-orders-state
-  [path dest]
+(defn- orders-state
+  [path dest message-prefix]
   {:path path
    :dest dest
    :clear-destination? true
-   :message (str "Marching orders set to " (first dest) "," (second dest))})
+   :message (str message-prefix (first dest) "," (second dest))})
+
+(defn marching-orders-state
+  [path dest]
+  (orders-state path dest "Marching orders set to "))
 
 (defn flight-path-state
   [path dest]
-  {:path path
-   :dest dest
-   :clear-destination? true
-   :message (str "Flight path set to " (first dest) "," (second dest))})
+  (orders-state path dest "Flight path set to "))
 
 (defn project-to-edge
   [world [cx cy] [dx dy]]

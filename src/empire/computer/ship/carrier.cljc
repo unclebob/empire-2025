@@ -156,6 +156,18 @@
     (when-let [pos (frontier-sea-target pair current-pos)]
       {:position pos :pair pair})))
 
+(defn- next-carrier-assignment
+  [pos]
+  (or (when-let [{:keys [position pair]} (find-carrier-position)]
+        {:position position :pair pair :refueling :position})
+      (when-let [{:keys [position pair]} (find-carrier-exploration-target pos)]
+        {:position position :pair pair :refueling :explore})))
+
+(defn- hold-carrier! [pos]
+  (sa/update-world! update-in (conj pos :contents)
+                    assoc :carrier-mode :holding)
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
 (declare position-carrier-without-target)
 
 (defn- assign-carrier-target-and-move
@@ -213,32 +225,20 @@
 (defn- position-carrier-without-target
   "Handles carrier in positioning mode without a target. Finds one or holds."
   [pos]
-  (if-let [{:keys [position pair refueling]} (or (when-let [{:keys [position pair]} (find-carrier-position)]
-                                                   {:position position :pair pair :refueling :position})
-                                                 (when-let [{:keys [position pair]} (find-carrier-exploration-target pos)]
-                                                   {:position position :pair pair :refueling :explore}))]
+  (if-let [{:keys [position pair refueling]} (next-carrier-assignment pos)]
     (assign-carrier-target-and-move pos position pair refueling)
-    (do
-      (sa/update-world! update-in (conj pos :contents)
-                        assoc :carrier-mode :holding)
-      (visibility/sync-ai-unit-to-computer-map! pos))))
+    (hold-carrier! pos)))
 
 (defn- reposition-carrier
   "Handles carrier in repositioning mode. Finds new position or holds."
   [pos]
-  (if-let [{:keys [position pair refueling]} (or (when-let [{:keys [position pair]} (find-carrier-position)]
-                                                   {:position position :pair pair :refueling :position})
-                                                 (when-let [{:keys [position pair]} (find-carrier-exploration-target pos)]
-                                                   {:position position :pair pair :refueling :explore}))]
+  (if-let [{:keys [position pair refueling]} (next-carrier-assignment pos)]
     (do
       (sa/update-world! update-in (conj pos :contents)
                         assoc :carrier-mode :positioning)
       (visibility/sync-ai-unit-to-computer-map! pos)
       (assign-carrier-target-and-move pos position pair refueling))
-    (do
-      (sa/update-world! update-in (conj pos :contents)
-                        assoc :carrier-mode :holding)
-      (visibility/sync-ai-unit-to-computer-map! pos))))
+    (hold-carrier! pos)))
 
 (defn- pair-still-valid?
   "Returns true if both cities in the pair are still computer-owned."

@@ -1,19 +1,13 @@
 (ns empire.computer.shared.action-resolution
   (:require [empire.computer.land-objectives :as land-objectives]
+            [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.oscillation :as oscillation]
             [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.debug.logging :as debug]
-            [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]
             [empire.ui.sound :as sound]))
-
-(defn- update-cell-visibility!
-  ([pos owner]
-   (visibility/update-cell-visibility pos owner))
-  ([pos owner unit]
-   (visibility/update-cell-visibility pos owner unit)))
 
 (defn- foreign-territory?
   "Returns true if unit is a computer army with a country-id and the target
@@ -142,10 +136,10 @@
         (when (#{:patrol-boat :transport} (:type unit))
           (sa/update-world! update-in (conj to-pos :contents)
                             oscillation/append-position to-pos))
-        (update-cell-visibility! from-pos (:owner unit))
-        (update-cell-visibility! to-pos (:owner unit) unit)
+        (computer-movement/update-cell-visibility! from-pos (:owner unit))
+        (computer-movement/update-cell-visibility-with-unit! to-pos (:owner unit) unit)
         (stamp-territory to-pos unit)
-        (update-cell-visibility! to-pos (:owner unit) unit)
+        (computer-movement/update-cell-visibility-with-unit! to-pos (:owner unit) unit)
         to-pos))))
 
 (defn random-away-direction
@@ -230,10 +224,10 @@
         (sa/update-world! assoc-in city-pos (assoc city-cell :city-status :computer))
         (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)
         (combat/conquer-city-contents city-pos :computer)
-        (update-cell-visibility! army-pos :computer)
-        (update-cell-visibility! city-pos :computer)
+        (computer-movement/update-cell-visibility! army-pos :computer)
+        (computer-movement/update-cell-visibility! city-pos :computer)
         (stamp-territory city-pos army)
-        (update-cell-visibility! city-pos :computer)
+        (computer-movement/update-cell-visibility! city-pos :computer)
         (when (= :player (:city-status city-cell))
           (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))
         (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
@@ -249,7 +243,7 @@
         (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
         (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
         (clear-country-id-region-after-failed-conquest! city-pos army-pos (:country-id army))
-        (update-cell-visibility! army-pos :computer)
+        (computer-movement/update-cell-visibility! army-pos :computer)
         nil))))
 
 ;; clj-mutate-manifest-begin

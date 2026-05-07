@@ -12,6 +12,7 @@
             [empire.computer.land-objectives :as land-objectives]
             [empire.computer.shared.action-resolution :as action-resolution]
             [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.oscillation :as oscillation]
             [empire.computer.shared.world-query :as world-query]
             [empire.computer.transport.decisions :as decisions]
@@ -191,6 +192,40 @@
     (when-let [handler (get handlers handler-key)]
       (handler))))
 
+(defn- apply-idle-fix!
+  [pos initial-mission fix-idle?]
+  (when fix-idle?
+    (fix-idle-mission pos initial-mission)))
+
+(defn- apply-mission-start!
+  [pos initial-mission mission]
+  (when (and mission
+             (not= mission initial-mission)
+             (#{nil :idle} initial-mission))
+    (tc/set-transport-mission pos mission)))
+
+(defn- apply-force-sailing!
+  [pos transport army-count force-sailing?]
+  (when force-sailing?
+    (if (zero? army-count)
+      (transition-to-loading pos)
+      (start-sailing pos transport))))
+
+(defn- current-transport-mission
+  [pos mission]
+  (or (:transport-mission (get-in (sa/read-state :computer-map) (conj pos :contents)))
+      mission
+      :loading))
+
+(defn- log-transport-process!
+  [pos transport army-count current-mission]
+  (debug/log-computer-event! :transport-process pos
+                             {:mission current-mission
+                              :armies army-count
+                              :manifest (:load-manifest transport)
+                              :reservation (when-let [transport-id (:transport-id transport)]
+                                             (get (sa/read-state :transport-load-reservations) transport-id))}))
+
 (defn- dispatch-transport-mission
   [pos transport]
   (let [army-count (:army-count transport 0)
@@ -199,25 +234,11 @@
                                                     {:mission initial-mission
                                                      :army-count army-count
                                                      :never-reload? (:never-reload? transport)})]
-    (when fix-idle?
-      (fix-idle-mission pos initial-mission))
-    (when (and mission
-               (not= mission initial-mission))
-      (when (#{nil :idle} initial-mission)
-        (tc/set-transport-mission pos mission)))
-    (when force-sailing?
-      (if (zero? army-count)
-        (transition-to-loading pos)
-        (start-sailing pos transport)))
-    (let [current-mission (or (:transport-mission (get-in (sa/read-state :computer-map) (conj pos :contents)))
-                              mission
-                              :loading)]
-      (debug/log-computer-event! :transport-process pos
-                                 {:mission current-mission
-                                  :armies army-count
-                                  :manifest (:load-manifest transport)
-                                  :reservation (when-let [transport-id (:transport-id transport)]
-                                                 (get (sa/read-state :transport-load-reservations) transport-id))})
+    (apply-idle-fix! pos initial-mission fix-idle?)
+    (apply-mission-start! pos initial-mission mission)
+    (apply-force-sailing! pos transport army-count force-sailing?)
+    (let [current-mission (current-transport-mission pos mission)]
+      (log-transport-process! pos transport army-count current-mission)
       (run-transport-mission pos current-mission army-count))))
 
 (defn- maybe-handle-lake-transport
@@ -238,11 +259,11 @@
 
 (defn- maybe-enter-transport-random-walk!
   [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    #(oscillation/maybe-enter-random-walk % transport-random-walk-restore-keys
-                                                          {:unit-type :transport
-                                                           :pos pos}))
-  (visibility/sync-ai-unit-to-computer-map! pos))
+  (computer-movement/update-unit-and-sync!
+   pos
+   #(oscillation/maybe-enter-random-walk % transport-random-walk-restore-keys
+                                         {:unit-type :transport
+                                          :pos pos})))
 
 (defn- process-transport-random-walk
   [pos]

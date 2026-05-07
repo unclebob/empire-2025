@@ -7,25 +7,34 @@
   [unit-type]
   (-> unit-type name clojure.string/capitalize))
 
+(def ^:private core-combat-attributes
+  {:army {:strength units-config/army-strength
+          :display-char units-config/army-display-char}
+   :fighter {:strength units-config/fighter-strength
+             :display-char units-config/fighter-display-char}
+   :satellite {:strength units-config/satellite-strength
+               :display-char units-config/satellite-display-char}
+   :transport {:strength units-config/transport-strength
+               :display-char units-config/transport-display-char}
+   :carrier {:strength units-config/carrier-strength
+             :display-char units-config/carrier-display-char}})
+
+(defn- core-combat-attribute
+  [unit-type attribute]
+  (get-in core-combat-attributes [unit-type attribute]))
+
+(defn- combat-attribute
+  [unit-type attribute]
+  (or (core-combat-attribute unit-type attribute)
+      (ships/config unit-type attribute)))
+
 (defn- strength-for
   [unit-type]
-  (case unit-type
-    :army units-config/army-strength
-    :fighter units-config/fighter-strength
-    :satellite units-config/satellite-strength
-    :transport units-config/transport-strength
-    :carrier units-config/carrier-strength
-    (ships/config unit-type :strength)))
+  (combat-attribute unit-type :strength))
 
 (defn- display-char-for
   [unit-type]
-  (case unit-type
-    :army units-config/army-display-char
-    :fighter units-config/fighter-display-char
-    :satellite units-config/satellite-display-char
-    :transport units-config/transport-display-char
-    :carrier units-config/carrier-display-char
-    (ships/config unit-type :display-char)))
+  (combat-attribute unit-type :display-char))
 
 (defn- format-log-entry
   [entry attacker-type defender-type]

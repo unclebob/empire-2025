@@ -46,22 +46,46 @@
            (empty? (:load-manifest transport)))
       (empty? (:sail-path transport))))
 
+(defn- sail-to-load-rules
+  [pos transport mission city-cell?]
+  [[(= :hold-sail-to-load mission) :hold]
+   [city-cell? :leave-city]
+   [(arrived-at-load-target? pos transport) :arrived]
+   [(sail-path-exhausted? transport) :exhausted]
+   [(seq (:sail-path transport)) :follow-path]
+   [true :compute-path]])
+
+(defn- sail-to-load-action
+  [pos transport mission city-cell?]
+  (second (first (filter first (sail-to-load-rules pos transport mission city-cell?)))))
+
+(defn- hold-sail-to-load
+  [_pos _transport])
+
+(defn- handle-sail-to-load-exhausted
+  [pos transport]
+  (reservations/release! (:transport-id transport))
+  (tc/enter-hold-sail-to-load! pos))
+
+(def ^:private sail-to-load-handlers
+  {:hold hold-sail-to-load
+   :leave-city process-leave-city-mission
+   :arrived (fn [pos _transport] (transitions/transition-to-loading! pos))
+   :exhausted handle-sail-to-load-exhausted
+   :follow-path (fn [pos transport]
+                  (follow/follow-load-sail-path
+                   pos
+                   (:sail-path transport)
+                   (:load-target-cell transport)))
+   :compute-path follow/compute-and-follow-load-target-path!})
+
 (defn process-sail-to-load-mission
   [pos transport]
   (let [transport (ensure-sail-to-load-transport pos transport)
         mission (:transport-mission transport)
-        city-cell? (= :city (:type (get-in (sa/read-state :computer-map) pos)))]
-    (cond
-      (= :hold-sail-to-load mission) nil
-      city-cell? (process-leave-city-mission pos transport)
-      (arrived-at-load-target? pos transport) (transitions/transition-to-loading! pos)
-      (sail-path-exhausted? transport)
-      (do (reservations/release! (:transport-id transport))
-          (tc/enter-hold-sail-to-load! pos))
-      (seq (:sail-path transport))
-      (follow/follow-load-sail-path pos (:sail-path transport) (:load-target-cell transport))
-      :else
-      (follow/compute-and-follow-load-target-path! pos transport))))
+        city-cell? (= :city (:type (get-in (sa/read-state :computer-map) pos)))
+        action (sail-to-load-action pos transport mission city-cell?)]
+    ((sail-to-load-handlers action) pos transport)))
 
 (defn process-sail-to-unload-mission
   [pos transport]

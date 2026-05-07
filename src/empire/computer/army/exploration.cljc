@@ -2,26 +2,9 @@
   "Army exploration behaviors (interior, inland, random)."
   (:require [empire.state.api :as sa]
             [empire.computer.army.movement :as movement]
+            [empire.computer.army.sentry :as sentry]
             [empire.computer.shared.world-query :as world-query]
-            [empire.game-mechanics.visibility :as visibility]
-            [empire.game-mechanics.debug.integrity :as integrity]))
-
-(defn- log-missing-army-contents!
-  [reason context]
-  (integrity/write-stacktrace-error-log!
-   "army-error"
-   (merge {:reason reason} context)
-   (ex-info "Army sentry update attempted without unit contents"
-            (merge {:reason reason} context))))
-
-(defn- set-sentry-mode-if-unit!
-  [pos context]
-  (if (get-in (sa/read-state :computer-map) (conj pos :contents))
-    (do
-      (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
-      (visibility/sync-ai-unit-to-computer-map! pos))
-    (log-missing-army-contents! :missing-contents-for-sentry
-                                (assoc context :pos pos :cell (get-in (sa/read-state :computer-map) pos)))))
+            [empire.game-mechanics.visibility :as visibility]))
 
 (defn explore-randomly
   "Move toward any unexplored territory adjacent to computer's explored area.
@@ -119,11 +102,11 @@
                (nil? (:contents (get-in computer-map target)))
                (movement/try-move pos target))
       (when (at-sea-coast? target)
-        (set-sentry-mode-if-unit! target
-                                  {:operation :try-random-direction-move
-                                   :from pos
-                                   :country-id country-id
-                                   :unit unit}))
+        (sentry/set-sentry-mode-if-unit! target
+                                         {:operation :try-random-direction-move
+                                          :from pos
+                                          :country-id country-id
+                                          :unit unit}))
       target)))
 
 (defn- handle-blocked-random-explore [pos country-id]
@@ -145,10 +128,10 @@
           (visibility/sync-ai-unit-to-computer-map! pos)
           (cond
             (at-sea-coast? pos)
-            (do (set-sentry-mode-if-unit! pos
-                                          {:operation :process-random-explore
-                                           :country-id country-id
-                                           :unit unit})
+            (do (sentry/set-sentry-mode-if-unit! pos
+                                                 {:operation :process-random-explore
+                                                  :country-id country-id
+                                                  :unit unit})
                 pos)
 
             :else

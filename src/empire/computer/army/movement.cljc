@@ -120,10 +120,7 @@
 (defn- update-move-history
   "Adds pos to move-history vector, keeping at most 4 entries."
   [history pos]
-  (let [v (conj (or history []) pos)]
-    (if (> (count v) 4)
-      (subvec v (- (count v) 4))
-      v)))
+  (grid/bounded-conj history pos 4))
 
 (defn try-move
   [pos target]
@@ -136,6 +133,15 @@
     (register-coastal-cells target
                             (:country-id (get-in (sa/read-state :computer-map) (conj target :contents))))
     target))
+
+(defn step-toward-target-cheap
+  [pos target country-id]
+  (let [current-dist (grid/distance pos target)
+        candidates (->> (get-empty-passable-neighbors pos country-id)
+                        (filter #(> current-dist (grid/distance % target)))
+                        (sort-by #(grid/distance % target)))]
+    (when-let [best (first candidates)]
+      (try-move pos best))))
 
 (defn- sovereignty-passability-fn
   "Returns a passability function for A* that respects sovereignty for the given country-id."

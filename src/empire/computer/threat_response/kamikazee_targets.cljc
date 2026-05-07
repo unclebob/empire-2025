@@ -33,7 +33,7 @@
     (or (read-runtime-state :round-number) 0)
     0))
 
-(defn- player-army?
+(defn player-army?
   [world pos]
   (let [unit (get-in world (conj pos :contents))]
     (and unit

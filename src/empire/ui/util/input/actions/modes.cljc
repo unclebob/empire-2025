@@ -29,56 +29,65 @@
   (helpers/item-processed!)
   true)
 
+(defn- unload-action
+  [contents cell]
+  (cond
+    (uc/transport-with-armies? contents) :wake-armies
+    (uc/carrier-with-fighters? contents) :wake-fighters
+    (and (= :city (:type cell)) (pos? (:fighter-count cell 0))) :wake-airport-fighters))
+
+(defn- wake-airport-fighters!
+  [coords cell]
+  (let [active-unit (movement-state/get-active-unit cell)]
+    (container-ops/wake-fighters-on-airport coords)
+    (when (movement-state/is-fighter-from-airport? active-unit)
+      (sa/update-world! update-in (conj coords :awake-fighters) dec))))
+
+(def ^:private unload-handlers
+  {:wake-armies (fn [coords _cell] (container-ops/wake-armies-on-transport coords))
+   :wake-fighters (fn [coords _cell] (container-ops/wake-fighters-on-carrier coords))
+   :wake-airport-fighters wake-airport-fighters!})
+
+(defn- run-unload-action!
+  [coords cell action]
+  ((unload-handlers action) coords cell))
+
 (defn handle-unload-key [coords cell]
-  (let [contents (:contents cell)
-        active-unit (movement-state/get-active-unit cell)]
-    (cond
-      (uc/transport-with-armies? contents)
-      (do (container-ops/wake-armies-on-transport coords)
-          (helpers/item-processed!)
-          true)
+  (when-let [action (unload-action (:contents cell) cell)]
+    (run-unload-action! coords cell action)
+    (helpers/item-processed!)
+    true))
 
-      (uc/carrier-with-fighters? contents)
-      (do (container-ops/wake-fighters-on-carrier coords)
-          (helpers/item-processed!)
-          true)
+(defn- sentry-action
+  [cell active-unit]
+  (cond
+    (movement-state/is-army-aboard-transport? active-unit) :sleep-armies
+    (movement-state/is-fighter-from-carrier? active-unit) :sleep-carrier-fighters
+    (movement-state/is-fighter-from-airport? active-unit) :sleep-airport-fighters
+    (not= :city (:type cell)) :sentry))
 
-      (and (= :city (:type cell)) (pos? (:fighter-count cell 0)))
-      (do (container-ops/wake-fighters-on-airport coords)
-          (when (movement-state/is-fighter-from-airport? active-unit)
-            (sa/update-world! update-in (conj coords :awake-fighters) dec))
-          (helpers/item-processed!)
-          true)
+(defn- sleep-airport-fighters!
+  [coords]
+  (container-ops/sleep-fighters-on-airport coords)
+  (sa/update-state! :player-items rest))
 
-      :else nil)))
+(def ^:private sentry-handlers
+  {:sleep-armies container-ops/sleep-armies-on-transport
+   :sleep-carrier-fighters container-ops/sleep-fighters-on-carrier
+   :sleep-airport-fighters sleep-airport-fighters!
+   :sentry movement-state/set-unit-mode})
+
+(defn- run-sentry-action!
+  [coords action]
+  (if (= :sentry action)
+    ((sentry-handlers action) coords :sentry)
+    ((sentry-handlers action) coords))
+  (helpers/item-processed!)
+  true)
 
 (defn handle-sentry-key [coords cell active-unit]
-  (let [is-army-aboard? (movement-state/is-army-aboard-transport? active-unit)
-        is-carrier-fighter? (movement-state/is-fighter-from-carrier? active-unit)
-        is-airport-fighter? (movement-state/is-fighter-from-airport? active-unit)]
-    (cond
-      is-army-aboard?
-      (do (container-ops/sleep-armies-on-transport coords)
-          (helpers/item-processed!)
-          true)
-
-      is-carrier-fighter?
-      (do (container-ops/sleep-fighters-on-carrier coords)
-          (helpers/item-processed!)
-          true)
-
-      is-airport-fighter?
-      (do (container-ops/sleep-fighters-on-airport coords)
-          (sa/update-state! :player-items rest)
-          (helpers/item-processed!)
-          true)
-
-      (not= :city (:type cell))
-      (do (movement-state/set-unit-mode coords :sentry)
-          (helpers/item-processed!)
-          true)
-
-      :else nil)))
+  (when-let [action (sentry-action cell active-unit)]
+    (run-sentry-action! coords action)))
 
 (defn- find-adjacent-land [coords]
   (let [[x y] coords]

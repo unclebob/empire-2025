@@ -31,56 +31,80 @@
       (visibility/sync-ai-unit-to-computer-map! pos)
       (tc/log-transport-mission-transition! pos from-mission :leave-city))))
 
+(defn- load-target-options
+  [pos computer-map transport-id]
+  {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
+   :excluded-country-ids (disj #{(:pickup-country-id (get-in computer-map (conj pos :contents)))}
+                               nil)
+   :reserved-army-ids (reservations/reserved-army-ids transport-id)})
+
+(defn- path-to-return-load-target
+  [pos computer-map load-target-cell]
+  (if load-target-cell
+    (or (load-targeting/path-to-load-target pos computer-map load-target-cell) [])
+    (or (support/compute-sail-to-load-path pos) [])))
+
+(defn- sail-to-load-plan
+  [pos computer-map transport-id]
+  (let [load-target-cell (load-targeting/choose-load-target-cell
+                          pos
+                          computer-map
+                          (load-target-options pos computer-map transport-id))
+        sail-path (path-to-return-load-target pos computer-map load-target-cell)
+        path-ready? (and load-target-cell
+                         (or (seq sail-path)
+                             (load-targeting/target-reached? pos load-target-cell)))
+        manifest (vec (army-assignment/assign-returning-transport-staging-at! pos load-target-cell))]
+    {:load-target-cell load-target-cell
+     :sail-path sail-path
+     :path-ready? path-ready?
+     :manifest manifest
+     :failure (tc/load-plan-failure pos load-target-cell sail-path manifest path-ready?)}))
+
+(defn- sail-to-load-plan-ready?
+  [{:keys [load-target-cell manifest path-ready?]}]
+  (and load-target-cell (seq manifest) path-ready?))
+
+(defn- apply-sail-to-load-plan!
+  [pos from-mission transport-id {:keys [load-target-cell manifest sail-path]}]
+  (when (tc/update-transport-contents!
+         pos
+         #(-> %
+              (assoc :transport-mission :sail-to-load)
+              (assoc :load-target-cell load-target-cell
+                     :load-manifest manifest
+                     :load-plan-failure nil
+                     :hold-sail-to-load-since-round nil
+                     :loading-since-round nil
+                     :sail-path (vec sail-path))
+              (dissoc :unload-target-city)))
+    (reservations/reserve! transport-id load-target-cell manifest)
+    (visibility/sync-ai-unit-to-computer-map! pos)
+    (tc/log-transport-mission-transition! pos from-mission :sail-to-load)))
+
+(defn- planned-sail-to-load-transport
+  [pos {:keys [load-target-cell manifest sail-path]}]
+  (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
+         :transport-mission :sail-to-load
+         :load-target-cell load-target-cell
+         :load-manifest manifest
+         :load-plan-failure nil
+         :sail-path (vec sail-path)))
+
 (defn enter-sail-to-load!
   [pos]
   (let [computer-map (sa/read-state :computer-map)
         from-mission (get-in computer-map (conj pos :contents :transport-mission))
         transport-id (get-in computer-map (conj pos :contents :transport-id))
         _ (reservations/release! transport-id)
-        load-target-cell (load-targeting/choose-load-target-cell
-                          pos
-                          computer-map
-                          {:reserved-coastal-cells (reservations/reserved-coastal-cells transport-id)
-                           :excluded-country-ids (disj #{(:pickup-country-id (get-in computer-map (conj pos :contents)))}
-                                                       nil)
-                           :reserved-army-ids (reservations/reserved-army-ids transport-id)})
-        sail-path (if load-target-cell
-                    (or (load-targeting/path-to-load-target pos computer-map load-target-cell)
-                        [])
-                    (or (support/compute-sail-to-load-path pos)
-                        []))
-        path-ready? (and load-target-cell
-                         (or (seq sail-path)
-                             (load-targeting/target-reached? pos load-target-cell)))]
-    (let [manifest (vec (army-assignment/assign-returning-transport-staging-at! pos load-target-cell))
-          failure (tc/load-plan-failure pos load-target-cell sail-path manifest path-ready?)]
-      (if (and load-target-cell
-               (seq manifest)
-               path-ready?)
+        plan (sail-to-load-plan pos computer-map transport-id)]
+    (if (sail-to-load-plan-ready? plan)
+      (do
+        (apply-sail-to-load-plan! pos from-mission transport-id plan)
+        (planned-sail-to-load-transport pos plan))
         (do
-          (when (tc/update-transport-contents!
-                 pos
-                 #(-> %
-                      (assoc :transport-mission :sail-to-load)
-                      (assoc :load-target-cell load-target-cell
-                             :load-manifest manifest
-                             :load-plan-failure nil
-                             :hold-sail-to-load-since-round nil
-                             :loading-since-round nil
-                             :sail-path (vec sail-path))
-                      (dissoc :unload-target-city)))
-            (reservations/reserve! transport-id load-target-cell manifest)
-            (visibility/sync-ai-unit-to-computer-map! pos)
-            (tc/log-transport-mission-transition! pos from-mission :sail-to-load))
-          (assoc (get-in (sa/read-state :computer-map) (conj pos :contents))
-                 :transport-mission :sail-to-load
-                 :load-target-cell load-target-cell
-                 :load-manifest manifest
-                 :load-plan-failure nil
-                 :sail-path (vec sail-path)))
-        (do
-          (tc/enter-hold-sail-to-load! pos failure)
-          (get-in (sa/read-state :computer-map) (conj pos :contents)))))))
+          (tc/enter-hold-sail-to-load! pos (:failure plan))
+          (get-in (sa/read-state :computer-map) (conj pos :contents))))))
 
 (defn enter-sail-to-unload!
   [pos transport]

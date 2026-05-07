@@ -20,15 +20,12 @@
 (defn valid-explore-cell?
   "Returns true if a cell is valid for army exploration (land, no city, no unit)."
   [cell]
-  (and cell
-       (= :land (:type cell))
-       (nil? (:contents cell))))
+  (map-utils/valid-empty-cell? :land cell))
 
 (defn get-valid-explore-moves
   "Returns list of valid adjacent positions for exploration."
   [pos current-map]
-  (map-utils/get-matching-neighbors pos (map-utils/resolve-map-source current-map) map-utils/neighbor-offsets
-                                    valid-explore-cell?))
+  (map-utils/get-valid-empty-neighbor-moves pos current-map :land))
 
 (defn adjacent-to-unexplored?
   "Returns true if the position has an adjacent unexplored cell."

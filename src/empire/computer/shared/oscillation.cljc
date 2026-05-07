@@ -54,6 +54,13 @@
           (assoc :oscillation-random-walk-rounds-left escape-rounds)
           (assoc :oscillation-restore snapshot)))))
 
+(defn start-random-walk!
+  [ctx pos restore-keys]
+  ((:update-game-map! ctx) update-in (conj pos :contents)
+   #(start-random-walk % restore-keys))
+  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
+    (sync-ai-unit! pos)))
+
 (defn maybe-enter-random-walk
   ([unit restore-keys]
    (maybe-enter-random-walk unit restore-keys nil))

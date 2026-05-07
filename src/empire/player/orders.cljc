@@ -87,6 +87,29 @@
         (set-command-message! "Marching orders cleared")
         true))))
 
+(defn- apply-flight-path
+  [[cx cy] decision]
+  (let [{:keys [path dest clear-destination? message]}
+        (decisions/flight-path-state (into [cx cy] (:path decision)) (:dest decision))]
+    (sa/update-world! assoc-in path dest)
+    (when clear-destination?
+      (sa/write-state! :destination nil))
+    (set-command-message! message))
+  true)
+
+(defn- flight-path-owner?
+  [cell]
+  (or (and (= :city (:type cell)) (= :player (:city-status cell)))
+      (and (= :carrier (:type (:contents cell))) (= :player (:owner (:contents cell))))))
+
+(defn- clear-flight-path
+  [[cx cy] cell]
+  (when (and (flight-path-owner? cell)
+             (:flight-path cell))
+    (sa/update-world! update-in [cx cy] dissoc :flight-path)
+    (set-command-message! "Flight path cleared")
+    true))
+
 (defn set-flight-path-at
   "Sets or clears flight path on a player city or carrier.
    When destination is nil, clears the flight path."
@@ -95,20 +118,9 @@
     (let [cell (get-in (sa/current-world) [cx cy])
           decision (decisions/flight-path-action (sa/current-world) cell dest)]
       (when (= :set-flight-path (:action decision))
-        (let [{:keys [path dest clear-destination? message]}
-              (decisions/flight-path-state (into [cx cy] (:path decision)) (:dest decision))]
-          (sa/update-world! assoc-in path dest)
-          (when clear-destination?
-            (sa/write-state! :destination nil))
-          (set-command-message! message))
-        true))
+        (apply-flight-path [cx cy] decision)))
     (let [cell (get-in (sa/current-world) [cx cy])]
-      (when (and (or (and (= :city (:type cell)) (= :player (:city-status cell)))
-                     (and (= :carrier (:type (:contents cell))) (= :player (:owner (:contents cell)))))
-                 (:flight-path cell))
-        (sa/update-world! update-in [cx cy] dissoc :flight-path)
-        (set-command-message! "Flight path cleared")
-        true))))
+      (clear-flight-path [cx cy] cell))))
 
 (defn set-waypoint-at
   "Creates or removes a waypoint at the given coordinates."

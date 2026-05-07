@@ -4,29 +4,13 @@
             [empire.computer.army.coastal-invasion :as invasion]
             [empire.computer.army.coastal-positioning :as coastal-positioning]
             [empire.computer.army.movement :as movement]
+            [empire.computer.army.sentry :as sentry]
             [empire.computer.shared.grid :as grid]
             [empire.computer.shared.action-resolution :as action-resolution]
+            [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.world-query :as world-query]
             [empire.game-mechanics.visibility :as visibility]
-            [empire.game-mechanics.debug.integrity :as integrity]
             [empire.game-mechanics.debug.logging :as debug]))
-
-(defn- log-missing-army-contents!
-  [reason context]
-  (integrity/write-stacktrace-error-log!
-   "army-error"
-   (merge {:reason reason} context)
-   (ex-info "Army sentry update attempted without unit contents"
-            (merge {:reason reason} context))))
-
-(defn- set-sentry-mode-if-unit!
-  [pos context]
-  (if (get-in (sa/read-state :computer-map) (conj pos :contents))
-    (do
-      (sa/update-world! update-in (conj pos :contents) assoc :mode :sentry)
-      (visibility/sync-ai-unit-to-computer-map! pos))
-    (log-missing-army-contents! :missing-contents-for-sentry
-                                (assoc context :pos pos :cell (get-in (sa/read-state :computer-map) pos)))))
 
 (defn- count-unexplored-neighbors
   "Counts unexplored cells adjacent to position on computer-map."
@@ -38,10 +22,7 @@
 (defn- update-backtrack
   "Adds pos to visited vector, keeping at most 10 entries."
   [visited pos]
-  (let [v (conj (or visited []) pos)]
-    (if (> (count v) 10)
-      (subvec v (- (count v) 10))
-      v)))
+  (grid/bounded-conj visited pos 10))
 
 (defn- terminate-coast-walk
   "Switches army from coast-walk to sentry (or awake if in a city)."
@@ -136,19 +117,19 @@
 (defn- try-settle-on-coast [pos country-id]
   (when (can-settle-here? pos country-id)
     (debug/log-computer-event! :army-sentry pos {:reason :no-coastal-cell-available})
-    (set-sentry-mode-if-unit! pos
-                              {:operation :try-settle-on-coast
-                               :country-id country-id})
+    (sentry/set-sentry-mode-if-unit! pos
+                                     {:operation :try-settle-on-coast
+                                      :country-id country-id})
     pos))
 
 (defn- try-queue-near-coast [pos country-id]
   (when-let [target (find-nearest-cell-close-to-coast pos country-id)]
     (or (movement/move-toward-objective pos target country-id)
         (do (debug/log-computer-event! :army-sentry pos {:reason :transport-queue})
-            (set-sentry-mode-if-unit! pos
-                                      {:operation :try-queue-near-coast
-                                       :country-id country-id
-                                       :target target})
+            (sentry/set-sentry-mode-if-unit! pos
+                                             {:operation :try-queue-near-coast
+                                              :country-id country-id
+                                              :target target})
             pos))))
 
 (defn- try-wake-nearby [pos]
@@ -164,9 +145,9 @@
   [pos country-id]
   (if (should-sentry-on-coast? pos country-id)
     (do (debug/log-computer-event! :army-sentry pos {:reason :coastal-fill :country-id country-id})
-        (set-sentry-mode-if-unit! pos
-                                  {:operation :fill-coastal-cell
-                                   :country-id country-id})
+        (sentry/set-sentry-mode-if-unit! pos
+                                         {:operation :fill-coastal-cell
+                                          :country-id country-id})
         pos)
     (or (try-move-to-coastal-cell pos country-id)
         (try-settle-on-coast pos country-id)
@@ -212,20 +193,11 @@
 
 (defn- settle-at-coast-target!
   [pos]
-  (sa/update-world! update-in (conj pos :contents)
-                    #(-> %
-                         (assoc :mode :sentry)
-                         (dissoc :coast-target :coast-repath-after-round :lake-retask?)))
-  (visibility/sync-ai-unit-to-computer-map! pos))
-
-(defn- step-toward-target-cheap
-  [pos target country-id]
-  (let [current-dist (grid/distance pos target)
-        candidates (->> (movement/get-empty-passable-neighbors pos country-id)
-                        (filter #(> current-dist (grid/distance % target)))
-                        (sort-by #(grid/distance % target)))]
-    (when-let [best (first candidates)]
-      (movement/try-move pos best))))
+  (computer-movement/update-unit-and-sync!
+   pos
+   #(-> %
+        (assoc :mode :sentry)
+        (dissoc :coast-target :coast-repath-after-round :lake-retask?))))
 
 (defn process-move-to-coast-for-invasion
   "Move an army toward its cached coast target for pickup."
@@ -250,7 +222,7 @@
       pos
 
       :else
-      (or (step-toward-target-cheap pos target country-id)
+      (or (movement/step-toward-target-cheap pos target country-id)
           (movement/local-step-toward-objective pos target country-id)
           (movement/move-toward-objective pos target country-id)
           nil))))

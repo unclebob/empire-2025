@@ -74,10 +74,7 @@
 
 (defn start-fighter-congestion-random-walk!
   [ctx pos congestion-random-walk-restore-keys]
-  ((:update-game-map! ctx) update-in (conj pos :contents)
-   #(oscillation/start-random-walk % congestion-random-walk-restore-keys))
-  (when-let [sync-ai-unit! (:sync-ai-unit! ctx)]
-    (sync-ai-unit! pos)))
+  (oscillation/start-random-walk! ctx pos congestion-random-walk-restore-keys))
 
 (defn fighter-random-walk-step
   [pos]

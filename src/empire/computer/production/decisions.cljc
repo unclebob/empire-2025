@@ -131,17 +131,11 @@
         :destroyer (when (should-produce-destroyer? city-pos country-id coastal? unit-counts) :destroyer)
         :fighter (should-produce-fighter?)})))
 
-(defn- count-carrier-producers []
-  (count (filter (fn [[_coords prod]]
-                   (and (map? prod)
-                        (= :carrier (:item prod))))
-                 (sa/read-state :production))))
-
 (defn- carrier-producible? [coastal? unit-counts]
   (and coastal?
        (> (stats/count-computer-cities) config/carrier-city-threshold)
        (< (get unit-counts :carrier 0) config/max-live-carriers)
-       (< (count-carrier-producers) config/max-carrier-producers)
+       (< (stats/count-carrier-producers) config/max-carrier-producers)
        (ship/find-carrier-position)))
 
 (defn- capital-ship-needed? [coastal? unit-counts]

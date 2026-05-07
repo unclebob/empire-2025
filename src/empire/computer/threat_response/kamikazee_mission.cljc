@@ -50,13 +50,6 @@
 
 (declare process-kamikazee-fighter)
 
-(defn- player-army-at?
-  [world pos]
-  (let [unit (get-in world (conj pos :contents))]
-    (and unit
-         (= :player (:owner unit))
-         (= :army (:type unit)))))
-
 (defn- computer-city-site?
   [world pos]
   (and (= :city (get-in world (conj pos :type)))
@@ -64,7 +57,7 @@
 
 (defn- adjacent-player-army
   [world pos]
-  (first (filter #(player-army-at? world %) (world-query/get-neighbors pos))))
+  (first (filter #(targets/player-army? world %) (world-query/get-neighbors pos))))
 
 (defn- move-toward!
   [pos target]

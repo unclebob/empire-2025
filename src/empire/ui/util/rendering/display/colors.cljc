@@ -16,6 +16,19 @@
   [cell]
   (or (config/color-of cell) default-cell-color))
 
+(defn- contained-unit?
+  [cell contents]
+  (or (pos? (:fighter-count cell 0))
+      (uc/has-awake-carrier-fighter? contents)
+      (uc/has-awake-army-aboard? contents)))
+
+(defn- attention-display-unit
+  [cell coords contents attention-coords]
+  (when (and (= coords (first attention-coords))
+             (or (and contents (:type contents))
+                 (contained-unit? cell contents)))
+    (or (movement-state/get-active-unit cell coords) contents)))
+
 (defn determine-display-unit
   "Determines which unit to display, handling attention blinking.
    attention-coords is the list of cells needing attention (or nil).
@@ -23,18 +36,9 @@
   [col row cell attention-coords blink?]
   (let [contents (:contents cell)
         has-airport-fighter? (pos? (:fighter-count cell 0))
-        has-awake-airport? (uc/has-awake? cell :awake-fighters)
-        has-awake-carrier? (uc/has-awake-carrier-fighter? contents)
-        has-awake-army? (uc/has-awake-army-aboard? contents)
-        has-contained-unit? (or has-airport-fighter? has-awake-carrier? has-awake-army?)
-        is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))]
-    (cond
-      (and is-attention-cell? (or (and contents (:type contents))
-                                  has-contained-unit?))
-      (or (movement-state/get-active-unit cell [col row]) contents)
-
-      :else
-      (uc/normal-display-unit cell contents has-awake-airport? has-airport-fighter?))))
+        has-awake-airport? (uc/has-awake? cell :awake-fighters)]
+    (or (attention-display-unit cell [col row] contents attention-coords)
+        (uc/normal-display-unit cell contents has-awake-airport? has-airport-fighter?))))
 
 (defn attention-unit-color
   "Returns the color for a displayed unit. Black when cell is flashing white,

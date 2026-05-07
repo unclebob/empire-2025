@@ -66,6 +66,31 @@
   (when (or (nil? mission) (= :idle mission))
     (set-transport-mission pos :sail-to-load)))
 
+(defn- lake-cells-set
+  [{:keys [read-runtime-state lake-cells]}]
+  (lake-cells (read-runtime-state :computer-map)
+              (read-runtime-state :lake-max-cells)))
+
+(defn- mark-never-reload!
+  [{:keys [update-game-map! sync-transport!]} pos]
+  (let [sync-transport! (or sync-transport! noop-sync!)]
+    (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
+    (sync-transport! pos)))
+
+(defn- land-locked-handler
+  [{:keys [current-world read-computer-map set-transport-mission]
+    :as deps}
+   pos]
+  (let [read-map (or read-computer-map current-world)
+        unit (get-in (read-map) (conj pos :contents))
+        army-count (:army-count unit 0)
+        lake-cells-set (lake-cells-set deps)]
+    (if (pos? army-count)
+      (do
+        (set-transport-mission pos :land-locked)
+        (process-land-locked-mission deps pos lake-cells-set))
+      (park-lake-transport-if-empty deps pos lake-cells-set))))
+
 (defn maybe-handle-lake-transport
   [{:keys [current-world
            read-computer-map
@@ -82,20 +107,10 @@
           :has-armies? (pos? (:army-count transport 0))})
     :already-handled true
     (:land-locked-unload :park-empty)
-      (let [read-map (or read-computer-map current-world)
-            sync-transport! (or sync-transport! noop-sync!)
-            lake-cells-set (lake-cells (read-runtime-state :computer-map)
-                                       (read-runtime-state :lake-max-cells))]
-        (update-game-map! assoc-in (conj pos :contents :never-reload?) true)
-        (sync-transport! pos)
-        (let [unit (get-in (read-map) (conj pos :contents))
-              army-count (:army-count unit 0)]
-          (if (pos? army-count)
-            (do
-              (set-transport-mission pos :land-locked)
-              (process-land-locked-mission deps pos lake-cells-set))
-            (park-lake-transport-if-empty deps pos lake-cells-set)))
-        true)
+    (do
+      (mark-never-reload! deps pos)
+      (land-locked-handler deps pos)
+      true)
     nil))
 
 ;; clj-mutate-manifest-begin

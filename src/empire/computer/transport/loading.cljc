@@ -69,6 +69,63 @@
               (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) coastal-neighbors)
                      (into visited coastal-neighbors)))))))))
 
+(defn- adjacent-loadable-armies
+  [computer-map pos manifest-ids]
+  (keep (fn [n]
+          (let [unit (:contents (get-in computer-map n))]
+            (when (and unit
+                       (= :army (:type unit))
+                       (= :computer (:owner unit)))
+              {:pos n
+               :unit unit
+               :manifest-match? (and manifest-ids
+                                     (contains? manifest-ids (:computer-unit-id unit)))})))
+        (world-query/get-neighbors pos)))
+
+(defn- prioritize-loadable-armies
+  [transport armies]
+  (if (invasion-loading? transport)
+    (concat (filter :manifest-match? armies)
+            (remove :manifest-match? armies))
+    (concat (remove :manifest-match? armies)
+            (filter :manifest-match? armies))))
+
+(defn- log-load-army!
+  [pos transport army-count army-pos]
+  (debug/log-computer-event! :transport-load-army
+                             pos
+                             {:from army-pos
+                              :transport-id (:transport-id transport)
+                              :transport-mission (:transport-mission transport)
+                              :army-count-before army-count
+                              :load-target-cell (:load-target-cell transport)
+                              :major-invasion (:major-invasion transport)}))
+
+(defn- remove-loaded-armies!
+  [pos transport army-count loaded-positions]
+  (doseq [army-pos loaded-positions]
+    (log-load-army! pos transport army-count army-pos)
+    (sa/update-world! update-in army-pos dissoc :contents)
+    (update-cell-visibility! army-pos :computer)))
+
+(defn- apply-updated-load-manifest!
+  [pos transport army-count to-load loaded-armies]
+  (let [loaded-manifest-ids (->> loaded-armies
+                                 (filter :manifest-match?)
+                                 (keep (comp :computer-unit-id :unit))
+                                 set)
+        updated-manifest (vec (remove loaded-manifest-ids (:load-manifest transport)))
+        final-army-count (+ army-count to-load)]
+    (if (>= final-army-count 6)
+      (do
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
+        (reservations/release! (:transport-id transport)))
+      (do
+        (sa/update-world! assoc-in (conj pos :contents :load-manifest) updated-manifest)
+        (reservations/update-army-ids!
+         (:transport-id transport)
+         updated-manifest)))))
+
 (defn load-adjacent-armies
   "Loads computer armies from adjacent land cells. Returns number loaded.
    Skips armies unloaded in the same event to avoid immediate bounce-back."
@@ -79,56 +136,16 @@
         capacity (- 6 army-count)
         manifest-ids (when (contains? transport :load-manifest)
                        (set (:load-manifest transport)))
-        neighbors (world-query/get-neighbors pos)
-        armies (keep (fn [n]
-                       (let [cell (get-in computer-map n)
-                             unit (:contents cell)
-                             invasion-pickup? (= :move-to-coast-for-invasion (:mode unit))]
-                         (when (and unit
-                                    (= :army (:type unit))
-                                    (= :computer (:owner unit)))
-                           {:pos n
-                            :unit unit
-                            :manifest-match? (and manifest-ids
-                                                  (contains? manifest-ids (:computer-unit-id unit)))})))
-                     neighbors)
-        prioritized-armies (if (invasion-loading? transport)
-                             (concat (filter :manifest-match? armies)
-                                     (remove :manifest-match? armies))
-                             (concat (remove :manifest-match? armies)
-                                     (filter :manifest-match? armies)))
+        armies (adjacent-loadable-armies computer-map pos manifest-ids)
+        prioritized-armies (prioritize-loadable-armies transport armies)
         loaded-armies (vec (take capacity prioritized-armies))
         loaded-positions (mapv :pos loaded-armies)
-        loaded-manifest-ids (->> loaded-armies
-                                 (filter :manifest-match?)
-                                 (keep (comp :computer-unit-id :unit))
-                                 set)
         to-load (count loaded-positions)]
-    (doseq [army-pos loaded-positions]
-      (debug/log-computer-event! :transport-load-army
-                                 pos
-                                 {:from army-pos
-                                  :transport-id (:transport-id transport)
-                                  :transport-mission (:transport-mission transport)
-                                  :army-count-before army-count
-                                  :load-target-cell (:load-target-cell transport)
-                                  :major-invasion (:major-invasion transport)})
-      (sa/update-world! update-in army-pos dissoc :contents)
-      (update-cell-visibility! army-pos :computer))
+    (remove-loaded-armies! pos transport army-count loaded-positions)
     (when (pos? to-load)
       (sa/update-world! update-in (conj pos :contents :army-count) (fnil + 0) to-load)
       (when manifest-ids
-        (let [updated-manifest (vec (remove loaded-manifest-ids (:load-manifest transport)))
-              final-army-count (+ army-count to-load)]
-          (if (>= final-army-count 6)
-            (do
-              (sa/update-world! assoc-in (conj pos :contents :load-manifest) nil)
-              (reservations/release! (:transport-id transport)))
-            (do
-              (sa/update-world! assoc-in (conj pos :contents :load-manifest) updated-manifest)
-              (reservations/update-army-ids!
-               (:transport-id transport)
-               updated-manifest)))))
+        (apply-updated-load-manifest! pos transport army-count to-load loaded-armies))
       (visibility/sync-ai-unit-to-computer-map! pos))
     ;; Wake nearby sentries to advance the transport queue
     (doseq [army-pos loaded-positions]

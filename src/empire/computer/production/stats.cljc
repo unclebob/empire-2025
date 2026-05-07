@@ -181,6 +181,12 @@
 (defn count-all-computer-fighters []
   (:computer-fighter-count (current-asset-counts)))
 
+(defn count-carrier-producers []
+  (count (filter (fn [[_coords prod]]
+                   (and (map? prod)
+                        (= :carrier (:item prod))))
+                 (sa/read-state :production))))
+
 (defn count-country-patrol-boats [country-id]
   (get-in (or (sa/read-state :country-stats) {}) [country-id :patrol-boat-count] 0))
 

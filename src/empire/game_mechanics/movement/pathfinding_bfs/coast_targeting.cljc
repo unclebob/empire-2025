@@ -81,29 +81,25 @@
 
 (defn- adjacent-to-land-kind?
   [pos computer-map pred]
-  (let [[x y] pos
-        height (count computer-map)
-        width (count (first computer-map))]
-    (some (fn [[dx dy]]
-            (let [nx (+ x dx)
-                  ny (+ y dy)]
-              (and (>= nx 0) (< nx height)
-                   (>= ny 0) (< ny width)
-                   (pred (get-in computer-map [nx ny])))))
-          map-utils/neighbor-offsets)))
+  (map-utils/any-neighbor-matches? pos computer-map map-utils/neighbor-offsets pred))
+
+(defn- flood-fill-connected
+  [computer-map starts pred]
+  (loop [queue (reduce conj clojure.lang.PersistentQueue/EMPTY starts)
+         visited (set starts)]
+    (if (empty? queue)
+      visited
+      (let [current (peek queue)
+            neighbors (remove visited
+                              (adjacent-cells current computer-map pred))]
+        (recur (reduce conj (pop queue) neighbors)
+               (into visited neighbors))))))
 
 (defn- land-reachable-from-adjacent
   [start computer-map]
-  (let [starts (vec (adjacent-cells start computer-map land-or-city?))]
-    (loop [queue (reduce conj clojure.lang.PersistentQueue/EMPTY starts)
-           visited (set starts)]
-      (if (empty? queue)
-        visited
-        (let [current (peek queue)
-              neighbors (remove visited
-                                (adjacent-cells current computer-map land-or-city?))]
-          (recur (reduce conj (pop queue) neighbors)
-                 (into visited neighbors)))))))
+  (flood-fill-connected computer-map
+                        (vec (adjacent-cells start computer-map land-or-city?))
+                        land-or-city?))
 
 (defn- adjacent-unclaimed-land-reachable?
   [pos computer-map reachable-land]
@@ -112,15 +108,7 @@
 
 (defn- connected-unclaimed-land
   [computer-map starts]
-  (loop [queue (reduce conj clojure.lang.PersistentQueue/EMPTY starts)
-         visited (set starts)]
-    (if (empty? queue)
-      visited
-      (let [current (peek queue)
-            neighbors (remove visited
-                              (adjacent-cells current computer-map unclaimed-land?))]
-        (recur (reduce conj (pop queue) neighbors)
-               (into visited neighbors))))))
+  (flood-fill-connected computer-map starts unclaimed-land?))
 
 (defn- unload-capacity-score
   [pos computer-map]
@@ -192,6 +180,28 @@
                                     preferred))]
       (vec (rest (map-utils/reconstruct-path came-from start (:pos best)))))))
 
+(defn- enqueue-adjacent-target-neighbors
+  [queue current depth neighbors]
+  (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors))
+
+(defn- add-adjacent-target-candidate
+  [candidates current depth score]
+  (if score
+    (conj candidates (assoc score :pos current :depth depth))
+    candidates))
+
+(defn- adjacent-target-search-step
+  [queue visited came-from candidates first-hit-depth computer-map target? passable-sea?]
+  (let [[current depth] (peek queue)
+        neighbors (core/bfs-sea-neighbors current visited passable-sea?)
+        hit? (target? current)
+        score (when hit? (unload-capacity-score current computer-map))]
+    {:queue (enqueue-adjacent-target-neighbors queue current depth neighbors)
+     :visited (into visited neighbors)
+     :came-from (reduce #(assoc %1 %2 current) came-from neighbors)
+     :candidates (add-adjacent-target-candidate candidates current depth score)
+     :first-hit-depth (or first-hit-depth (when hit? depth))}))
+
 (defn- bfs-to-adjacent-target
   [start computer-map target?]
   (let [passable-sea? #(core/transport-passable-sea? computer-map start %)]
@@ -203,17 +213,10 @@
              first-hit-depth nil]
         (if (or (empty? queue) (bfs-past-lookahead? queue first-hit-depth))
           (select-best-candidate candidates came-from start)
-          (let [[current depth] (peek queue)
-                neighbors (core/bfs-sea-neighbors current visited passable-sea?)
-                new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)
-                hit? (target? current)
-                score (when hit? (unload-capacity-score current computer-map))]
-            (recur (reduce #(conj %1 [%2 (inc depth)]) (pop queue) neighbors)
-                   (into visited neighbors)
-                   new-came-from
-                   (cond-> candidates
-                     hit? (conj (assoc score :pos current :depth depth)))
-                   (or first-hit-depth (when hit? depth)))))))))
+          (let [{:keys [queue visited came-from candidates first-hit-depth]}
+                (adjacent-target-search-step queue visited came-from candidates
+                                             first-hit-depth computer-map target? passable-sea?)]
+            (recur queue visited came-from candidates first-hit-depth)))))))
 
 (def ^:private preferred-load-target-distance 4)
 

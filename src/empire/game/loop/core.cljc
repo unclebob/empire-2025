@@ -1,10 +1,8 @@
 (ns empire.game.loop.core
   "Facade: re-exports from round-start, advance, round-setup, and item-processing."
   (:require [empire.state.api :as sa]
-            [empire.config.core :as config]
             [empire.game.loop.round-start :as round-start]
             [empire.game.loop.advance :as advance]
-            [empire.game.loop.control-decisions :as decisions]
             [empire.game.loop.round-setup :as round-setup]
             [empire.game.loop.item-processing :as item-processing]))
 
@@ -27,15 +25,7 @@
    Stops early when paused, waiting for input, or no items to process.
    Defined here (not delegated) so with-redefs on advance-game works."
   []
-  (loop [remaining config/advances-per-frame]
-    (when (pos? remaining)
-      (advance-game)
-      (when (decisions/continue-batch? remaining
-                                       (sa/read-state :paused)
-                                       (sa/read-state :waiting-for-input)
-                                       (sa/read-state :player-items)
-                                       (sa/read-state :computer-items))
-        (recur (dec remaining))))))
+  (advance/run-advance-game-batch advance-game))
 
 (def toggle-pause advance/toggle-pause)
 (def step-one-round advance/step-one-round)
@@ -65,5 +55,5 @@
 (def move-coastline-unit item-processing/move-coastline-unit)
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T11:53:15.479008-05:00", :module-hash "196598447", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "-1196570604"} {:id "def/build-player-items", :kind "def", :line 12, :end-line 12, :hash "-1327823416"} {:id "def/build-computer-items", :kind "def", :line 13, :end-line 13, :hash "1897995408"} {:id "def/declare-game-over!", :kind "def", :line 14, :end-line 14, :hash "-646802357"} {:id "def/handicap-active?", :kind "def", :line 15, :end-line 15, :hash "-522068491"} {:id "def/current-player-items", :kind "def", :line 16, :end-line 16, :hash "-974144580"} {:id "def/update-handicap-before-round!", :kind "def", :line 17, :end-line 17, :hash "630254694"} {:id "def/start-new-round", :kind "def", :line 18, :end-line 18, :hash "1368387506"} {:id "def/update-player-map", :kind "def", :line 21, :end-line 21, :hash "1377071872"} {:id "def/update-computer-map", :kind "def", :line 22, :end-line 22, :hash "-390301336"} {:id "def/advance-game", :kind "def", :line 23, :end-line 23, :hash "-1389747581"} {:id "defn/advance-game-batch", :kind "defn", :line 25, :end-line 38, :hash "-1837720730"} {:id "def/toggle-pause", :kind "def", :line 40, :end-line 40, :hash "409295913"} {:id "def/step-one-round", :kind "def", :line 41, :end-line 41, :hash "844639668"} {:id "def/update-map", :kind "def", :line 42, :end-line 42, :hash "1345569363"} {:id "defn/item-processed", :kind "defn", :line 45, :end-line 50, :hash "-1477047071"} {:id "def/remove-dead-units", :kind "def", :line 53, :end-line 53, :hash "2048804574"} {:id "def/reset-steps-remaining", :kind "def", :line 54, :end-line 54, :hash "-2073169805"} {:id "def/wake-airport-fighters", :kind "def", :line 55, :end-line 55, :hash "879726790"} {:id "def/wake-carrier-fighters", :kind "def", :line 56, :end-line 56, :hash "840162374"} {:id "def/consume-sentry-fighter-fuel", :kind "def", :line 57, :end-line 57, :hash "-647149942"} {:id "def/wake-sentries-seeing-enemy", :kind "def", :line 58, :end-line 58, :hash "-1383325288"} {:id "def/move-satellites", :kind "def", :line 59, :end-line 59, :hash "493297701"} {:id "def/repair-damaged-ships", :kind "def", :line 60, :end-line 60, :hash "2109716449"} {:id "def/move-current-unit", :kind "def", :line 63, :end-line 63, :hash "122457069"} {:id "def/move-explore-unit", :kind "def", :line 64, :end-line 64, :hash "-1327293082"} {:id "def/move-coastline-unit", :kind "def", :line 65, :end-line 65, :hash "-314642053"}]}
+;; {:version 1, :tested-at "2026-05-07T10:38:02.398311-05:00", :module-hash "933906737", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1877686613"} {:id "def/build-player-items", :kind "def", :line 10, :end-line 10, :hash "-1327823416"} {:id "def/build-computer-items", :kind "def", :line 11, :end-line 11, :hash "1897995408"} {:id "def/declare-game-over!", :kind "def", :line 12, :end-line 12, :hash "-646802357"} {:id "def/handicap-active?", :kind "def", :line 13, :end-line 13, :hash "-522068491"} {:id "def/current-player-items", :kind "def", :line 14, :end-line 14, :hash "-974144580"} {:id "def/update-handicap-before-round!", :kind "def", :line 15, :end-line 15, :hash "630254694"} {:id "def/start-new-round", :kind "def", :line 16, :end-line 16, :hash "1368387506"} {:id "def/update-player-map", :kind "def", :line 19, :end-line 19, :hash "1377071872"} {:id "def/update-computer-map", :kind "def", :line 20, :end-line 20, :hash "-390301336"} {:id "def/advance-game", :kind "def", :line 21, :end-line 21, :hash "-1389747581"} {:id "defn/advance-game-batch", :kind "defn", :line 23, :end-line 28, :hash "1437818496"} {:id "def/toggle-pause", :kind "def", :line 30, :end-line 30, :hash "409295913"} {:id "def/step-one-round", :kind "def", :line 31, :end-line 31, :hash "844639668"} {:id "def/update-map", :kind "def", :line 32, :end-line 32, :hash "1345569363"} {:id "defn/item-processed", :kind "defn", :line 35, :end-line 40, :hash "-1477047071"} {:id "def/remove-dead-units", :kind "def", :line 43, :end-line 43, :hash "2048804574"} {:id "def/reset-steps-remaining", :kind "def", :line 44, :end-line 44, :hash "-2073169805"} {:id "def/wake-airport-fighters", :kind "def", :line 45, :end-line 45, :hash "879726790"} {:id "def/wake-carrier-fighters", :kind "def", :line 46, :end-line 46, :hash "840162374"} {:id "def/consume-sentry-fighter-fuel", :kind "def", :line 47, :end-line 47, :hash "-647149942"} {:id "def/wake-sentries-seeing-enemy", :kind "def", :line 48, :end-line 48, :hash "-1383325288"} {:id "def/move-satellites", :kind "def", :line 49, :end-line 49, :hash "493297701"} {:id "def/repair-damaged-ships", :kind "def", :line 50, :end-line 50, :hash "2109716449"} {:id "def/move-current-unit", :kind "def", :line 53, :end-line 53, :hash "122457069"} {:id "def/move-explore-unit", :kind "def", :line 54, :end-line 54, :hash "-1327293082"} {:id "def/move-coastline-unit", :kind "def", :line 55, :end-line 55, :hash "-314642053"}]}
 ;; clj-mutate-manifest-end

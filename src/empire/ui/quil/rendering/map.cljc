@@ -34,6 +34,29 @@
        (pos? (uc/get-count cell :fighter-count))
        production-indicator))
 
+(defn- unit-display-char
+  [display-unit]
+  (let [char (config/item-chars (:type display-unit))]
+    (if (= :computer (:owner display-unit))
+      (str/lower-case char)
+      char)))
+
+(defn- draw-unit-char
+  [col row cell-w cell-h display-unit cell-flashing?]
+  (let [[r g b] (display/attention-unit-color display-unit cell-flashing?)]
+    (q/fill r g b)
+    (q/text (unit-display-char display-unit)
+            (+ (* col cell-w) config/cell-char-x-offset)
+            (+ (* row cell-h) config/cell-char-y-offset))))
+
+(defn- draw-attention-city-placeholder
+  [col row cell-w cell-h cell-flashing?]
+  (let [[r g b] (if cell-flashing? [0 0 0] [255 255 255])]
+    (q/fill r g b)
+    (q/text "?"
+            (+ (* col cell-w) config/cell-char-x-offset)
+            (+ (* row cell-h) config/cell-char-y-offset))))
+
 (defn- draw-unit
   "Draws a unit on the map cell, handling attention blinking for contained units.
    Assumes font is already set. Computer units show as lowercase."
@@ -41,15 +64,9 @@
   (let [display-unit (display/determine-display-unit col row cell attention-coords blink-unit?)
         is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))]
     (if display-unit
-      (let [[r g b] (display/attention-unit-color display-unit cell-flashing?)
-            char (config/item-chars (:type display-unit))
-            char (if (= :computer (:owner display-unit)) (str/lower-case char) char)]
-        (q/fill r g b)
-        (q/text char (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))
+      (draw-unit-char col row cell-w cell-h display-unit cell-flashing?)
       (when (and is-attention-cell? (= :city (:type cell)))
-        (let [[r g b] (if cell-flashing? [0 0 0] [255 255 255])]
-          (q/fill r g b)
-          (q/text "?" (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))))))
+        (draw-attention-city-placeholder col row cell-w cell-h cell-flashing?)))))
 
 (defn- draw-waypoint
   "Draws a waypoint marker on the map cell if it has a waypoint and no contents.
@@ -122,61 +139,117 @@
         (q/rect left top width height)
         (q/stroke-weight 1)))))
 
+(defn- map-render-context
+  [the-map]
+  (let [[map-w map-h] (sa/read-state :map-screen-dimensions)
+        cols (count the-map)
+        rows (count (first the-map))]
+    {:map-w map-w
+     :map-h map-h
+     :world (sa/read-state :game-map)
+     :cols cols
+     :rows rows
+     :cell-w (/ map-w cols)
+     :cell-h (/ map-h rows)
+     :attention-coords (sa/read-state :cells-needing-attention)
+     :production (sa/read-state :production)
+     :map-to-display (sa/read-state :map-to-display)
+     :blink-attention? (map-utils/blink? 125)
+     :blink-completed? (map-utils/blink? 500)
+     :blink-unit? (map-utils/blink? 250)}))
+
+(defn- draw-cell-backgrounds
+  [{:keys [cell-w cell-h]} cells-by-color]
+  (q/no-stroke)
+  (doseq [[color cells] cells-by-color]
+    (let [[r g b] color]
+      (q/fill r g b)
+      (doseq [{:keys [col row]} cells]
+        (q/rect (* col cell-w) (* row cell-h) cell-w cell-h)))))
+
+(defn- draw-grid
+  [{:keys [cols rows cell-w cell-h map-w map-h]}]
+  (q/stroke 0)
+  (doseq [col (range (inc cols))]
+    (q/line (* col cell-w) 0 (* col cell-w) map-h))
+  (doseq [row (range (inc rows))]
+    (q/line 0 (* row cell-h) map-w (* row cell-h))))
+
+(defn- attention-cell?
+  [col row attention-coords]
+  (and (seq attention-coords)
+       (= [col row] (first attention-coords))))
+
+(defn- overlay-cell
+  [world col row cell is-attention-cell?]
+  (if is-attention-cell?
+    (get-in world [col row])
+    cell))
+
+(defn- hide-airport-unit?
+  [attention-airport? cell production-indicator]
+  (and (not attention-airport?)
+       (city-production-overrides-airport? cell production-indicator)))
+
+(defn- cell-flashing?
+  [cell production col row is-attention-cell? blink-attention? blink-completed?]
+  (or (and is-attention-cell? blink-attention?)
+      (and (display/completed-production-city? cell production [col row])
+           blink-completed?)))
+
+(defn- draw-cell-production
+  [row col cell cell-w cell-h production map-to-display hide-production?]
+  (when-not hide-production?
+    (draw-production-indicators row col cell cell-w cell-h production map-to-display)))
+
+(defn- draw-cell-unit
+  [{:keys [cell-w cell-h attention-coords production blink-attention? blink-completed? blink-unit?]}
+   col row cell hide-unit? is-attention-cell?]
+  (when-not hide-unit?
+    (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit?
+               (cell-flashing? cell production col row is-attention-cell?
+                               blink-attention? blink-completed?))))
+
+(defn- draw-cell-overlays
+  [{:keys [world cell-w cell-h attention-coords production map-to-display
+           blink-attention? blink-completed? blink-unit?]}
+   {:keys [col row cell]}]
+  (let [is-attention-cell? (attention-cell? col row attention-coords)
+        display-cell (overlay-cell world col row cell is-attention-cell?)
+        production-indicator (display/production-indicator-data row col display-cell production map-to-display)
+        attention-airport? (attention-airport-fighter? col row display-cell attention-coords)
+        hide-production? (or attention-airport? is-attention-cell?)
+        hide-unit? (hide-airport-unit? attention-airport? display-cell production-indicator)]
+    (draw-cell-production row col display-cell cell-w cell-h production map-to-display hide-production?)
+    (draw-cell-unit {:cell-w cell-w :cell-h cell-h :attention-coords attention-coords
+                     :production production :blink-attention? blink-attention?
+                     :blink-completed? blink-completed? :blink-unit? blink-unit?}
+                    col row display-cell hide-unit? is-attention-cell?)
+    (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))
+
+(defn- draw-map-overlays
+  [ctx cells-by-color]
+  (q/text-font (sa/read-state :production-char-font))
+  (doseq [[_ cells] cells-by-color
+          cell-entry cells]
+    (draw-cell-overlays ctx cell-entry)))
+
 (defn draw-map
   "Draws the map on the screen."
   [the-map]
-  (let [[map-w map-h] (sa/read-state :map-screen-dimensions)
-        world (sa/read-state :game-map)
-        cols (count the-map)
-        rows (count (first the-map))
-        cell-w (/ map-w cols)
-        cell-h (/ map-h rows)
-        attention-coords (sa/read-state :cells-needing-attention)
-        production (sa/read-state :production)
-        map-to-display (sa/read-state :map-to-display)
-        blink-attention? (map-utils/blink? 125)
-        blink-completed? (map-utils/blink? 500)
-        blink-unit? (map-utils/blink? 250)
+  (let [{:keys [attention-coords production map-to-display blink-attention?
+                blink-completed? cell-w cell-h]
+         :as ctx} (map-render-context the-map)
         cells-by-color (display/group-cells-by-color the-map
                                                      attention-coords
                                                      production
                                                      blink-attention?
                                                      blink-completed?
                                                      map-to-display)]
-    (q/no-stroke)
-    ;; Draw all rects batched by color
-    (doseq [[color cells] cells-by-color]
-      (let [[r g b] color]
-        (q/fill r g b)
-        (doseq [{:keys [col row]} cells]
-          (q/rect (* col cell-w) (* row cell-h) cell-w cell-h))))
-    ;; Draw grid
-    (q/stroke 0)
-    (doseq [col (range (inc cols))]
-      (q/line (* col cell-w) 0 (* col cell-w) map-h))
-    (doseq [row (range (inc rows))]
-      (q/line 0 (* row cell-h) map-w (* row cell-h)))
+    (draw-cell-backgrounds ctx cells-by-color)
+    (draw-grid ctx)
     (draw-hovered-transport-path the-map cell-w cell-h map-to-display)
-    ;; Draw production indicators, units, and waypoints (set font once)
-    (q/text-font (sa/read-state :production-char-font))
-    (doseq [[_ cells] cells-by-color]
-      (doseq [{:keys [col row cell]} cells]
-        (let [is-attention-cell? (and (seq attention-coords) (= [col row] (first attention-coords)))
-              cell (if is-attention-cell? (get-in world [col row]) cell)
-              production-indicator (display/production-indicator-data row col cell production map-to-display)
-              attention-airport? (attention-airport-fighter? col row cell attention-coords)
-              hide-production? (or attention-airport? is-attention-cell?)
-              hide-airport-unit? (and (not attention-airport?)
-                                      (city-production-overrides-airport? cell production-indicator))]
-          (when-not hide-production?
-            (draw-production-indicators row col cell cell-w cell-h production map-to-display))
-          (when-not hide-airport-unit?
-            (let [flash-attention? (and is-attention-cell? blink-attention?)
-                  flash-completed? (and (display/completed-production-city? cell production [col row])
-                                        blink-completed?)
-                  cell-flashing? (or flash-attention? flash-completed?)]
-              (draw-unit col row cell cell-w cell-h attention-coords blink-attention? blink-unit? cell-flashing?))))
-        (draw-waypoint col row cell (get-in world [col row]) cell-w cell-h)))
+    (draw-map-overlays ctx cells-by-color)
     (draw-attention-ring attention-coords cell-w cell-h map-to-display)))
 
 ;; clj-mutate-manifest-begin

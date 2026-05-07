@@ -1,22 +1,14 @@
 (ns empire.computer.ship.lake-naval
   "Lake-specific naval behavior: retreat from shore and park as sentry."
-  (:require [empire.computer.shared.movement :as computer-movement]))
-
-(def ^:private neighbor-offsets
-  [[-1 -1] [-1 0] [-1 1]
-   [0 -1]          [0 1]
-   [1 -1]  [1 0]  [1 1]])
-
-(defn- in-bounds?
-  [world [r c]]
-  (and (<= 0 r) (< r (count world))
-       (<= 0 c) (< c (count (first world)))))
+  (:require [empire.computer.shared.grid :as grid]
+            [empire.computer.shared.movement :as computer-movement]
+            [empire.state.api :as sa]))
 
 (defn- matching-neighbors
   [pos world pred]
-  (for [[dr dc] neighbor-offsets
+  (for [[dr dc] grid/neighbor-offsets
         :let [n [(+ (first pos) dr) (+ (second pos) dc)]]
-        :when (and (in-bounds? world n)
+        :when (and (grid/in-bounds? world n)
                    (pred (get-in world n)))]
     n))
 
@@ -34,6 +26,11 @@
         (let [computed (computer-movement/lake-cells computer-map lake-max-cells)]
           (reset! lake-cache* {:computer-map computer-map :limit lake-max-cells :cells computed})
           computed)))))
+
+(defn known-lake-cells
+  []
+  (lake-cells (sa/read-state :computer-map)
+              (sa/read-state :lake-max-cells)))
 
 (defn- in-lake?
   [lake-cells-set pos]
@@ -61,7 +58,7 @@
 
 (defn- neighbors*
   [world lake-cells-set start pos]
-  (for [[dr dc] neighbor-offsets
+  (for [[dr dc] grid/neighbor-offsets
         :let [n [(+ (first pos) dr) (+ (second pos) dc)]]
         :when (sea-passable? world lake-cells-set start n)]
     n))

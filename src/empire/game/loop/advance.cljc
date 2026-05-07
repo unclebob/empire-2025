@@ -7,23 +7,23 @@
             [empire.game.loop.control-decisions :as decisions]
             [empire.game.loop.round-start :as round-start]))
 
+(defn- update-visible-map
+  [map-key owner]
+  (when-let [updated (visibility/update-combatant-map-state
+                      (sa/read-state map-key)
+                      owner
+                      (sa/current-world))]
+    (sa/write-state! map-key updated)))
+
 (defn update-player-map
   "Reveals cells near player-owned units on the visible map."
   []
-  (when-let [updated (visibility/update-combatant-map-state
-                      (sa/read-state :player-map)
-                      :player
-                      (sa/current-world))]
-    (sa/write-state! :player-map updated)))
+  (update-visible-map :player-map :player))
 
 (defn update-computer-map
   "Updates the computer's visible map by revealing cells near computer-owned units."
   []
-  (when-let [updated (visibility/update-combatant-map-state
-                      (sa/read-state :computer-map)
-                      :computer
-                      (sa/current-world))]
-    (sa/write-state! :computer-map updated)))
+  (update-visible-map :computer-map :computer))
 
 (defn- both-lists-empty? []
   (and (empty? (sa/read-state :player-items))
@@ -60,19 +60,23 @@
                                    :waiting-for-input (sa/read-state :waiting-for-input)
                                    :player-items (sa/read-state :player-items)})))
 
-(defn advance-game-batch
-  "Calls advance-game up to advances-per-frame times per frame.
-   Stops early when paused, waiting for input, or no items to process."
-  []
+(defn run-advance-game-batch
+  [advance-game-fn]
   (loop [remaining config/advances-per-frame]
     (when (pos? remaining)
-      (advance-game)
+      (advance-game-fn)
       (when (decisions/continue-batch? remaining
                                        (sa/read-state :paused)
                                        (sa/read-state :waiting-for-input)
                                        (sa/read-state :player-items)
                                        (sa/read-state :computer-items))
         (recur (dec remaining))))))
+
+(defn advance-game-batch
+  "Calls advance-game up to advances-per-frame times per frame.
+   Stops early when paused, waiting for input, or no items to process."
+  []
+  (run-advance-game-batch advance-game))
 
 (defn toggle-pause
   "Toggles pause state. If running, requests pause at end of round.
@@ -108,5 +112,5 @@
   (advance-game))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T11:51:29.890639-05:00", :module-hash "955288259", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1161309082"} {:id "defn/update-player-map", :kind "defn", :line 10, :end-line 17, :hash "2102522450"} {:id "defn/update-computer-map", :kind "defn", :line 19, :end-line 26, :hash "-1953237338"} {:id "defn-/both-lists-empty?", :kind "defn-", :line 28, :end-line 30, :hash "-2026920266"} {:id "defn-/process-player-action!", :kind "defn-", :line 32, :end-line 34, :hash "-1677333192"} {:id "defn-/apply-advance-game-action!", :kind "defn-", :line 36, :end-line 48, :hash "-2004298556"} {:id "defn/advance-game", :kind "defn", :line 50, :end-line 61, :hash "176007598"} {:id "defn/advance-game-batch", :kind "defn", :line 63, :end-line 75, :hash "1612417613"} {:id "defn/toggle-pause", :kind "defn", :line 77, :end-line 86, :hash "-551704113"} {:id "defn/step-one-round", :kind "defn", :line 88, :end-line 101, :hash "-1928460524"} {:id "defn/update-map", :kind "defn", :line 103, :end-line 108, :hash "-297625781"}]}
+;; {:version 1, :tested-at "2026-05-07T10:36:14.931449-05:00", :module-hash "-1267675137", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1161309082"} {:id "defn-/update-visible-map", :kind "defn-", :line 10, :end-line 16, :hash "7243118"} {:id "defn/update-player-map", :kind "defn", :line 18, :end-line 21, :hash "1746844627"} {:id "defn/update-computer-map", :kind "defn", :line 23, :end-line 26, :hash "-132838406"} {:id "defn-/both-lists-empty?", :kind "defn-", :line 28, :end-line 30, :hash "-2026920266"} {:id "defn-/process-player-action!", :kind "defn-", :line 32, :end-line 34, :hash "-1677333192"} {:id "defn-/apply-advance-game-action!", :kind "defn-", :line 36, :end-line 48, :hash "-2004298556"} {:id "defn/advance-game", :kind "defn", :line 50, :end-line 61, :hash "176007598"} {:id "defn/run-advance-game-batch", :kind "defn", :line 63, :end-line 73, :hash "1383607476"} {:id "defn/advance-game-batch", :kind "defn", :line 75, :end-line 79, :hash "-2125821598"} {:id "defn/toggle-pause", :kind "defn", :line 81, :end-line 90, :hash "-551704113"} {:id "defn/step-one-round", :kind "defn", :line 92, :end-line 105, :hash "-1928460524"} {:id "defn/update-map", :kind "defn", :line 107, :end-line 112, :hash "-297625781"}]}
 ;; clj-mutate-manifest-end

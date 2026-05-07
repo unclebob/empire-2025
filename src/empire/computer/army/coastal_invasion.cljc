@@ -90,15 +90,6 @@
   [ctx pos]
   (set-sentry-mode-if-unit! ctx pos))
 
- (defn- step-toward-target-cheap
-   [pos target country-id]
-   (let [current-dist (grid/distance pos target)
-         candidates (->> (movement/get-empty-passable-neighbors pos country-id)
-                         (filter #(> current-dist (grid/distance % target)))
-                         (sort-by #(grid/distance % target)))]
-     (when-let [best (first candidates)]
-       (movement/try-move pos best))))
-
 (defn- set-coast-target! [ctx pos target]
   (when-not (= target (get-in ((:current-world ctx)) (conj pos :contents :coast-target)))
     ((:update-game-map! ctx) assoc-in (conj pos :contents :coast-target) target)
@@ -126,33 +117,38 @@
       (set-coast-target! ctx pos local-target)
       (movement/move-toward-objective pos local-target country-id))))
 
+(defn- coast-target-step-options
+  [ctx pos country-id unit target]
+  (let [cheap-step (when (:lake-retask? unit)
+                     (movement/step-toward-target-cheap pos target country-id))
+        local-step (when-not (or (:lake-retask? unit) cheap-step)
+                     (movement/local-step-toward-objective pos target country-id))
+        move-step (when-not (:lake-retask? unit)
+                    (when-not local-step
+                      (movement/move-toward-objective pos target country-id)))
+        repath-step (when-not (or (:lake-retask? unit) local-step move-step)
+                      (maybe-repath-local-target ctx pos country-id unit))]
+    {:cheap-step? cheap-step
+     :local-step? local-step
+     :move-step? move-step
+     :repath-step? repath-step}))
+
+(defn- coast-target-step-input
+  [ctx pos country-id unit target]
+  (merge {:pos pos
+          :target target
+          :lake-retask? (:lake-retask? unit)}
+         (if (= pos target)
+           {:cheap-step? nil
+            :local-step? nil
+            :move-step? nil
+            :repath-step? nil}
+           (coast-target-step-options ctx pos country-id unit target))))
+
 (defn- plan-coast-target-step
   [ctx pos country-id unit target]
-  (let [action (if (= pos target)
-                 (decisions/coast-step-action {:pos pos
-                                               :target target
-                                               :lake-retask? (:lake-retask? unit)
-                                               :cheap-step? nil
-                                               :local-step? nil
-                                               :move-step? nil
-                                               :repath-step? nil})
-                 (let [cheap-step (when (:lake-retask? unit)
-                                    (step-toward-target-cheap pos target country-id))
-                       local-step (when-not (or (:lake-retask? unit) cheap-step)
-                                    (movement/local-step-toward-objective pos target country-id))
-                       move-step (when-not (:lake-retask? unit)
-                                    (when-not local-step
-                                      (movement/move-toward-objective pos target country-id)))
-                       repath-step (when-not (or (:lake-retask? unit) local-step move-step)
-                                     (maybe-repath-local-target ctx pos country-id unit))]
-                   (decisions/coast-step-action {:pos pos
-                                                 :target target
-                                                 :lake-retask? (:lake-retask? unit)
-                                                 :cheap-step? cheap-step
-                                                 :local-step? local-step
-                                                 :move-step? move-step
-                                                 :repath-step? repath-step})))]
-    action))
+  (decisions/coast-step-action
+   (coast-target-step-input ctx pos country-id unit target)))
 
 (defn- execute-coast-target-step
   [ctx pos country-id unit target]

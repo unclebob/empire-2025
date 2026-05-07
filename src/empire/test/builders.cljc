@@ -159,38 +159,58 @@
 (defn- matches-filters? [unit filters]
   (every? (fn [[k v]] (= v (get unit k))) filters))
 
+(defn- parsed-unit-spec
+  [unit-spec]
+  (let [c (first unit-spec)]
+    {:unit-type (get char->unit-type c)
+     :owner (if (Character/isUpperCase c) :player :computer)
+     :n (if (> (count unit-spec) 1)
+          (Integer/parseInt (subs unit-spec 1))
+          1)}))
+
+(defn- content-unit-matches
+  [game-map unit-type owner filters]
+  (for [row-idx (range (count game-map))
+        col-idx (range (count (nth game-map row-idx)))
+        :let [cell (get-in game-map [row-idx col-idx])
+              contents (:contents cell)]
+        :when (and contents
+                   (= unit-type (:type contents))
+                   (= owner (:owner contents))
+                   (matches-filters? contents filters))]
+    {:pos [row-idx col-idx] :unit contents}))
+
+(defn- city-owner
+  [cell]
+  ({:player :player
+    :computer :computer} (:city-status cell)))
+
+(defn- airport-fighter
+  [owner]
+  {:type :fighter
+   :mode :awake
+   :owner owner
+   :fuel unit-config/fighter-fuel
+   :from-airport true})
+
+(defn- airport-fighter-matches
+  [game-map unit-type owner filters]
+  (when (= unit-type :fighter)
+    (for [row-idx (range (count game-map))
+          col-idx (range (count (nth game-map row-idx)))
+          :let [cell (get-in game-map [row-idx col-idx])
+                airport-unit (airport-fighter owner)]
+          :when (and (= :city (:type cell))
+                     (= owner (city-owner cell))
+                     (pos? (:fighter-count cell 0))
+                     (matches-filters? airport-unit filters))]
+      {:pos [row-idx col-idx] :unit airport-unit})))
+
 (defn get-test-unit [game-map-atom unit-spec & {:as filters}]
-  (let [c (first unit-spec)
-        unit-type (get char->unit-type c)
-        owner (if (Character/isUpperCase c) :player :computer)
-        n (if (> (count unit-spec) 1)
-            (Integer/parseInt (subs unit-spec 1))
-            1)
+  (let [{:keys [unit-type owner n]} (parsed-unit-spec unit-spec)
         game-map (map-value game-map-atom)
-        contents-matches (for [row-idx (range (count game-map))
-                               col-idx (range (count (nth game-map row-idx)))
-                               :let [cell (get-in game-map [row-idx col-idx])
-                                     contents (:contents cell)]
-                               :when (and contents
-                                          (= unit-type (:type contents))
-                                          (= owner (:owner contents))
-                                          (matches-filters? contents filters))]
-                           {:pos [row-idx col-idx] :unit contents})
-        airport-matches (when (= unit-type :fighter)
-                          (for [row-idx (range (count game-map))
-                                col-idx (range (count (nth game-map row-idx)))
-                                :let [cell (get-in game-map [row-idx col-idx])
-                                      city-owner (case (:city-status cell)
-                                                   :player :player
-                                                   :computer :computer
-                                                   nil)
-                                      airport-unit {:type :fighter :mode :awake :owner owner
-                                                    :fuel unit-config/fighter-fuel :from-airport true}]
-                                :when (and (= :city (:type cell))
-                                           (= owner city-owner)
-                                           (pos? (:fighter-count cell 0))
-                                           (matches-filters? airport-unit filters))]
-                            {:pos [row-idx col-idx] :unit airport-unit}))
+        contents-matches (content-unit-matches game-map unit-type owner filters)
+        airport-matches (airport-fighter-matches game-map unit-type owner filters)
         matches (concat contents-matches airport-matches)]
     (nth matches (dec n) nil)))
 
