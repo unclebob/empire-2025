@@ -10,7 +10,7 @@
             [empire.ui.util.core :as util-core]
             [empire.ui.util.input.dispatch :as dispatch]
             [empire.ui.util.rendering.display :as display]
-            [empire.ui.sound :as sound]
+            [empire.sound :as sound]
             [quil.core :as q]
             [quil.middleware :as m]))
 

@@ -10,7 +10,7 @@
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.player.commands-action-decisions :as decisions]
             [empire.config.units.dispatcher :as dispatcher]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn- current-world [ctx]
   ((:current-world ctx)))

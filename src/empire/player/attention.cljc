@@ -2,7 +2,7 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.player.attention-decisions :as decisions]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."

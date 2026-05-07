@@ -1,23 +1,23 @@
 (ns empire.config.domain.model.combat
   (:require [clojure.string]
-            [empire.config.units.config :as units-config]
-            [empire.config.units.ships :as ships]))
+            [empire.config.domain.core.ship-config :as ship-config]
+            [empire.config.domain.core.unit-config :as unit-config]))
 
 (defn- unit-name
   [unit-type]
   (-> unit-type name clojure.string/capitalize))
 
 (def ^:private core-combat-attributes
-  {:army {:strength units-config/army-strength
-          :display-char units-config/army-display-char}
-   :fighter {:strength units-config/fighter-strength
-             :display-char units-config/fighter-display-char}
-   :satellite {:strength units-config/satellite-strength
-               :display-char units-config/satellite-display-char}
-   :transport {:strength units-config/transport-strength
-               :display-char units-config/transport-display-char}
-   :carrier {:strength units-config/carrier-strength
-             :display-char units-config/carrier-display-char}})
+  {:army {:strength unit-config/army-strength
+          :display-char unit-config/army-display-char}
+   :fighter {:strength unit-config/fighter-strength
+             :display-char unit-config/fighter-display-char}
+   :satellite {:strength unit-config/satellite-strength
+               :display-char unit-config/satellite-display-char}
+   :transport {:strength unit-config/transport-strength
+               :display-char unit-config/transport-display-char}
+   :carrier {:strength unit-config/carrier-strength
+             :display-char unit-config/carrier-display-char}})
 
 (defn- core-combat-attribute
   [unit-type attribute]
@@ -26,7 +26,7 @@
 (defn- combat-attribute
   [unit-type attribute]
   (or (core-combat-attribute unit-type attribute)
-      (ships/config unit-type attribute)))
+      (ship-config/config unit-type attribute)))
 
 (defn- strength-for
   [unit-type]

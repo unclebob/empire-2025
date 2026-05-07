@@ -3,7 +3,7 @@
             [empire.config.domain.model.combat :as domain-combat]
             [empire.game-mechanics.combat-visibility-port :as visibility-port]
             [empire.config.units.dispatcher :as dispatcher]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn warning-message-map
   [msg]

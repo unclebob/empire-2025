@@ -2,14 +2,14 @@
   "Attack-target and transport staging assignment for computer armies."
   (:require [empire.state.api :as sa]
             [empire.computer.early-game.strategy :as opening]
-            [empire.computer.transport.load-targeting :as load-targeting]
-            [empire.computer.transport.reservations :as reservations]
+            [empire.computer.shared.transport-load-targeting :as load-targeting]
+            [empire.computer.shared.transport-reservations :as reservations]
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.computer.army.assignment-decisions :as decisions]
             [empire.computer.shared.grid :as grid]
             [empire.computer.shared.world-query :as world-query]
-            [empire.computer.land-objectives :as land-objectives]))
+            [empire.computer.shared.land-objectives :as land-objectives]))
 
 (def ^:private transport-staging-radius 5)
 (def ^:private max-staging-armies 6)

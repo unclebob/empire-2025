@@ -1,7 +1,7 @@
 (ns empire.computer.threat-response.probe
   (:require [clojure.string :as str]
             [empire.state.api :as sa]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (def ^:private log-path "target/major-invasion-probe.log")
 

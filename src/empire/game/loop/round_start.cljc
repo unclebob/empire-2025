@@ -22,7 +22,7 @@
             [empire.computer.ship.carrier :as carrier]
             [empire.computer.early-game.theater :as theater]
             [empire.computer.shared.transport-query :as transport-query]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn handicap-active?
   []

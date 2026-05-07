@@ -5,7 +5,7 @@
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.movement.wake-conditions.fighter :as fighter-wake]
             [empire.game-mechanics.movement.wake-conditions.transport :as transport-wake]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn- map-data
   [current-map]

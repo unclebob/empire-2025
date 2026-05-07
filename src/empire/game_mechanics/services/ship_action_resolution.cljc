@@ -3,7 +3,7 @@
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn- set-warning-message!
   [msg]

@@ -1,6 +1,6 @@
 ;; mutation-tested: no
 (ns empire.config.domain.model.containers
-  (:require [empire.config.units.config :as units-config]))
+  (:require [empire.config.domain.core.unit-config :as unit-config]))
 
 (defn- wake-all
   [entity count-key awake-key]
@@ -57,7 +57,7 @@
    :mode :awake
    :owner owner
    :hits 1
-   :steps-remaining units-config/army-speed})
+   :steps-remaining unit-config/army-speed})
 
 (defn moving-disembarked-army
   [owner extended-target]
@@ -74,8 +74,8 @@
    :mode :explore
    :owner owner
    :hits 1
-   :steps-remaining units-config/army-speed
-   :explore-steps units-config/explore-steps
+   :steps-remaining unit-config/army-speed
+   :explore-steps unit-config/explore-steps
    :visited #{target-coords}})
 
 (defn wake-carrier-fighters
@@ -97,7 +97,7 @@
   {:type :fighter
    :mode :moving
    :owner owner
-   :fuel units-config/fighter-fuel
+   :fuel unit-config/fighter-fuel
    :target target-coords
    :hits 1
    :steps-remaining steps-remaining})

@@ -70,7 +70,7 @@
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (test-utils/set-test-state! :attention-message "")
       (test-utils/set-test-state! :warning-message "")
-      (with-redefs [empire.ui.sound/play-bonk! (fn [])]
+      (with-redefs [empire.sound/play-bonk! (fn [])]
         (attention/set-attention-message unit-coords))
       (should-contain "army" (test-utils/read-test-state :attention-message))
       (should= "Something's in the way." (test-utils/read-test-state :warning-message))))
@@ -81,7 +81,7 @@
     (let [unit-coords (:pos (get-test-unit (test-utils/game-map-atom) "A"))]
       (test-utils/set-test-state! :attention-message "")
       (test-utils/set-test-state! :warning-message "")
-      (with-redefs [empire.ui.sound/play-bonk! (fn [])]
+      (with-redefs [empire.sound/play-bonk! (fn [])]
         (attention/set-attention-message unit-coords))
       (should-contain "army" (test-utils/read-test-state :attention-message))
       (should= "Army found a city!" (test-utils/read-test-state :warning-message))))

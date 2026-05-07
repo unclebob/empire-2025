@@ -16,7 +16,7 @@
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.player.production :as production]
             [empire.config.units.dispatcher :as dispatcher]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn- set-warning-message!
   [msg]

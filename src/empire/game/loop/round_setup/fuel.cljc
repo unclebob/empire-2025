@@ -4,7 +4,7 @@
             [empire.config.core :as config]
             [empire.game-mechanics.services.round-setup :as domain-round-setup]
             [empire.game.loop.round-setup.fuel-decisions :as decisions]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn- world-ref [world] (atom world))
 

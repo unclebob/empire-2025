@@ -1,7 +1,7 @@
 (ns empire.ui.util.input.actions.helpers
   (:require [empire.state.api :as sa]
             [empire.game.loop.core :as game-loop]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn set-warning-message!
   [msg]

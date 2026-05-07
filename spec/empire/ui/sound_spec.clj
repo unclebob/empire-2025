@@ -1,5 +1,5 @@
-(ns empire.ui.sound-spec
-  (:require [empire.ui.sound :as sound]
+(ns empire.sound-spec
+  (:require [empire.sound :as sound]
             [speclj.core :refer :all]))
 
 (describe "sound module"

@@ -1,5 +1,5 @@
 (ns empire.computer.shared.action-resolution
-  (:require [empire.computer.land-objectives :as land-objectives]
+  (:require [empire.computer.shared.land-objectives :as land-objectives]
             [empire.computer.shared.movement :as computer-movement]
             [empire.computer.shared.oscillation :as oscillation]
             [empire.computer.shared.world-query :as world-query]
@@ -7,7 +7,7 @@
             [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]
-            [empire.ui.sound :as sound]))
+            [empire.sound :as sound]))
 
 (defn- foreign-territory?
   "Returns true if unit is a computer army with a country-id and the target
