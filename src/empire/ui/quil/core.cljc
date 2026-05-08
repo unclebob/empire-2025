@@ -122,6 +122,10 @@
   (dispatch/debug-drag-update! (q/mouse-x) (q/mouse-y))
   state)
 
+(defn- left-button?
+  [button]
+  (= button :left))
+
 (defn mouse-released [state _]
   (let [x (q/mouse-x)
         y (q/mouse-y)
@@ -130,19 +134,23 @@
     (when (and (sa/read-state :refocus-click-armed?)
                (not (sa/read-state :refocus-click-saw-press?))
                (not (dispatch/modifier-held? mods))
-               (= button :left))
+               (left-button? button))
       (dispatch/mouse-down x y button))
     (sa/write-state! :refocus-click-armed? false)
     (sa/write-state! :refocus-click-saw-press? false))
   (dispatch/debug-drag-end! (q/mouse-x) (q/mouse-y) (get-modifiers))
   state)
 
+(defn- exit!
+  [status]
+  (System/exit status))
+
 (defn on-close [_]
   (headless/maybe-write-debug-dump-on-exit!)
   (q/no-loop)
   (q/exit)
   (println "Empire closed.")
-  (System/exit 0))
+  (exit! 0))
 
 (defn- screen-dimensions []
   (let [screen (.getScreenSize (java.awt.Toolkit/getDefaultToolkit))]
@@ -156,7 +164,7 @@
                      cols rows screen-w screen-h))
     (println (format "Maximum map size for this monitor: [%d %d]"
                      max-cols max-rows))
-    (System/exit 1)))
+    (exit! 1)))
 
 (defn- parse-startup-config
   [args screen-w screen-h]
@@ -218,5 +226,5 @@
           (start-sketch! startup))))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T11:56:37.540884-05:00", :module-hash "-42289857", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 14, :hash "494466759"} {:id "defn/create-fonts", :kind "defn", :line 16, :end-line 20, :hash "1956119937"} {:id "defn/setup", :kind "defn", :line 22, :end-line 30, :hash "-578848240"} {:id "defn/update-state", :kind "defn", :line 32, :end-line 39, :hash "476676615"} {:id "defn/draw-state", :kind "defn", :line 41, :end-line 53, :hash "-52211456"} {:id "defn-/normalize-key", :kind "defn-", :line 55, :end-line 62, :hash "-1064835850"} {:id "defn-/remember-key!", :kind "defn-", :line 64, :end-line 68, :hash "-236905863"} {:id "defn/key-pressed", :kind "defn", :line 70, :end-line 76, :hash "-1203340287"} {:id "defn-/get-modifiers", :kind "defn-", :line 78, :end-line 84, :hash "808258936"} {:id "defn/mouse-pressed", :kind "defn", :line 86, :end-line 94, :hash "-624125753"} {:id "defn/mouse-dragged", :kind "defn", :line 96, :end-line 98, :hash "1314545681"} {:id "defn/mouse-released", :kind "defn", :line 100, :end-line 102, :hash "206586691"} {:id "defn/on-close", :kind "defn", :line 104, :end-line 109, :hash "852166893"} {:id "defn-/screen-dimensions", :kind "defn-", :line 111, :end-line 113, :hash "1572516113"} {:id "form/14/declare", :kind "declare", :line 115, :end-line 115, :hash "2146718225"} {:id "defn-/print-map-size-error-and-exit!", :kind "defn-", :line 116, :end-line 123, :hash "1515084806"} {:id "defn-/parse-startup-config", :kind "defn-", :line 125, :end-line 130, :hash "-1190224892"} {:id "defn-/initialize-startup-state!", :kind "defn-", :line 132, :end-line 147, :hash "1103297715"} {:id "defn-/start-sketch!", :kind "defn-", :line 149, :end-line 165, :hash "-347673216"} {:id "defn/-main", :kind "defn", :line 167, :end-line 182, :hash "-1946920868"}]}
+;; {:version 1, :tested-at "2026-05-07T18:20:00.213411-05:00", :module-hash "501326319", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 15, :hash "-1627339600"} {:id "defn/create-fonts", :kind "defn", :line 17, :end-line 21, :hash "1956119937"} {:id "defn/setup", :kind "defn", :line 23, :end-line 32, :hash "269095224"} {:id "form/3/declare", :kind "declare", :line 34, :end-line 34, :hash "2060248668"} {:id "defn/update-state", :kind "defn", :line 36, :end-line 44, :hash "-691217983"} {:id "defn/draw-state", :kind "defn", :line 46, :end-line 58, :hash "-52211456"} {:id "defn-/normalize-key", :kind "defn-", :line 60, :end-line 67, :hash "-1064835850"} {:id "defn-/remember-key!", :kind "defn-", :line 69, :end-line 73, :hash "-236905863"} {:id "defn/key-pressed", :kind "defn", :line 75, :end-line 81, :hash "-1203340287"} {:id "defn-/get-modifiers", :kind "defn-", :line 83, :end-line 89, :hash "808258936"} {:id "defn-/sync-window-focus!", :kind "defn-", :line 91, :end-line 105, :hash "556351998"} {:id "defn/mouse-pressed", :kind "defn", :line 107, :end-line 119, :hash "-1139996751"} {:id "defn/mouse-dragged", :kind "defn", :line 121, :end-line 123, :hash "1314545681"} {:id "defn-/left-button?", :kind "defn-", :line 125, :end-line 127, :hash "-654671841"} {:id "defn/mouse-released", :kind "defn", :line 129, :end-line 142, :hash "-1358232066"} {:id "defn-/exit!", :kind "defn-", :line 144, :end-line 146, :hash "-479327949"} {:id "defn/on-close", :kind "defn", :line 148, :end-line 153, :hash "-457748179"} {:id "defn-/screen-dimensions", :kind "defn-", :line 155, :end-line 157, :hash "1572516113"} {:id "form/18/declare", :kind "declare", :line 159, :end-line 159, :hash "2146718225"} {:id "defn-/print-map-size-error-and-exit!", :kind "defn-", :line 160, :end-line 167, :hash "-2097324366"} {:id "defn-/parse-startup-config", :kind "defn-", :line 169, :end-line 174, :hash "-1190224892"} {:id "defn-/initialize-startup-state!", :kind "defn-", :line 176, :end-line 191, :hash "1103297715"} {:id "defn-/start-sketch!", :kind "defn-", :line 193, :end-line 209, :hash "-347673216"} {:id "defn/-main", :kind "defn", :line 211, :end-line 226, :hash "-1946920868"}]}
 ;; clj-mutate-manifest-end

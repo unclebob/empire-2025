@@ -21,4 +21,13 @@
       (set-test-computer-map! [[{:type :sea :contents {:type :transport :owner :computer}}
                                 nil]])
       (should-not (tc/adjacent-to-land? [0 0]))
-      (should-be-nil (tc/find-adjacent-land-pos [0 0])))))
+      (should-be-nil (tc/find-adjacent-land-pos [0 0]))))
+
+  (context "guarded transport writes"
+    (it "refuses to update contents when no computer transport is present"
+      (set-test-computer-map! [[{:type :sea}]])
+      (with-redefs [empire.computer.transport.core/log-transport-write-miss!
+                    (fn [_ _ _] nil)]
+        (should-not (tc/update-transport-contents!
+                     [0 0]
+                     #(assoc % :transport-mission :loading)))))))

@@ -254,7 +254,24 @@
         (should
          (threat-response/process-ship-threat
           [0 0] :patrol-boat {:major-invasion true :major-invasion-target [0 0]}))
-        (should-not @explored?)))))
+        (should-not @explored?))))
+
+  (it "sidesteps toward a target when an empty passable neighbor can move"
+    (test-utils/set-test-state! :computer-map [[{:type :sea} {:type :sea}]])
+    (with-redefs [empire.computer.ship.core/get-passable-sea-neighbors (fn [_] [[0 1]])
+                  empire.computer.shared.action-resolution/move-unit-to (fn [_ _] true)]
+      (should= [0 1] (processing-ship/ship-sidestep-toward [0 0] [0 1]))))
+
+  (it "stops major-invasion patrol loop after four blocked steps"
+    (with-redefs [empire.computer.threat-response.processing-ship/patrol-yield-to-transport (constantly nil)
+                  empire.computer.threat-response.processing-ship/patrol-major-invasion-step (constantly nil)
+                  empire.computer.threat-response.processing-ship/occupied-position? (constantly true)]
+      (should= [0 0]
+               (processing-ship/run-patrol-major-invasion
+                (test-utils/mission-ctx)
+                (constantly [3 3])
+                [0 0]
+                [3 3])))))
 
 (describe "process-fighter-threat"
   (before (reset-all-atoms!))

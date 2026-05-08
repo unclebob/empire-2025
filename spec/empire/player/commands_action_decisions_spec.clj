@@ -23,6 +23,12 @@
                                               [0 0]
                                               {:type :transport}))))
 
+  (it "returns no-op for an army aboard transport with no adjacent land to explore"
+    (should= {:action :no-op}
+             (sut/look-around-action [[{:type :sea}]]
+                                     [0 0]
+                                     {:type :army :aboard-transport true})))
+
   (it "returns a conquest click action for an adjacent hostile city"
     (should= {:action :attempt-conquest
               :target [1 1]}
@@ -56,6 +62,18 @@
                                :army-aboard
                                {:type :army :owner :player})))
 
+  (it "chooses the adjacent open land closest to the distant disembark target"
+    (should= {:action :disembark-army-with-target
+              :target [2 2]
+              :extended-target [3 3]}
+             (sut/click-action [[{:type :sea} {:type :land} {:type :sea}]
+                                [{:type :sea} {:type :sea} {:type :sea}]
+                                [{:type :sea} {:type :sea} {:type :land}]]
+                               [1 1]
+                               [3 3]
+                               :army-aboard
+                               {:type :army :owner :player})))
+
   (it "attacks adjacent hostile unit for army aboard transport click"
     (should= {:action :coastal-army-attack
               :target [1 0]}
@@ -77,6 +95,46 @@
                                [2 0]
                                :normal
                                {:type :army :owner :player})))
+
+  (it "allows a fighter to target a friendly carrier"
+    (should= {:action :set-unit-movement
+              :target [1 0]}
+             (sut/click-action [[{:type :sea}]
+                                [{:type :sea
+                                  :contents {:type :carrier :owner :player}}]]
+                               [0 0]
+                               [1 0]
+                               :normal
+                               {:type :fighter :owner :player})))
+
+  (it "allows a fighter to target a friendly player city"
+    (should= {:action :set-unit-movement
+              :target [1 0]}
+             (sut/click-action [[{:type :land}]
+                                [{:type :city :city-status :player
+                                  :contents {:type :fighter :owner :player}}]]
+                               [0 0]
+                               [1 0]
+                               :normal
+                               {:type :fighter :owner :player})))
+
+  (it "rejects naval movement onto land and cities"
+    (should= {:action :reject
+              :message "Ships don't drive on land."}
+             (sut/click-action [[{:type :sea}]
+                                [{:type :land}]]
+                               [0 0]
+                               [1 0]
+                               :normal
+                               {:type :destroyer :owner :player}))
+    (should= {:action :reject
+              :message "Ships can't enter city."}
+             (sut/click-action [[{:type :sea}]
+                                [{:type :city :city-status :player}]]
+                               [0 0]
+                               [1 0]
+                               :normal
+                               {:type :destroyer :owner :player})))
 
   (context "unload-key-action"
     (it "returns wake-armies-on-transport when transport has armies"

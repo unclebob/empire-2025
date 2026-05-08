@@ -17,4 +17,13 @@
 
   (it "returns false when zero army count and within radius"
     (let [computer-map [[{:type :sea} {:type :land :country-id 1}]]]
-      (should-not (@#'ct/classify-coastal [0 0] [0 0] computer-map 0)))))
+      (should-not (@#'ct/classify-coastal [0 0] [0 0] computer-map 0))))
+
+  (it "returns true when zero army count and outside radius next to claimed land"
+    (let [computer-map [[{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :sea}]
+                        [{:type :sea} {:type :land :country-id 1}]]]
+      (should (@#'ct/classify-coastal [5 0] [0 0] computer-map 0)))))

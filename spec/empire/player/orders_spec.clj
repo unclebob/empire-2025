@@ -148,6 +148,15 @@
     (test-utils/set-test-state! :destination nil)
     (should-be-nil (orders/set-marching-orders-at [0 0])))
 
+  (it "clears marching orders when no destination is set"
+    (set-test-world! (build-test-map ["O~"
+                                            "~~"]))
+    (test-utils/update-test-world! assoc-in [0 0 :marching-orders] [3 4])
+    (test-utils/set-test-state! :destination nil)
+    (should (orders/set-marching-orders-at [0 0]))
+    (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :marching-orders]))
+    (should= "Marching orders cleared" (test-utils/read-test-state :command-message)))
+
   (it "returns nil for a computer city"
     (set-test-world! (build-test-map ["X~"
                                             "~~"]))
@@ -191,6 +200,24 @@
                                             "~~"]))
     (test-utils/set-test-state! :destination nil)
     (should-be-nil (orders/set-flight-path-at [0 0])))
+
+  (it "clears a player city flight path when no destination is set"
+    (set-test-world! (build-test-map ["O~"
+                                            "~~"]))
+    (test-utils/update-test-world! assoc-in [0 0 :flight-path] [1 1])
+    (test-utils/set-test-state! :destination nil)
+    (should (orders/set-flight-path-at [0 0]))
+    (should-be-nil (get-in (test-utils/read-test-state :game-map) [0 0 :flight-path]))
+    (should= "Flight path cleared" (test-utils/read-test-state :command-message)))
+
+  (it "clears a player carrier flight path when no destination is set"
+    (set-test-world! (build-test-map ["~C"
+                                            "~~"]))
+    (test-utils/update-test-world! assoc-in [1 0 :flight-path] [1 1])
+    (test-utils/set-test-state! :destination nil)
+    (should (orders/set-flight-path-at [1 0]))
+    (should-be-nil (get-in (test-utils/read-test-state :game-map) [1 0 :flight-path]))
+    (should= "Flight path cleared" (test-utils/read-test-state :command-message)))
 
   (it "returns nil for a non-matching cell like land"
     (set-test-world! (build-test-map ["#~"

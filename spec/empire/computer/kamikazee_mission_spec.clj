@@ -3,7 +3,8 @@
             [empire.test.utils :refer [build-test-map reset-all-atoms! set-test-world! set-test-computer-map! set-test-state! update-test-world!]]
             [empire.test.utils :as test-utils]
             [empire.computer.threat-response-impl :as threat-response]
-            [empire.computer.threat-response.kamikazee :as kamikazee]))
+            [empire.computer.threat-response.kamikazee :as kamikazee]
+            [empire.computer.threat-response.kamikazee-mission :as mission]))
 
 (describe "major invasion kamikazee mission"
   (before (reset-all-atoms!))
@@ -271,4 +272,31 @@
                                              (get-in (test-utils/read-test-state :game-map) [0 0 :contents])))
       (should= nil (get-in (test-utils/read-test-state :game-map) [0 0 :contents]))
       (should= nil (get-in (test-utils/read-test-state :game-map) [1 1 :contents]))
-      (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents])))))
+      (should= nil (get-in (test-utils/read-test-state :game-map) [2 0 :contents]))))
+
+  (it "moves a returning kamikazee toward its hunt resume position"
+    (let [hops (atom [])]
+      (with-redefs [empire.computer.fighter.movement/hop-over-friendly (fn [pos target]
+                                                                         (swap! hops conj [:hop pos target])
+                                                                         [1 0])
+                    empire.computer.fighter.movement/execute-hop (fn [pos hop]
+                                                                    (swap! hops conj [:execute pos hop])
+                                                                    hop)]
+        (should= [1 0]
+                 (@#'mission/process-return-stage (test-utils/mission-ctx)
+                                                  [0 0]
+                                                  {:kamikazee-stage :return}
+                                                  [1 0]))
+        (should= [[:hop [0 0] [1 0]]
+                  [:execute [0 0] [1 0]]]
+                 @hops))))
+
+  (it "uses zero minimum target distance for route movement without a current goal"
+    (let [calls (atom [])]
+      (with-redefs [empire.computer.threat-response.kamikazee-mission/non-backtracking-step
+                    (fn [ctx pos target min-target-distance]
+                      (swap! calls conj [pos target min-target-distance])
+                      {:pos pos :steps-used 1})]
+        (should= {:pos [0 0] :steps-used 1}
+                 (@#'mission/move-from-route (test-utils/mission-ctx) [0 0] nil))
+        (should= [[[0 0] nil 0]] @calls)))))

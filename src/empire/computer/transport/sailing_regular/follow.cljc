@@ -64,7 +64,7 @@
          moves-left (transport-speed)
          moved-any? false]
     (if (zero? moves-left)
-      (when moved-any? current-pos)
+      nil
       (if-let [next-pos (next-sail-step previous-pos current-pos remaining-path)]
         (let [path-after-step (remaining-sail-path remaining-path)]
           (let [{:keys [done? pos remaining-path moves-left moved-any?]}
@@ -102,12 +102,16 @@
       (visibility/sync-ai-unit-to-computer-map! pos)
       (sail-follow-path pos sail-path))))
 
+(defn- path-to-load-target
+  [pos computer-map load-target-cell]
+  (when load-target-cell
+    (load-targeting/path-to-load-target pos computer-map load-target-cell)))
+
 (defn compute-and-follow-load-target-path!
   [pos transport]
   (let [computer-map (sa/read-state :computer-map)
         load-target-cell (:load-target-cell transport)
-        sail-path (or (when load-target-cell
-                        (load-targeting/path-to-load-target pos computer-map load-target-cell))
+        sail-path (or (path-to-load-target pos computer-map load-target-cell)
                       (support/compute-sail-to-load-path pos))]
     (when-let [new-path (seq sail-path)]
       (tc/assoc-transport-field! pos :sail-path (vec new-path))
@@ -155,11 +159,10 @@
     (if (blocked-follow? result)
       (replan-sail-path!
        pos
-       #(or (when load-target-cell
-              (load-targeting/path-to-load-target % computer-map load-target-cell))
+       #(or (path-to-load-target % computer-map load-target-cell)
             (support/compute-sail-to-load-path %)))
       result)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T10:28:50.536561-05:00", :module-hash "1289387141", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "364883412"} {:id "defn/blocked-follow-result", :kind "defn", :line 11, :end-line 14, :hash "1040965744"} {:id "defn/blocked-follow?", :kind "defn", :line 16, :end-line 18, :hash "562193117"} {:id "defn-/transport-speed", :kind "defn-", :line 20, :end-line 22, :hash "-603549653"} {:id "defn-/sync-sail-path!", :kind "defn-", :line 24, :end-line 27, :hash "319936993"} {:id "defn-/next-sail-step", :kind "defn-", :line 29, :end-line 31, :hash "1089332052"} {:id "defn-/remaining-sail-path", :kind "defn-", :line 33, :end-line 35, :hash "-2073188554"} {:id "defn/sail-follow-path", :kind "defn", :line 37, :end-line 60, :hash "-1934290800"} {:id "defn-/sail-retreat", :kind "defn-", :line 62, :end-line 70, :hash "498662628"} {:id "defn/replan-sail-path!", :kind "defn", :line 72, :end-line 79, :hash "378039436"} {:id "defn/compute-and-follow-path!", :kind "defn", :line 81, :end-line 87, :hash "-502497740"} {:id "defn/compute-and-follow-load-target-path!", :kind "defn", :line 89, :end-line 99, :hash "-408154261"} {:id "defn/follow-path-action", :kind "defn", :line 101, :end-line 117, :hash "-1061259274"} {:id "defn/follow-unload-sail-path", :kind "defn", :line 119, :end-line 133, :hash "995517447"} {:id "defn/follow-load-sail-path", :kind "defn", :line 135, :end-line 145, :hash "-1276191905"}]}
+;; {:version 1, :tested-at "2026-05-07T19:13:01.75963-05:00", :module-hash "-1772081618", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "364883412"} {:id "defn/blocked-follow-result", :kind "defn", :line 11, :end-line 14, :hash "1040965744"} {:id "defn/blocked-follow?", :kind "defn", :line 16, :end-line 18, :hash "562193117"} {:id "defn-/transport-speed", :kind "defn-", :line 20, :end-line 22, :hash "-603549653"} {:id "defn-/sync-sail-path!", :kind "defn-", :line 24, :end-line 27, :hash "319936993"} {:id "defn-/next-sail-step", :kind "defn-", :line 29, :end-line 31, :hash "1089332052"} {:id "defn-/remaining-sail-path", :kind "defn-", :line 33, :end-line 35, :hash "-2073188554"} {:id "defn-/after-sail-step", :kind "defn-", :line 37, :end-line 46, :hash "-1310691613"} {:id "defn-/sail-step", :kind "defn-", :line 48, :end-line 57, :hash "1524664540"} {:id "defn/sail-follow-path", :kind "defn", :line 59, :end-line 76, :hash "-1879045701"} {:id "defn-/sail-retreat", :kind "defn-", :line 78, :end-line 86, :hash "498662628"} {:id "defn/replan-sail-path!", :kind "defn", :line 88, :end-line 95, :hash "378039436"} {:id "defn/compute-and-follow-path!", :kind "defn", :line 97, :end-line 103, :hash "-502497740"} {:id "defn-/path-to-load-target", :kind "defn-", :line 105, :end-line 108, :hash "-1527213843"} {:id "defn/compute-and-follow-load-target-path!", :kind "defn", :line 110, :end-line 119, :hash "-855310906"} {:id "defn/follow-path-action", :kind "defn", :line 121, :end-line 137, :hash "-1061259274"} {:id "defn/follow-unload-sail-path", :kind "defn", :line 139, :end-line 153, :hash "995517447"} {:id "defn/follow-load-sail-path", :kind "defn", :line 155, :end-line 164, :hash "1287635781"}]}
 ;; clj-mutate-manifest-end

@@ -52,6 +52,24 @@
                                                                [0 0]
                                                                [0 0]))))))
 
+  (it "clamps positions to the map bounds"
+    (should= [0 2]
+             (sut/clamp-to-map-bounds (build-test-map ["..."
+                                                       "..."
+                                                       "..."])
+                                      [-3 7])))
+
+  (it "caches nearest unexplored distances by site"
+    (let [calls (atom 0)
+          site-distance (#'sut/cached-site-distance-fn)]
+      (with-redefs [empire.computer.fighter.exploration/nearest-unexplored-distance
+                    (fn [_]
+                      (swap! calls inc)
+                      12)]
+        (should= 12 (site-distance [2 3]))
+        (should= 12 (site-distance [2 3]))
+        (should= 1 @calls))))
+
   (it "chooses the reachable city closest to unexplored cells even when it requires hops"
     (let [world (build-test-map ["X###################X###################X########"])
           sites [[0 0] [20 0] [40 0]]]

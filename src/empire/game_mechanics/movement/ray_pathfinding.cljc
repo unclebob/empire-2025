@@ -72,11 +72,12 @@
               ;; prefer neighbor that reduces distance to target
               best (when (seq nbrs)
                      (apply min-key #(manhattan-distance % target) nbrs))]
-          (when best
-            (recur best
-                   (conj visited best)
-                   (conj coast-path best)
-                   (inc steps))))))))
+         (when best
+            (let [next-steps (inc steps)]
+              (recur best
+                     (conj visited best)
+                     (conj coast-path best)
+                     next-steps))))))))
 
 (defn- dual-crawl-to-clear-ray
   "Crawl both directions along coast from start-cell.
@@ -131,9 +132,10 @@
                    (ray-crawl-continuation
                     game-map coastal-sea-cells coastal-sea-neighbors
                     current target max-crawl-steps)]
-          (recur exit-cell
-                 (append-ray-crawl-continuation path continuation)
-                 (inc rays-used)))))))
+          (let [next-rays-used (inc rays-used)]
+            (recur exit-cell
+                   (append-ray-crawl-continuation path continuation)
+                   next-rays-used)))))))
 
 (defn- reconstruct-path
   [came-from start target]
@@ -183,3 +185,7 @@
        (or (when coastal-index
              (ray-crawl-path game-map coastal-index start target 4))
            (bfs-sea-path game-map start target))))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-05-07T16:41:01.0952-05:00", :module-hash "-690621581", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2125353959"} {:id "defn/bresenham-line", :kind "defn", :line 8, :end-line 26, :hash "-1791718926"} {:id "defn/ray-clear?", :kind "defn", :line 28, :end-line 34, :hash "484701493"} {:id "defn-/first-land-hit", :kind "defn-", :line 36, :end-line 43, :hash "-2041629946"} {:id "defn-/nearest-coastal-sea", :kind "defn-", :line 45, :end-line 52, :hash "129153497"} {:id "defn-/manhattan-distance", :kind "defn-", :line 54, :end-line 57, :hash "36846928"} {:id "defn-/crawl-to-clear-ray", :kind "defn-", :line 59, :end-line 80, :hash "-878740197"} {:id "defn-/dual-crawl-to-clear-ray", :kind "defn-", :line 82, :end-line 90, :hash "821179749"} {:id "defn-/max-crawl-steps", :kind "defn-", :line 92, :end-line 94, :hash "-1393701337"} {:id "defn-/ray-crawl-continuation", :kind "defn-", :line 96, :end-line 105, :hash "-1354202066"} {:id "defn-/append-ray-crawl-continuation", :kind "defn-", :line 107, :end-line 109, :hash "-864411927"} {:id "defn-/ray-crawl-path", :kind "defn-", :line 111, :end-line 138, :hash "1505200449"} {:id "defn-/reconstruct-path", :kind "defn-", :line 140, :end-line 145, :hash "-2011862459"} {:id "defn-/sea-neighbors", :kind "defn-", :line 147, :end-line 156, :hash "1840207519"} {:id "defn-/bfs-sea-path", :kind "defn-", :line 158, :end-line 173, :hash "795317324"} {:id "defn/find-sea-path", :kind "defn", :line 175, :end-line 187, :hash "1803816889"}]}
+;; clj-mutate-manifest-end

@@ -274,6 +274,10 @@
         (should= :a (sa/read-state :last-key))))))
 
 (describe "mouse handlers"
+  (it "recognizes left mouse button releases"
+    (should (@#'quil-core/left-button? :left))
+    (should-not (@#'quil-core/left-button? :right)))
+
   (it "starts debug dragging when a modifier is held"
     (let [calls (atom [])]
       (with-redefs [quil.core/mouse-x (constantly 12)
@@ -351,3 +355,26 @@
                  @calls)
         (should-not (sa/read-state :refocus-click-armed?))
         (should-not (sa/read-state :refocus-click-saw-press?)))))
+
+(describe "shutdown helpers"
+  (it "closes the sketch and exits with status zero"
+    (let [calls (atom [])]
+      (with-redefs [empire.ui.quil.headless/maybe-write-debug-dump-on-exit! (fn [] (swap! calls conj :dump))
+                    quil.core/no-loop (fn [] (swap! calls conj :no-loop))
+                    quil.core/exit (fn [] (swap! calls conj :quil-exit))
+                    empire.ui.quil.core/exit! (fn [status] (swap! calls conj [:exit status]))]
+        (should= "Empire closed.\n"
+                 (with-out-str (quil-core/on-close nil)))
+        (should= [:dump :no-loop :quil-exit [:exit 0]] @calls))))
+
+  (it "prints map size errors and exits with status one"
+    (let [calls (atom [])]
+      (with-redefs [empire.ui.quil.core/exit! (fn [status] (swap! calls conj [:exit status]))]
+        (should= (str "Map size [120 80] exceeds monitor bounds (1000x800 pixels).\n"
+                      "Maximum map size for this monitor: [90 70]\n")
+                 (with-out-str
+                   (#'quil-core/print-map-size-error-and-exit!
+                    (ex-info "too big" {:cols 120 :rows 80
+                                        :screen-w 1000 :screen-h 800
+                                        :max-cols 90 :max-rows 70}))))
+        (should= [[:exit 1]] @calls)))))

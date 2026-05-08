@@ -79,12 +79,16 @@
       (q/fill r g b)
       (q/text "*" (+ (* col cell-w) config/cell-char-x-offset) (+ (* row cell-h) config/cell-char-y-offset)))))
 
+(defn- attention-ring-hidden-on-error
+  []
+  false)
+
 (defn- attention-ring-visible?
   []
   (try
     (zero? (mod (q/frame-count) 30))
     (catch Throwable _
-      false)))
+      (attention-ring-hidden-on-error))))
 
 (defn- draw-attention-ring
   [attention-coords cell-w cell-h map-to-display]
@@ -253,5 +257,5 @@
     (draw-attention-ring attention-coords cell-w cell-h map-to-display)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:39:48.008411-05:00", :module-hash "818008730", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "705388234"} {:id "defn/draw-production-indicators", :kind "defn", :line 10, :end-line 21, :hash "1768886334"} {:id "defn-/attention-airport-fighter?", :kind "defn-", :line 23, :end-line 28, :hash "-538091190"} {:id "defn-/city-production-overrides-airport?", :kind "defn-", :line 30, :end-line 35, :hash "2015153415"} {:id "defn-/draw-unit", :kind "defn-", :line 37, :end-line 46, :hash "429368515"} {:id "defn-/draw-waypoint", :kind "defn-", :line 48, :end-line 57, :hash "1854377246"} {:id "defn-/attention-ring-visible?", :kind "defn-", :line 59, :end-line 64, :hash "487940903"} {:id "defn-/draw-attention-ring", :kind "defn-", :line 66, :end-line 78, :hash "-1263691961"} {:id "defn-/hovered-transport-path", :kind "defn-", :line 80, :end-line 86, :hash "986462475"} {:id "defn-/draw-hovered-transport-path", :kind "defn-", :line 88, :end-line 99, :hash "1045198712"} {:id "defn/draw-debug-selection-rectangle", :kind "defn", :line 101, :end-line 117, :hash "251657802"} {:id "defn/draw-map", :kind "defn", :line 119, :end-line 168, :hash "-636828904"}]}
+;; {:version 1, :tested-at "2026-05-07T17:16:08.748244-05:00", :module-hash "903535452", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "705388234"} {:id "defn/draw-production-indicators", :kind "defn", :line 10, :end-line 21, :hash "1768886334"} {:id "defn-/attention-airport-fighter?", :kind "defn-", :line 23, :end-line 28, :hash "1970113574"} {:id "defn-/city-production-overrides-airport?", :kind "defn-", :line 30, :end-line 35, :hash "2015153415"} {:id "defn-/unit-display-char", :kind "defn-", :line 37, :end-line 42, :hash "-1531383375"} {:id "defn-/draw-unit-char", :kind "defn-", :line 44, :end-line 50, :hash "-1751046588"} {:id "defn-/draw-attention-city-placeholder", :kind "defn-", :line 52, :end-line 58, :hash "-1195006608"} {:id "defn-/draw-unit", :kind "defn-", :line 60, :end-line 69, :hash "-1724933200"} {:id "defn-/draw-waypoint", :kind "defn-", :line 71, :end-line 80, :hash "1854377246"} {:id "defn-/attention-ring-hidden-on-error", :kind "defn-", :line 82, :end-line 84, :hash "-1920708763"} {:id "defn-/attention-ring-visible?", :kind "defn-", :line 86, :end-line 91, :hash "1023410399"} {:id "defn-/draw-attention-ring", :kind "defn-", :line 93, :end-line 105, :hash "-1263691961"} {:id "defn-/hovered-transport-path", :kind "defn-", :line 107, :end-line 113, :hash "986462475"} {:id "defn-/draw-hovered-transport-path", :kind "defn-", :line 115, :end-line 126, :hash "1045198712"} {:id "defn/draw-debug-selection-rectangle", :kind "defn", :line 128, :end-line 144, :hash "251657802"} {:id "defn-/map-render-context", :kind "defn-", :line 146, :end-line 163, :hash "-1901011275"} {:id "defn-/draw-cell-backgrounds", :kind "defn-", :line 165, :end-line 172, :hash "-1072183052"} {:id "defn-/draw-grid", :kind "defn-", :line 174, :end-line 180, :hash "-1801894156"} {:id "defn-/attention-cell?", :kind "defn-", :line 182, :end-line 185, :hash "44991904"} {:id "defn-/overlay-cell", :kind "defn-", :line 187, :end-line 191, :hash "2050832761"} {:id "defn-/hide-airport-unit?", :kind "defn-", :line 193, :end-line 196, :hash "989976039"} {:id "defn-/cell-flashing?", :kind "defn-", :line 198, :end-line 202, :hash "887965683"} {:id "defn-/draw-cell-production", :kind "defn-", :line 204, :end-line 207, :hash "1728873557"} {:id "defn-/draw-cell-unit", :kind "defn-", :line 209, :end-line 215, :hash "407598979"} {:id "defn-/draw-cell-overlays", :kind "defn-", :line 217, :end-line 232, :hash "85504678"} {:id "defn-/draw-map-overlays", :kind "defn-", :line 234, :end-line 239, :hash "13711173"} {:id "defn/draw-map", :kind "defn", :line 241, :end-line 257, :hash "880524331"}]}
 ;; clj-mutate-manifest-end

@@ -26,6 +26,16 @@
       (let [transport {:type :transport :owner :computer}]
         (should (unloading/has-nearby-unloadable-land? [1 1] transport 3))))
 
+    (it "uses the coastal index to find nearby unloadable land"
+      (set-test-world! [[{:type :sea}
+                         {:type :sea}
+                         {:type :sea}
+                         {:type :land}]])
+      (set-test-computer-map! (test-utils/read-test-state :game-map))
+      (test-utils/set-test-state! :coastal-index {:coastal-sea-cells #{[0 2]}})
+      (let [transport {:type :transport :owner :computer}]
+        (should (unloading/has-nearby-unloadable-land? [0 0] transport 2))))
+
     (it "does not treat adjacent computer cities as unloadable"
       (set-test-world! [[{:type :city :city-status :computer}
                          {:type :sea :contents {:type :transport :owner :computer}}]])

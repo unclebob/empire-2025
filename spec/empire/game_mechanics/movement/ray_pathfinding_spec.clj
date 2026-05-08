@@ -32,6 +32,11 @@
 (describe "find-sea-path"
   (before (reset-all-atoms!))
 
+  (it "returns an empty path when already at target"
+    (let [game-map (build-test-map ["~"])]
+      (set-test-world! game-map)
+      (should= [] (ray/find-sea-path [0 0] [0 0]))))
+
   (it "returns straight line for open water"
     (let [game-map (build-test-map ["~~~~~"
                                     "~~~~~"])]
@@ -84,3 +89,47 @@
       (set-test-world! game-map)
       (sa/write-state! :coastal-index (init/build-coastal-index game-map))
       (should-be-nil (ray/find-sea-path [0 0] [2 0])))))
+
+(describe "ray-crawl continuation"
+  (it "returns the exit cell and path pieces when a coastal crawl clears the target ray"
+    (let [game-map [[{:type :sea}  {:type :sea}]
+                    [{:type :sea}  {:type :sea}]
+                    [{:type :land} {:type :sea}]
+                    [{:type :sea}  {:type :sea}]
+                    [{:type :sea}  {:type :sea}]]
+          continuation (@#'ray/ray-crawl-continuation game-map
+                                                       #{[1 0]}
+                                                       {[1 0] #{[1 1]}}
+                                                       [0 0]
+                                                       [4 0]
+                                                       4)]
+      (should= [1 1] (:exit-cell continuation))
+      (should= [[1 0]] (:ray-to-coast continuation))
+      (should= [[1 1]] (:coast-path continuation))))
+
+  (it "appends ray-to-coast before the rest of the coast path"
+    (should= [[1 0] [1 1] [2 1]]
+             (@#'ray/append-ray-crawl-continuation []
+                                                   {:ray-to-coast [[1 0]]
+                                                    :coast-path [[1 0] [1 1] [2 1]]})))
+
+  (it "returns the target when the ray-crawl loop is already there"
+    (let [game-map [[{:type :sea}]]]
+      (should= [[0 0]]
+               (@#'ray/ray-crawl-path game-map
+                                      {:coastal-sea-cells #{}
+                                       :coastal-sea-neighbors {}}
+                                      [0 0]
+                                      [0 0]
+                                      4))))
+
+  (it "continues from a coastal crawl exit to finish the route"
+    (let [game-map [[{:type :sea}  {:type :sea}]
+                    [{:type :sea}  {:type :sea}]
+                    [{:type :land} {:type :sea}]
+                    [{:type :sea}  {:type :sea}]
+                    [{:type :sea}  {:type :sea}]]
+          coastal-index {:coastal-sea-cells #{[1 0]}
+                         :coastal-sea-neighbors {[1 0] #{[1 1]}}}]
+      (should= [[1 0] [2 1] [3 0] [4 0]]
+               (@#'ray/ray-crawl-path game-map coastal-index [0 0] [4 0] 4)))))

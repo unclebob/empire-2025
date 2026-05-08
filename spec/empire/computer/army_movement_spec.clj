@@ -55,3 +55,20 @@
                     movement/on-same-continent? (fn [& _] true)]
         (movement/register-coastal-cells [0 0] 1)
         (should= 0 @writes)))))
+
+(describe "ensure-coastal-registry"
+  (it "seeds coastal registry from indexed land cells for the country"
+    (let [written (atom nil)]
+      (with-redefs [sa/read-state (fn [k]
+                                    (case k
+                                      :computer-map [[{:type :land}
+                                                      {:type :land :country-id 1}
+                                                      {:type :sea}
+                                                      {:type :land :country-id 2}]]
+                                      :coastal-index {:coastal-land-cells [[0 0] [0 1] [0 2] [0 3]]}
+                                      :coastal-cells-by-country {}
+                                      nil))
+                    sa/write-state! (fn [k v] (reset! written [k v]))]
+        (movement/ensure-coastal-registry 1)
+        (should= :coastal-cells-by-country (first @written))
+        (should= #{[0 0] [0 1]} (get-in (second @written) [1]))))))

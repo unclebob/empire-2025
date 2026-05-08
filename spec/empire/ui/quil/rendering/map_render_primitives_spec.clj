@@ -55,7 +55,29 @@
                     q/fill (fn [& _] nil)
                     q/text (fn [& args] (swap! calls conj args))]
         (#'map-render/draw-unit 0 0 {:contents {:type :destroyer :owner :computer}} 10 10 nil false false false)
-        (should= [["d" config/cell-char-x-offset config/cell-char-y-offset]] @calls)))))
+        (should= [["d" config/cell-char-x-offset config/cell-char-y-offset]] @calls))))
+
+  (it "draws a black placeholder for a flashing attention city with no display unit"
+    (let [calls (atom [])]
+      (with-redefs [empire.ui.util.rendering.display/determine-display-unit (fn [& _] nil)
+                    q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (#'map-render/draw-unit 1 2 {:type :city} 10 12 [[1 2]] false false true)
+        (should-contain [:fill [0 0 0]] @calls)
+        (should-contain [:text ["?"
+                                (+ 10 config/cell-char-x-offset)
+                                (+ 24 config/cell-char-y-offset)]] @calls))))
+
+  (it "draws a white placeholder for a steady attention city with no display unit"
+    (let [calls (atom [])]
+      (with-redefs [empire.ui.util.rendering.display/determine-display-unit (fn [& _] nil)
+                    q/fill (fn [& args] (swap! calls conj [:fill args]))
+                    q/text (fn [& args] (swap! calls conj [:text args]))]
+        (#'map-render/draw-unit 1 2 {:type :city} 10 12 [[1 2]] false false false)
+        (should-contain [:fill [255 255 255]] @calls)
+        (should-contain [:text ["?"
+                                (+ 10 config/cell-char-x-offset)
+                                (+ 24 config/cell-char-y-offset)]] @calls)))))
 
 (describe "draw-waypoint"
   (it "draws a waypoint marker when the cell has a waypoint and no contents"
@@ -93,6 +115,16 @@
   (it "does not draw on non-flash frames"
     (let [calls (atom [])]
       (with-redefs [q/frame-count (fn [] 61)
+                    q/ellipse (fn [& args] (swap! calls conj args))]
+        (#'map-render/draw-attention-ring [[2 3]] 10 12 :player-map)
+        (should= [] @calls))))
+
+  (it "does not draw when the frame count cannot be read"
+    (let [calls (atom [])]
+      (with-redefs [q/frame-count (fn [] (throw (ex-info "no sketch" {})))
+                    q/no-fill (fn [] nil)
+                    q/stroke (fn [& _] nil)
+                    q/stroke-weight (fn [& _] nil)
                     q/ellipse (fn [& args] (swap! calls conj args))]
         (#'map-render/draw-attention-ring [[2 3]] 10 12 :player-map)
         (should= [] @calls))))

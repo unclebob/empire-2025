@@ -9,6 +9,32 @@
 (describe "ship-core"
   (before (reset-all-atoms!))
 
+  (context "sea path helpers"
+    (it "returns no between-cells when the endpoints are the same"
+      (should= [] (@#'ship-core/between-cells [1 1] [1 1])))
+
+    (it "treats sea and unexplored cells as direct sea corridor cells"
+      (let [computer-map [[{:type :sea} {:type :unexplored} {:type :sea}]]]
+        (should (@#'ship-core/direct-sea-corridor? [0 0] [0 2] computer-map))))
+
+    (it "recognizes adjacent non-start cells as land-target sea path targets"
+      (let [computer-map [[{:type :sea} {:type :land}]
+                          [{:type :sea} {:type :sea}]]]
+        (should (@#'ship-core/sea-path-target? [1 1] [0 0] [0 1] computer-map))
+        (should-not (@#'ship-core/sea-path-target? [0 0] [0 0] [0 1] computer-map))))
+
+    (it "uses a sea neighbor that is not the start for land target paths"
+      (let [calls (atom [])]
+        (with-redefs [empire.game-mechanics.movement.ray-pathfinding/find-sea-path
+                      (fn [start target computer-map]
+                        (swap! calls conj [start target computer-map])
+                        [target])]
+          (let [computer-map [[{:type :sea} {:type :land}]
+                              [{:type :sea} {:type :sea}]]]
+            (should= [[1 0]]
+                     (@#'ship-core/sea-path-to-target [0 0] [0 1] computer-map))
+            (should= [[[0 0] [1 0] computer-map]] @calls))))))
+
   (context "get-passable-sea-neighbors (L21)"
     (it "includes sea cell with player unit as passable"
       (set-test-world! [[{:type :sea :contents {:type :destroyer :owner :computer :hits 3}}

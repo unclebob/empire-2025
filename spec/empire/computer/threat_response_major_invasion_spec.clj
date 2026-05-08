@@ -271,6 +271,31 @@
         (should= 0 @updates)
         (should= 0 @syncs)))
 
+    (it "clears stale major-invasion skip revision when target revision advances"
+      (let [world (atom [[{:type :sea
+                           :contents {:type :transport :owner :computer
+                                      :transport-mission :sail-to-load
+                                      :major-invasion-skip-revision 2
+                                      :army-count 0}}]])
+            state (atom {:target-land-revision 3
+                         :detection-points #{[0 0]}
+                         :target-land-set #{[0 0]}})
+            ctx {:load-major-invasion-state (fn [] @state)
+                 :read-runtime-state (fn [k]
+                                       (case k
+                                         :computer-map [[{:type :sea :contents {:type :transport :owner :computer}}]]
+                                         :round-number 10
+                                         nil))
+                 :update-major-invasion-state! (fn [f & args] (apply swap! state f args))
+                 :update-game-map! (update-world-fn world)
+                 :sync-ai-unit! (fn [_] nil)
+                 :current-world (fn [] @world)
+                 :nearest-major-target (fn [_] [0 0])
+                 :computer-sea-unit-types #{:transport}}]
+        (mi/prepare-transport-major-invasion! ctx [0 0] (get-in @world [0 0 :contents]))
+        (should= true (get-in @world [0 0 :contents :major-invasion]))
+        (should-be-nil (get-in @world [0 0 :contents :major-invasion-skip-revision]))))
+
     (it "reuses the current invasion target before running the broader coastal search"
       (let [world (atom [[{:type :sea
                            :contents {:type :transport :owner :computer
