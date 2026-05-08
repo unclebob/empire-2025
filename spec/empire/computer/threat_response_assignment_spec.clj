@@ -127,6 +127,71 @@
       (should= 9 (get-in (test-utils/read-test-state :game-map) [0 0 :contents :invasion-plan-revision]))
       (should= [0 0] (get-in (test-utils/read-test-state :game-map) [0 0 :contents :invasion-path-origin]))))
 
+  (it "recovers stranded unloading invasion transport by routing to its stamped target"
+    (set-test-world! (build-test-map ["t~~O"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :round-number 12)
+    (test-utils/set-test-state! :major-invasion-state {:active? true
+                                                       :detection-points [[3 0]]
+                                                       :target-land-set #{[3 0]}
+                                                       :sea-reachable-detection-points #{[3 0]}
+                                                       :target-land-revision 4})
+    (update-test-world! assoc-in [0 0 :contents]
+                        {:type :transport :owner :computer :army-count 2
+                         :transport-mission :unloading
+                         :major-invasion true
+                         :major-invasion-target [3 0]
+                         :invasion-target [3 0]
+                         :invasion-plan-revision 4
+                         :sail-path []
+                         :load-target-cell nil
+                         :load-manifest []
+                         :load-plan-failure {:reasons [:no-load-target :no-manifest :no-sail-path]}
+                         :hold-sail-to-load-since-round 9})
+    (let [best-called? (atom false)
+          unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (with-redefs [empire.computer.threat-response.refresh/best-invasion-target-and-path
+                    (fn [& _] (reset! best-called? true) {:target [3 0] :path [[1 0]]})]
+        (threat-response-refresh/prepare-transport-major-invasion! [0 0] unit))
+      (let [transport (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+        (should-not @best-called?)
+        (should= :invading (:transport-mission transport))
+        (should= [[1 0] [2 0]] (:invasion-path transport))
+        (should= [0 0] (:invasion-path-origin transport))
+        (should= 4 (:invasion-plan-revision transport))
+        (should-not-contain :load-plan-failure transport)
+        (should-not-contain :hold-sail-to-load-since-round transport)
+        (should-not-contain :sail-path transport)
+        (should-not-contain :invasion-route-retry-after-round transport))))
+
+  (it "backs off stranded unloading invasion recovery when no route exists"
+    (set-test-world! (build-test-map ["t##O"]))
+    (set-test-computer-map! (test-utils/read-test-state :game-map))
+    (test-utils/set-test-state! :round-number 20)
+    (test-utils/set-test-state! :major-invasion-state {:active? true
+                                                       :detection-points [[3 0]]
+                                                       :target-land-set #{[3 0]}
+                                                       :sea-reachable-detection-points #{[3 0]}
+                                                       :target-land-revision 5})
+    (update-test-world! assoc-in [0 0 :contents]
+                        {:type :transport :owner :computer :army-count 1
+                         :transport-mission :unloading
+                         :major-invasion true
+                         :major-invasion-target [3 0]
+                         :invasion-target [3 0]
+                         :invasion-plan-revision 5
+                         :sail-path []})
+    (let [calls (atom 0)
+          unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+      (with-redefs [empire.game-mechanics.movement.pathfinding-bfs/bfs-to-land-ho-target
+                    (fn [& _] (swap! calls inc) nil)]
+        (threat-response-refresh/prepare-transport-major-invasion! [0 0] unit)
+        (let [after-first (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
+          (should= :unloading (:transport-mission after-first))
+          (should= 25 (:invasion-route-retry-after-round after-first))
+          (threat-response-refresh/prepare-transport-major-invasion! [0 0] after-first)
+          (should= 1 @calls)))))
+
   (it "prefers sea-reachable major target for transport planning"
     (set-test-world! (build-test-map ["t~"
                                       "~O"]))
