@@ -1,13 +1,21 @@
 (ns empire.computer.threat-response.probe
-  (:require [clojure.string :as str]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [empire.state.api :as sa]
             [empire.sound :as sound]))
 
 (def ^:private log-path "target/major-invasion-probe.log")
 
+(defn- ensure-log-parent!
+  []
+  #?(:clj (io/make-parents (io/file log-path))
+     :cljs nil))
+
 (defn clear-log!
   []
-  #?(:clj (spit log-path "")
+  #?(:clj (do
+            (ensure-log-parent!)
+            (spit log-path ""))
      :cljs nil))
 
 (defn- stack-lines
@@ -52,7 +60,9 @@
 
 (defn log-event!
   [kind payload]
-  #?(:clj (spit log-path (format-entry kind payload) :append true)
+  #?(:clj (do
+            (ensure-log-parent!)
+            (spit log-path (format-entry kind payload) :append true))
      :cljs nil)
   (when (and (sa/read-state :headless-stop-on-major-invasion?)
              (not (sa/read-state :major-invasion-probe-hit?)))
@@ -62,5 +72,5 @@
     (sound/play-bonk!)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-26T23:51:52.78161-05:00", :module-hash "-733822772", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "1499136211"} {:id "def/log-path", :kind "def", :line 5, :end-line 5, :hash "-444493232"} {:id "defn/clear-log!", :kind "defn", :line 7, :end-line 10, :hash "1467828463"} {:id "defn-/stack-lines", :kind "defn-", :line 12, :end-line 17, :hash "-85849438"} {:id "defn-/visible-player-evidence", :kind "defn-", :line 19, :end-line 32, :hash "-1205361268"} {:id "defn-/actual-player-evidence", :kind "defn-", :line 34, :end-line 47, :hash "-65330508"} {:id "defn-/format-entry", :kind "defn-", :line 49, :end-line 65, :hash "-1491768849"} {:id "defn/log-event!", :kind "defn", :line 67, :end-line 77, :hash "-1264928892"}]}
+;; {:version 1, :tested-at "2026-06-17T13:07:55.482784-05:00", :module-hash "-1518765370", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1620128482"} {:id "def/log-path", :kind "def", :line 7, :end-line 7, :hash "-444493232"} {:id "defn-/ensure-log-parent!", :kind "defn-", :line 9, :end-line 12, :hash "1773186771"} {:id "defn/clear-log!", :kind "defn", :line 14, :end-line 19, :hash "62872133"} {:id "defn-/stack-lines", :kind "defn-", :line 21, :end-line 26, :hash "-85849438"} {:id "defn-/player-evidence", :kind "defn-", :line 28, :end-line 41, :hash "-2007615286"} {:id "defn-/format-entry", :kind "defn-", :line 43, :end-line 59, :hash "-1260980058"} {:id "defn/log-event!", :kind "defn", :line 61, :end-line 72, :hash "-2044003818"}]}
 ;; clj-mutate-manifest-end
