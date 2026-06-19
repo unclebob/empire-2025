@@ -96,13 +96,14 @@
                    :prev-pos nil)
     (set-test-player-map! (test-utils/read-test-state :game-map))
     (move-coastline-unit [1 1])
-    ;; Unit should move to edge (row 0) and wake
-    (let [cell-1-0 (get-in (test-utils/read-test-state :game-map) [1 0])
-          cell-2-0 (get-in (test-utils/read-test-state :game-map) [2 0])
-          woken-unit (or (:contents cell-1-0) (:contents cell-2-0))]
-      (when woken-unit
-        (should= :awake (:mode woken-unit))
-        (should= :hit-edge (:reason woken-unit)))))
+    ;; Unit should move to an edge cell and wake
+    (let [{:keys [pos unit]} (get-test-unit (test-utils/game-map-atom) "T")
+          [x y] pos]
+      (should-not-be-nil unit)
+      (should-not-be-nil pos)
+      (should (and pos (or (zero? x) (zero? y) (= 2 x) (= 2 y))))
+      (should= :awake (:mode unit))
+      (should= :hit-edge (:reason unit))))
 
   (it "does NOT wake for edge when started at edge"
     ;; Unit starts AT edge and moves along edge — should NOT get :hit-edge

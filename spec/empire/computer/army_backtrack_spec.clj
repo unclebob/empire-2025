@@ -129,12 +129,13 @@
              {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
       (update-test-world! assoc-in [4 0 :contents]
              {:type :army :owner :computer :hits 1 :mode :sentry :country-id 1})
-      (with-redefs [rand (constantly 0.5)
-                    rand-nth first]
-        (army/process-army [2 0]))
+      (sync-computer-map!)
+      (with-redefs [rand (constantly 0.5)]
+        (should (pos? (action-resolution/wake-nearby-sentries [2 0] 3))))
       ;; Sentry at [0 0] should have direction pointing away (negative col)
       (let [dir (get-in (test-utils/read-test-state :game-map) [0 0 :contents :interior-explore-direction])]
-        (when dir (should (neg? (first dir))))))
+        (should-not-be-nil dir)
+        (should (neg? (first dir))))))
 
     (it "army goes sentry near coast when all coastal cells occupied"
       ;; All coastal cells (row 2) have sentries. Army at interior [2 1].
@@ -238,4 +239,4 @@
           ;; Oldest entry [99 0] should be trimmed off
           (should-not-contain [99 0] (:coast-visited unit))
           ;; New entry [1 0] should be present
-          (should-contain [1 0] (:coast-visited unit)))))))
+          (should-contain [1 0] (:coast-visited unit))))))

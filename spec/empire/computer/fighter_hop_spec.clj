@@ -254,8 +254,8 @@
           (let [result (get-test-unit (test-utils/game-map-atom) "f")]
             ;; Fighter may have attacked the player army or be somewhere
             ;; beyond the friendly army
-            (when result
-              (should (> (first (:pos result)) 1))))))))
+            (should-not-be-nil result)
+            (should (> (first (:pos result)) 1)))))))
 
   (context "navigate hop-over"
     (it "fighter navigating toward target hops over friendly unit in path"

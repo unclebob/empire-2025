@@ -14,8 +14,7 @@
       (set-test-player-map! (build-test-map ["##"]))
       (game-loop/move-satellites)
       (let [result (get-test-unit (test-utils/game-map-atom) "V")]
-        (when result
-          (should (or (nil? (:unit result)) (<= (:turns-remaining (:unit result) 0) 0))))))
+        (should-be-nil result)))
 
     (it "removes satellite immediately when turns-remaining is already zero"
       (set-test-world! (build-test-map ["V"]))
@@ -30,8 +29,8 @@
       (set-test-player-map! (build-test-map ["###"]))
       (game-loop/move-satellites)
       (let [{:keys [unit]} (get-test-unit (test-utils/game-map-atom) "V")]
-        (when unit
-          (should (< (:turns-remaining unit) 5))))))
+        (should-not-be-nil unit)
+        (should (< (:turns-remaining unit) 5)))))
 
   (context "move-explore-unit"
     (it "delegates to movement/move-explore-unit"

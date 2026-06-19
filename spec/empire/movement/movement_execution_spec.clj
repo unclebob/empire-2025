@@ -185,12 +185,15 @@
     (with-redefs [rand-nth first]
       (game-loop/move-current-unit [0 0]))
     ;; Should have attempted to sidestep
-    (let [unit00 (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))]
+    (let [unit00 (:contents (get-in (test-utils/read-test-state :game-map) [0 0]))
+          result (get-test-unit (test-utils/game-map-atom) "A1")]
       (if unit00
         ;; Either woke up or sidestepped elsewhere
         (should (#{:awake :moving} (:mode unit00)))
         ;; Moved somewhere
-        true))))
+        (do
+          (should-not-be-nil result)
+          (should-not= [0 0] (:pos result)))))))
 
 (describe "transport auto-loads sentry armies"
   (before (reset-all-atoms!))

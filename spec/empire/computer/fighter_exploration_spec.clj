@@ -30,8 +30,8 @@
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           (should-not-be-nil result)
           (let [remaining (:explore-steps-remaining (:unit result))]
-            (when remaining
-              (should (< remaining 3)))))))
+            (should-not-be-nil remaining)
+            (should (< remaining 3))))))
 
     (it "explore sortie exhausts outbound steps and continues with a valid plan"
       (set-test-world! (build-test-map ["X####f##"]))
@@ -82,8 +82,8 @@
       (let [unit (get-in (test-utils/read-test-state :game-map) [6 0 :contents])]
         (fighter/process-fighter [6 0] unit)
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-          (when result
-            (should (> (first (:pos result)) 7)))))))
+          (should-not-be-nil result)
+          (should (> (first (:pos result)) 7))))))
 
   (context "select-best-explore-target"
     (it "keeps a fighter alive while evaluating explored vs unexplored neighbors"

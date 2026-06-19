@@ -175,8 +175,8 @@
         (fighter/process-fighter [0 0] unit)
         ;; Fighter should have refueled
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-          (when result
-            (should (> (:fuel (:unit result)) 3)))))))
+          (should-not-be-nil result)
+          (should (> (:fuel (:unit result)) 3))))))
 
   (context "arrival at target (L431-453)"
     (it "records leg on arrival and picks new target"
@@ -273,10 +273,10 @@
         (let [unit (get-in (test-utils/read-test-state :game-map) [0 0 :contents])]
             (fighter/process-fighter [0 0] unit)
             (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-              (when result
-                (should= :explore (:flight-mode (:unit result)))
-                (should-not-be-nil (:flight-target-site (:unit result)))
-                (should-not-be-nil (:explore-landing-site (:unit result))))))))
+              (should-not-be-nil result)
+              (should= :explore (:flight-mode (:unit result)))
+              (should-not-be-nil (:flight-target-site (:unit result)))
+              (should-not-be-nil (:explore-landing-site (:unit result)))))))
 
     (it "records fighter action phases while processing"
       (set-test-world! (build-test-map ["X####f######"]))
@@ -355,8 +355,8 @@
             (fighter/process-fighter [0 0] unit)
             ;; Fighter should have started heading toward the other city
             (let [result (get-test-unit (test-utils/game-map-atom) "f")]
-              (when result
-                (should (> (first (:pos result)) 0)))))))))
+              (should-not-be-nil result)
+              (should (> (first (:pos result)) 0))))))))
 
   (context "navigate with explore preference (L460-461, L471-472)"
     (it "explores during navigation when fuel margin allows"

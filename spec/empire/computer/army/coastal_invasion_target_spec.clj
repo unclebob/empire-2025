@@ -38,9 +38,10 @@
     (should-be-nil (invasion/local-empty-coast-target (make-ctx) [0 0] 1)))
 
   (it "does not return the starting position"
-    (set-test-world! (build-test-map ["a~"]))
+    (set-test-world! (build-test-map ["a#~"]))
     (update-test-world! assoc-in [0 0 :country-id] 1)
+    (update-test-world! assoc-in [1 0 :country-id] 1)
     (set-test-computer-map! (test-utils/read-test-state :game-map))
     (let [result (invasion/local-empty-coast-target (make-ctx) [0 0] 1)]
-      (when result
-        (should-not= [0 0] result)))))
+      (should-not-be-nil result)
+      (should-not= [0 0] result))))

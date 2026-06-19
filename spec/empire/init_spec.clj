@@ -63,25 +63,28 @@
       (should (<= city-count 6))))                          ;; Allow up to num-cities + occupied
 
   (it "assigns country-id 1 to computer starting city"
-    (let [game-map @initial-map
+    (make-initial-map [30 30] @smooth-count @land-fraction 40 @min-distance)
+    (let [game-map (test-utils/read-test-state :game-map)
           computer-city-pos (find-city-position game-map :computer)]
-      (when computer-city-pos
-        (should= 1 (:country-id (get-in game-map computer-city-pos))))))
+      (should-not-be-nil computer-city-pos)
+      (should= 1 (:country-id (get-in game-map computer-city-pos)))))
 
   (it "sets next-country-id to 2 after init"
-    (let [game-map @initial-map
+    (make-initial-map [30 30] @smooth-count @land-fraction 40 @min-distance)
+    (let [game-map (test-utils/read-test-state :game-map)
           computer-city-pos (find-city-position game-map :computer)]
-      (when computer-city-pos
-        (should= 2 (test-utils/read-test-state :next-country-id)))))
+      (should-not-be-nil computer-city-pos)
+      (should= 2 (test-utils/read-test-state :next-country-id))))
 
   (it "sets army production on computer starting city"
-    (let [game-map @initial-map
+    (make-initial-map [30 30] @smooth-count @land-fraction 40 @min-distance)
+    (let [game-map (test-utils/read-test-state :game-map)
           computer-city-pos (find-city-position game-map :computer)]
-      (when computer-city-pos
-        (let [prod (get (test-utils/read-test-state :production) computer-city-pos)]
-          (should-not-be-nil prod)
-          (should= :army (:item prod))
-          (should= (config/item-cost :army) (:remaining-rounds prod))))))
+      (should-not-be-nil computer-city-pos)
+      (let [prod (get (test-utils/read-test-state :production) computer-city-pos)]
+        (should-not-be-nil prod)
+        (should= :army (:item prod))
+        (should= (config/item-cost :army) (:remaining-rounds prod)))))
 
   (it "computes lake-max-cells as 10% of map area at game start"
     @initial-map
