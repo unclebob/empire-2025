@@ -99,14 +99,19 @@
     (set-test-world! (build-test-map ["~~~"
                                       "~~~"
                                       "~~~"]))
-    (doseq [unit-type [:army :fighter :battleship]]
-      (let [cell {:type :sea
-                  :contents {:type unit-type :owner :player :mode :moving :target [99 99] :steps-remaining 1}}]
-        (with-redefs [empire.game-mechanics.containers.helpers/ship-can-dock? (constantly false)
-                      empire.game-mechanics.movement.wake-conditions/wake-before-move (fn [u _] [u false])
-                      empire.game-mechanics.movement.wake-conditions/wake-after-move (fn [u _ _ _] u)
-                      empire.game-mechanics.movement.movement-execution/do-move (fn [& _] nil)]
-          (should= [0 1] (:pos (resolution/move-unit [1 1] [-99 1] cell (test-utils/game-map-atom))))
-          (should= [2 1] (:pos (resolution/move-unit [1 1] [99 1] cell (test-utils/game-map-atom))))
-          (should= [1 0] (:pos (resolution/move-unit [1 1] [1 -99] cell (test-utils/game-map-atom))))
-          (should= [1 2] (:pos (resolution/move-unit [1 1] [1 99] cell (test-utils/game-map-atom)))))))))
+    (let [unit-types [:army :fighter :battleship]
+          clamped-positions
+          (with-redefs [empire.game-mechanics.containers.helpers/ship-can-dock? (constantly false)
+                        empire.game-mechanics.movement.wake-conditions/wake-before-move (fn [u _] [u false])
+                        empire.game-mechanics.movement.wake-conditions/wake-after-move (fn [u _ _ _] u)
+                        empire.game-mechanics.movement.movement-execution/do-move (fn [& _] nil)]
+            (mapv (fn [unit-type]
+                    (let [cell {:type :sea
+                                :contents {:type unit-type :owner :player :mode :moving :target [99 99] :steps-remaining 1}}]
+                      [(:pos (resolution/move-unit [1 1] [-99 1] cell (test-utils/game-map-atom)))
+                       (:pos (resolution/move-unit [1 1] [99 1] cell (test-utils/game-map-atom)))
+                       (:pos (resolution/move-unit [1 1] [1 -99] cell (test-utils/game-map-atom)))
+                       (:pos (resolution/move-unit [1 1] [1 99] cell (test-utils/game-map-atom)))]))
+                  unit-types))]
+      (should= 3 (count clamped-positions))
+      (should= (repeat 3 [[0 1] [2 1] [1 0] [1 2]]) clamped-positions))))

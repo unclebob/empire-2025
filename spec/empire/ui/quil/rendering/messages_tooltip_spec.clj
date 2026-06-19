@@ -27,45 +27,47 @@
 
 (describe "hud-tooltip"
   (it "explains recognized status tokens and ignores invalid hover positions"
-    (doseq [{:keys [mouse-x mouse-y round-message city-summary production-status expected]}
-            [{:mouse-x 223
-              :mouse-y 110
-              :round-message "R1"
-              :city-summary "A3 | 20%"
-              :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected "3 armies"}
-             {:mouse-x 223
-              :mouse-y 120
-              :round-message "R1"
-              :city-summary "A3 | 20%"
-              :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected "3 armies"}
-             {:mouse-x 230
-              :mouse-y 110
-              :round-message "R1"
-              :city-summary "A2 F1 T1 +2 | 75%"
-              :production-status "A:2 F:1 T:1 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%"
-              :expected "2 armies, 1 fighters, 1 transports, 1 destroyers, 1 carriers"}
-             {:mouse-x 263
-              :mouse-y 110
-              :round-message "R1"
-              :city-summary "A3 | 20%"
-              :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected "3 armies"}
-             {:mouse-x 18
-              :mouse-y 110
-              :round-message "BOGUS"
-              :city-summary nil
-              :production-status nil
-              :expected nil}
-             {:mouse-x 223
-              :mouse-y 170
-              :round-message "R1"
-              :city-summary "A3 | 20%"
-              :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
-              :expected nil}]]
-      (should= expected
-               (hover-tooltip mouse-x mouse-y round-message city-summary production-status)))))
+    (let [cases [{:mouse-x 223
+                  :mouse-y 110
+                  :round-message "R1"
+                  :city-summary "A3 | 20%"
+                  :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
+                  :expected "3 armies"}
+                 {:mouse-x 223
+                  :mouse-y 120
+                  :round-message "R1"
+                  :city-summary "A3 | 20%"
+                  :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
+                  :expected "3 armies"}
+                 {:mouse-x 230
+                  :mouse-y 110
+                  :round-message "R1"
+                  :city-summary "A2 F1 T1 +2 | 75%"
+                  :production-status "A:2 F:1 T:1 D:1 S:0 P:0 C:1 B:0 Z:0 | 75%"
+                  :expected "2 armies, 1 fighters, 1 transports, 1 destroyers, 1 carriers"}
+                 {:mouse-x 263
+                  :mouse-y 110
+                  :round-message "R1"
+                  :city-summary "A3 | 20%"
+                  :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
+                  :expected "3 armies"}
+                 {:mouse-x 18
+                  :mouse-y 110
+                  :round-message "BOGUS"
+                  :city-summary nil
+                  :production-status nil
+                  :expected nil}
+                 {:mouse-x 223
+                  :mouse-y 170
+                  :round-message "R1"
+                  :city-summary "A3 | 20%"
+                  :production-status "A:3 F:0 T:0 D:0 S:0 P:0 C:0 B:0 Z:0 | 20%"
+                  :expected nil}]]
+      (should= 6 (count cases))
+      (should= (mapv :expected cases)
+               (mapv (fn [{:keys [mouse-x mouse-y round-message city-summary production-status]}]
+                       (hover-tooltip mouse-x mouse-y round-message city-summary production-status))
+                     cases)))))
 
 (describe "draw-message-area tooltip rendering"
   (before (reset-all-atoms!))

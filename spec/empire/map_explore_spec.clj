@@ -83,12 +83,16 @@
       (set-test-world! initial-map)
       (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50)
       (set-test-player-map! (test-utils/read-test-state :game-map))
-      (dotimes [_ 10]
-        (set-test-world! initial-map)
-        (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50)
-        (explore/move-explore-unit [1 0])
-        (let [{:keys [pos]} (get-test-unit (test-utils/game-map-atom) "A")]
-          (should (map-utils/adjacent-to-sea? pos (test-utils/game-map-atom)))))))
+      (let [coastal-results
+            (vec (for [_ (range 10)]
+                   (do
+                     (set-test-world! initial-map)
+                     (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50)
+                     (explore/move-explore-unit [1 0])
+                     (let [{:keys [pos]} (get-test-unit (test-utils/game-map-atom) "A")]
+                       (map-utils/adjacent-to-sea? pos (test-utils/game-map-atom))))))]
+        (should= 10 (count coastal-results))
+        (should (every? true? coastal-results)))))
 
   (it "explore army prefers moves towards unexplored cells"
     (let [initial-map (build-test-map ["#A#"
@@ -97,24 +101,31 @@
           player-map [[{:type :land} {:type :land} nil]
                       [{:type :land} {:type :land} nil]
                       [{:type :land} {:type :land} nil]]]
-      (dotimes [_ 10]
-        (set-test-world! initial-map)
-        (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50)
-        (set-test-player-map! player-map)
-        (explore/move-explore-unit [1 0])
-        (let [{:keys [pos]} (get-test-unit (test-utils/game-map-atom) "A")]
-          (should= 1 (second pos))))))
+      (let [y-positions
+            (vec (for [_ (range 10)]
+                   (do
+                     (set-test-world! initial-map)
+                     (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50)
+                     (set-test-player-map! player-map)
+                     (explore/move-explore-unit [1 0])
+                     (second (:pos (get-test-unit (test-utils/game-map-atom) "A"))))))]
+        (should= 10 (count y-positions))
+        (should= (repeat 10 1) y-positions))))
 
   (it "explore army does not retrace steps"
     (let [initial-map (build-test-map ["#A#"])]
       (set-test-world! initial-map)
       (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50 :visited #{[0 0]})
       (set-test-player-map! (test-utils/read-test-state :game-map))
-      (dotimes [_ 10]
-        (set-test-world! initial-map)
-        (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50 :visited #{[0 0]})
-        (explore/move-explore-unit [1 0])
-        (should-not-be-nil (:contents (get-in (test-utils/read-test-state :game-map) [2 0]))))))
+      (let [contents
+            (vec (for [_ (range 10)]
+                   (do
+                     (set-test-world! initial-map)
+                     (set-test-unit (test-utils/game-map-atom) "A" :mode :explore :explore-steps 50 :visited #{[0 0]})
+                     (explore/move-explore-unit [1 0])
+                     (:contents (get-in (test-utils/read-test-state :game-map) [2 0])))))]
+        (should= 10 (count contents))
+        (should (every? some? contents)))))
 
   (it "explore army wakes up when finding enemy city"
     (set-test-world! (build-test-map ["A#X"]))

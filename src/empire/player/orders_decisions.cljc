@@ -1,4 +1,5 @@
-(ns empire.player.orders-decisions)
+(ns empire.player.orders-decisions
+  (:require [empire.player.movement-support :as movement-support]))
 
 (defn clamp-to-map-bounds
   [world [x y]]
@@ -89,15 +90,8 @@
   (orders-state path dest "Flight path set to "))
 
 (defn project-to-edge
-  [world [cx cy] [dx dy]]
-  (let [cols (count world)
-        rows (count (first world))]
-    (loop [tx cx ty cy]
-      (let [nx (+ tx dx)
-            ny (+ ty dy)]
-        (if (and (>= nx 0) (< nx cols) (>= ny 0) (< ny rows))
-          (recur nx ny)
-          [tx ty])))))
+  [world coords direction]
+  (movement-support/calculate-extended-target world coords direction))
 
 (defn marching-orders-by-direction-action
   [world cell coords direction]

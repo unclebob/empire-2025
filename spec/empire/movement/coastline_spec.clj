@@ -92,9 +92,9 @@
                                     "#~#"
                                     "#~#"]))]
       (set-test-player-map! @game-map)
-      (dotimes [_ 10]
-        (let [move (pick-coastline-move [1 1] game-map #{} [1 0])]
-          (should-not= [1 0] move)))))
+      (let [moves (vec (repeatedly 10 #(pick-coastline-move [1 1] game-map #{} [1 0])))]
+        (should= 10 (count moves))
+        (should (every? #(not= [1 0] %) moves)))))
 
   (it "prefers unvisited orthogonal coastal cells that expose unexplored"
     ;; Set up: [1 1] is the unit, [1 0] is orthogonally coastal and adjacent to unexplored [0 0]
@@ -105,10 +105,10 @@
       (set-test-player-map! (build-test-map ["-~~"
                                                  "#~~"
                                                  "#~~"]))
-      (dotimes [_ 10]
-        (let [move (pick-coastline-move [1 1] game-map #{} nil)]
-          ;; Should prefer [1 0] because it's orthogonally adjacent to land and adjacent to unexplored [0 0]
-          (should= [1 0] move)))))
+      (let [moves (vec (repeatedly 10 #(pick-coastline-move [1 1] game-map #{} nil)))]
+        ;; Should prefer [1 0] because it's orthogonally adjacent to land and adjacent to unexplored [0 0]
+        (should= 10 (count moves))
+        (should= (repeat 10 [1 0]) moves))))
 
   (it "falls back to unvisited coastal cells exposing unexplored when no orthogonal"
     ;; Set up: no orthogonal coastal moves, but diagonal coastal move adjacent to unexplored
@@ -123,10 +123,10 @@
       (set-test-player-map! (build-test-map ["~~~"
                                                  "~~~"
                                                  "-~#"]))
-      (dotimes [_ 10]
-        (let [move (pick-coastline-move [1 1] game-map #{} nil)]
-          ;; Should pick [1 2] - diagonal coastal and adjacent to unexplored [0 2]
-          (should= [1 2] move)))))
+      (let [moves (vec (repeatedly 10 #(pick-coastline-move [1 1] game-map #{} nil)))]
+        ;; Should pick [1 2] - diagonal coastal and adjacent to unexplored [0 2]
+        (should= 10 (count moves))
+        (should= (repeat 10 [1 2]) moves))))
 
   (it "falls back to unvisited coastal cells when no unexplored adjacent"
     ;; All explored, but there's a coastal move
@@ -147,10 +147,10 @@
       (set-test-player-map! @game-map)
       ;; Mark all cells except [0 1] (land) and [1 0] (visited coastal) as visited
       (let [visited #{[0 0] [2 0] [0 2] [2 1] [1 2] [2 2]}]
-        (dotimes [_ 10]
-          (let [move (pick-coastline-move [1 1] game-map visited nil)]
-            ;; Should pick [1 0] - visited but orthogonally adjacent to land
-            (should= [1 0] move))))))
+        (let [moves (vec (repeatedly 10 #(pick-coastline-move [1 1] game-map visited nil)))]
+          ;; Should pick [1 0] - visited but orthogonally adjacent to land
+          (should= 10 (count moves))
+          (should= (repeat 10 [1 0]) moves)))))
 
   (it "falls back to any coastal move when orthogonal coastal visited"
     ;; Visited orthogonal coastal, but there's a diagonal coastal move
@@ -160,10 +160,10 @@
       (set-test-player-map! @game-map)
       ;; All cells visited except we allow backstepping to coastal
       (let [visited #{[1 0] [0 1] [2 0] [2 1] [0 2] [1 2] [2 2]}]
-        (dotimes [_ 10]
-          (let [move (pick-coastline-move [1 1] game-map visited nil)]
-            ;; Should pick [1 0] or [0 1] - coastal (diagonal to land at [0 0])
-            (should (some #{move} [[1 0] [0 1] [2 0]]))))))
+        (let [moves (vec (repeatedly 10 #(pick-coastline-move [1 1] game-map visited nil)))]
+          ;; Should pick [1 0] or [0 1] - coastal (diagonal to land at [0 0])
+          (should= 10 (count moves))
+          (should (every? #{[1 0] [0 1] [2 0]} moves)))))
 
     ;; Additional test: specifically hit the diagonal-only coastal branch
     ;; This requires: no orthogonal-coastal moves exist at all, only diagonal coastal
@@ -224,10 +224,10 @@
       ;; Now [1 1] is diagonal coastal (adjacent to [0 0] which is land in game-map)
       ;; And [1 1] is adjacent to unexplored [0 0] in player-map
       ;; From [2 2], [1 1] should be picked as unvisited-coastal-unexplored
-      (dotimes [_ 10]
-        (let [move (pick-coastline-move [2 2] (test-utils/game-map-atom) #{} nil)]
-          ;; Should pick [1 1] - diagonal coastal and adjacent to unexplored
-          (should= [1 1] move)))))
+      (let [moves (vec (repeatedly 10 #(pick-coastline-move [2 2] (test-utils/game-map-atom) #{} nil)))]
+        ;; Should pick [1 1] - diagonal coastal and adjacent to unexplored
+        (should= 10 (count moves))
+        (should= (repeat 10 [1 1]) moves))))
 
   (it "falls back to visited diagonal coastal when no unvisited coastal"
     ;; Scenario: All unvisited moves are non-coastal, no orthogonal coastal (visited or not)

@@ -4,14 +4,9 @@
             [empire.config.core :as config]
             [empire.game-mechanics.services.round-setup :as domain-round-setup]
             [empire.game.loop.round-setup.fuel-decisions :as decisions]
-            [empire.sound :as sound]))
+            [empire.player.warnings :as warnings]))
 
 (defn- world-ref [world] (atom world))
-
-(defn- set-warning-message!
-  [msg]
-  (sa/write-state! :warning-message msg)
-  (sound/play-bonk!))
 
 (defn- bingo-fuel? [pos new-fuel]
   (let [world (sa/current-world)]
@@ -21,7 +16,7 @@
 
 (defn- apply-fuel-action [pos action new-fuel]
   (case action
-    :crashed (do (set-warning-message! (:fighter-crashed config/messages))
+    :crashed (do (warnings/set-warning-message! (:fighter-crashed config/messages))
                  (sa/update-world! assoc-in (conj pos :contents :hits) 0))
     :out-of-fuel (sa/update-world! update-in (conj pos :contents)
                                    #(assoc % :fuel new-fuel :mode :awake :reason :fighter-out-of-fuel))

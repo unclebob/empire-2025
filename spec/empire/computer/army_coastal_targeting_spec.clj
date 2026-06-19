@@ -35,26 +35,29 @@
   (before (reset-all-atoms!))
 
   (it "searches local BFS up to depth two for empty coastal cells"
-    (doseq [{:keys [neighbors target expected]}
-            [{:description "prefers nearest match"
-              :neighbors {[0 0] [[1 0] [0 1]]
-                          [1 0] []
-                          [0 1] []}
-              :target [1 0]
-              :expected [1 0]}
-             {:description "returns nil beyond radius two"
-              :neighbors {[0 0] [[1 0]]
-                          [1 0] [[2 0]]
-                          [2 0] [[3 0]]}
-              :target [3 0]
-              :expected nil}
-             {:description "accepts an exact depth-two match"
-              :neighbors {[0 0] [[1 0]]
-                          [1 0] [[2 0]]}
-              :target [2 0]
-              :expected [2 0]}]]
-      (should= expected
-               (run-local-empty-coast-target neighbors target)))))
+    (let [cases [{:description "prefers nearest match"
+                  :neighbors {[0 0] [[1 0] [0 1]]
+                              [1 0] []
+                              [0 1] []}
+                  :target [1 0]
+                  :expected [1 0]}
+                 {:description "returns nil beyond radius two"
+                  :neighbors {[0 0] [[1 0]]
+                              [1 0] [[2 0]]
+                              [2 0] [[3 0]]}
+                  :target [3 0]
+                  :expected nil}
+                 {:description "accepts an exact depth-two match"
+                  :neighbors {[0 0] [[1 0]]
+                              [1 0] [[2 0]]}
+                  :target [2 0]
+                  :expected [2 0]}]]
+      (should= ["prefers nearest match" "returns nil beyond radius two" "accepts an exact depth-two match"]
+               (mapv :description cases))
+      (should= (mapv :expected cases)
+               (mapv (fn [{:keys [neighbors target]}]
+                       (run-local-empty-coast-target neighbors target))
+                     cases)))))
 
 (describe "fill-coastal-cell"
   (before (reset-all-atoms!))

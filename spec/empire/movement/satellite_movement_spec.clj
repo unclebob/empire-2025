@@ -258,9 +258,11 @@
     (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-cell-visibility [2 2] :player)
     ;; All 25 cells in the 5x5 map should be visible (rings 1 and 2 plus center)
-    (doseq [row (range 5)
-            col (range 5)]
-      (should (get-in (test-utils/read-test-state :player-map) [row col])))))
+    (let [visible-cells (for [row (range 5)
+                              col (range 5)]
+                          (get-in (test-utils/read-test-state :player-map) [row col]))]
+      (should= 25 (count visible-cells))
+      (should (every? some? visible-cells)))))
 
 (describe "computer satellite direction-based movement"
   (before (reset-all-atoms!))

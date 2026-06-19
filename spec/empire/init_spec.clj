@@ -35,14 +35,14 @@
     (should= 10 (count (first @initial-map))))
 
   (it "creates cells with correct structure"
-    (doseq [row @initial-map]
-      (doseq [cell row]
-        (should (map? cell))
-        (should (contains? cell :type))
-        (should (#{:land :sea :city} (:type cell)))
-        (should (nil? (:contents cell)))
-        (when (= :city (:type cell))
-          (should (#{:player :computer :free} (:city-status cell)))))))
+    (let [cells (vec (mapcat identity @initial-map))
+          cities (filter #(= :city (:type %)) cells)]
+      (should= 100 (count cells))
+      (should (every? map? cells))
+      (should (every? #(contains? % :type) cells))
+      (should (every? #(contains? #{:land :sea :city} (:type %)) cells))
+      (should (every? #(nil? (:contents %)) cells))
+      (should (every? #(contains? #{:player :computer :free} (:city-status %)) cities))))
 
   (it "has approximately correct land fraction"
     (let [land-count (count (for [row @initial-map
@@ -96,14 +96,17 @@
                                :let [cell (get-in @initial-map [i j])]
                                :when (= :city (:type cell))]
                            [i j])]
-      (doseq [[pos1 pos2] (for [p1 city-positions
-                                p2 city-positions
-                                :when (not= p1 p2)]
-                            [p1 p2])]
-        (let [[i1 j1] pos1
-              [i2 j2] pos2
-              distance (+ (abs (- i1 i2)) (abs (- j1 j2)))]
-          (should (>= distance @min-distance)))))))
+      (should (>= (count city-positions) 2))
+      (should
+        (every? (fn [[pos1 pos2]]
+                  (let [[i1 j1] pos1
+                        [i2 j2] pos2
+                        distance (+ (abs (- i1 i2)) (abs (- j1 j2)))]
+                    (>= distance @min-distance)))
+                (for [p1 city-positions
+                      p2 city-positions
+                      :when (not= p1 p2)]
+                  [p1 p2]))))))
 
 (describe "smooth-cell"
   (before (reset-all-atoms!))

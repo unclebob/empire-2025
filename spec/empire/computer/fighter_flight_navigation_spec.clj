@@ -127,10 +127,9 @@
         (let [result (get-test-unit (test-utils/game-map-atom) "f")]
           ;; Fighter may have arrived at city and landed, or may still be on map
           ;; Either way, it should not be stuck at [2,2]
-          (if result
-            (should-not= [2 2] (:pos result))
-            ;; Landed at city
-            (should (pos? (:fighter-count (get-in (test-utils/read-test-state :game-map) [4 4])))))))))
+          (should (or (and result (not= [2 2] (:pos result)))
+                      ;; Landed at city
+                      (pos? (:fighter-count (get-in (test-utils/read-test-state :game-map) [4 4])))))))))
 
   (context "deterministic combat outcomes"
     (it "attacker wins and moves to enemy position"

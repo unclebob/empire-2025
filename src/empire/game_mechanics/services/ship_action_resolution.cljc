@@ -3,12 +3,7 @@
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]
-            [empire.sound :as sound]))
-
-(defn- set-warning-message!
-  [msg]
-  (sa/write-state! :warning-message msg)
-  (sound/play-bonk!))
+            [empire.player.warnings :as warnings]))
 
 (defn attack-enemy
   [ship-pos enemy-pos]
@@ -19,7 +14,7 @@
                                               (:type defender)
                                               (:winner result))
         dead-unit (if (= :attacker (:winner result)) defender attacker)]
-    (set-warning-message! message)
+    (warnings/set-warning-message! message)
     (sa/update-world! update-in ship-pos dissoc :contents)
     (if (= :attacker (:winner result))
       (do

@@ -141,5 +141,7 @@
       (vis-core/reveal-surrounding-cells! result game-map 2 2 5 5 2)
       (let [final (mapv persistent! (persistent! result))]
         ;; All 25 cells should be revealed (radius 2 from center of 5x5)
-        (doseq [r (range 5) c (range 5)]
-          (should= {:type :land} (get-in final [r c])))))))
+        (let [visible-cells (for [r (range 5) c (range 5)]
+                              (get-in final [r c]))]
+          (should= 25 (count visible-cells))
+          (should= (repeat 25 {:type :land}) visible-cells))))))

@@ -91,9 +91,11 @@
     (set-test-player-map! (make-initial-test-map 5 5 nil))
     (update-combatant-map (test-utils/player-map-atom) :player)
     ;; All 25 cells should be visible (satellite radius = 2)
-    (doseq [row (range 5)
-            col (range 5)]
-      (should-not-be-nil (get-in (test-utils/read-test-state :player-map) [row col]))))
+    (let [visible-cells (for [row (range 5)
+                              col (range 5)]
+                          (get-in (test-utils/read-test-state :player-map) [row col]))]
+      (should= 25 (count visible-cells))
+      (should (every? some? visible-cells))))
 
   (it "handles multiple units revealing overlapping areas"
     (set-test-world! (build-test-map ["~~~~~~~"

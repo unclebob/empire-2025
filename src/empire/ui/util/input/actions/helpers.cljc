@@ -1,12 +1,10 @@
 (ns empire.ui.util.input.actions.helpers
-  (:require [empire.state.api :as sa]
-            [empire.game.loop.core :as game-loop]
-            [empire.sound :as sound]))
+  (:require [empire.game.loop.core :as game-loop]
+            [empire.player.warnings :as warnings]))
 
 (defn set-warning-message!
   [msg]
-  (sa/write-state! :warning-message msg)
-  (sound/play-bonk!))
+  (warnings/set-warning-message! msg))
 
 (defn item-processed!
   []

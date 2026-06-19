@@ -14,36 +14,46 @@
     (test-utils/set-test-state! :backtick-pressed true))
 
   (it "places all player unit types"
-    (doseq [[k unit-type coords] [[:A :army [0 0]]
-                                   [:F :fighter [0 0]]
-                                   [:Z :satellite [0 0]]
-                                   [:T :transport [0 1]]
-                                   [:P :patrol-boat [0 1]]
-                                   [:D :destroyer [0 1]]
-                                   [:S :submarine [0 1]]
-                                   [:C :carrier [0 1]]
-                                   [:B :battleship [0 1]]]]
-      (test-utils/set-test-state! :backtick-pressed true)
-      (dispatch/dispatch-key k coords)
-      (should= unit-type (:type (:contents (get-in (test-utils/read-test-state :game-map) coords))))
-      (should= :player (:owner (:contents (get-in (test-utils/read-test-state :game-map) coords))))
-      (update-test-world! assoc-in (conj coords :contents) nil)))
+    (let [placements [[:A :army [0 0]]
+                      [:F :fighter [0 0]]
+                      [:Z :satellite [0 0]]
+                      [:T :transport [0 1]]
+                      [:P :patrol-boat [0 1]]
+                      [:D :destroyer [0 1]]
+                      [:S :submarine [0 1]]
+                      [:C :carrier [0 1]]
+                      [:B :battleship [0 1]]]
+          results (mapv (fn [[k _ coords]]
+                          (test-utils/set-test-state! :backtick-pressed true)
+                          (dispatch/dispatch-key k coords)
+                          (let [contents (:contents (get-in (test-utils/read-test-state :game-map) coords))]
+                            (update-test-world! assoc-in (conj coords :contents) nil)
+                            [(:type contents) (:owner contents)]))
+                        placements)]
+      (should= 9 (count placements))
+      (should= (mapv (fn [[_ unit-type _]] [unit-type :player]) placements)
+               results)))
 
   (it "places all computer unit types"
-    (doseq [[k unit-type coords] [[:a :army [0 0]]
-                                   [:f :fighter [0 0]]
-                                   [:z :satellite [0 0]]
-                                   [:t :transport [0 1]]
-                                   [:p :patrol-boat [0 1]]
-                                   [:d :destroyer [0 1]]
-                                   [:s :submarine [0 1]]
-                                   [:c :carrier [0 1]]
-                                   [:b :battleship [0 1]]]]
-      (test-utils/set-test-state! :backtick-pressed true)
-      (dispatch/dispatch-key k coords)
-      (should= unit-type (:type (:contents (get-in (test-utils/read-test-state :game-map) coords))))
-      (should= :computer (:owner (:contents (get-in (test-utils/read-test-state :game-map) coords))))
-      (update-test-world! assoc-in (conj coords :contents) nil)))
+    (let [placements [[:a :army [0 0]]
+                      [:f :fighter [0 0]]
+                      [:z :satellite [0 0]]
+                      [:t :transport [0 1]]
+                      [:p :patrol-boat [0 1]]
+                      [:d :destroyer [0 1]]
+                      [:s :submarine [0 1]]
+                      [:c :carrier [0 1]]
+                      [:b :battleship [0 1]]]
+          results (mapv (fn [[k _ coords]]
+                          (test-utils/set-test-state! :backtick-pressed true)
+                          (dispatch/dispatch-key k coords)
+                          (let [contents (:contents (get-in (test-utils/read-test-state :game-map) coords))]
+                            (update-test-world! assoc-in (conj coords :contents) nil)
+                            [(:type contents) (:owner contents)]))
+                        placements)]
+      (should= 9 (count placements))
+      (should= (mapv (fn [[_ unit-type _]] [unit-type :computer]) placements)
+               results)))
 
   (it "claims city for player with :o"
     (let [city-coords (:pos (get-test-city (test-utils/game-map-atom) "O"))]

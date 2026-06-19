@@ -1,32 +1,8 @@
 (ns empire.test.pipeline
-  (:require [clojure.java.shell :as shell]
-            [clojure.string :as str]))
+  (:require [empire.pipeline :as pipeline]))
 
-(defn- run-step!
-  [label cmd]
-  (println label)
-  (let [{:keys [exit out err]} (apply shell/sh cmd)]
-    (when (seq out)
-      (print out))
-    (when (seq err)
-      (binding [*out* *err*]
-        (print err)))
-    (when (not= 0 exit)
-      (throw (ex-info (str label " failed")
-                      {:cmd (str/join " " cmd)
-                       :exit exit}))))
-  :ok)
+(def run-step! pipeline/run-step!)
 
 (defn -main
   [& _]
-  (run-step! "Running unit specs..." ["clj" "-M:spec"])
-  (run-step! "Parsing acceptance scenarios..." ["clj" "-M:parse-tests"])
-  (run-step! "Generating acceptance specs..." ["clj" "-M:generate-specs"])
-  (run-step! "Checking acceptance boundaries..." ["bash" "scripts/check-acceptance-boundary.sh"])
-  (run-step! "Checking generated acceptance boundaries..." ["bash" "scripts/check-generated-acceptance-boundary.sh"])
-  (run-step! "Auditing AI game-map access..." ["bash" "scripts/check-ai-map-access.sh"])
-  (run-step! "Checking architecture dependencies..." ["clj" "-M:check-dependencies"])
-  (run-step! "Checking spec boundaries..." ["bash" "scripts/check-spec-boundary.sh"])
-  (run-step! "Checking spec structure..." ["clj" "-M:spec-structure-check" "spec/"])
-  (run-step! "Running generated acceptance specs..." ["clj" "-M:spec" "generated-acceptance-specs/"])
-  (println "All tests passed."))
+  (pipeline/run-unit-pipeline! run-step!))
