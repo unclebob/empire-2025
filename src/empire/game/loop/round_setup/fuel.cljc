@@ -36,5 +36,5 @@
       (apply-fuel-action pos (:action update) (:fuel update)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:00:50.143255-05:00", :module-hash "1006523654", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-253992843"} {:id "defn-/world-ref", :kind "defn-", :line 8, :end-line 8, :hash "-1351735972"} {:id "defn-/set-error-message!", :kind "defn-", :line 10, :end-line 13, :hash "-369960802"} {:id "defn-/bingo-fuel?", :kind "defn-", :line 15, :end-line 19, :hash "-1488368327"} {:id "defn-/apply-fuel-action", :kind "defn-", :line 21, :end-line 29, :hash "428394125"} {:id "defn/consume-sentry-fighter-fuel", :kind "defn", :line 31, :end-line 40, :hash "816435690"}]}
+;; {:version 1, :tested-at "2026-06-19T12:44:21.296865-05:00", :module-hash "361938539", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-355487681"} {:id "defn-/world-ref", :kind "defn-", :line 9, :end-line 9, :hash "-1351735972"} {:id "defn-/bingo-fuel?", :kind "defn-", :line 11, :end-line 15, :hash "-1488368327"} {:id "defn-/apply-fuel-action", :kind "defn-", :line 17, :end-line 25, :hash "737802904"} {:id "defn/consume-sentry-fighter-fuel", :kind "defn", :line 27, :end-line 36, :hash "816435690"}]}
 ;; clj-mutate-manifest-end

@@ -46,5 +46,5 @@
     city-pos))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T01:42:16.700032-05:00", :module-hash "179466291", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "2140282499"} {:id "defn-/set-turn-message!", :kind "defn-", :line 7, :end-line 12, :hash "961870185"} {:id "defn/attack-enemy", :kind "defn", :line 14, :end-line 42, :hash "568815755"} {:id "defn/dock-computer-ship", :kind "defn", :line 44, :end-line 53, :hash "-1631234714"}]}
+;; {:version 1, :tested-at "2026-06-19T12:45:26.953088-05:00", :module-hash "-1301171041", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-985375616"} {:id "defn/attack-enemy", :kind "defn", :line 8, :end-line 35, :hash "-1634931291"} {:id "defn/dock-computer-ship", :kind "defn", :line 37, :end-line 46, :hash "-1631234714"}]}
 ;; clj-mutate-manifest-end

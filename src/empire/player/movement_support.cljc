@@ -50,3 +50,7 @@
          (= :city (:type target-cell))
          (= :player (:city-status target-cell))
          (= (:hits active-unit) max-hits))))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-06-19T12:39:33.733188-05:00", :module-hash "852375327", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-331281901"} {:id "defn/calculate-extended-target", :kind "defn", :line 5, :end-line 15, :hash "1191882870"} {:id "defn/requeue-airport?", :kind "defn", :line 17, :end-line 21, :hash "-738903045"} {:id "defn/player-items-after-fighter-launch", :kind "defn", :line 23, :end-line 28, :hash "-735657277"} {:id "defn/launch-fighter-and-update!", :kind "defn", :line 30, :end-line 42, :hash "543340511"} {:id "defn/undamaged-ship-entering-friendly-city?", :kind "defn", :line 44, :end-line 52, :hash "2063788119"}]}
+;; clj-mutate-manifest-end
