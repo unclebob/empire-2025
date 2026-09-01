@@ -47,6 +47,12 @@
                                        :both-lists-empty? true
                                        :pause-requested true})))
 
+  (it "does not advance the game while help is open"
+    (should-be-nil
+     (sut/advance-game-action {:help-open true
+                               :player-items [[0 0]]
+                               :both-lists-empty? false})))
+
   (it "continues the batch only while work remains"
     (should (sut/continue-batch? 2 false false [[0 0]] []))
     (should-not (sut/continue-batch? 1 false false [[0 0]] []))))

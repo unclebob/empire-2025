@@ -44,11 +44,12 @@
       :else nil)))
 
 (defn advance-game-action
-  [{:keys [load-menu-open save-menu-open paused both-lists-empty? pause-requested waiting-for-input
+  [{:keys [load-menu-open save-menu-open help-open paused both-lists-empty? pause-requested waiting-for-input
            player-items]}]
   (cond
     load-menu-open nil
     save-menu-open nil
+    help-open nil
     paused nil
     (round-end-action both-lists-empty? pause-requested) (round-end-action both-lists-empty? pause-requested)
     waiting-for-input nil

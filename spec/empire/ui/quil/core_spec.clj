@@ -231,7 +231,8 @@
                     empire.ui.quil.rendering.map/draw-debug-selection-rectangle (fn [] (swap! calls conj :debug-rect))
                     empire.ui.quil.rendering.messages/draw-message-area (fn [] (swap! calls conj :messages))
                     empire.ui.quil.rendering.overlay/draw-load-menu (fn [] (swap! calls conj :load-menu))
-                    empire.ui.quil.rendering.overlay/draw-save-menu (fn [] (swap! calls conj :save-menu))]
+                    empire.ui.quil.rendering.overlay/draw-save-menu (fn [] (swap! calls conj :save-menu))
+                    empire.ui.quil.rendering.overlay/draw-help-window (fn [] (swap! calls conj :help-window))]
         (quil-core/draw-state nil)
         (should= [[:background 0]
                   [:resolve :player-map :player :computer :world]
@@ -239,7 +240,8 @@
                   :debug-rect
                   :messages
                   :load-menu
-                  :save-menu]
+                  :save-menu
+                  :help-window]
                  @calls)))))
 
 (describe "key-pressed"

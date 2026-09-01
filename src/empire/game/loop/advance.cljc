@@ -54,6 +54,7 @@
   (apply-advance-game-action!
    (decisions/advance-game-action {:load-menu-open (sa/read-state :load-menu-open)
                                    :save-menu-open (sa/read-state :save-menu-open)
+                                   :help-open (sa/read-state :help-open)
                                    :paused (sa/read-state :paused)
                                    :both-lists-empty? (both-lists-empty?)
                                    :pause-requested (sa/read-state :pause-requested)

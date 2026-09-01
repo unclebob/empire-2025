@@ -5,6 +5,7 @@
             [empire.game.loop.core :as game-loop]
             [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.player.orders :as player-orders]
+            [empire.ui.util.help :as help]
             [empire.ui.util.input.actions :as actions]))
 
 (def backtick-unit-map
@@ -87,6 +88,11 @@
 (def backtick-key (keyword "`"))
 (def bang-key (keyword "!"))
 (def caret-key (keyword "^"))
+(def help-key (keyword "?"))
+
+(defn dispatch-help-key
+  [_k]
+  true)
 
 (defn save-dialog-available?
   []
@@ -102,6 +108,7 @@
 
 (defn dispatch-game-control-key [k]
   (cond
+    (= k help-key) (do (help/open-help!) true)
     (= k backtick-key) (do (sa/write-state! :backtick-pressed true) true)
     (= k :P) (do (game-loop/toggle-pause) true)
     (= k :+) (do (sa/update-state! :map-to-display cycle-map-display) true)

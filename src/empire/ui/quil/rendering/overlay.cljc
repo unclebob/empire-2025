@@ -2,6 +2,7 @@
   (:require [empire.game.save-load :as save-load]
             [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]
+            [empire.ui.util.help :as help]
             [empire.ui.util.rendering.display :as display]
             [quil.core :as q]))
 
@@ -17,6 +18,11 @@
             geom (save-load/menu-geometry (q/width) (q/height) (count files))
             idx (save-load/hovered-file-index x y geom (count files))]
         (sa/write-state! :load-menu-hovered idx)))
+    (when (sa/read-state :help-open)
+      (let [geom (help/help-geometry (q/width) (q/height))]
+        (sa/write-state! :help-geometry geom)
+        (sa/write-state! :help-dismiss-hovered
+                         (boolean (help/dismiss-button-hit? x y geom)))))
     (if (map-utils/on-map? x y)
       (let [coords (vec (map-utils/determine-cell-coordinates x y))
             the-map (display/resolve-display-map (sa/read-state :map-to-display)
@@ -122,6 +128,81 @@
       (q/text "Backspace/Delete=Remove Last"
               (+ (:left geom) menu-padding)
               (+ input-y 68)))))
+
+(defn- draw-help-entry
+  [x y entry]
+  (q/fill 255 220 120)
+  (q/text (:keys entry) x y)
+  (q/fill 210 210 210)
+  (let [lines (help/wrap-words (:explanation entry) help/explanation-wrap)]
+    (doseq [[idx line] (map-indexed vector lines)]
+      (q/text line x (+ y (* (inc idx) help/line-height))))
+    (+ y (* (inc (count lines)) help/line-height))))
+
+(defn- draw-help-section
+  [x y section]
+  (q/fill 120 200 255)
+  (q/text (:title section) x y)
+  (let [after-entries (reduce (fn [entry-y entry]
+                                (draw-help-entry x (+ entry-y help/line-height) entry))
+                              y
+                              (:entries section))]
+    (+ after-entries help/line-height)))
+
+(defn- draw-help-column
+  [x y sections]
+  (reduce (fn [section-y section]
+            (draw-help-section x section-y section))
+          y
+          sections))
+
+(defn- draw-dismiss-button
+  [geom]
+  (let [{:keys [x y w h]} (:dismiss-button geom)
+        label-x (+ x 28)
+        label-y (+ y 16)]
+    (if (sa/read-state :help-dismiss-hovered)
+      (do
+        (q/fill 255)
+        (q/no-stroke)
+        (q/rect x y w h)
+        (q/fill 0)
+        (q/text help/dismiss-label label-x label-y))
+      (do
+        (q/fill 70 70 70)
+        (q/stroke 255)
+        (q/rect x y w h)
+        (q/fill 255)
+        (q/text help/dismiss-label label-x label-y)))))
+
+(defn draw-help-window
+  "Draws the keystroke help overlay when open."
+  []
+  (when (sa/read-state :help-open)
+    (let [screen-w (q/width)
+          screen-h (q/height)
+          geom (help/help-geometry screen-w screen-h)
+          [left-col right-col] (:columns geom)
+          col-width (/ (- (:width geom) (* 3 help/help-padding)) 2)
+          left-x (+ (:left geom) help/help-padding)
+          right-x (+ left-x col-width help/help-padding)
+          col-y (:content-top geom)]
+      (sa/write-state! :help-geometry geom)
+      (q/fill 0 0 0 160)
+      (q/rect 0 0 screen-w screen-h)
+      (q/fill 40 40 40)
+      (q/stroke 255)
+      (q/stroke-weight 2)
+      (q/rect (:left geom) (:top geom) (:width geom) (:height geom))
+      (q/stroke-weight 1)
+      (q/text-font (sa/read-state :text-font))
+      (q/fill 255)
+      (q/text "Keystrokes"
+              (+ (:left geom) help/help-padding)
+              (+ (:top geom) help/help-padding 14))
+      (draw-help-column left-x col-y left-col)
+      (draw-help-column right-x col-y right-col)
+      (draw-dismiss-button geom))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T02:44:36.789213-05:00", :module-hash "-1365137892", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-467571804"} {:id "defn/update-hover-status", :kind "defn", :line 8, :end-line 31, :hash "941608475"} {:id "defn/draw-load-menu", :kind "defn", :line 33, :end-line 76, :hash "2122055074"} {:id "defn/draw-save-menu", :kind "defn", :line 78, :end-line 124, :hash "550099933"}]}

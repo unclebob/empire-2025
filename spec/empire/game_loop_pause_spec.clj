@@ -101,6 +101,14 @@
     (test-utils/set-test-state! :computer-items [])
     (test-utils/set-test-state! :round-number 5)
     (game-loop/advance-game)
+    (should= 5 (test-utils/read-test-state :round-number)))
+
+  (it "does not advance game when help-open is true"
+    (test-utils/set-test-state! :help-open true)
+    (test-utils/set-test-state! :player-items [])
+    (test-utils/set-test-state! :computer-items [])
+    (test-utils/set-test-state! :round-number 5)
+    (game-loop/advance-game)
     (should= 5 (test-utils/read-test-state :round-number))))
 
 (describe "pause functionality"
