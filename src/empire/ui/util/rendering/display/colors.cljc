@@ -60,15 +60,18 @@
   (and (= :player (:city-status cell))
        (contains? #{:player-map :actual-map} map-to-display)))
 
+(defn- computer-city-on-display?
+  [cell map-to-display display]
+  (and (= :computer (:city-status cell))
+       (= display map-to-display)))
+
 (defn- computer-own-production-visible?
   [cell map-to-display]
-  (and (= :computer (:city-status cell))
-       (= :computer-map map-to-display)))
+  (computer-city-on-display? cell map-to-display :computer-map))
 
 (defn- computer-known-production-visible?
   [cell map-to-display]
-  (and (= :computer (:city-status cell))
-       (= :player-map map-to-display)))
+  (computer-city-on-display? cell map-to-display :player-map))
 
 (defn- production-entry-for-display
   [cell production coords map-to-display]
@@ -171,5 +174,5 @@
      (for [col (range cols) row (range rows)] [col row])))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-05-07T17:48:58.792008-05:00", :module-hash "-916688374", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-679499033"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line 9, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line 10, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line 11, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line 12, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line 13, :hash "-1032802797"} {:id "defn-/safe-color", :kind "defn-", :line 15, :end-line 17, :hash "-1335025619"} {:id "defn-/contained-unit?", :kind "defn-", :line 19, :end-line 23, :hash "1490892828"} {:id "defn-/attention-display-unit", :kind "defn-", :line 25, :end-line 30, :hash "-1614245067"} {:id "defn/determine-display-unit", :kind "defn", :line 32, :end-line 41, :hash "-248118789"} {:id "defn/attention-unit-color", :kind "defn", :line 43, :end-line 49, :hash "574643494"} {:id "defn-/show-city-production?", :kind "defn-", :line 51, :end-line 56, :hash "991632568"} {:id "defn-/production-entry-for-display", :kind "defn-", :line 58, :end-line 73, :hash "314423924"} {:id "defn-/production-char-for-display", :kind "defn-", :line 75, :end-line 81, :hash "904025350"} {:id "defn/production-indicator-data", :kind "defn", :line 83, :end-line 100, :hash "1578241208"} {:id "form/15/defonce", :kind "defonce", :line 102, :end-line 102, :hash "1764353803"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 104, :end-line 113, :hash "-1833440901"} {:id "defn/completed-production-city?", :kind "defn", :line 115, :end-line 119, :hash "-560500174"} {:id "defn-/cell-base-color", :kind "defn-", :line 121, :end-line 125, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 127, :end-line 135, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 137, :end-line 159, :hash "1520872785"}]}
+;; {:version 1, :tested-at "2026-09-01T16:23:26.25295-05:00", :module-hash "937570906", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-679499033"} {:id "def/default-cell-color", :kind "def", :line 9, :end-line nil, :hash "-1922923999"} {:id "def/lake-cell-color", :kind "def", :line 10, :end-line nil, :hash "-600733486"} {:id "def/attention-flash-cell-color", :kind "def", :line 11, :end-line nil, :hash "-652560915"} {:id "def/attention-flash-unit-color", :kind "def", :line 12, :end-line nil, :hash "2066335485"} {:id "def/attention-normal-unit-color", :kind "def", :line 13, :end-line nil, :hash "-1032802797"} {:id "defn-/safe-color", :kind "defn-", :line 15, :end-line nil, :hash "-1335025619"} {:id "defn-/contained-unit?", :kind "defn-", :line 19, :end-line nil, :hash "1490892828"} {:id "defn-/attention-display-unit", :kind "defn-", :line 25, :end-line nil, :hash "-1614245067"} {:id "defn/determine-display-unit", :kind "defn", :line 32, :end-line nil, :hash "-248118789"} {:id "defn/attention-unit-color", :kind "defn", :line 43, :end-line nil, :hash "574643494"} {:id "defn-/show-city-production?", :kind "defn-", :line 51, :end-line nil, :hash "991632568"} {:id "defn-/player-production-visible?", :kind "defn-", :line 58, :end-line nil, :hash "1058522689"} {:id "defn-/computer-city-on-display?", :kind "defn-", :line 63, :end-line nil, :hash "188151239"} {:id "defn-/computer-own-production-visible?", :kind "defn-", :line 68, :end-line nil, :hash "-1218631099"} {:id "defn-/computer-known-production-visible?", :kind "defn-", :line 72, :end-line nil, :hash "1083531594"} {:id "defn-/production-entry-for-display", :kind "defn-", :line 76, :end-line nil, :hash "1888730066"} {:id "defn-/production-char-for-display", :kind "defn-", :line 90, :end-line nil, :hash "904025350"} {:id "defn/production-indicator-data", :kind "defn", :line 98, :end-line nil, :hash "1564203259"} {:id "form/19/defonce", :kind "defonce", :line 117, :end-line nil, :hash "1764353803"} {:id "defn-/lake-cells-for-display", :kind "defn-", :line 119, :end-line nil, :hash "-1833440901"} {:id "defn/completed-production-city?", :kind "defn", :line 130, :end-line nil, :hash "-560500174"} {:id "defn-/cell-base-color", :kind "defn-", :line 136, :end-line nil, :hash "1147982518"} {:id "defn-/final-cell-color", :kind "defn-", :line 142, :end-line nil, :hash "-1709973204"} {:id "defn/group-cells-by-color", :kind "defn", :line 152, :end-line nil, :hash "1520872785"}]}
 ;; clj-mutate-manifest-end

@@ -99,5 +99,5 @@
       :else nil)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-26T22:04:22.081901-05:00", :module-hash "-2037724323", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1223534466"} {:id "def/unit-prop-extractors", :kind "def", :line 6, :end-line 54, :hash "-1185448182"} {:id "defn/parse-unit-props-line", :kind "defn", :line 56, :end-line 74, :hash "-1551467611"} {:id "defn/parse-container-state-line", :kind "defn", :line 76, :end-line 93, :hash "-2029154966"}]}
+;; {:version 1, :tested-at "2026-09-01T16:08:22.694671-05:00", :module-hash "858970028", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "1223534466"} {:id "def/unit-prop-extractors", :kind "def", :line 6, :end-line nil, :hash "-1185448182"} {:id "defn-/extract-unit-props", :kind "defn-", :line 56, :end-line nil, :hash "931686115"} {:id "defn-/unit-props-result", :kind "defn-", :line 67, :end-line nil, :hash "-1184126733"} {:id "defn/parse-unit-props-line", :kind "defn", :line 75, :end-line nil, :hash "1000082950"} {:id "defn/parse-container-state-line", :kind "defn", :line 82, :end-line nil, :hash "-2029154966"}]}
 ;; clj-mutate-manifest-end

@@ -32,5 +32,5 @@
     (regular-patrol-action adjacent-transport adjacent-enemy)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-26T23:31:46.327302-05:00", :module-hash "1071155257", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 1, :hash "524879380"} {:id "defn/adjacent-player-transport", :kind "defn", :line 3, :end-line 7, :hash "816798324"} {:id "defn/adjacent-non-transport-enemy", :kind "defn", :line 9, :end-line 13, :hash "-269906879"} {:id "defn/patrol-action", :kind "defn", :line 15, :end-line 31, :hash "-427957353"}]}
+;; {:version 1, :tested-at "2026-09-01T16:11:13.58952-05:00", :module-hash "287944620", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "524879380"} {:id "defn/adjacent-player-transport", :kind "defn", :line 3, :end-line nil, :hash "816798324"} {:id "defn/adjacent-non-transport-enemy", :kind "defn", :line 9, :end-line nil, :hash "-269906879"} {:id "defn-/invasion-patrol-action", :kind "defn-", :line 15, :end-line nil, :hash "-331897468"} {:id "defn-/regular-patrol-action", :kind "defn-", :line 21, :end-line nil, :hash "2115763866"} {:id "defn/patrol-action", :kind "defn", :line 28, :end-line nil, :hash "203742618"}]}
 ;; clj-mutate-manifest-end

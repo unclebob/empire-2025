@@ -46,5 +46,5 @@
     (move-satellite-steps ctx coords)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:06:16.030165-05:00", :module-hash "1327348228", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 3, :hash "-551791313"} {:id "defn-/find-satellite-coords", :kind "defn-", :line 5, :end-line 12, :hash "1125499085"} {:id "defn-/move-satellite-steps", :kind "defn-", :line 14, :end-line 44, :hash "151377961"} {:id "defn/move-satellites!", :kind "defn", :line 46, :end-line 49, :hash "1438118815"}]}
+;; {:version 1, :tested-at "2026-09-01T16:08:55.161016-05:00", :module-hash "311431045", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line nil, :hash "-551791313"} {:id "defn-/find-satellite-coords", :kind "defn-", :line 5, :end-line nil, :hash "1125499085"} {:id "defn-/expire-satellite!", :kind "defn-", :line 14, :end-line nil, :hash "265782912"} {:id "defn-/finish-satellite-round", :kind "defn-", :line 20, :end-line nil, :hash "-77942652"} {:id "defn-/move-satellite-steps", :kind "defn-", :line 29, :end-line nil, :hash "-1642191042"} {:id "defn/move-satellites!", :kind "defn", :line 43, :end-line nil, :hash "1438118815"}]}
 ;; clj-mutate-manifest-end

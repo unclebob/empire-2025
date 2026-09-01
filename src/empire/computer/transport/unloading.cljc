@@ -333,23 +333,24 @@
         (finish-unload! pos army-count to-unload)
         true))))
 
+(defn- try-opportunistic-unload-with
+  [pos record-country?]
+  (let [game-map (sa/read-state :computer-map)
+        army-count (:army-count (get-in game-map (conj pos :contents)) 0)]
+    (when (pos? army-count)
+      (unload-to-targets! pos (adjacent-empty-land-any game-map pos) record-country?))))
+
 (defn try-opportunistic-unload
   "If transport has armies and there is adjacent empty land,
    unload all possible armies onto targets. Returns true if any unloaded."
   [pos]
-  (let [game-map (sa/read-state :computer-map)
-        army-count (:army-count (get-in game-map (conj pos :contents)) 0)]
-    (when (pos? army-count)
-      (unload-to-targets! pos (adjacent-empty-land-any game-map pos) true))))
+  (try-opportunistic-unload-with pos true))
 
 (defn try-opportunistic-unload-any-land
   "Lake-locked transport unload: drop armies on any adjacent empty land/city.
    Ignores major-invasion target filtering and pickup exclusions."
   [pos]
-  (let [game-map (sa/read-state :computer-map)
-        army-count (:army-count (get-in game-map (conj pos :contents)) 0)]
-    (when (pos? army-count)
-      (unload-to-targets! pos (adjacent-empty-land-any game-map pos) false))))
+  (try-opportunistic-unload-with pos false))
 
 (defn unload-armies
   "Unload armies onto adjacent unclaimed land. Returns true if any unloaded."
@@ -383,5 +384,5 @@
         target))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-05-07T16:49:14.354232-05:00", :module-hash "561938929", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 17, :hash "328641055"} {:id "defn/pickup-exclude-ids", :kind "defn", :line 20, :end-line 26, :hash "-787496537"} {:id "defn/unloadable-land-cell?", :kind "defn", :line 28, :end-line 40, :hash "-1577162921"} {:id "defn/adjacent-empty-land", :kind "defn", :line 42, :end-line 50, :hash "869341940"} {:id "defn-/passable-coastal-sea?", :kind "defn-", :line 52, :end-line 65, :hash "-1663501396"} {:id "defn-/has-unloadable-neighbor-at?", :kind "defn-", :line 67, :end-line 71, :hash "-1791340750"} {:id "defn-/nearby-indexed-coastal-candidates", :kind "defn-", :line 73, :end-line 78, :hash "996811274"} {:id "defn-/indexed-nearby-unloadable-land?", :kind "defn-", :line 80, :end-line 84, :hash "1166261685"} {:id "defn-/bfs-nearby-unloadable-land?", :kind "defn-", :line 86, :end-line 101, :hash "-2134187530"} {:id "defn/has-nearby-unloadable-land?", :kind "defn", :line 103, :end-line 119, :hash "1785986405"} {:id "defn-/return-load-target", :kind "defn-", :line 121, :end-line 129, :hash "1406131320"} {:id "defn-/return-load-sail-path", :kind "defn-", :line 131, :end-line 135, :hash "-823830989"} {:id "defn-/path-ready-for-load?", :kind "defn-", :line 137, :end-line 141, :hash "1332724633"} {:id "defn-/reset-return-loading-fields!", :kind "defn-", :line 143, :end-line 154, :hash "1051601985"} {:id "defn-/reserve-return-load!", :kind "defn-", :line 156, :end-line 163, :hash "1375367898"} {:id "defn-/transition-to-loading-inline", :kind "defn-", :line 165, :end-line 180, :hash "416996834"} {:id "defn-/unload-continent-metrics", :kind "defn-", :line 182, :end-line 200, :hash "-924315629"} {:id "defn-/log-foreign-continent-landing!", :kind "defn-", :line 202, :end-line 219, :hash "506796922"} {:id "defn-/unload-army-template", :kind "defn-", :line 221, :end-line 228, :hash "455949077"} {:id "defn-/place-unloaded-armies!", :kind "defn-", :line 230, :end-line 256, :hash "-1782757694"} {:id "defn-/record-unloaded-country!", :kind "defn-", :line 258, :end-line 266, :hash "-379441948"} {:id "defn-/finish-unload!", :kind "defn-", :line 268, :end-line 282, :hash "-1338790402"} {:id "defn-/adjacent-unloadable-neighbors", :kind "defn-", :line 284, :end-line 296, :hash "-1318494185"} {:id "defn-/adjacent-empty-land-any", :kind "defn-", :line 298, :end-line 307, :hash "-1358600425"} {:id "defn/try-opportunistic-unload", :kind "defn", :line 309, :end-line 325, :hash "-688667391"} {:id "defn/try-opportunistic-unload-any-land", :kind "defn", :line 327, :end-line 342, :hash "-1631433894"} {:id "defn/unload-armies", :kind "defn", :line 344, :end-line 360, :hash "1614465478"} {:id "defn/unloading-crawl-move", :kind "defn", :line 362, :end-line 384, :hash "1311152599"}]}
+;; {:version 1, :tested-at "2026-09-01T16:23:08.905188-05:00", :module-hash "1013916814", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "328641055"} {:id "defn/pickup-exclude-ids", :kind "defn", :line 20, :end-line nil, :hash "-787496537"} {:id "defn-/empty-unclaimed-land?", :kind "defn-", :line 28, :end-line nil, :hash "-813642630"} {:id "defn-/capturable-empty-city?", :kind "defn-", :line 33, :end-line nil, :hash "-777322346"} {:id "defn-/allowed-unload-country?", :kind "defn-", :line 38, :end-line nil, :hash "919185399"} {:id "defn-/allowed-major-invasion-land?", :kind "defn-", :line 43, :end-line nil, :hash "-822201944"} {:id "defn/unloadable-land-cell?", :kind "defn", :line 48, :end-line nil, :hash "1893096957"} {:id "defn/adjacent-empty-land", :kind "defn", :line 58, :end-line nil, :hash "869341940"} {:id "defn-/passable-coastal-sea?", :kind "defn-", :line 68, :end-line nil, :hash "-1663501396"} {:id "defn-/has-unloadable-neighbor-at?", :kind "defn-", :line 83, :end-line nil, :hash "-1791340750"} {:id "defn-/nearby-indexed-coastal-candidates", :kind "defn-", :line 89, :end-line nil, :hash "996811274"} {:id "defn-/indexed-nearby-unloadable-land?", :kind "defn-", :line 96, :end-line nil, :hash "131242300"} {:id "defn-/bfs-nearby-unloadable-land?", :kind "defn-", :line 102, :end-line nil, :hash "-1735080726"} {:id "defn/has-nearby-unloadable-land?", :kind "defn", :line 119, :end-line nil, :hash "1785986405"} {:id "defn-/return-load-target", :kind "defn-", :line 137, :end-line nil, :hash "1406131320"} {:id "defn-/return-load-sail-path", :kind "defn-", :line 147, :end-line nil, :hash "-823830989"} {:id "defn-/path-ready-for-load?", :kind "defn-", :line 153, :end-line nil, :hash "1332724633"} {:id "defn-/reset-return-loading-fields!", :kind "defn-", :line 159, :end-line nil, :hash "-1223852906"} {:id "defn-/reserve-return-load!", :kind "defn-", :line 172, :end-line nil, :hash "1375367898"} {:id "defn-/transition-to-loading-inline", :kind "defn-", :line 181, :end-line nil, :hash "416996834"} {:id "defn-/unload-continent-metrics", :kind "defn-", :line 198, :end-line nil, :hash "-924315629"} {:id "defn-/log-foreign-continent-landing!", :kind "defn-", :line 218, :end-line nil, :hash "506796922"} {:id "defn-/unload-army-template", :kind "defn-", :line 237, :end-line nil, :hash "455949077"} {:id "defn-/place-unloaded-armies!", :kind "defn-", :line 246, :end-line nil, :hash "-1782757694"} {:id "defn-/record-unloaded-country!", :kind "defn-", :line 274, :end-line nil, :hash "-1842712001"} {:id "defn-/finish-unload!", :kind "defn-", :line 284, :end-line nil, :hash "-1877280816"} {:id "defn-/adjacent-unloadable-neighbors", :kind "defn-", :line 300, :end-line nil, :hash "1262098083"} {:id "defn-/adjacent-empty-land-any", :kind "defn-", :line 311, :end-line nil, :hash "-1358600425"} {:id "defn-/unload-to-targets!", :kind "defn-", :line 322, :end-line nil, :hash "-1708011203"} {:id "defn-/try-opportunistic-unload-with", :kind "defn-", :line 336, :end-line nil, :hash "-1171570456"} {:id "defn/try-opportunistic-unload", :kind "defn", :line 343, :end-line nil, :hash "-1003298416"} {:id "defn/try-opportunistic-unload-any-land", :kind "defn", :line 349, :end-line nil, :hash "2115417615"} {:id "defn/unload-armies", :kind "defn", :line 355, :end-line nil, :hash "-845898701"} {:id "defn/unloading-crawl-move", :kind "defn", :line 362, :end-line nil, :hash "1311152599"}]}
 ;; clj-mutate-manifest-end

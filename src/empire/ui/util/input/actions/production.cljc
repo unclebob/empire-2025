@@ -46,5 +46,5 @@
     (handle-city-production-decision decision coords cell)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:52:11.863432-05:00", :module-hash "-1263929012", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "168350232"} {:id "defn-/try-set-production", :kind "defn-", :line 11, :end-line 20, :hash "-1709960315"} {:id "defn/handle-city-production-decision", :kind "defn", :line 22, :end-line 34, :hash "1363216546"} {:id "defn/handle-city-production-key", :kind "defn", :line 36, :end-line 38, :hash "280111766"}]}
+;; {:version 1, :tested-at "2026-09-01T16:02:42.696671-05:00", :module-hash "463237441", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "168350232"} {:id "defn-/try-set-production", :kind "defn-", :line 11, :end-line nil, :hash "1158446657"} {:id "defn-/idle-player-city?", :kind "defn-", :line 22, :end-line nil, :hash "820539175"} {:id "defn-/apply-city-production-decision", :kind "defn-", :line 28, :end-line nil, :hash "-1230390607"} {:id "defn/handle-city-production-decision", :kind "defn", :line 40, :end-line nil, :hash "-190737294"} {:id "defn/handle-city-production-key", :kind "defn", :line 44, :end-line nil, :hash "280111766"}]}
 ;; clj-mutate-manifest-end

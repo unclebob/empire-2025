@@ -44,5 +44,5 @@
       (repair-city-ships [i j]))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:03:42.433894-05:00", :module-hash "-1017178576", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-740500162"} {:id "defn-/repair-city-ships", :kind "defn-", :line 7, :end-line 29, :hash "1023429212"} {:id "defn/repair-damaged-ships", :kind "defn", :line 31, :end-line 42, :hash "-752989877"}]}
+;; {:version 1, :tested-at "2026-09-01T16:19:44.049599-05:00", :module-hash "-13815924", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-740500162"} {:id "defn-/repaired-ship-launch-pos", :kind "defn-", :line 7, :end-line nil, :hash "2142225330"} {:id "defn-/launch-repaired-ships!", :kind "defn-", :line 13, :end-line nil, :hash "904202895"} {:id "defn-/repair-city-ships", :kind "defn-", :line 23, :end-line nil, :hash "-1458911687"} {:id "defn/repair-damaged-ships", :kind "defn", :line 33, :end-line nil, :hash "-752989877"}]}
 ;; clj-mutate-manifest-end
