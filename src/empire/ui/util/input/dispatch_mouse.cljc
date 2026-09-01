@@ -4,7 +4,8 @@
             [empire.game-mechanics.debug.dump :as debug-dump]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.player.attention :as player-attention]
-            [empire.player.commands :as player-commands]))
+            [empire.player.commands :as player-commands]
+            [empire.ui.util.help :as help]))
 
 (defn handle-unit-click [clicked-coords attention-coords]
   (player-commands/handle-unit-click clicked-coords attention-coords))
@@ -26,6 +27,10 @@
 (defn mouse-down
   [x y button]
   (cond
+    (sa/read-state :help-open)
+    (when (= button :left)
+      (help/handle-help-click x y))
+
     (sa/read-state :save-menu-open)
     nil
 

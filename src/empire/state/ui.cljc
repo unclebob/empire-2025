@@ -26,6 +26,9 @@
    :save-menu-open false
    :save-menu-input ""
    :save-menu-default-active false
+   :help-open false
+   :help-geometry nil
+   :help-dismiss-hovered false
    :window-focused? false
    :refocus-click-armed? false
    :refocus-click-saw-press? false

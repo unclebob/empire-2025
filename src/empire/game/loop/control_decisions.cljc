@@ -48,8 +48,8 @@
       :else nil)))
 
 (defn- blocked-by-ui?
-  [{:keys [load-menu-open save-menu-open paused]}]
-  (or load-menu-open save-menu-open paused))
+  [{:keys [load-menu-open save-menu-open help-open paused]}]
+  (or load-menu-open save-menu-open help-open paused))
 
 (defn advance-game-action
   [{:keys [both-lists-empty? pause-requested waiting-for-input player-items] :as state}]

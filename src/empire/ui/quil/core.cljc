@@ -55,7 +55,8 @@
     (render-map/draw-debug-selection-rectangle)
     (render-messages/draw-message-area)
     (render-overlay/draw-load-menu)
-    (render-overlay/draw-save-menu)))
+    (render-overlay/draw-save-menu)
+    (render-overlay/draw-help-window)))
 
 (def ^:private key-code-aliases
   {java.awt.event.KeyEvent/VK_DELETE :delete
