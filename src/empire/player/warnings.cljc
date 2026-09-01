@@ -1,12 +1,10 @@
 (ns empire.player.warnings
-  (:require [empire.sound :as sound]
-            [empire.state.api :as sa]))
+  (:require [empire.notifications :as notifications]))
 
 (defn set-warning-message!
   [msg]
-  (sa/write-state! :warning-message msg)
-  (sound/play-bonk!))
+  (notifications/warn! msg))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-06-19T12:40:19.053764-05:00", :module-hash "-1445081295", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "771941713"} {:id "defn/set-warning-message!", :kind "defn", :line 5, :end-line 8, :hash "1621369187"}]}
+;; {:version 1, :tested-at "2026-09-01T15:03:34.194374-05:00", :module-hash "-691938950", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-1627110669"} {:id "defn/set-warning-message!", :kind "defn", :line 4, :end-line nil, :hash "-616986449"}]}
 ;; clj-mutate-manifest-end

@@ -35,6 +35,9 @@
 	                                             {:git/url "https://github.com/unclebob/dependency-checker"
 	                                              :git/sha "e8f35792434adb35fb6b99f5c3f9ab2ab24a0279"}}
 	                                :main-opts ["-m" "dependency-checker.core"]}
+					 :property {:extra-paths ["property-spec"]
+					            :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+					            :main-opts ["-m" "speclj.main" "-c" "property-spec/"]}
 	           :arch-view {:extra-deps {io.github.unclebob/arch-view
 	                                    {:git/url "https://github.com/unclebob/arch-view"
 	                                     :git/sha "66064d35a2b0f05afd43414a6f3ef3f0045705b5"}}

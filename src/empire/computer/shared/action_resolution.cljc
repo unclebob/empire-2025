@@ -7,7 +7,7 @@
             [empire.game-mechanics.services.city-production :as city-production]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]
-            [empire.sound :as sound]))
+            [empire.notifications :as notifications]))
 
 (defn- foreign-territory?
   "Returns true if unit is a computer army with a country-id and the target
@@ -207,8 +207,7 @@
 (defn- declare-game-over!
   [message]
   (sa/write-state! :paused true)
-  (sa/write-state! :warning-message message)
-  (sound/play-bonk!)
+  (notifications/warn! message)
   (sa/write-state! :map-to-display :actual-map)
   (sa/write-state! :player-items [])
   (sa/write-state! :computer-items []))
@@ -260,5 +259,5 @@
       (apply-failed-computer-conquest! army-pos city-pos army-cell army))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-05-07T19:34:34.720955-05:00", :module-hash "214109635", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "1942598219"} {:id "defn-/foreign-territory?", :kind "defn-", :line 12, :end-line 21, :hash "442986330"} {:id "defn-/country-city-producing-armies?", :kind "defn-", :line 23, :end-line 33, :hash "158463725"} {:id "defn-/flood-fill-unclaimed-land", :kind "defn-", :line 35, :end-line 53, :hash "1989995945"} {:id "defn/stamp-territory", :kind "defn", :line 55, :end-line 67, :hash "-1468700128"} {:id "defn-/computer-army-at?", :kind "defn-", :line 69, :end-line 73, :hash "678298330"} {:id "defn-/flood-fill-country-region", :kind "defn-", :line 75, :end-line 100, :hash "921018435"} {:id "defn-/restamp-from-anchors!", :kind "defn-", :line 102, :end-line 112, :hash "719042592"} {:id "defn-/clear-country-id-region-after-failed-conquest!", :kind "defn-", :line 114, :end-line 122, :hash "1484883844"} {:id "defn/move-unit-to", :kind "defn", :line 124, :end-line 143, :hash "836609590"} {:id "defn/random-away-direction", :kind "defn", :line 145, :end-line 152, :hash "-939520040"} {:id "defn/find-wakeable-sentries", :kind "defn", :line 154, :end-line 167, :hash "-1657952121"} {:id "defn/wake-nearby-sentries", :kind "defn", :line 169, :end-line 178, :hash "697068153"} {:id "defn/board-transport", :kind "defn", :line 180, :end-line 189, :hash "1793683928"} {:id "defn-/has-city?", :kind "defn-", :line 191, :end-line 198, :hash "-1768652215"} {:id "defn-/declare-game-over!", :kind "defn-", :line 200, :end-line 207, :hash "-1258410274"} {:id "defn/attempt-conquest-computer", :kind "defn", :line 209, :end-line 247, :hash "-1384532468"}]}
+;; {:version 1, :tested-at "2026-09-01T15:04:14.478147-05:00", :module-hash "-266568651", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-1288614105"} {:id "defn-/foreign-territory?", :kind "defn-", :line 12, :end-line nil, :hash "442986330"} {:id "defn-/country-city-producing-armies?", :kind "defn-", :line 23, :end-line nil, :hash "158463725"} {:id "defn-/flood-fill-unclaimed-land", :kind "defn-", :line 35, :end-line nil, :hash "1989995945"} {:id "defn/stamp-territory", :kind "defn", :line 55, :end-line nil, :hash "-1468700128"} {:id "defn-/computer-army-at?", :kind "defn-", :line 69, :end-line nil, :hash "678298330"} {:id "defn-/country-fill-kind", :kind "defn-", :line 75, :end-line nil, :hash "-1677232935"} {:id "defn-/apply-country-fill-step", :kind "defn-", :line 83, :end-line nil, :hash "-1673515569"} {:id "defn-/flood-fill-country-region", :kind "defn-", :line 93, :end-line nil, :hash "-1716785836"} {:id "defn-/restamp-from-anchors!", :kind "defn-", :line 109, :end-line nil, :hash "719042592"} {:id "defn-/clear-country-id-region-after-failed-conquest!", :kind "defn-", :line 121, :end-line nil, :hash "1484883844"} {:id "defn/move-unit-to", :kind "defn", :line 131, :end-line nil, :hash "836609590"} {:id "defn/random-away-direction", :kind "defn", :line 152, :end-line nil, :hash "-939520040"} {:id "defn/find-wakeable-sentries", :kind "defn", :line 161, :end-line nil, :hash "-1657952121"} {:id "defn/wake-nearby-sentries", :kind "defn", :line 176, :end-line nil, :hash "-1123757030"} {:id "defn/board-transport", :kind "defn", :line 187, :end-line nil, :hash "1793683928"} {:id "defn-/has-city?", :kind "defn-", :line 198, :end-line nil, :hash "-1868148641"} {:id "defn-/declare-game-over!", :kind "defn-", :line 207, :end-line nil, :hash "2008865028"} {:id "defn-/apply-successful-computer-conquest!", :kind "defn-", :line 215, :end-line nil, :hash "1146185183"} {:id "defn-/apply-failed-computer-conquest!", :kind "defn-", :line 244, :end-line nil, :hash "-1442842531"} {:id "defn/attempt-conquest-computer", :kind "defn", :line 252, :end-line nil, :hash "314317599"}]}
 ;; clj-mutate-manifest-end

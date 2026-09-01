@@ -22,7 +22,8 @@
             [empire.computer.ship.carrier :as carrier]
             [empire.computer.early-game.theater :as theater]
             [empire.computer.shared.transport-query :as transport-query]
-            [empire.sound :as sound]))
+            [empire.computer.threat-response.probe :as invasion-probe]
+            [empire.notifications :as notifications]))
 
 (defn handicap-active?
   []
@@ -48,11 +49,14 @@
 (defn declare-game-over!
   [message]
   (sa/write-state! :paused true)
-  (sa/write-state! :warning-message message)
-  (sound/play-bonk!)
+  (notifications/warn! message)
   (sa/write-state! :map-to-display :actual-map)
   (sa/write-state! :player-items [])
   (sa/write-state! :computer-items []))
+
+(defn clear-major-invasion-probe-log!
+  []
+  (invasion-probe/clear-log!))
 
 (defn- apply-round-start-state!
   [{:keys [player-items computer-items game-over waiting-for-input attention-message cells-needing-attention]}]
@@ -156,5 +160,5 @@
   (integrity/check-world-integrity!))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-05-07T10:36:51.735789-05:00", :module-hash "-1790788514", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 25, :hash "1623434577"} {:id "defn/handicap-active?", :kind "defn", :line 27, :end-line 29, :hash "1445275643"} {:id "defn/current-player-items", :kind "defn", :line 31, :end-line 34, :hash "-1375653350"} {:id "defn/update-handicap-before-round!", :kind "defn", :line 36, :end-line 46, :hash "-1774148636"} {:id "defn/declare-game-over!", :kind "defn", :line 48, :end-line 55, :hash "924669775"} {:id "defn-/apply-round-start-state!", :kind "defn-", :line 57, :end-line 65, :hash "-1011890827"} {:id "defn-/owned-item-coordinates", :kind "defn-", :line 67, :end-line 74, :hash "604747286"} {:id "defn/build-player-items", :kind "defn", :line 76, :end-line 79, :hash "-2116360024"} {:id "def/type->priority", :kind "def", :line 81, :end-line 83, :hash "1946935597"} {:id "defn-/unit-processing-order", :kind "defn-", :line 85, :end-line 91, :hash "-780389486"} {:id "defn/build-computer-items", :kind "defn", :line 93, :end-line 99, :hash "-1567124204"} {:id "defn/start-new-round", :kind "defn", :line 101, :end-line 156, :hash "1266033542"}]}
+;; {:version 1, :tested-at "2026-09-01T15:05:13.804106-05:00", :module-hash "526775293", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-860831715"} {:id "defn/handicap-active?", :kind "defn", :line 28, :end-line nil, :hash "1445275643"} {:id "defn/current-player-items", :kind "defn", :line 32, :end-line nil, :hash "-1375653350"} {:id "defn/update-handicap-before-round!", :kind "defn", :line 37, :end-line nil, :hash "-1774148636"} {:id "defn/declare-game-over!", :kind "defn", :line 49, :end-line nil, :hash "298502601"} {:id "defn/clear-major-invasion-probe-log!", :kind "defn", :line 57, :end-line nil, :hash "-1698473431"} {:id "defn-/apply-round-start-state!", :kind "defn-", :line 61, :end-line nil, :hash "-1011890827"} {:id "defn-/owned-item-coordinates", :kind "defn-", :line 71, :end-line nil, :hash "604747286"} {:id "defn/build-player-items", :kind "defn", :line 80, :end-line nil, :hash "-2116360024"} {:id "def/type->priority", :kind "def", :line 85, :end-line nil, :hash "1946935597"} {:id "defn-/unit-processing-order", :kind "defn-", :line 89, :end-line nil, :hash "-780389486"} {:id "defn/build-computer-items", :kind "defn", :line 97, :end-line nil, :hash "-2001454996"} {:id "defn/start-new-round", :kind "defn", :line 105, :end-line nil, :hash "1266033542"}]}
 ;; clj-mutate-manifest-end

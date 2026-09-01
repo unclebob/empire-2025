@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [empire.state.api :as sa]
-            [empire.sound :as sound]))
+            [empire.notifications :as notifications]))
 
 (def ^:private log-path "target/major-invasion-probe.log")
 
@@ -68,9 +68,8 @@
              (not (sa/read-state :major-invasion-probe-hit?)))
     (sa/write-state! :major-invasion-probe-hit? true)
     (sa/write-state! :paused true)
-    (sa/write-state! :warning-message (str "Stopped on " (name kind) ". See " log-path))
-    (sound/play-bonk!)))
+    (notifications/warn! (str "Stopped on " (name kind) ". See " log-path))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-06-17T13:07:55.482784-05:00", :module-hash "-1518765370", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 5, :hash "-1620128482"} {:id "def/log-path", :kind "def", :line 7, :end-line 7, :hash "-444493232"} {:id "defn-/ensure-log-parent!", :kind "defn-", :line 9, :end-line 12, :hash "1773186771"} {:id "defn/clear-log!", :kind "defn", :line 14, :end-line 19, :hash "62872133"} {:id "defn-/stack-lines", :kind "defn-", :line 21, :end-line 26, :hash "-85849438"} {:id "defn-/player-evidence", :kind "defn-", :line 28, :end-line 41, :hash "-2007615286"} {:id "defn-/format-entry", :kind "defn-", :line 43, :end-line 59, :hash "-1260980058"} {:id "defn/log-event!", :kind "defn", :line 61, :end-line 72, :hash "-2044003818"}]}
+;; {:version 1, :tested-at "2026-09-01T15:04:58.393459-05:00", :module-hash "-312072661", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-567330547"} {:id "def/log-path", :kind "def", :line 7, :end-line nil, :hash "-444493232"} {:id "defn-/ensure-log-parent!", :kind "defn-", :line 9, :end-line nil, :hash "1773186771"} {:id "defn/clear-log!", :kind "defn", :line 14, :end-line nil, :hash "62872133"} {:id "defn-/stack-lines", :kind "defn-", :line 21, :end-line nil, :hash "-85849438"} {:id "defn-/player-evidence", :kind "defn-", :line 28, :end-line nil, :hash "-2007615286"} {:id "defn-/format-entry", :kind "defn-", :line 43, :end-line nil, :hash "-1260980058"} {:id "defn/log-event!", :kind "defn", :line 61, :end-line nil, :hash "-708470391"}]}
 ;; clj-mutate-manifest-end

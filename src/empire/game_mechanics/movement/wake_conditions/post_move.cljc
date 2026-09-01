@@ -1,24 +1,14 @@
 (ns empire.game-mechanics.movement.wake-conditions.post-move
   (:require [empire.config.core :as config]
-            [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]
             [empire.config.units.dispatcher :as dispatcher]
             [empire.game-mechanics.movement.wake-conditions.fighter :as fighter-wake]
             [empire.game-mechanics.movement.wake-conditions.transport :as transport-wake]
-            [empire.sound :as sound]))
+            [empire.notifications :as notifications]))
 
 (defn- map-data
   [current-map]
   (map-utils/resolve-map-source current-map))
-
-(defn- write-runtime-state!
-  [k v]
-  (sa/write-state! k v))
-
-(defn- set-warning-message!
-  [msg]
-  (write-runtime-state! :warning-message msg)
-  (sound/play-bonk!))
 
 (defn near-hostile-city?
   [pos current-map]
@@ -94,7 +84,7 @@
 
 (defn- apply-wake-action [unit final-result waypoint-orders wake-up?]
   (when (:shot-down? final-result)
-    (set-warning-message! (:fighter-destroyed-by-city config/messages)))
+    (notifications/warn! (:fighter-destroyed-by-city config/messages)))
   (cond
     waypoint-orders
     (-> unit
@@ -119,5 +109,5 @@
     (apply-wake-action unit final-result waypoint-orders wake-up?)))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T01:34:35.820413-05:00", :module-hash "1512035131", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "675149490"} {:id "defn-/map-data", :kind "defn-", :line 9, :end-line 11, :hash "406913368"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 13, :end-line 15, :hash "1105581680"} {:id "defn-/set-error-message!", :kind "defn-", :line 17, :end-line 20, :hash "678717250"} {:id "defn/near-hostile-city?", :kind "defn", :line 22, :end-line 32, :hash "772669187"} {:id "defn/enemy-unit-visible?", :kind "defn", :line 34, :end-line 54, :hash "1034389278"} {:id "defn-/wake-army-check", :kind "defn-", :line 56, :end-line 58, :hash "1076072861"} {:id "def/wake-check-handlers", :kind "def", :line 60, :end-line 63, :hash "-2086580873"} {:id "defn-/apply-wake-result", :kind "defn-", :line 65, :end-line 70, :hash "-789567457"} {:id "defn-/get-waypoint-orders", :kind "defn-", :line 72, :end-line 76, :hash "-162371689"} {:id "defn-/apply-state-changes", :kind "defn-", :line 78, :end-line 80, :hash "1856624523"} {:id "defn-/compute-handler-result", :kind "defn-", :line 82, :end-line 87, :hash "58939931"} {:id "defn-/determine-final-result", :kind "defn-", :line 89, :end-line 92, :hash "-705184977"} {:id "defn-/apply-wake-action", :kind "defn-", :line 94, :end-line 108, :hash "-2100797452"} {:id "defn/wake-after-move", :kind "defn", :line 110, :end-line 119, :hash "1931814687"}]}
+;; {:version 1, :tested-at "2026-09-01T15:06:52.963645-05:00", :module-hash "187881791", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-582719665"} {:id "defn-/map-data", :kind "defn-", :line 9, :end-line nil, :hash "406913368"} {:id "defn/near-hostile-city?", :kind "defn", :line 13, :end-line nil, :hash "772669187"} {:id "defn/enemy-unit-visible?", :kind "defn", :line 25, :end-line nil, :hash "1034389278"} {:id "defn-/wake-army-check", :kind "defn-", :line 47, :end-line nil, :hash "1076072861"} {:id "def/wake-check-handlers", :kind "def", :line 51, :end-line nil, :hash "-2086580873"} {:id "defn-/apply-wake-result", :kind "defn-", :line 56, :end-line nil, :hash "-789567457"} {:id "defn-/get-waypoint-orders", :kind "defn-", :line 63, :end-line nil, :hash "-162371689"} {:id "defn-/apply-state-changes", :kind "defn-", :line 69, :end-line nil, :hash "1856624523"} {:id "defn-/compute-handler-result", :kind "defn-", :line 73, :end-line nil, :hash "58939931"} {:id "defn-/determine-final-result", :kind "defn-", :line 80, :end-line nil, :hash "-705184977"} {:id "defn-/apply-wake-action", :kind "defn-", :line 85, :end-line nil, :hash "-1032322667"} {:id "defn/wake-after-move", :kind "defn", :line 100, :end-line nil, :hash "1931814687"}]}
 ;; clj-mutate-manifest-end

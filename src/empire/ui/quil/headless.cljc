@@ -1,6 +1,5 @@
 (ns empire.ui.quil.headless
   (:require [empire.state.api :as sa]
-            [empire.computer.threat-response.probe :as invasion-probe]
             [empire.config.core :as config]
             [empire.game.loop.core :as game-loop]
             [empire.game.initialization :as init]
@@ -114,12 +113,12 @@
   (install-seeded-random!)
   (initialize-map!)
   (debug-logging/log-game-map! 0)
-  (invasion-probe/clear-log!)
+  (game-loop/clear-major-invasion-probe-log!)
   (sa/write-state! :headless-mode? true)
   (sa/write-state! :headless-stop-on-major-invasion? false)
   (sa/write-state! :major-invasion-probe-hit? false)
   (run-headless-loop! headless-rounds))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T11:54:43.430454-05:00", :module-hash "363561284", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 8, :hash "1234937160"} {:id "form/1/defonce", :kind "defonce", :line 10, :end-line 10, :hash "-760890569"} {:id "defn/maybe-write-debug-dump-on-exit!", :kind "defn", :line 12, :end-line 20, :hash "1426778471"} {:id "defn/install-debug-dump-shutdown-hook!", :kind "defn", :line 22, :end-line 28, :hash "967178954"} {:id "defn/install-seeded-random!", :kind "defn", :line 30, :end-line 39, :hash "1113929430"} {:id "defn/initialize-map!", :kind "defn", :line 41, :end-line 48, :hash "-1416015415"} {:id "defn-/explored-percentage", :kind "defn-", :line 50, :end-line 59, :hash "-837917730"} {:id "defn-/headless-progress-line", :kind "defn-", :line 61, :end-line 66, :hash "1561443472"} {:id "defn-/print-headless-progress!", :kind "defn-", :line 68, :end-line 72, :hash "1904600067"} {:id "defn-/maybe-print-final-headless-progress!", :kind "defn-", :line 74, :end-line 78, :hash "489370345"} {:id "defn-/finish-headless-run!", :kind "defn-", :line 80, :end-line 85, :hash "2020520941"} {:id "defn-/headless-done?", :kind "defn-", :line 87, :end-line 90, :hash "-79163376"} {:id "defn-/report-progress", :kind "defn-", :line 92, :end-line 98, :hash "-1728153657"} {:id "defn-/run-headless-loop!", :kind "defn-", :line 100, :end-line 110, :hash "-1933881243"} {:id "defn/run-headless!", :kind "defn", :line 112, :end-line 121, :hash "770737425"}]}
+;; {:version 1, :tested-at "2026-09-01T15:05:35.467278-05:00", :module-hash "2115579829", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "461070450"} {:id "form/1/defonce", :kind "defonce", :line 9, :end-line nil, :hash "-760890569"} {:id "defn/maybe-write-debug-dump-on-exit!", :kind "defn", :line 11, :end-line nil, :hash "1426778471"} {:id "defn/install-debug-dump-shutdown-hook!", :kind "defn", :line 21, :end-line nil, :hash "967178954"} {:id "defn/install-seeded-random!", :kind "defn", :line 29, :end-line nil, :hash "1113929430"} {:id "defn/initialize-map!", :kind "defn", :line 40, :end-line nil, :hash "-1416015415"} {:id "defn-/explored-percentage", :kind "defn-", :line 49, :end-line nil, :hash "-1465944282"} {:id "defn-/headless-progress-line", :kind "defn-", :line 60, :end-line nil, :hash "1561443472"} {:id "defn-/print-headless-progress!", :kind "defn-", :line 67, :end-line nil, :hash "1904600067"} {:id "defn-/maybe-print-final-headless-progress!", :kind "defn-", :line 73, :end-line nil, :hash "489370345"} {:id "defn-/finish-headless-run!", :kind "defn-", :line 79, :end-line nil, :hash "2020520941"} {:id "defn-/headless-done?", :kind "defn-", :line 86, :end-line nil, :hash "-79163376"} {:id "defn-/report-progress", :kind "defn-", :line 91, :end-line nil, :hash "-1728153657"} {:id "defn-/run-headless-loop!", :kind "defn-", :line 99, :end-line nil, :hash "-1933881243"} {:id "defn/run-headless!", :kind "defn", :line 111, :end-line nil, :hash "-131883264"}]}
 ;; clj-mutate-manifest-end

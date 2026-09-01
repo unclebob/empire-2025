@@ -3,7 +3,7 @@
             [empire.game-mechanics.visibility :as visibility]
             [empire.game-mechanics.services.combat :as combat]
             [empire.state.api :as sa]
-            [empire.player.warnings :as warnings]))
+            [empire.notifications :as notifications]))
 
 (defn attack-enemy
   [ship-pos enemy-pos]
@@ -14,7 +14,7 @@
                                               (:type defender)
                                               (:winner result))
         dead-unit (if (= :attacker (:winner result)) defender attacker)]
-    (warnings/set-warning-message! message)
+    (notifications/warn! message)
     (sa/update-world! update-in ship-pos dissoc :contents)
     (if (= :attacker (:winner result))
       (do
@@ -46,5 +46,5 @@
     city-pos))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-06-19T12:45:26.953088-05:00", :module-hash "-1301171041", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "-985375616"} {:id "defn/attack-enemy", :kind "defn", :line 8, :end-line 35, :hash "-1634931291"} {:id "defn/dock-computer-ship", :kind "defn", :line 37, :end-line 46, :hash "-1631234714"}]}
+;; {:version 1, :tested-at "2026-09-01T15:06:08.791706-05:00", :module-hash "-1231906298", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-83658329"} {:id "defn/attack-enemy", :kind "defn", :line 8, :end-line nil, :hash "327777025"} {:id "defn/dock-computer-ship", :kind "defn", :line 37, :end-line nil, :hash "-1631234714"}]}
 ;; clj-mutate-manifest-end

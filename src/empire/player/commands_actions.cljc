@@ -10,7 +10,7 @@
             [empire.game-mechanics.containers.ops :as container-ops]
             [empire.player.commands-action-decisions :as decisions]
             [empire.config.units.dispatcher :as dispatcher]
-            [empire.sound :as sound]))
+            [empire.notifications :as notifications]))
 
 (defn- current-world [ctx]
   ((:current-world ctx)))
@@ -122,7 +122,7 @@
 
         :reject
         (do (write-runtime-state! ctx :warning-message (:message decision))
-            (sound/play-bonk!)
+            (notifications/alert!)
             true)
 
         nil)))
@@ -167,7 +167,7 @@
 (defn- reject-click!
   [ctx _attn-coords decision]
   (write-runtime-state! ctx :warning-message (:message decision))
-  (sound/play-bonk!)
+  (notifications/alert!)
   true)
 
 (def ^:private click-handlers
@@ -200,5 +200,5 @@
       (handle-unit-click ctx clicked-coords attention-coords))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-05-07T18:20:40.510309-05:00", :module-hash "1648543001", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line 13, :hash "-1267737409"} {:id "defn-/current-world", :kind "defn-", :line 15, :end-line 16, :hash "1933317035"} {:id "defn-/update-game-map!", :kind "defn-", :line 18, :end-line 19, :hash "416575166"} {:id "defn-/read-runtime-state", :kind "defn-", :line 21, :end-line 22, :hash "1884179192"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 24, :end-line 25, :hash "-908984863"} {:id "defn-/update-runtime-state!", :kind "defn-", :line 27, :end-line 28, :hash "1255797596"} {:id "defn-/item-processed!", :kind "defn-", :line 30, :end-line 32, :hash "821174700"} {:id "defn/handle-space-key", :kind "defn", :line 34, :end-line 55, :hash "796398857"} {:id "def/unload-handlers", :kind "def", :line 57, :end-line 60, :hash "-175350766"} {:id "defn-/run-unload-action!", :kind "defn-", :line 62, :end-line 64, :hash "1816453156"} {:id "defn/handle-unload-key", :kind "defn", :line 66, :end-line 70, :hash "410383859"} {:id "defn/handle-sentry-key", :kind "defn", :line 72, :end-line 95, :hash "851365046"} {:id "defn/handle-look-around-key", :kind "defn", :line 97, :end-line 122, :hash "1834211256"} {:id "defn-/launch-airport-fighter!", :kind "defn-", :line 124, :end-line 130, :hash "-2095311380"} {:id "defn-/disembark-from-transport!", :kind "defn-", :line 132, :end-line 136, :hash "890487919"} {:id "defn-/disembark-with-target!", :kind "defn-", :line 138, :end-line 142, :hash "1929162779"} {:id "defn-/apply-combat-action!", :kind "defn-", :line 144, :end-line 149, :hash "907654037"} {:id "defn-/set-unit-movement!", :kind "defn-", :line 151, :end-line 155, :hash "1052842188"} {:id "defn-/reject-click!", :kind "defn-", :line 157, :end-line 161, :hash "-173384703"} {:id "def/click-handlers", :kind "def", :line 163, :end-line 171, :hash "681052253"} {:id "defn/handle-unit-click", :kind "defn", :line 173, :end-line 182, :hash "418988995"} {:id "defn/handle-cell-click", :kind "defn", :line 184, :end-line 190, :hash "-1491182524"}]}
+;; {:version 1, :tested-at "2026-09-01T15:03:56.648626-05:00", :module-hash "-1968188740", :forms [{:id "form/0/ns", :kind "ns", :line 2, :end-line nil, :hash "1711414380"} {:id "defn-/current-world", :kind "defn-", :line 15, :end-line nil, :hash "1933317035"} {:id "defn-/update-game-map!", :kind "defn-", :line 18, :end-line nil, :hash "416575166"} {:id "defn-/read-runtime-state", :kind "defn-", :line 21, :end-line nil, :hash "1884179192"} {:id "defn-/write-runtime-state!", :kind "defn-", :line 24, :end-line nil, :hash "-908984863"} {:id "defn-/update-runtime-state!", :kind "defn-", :line 27, :end-line nil, :hash "1255797596"} {:id "defn-/item-processed!", :kind "defn-", :line 30, :end-line nil, :hash "821174700"} {:id "defn/handle-space-key", :kind "defn", :line 34, :end-line nil, :hash "796398857"} {:id "def/unload-handlers", :kind "def", :line 57, :end-line nil, :hash "-175350766"} {:id "defn-/run-unload-action!", :kind "defn-", :line 62, :end-line nil, :hash "1816453156"} {:id "defn/handle-unload-key", :kind "defn", :line 66, :end-line nil, :hash "410383859"} {:id "defn/handle-sentry-key", :kind "defn", :line 72, :end-line nil, :hash "851365046"} {:id "defn-/look-around-processed!", :kind "defn-", :line 97, :end-line nil, :hash "2036890010"} {:id "defn-/apply-look-around-mode", :kind "defn-", :line 103, :end-line nil, :hash "-620821138"} {:id "defn-/apply-look-around-decision", :kind "defn-", :line 114, :end-line nil, :hash "510804426"} {:id "defn/handle-look-around-key", :kind "defn", :line 130, :end-line nil, :hash "341214002"} {:id "defn-/launch-airport-fighter!", :kind "defn-", :line 134, :end-line nil, :hash "-2095311380"} {:id "defn-/disembark-from-transport!", :kind "defn-", :line 142, :end-line nil, :hash "890487919"} {:id "defn-/disembark-with-target!", :kind "defn-", :line 148, :end-line nil, :hash "1929162779"} {:id "defn-/apply-combat-action!", :kind "defn-", :line 154, :end-line nil, :hash "907654037"} {:id "defn-/set-unit-movement!", :kind "defn-", :line 161, :end-line nil, :hash "1052842188"} {:id "defn-/reject-click!", :kind "defn-", :line 167, :end-line nil, :hash "-242526960"} {:id "def/click-handlers", :kind "def", :line 173, :end-line nil, :hash "532964997"} {:id "defn/handle-unit-click", :kind "defn", :line 183, :end-line nil, :hash "418988995"} {:id "defn/handle-cell-click", :kind "defn", :line 194, :end-line nil, :hash "-1491182524"}]}
 ;; clj-mutate-manifest-end

@@ -2,7 +2,7 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.player.attention-decisions :as decisions]
-            [empire.sound :as sound]))
+            [empire.notifications :as notifications]))
 
 (defn is-unit-needing-attention?
   "Returns true if there is an attention-needing unit."
@@ -56,9 +56,8 @@
     (sa/write-state! :attention-message (decisions/attention-message context))
     (when-let [reason (decisions/attention-reason context)]
       (when (not= reason (sa/read-state :warning-message))
-        (sa/write-state! :warning-message reason)
-        (sound/play-bonk!)))))
+        (notifications/warn! reason)))))
 
 ;; clj-mutate-manifest-begin
-;; {:version 1, :tested-at "2026-03-27T02:18:14.085667-05:00", :module-hash "454227381", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "1226809292"} {:id "defn/is-unit-needing-attention?", :kind "defn", :line 6, :end-line 9, :hash "120189784"} {:id "defn/is-city-needing-attention?", :kind "defn", :line 11, :end-line 14, :hash "1790114880"} {:id "defn/needs-attention?", :kind "defn", :line 16, :end-line 23, :hash "-2039746276"} {:id "defn/cells-needing-attention", :kind "defn", :line 25, :end-line 29, :hash "-561589124"} {:id "defn/item-needs-attention?", :kind "defn", :line 31, :end-line 37, :hash "-779795582"} {:id "defn/set-attention-message", :kind "defn", :line 39, :end-line 54, :hash "20172865"}]}
+;; {:version 1, :tested-at "2026-09-01T15:03:41.16606-05:00", :module-hash "1224647119", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-1403348952"} {:id "defn/is-unit-needing-attention?", :kind "defn", :line 7, :end-line nil, :hash "120189784"} {:id "defn/is-city-needing-attention?", :kind "defn", :line 12, :end-line nil, :hash "1790114880"} {:id "defn/needs-attention?", :kind "defn", :line 17, :end-line nil, :hash "-2039746276"} {:id "defn/cells-needing-attention", :kind "defn", :line 26, :end-line nil, :hash "-561589124"} {:id "defn/item-needs-attention?", :kind "defn", :line 32, :end-line nil, :hash "-779795582"} {:id "defn/set-attention-message", :kind "defn", :line 40, :end-line nil, :hash "1792886963"}]}
 ;; clj-mutate-manifest-end

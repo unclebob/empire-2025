@@ -15,7 +15,8 @@
             [empire.computer.production.decisions :as production-decisions]
             [empire.computer.ship.carrier :as carrier]
             [empire.computer.early-game.theater :as theater]
-            [empire.computer.shared.transport-query :as transport-query]))
+            [empire.computer.shared.transport-query :as transport-query]
+            [empire.notifications :as notifications]))
 
 (defn read-test-state
   [k]
@@ -126,4 +127,9 @@
   (carrier/clear-carrier-caches!)
   (theater/clear-theater-caches!)
   (transport-query/clear-loading-transport-cache!)
-  (visibility/drain-detections!))
+  (visibility/drain-detections!)
+  (notifications/reset-alert-port!))
+
+;; clj-mutate-manifest-begin
+;; {:version 1, :tested-at "2026-09-01T15:07:08.213438-05:00", :module-hash "-463890779", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line nil, :hash "-769166858"} {:id "defn/read-test-state", :kind "defn", :line 21, :end-line nil, :hash "589015934"} {:id "defn/set-test-state!", :kind "defn", :line 25, :end-line nil, :hash "870665925"} {:id "defn/update-test-state!", :kind "defn", :line 29, :end-line nil, :hash "-1050730755"} {:id "defn/read-test-world", :kind "defn", :line 33, :end-line nil, :hash "-1610409745"} {:id "defn/game-map-atom", :kind "defn", :line 37, :end-line nil, :hash "-1480579774"} {:id "defn/player-map-atom", :kind "defn", :line 41, :end-line nil, :hash "176409169"} {:id "defn/computer-map-atom", :kind "defn", :line 45, :end-line nil, :hash "-2115588914"} {:id "defn/set-test-world!", :kind "defn", :line 49, :end-line nil, :hash "-1130383465"} {:id "defn/set-test-cell!", :kind "defn", :line 53, :end-line nil, :hash "-1048778534"} {:id "defn/set-test-contents!", :kind "defn", :line 57, :end-line nil, :hash "-1933207427"} {:id "defn/clear-test-contents!", :kind "defn", :line 61, :end-line nil, :hash "-1032794746"} {:id "defn/update-test-world!", :kind "defn", :line 65, :end-line nil, :hash "1015896768"} {:id "defn/set-test-player-map!", :kind "defn", :line 69, :end-line nil, :hash "1917677314"} {:id "defn/update-test-player-map!", :kind "defn", :line 73, :end-line nil, :hash "2047748625"} {:id "defn/set-test-computer-map!", :kind "defn", :line 77, :end-line nil, :hash "-1539947896"} {:id "defn/update-test-computer-map!", :kind "defn", :line 81, :end-line nil, :hash "1539668718"} {:id "defn/mission-ctx", :kind "defn", :line 85, :end-line nil, :hash "-2036099439"} {:id "defn/set-major-invasion-state!", :kind "defn", :line 90, :end-line nil, :hash "-1341449945"} {:id "defn/set-kamikazee-fighter!", :kind "defn", :line 94, :end-line nil, :hash "86384771"} {:id "defn/seed-airport-kamikazees!", :kind "defn", :line 105, :end-line nil, :hash "-2138266696"} {:id "defn/reset-all-atoms!", :kind "defn", :line 112, :end-line nil, :hash "733756113"}]}
+;; clj-mutate-manifest-end
