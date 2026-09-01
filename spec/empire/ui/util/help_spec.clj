@@ -1,7 +1,9 @@
 (ns empire.ui.util.help-spec
   (:require [clojure.string :as string]
+            [empire.config.keys :as keys-config]
             [empire.test.utils :as test-utils]
             [empire.ui.util.help :as help]
+            [empire.ui.util.input.dispatch-keys :as dispatch-keys]
             [speclj.core :refer :all]))
 
 (defn- all-entries []
@@ -56,7 +58,23 @@
       (should (string/includes? keys "o"))
       (should (string/includes? explanations "player"))
       (should (string/includes? explanations "computer"))
-      (should (re-find #"(?i)claim|own" explanations)))))
+      (should (re-find #"(?i)claim|own" explanations))))
+
+  (it "lists every configured movement, production, standing-order, and backtick key"
+    (let [blob (keys-text)
+          configured (concat (keys keys-config/key->direction)
+                             (keys keys-config/key->extended-direction)
+                             (keys keys-config/key->production-item)
+                             (keys dispatch-keys/standing-order-handlers)
+                             (keys dispatch-keys/backtick-unit-map)
+                             [:o])]
+      (doseq [k configured]
+        (should (string/includes? blob (name k))))))
+
+  (it "wraps explanations so they fit a help column"
+    (doseq [entry (all-entries)
+            line (help/wrap-words (:explanation entry) help/explanation-wrap)]
+      (should (<= (count line) help/explanation-wrap)))))
 
 (describe "open-help! and close-help!"
   (before (test-utils/reset-all-atoms!))
@@ -89,7 +107,17 @@
       (should (>= (:bottom geom) (+ (:y button) (:h button))))))
 
   (it "labels the dismiss button"
-    (should= "Dismiss" help/dismiss-label)))
+    (should= "Dismiss" help/dismiss-label))
+
+  (it "fits inside the default game window"
+    (let [geom (help/help-geometry 1100 1047)
+          button (:dismiss-button geom)]
+      (should (<= (:width geom) 1100))
+      (should (<= (:height geom) 1047))
+      (should (>= (:x button) 0))
+      (should (>= (:y button) 0))
+      (should (<= (+ (:x button) (:w button)) 1100))
+      (should (<= (+ (:y button) (:h button)) 1047)))))
 
 (describe "dismiss-button-hit?"
   (it "is true inside the dismiss button and false outside"

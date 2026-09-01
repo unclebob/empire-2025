@@ -2,15 +2,15 @@
   (:require [clojure.string :as string]
             [empire.state.api :as sa]))
 
-(def help-width 720)
+(def help-width 1040)
 (def help-padding 16)
 (def title-height 28)
-(def line-height 16)
+(def line-height 20)
 (def button-width 110)
 (def button-height 24)
 (def button-margin 12)
 (def dismiss-label "Dismiss")
-(def explanation-wrap 42)
+(def explanation-wrap 44)
 
 (defn wrap-words
   [s max-chars]
