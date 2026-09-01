@@ -27,7 +27,11 @@
 (def keystroke-sections
   [{:title "Help"
     :entries [{:keys "?"
-               :explanation "Show this list of keystrokes"}]}
+               :explanation "Show this list of keystrokes"}
+              {:keys "Up / Down"
+               :explanation "Scroll this list when the keystrokes do not fit"}
+              {:keys "Mouse wheel"
+               :explanation "Scroll this list when the keystrokes do not fit"}]}
    {:title "Movement"
     :entries [{:keys "q w e a d z x c"
                :explanation "Move one cell in that compass direction"}
@@ -94,14 +98,20 @@
               {:keys "` o"
                :explanation "Claim the city under the mouse for the player"}]}])
 
+(defn- set-scroll!
+  [n]
+  (sa/write-state! :help-scroll n))
+
 (defn open-help!
   []
-  (sa/write-state! :help-open true))
+  (sa/write-state! :help-open true)
+  (set-scroll! 0))
 
 (defn close-help!
   []
   (sa/write-state! :help-open false)
-  (sa/write-state! :help-dismiss-hovered false))
+  (sa/write-state! :help-dismiss-hovered false)
+  (set-scroll! 0))
 
 (defn entry-line-count
   [entry]
@@ -122,22 +132,41 @@
     [(subvec sections 0 mid)
      (subvec sections mid)]))
 
+(defn- chrome-height
+  []
+  (+ help-padding title-height button-margin button-height help-padding))
+
+(defn- capped-height
+  [natural screen-h]
+  (if (pos? screen-h)
+    (min natural screen-h)
+    natural))
+
 (defn help-geometry
   [screen-w screen-h]
   (let [[left-col right-col] (column-sections)
         content-h (max (column-height left-col) (column-height right-col))
-        height (+ help-padding title-height content-h button-margin button-height help-padding)
+        chrome (chrome-height)
+        height (capped-height (+ chrome content-h) screen-h)
+        viewport-h (max 0 (- height chrome))
+        max-scroll (max 0 (- content-h viewport-h))
         left (/ (- screen-w help-width) 2)
         top (/ (- screen-h height) 2)
         button-x (+ left (/ (- help-width button-width) 2))
-        button-y (+ top height (- help-padding) (- button-height))]
+        button-y (+ top height (- help-padding) (- button-height))
+        content-top (+ top help-padding title-height)]
     {:left left
      :top top
      :width help-width
      :height height
      :right (+ left help-width)
      :bottom (+ top height)
-     :content-top (+ top help-padding title-height)
+     :content-top content-top
+     :content-height content-h
+     :viewport-height viewport-h
+     :max-scroll max-scroll
+     :scrollable? (pos? max-scroll)
+     :content-clip {:x left :y content-top :w help-width :h viewport-h}
      :columns [left-col right-col]
      :dismiss-button {:x button-x :y button-y :w button-width :h button-height}}))
 
@@ -166,6 +195,46 @@
   (or (sa/read-state :help-geometry)
       (let [[w h] (window-size)]
         (help-geometry w h))))
+
+(defn current-scroll
+  []
+  (or (sa/read-state :help-scroll) 0))
+
+(defn clamp-scroll
+  [n max-scroll]
+  (max 0 (min (or-zero max-scroll) (or-zero n))))
+
+(defn set-help-scroll!
+  [n]
+  (set-scroll! (clamp-scroll n (:max-scroll (current-geometry) 0))))
+
+(defn scroll-help!
+  [delta]
+  (set-help-scroll! (+ (current-scroll) (or-zero delta))))
+
+(defn handle-help-key
+  [k]
+  (let [view (max line-height (:viewport-height (current-geometry) 0))]
+    (case k
+      :up (scroll-help! (- line-height))
+      :down (scroll-help! line-height)
+      (:page-up :pgup) (scroll-help! (- view))
+      (:page-down :pgdn) (scroll-help! view)
+      :home (set-help-scroll! 0)
+      :end (set-help-scroll! (:max-scroll (current-geometry) 0))
+      nil))
+  true)
+
+(defn- wheel-notches
+  [event]
+  (cond
+    (number? event) event
+    (map? event) (or (:count event) (:wheel-rotation event) 0)
+    :else 0))
+
+(defn handle-help-wheel
+  [event]
+  (scroll-help! (* (wheel-notches event) line-height)))
 
 (defn handle-help-click
   [x y]

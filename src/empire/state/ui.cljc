@@ -29,6 +29,7 @@
    :help-open false
    :help-geometry nil
    :help-dismiss-hovered false
+   :help-scroll 0
    :window-focused? false
    :refocus-click-armed? false
    :refocus-click-saw-press? false

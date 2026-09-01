@@ -129,32 +129,60 @@
               (+ (:left geom) menu-padding)
               (+ input-y 68)))))
 
+(defn- in-clip?
+  [y clip]
+  (or (nil? clip)
+      (and (>= y (:y clip))
+           (< y (+ (:y clip) (:h clip))))))
+
+(defn- draw-clipped-text
+  [s x y clip]
+  (when (in-clip? y clip)
+    (q/text s x y)))
+
 (defn- draw-help-entry
-  [x y entry]
+  [x y entry clip]
   (q/fill 255 220 120)
-  (q/text (:keys entry) x y)
+  (draw-clipped-text (:keys entry) x y clip)
   (q/fill 210 210 210)
   (let [lines (help/wrap-words (:explanation entry) help/explanation-wrap)]
     (doseq [[idx line] (map-indexed vector lines)]
-      (q/text line x (+ y (* (inc idx) help/line-height))))
+      (draw-clipped-text line x (+ y (* (inc idx) help/line-height)) clip))
     (+ y (* (inc (count lines)) help/line-height))))
 
 (defn- draw-help-section
-  [x y section]
+  [x y section clip]
   (q/fill 120 200 255)
-  (q/text (:title section) x y)
+  (draw-clipped-text (:title section) x y clip)
   (let [after-entries (reduce (fn [entry-y entry]
-                                (draw-help-entry x (+ entry-y help/line-height) entry))
+                                (draw-help-entry x (+ entry-y help/line-height) entry clip))
                               y
                               (:entries section))]
     (+ after-entries help/line-height)))
 
 (defn- draw-help-column
-  [x y sections]
+  [x y sections clip]
   (reduce (fn [section-y section]
-            (draw-help-section x section-y section))
+            (draw-help-section x section-y section clip))
           y
           sections))
+
+(defn- draw-help-scrollbar
+  [geom scroll]
+  (when (pos? (:max-scroll geom))
+    (let [clip (:content-clip geom)
+          track-x (+ (:right geom) -14)
+          track-y (:y clip)
+          track-h (:h clip)
+          ratio (/ (:viewport-height geom) (max 1 (:content-height geom)))
+          thumb-h (max 16 (* track-h ratio))
+          travel (max 0 (- track-h thumb-h))
+          thumb-y (+ track-y (* travel (/ scroll (max 1 (:max-scroll geom)))))]
+      (q/fill 60 60 60)
+      (q/no-stroke)
+      (q/rect track-x track-y 8 track-h)
+      (q/fill 190 190 190)
+      (q/rect track-x thumb-y 8 thumb-h))))
 
 (defn- draw-dismiss-button
   [geom]
@@ -186,7 +214,9 @@
           col-width (/ (- (:width geom) (* 3 help/help-padding)) 2)
           left-x (+ (:left geom) help/help-padding)
           right-x (+ left-x col-width help/help-padding)
-          col-y (:content-top geom)]
+          scroll (or (sa/read-state :help-scroll) 0)
+          clip (:content-clip geom)
+          col-y (- (:content-top geom) scroll)]
       (sa/write-state! :help-geometry geom)
       (q/fill 0 0 0 160)
       (q/rect 0 0 screen-w screen-h)
@@ -200,8 +230,9 @@
       (q/text "Keystrokes"
               (+ (:left geom) help/help-padding)
               (+ (:top geom) help/help-padding 14))
-      (draw-help-column left-x col-y left-col)
-      (draw-help-column right-x col-y right-col)
+      (draw-help-column left-x col-y left-col clip)
+      (draw-help-column right-x col-y right-col clip)
+      (draw-help-scrollbar geom scroll)
       (draw-dismiss-button geom))))
 
 ;; clj-mutate-manifest-begin

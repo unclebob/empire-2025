@@ -93,8 +93,8 @@
 (def help-key (keyword "?"))
 
 (defn dispatch-help-key
-  [_k]
-  true)
+  [k]
+  (help/handle-help-key k))
 
 (defn save-dialog-available?
   []

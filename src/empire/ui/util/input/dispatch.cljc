@@ -61,6 +61,10 @@
     (sa/read-state :backtick-pressed) (keys/dispatch-backtick-key k cell-coords)
     :else                   (keys/dispatch-normal-key k cell-coords)))
 
+(defn mouse-wheel
+  [event]
+  (mouse/mouse-wheel event))
+
 (defn key-down
   "Process a key press with explicit mouse coordinates."
   [k mouse-x mouse-y]

@@ -358,6 +358,13 @@
         (should-not (sa/read-state :refocus-click-armed?))
         (should-not (sa/read-state :refocus-click-saw-press?)))))
 
+(describe "mouse-wheel"
+  (it "forwards the wheel event to dispatch"
+    (let [events (atom [])]
+      (with-redefs [empire.ui.util.input.dispatch/mouse-wheel (fn [e] (swap! events conj e))]
+        (should= :state (quil-core/mouse-wheel :state 2))
+        (should= [2] @events)))))
+
 (describe "shutdown helpers"
   (it "closes the sketch and exits with status zero"
     (let [calls (atom [])]

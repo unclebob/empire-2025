@@ -143,6 +143,11 @@
   (dispatch/debug-drag-end! (q/mouse-x) (q/mouse-y) (get-modifiers))
   state)
 
+(defn mouse-wheel
+  [state event]
+  (dispatch/mouse-wheel event)
+  state)
+
 (defn- exit!
   [status]
   (System/exit status))
@@ -205,6 +210,7 @@
                :mouse-pressed mouse-pressed
                :mouse-dragged mouse-dragged
                :mouse-released mouse-released
+               :mouse-wheel mouse-wheel
                :features []
                :middleware [m/fun-mode]
                :on-close on-close

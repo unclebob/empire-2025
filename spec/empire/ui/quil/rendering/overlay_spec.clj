@@ -143,8 +143,8 @@
       (sa/write-state! :help-open true)
       (sa/write-state! :help-dismiss-hovered false)
       (sa/write-state! :text-font :font)
-      (with-redefs [quil.core/width (constantly 800)
-                    quil.core/height (constantly 600)
+      (with-redefs [quil.core/width (constantly 1100)
+                    quil.core/height (constantly 1047)
                     quil.core/fill (fn [& xs] (swap! calls conj [:fill xs]))
                     quil.core/rect (fn [& xs] (swap! calls conj [:rect xs]))
                     quil.core/stroke (fn [& xs] (swap! calls conj [:stroke xs]))
@@ -158,5 +158,25 @@
           (should-contain "Dismiss" texts)
           (should (some #(string/includes? % "`") texts))
           (should (some #(string/includes? % "?") texts)))
-        (should (sa/read-state :help-geometry))))))
+        (should (sa/read-state :help-geometry)))))
+
+  (it "keeps the title and dismiss button when the list is clipped"
+    (let [calls (atom [])]
+      (sa/write-state! :help-open true)
+      (sa/write-state! :help-scroll 0)
+      (sa/write-state! :text-font :font)
+      (with-redefs [quil.core/width (constantly 400)
+                    quil.core/height (constantly 280)
+                    quil.core/fill (fn [& xs] (swap! calls conj [:fill xs]))
+                    quil.core/rect (fn [& xs] (swap! calls conj [:rect xs]))
+                    quil.core/stroke (fn [& xs] (swap! calls conj [:stroke xs]))
+                    quil.core/stroke-weight (fn [& xs] (swap! calls conj [:stroke-weight xs]))
+                    quil.core/text-font (fn [& xs] (swap! calls conj [:text-font xs]))
+                    quil.core/text (fn [& xs] (swap! calls conj [:text xs]))
+                    quil.core/no-stroke (fn [& xs] (swap! calls conj [:no-stroke xs]))]
+        (overlay/draw-help-window)
+        (let [texts (drawn-texts calls)]
+          (should-contain "Keystrokes" texts)
+          (should-contain "Dismiss" texts)
+          (should-not (some #(string/includes? % "` A") texts)))))))
 

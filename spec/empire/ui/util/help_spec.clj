@@ -174,3 +174,62 @@
     (test-utils/set-test-state! :help-geometry (help/help-geometry 800 600))
     (help/handle-help-click 0 0)
     (should= true (test-utils/read-test-state :help-open))))
+
+(defn- short-screen-geom []
+  (help/help-geometry 400 280))
+
+(describe "help-geometry when content does not fit"
+  (it "caps the window to the screen and reports leftover content as scroll"
+    (let [geom (short-screen-geom)]
+      (should (<= (:height geom) 280))
+      (should (> (:content-height geom) (:viewport-height geom)))
+      (should (pos? (:max-scroll geom)))
+      (should (:scrollable? geom))))
+
+  (it "does not need scrolling on a tall screen"
+    (let [geom (help/help-geometry 1100 2000)]
+      (should= 0 (:max-scroll geom))
+      (should-not (:scrollable? geom))
+      (should= (:content-height geom) (:viewport-height geom)))))
+
+(describe "help scrolling"
+  (before
+    (test-utils/reset-all-atoms!)
+    (test-utils/set-test-state! :help-geometry (short-screen-geom)))
+
+  (it "resets scroll when help opens"
+    (test-utils/set-test-state! :help-scroll 40)
+    (help/open-help!)
+    (should= 0 (test-utils/read-test-state :help-scroll)))
+
+  (it "resets scroll when help closes"
+    (help/open-help!)
+    (test-utils/set-test-state! :help-scroll 40)
+    (help/close-help!)
+    (should= 0 (test-utils/read-test-state :help-scroll)))
+
+  (it "clamps scroll to the hidden content"
+    (let [max-scroll (:max-scroll (short-screen-geom))]
+      (help/scroll-help! 10000)
+      (should= max-scroll (test-utils/read-test-state :help-scroll))
+      (help/scroll-help! -10000)
+      (should= 0 (test-utils/read-test-state :help-scroll))))
+
+  (it "scrolls one line down and up with the arrow keys"
+    (help/handle-help-key :down)
+    (should= help/line-height (test-utils/read-test-state :help-scroll))
+    (help/handle-help-key :up)
+    (should= 0 (test-utils/read-test-state :help-scroll)))
+
+  (it "jumps to the end and back to the top"
+    (help/handle-help-key :end)
+    (should= (:max-scroll (short-screen-geom))
+             (test-utils/read-test-state :help-scroll))
+    (help/handle-help-key :home)
+    (should= 0 (test-utils/read-test-state :help-scroll)))
+
+  (it "scrolls by the mouse wheel"
+    (help/handle-help-wheel 2)
+    (should= (* 2 help/line-height) (test-utils/read-test-state :help-scroll))
+    (help/handle-help-wheel {:count -1})
+    (should= help/line-height (test-utils/read-test-state :help-scroll))))

@@ -53,6 +53,11 @@
     (sa/read-state :load-menu-open) (handle-load-menu-mouse button)
     :else (handle-map-mouse x y button)))
 
+(defn mouse-wheel
+  [event]
+  (when (sa/read-state :help-open)
+    (help/handle-help-wheel event)))
+
 (defn modifier-held?
   [modifiers]
   (or (:ctrl modifiers) (:meta modifiers) (:alt modifiers)))

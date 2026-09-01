@@ -57,3 +57,22 @@
       (test-utils/set-test-state! :help-geometry geom)
       (dispatch/mouse-down (+ (:x button) 2) (+ (:y button) 2) :right)
       (should= true (test-utils/read-test-state :help-open)))))
+
+(describe "scrolling while help is open"
+  (before
+    (test-utils/reset-all-atoms!)
+    (test-utils/set-test-state! :help-open true)
+    (test-utils/set-test-state! :help-geometry (help/help-geometry 400 280)))
+
+  (it "scrolls down with the down arrow"
+    (dispatch/dispatch-key :down nil)
+    (should= help/line-height (test-utils/read-test-state :help-scroll)))
+
+  (it "scrolls with the mouse wheel"
+    (dispatch/mouse-wheel 1)
+    (should= help/line-height (test-utils/read-test-state :help-scroll)))
+
+  (it "does not scroll the help list when help is closed"
+    (test-utils/set-test-state! :help-open false)
+    (dispatch/mouse-wheel 3)
+    (should= 0 (test-utils/read-test-state :help-scroll))))
