@@ -25,7 +25,8 @@
   (it "does not place backtick units"
     (test-utils/set-test-state! :backtick-pressed true)
     (dispatch/dispatch-key :A [0 0])
-    (should= true (test-utils/read-test-state :help-open))))
+    (should= true (test-utils/read-test-state :help-open))
+    (should= true (test-utils/read-test-state :backtick-pressed))))
 
 (describe "mouse while help is open"
   (before
