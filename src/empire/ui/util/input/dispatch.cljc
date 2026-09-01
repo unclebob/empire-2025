@@ -57,6 +57,7 @@
   (cond
     (sa/read-state :save-menu-open)   (keys/dispatch-save-menu-key k)
     (sa/read-state :load-menu-open)   (keys/dispatch-load-menu-key k)
+    (sa/read-state :help-open)        (keys/dispatch-help-key k)
     (sa/read-state :backtick-pressed) (keys/dispatch-backtick-key k cell-coords)
     :else                   (keys/dispatch-normal-key k cell-coords)))
 

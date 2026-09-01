@@ -1,5 +1,6 @@
 (ns empire.ui.quil.rendering.overlay-spec
-  (:require [empire.state.api :as sa]
+  (:require [clojure.string :as string]
+            [empire.state.api :as sa]
             [empire.test.utils :refer [reset-all-atoms!]]
             [empire.ui.quil.rendering.overlay :as overlay]
             [speclj.core :refer :all]))
@@ -115,3 +116,47 @@
         (should-contain [:text ["Bob" 31 76]] @calls)
         (should-contain [:text ["Enter=Save  Esc=Cancel" 25 102]] @calls)
         (should-contain [:text ["Backspace/Delete=Remove Last" 25 120]] @calls)))))
+
+(defn- drawn-texts [calls]
+  (map (comp first second) (filter #(= :text (first %)) @calls)))
+
+(describe "draw-help-window"
+  (before (reset-all-atoms!))
+
+  (it "does not draw when help is closed"
+    (let [calls (atom [])]
+      (sa/write-state! :help-open false)
+      (with-redefs [quil.core/width (constantly 800)
+                    quil.core/height (constantly 600)
+                    quil.core/fill (fn [& xs] (swap! calls conj [:fill xs]))
+                    quil.core/rect (fn [& xs] (swap! calls conj [:rect xs]))
+                    quil.core/stroke (fn [& xs] (swap! calls conj [:stroke xs]))
+                    quil.core/stroke-weight (fn [& xs] (swap! calls conj [:stroke-weight xs]))
+                    quil.core/text-font (fn [& xs] (swap! calls conj [:text-font xs]))
+                    quil.core/text (fn [& xs] (swap! calls conj [:text xs]))
+                    quil.core/no-stroke (fn [& xs] (swap! calls conj [:no-stroke xs]))]
+        (overlay/draw-help-window)
+        (should= [] @calls))))
+
+  (it "renders keystroke explanations and a dismiss button"
+    (let [calls (atom [])]
+      (sa/write-state! :help-open true)
+      (sa/write-state! :help-dismiss-hovered false)
+      (sa/write-state! :text-font :font)
+      (with-redefs [quil.core/width (constantly 800)
+                    quil.core/height (constantly 600)
+                    quil.core/fill (fn [& xs] (swap! calls conj [:fill xs]))
+                    quil.core/rect (fn [& xs] (swap! calls conj [:rect xs]))
+                    quil.core/stroke (fn [& xs] (swap! calls conj [:stroke xs]))
+                    quil.core/stroke-weight (fn [& xs] (swap! calls conj [:stroke-weight xs]))
+                    quil.core/text-font (fn [& xs] (swap! calls conj [:text-font xs]))
+                    quil.core/text (fn [& xs] (swap! calls conj [:text xs]))
+                    quil.core/no-stroke (fn [& xs] (swap! calls conj [:no-stroke xs]))]
+        (overlay/draw-help-window)
+        (let [texts (drawn-texts calls)]
+          (should-contain "Keystrokes" texts)
+          (should-contain "Dismiss" texts)
+          (should (some #(string/includes? % "`") texts))
+          (should (some #(string/includes? % "?") texts)))
+        (should (sa/read-state :help-geometry))))))
+
