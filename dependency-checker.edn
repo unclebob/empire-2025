@@ -2,7 +2,7 @@
  {:computer [:config :game-mechanics :state :notifications],
   :architecture [],
   :config [],
-  :game [:computer :config :game-mechanics :player :state :notifications],
+  :game [:computer :config :game-mechanics :player :state],
   :state [:config],
   :acceptance
   [:computer :config :game :game-mechanics :state :test :ui :pipeline],
