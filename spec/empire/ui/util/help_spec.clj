@@ -228,8 +228,42 @@
     (help/handle-help-key :home)
     (should= 0 (test-utils/read-test-state :help-scroll)))
 
+  (it "scrolls by a page with page-down and page-up"
+    (let [geom (short-screen-geom)
+          view (max help/line-height (:viewport-height geom))
+          expected (help/clamp-scroll view (:max-scroll geom))]
+      (help/handle-help-key :page-down)
+      (should= expected (test-utils/read-test-state :help-scroll))
+      (help/handle-help-key :page-up)
+      (should= 0 (test-utils/read-test-state :help-scroll))))
+
+  (it "accepts pgdn and pgup aliases"
+    (let [geom (short-screen-geom)
+          view (max help/line-height (:viewport-height geom))
+          expected (help/clamp-scroll view (:max-scroll geom))]
+      (help/handle-help-key :pgdn)
+      (should= expected (test-utils/read-test-state :help-scroll))
+      (help/handle-help-key :pgup)
+      (should= 0 (test-utils/read-test-state :help-scroll))))
+
+  (it "ignores keys that are not scroll commands"
+    (should (help/handle-help-key :P))
+    (should= 0 (test-utils/read-test-state :help-scroll)))
+
   (it "scrolls by the mouse wheel"
     (help/handle-help-wheel 2)
     (should= (* 2 help/line-height) (test-utils/read-test-state :help-scroll))
     (help/handle-help-wheel {:count -1})
-    (should= help/line-height (test-utils/read-test-state :help-scroll))))
+    (should= help/line-height (test-utils/read-test-state :help-scroll)))
+
+  (it "reads wheel-rotation when count is absent"
+    (help/handle-help-wheel {:wheel-rotation 1})
+    (should= help/line-height (test-utils/read-test-state :help-scroll)))
+
+  (it "treats an unknown wheel event as no movement"
+    (help/handle-help-wheel "noop")
+    (should= 0 (test-utils/read-test-state :help-scroll)))
+
+  (it "treats a wheel map without counts as no movement"
+    (help/handle-help-wheel {})
+    (should= 0 (test-utils/read-test-state :help-scroll))))

@@ -212,24 +212,38 @@
   [delta]
   (set-help-scroll! (+ (current-scroll) (or-zero delta))))
 
+(defn- page-scroll
+  []
+  (max line-height (:viewport-height (current-geometry) 0)))
+
+(defn- help-key-actions
+  []
+  (let [view (page-scroll)
+        max-scroll (:max-scroll (current-geometry) 0)]
+    {:up #(scroll-help! (- line-height))
+     :down #(scroll-help! line-height)
+     :page-up #(scroll-help! (- view))
+     :pgup #(scroll-help! (- view))
+     :page-down #(scroll-help! view)
+     :pgdn #(scroll-help! view)
+     :home #(set-help-scroll! 0)
+     :end #(set-help-scroll! max-scroll)}))
+
 (defn handle-help-key
   [k]
-  (let [view (max line-height (:viewport-height (current-geometry) 0))]
-    (case k
-      :up (scroll-help! (- line-height))
-      :down (scroll-help! line-height)
-      (:page-up :pgup) (scroll-help! (- view))
-      (:page-down :pgdn) (scroll-help! view)
-      :home (set-help-scroll! 0)
-      :end (set-help-scroll! (:max-scroll (current-geometry) 0))
-      nil))
+  (when-let [action ((help-key-actions) k)]
+    (action))
   true)
+
+(defn- wheel-from-map
+  [event]
+  (or (:count event) (:wheel-rotation event) 0))
 
 (defn- wheel-notches
   [event]
   (cond
     (number? event) event
-    (map? event) (or (:count event) (:wheel-rotation event) 0)
+    (map? event) (wheel-from-map event)
     :else 0))
 
 (defn handle-help-wheel
