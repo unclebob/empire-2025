@@ -66,6 +66,14 @@
 (defn- coastal-land-or-city? [comp-map cell-type pos]
   (and (land-or-city? cell-type) (coastal? comp-map pos)))
 
+(defn- accumulate-scanned-unit
+  [acc ucid unit cell-type is-coastal]
+  (case (:type unit)
+    :army (accumulate-army acc ucid cell-type is-coastal)
+    :transport (accumulate-transport acc ucid unit)
+    :patrol-boat (update-country acc ucid :patrol-boat-count inc)
+    acc))
+
 (defn- scan-cell-unit [acc comp-map i j]
   (let [unit (:contents (get-in comp-map [i j]))
         ucid (:country-id unit)]
@@ -74,11 +82,7 @@
       (let [cell-type (or (:type (get-in comp-map [i j]))
                           :unexplored)
             is-coastal (coastal-land-or-city? comp-map cell-type [i j])]
-        (case (:type unit)
-          :army (accumulate-army acc ucid cell-type is-coastal)
-          :transport (accumulate-transport acc ucid unit)
-          :patrol-boat (update-country acc ucid :patrol-boat-count inc)
-          acc)))))
+        (accumulate-scanned-unit acc ucid unit cell-type is-coastal)))))
 
 (defn- scan-cell [acc comp-map i j]
   (-> acc
@@ -108,29 +112,35 @@
                                (>= land-armies (* 2/3 coastal-cells))))))))
     {} raw))
 
+(defn- computer-owned-unit?
+  [unit]
+  (and unit (= :computer (:owner unit))))
+
+(defn- computer-city-cell?
+  [cell]
+  (and (= :city (:type cell))
+       (= :computer (:city-status cell))))
+
+(defn- scan-cell-assets
+  [acc cell]
+  (let [unit (:contents cell)
+        computer-unit? (computer-owned-unit? unit)]
+    (cond-> acc
+      computer-unit?
+      (update :unit-counts
+              (fn [counts]
+                (update (or counts {}) (:type unit) (fnil inc 0))))
+
+      (computer-city-cell? cell)
+      (update :computer-city-count inc)
+
+      (and computer-unit? (= :fighter (:type unit)))
+      (update :computer-fighter-count inc))))
+
 (defn scan-computer-assets [comp-map]
   (reduce
-   (fn [{:keys [unit-counts computer-city-count computer-fighter-count] :as acc}
-        column]
-     (reduce
-      (fn [inner-acc cell]
-        (let [unit (:contents cell)
-              computer-unit? (and unit (= :computer (:owner unit)))
-              computer-city? (and (= :city (:type cell))
-                                  (= :computer (:city-status cell)))]
-          (cond-> inner-acc
-            computer-unit?
-            (update :unit-counts
-                    (fn [counts]
-                      (update (or counts {}) (:type unit) (fnil inc 0))))
-
-            computer-city?
-            (update :computer-city-count inc)
-
-            (and computer-unit? (= :fighter (:type unit)))
-            (update :computer-fighter-count inc))))
-      acc
-      column))
+   (fn [acc column]
+     (reduce scan-cell-assets acc column))
    {:unit-counts {}
     :computer-city-count 0
     :computer-fighter-count 0}

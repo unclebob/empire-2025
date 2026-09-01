@@ -25,19 +25,35 @@
               (:pickup-country-id transport)])
         nil))
 
+(defn- empty-unclaimed-land?
+  [cell]
+  (and (= :land (:type cell))
+       (nil? (:country-id cell))))
+
+(defn- capturable-empty-city?
+  [cell]
+  (and (= :city (:type cell))
+       (#{:free :player} (:city-status cell))))
+
+(defn- allowed-unload-country?
+  [cell exclude-ids]
+  (or (empty? exclude-ids)
+      (not (contains? exclude-ids (:country-id cell)))))
+
+(defn- allowed-major-invasion-land?
+  [neighbor-pos major-invasion?]
+  (or (not major-invasion?)
+      (threat-response/major-invasion-target-land? neighbor-pos)))
+
 (defn unloadable-land-cell?
   "Returns true if cell is empty land/city not excluded by country-id."
   [cell neighbor-pos exclude-ids major-invasion?]
   (and cell
-       (or (and (= :land (:type cell))
-                (nil? (:country-id cell)))
-           (and (= :city (:type cell))
-                (#{:free :player} (:city-status cell))))
+       (or (empty-unclaimed-land? cell)
+           (capturable-empty-city? cell))
        (nil? (:contents cell))
-       (or (not major-invasion?)
-           (threat-response/major-invasion-target-land? neighbor-pos))
-       (or (empty? exclude-ids)
-           (not (contains? exclude-ids (:country-id cell))))))
+       (allowed-major-invasion-land? neighbor-pos major-invasion?)
+       (allowed-unload-country? cell exclude-ids)))
 
 (defn adjacent-empty-land
   "Returns adjacent land/city positions that are empty (no unit).
@@ -287,11 +303,8 @@
     (sort
      (filter (fn [neighbor]
                (let [cell (get-in game-map neighbor)]
-                 (and cell
-                      (or (and (= :land (:type cell))
-                               (nil? (:country-id cell)))
-                          (and (= :city (:type cell))
-                               (#{:free :player} (:city-status cell))))
+                 (and (or (empty-unclaimed-land? cell)
+                          (capturable-empty-city? cell))
                       (nil? (:contents cell)))))
              (world-query/get-neighbors pos)))))
 
@@ -306,58 +319,44 @@
                     (nil? (:contents cell)))))
            (world-query/get-neighbors pos))))
 
-(defn try-opportunistic-unload
-  "If transport has armies and there is adjacent empty land,
-   unload all possible armies onto targets. Returns true if any unloaded."
-  [pos]
-  (let [game-map (sa/read-state :computer-map)
-        transport (get-in game-map (conj pos :contents))
+(defn- unload-to-targets!
+  [pos targets record-country?]
+  (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         army-count (:army-count transport 0)
-        targets (when (pos? army-count)
-                  (adjacent-empty-land-any game-map pos))
         to-unload (min army-count (count targets))]
     (when (pos? to-unload)
       (let [selected-targets (take to-unload targets)
             unload-eid (:unload-event-id transport)]
         (place-unloaded-armies! pos selected-targets transport unload-eid)
-        (record-unloaded-country! pos selected-targets)
+        (when record-country?
+          (record-unloaded-country! pos selected-targets))
         (finish-unload! pos army-count to-unload)
         true))))
+
+(defn try-opportunistic-unload
+  "If transport has armies and there is adjacent empty land,
+   unload all possible armies onto targets. Returns true if any unloaded."
+  [pos]
+  (let [game-map (sa/read-state :computer-map)
+        army-count (:army-count (get-in game-map (conj pos :contents)) 0)]
+    (when (pos? army-count)
+      (unload-to-targets! pos (adjacent-empty-land-any game-map pos) true))))
 
 (defn try-opportunistic-unload-any-land
   "Lake-locked transport unload: drop armies on any adjacent empty land/city.
    Ignores major-invasion target filtering and pickup exclusions."
   [pos]
   (let [game-map (sa/read-state :computer-map)
-        transport (get-in game-map (conj pos :contents))
-        army-count (:army-count transport 0)
-        targets (when (pos? army-count)
-                  (adjacent-empty-land-any game-map pos))
-        to-unload (min army-count (count targets))]
-    (when (pos? to-unload)
-      (let [unload-eid (:unload-event-id transport)
-            selected-targets (take to-unload targets)]
-        (place-unloaded-armies! pos selected-targets transport unload-eid)
-        (finish-unload! pos army-count to-unload)
-        true))))
+        army-count (:army-count (get-in game-map (conj pos :contents)) 0)]
+    (when (pos? army-count)
+      (unload-to-targets! pos (adjacent-empty-land-any game-map pos) false))))
 
 (defn unload-armies
   "Unload armies onto adjacent unclaimed land. Returns true if any unloaded."
   ([pos]
    (unload-armies pos nil))
   ([pos _]
-   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
-         army-count (:army-count transport 0)]
-     (when (pos? army-count)
-       (let [land-neighbors (adjacent-unloadable-neighbors pos)
-             to-unload (min army-count (count land-neighbors))]
-         (when (pos? to-unload)
-           (let [selected-targets (take to-unload land-neighbors)
-                 unload-eid (:unload-event-id transport)]
-             (place-unloaded-armies! pos selected-targets transport unload-eid)
-             (record-unloaded-country! pos selected-targets)
-             (finish-unload! pos army-count to-unload))
-           true))))))
+   (unload-to-targets! pos (adjacent-unloadable-neighbors pos) true)))
 
 (defn unloading-crawl-move
   "Moves unloading transport to adjacent coastal sea cell to find empty land.

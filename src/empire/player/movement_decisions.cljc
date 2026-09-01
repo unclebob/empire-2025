@@ -5,12 +5,18 @@
   (when (and (not extended?) undamaged-ship-entering-friendly-city?)
     :reject-undamaged-ship))
 
+(defn- immediate-city-combat
+  [unit-type]
+  (cond
+    (= :army unit-type) :army-conquest
+    (= :fighter unit-type) :fighter-overfly
+    :else nil))
+
 (defn hostile-combat-action
   [unit-type extended? immediate-hostile-city? coastal-army-attack?]
   (cond
     coastal-army-attack? :coastal-army-attack
-    (and (not extended?) immediate-hostile-city? (= :army unit-type)) :army-conquest
-    (and (not extended?) immediate-hostile-city? (= :fighter unit-type)) :fighter-overfly
+    (and (not extended?) immediate-hostile-city?) (immediate-city-combat unit-type)
     :else nil))
 
 (defn standard-movement-action

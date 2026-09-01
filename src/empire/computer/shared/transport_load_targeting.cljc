@@ -133,24 +133,27 @@
                              :when (in-bounds? computer-map candidate)]
                          candidate))))
 
+(defn- search-path-to-load-target
+  [start computer-map target passable-sea?]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+         visited #{start}
+         came-from {}]
+    (when (seq queue)
+      (let [current (peek queue)]
+        (if (target-adjacent-sea? computer-map start target current)
+          (vec (rest (map-utils/reconstruct-path came-from start current)))
+          (let [neighbors (bfs-core/bfs-sea-neighbors current visited passable-sea?)]
+            (recur (into (pop queue) neighbors)
+                   (into visited neighbors)
+                   (reduce #(assoc %1 %2 current) came-from neighbors))))))))
+
 (defn path-to-load-target
   [start computer-map target]
   (let [passable-sea? #(bfs-core/transport-passable-sea? computer-map start %)]
     (when (and target (passable-sea? start))
       (if (target-adjacent-sea? computer-map start target start)
         []
-        (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
-               visited #{start}
-               came-from {}]
-          (when (seq queue)
-            (let [current (peek queue)]
-              (if (target-adjacent-sea? computer-map start target current)
-                (vec (rest (map-utils/reconstruct-path came-from start current)))
-                (let [neighbors (bfs-core/bfs-sea-neighbors current visited passable-sea?)
-                      new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
-                  (recur (into (pop queue) neighbors)
-                         (into visited neighbors)
-                         new-came-from))))))))))
+        (search-path-to-load-target start computer-map target passable-sea?)))))
 
 (defn target-reached?
   [transport-pos target]

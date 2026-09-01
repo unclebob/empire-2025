@@ -62,6 +62,12 @@
           :cljs
           (str "Explain: " (pr-str explain-data) "\n"))))
 
+(defn- optional-log-section
+  [entries format-fn]
+  (if (seq entries)
+    (str (str/join "\n" (map format-fn entries)) "\n")
+    "  (none)\n"))
+
 (defn format-integrity-report
   [invalids]
   (let [round (sa/read-state :round-number)
@@ -75,17 +81,11 @@
          "=== Invalid Cells ===\n"
          (str/join "\n" (map format-invalid-cell invalids))
          "\n=== Actions (last 50) ===\n"
-         (if (seq actions)
-           (str (str/join "\n" (map format-action-entry actions)) "\n")
-           "  (none)\n")
+         (optional-log-section actions format-action-entry)
          "\n=== Computer Events (this round) ===\n"
-         (if (seq computer-events)
-           (str (str/join "\n" (map format-computer-event-entry computer-events)) "\n")
-           "  (none)\n")
+         (optional-log-section computer-events format-computer-event-entry)
          "\n=== Player Movements (this round) ===\n"
-         (if (seq player-moves)
-           (str (str/join "\n" (map format-movement-entry player-moves)) "\n")
-           "  (none)\n"))))
+         (optional-log-section player-moves format-movement-entry))))
 
 (defn generate-error-filename
   []

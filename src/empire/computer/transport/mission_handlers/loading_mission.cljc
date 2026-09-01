@@ -1,18 +1,28 @@
 (ns empire.computer.transport.mission-handlers.loading-mission
   (:require [empire.computer.transport.loading :as loading]))
 
+(defn- finish-planned-loading
+  [start-sailing transition-to-loading pos transport' empty?]
+  (if empty?
+    (transition-to-loading pos)
+    (start-sailing pos transport')))
+
+(defn- stale-loading-action
+  [start-sailing transition-to-loading pos transport' army-count' empty?]
+  (if (and (<= 2 army-count') (<= army-count' 3) (not empty?))
+    (start-sailing pos transport')
+    (transition-to-loading pos)))
+
 (defn- planned-loading-action
   [start-sailing transition-to-loading pos transport']
   (let [army-count' (:army-count transport' 0)
         empty? (zero? army-count')]
     (cond
       (or (>= army-count' 6) (loading/manifest-empty? transport'))
-      (if empty? (transition-to-loading pos) (start-sailing pos transport'))
+      (finish-planned-loading start-sailing transition-to-loading pos transport' empty?)
 
       (loading/loading-stale? transport')
-      (if (and (<= 2 army-count') (<= army-count' 3) (not empty?))
-        (start-sailing pos transport')
-        (transition-to-loading pos)))))
+      (stale-loading-action start-sailing transition-to-loading pos transport' army-count' empty?))))
 
 (defn process-loading-mission
   [{:keys [current-world

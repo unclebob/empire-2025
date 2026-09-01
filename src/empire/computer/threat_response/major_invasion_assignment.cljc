@@ -5,14 +5,22 @@
             [empire.computer.threat-response.kamikazee :as kamikazee]
             [empire.state.api :as sa]))
 
+(defn- ctx-major-invasion-state
+  [ctx]
+  (or (when-let [load-major-invasion-state (:load-major-invasion-state ctx)]
+        (load-major-invasion-state))
+      {}))
+
+(defn- ctx-visible-world
+  [ctx]
+  (or (when-let [read-runtime-state (:read-runtime-state ctx)]
+        (read-runtime-state :computer-map))
+      (sa/read-state :computer-map)))
+
 (defn- assign-fighter-major-invasion!
   [ctx pos unit]
-  (let [state (or (when-let [load-major-invasion-state (:load-major-invasion-state ctx)]
-                    (load-major-invasion-state))
-                  {})
-        visible-world (or (when-let [read-runtime-state (:read-runtime-state ctx)]
-                            (read-runtime-state :computer-map))
-                          (sa/read-state :computer-map))
+  (let [state (ctx-major-invasion-state ctx)
+        visible-world (ctx-visible-world ctx)
         targets (kamikazee/ordered-army-target-positions state
                                                          (kamikazee/current-round ctx)
                                                          visible-world)
@@ -57,26 +65,22 @@
         ((:update-game-map! ctx) update-in (conj pos :contents)
          #(when (:type %) (merge % (decisions/army-coast-assignment target))))))))
 
+(defn- apply-remaining-invasion-assignment!
+  [ctx pos unit action]
+  (case action
+    :transport ((:prepare-transport-major-invasion!-fn ctx) pos unit)
+    :army (assign-army-invasion-embark! ctx pos unit)
+    nil))
+
 (defn apply-major-invasion-assignment!
   [ctx pos unit]
-  (case (decisions/assignment-action {:type (:type unit)
-                                      :major-invasion-ship-types (:major-invasion-ship-types ctx)})
-    :fighter
-      (assign-fighter-major-invasion! ctx pos unit)
-
-    :carrier
-    (assign-carrier-major-invasion! ctx pos)
-
-    :ship
-    (assign-ship-major-invasion! ctx pos)
-
-    :transport
-    ((:prepare-transport-major-invasion!-fn ctx) pos unit)
-
-    :army
-    (assign-army-invasion-embark! ctx pos unit)
-
-    nil))
+  (let [action (decisions/assignment-action {:type (:type unit)
+                                             :major-invasion-ship-types (:major-invasion-ship-types ctx)})]
+    (case action
+      :fighter (assign-fighter-major-invasion! ctx pos unit)
+      :carrier (assign-carrier-major-invasion! ctx pos)
+      :ship (assign-ship-major-invasion! ctx pos)
+      (apply-remaining-invasion-assignment! ctx pos unit action))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-26T23:49:21.138539-05:00", :module-hash "-707312276", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "486995880"} {:id "defn-/assign-fighter-major-invasion!", :kind "defn-", :line 8, :end-line 32, :hash "-539796309"} {:id "defn-/assign-carrier-major-invasion!", :kind "defn-", :line 34, :end-line 42, :hash "1752602620"} {:id "defn-/assign-ship-major-invasion!", :kind "defn-", :line 44, :end-line 47, :hash "2445993"} {:id "defn-/assign-army-invasion-embark!", :kind "defn-", :line 49, :end-line 56, :hash "672693173"} {:id "defn/apply-major-invasion-assignment!", :kind "defn", :line 58, :end-line 77, :hash "-1384849297"}]}

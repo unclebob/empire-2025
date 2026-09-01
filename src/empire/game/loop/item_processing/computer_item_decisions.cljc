@@ -13,6 +13,12 @@
     (sequential? items) items
     :else []))
 
+(defn- computer-unit-item-action
+  [new-coords]
+  (if new-coords
+    {:action :unit-continue :new-coords new-coords}
+    {:action :unit-done}))
+
 (defn computer-item-action
   [{:keys [cell launched-pos new-coords should-requeue-city?]}]
   (let [is-computer-city? (and (= (:type cell) :city) (= (:city-status cell) :computer))
@@ -24,9 +30,7 @@
        :launched-pos launched-pos}
 
       has-computer-unit?
-      (if new-coords
-        {:action :unit-continue :new-coords new-coords}
-        {:action :unit-done})
+      (computer-unit-item-action new-coords)
 
       is-computer-city?
       {:action :city-done}
@@ -34,26 +38,17 @@
       :else
       {:action :drop})))
 
+(defn- apply-launch-items
+  [items action remaining]
+  (cond-> (vec (cons (:launched-pos action) remaining))
+    (:requeue-city? action) (#(vec (cons (first (normalize-computer-items items)) %)))))
+
 (defn next-computer-items
   [items action]
   (let [remaining (vec (rest (normalize-computer-items items)))]
     (case (:action action)
-      :launch
-      (cond-> (vec (cons (:launched-pos action) remaining))
-        (:requeue-city? action) (#(vec (cons (first (normalize-computer-items items)) %))))
-
-      :unit-continue
-      (vec (cons (:new-coords action) remaining))
-
-      :unit-done
-      remaining
-
-      :city-done
-      remaining
-
-      :drop
-      remaining
-
+      :launch (apply-launch-items items action remaining)
+      :unit-continue (vec (cons (:new-coords action) remaining))
       remaining)))
 
 (defn computer-item-state

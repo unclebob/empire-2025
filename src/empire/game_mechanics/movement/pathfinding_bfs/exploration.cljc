@@ -97,6 +97,26 @@
       (cache/get-unexplored cache-key)
       (cache/put-unexplored! cache-key (find-nearest-unexplored-coastline-uncached start unit-type)))))
 
+(defn- unexplored-coast-hit?
+  [start current computer-map]
+  (and (not= current start)
+       (adjacent-to-unexplored? current computer-map)))
+
+(defn- search-unexplored-coast
+  [start computer-map passable-sea?]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+         visited #{start}
+         came-from {}]
+    (when (seq queue)
+      (let [current (peek queue)
+            rest-queue (pop queue)]
+        (if (unexplored-coast-hit? start current computer-map)
+          (vec (rest (map-utils/reconstruct-path came-from start current)))
+          (let [neighbors (core/bfs-sea-neighbors current visited passable-sea?)]
+            (recur (into rest-queue neighbors)
+                   (into visited neighbors)
+                   (reduce #(assoc %1 %2 current) came-from neighbors))))))))
+
 (defn bfs-to-unexplored-coast
   "BFS from start over explored sea cells on computer-map to find nearest
    cell adjacent to unexplored territory. Returns path excluding start."
@@ -105,26 +125,7 @@
                             #(core/passable-sea? computer-map %)))
   ([start computer-map passable-sea?]
     (when (passable-sea? start)
-      (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
-             visited #{start}
-             came-from {}]
-        (when (seq queue)
-          (let [current (peek queue)
-                rest-queue (pop queue)]
-            (if (and (not= current start)
-                     (adjacent-to-unexplored? current computer-map))
-              (vec (rest (map-utils/reconstruct-path came-from start current)))
-              (let [[x y] current
-                    neighbors (for [[dx dy] map-utils/neighbor-offsets
-                                    :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
-                                    :when (and (not (visited n))
-                                               (passable-sea? n))]
-                                n)
-                    new-visited (into visited neighbors)
-                    new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
-                (recur (into rest-queue neighbors)
-                       new-visited
-                       new-came-from)))))))))
+      (search-unexplored-coast start computer-map passable-sea?))))
 
 (def ^:private min-explore-depth 4)
 (def ^:private max-bfs-cells 1500)

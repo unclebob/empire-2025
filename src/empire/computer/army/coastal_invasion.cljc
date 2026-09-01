@@ -59,6 +59,10 @@
        (first (sort-by (fn [p] [(get distances p 9999) p]) empty-coastal))
        (closest-staging-cell ctx distances country-id))))
 
+(defn- found-local-empty-coast?
+  [ctx pos country-id current]
+  (and (not= current pos) (empty-coastal-cell? ctx current country-id)))
+
 (defn local-empty-coast-target
   [ctx pos country-id]
    (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
@@ -67,7 +71,7 @@
        nil
        (let [[current depth] (peek queue)]
          (cond
-           (and (not= current pos) (empty-coastal-cell? ctx current country-id)) current
+           (found-local-empty-coast? ctx pos country-id current) current
            (>= depth 2) (recur (pop queue) visited)
            :else
            (let [nexts (->> (movement/get-passable-neighbors current country-id)
@@ -117,21 +121,30 @@
       (set-coast-target! ctx pos local-target)
       (movement/move-toward-objective pos local-target country-id))))
 
-(defn- coast-target-step-options
+(defn- lake-retask-step-options
+  [pos target country-id]
+  {:cheap-step? (movement/step-toward-target-cheap pos target country-id)
+   :local-step? nil
+   :move-step? nil
+   :repath-step? nil})
+
+(defn- regular-coast-step-options
   [ctx pos country-id unit target]
-  (let [cheap-step (when (:lake-retask? unit)
-                     (movement/step-toward-target-cheap pos target country-id))
-        local-step (when-not (or (:lake-retask? unit) cheap-step)
-                     (movement/local-step-toward-objective pos target country-id))
-        move-step (when-not (:lake-retask? unit)
-                    (when-not local-step
-                      (movement/move-toward-objective pos target country-id)))
-        repath-step (when-not (or (:lake-retask? unit) local-step move-step)
+  (let [local-step (movement/local-step-toward-objective pos target country-id)
+        move-step (when-not local-step
+                    (movement/move-toward-objective pos target country-id))
+        repath-step (when-not (or local-step move-step)
                       (maybe-repath-local-target ctx pos country-id unit))]
-    {:cheap-step? cheap-step
+    {:cheap-step? nil
      :local-step? local-step
      :move-step? move-step
      :repath-step? repath-step}))
+
+(defn- coast-target-step-options
+  [ctx pos country-id unit target]
+  (if (:lake-retask? unit)
+    (lake-retask-step-options pos target country-id)
+    (regular-coast-step-options ctx pos country-id unit target)))
 
 (defn- coast-target-step-input
   [ctx pos country-id unit target]
@@ -155,10 +168,7 @@
   (let [action (plan-coast-target-step ctx pos country-id unit target)]
     (case (:action action)
       :settle (do (settle-at-coast-target! ctx pos) pos)
-      :cheap-step (:target action)
-      :local-step (:target action)
-      :move (:target action)
-      :repath (:target action)
+      (:cheap-step :local-step :move :repath) (:target action)
       nil)))
 
 (defn process-move-to-coast-for-invasion

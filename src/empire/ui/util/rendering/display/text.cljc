@@ -35,14 +35,15 @@
   [[x y]]
   (str x "," y))
 
+(def ^:private order-context-labels
+  {:flight "Flight "
+   :march "March "
+   :waypoint "Waypoint "})
+
 (defn- order-context-text
   [order-type coords]
-  (when coords
-    (case order-type
-      :flight (str "Flight " (format-coords coords))
-      :march (str "March " (format-coords coords))
-      :waypoint (str "Waypoint " (format-coords coords))
-      nil)))
+  (when-let [label (and coords (order-context-labels order-type))]
+    (str label (format-coords coords))))
 
 (defn- cell-order-context
   [cell]
@@ -53,8 +54,7 @@
       (= city-marching-orders :lookaround) "Lookaround"
       city-flight-path (order-context-text :flight city-flight-path)
       city-marching-orders (order-context-text :march city-marching-orders)
-      waypoint-orders (order-context-text :waypoint waypoint-orders)
-      :else nil)))
+      :else (order-context-text :waypoint waypoint-orders))))
 
 (defn- unit-order-context
   [cell]

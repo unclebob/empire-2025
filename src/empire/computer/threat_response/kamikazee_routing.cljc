@@ -218,23 +218,25 @@
                                             marked-cities)))]
       (vec (cons city (route-from-node state city))))))
 
+(defn- route-from-current-site
+  [state world pos fuel]
+  (if (or (city-site? world pos) (carrier-site? world pos))
+    (route-from-node state pos)
+    (route-from-reachable-city state pos fuel)))
+
+(defn- route-complete?
+  [state pos route]
+  (boolean (or (seq route)
+               (contains? (:kamikazee-terminal-sites state) pos))))
+
 (defn plan-route
   [state world pos fuel]
-  (let [route (cond
-                (city-site? world pos)
-                (route-from-node state pos)
-
-                (carrier-site? world pos)
-                (route-from-node state pos)
-
-                :else
-                (route-from-reachable-city state pos fuel))
+  (let [route (route-from-current-site state world pos fuel)
         terminal-site (or (peek route)
                           (when (contains? (:kamikazee-terminal-sites state) pos) pos))]
     {:route (vec route)
      :terminal-site terminal-site
-     :complete? (boolean (or (seq route)
-                             (contains? (:kamikazee-terminal-sites state) pos)))}))
+     :complete? (route-complete? state pos route)}))
 
 (defn carrier-support-target
   [ctx pos]
@@ -242,31 +244,37 @@
     (when (fixed-carrier? state pos)
       pos)))
 
+(defn- loaded-invasion-transport?
+  [unit]
+  (and unit
+       (= :transport (:type unit))
+       (= :computer (:owner unit))
+       (:major-invasion unit)
+       (pos? (:army-count unit 0))))
+
+(defn- loaded-invasion-transports
+  [world]
+  (for [i (range (count world))
+        j (range (count (first world)))
+        :let [unit (get-in world [i j :contents])]
+        :when (loaded-invasion-transport? unit)]
+    [i j]))
+
+(defn- fighter-override-target?
+  [city-pos target-points]
+  (and (seq target-points)
+       (some #(<= (grid/distance city-pos %) config/fighter-fuel) target-points)))
+
 (defn invasion-production-override
   [city-pos]
   (let [state (sa/read-state :major-invasion-state)
         world (sa/read-state :computer-map)
         target-points (targets/invasion-target-points state world)
-        loaded-transports
-        (for [i (range (count world))
-              j (range (count (first world)))
-              :let [unit (get-in world [i j :contents])]
-              :when (and unit
-                         (= :transport (:type unit))
-                         (= :computer (:owner unit))
-                         (:major-invasion unit)
-                         (pos? (:army-count unit 0)))]
-          [i j])]
+        loaded-transports (loaded-invasion-transports world)]
     (when (:active? state)
-      (cond
-        (and (seq target-points)
-             (some #(<= (grid/distance city-pos %) config/fighter-fuel) target-points))
-        :fighter
-
-        (seq loaded-transports)
-        :fighter
-
-        :else nil))))
+      (when (or (fighter-override-target? city-pos target-points)
+                (seq loaded-transports))
+        :fighter))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-14T10:05:09.816873-05:00", :module-hash "-332387105", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2116081666"} {:id "defn/carrier-site?", :kind "defn", :line 8, :end-line 10, :hash "-642704688"} {:id "defn/city-site?", :kind "defn", :line 12, :end-line 15, :hash "878576996"} {:id "defn/site-distance", :kind "defn", :line 17, :end-line 19, :hash "1551245603"} {:id "defn/at-site?", :kind "defn", :line 21, :end-line 25, :hash "-1499854197"} {:id "defn/available-refueling-sites", :kind "defn", :line 27, :end-line 31, :hash "-1085587931"} {:id "defn-/edge-reachable?", :kind "defn-", :line 33, :end-line 35, :hash "1619735915"} {:id "defn-/target-distance", :kind "defn-", :line 37, :end-line 39, :hash "-1588550186"} {:id "defn-/computer-city-positions", :kind "defn-", :line 41, :end-line 48, :hash "-33793779"} {:id "defn-/computer-carriers", :kind "defn-", :line 50, :end-line 57, :hash "2071859718"} {:id "defn-/reachable-marked-city", :kind "defn-", :line 59, :end-line 63, :hash "343051173"} {:id "defn-/bridging-carrier", :kind "defn-", :line 65, :end-line 77, :hash "-1066173304"} {:id "defn-/pick-root-city", :kind "defn-", :line 79, :end-line 82, :hash "1757221937"} {:id "defn-/choose-forward-carrier", :kind "defn-", :line 84, :end-line 93, :hash "746269383"} {:id "defn/rebuild-routing-graph", :kind "defn", :line 95, :end-line 148, :hash "2125941602"} {:id "defn/rebuild-routing-graph!", :kind "defn", :line 150, :end-line 156, :hash "-1690621996"} {:id "defn/fixed-carrier?", :kind "defn", :line 158, :end-line 161, :hash "1253731980"} {:id "defn-/next-hop", :kind "defn-", :line 163, :end-line 166, :hash "1670891984"} {:id "defn-/route-from-node", :kind "defn-", :line 168, :end-line 176, :hash "-1672535525"} {:id "defn-/route-from-reachable-city", :kind "defn-", :line 178, :end-line 191, :hash "-1244797622"} {:id "defn/plan-route", :kind "defn", :line 193, :end-line 209, :hash "283588680"} {:id "defn/carrier-support-target", :kind "defn", :line 211, :end-line 215, :hash "1550006344"} {:id "defn/invasion-production-override", :kind "defn", :line 217, :end-line 241, :hash "589623714"}]}

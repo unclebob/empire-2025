@@ -9,19 +9,27 @@
 
 ;; --- Test splitting ---
 
+(defn- then-directive?
+  [trimmed]
+  (or (str/starts-with? trimmed "THEN")
+      (re-matches #"^and\s+.*" trimmed)))
+
 (defn- classify-directive [trimmed]
   (cond
     (str/starts-with? trimmed "GIVEN") :given
     (str/starts-with? trimmed "WHEN") :when
-    (or (str/starts-with? trimmed "THEN")
-        (re-matches #"^and\s+.*" trimmed)) :then
+    (then-directive? trimmed) :then
     (str/starts-with? trimmed "WHERE") :where
     :else nil))
+
+(defn- header-comment?
+  [trimmed in-header?]
+  (and in-header? (str/starts-with? trimmed ";")))
 
 (defn- classify-line [trimmed in-header?]
   (cond
     (h/separator-line? trimmed) :separator
-    (and in-header? (str/starts-with? trimmed ";")) :header-comment
+    (header-comment? trimmed in-header?) :header-comment
     (h/blank-or-comment? trimmed) :blank
     :else (or (classify-directive trimmed) :content)))
 

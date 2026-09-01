@@ -54,6 +54,39 @@
   [current-world pos target]
   (decisions/at-flight-target? (current-world) pos target))
 
+(defn- record-arrival-leg!
+  [read-runtime-state write-runtime-state! decision]
+  (when-let [leg-record (:leg-record decision)]
+    (write-runtime-state! :fighter-leg-records
+                          (assoc (or (read-runtime-state :fighter-leg-records) {})
+                                 (:leg-key leg-record)
+                                 {:last-flown (:last-flown leg-record)}))))
+
+(defn- apply-arrival-next-action
+  [fighter decision]
+  (let [base (-> fighter
+                 (dissoc :explore-origin :explore-heading :explore-steps-remaining
+                         :explore-landing-site :flight-mode)
+                 (assoc :flight-origin-site (:target decision)))
+        next-action (:next-action decision)]
+    (case (:action next-action)
+      :assign-regular-leg
+      (assoc base
+             :flight-target-site (:target next-action)
+             :flight-mode :regular)
+
+      :assign-exploration-flight
+      (assoc base
+             :flight-mode (:mode next-action)
+             :explore-origin (:origin next-action)
+             :explore-heading (:heading next-action)
+             :explore-steps-remaining (:steps-remaining next-action)
+             :explore-landing-site (:landing-site next-action)
+             :flight-target-site (:target next-action)
+             :flight-origin-site (:origin next-action))
+
+      (dissoc base :flight-target-site))))
+
 (defn handle-arrival!
   [current-world update-game-map! read-runtime-state write-runtime-state! pos unit]
   (let [decision (decisions/arrival-action (current-world)
@@ -63,36 +96,10 @@
                                            pos
                                            unit
                                            (rand))]
-    (when-let [leg-record (:leg-record decision)]
-      (write-runtime-state! :fighter-leg-records
-                            (assoc (or (read-runtime-state :fighter-leg-records) {})
-                                   (:leg-key leg-record)
-                                   {:last-flown (:last-flown leg-record)})))
+    (record-arrival-leg! read-runtime-state write-runtime-state! decision)
     (update-game-map! assoc-in (conj pos :contents :fuel) config/fighter-fuel)
     (update-game-map! update-in (conj pos :contents)
-                      (fn [fighter]
-                        (let [base (-> fighter
-                                       (dissoc :explore-origin :explore-heading :explore-steps-remaining
-                                               :explore-landing-site :flight-mode)
-                                       (assoc :flight-origin-site (:target decision)))
-                              next-action (:next-action decision)]
-                          (case (:action next-action)
-                            :assign-regular-leg
-                            (assoc base
-                                   :flight-target-site (:target next-action)
-                                   :flight-mode :regular)
-
-                            :assign-exploration-flight
-                            (assoc base
-                                   :flight-mode (:mode next-action)
-                                   :explore-origin (:origin next-action)
-                                   :explore-heading (:heading next-action)
-                                   :explore-steps-remaining (:steps-remaining next-action)
-                                   :explore-landing-site (:landing-site next-action)
-                                   :flight-target-site (:target next-action)
-                                   :flight-origin-site (:origin next-action))
-
-                            (dissoc base :flight-target-site)))))
+                      #(apply-arrival-next-action % decision))
     {:pos pos :hops (:hops decision)}))
 
 ;; clj-mutate-manifest-begin

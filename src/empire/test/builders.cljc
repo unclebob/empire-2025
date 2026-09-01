@@ -4,17 +4,22 @@
             [empire.config.units.dispatcher :as dispatcher]
             [empire.test.state :as state]))
 
+(defn- matches-map-source?
+  [map-source keyword-key map-atom]
+  (or (= map-source keyword-key)
+      (identical? map-source map-atom)))
+
 (defn- keyword-map-updater
   [map-source]
-  (or (when (or (= map-source :game-map)
-                (identical? map-source (state/game-map-atom)))
-        state/update-test-world!)
-      (when (or (= map-source :player-map)
-                (identical? map-source (state/player-map-atom)))
-        state/update-test-player-map!)
-      (when (or (= map-source :computer-map)
-                (identical? map-source (state/computer-map-atom)))
-        state/update-test-computer-map!)))
+  (cond
+    (matches-map-source? map-source :game-map (state/game-map-atom))
+    state/update-test-world!
+
+    (matches-map-source? map-source :player-map (state/player-map-atom))
+    state/update-test-player-map!
+
+    (matches-map-source? map-source :computer-map (state/computer-map-atom))
+    state/update-test-computer-map!))
 
 (defn- update-map-atom!
   [map-source f & args]

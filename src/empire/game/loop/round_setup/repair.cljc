@@ -4,6 +4,22 @@
             [empire.game-mechanics.containers.helpers :as uc]
             [empire.game.loop.round-setup.lakes :as lakes]))
 
+(defn- repaired-ship-launch-pos
+  [city-coords current-cell]
+  (or (lakes/find-adjacent-empty-sea city-coords)
+      (when (nil? (:contents current-cell))
+        city-coords)))
+
+(defn- launch-repaired-ships!
+  [city-coords]
+  (let [updated-shipyard (uc/get-shipyard-ships (get-in (sa/current-world) city-coords))]
+    (doseq [i (reverse (range (count updated-shipyard)))]
+      (let [current-cell (get-in (sa/current-world) city-coords)
+            ship (get-in current-cell [:shipyard i])]
+        (when (uc/ship-fully-repaired? ship)
+          (when-let [launch-pos (repaired-ship-launch-pos city-coords current-cell)]
+            (container-ops/launch-ship-from-shipyard city-coords i launch-pos)))))))
+
 (defn- repair-city-ships
   "Repairs all ships in a city's shipyard by 1 hit each.
    Launches fully repaired ships to adjacent sea when possible."
@@ -11,22 +27,8 @@
   (let [cell (get-in (sa/current-world) city-coords)
         shipyard (uc/get-shipyard-ships cell)]
     (when (seq shipyard)
-      ;; First, repair all ships
-      (let [repaired-ships (mapv uc/repair-ship shipyard)]
-        (sa/update-world! assoc-in (conj city-coords :shipyard) repaired-ships))
-      ;; Then, launch fully repaired ships
-      ;; Process from end to avoid index shifting issues
-      (let [updated-cell (get-in (sa/current-world) city-coords)
-            updated-shipyard (uc/get-shipyard-ships updated-cell)]
-        (doseq [i (reverse (range (count updated-shipyard)))]
-          (let [current-cell (get-in (sa/current-world) city-coords)
-                ship (get-in current-cell [:shipyard i])]
-            (when (uc/ship-fully-repaired? ship)
-              (let [launch-pos (or (lakes/find-adjacent-empty-sea city-coords)
-                                   (when (nil? (:contents current-cell))
-                                     city-coords))]
-                (when launch-pos
-                  (container-ops/launch-ship-from-shipyard city-coords i launch-pos))))))))))
+      (sa/update-world! assoc-in (conj city-coords :shipyard) (mapv uc/repair-ship shipyard))
+      (launch-repaired-ships! city-coords))))
 
 (defn repair-damaged-ships
   "Repairs ships in all friendly city shipyards by 1 hit per round.

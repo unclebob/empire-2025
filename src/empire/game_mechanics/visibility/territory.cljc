@@ -2,13 +2,16 @@
   (:require [empire.game-mechanics.visibility.core :as core]
             [empire.game-mechanics.spatial.neighbors :as neighbors]))
 
+(defn- army-country-id
+  [unit]
+  (when (and (= :computer (:owner unit))
+             (= :army (:type unit)))
+    (:country-id unit)))
+
 (defn- claimed-country-id
   [cell]
   (let [cell-cid (:country-id cell)
-        unit (:contents cell)
-        unit-cid (when (and (= :computer (:owner unit))
-                            (= :army (:type unit)))
-                   (:country-id unit))]
+        unit-cid (army-country-id (:contents cell))]
     (when (or cell-cid unit-cid)
       (min (or cell-cid Long/MAX_VALUE)
            (or unit-cid Long/MAX_VALUE)))))
@@ -46,6 +49,11 @@
        (remove nil?)
        set))
 
+(defn- lowest-adjacent-cid
+  [candidate-cids]
+  (when (seq candidate-cids)
+    (apply min candidate-cids)))
+
 (defn stamp-exposed-territory!
   [visible-map-source exposed-positions]
   (let [visible-map (core/read-visible-map visible-map-source)
@@ -59,7 +67,7 @@
       (when-let [start (first remaining)]
         (let [component (connected-visible-land-component visible-map start visible-unclaimed-land)
               candidate-cids (adjacent-claimed-cids visible-map component)]
-          (when-let [claim-cid (when (seq candidate-cids) (apply min candidate-cids))]
+          (when-let [claim-cid (lowest-adjacent-cid candidate-cids)]
             (doseq [pos component]
               (core/update-game-map! assoc-in (conj pos :country-id) claim-cid)
               (core/update-visible-map! visible-map-source assoc-in (conj pos :country-id) claim-cid)))

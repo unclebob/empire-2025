@@ -58,6 +58,16 @@
             (move-hop-consume pos center remaining-fuel fighter-refuel-safety-buffer)
             {:pos pos :steps-used hops}))))))
 
+(defn- sidestep-fuel-result
+  [target]
+  (when (fm/consume-fighter-fuel target)
+    {:pos target :steps-used 1}))
+
+(defn- consume-sidestep-move
+  [pos target]
+  (when (action-resolution/move-unit-to pos target)
+    (sidestep-fuel-result target)))
+
 (defn fighter-sidestep-consume
   [pos center]
   (let [current-distance (grid/distance pos center)
@@ -68,9 +78,7 @@
                         (filter #(<= (:distance %) current-distance))
                         (sort-by (fn [{:keys [distance pos]}] [distance pos])))]
     (when-let [target (:pos (first candidates))]
-      (when (action-resolution/move-unit-to pos target)
-        (when (fm/consume-fighter-fuel target)
-          {:pos target :steps-used 1})))))
+      (consume-sidestep-move pos target))))
 
 (defn start-fighter-congestion-random-walk!
   [ctx pos congestion-random-walk-restore-keys]

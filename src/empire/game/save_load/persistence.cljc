@@ -131,11 +131,14 @@
       (normalize-airport-awake-count)
       (clamp-awake-count :kamikazee-fighter-count :awake-fighters)))
 
+(def ^:private container-awake-keys
+  {:carrier [:fighter-count :awake-fighters]
+   :transport [:army-count :awake-armies]})
+
 (defn- normalize-contents-counts
   [contents]
-  (case (:type contents)
-    :carrier (clamp-awake-count contents :fighter-count :awake-fighters)
-    :transport (clamp-awake-count contents :army-count :awake-armies)
+  (if-let [[count-key awake-key] (container-awake-keys (:type contents))]
+    (clamp-awake-count contents count-key awake-key)
     contents))
 
 (defn- map-coords

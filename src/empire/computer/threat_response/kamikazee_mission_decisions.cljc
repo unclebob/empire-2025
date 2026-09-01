@@ -15,11 +15,10 @@
   (and distance (<= distance 1)))
 
 (defn- staged-transition-action
-  [{:keys [stage has-wait-site? has-resume-pos? fuel refuel-threshold has-adjacent-player-army? has-reachable-refuel-site?]}]
+  [{:keys [stage has-wait-site? has-resume-pos?]}]
   (cond
     (and (= :refuel stage) has-wait-site?) :refuel
-    (and (= :return stage) has-resume-pos?) :return
-    :else nil))
+    (and (= :return stage) has-resume-pos?) :return))
 
 (defn- active-hunt-action
   [{:keys [fuel refuel-threshold has-adjacent-player-army? has-reachable-refuel-site?]}]
@@ -33,15 +32,20 @@
   (or (staged-transition-action state)
       (active-hunt-action state)))
 
+(defn- hunt-route-action
+  [close-enough-to-goal? has-goal?]
+  (cond
+    close-enough-to-goal? :enter-hunt
+    has-goal? :move-to-goal
+    :else :walk))
+
 (defn route-stage-action
   [{:keys [adjacent-route-city? at-route-site? has-next-site? close-enough-to-goal? has-goal?]}]
   (cond
     adjacent-route-city? :land-at-city
     at-route-site? :finish-route-node
     has-next-site? :move-to-next-site
-    close-enough-to-goal? :enter-hunt
-    has-goal? :move-to-goal
-    :else :walk))
+    :else (hunt-route-action close-enough-to-goal? has-goal?)))
 
 (defn hunt-step-result
   [moved-unit moved-pos pos hunt-trail-length default-fuel]

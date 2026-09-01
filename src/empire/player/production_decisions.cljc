@@ -11,11 +11,17 @@
     (= item :fighter) (assoc :fuel config/fighter-fuel)
     (= item :satellite) (assoc :turns-remaining config/satellite-turns)))
 
+(defn- army-movement-order
+  [marching-orders]
+  (cond
+    (= marching-orders :lookaround) :army-explore
+    marching-orders :army-move
+    :else nil))
+
 (defn- movement-order-action
   [item marching-orders flight-path]
   (cond
-    (and (= item :army) (= marching-orders :lookaround)) :army-explore
-    (and (= item :army) marching-orders) :army-move
+    (= item :army) (army-movement-order marching-orders)
     (and (= item :fighter) flight-path) :fighter-move))
 
 (def ^:private movement-order-handlers

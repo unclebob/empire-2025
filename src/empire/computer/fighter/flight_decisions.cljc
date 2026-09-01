@@ -243,6 +243,17 @@
       :else
       (nearest-reachable-refueling-site sites pos remaining-fuel))))
 
+(defn- sortie-plan-at-steps
+  [world sites pos direction steps ranked-cities max-fuel]
+  (let [endpoint (projected-endpoint world pos direction steps)
+        actual-steps (fm/distance-to pos endpoint)
+        remaining-fuel (- max-fuel actual-steps)
+        landing-site (best-reachable-landing-site world sites endpoint remaining-fuel ranked-cities)]
+    (when (and (pos? actual-steps) landing-site)
+      {:steps actual-steps
+       :endpoint endpoint
+       :landing-site landing-site})))
+
 (defn- max-sortie-plan
   [world sites pos direction ranked-cities]
   (let [max-fuel config/fighter-fuel]
@@ -250,14 +261,8 @@
            best-plan nil]
       (if (> steps max-fuel)
         best-plan
-        (let [endpoint (projected-endpoint world pos direction steps)
-              actual-steps (fm/distance-to pos endpoint)
-              remaining-fuel (- max-fuel actual-steps)
-              landing-site (best-reachable-landing-site world sites endpoint remaining-fuel ranked-cities)
-              next-plan (when (and (pos? actual-steps) landing-site)
-                          {:steps actual-steps
-                           :endpoint endpoint
-                           :landing-site landing-site})]
+        (let [next-plan (sortie-plan-at-steps world sites pos direction steps ranked-cities max-fuel)
+              endpoint (projected-endpoint world pos direction steps)]
           (if (and (= endpoint pos) (nil? next-plan))
             best-plan
             (recur (inc steps) (or next-plan best-plan))))))))

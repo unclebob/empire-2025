@@ -169,6 +169,10 @@
   [start country-id]
   (coastal-positioning/find-coast-target-once start country-id))
 
+(defn- found-local-empty-coast?
+  [pos country-id current]
+  (and (not= current pos) (empty-coastal-cell? current country-id)))
+
 (defn- local-empty-coast-target
   [pos country-id]
   (loop [queue (conj clojure.lang.PersistentQueue/EMPTY [pos 0])
@@ -177,7 +181,7 @@
       nil
       (let [[current depth] (peek queue)]
         (cond
-          (and (not= current pos) (empty-coastal-cell? current country-id)) current
+          (found-local-empty-coast? pos country-id current) current
           (>= depth 2) (recur (pop queue) visited)
           :else
           (let [nexts (->> (movement/get-passable-neighbors current country-id)
@@ -204,28 +208,29 @@
   [pos country-id]
   (invasion/process-move-to-coast-for-invasion (invasion-ctx) pos country-id))
 
+(defn- clear-transport-staging-target
+  [pos]
+  (sa/update-world! update-in (conj pos :contents)
+                    #(-> %
+                         (assoc :mode :awake)
+                         (dissoc :transport-staging-target)))
+  (visibility/sync-ai-unit-to-computer-map! pos)
+  nil)
+
+(defn- step-to-staging-target
+  [pos target country-id]
+  (or (movement/step-toward-target-cheap pos target country-id)
+      (movement/local-step-toward-objective pos target country-id)
+      (movement/move-toward-objective pos target country-id)))
+
 (defn process-move-to-coast-for-transport
   [pos country-id]
   (let [unit (get-in (sa/read-state :computer-map) (conj pos :contents))
         target (:transport-staging-target unit)]
     (cond
-      (nil? target)
-      (do
-        (sa/update-world! update-in (conj pos :contents)
-                          #(-> %
-                               (assoc :mode :awake)
-                               (dissoc :transport-staging-target)))
-        (visibility/sync-ai-unit-to-computer-map! pos)
-        nil)
-
-      (= pos target)
-      pos
-
-      :else
-      (or (movement/step-toward-target-cheap pos target country-id)
-          (movement/local-step-toward-objective pos target country-id)
-          (movement/move-toward-objective pos target country-id)
-          nil))))
+      (nil? target) (clear-transport-staging-target pos)
+      (= pos target) pos
+      :else (step-to-staging-target pos target country-id))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-05-07T17:42:04.254585-05:00", :module-hash "1740269385", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "1102320044"} {:id "defn-/count-unexplored-neighbors", :kind "defn-", :line 15, :end-line 20, :hash "1547624350"} {:id "defn-/update-backtrack", :kind "defn-", :line 22, :end-line 25, :hash "1924347008"} {:id "defn-/terminate-coast-walk", :kind "defn-", :line 27, :end-line 34, :hash "-647919499"} {:id "defn-/coast-walk-candidates", :kind "defn-", :line 36, :end-line 40, :hash "-2144569116"} {:id "defn/process-coast-walk", :kind "defn", :line 42, :end-line 63, :hash "1638940023"} {:id "defn-/empty-land-for-country?", :kind "defn-", :line 65, :end-line 69, :hash "-2093845812"} {:id "defn/find-nearest-unoccupied-coastal-cell", :kind "defn", :line 71, :end-line 73, :hash "-460023669"} {:id "defn-/coast-distance", :kind "defn-", :line 75, :end-line 79, :hash "-1999482778"} {:id "defn-/find-nearest-cell-close-to-coast", :kind "defn-", :line 81, :end-line 102, :hash "-365143246"} {:id "defn/should-sentry-on-coast?", :kind "defn", :line 104, :end-line 105, :hash "1298390079"} {:id "defn/can-settle-here?", :kind "defn", :line 107, :end-line 108, :hash "1993215136"} {:id "form/12/declare", :kind "declare", :line 110, :end-line 110, :hash "1944609974"} {:id "form/13/declare", :kind "declare", :line 111, :end-line 111, :hash "-936231528"} {:id "defn-/try-move-to-coastal-cell", :kind "defn-", :line 113, :end-line 115, :hash "1419876926"} {:id "defn-/try-settle-on-coast", :kind "defn-", :line 117, :end-line 123, :hash "-810565410"} {:id "defn-/try-queue-near-coast", :kind "defn-", :line 125, :end-line 133, :hash "-1557527272"} {:id "defn-/try-wake-nearby", :kind "defn-", :line 135, :end-line 138, :hash "1078962120"} {:id "defn/fill-coastal-cell", :kind "defn", :line 140, :end-line 155, :hash "1399386512"} {:id "defn-/invasion-ctx", :kind "defn-", :line 157, :end-line 165, :hash "-808880577"} {:id "defn/find-coast-target-once", :kind "defn", :line 167, :end-line 170, :hash "2064648194"} {:id "defn-/local-empty-coast-target", :kind "defn-", :line 172, :end-line 186, :hash "-19913827"} {:id "defn-/empty-coastal-cell?", :kind "defn-", :line 188, :end-line 190, :hash "-82665084"} {:id "def/local-coast-repath-interval-rounds", :kind "def", :line 192, :end-line 192, :hash "1825849599"} {:id "defn-/settle-at-coast-target!", :kind "defn-", :line 194, :end-line 200, :hash "-1071482831"} {:id "defn/process-move-to-coast-for-invasion", :kind "defn", :line 202, :end-line 205, :hash "-551573708"} {:id "defn/process-move-to-coast-for-transport", :kind "defn", :line 207, :end-line 228, :hash "-117170305"}]}

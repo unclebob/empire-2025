@@ -10,6 +10,17 @@
   [pos map-height map-width]
   (impl/boundary-type pos map-height map-width))
 
+(defn- inward-bounce-step?
+  [[x y] [dx dy] at-top? at-bottom? at-left? at-right? map-height map-width]
+  (let [nx (+ x dx)
+        ny (+ y dy)]
+    (and (or (not at-top?) (>= dx 0))
+         (or (not at-bottom?) (<= dx 0))
+         (or (not at-left?) (>= dy 0))
+         (or (not at-right?) (<= dy 0))
+         (>= nx 0) (< nx map-height)
+         (>= ny 0) (< ny map-width))))
+
 (defn- bounce-direction
   "Returns a random direction vector pointing away from the map edge.
    Filters the 8 compass directions to those that move inward from the edge."
@@ -20,13 +31,9 @@
         at-right? (= y (dec map-width))
         directions [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]]
         valid (filter (fn [[dx dy]]
-                        (let [nx (+ x dx) ny (+ y dy)]
-                          (and (if at-top? (>= dx 0) true)
-                               (if at-bottom? (<= dx 0) true)
-                               (if at-left? (>= dy 0) true)
-                               (if at-right? (<= dy 0) true)
-                               (>= nx 0) (< nx map-height)
-                               (>= ny 0) (< ny map-width))))
+                        (inward-bounce-step? [x y] [dx dy]
+                                             at-top? at-bottom? at-left? at-right?
+                                             map-height map-width))
                       directions)]
     (when (seq valid)
       (rand-nth (vec valid)))))

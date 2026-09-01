@@ -216,28 +216,38 @@
         updated-cell (uc/sleep-all cell :awake-fighters)]
     (sa/update-world! assoc-in city-coords updated-cell)))
 
+(defn- airport-launch-owner
+  [cell]
+  (case (:city-status cell)
+    :computer :computer
+    :player))
+
+(defn- empty-launch-step
+  [world candidate]
+  (let [candidate-cell (get-in world candidate)]
+    (when (and candidate-cell (nil? (:contents candidate-cell)))
+      candidate)))
+
+(defn- remove-airport-fighter
+  [cell]
+  (cond-> (if (pos? (:awake-fighters cell 0))
+            (uc/remove-awake-unit cell :fighter-count :awake-fighters)
+            (uc/remove-one-fighter cell))
+    true
+    (uc/normalize-airport-awake-fighters)))
+
 (defn launch-fighter-from-airport
   [city-coords target-coords]
   (let [world (sa/current-world)
         cell (get-in world city-coords)
-        owner (case (:city-status cell)
-                :computer :computer
-                :player)
-        first-step (some (fn [candidate]
-                           (let [candidate-cell (get-in world candidate)]
-                             (when (and candidate-cell (nil? (:contents candidate-cell)))
-                               candidate)))
+        owner (airport-launch-owner cell)
+        first-step (some #(empty-launch-step world %)
                          (launch/launch-steps-toward city-coords target-coords))
         target-cell (get-in world first-step)]
     (when first-step
-      (let [after-remove (cond-> (if (pos? (:awake-fighters cell 0))
-                                   (uc/remove-awake-unit cell :fighter-count :awake-fighters)
-                                   (uc/remove-one-fighter cell))
-                           true
-                           (uc/normalize-airport-awake-fighters))
-            moving-fighter (-> (launched-fighter-for-step owner target-coords first-step)
+      (let [moving-fighter (-> (launched-fighter-for-step owner target-coords first-step)
                                (stamp-computer-unit-id))]
-        (sa/update-world! assoc-in city-coords after-remove)
+        (sa/update-world! assoc-in city-coords (remove-airport-fighter cell))
         (sa/update-world! assoc-in first-step (assoc target-cell :contents moving-fighter))
         (update-cell-visibility! first-step owner)
         first-step))))

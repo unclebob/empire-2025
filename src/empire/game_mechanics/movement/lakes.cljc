@@ -44,10 +44,19 @@
                     map-utils/neighbor-offsets))
           component))
 
+(defn- no-lakes?
+  [the-map lake-max-cells]
+  (or (nil? the-map) (<= (or lake-max-cells 0) 0)))
+
+(defn- lake-component?
+  [the-map component rows cols lake-max-cells]
+  (and (<= (count component) lake-max-cells)
+       (component-fully-explored? the-map component rows cols)))
+
 (defn lake-cells
   "Returns sea cells in connected components with size <= lake-max-cells."
   [the-map lake-max-cells]
-  (if (or (nil? the-map) (<= (or lake-max-cells 0) 0))
+  (if (no-lakes? the-map lake-max-cells)
     #{}
     (let [rows (count the-map)
           cols (count (first the-map))]
@@ -62,8 +71,7 @@
                 component (bfs-sea-component the-map start rows cols)
                 next-remaining (reduce disj remaining component)]
             (recur next-remaining
-                   (if (and (<= (count component) lake-max-cells)
-                            (component-fully-explored? the-map component rows cols))
+                   (if (lake-component? the-map component rows cols lake-max-cells)
                      (into lakes component)
                      lakes))))))))
 

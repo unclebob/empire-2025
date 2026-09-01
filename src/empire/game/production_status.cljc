@@ -19,6 +19,33 @@
     (count (or (:shipyard cell) []))
     0))
 
+(defn- explored-player-cell?
+  [pc]
+  (and pc (not= :unexplored (:type pc))))
+
+(defn- player-unit-type
+  [unit]
+  (when (and unit (= :player (:owner unit)))
+    (:type unit)))
+
+(defn- scan-production-cell
+  [acc player-map game-map [col row]]
+  (let [pc (get-in player-map [col row])
+        cell (get-in game-map [col row])
+        unit-type (player-unit-type (:contents cell))]
+    (-> acc
+        (update :total inc)
+        (cond-> (explored-player-cell? pc) (update :explored inc)
+                unit-type (update-in [:counts unit-type] inc))
+        (update :airport-fighters + (count-airport-fighters cell))
+        (update :shipyard-ships + (count-shipyard-ships cell)))))
+
+(defn- production-extras
+  [airport-fighters shipyard-ships]
+  (cond-> []
+    (pos? airport-fighters) (conj (str "Landed:" airport-fighters))
+    (pos? shipyard-ships) (conj (str "Repair:" shipyard-ships))))
+
 (defn format-production-status
   "Formats production status string: unit counts and exploration %.
    Format: A:n F:n T:n D:n S:n P:n C:n B:n Z:n | nn%
@@ -32,28 +59,13 @@
               :total 0
               :explored 0}
         {:keys [counts airport-fighters shipyard-ships total explored]}
-        (reduce (fn [acc [col row]]
-                  (let [pc (get-in player-map [col row])
-                        cell (get-in game-map [col row])
-                        unit (:contents cell)]
-                    (-> acc
-                        (update :total inc)
-                        (cond->
-                          (and pc (not= :unexplored (:type pc)))
-                          (update :explored inc)
-
-                          (and unit (= :player (:owner unit)))
-                          (update-in [:counts (:type unit)] inc))
-                        (update :airport-fighters + (count-airport-fighters cell))
-                        (update :shipyard-ships + (count-shipyard-ships cell)))))
+        (reduce #(scan-production-cell %1 player-map game-map %2)
                 init
                 (for [col (range cols) row (range rows)] [col row]))
         pct (if (zero? total) 0 (int (* 100 (/ explored total))))
         unit-strs (map #(str (unit-type-labels %) ":" (get counts %))
                        unit-type-order)
-        extras (cond-> []
-                 (pos? airport-fighters) (conj (str "Landed:" airport-fighters))
-                 (pos? shipyard-ships) (conj (str "Repair:" shipyard-ships)))]
+        extras (production-extras airport-fighters shipyard-ships)]
     (str (str/join " " unit-strs)
          (when (seq extras) (str " " (str/join " " extras)))
          " | " pct "%")))

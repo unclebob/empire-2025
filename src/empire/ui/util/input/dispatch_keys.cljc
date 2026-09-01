@@ -61,6 +61,15 @@
         (= name-lc "kp-enter")
         (string/includes? (or name-lc "") "enter"))))
 
+(defn- dispatch-save-menu-edit
+  [k]
+  (clear-default-save-input!)
+  (if (delete-key? k)
+    (do (save-load/backspace-save-menu-input!) true)
+    (when-let [ch (save-char-key k)]
+      (save-load/append-save-menu-char! ch)
+      true)))
+
 (defn dispatch-save-menu-key
   [k]
   (cond
@@ -68,13 +77,7 @@
     (enter-key? k) (do (sa/write-state! :command-message
                                         (str "Saved to " (save-load/save-from-menu!)))
                        true)
-    :else (do
-            (clear-default-save-input!)
-            (cond
-              (delete-key? k) (do (save-load/backspace-save-menu-input!) true)
-              :else (when-let [ch (save-char-key k)]
-                      (save-load/append-save-menu-char! ch)
-                      true)))))
+    :else (dispatch-save-menu-edit k)))
 
 (defn dispatch-backtick-key
   [k cell-coords]
@@ -133,14 +136,22 @@
     (let [cell (get-in (sa/current-world) coords)]
       (movement-state/get-active-unit cell coords))))
 
+(defn- dispatch-waiting-input-key
+  [k cell-coords]
+  (when (and (sa/read-state :waiting-for-input)
+             (not (and cell-coords (standing-order-handlers k))))
+    (actions/handle-key k)))
+
+(defn- dispatch-production-key
+  [k cell-coords]
+  (when (and (= k :p) cell-coords)
+    (dispatch-standing-order-key k cell-coords)))
+
 (defn dispatch-normal-key [k cell-coords]
   (or (dispatch-game-control-key k)
       (dispatch-save-load-key k)
-      (when (and (= k :p) cell-coords)
-        (dispatch-standing-order-key k cell-coords))
-      (when (and (sa/read-state :waiting-for-input)
-                 (not (and cell-coords (standing-order-handlers k))))
-        (actions/handle-key k))
+      (dispatch-production-key k cell-coords)
+      (dispatch-waiting-input-key k cell-coords)
       (dispatch-coord-key k cell-coords)
       (actions/handle-key k)))
 

@@ -8,44 +8,61 @@
   [unit]
   (and (= (:type unit) :satellite) (:target unit)))
 
+(defn- has-airport-fighter?
+  [cell]
+  (and (pos? (:fighter-count cell 0))
+       (pos? (:awake-fighters cell 0))))
+
+(defn- has-awake-carrier-fighter?
+  [unit]
+  (and (= (:type unit) :carrier)
+       (uc/has-awake? unit :awake-fighters)))
+
+(defn- player-owned-attention?
+  [cell unit has-airport-fighter? has-awake-carrier-fighter?]
+  (or (= (:city-status cell) :player)
+      (= (:owner unit) :player)
+      has-airport-fighter?
+      has-awake-carrier-fighter?))
+
+(defn- awake-or-pending-attention?
+  [cell unit production-entry has-airport-fighter? has-awake-army-aboard? has-awake-carrier-fighter?]
+  (or (= (:mode unit) :awake)
+      has-airport-fighter?
+      has-awake-army-aboard?
+      has-awake-carrier-fighter?
+      (and (= (:type cell) :city)
+           (not production-entry))))
+
 (defn player-map-cell-needs-attention?
   [cell production-entry]
   (let [unit (:contents cell)
-        has-airport-fighter? (and (pos? (:fighter-count cell 0))
-                                  (pos? (:awake-fighters cell 0)))
-        has-awake-army-aboard? (pos? (:awake-armies unit 0))
-        has-awake-carrier-fighter? (and (= (:type unit) :carrier)
-                                        (uc/has-awake? unit :awake-fighters))]
+        airport? (has-airport-fighter? cell)
+        army-aboard? (pos? (:awake-armies unit 0))
+        carrier-fighter? (has-awake-carrier-fighter? unit)]
     (and (not (satellite-with-target? unit))
-         (or (= (:city-status cell) :player)
-             (= (:owner unit) :player)
-             has-airport-fighter?
-             has-awake-carrier-fighter?)
-         (or (= (:mode unit) :awake)
-             has-airport-fighter?
-             has-awake-army-aboard?
-             has-awake-carrier-fighter?
-             (and (= (:type cell) :city)
-                  (not production-entry))))))
+         (player-owned-attention? cell unit airport? carrier-fighter?)
+         (awake-or-pending-attention? cell unit production-entry airport? army-aboard? carrier-fighter?))))
+
+(defn- world-city-needs-production?
+  [cell production-entry]
+  (and (= (:type cell) :city)
+       (= (:city-status cell) :player)
+       (not production-entry)))
 
 (defn world-item-needs-attention?
   [cell production-entry]
   (let [unit (:contents cell)
         player-owned-unit? (= (:owner unit) :player)
-        has-airport-fighter? (and (pos? (:fighter-count cell 0))
-                                  (pos? (:awake-fighters cell 0)))
-        has-awake-army-aboard? (pos? (:awake-armies unit 0))
-        has-awake-carrier-fighter? (and (= (:type unit) :carrier)
-                                        player-owned-unit?
-                                        (uc/has-awake? unit :awake-fighters))]
+        airport? (has-airport-fighter? cell)
+        army-aboard? (pos? (:awake-armies unit 0))
+        carrier-fighter? (and (has-awake-carrier-fighter? unit) player-owned-unit?)]
     (and (not (satellite-with-target? unit))
          (or (and player-owned-unit? (= (:mode unit) :awake))
-             has-airport-fighter?
-             has-awake-army-aboard?
-             has-awake-carrier-fighter?
-             (and (= (:type cell) :city)
-                  (= (:city-status cell) :player)
-                  (not production-entry))))))
+             airport?
+             army-aboard?
+             carrier-fighter?
+             (world-city-needs-production? cell production-entry)))))
 
 (defn attention-coords
   [player-map production]

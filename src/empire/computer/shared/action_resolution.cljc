@@ -72,6 +72,24 @@
     (and (= :computer (:owner unit))
          (= :army (:type unit)))))
 
+(defn- country-fill-kind
+  [snapshot current lost-army-pos country-id]
+  (let [same-country? (= country-id (:country-id (get-in snapshot current)))]
+    (cond
+      (not same-country?) :skip
+      (and (not= current lost-army-pos) (computer-army-at? snapshot current)) :anchor
+      :else :expand)))
+
+(defn- apply-country-fill-step
+  [snapshot current lost-army-pos country-id frontier visited cleared anchors]
+  (case (country-fill-kind snapshot current lost-army-pos country-id)
+    :skip [frontier (conj visited current) cleared anchors]
+    :anchor [frontier (conj visited current) cleared (conj anchors current)]
+    [(into frontier (remove visited) (world-query/get-neighbors current))
+     (conj visited current)
+     (conj cleared current)
+     anchors]))
+
 (defn- flood-fill-country-region
   [snapshot city-pos lost-army-pos country-id]
   (loop [frontier #{city-pos}
@@ -82,21 +100,10 @@
       (let [frontier (disj frontier current)]
         (if (visited current)
           (recur frontier visited cleared anchors)
-          (let [cell (get-in snapshot current)
-                same-country? (= country-id (:country-id cell))
-                anchored? (and same-country?
-                               (not= current lost-army-pos)
-                               (computer-army-at? snapshot current))]
-            (cond
-              (not same-country?)
-              (recur frontier (conj visited current) cleared anchors)
-              anchored?
-              (recur frontier (conj visited current) cleared (conj anchors current))
-              :else
-              (recur (into frontier (remove visited) (world-query/get-neighbors current))
-                     (conj visited current)
-                     (conj cleared current)
-                     anchors)))))
+          (let [[frontier visited cleared anchors]
+                (apply-country-fill-step snapshot current lost-army-pos country-id
+                                         frontier visited cleared anchors)]
+            (recur frontier visited cleared anchors))))
       {:cleared cleared :anchors anchors})))
 
 (defn- restamp-from-anchors! [cleared anchors country-id]
@@ -206,45 +213,51 @@
   (sa/write-state! :player-items [])
   (sa/write-state! :computer-items []))
 
+(defn- apply-successful-computer-conquest!
+  [army-pos city-pos army-cell army city-cell]
+  (debug/record-active-computer-unit-conquest! 1)
+  (debug/log-computer-event! :army-conquest-success
+                             army-pos
+                             {:city city-pos
+                              :continent-id (land-objectives/continent-id-for-pos city-pos)
+                              :computer-unit-id (:computer-unit-id army)
+                              :country-id (:country-id army)})
+  (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
+  (sa/update-world! assoc-in city-pos (assoc city-cell :city-status :computer))
+  (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)
+  (combat/conquer-city-contents city-pos :computer)
+  (computer-movement/update-cell-visibility! army-pos :computer)
+  (computer-movement/update-cell-visibility! city-pos :computer)
+  (stamp-territory city-pos army)
+  (computer-movement/update-cell-visibility! city-pos :computer)
+  (when (= :player (:city-status city-cell))
+    (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))
+  (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
+    (when-not (and city-country-id
+                   (country-city-producing-armies? city-pos city-country-id))
+      (city-production/set-city-production city-pos :army)))
+  (when (and (sa/read-state :game-over-check-enabled)
+             (= :player (:city-status city-cell))
+             (not (has-city? :player)))
+    (declare-game-over! "****GAME OVER*****  You Lose"))
+  nil)
+
+(defn- apply-failed-computer-conquest!
+  [army-pos city-pos army-cell army]
+  (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
+  (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
+  (clear-country-id-region-after-failed-conquest! city-pos army-pos (:country-id army))
+  (computer-movement/update-cell-visibility! army-pos :computer)
+  nil)
+
 (defn attempt-conquest-computer
   [army-pos city-pos]
   (let [army-cell (get-in (sa/current-world) army-pos)
         army (:contents army-cell)
         city-cell (get-in (sa/current-world) city-pos)]
     (if (< (rand) 0.5)
-      (do
-        (debug/record-active-computer-unit-conquest! 1)
-        (debug/log-computer-event! :army-conquest-success
-                                   army-pos
-                                   {:city city-pos
-                                    :continent-id (land-objectives/continent-id-for-pos city-pos)
-                                    :computer-unit-id (:computer-unit-id army)
-                                    :country-id (:country-id army)})
-        (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
-        (sa/update-world! assoc-in city-pos (assoc city-cell :city-status :computer))
-        (sa/update-state! :computer-city-positions (fnil conj #{}) city-pos)
-        (combat/conquer-city-contents city-pos :computer)
-        (computer-movement/update-cell-visibility! army-pos :computer)
-        (computer-movement/update-cell-visibility! city-pos :computer)
-        (stamp-territory city-pos army)
-        (computer-movement/update-cell-visibility! city-pos :computer)
-        (when (= :player (:city-status city-cell))
-          (sa/update-state! :player-map assoc-in city-pos (get-in (sa/current-world) city-pos)))
-        (let [city-country-id (:country-id (get-in (sa/current-world) city-pos))]
-          (when-not (and city-country-id
-                         (country-city-producing-armies? city-pos city-country-id))
-            (city-production/set-city-production city-pos :army)))
-        (when (and (sa/read-state :game-over-check-enabled)
-                   (= :player (:city-status city-cell))
-                   (not (has-city? :player)))
-          (declare-game-over! "****GAME OVER*****  You Lose"))
-        nil)
-      (do
-        (debug/log-computer-event! :army-conquest-fail army-pos {:city city-pos})
-        (sa/update-world! assoc-in army-pos (dissoc army-cell :contents))
-        (clear-country-id-region-after-failed-conquest! city-pos army-pos (:country-id army))
-        (computer-movement/update-cell-visibility! army-pos :computer)
-        nil))))
+      (apply-successful-computer-conquest! army-pos city-pos army-cell army city-cell)
+      (apply-failed-computer-conquest! army-pos city-pos army-cell army))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-05-07T19:34:34.720955-05:00", :module-hash "214109635", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 10, :hash "1942598219"} {:id "defn-/foreign-territory?", :kind "defn-", :line 12, :end-line 21, :hash "442986330"} {:id "defn-/country-city-producing-armies?", :kind "defn-", :line 23, :end-line 33, :hash "158463725"} {:id "defn-/flood-fill-unclaimed-land", :kind "defn-", :line 35, :end-line 53, :hash "1989995945"} {:id "defn/stamp-territory", :kind "defn", :line 55, :end-line 67, :hash "-1468700128"} {:id "defn-/computer-army-at?", :kind "defn-", :line 69, :end-line 73, :hash "678298330"} {:id "defn-/flood-fill-country-region", :kind "defn-", :line 75, :end-line 100, :hash "921018435"} {:id "defn-/restamp-from-anchors!", :kind "defn-", :line 102, :end-line 112, :hash "719042592"} {:id "defn-/clear-country-id-region-after-failed-conquest!", :kind "defn-", :line 114, :end-line 122, :hash "1484883844"} {:id "defn/move-unit-to", :kind "defn", :line 124, :end-line 143, :hash "836609590"} {:id "defn/random-away-direction", :kind "defn", :line 145, :end-line 152, :hash "-939520040"} {:id "defn/find-wakeable-sentries", :kind "defn", :line 154, :end-line 167, :hash "-1657952121"} {:id "defn/wake-nearby-sentries", :kind "defn", :line 169, :end-line 178, :hash "697068153"} {:id "defn/board-transport", :kind "defn", :line 180, :end-line 189, :hash "1793683928"} {:id "defn-/has-city?", :kind "defn-", :line 191, :end-line 198, :hash "-1768652215"} {:id "defn-/declare-game-over!", :kind "defn-", :line 200, :end-line 207, :hash "-1258410274"} {:id "defn/attempt-conquest-computer", :kind "defn", :line 209, :end-line 247, :hash "-1384532468"}]}

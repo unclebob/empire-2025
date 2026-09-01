@@ -168,15 +168,22 @@
      :detail (when (seq detail-tokens)
                (compact-detail (clojure.string/join " " detail-tokens)))}))
 
+(def ^:private detail-token-abbrevs
+  [["producing:" "prod:"]
+   ["rounds:" "rnd:"]
+   ["fighters:" "ftrs:"]
+   ["timeout:" "to:"]
+   ["mission:" "mis:"]])
+
+(defn- abbreviate-detail-token
+  [token [from to]]
+  (when (clojure.string/starts-with? token from)
+    (clojure.string/replace token from to)))
+
 (defn- compact-detail-token
   [token]
-  (cond
-    (clojure.string/starts-with? token "producing:") (clojure.string/replace token "producing:" "prod:")
-    (clojure.string/starts-with? token "rounds:") (clojure.string/replace token "rounds:" "rnd:")
-    (clojure.string/starts-with? token "fighters:") (clojure.string/replace token "fighters:" "ftrs:")
-    (clojure.string/starts-with? token "timeout:") (clojure.string/replace token "timeout:" "to:")
-    (clojure.string/starts-with? token "mission:") (clojure.string/replace token "mission:" "mis:")
-    :else token))
+  (or (some #(abbreviate-detail-token token %) detail-token-abbrevs)
+      token))
 
 (defn- compact-detail
   [detail]
@@ -220,19 +227,27 @@
         (clojure.string/starts-with? rest "sea ")) :terrain
     :else :unit))
 
+(defn- split-hover-by-kind
+  [coords-part rest]
+  (case (hover-kind rest)
+    :city (split-city-hover coords-part rest)
+    :waypoint (split-waypoint-hover coords-part rest)
+    :terrain (split-terrain-hover coords-part rest)
+    (split-unit-hover coords-part rest)))
+
+(defn- split-hover-rest
+  [hover-status coords-part rest]
+  (if-not (seq rest)
+    {:summary hover-status :detail nil}
+    (split-hover-by-kind coords-part rest)))
+
 (defn split-hover-status
   "Splits a formatted hover string into inspector summary/detail lines."
   [hover-status]
   (if-not (seq hover-status)
     {:summary nil :detail nil}
     (let [[coords-part rest] (clojure.string/split hover-status #" " 2)]
-      (if-not (seq rest)
-        {:summary hover-status :detail nil}
-        (case (hover-kind rest)
-          :city (split-city-hover coords-part rest)
-          :waypoint (split-waypoint-hover coords-part rest)
-          :terrain (split-terrain-hover coords-part rest)
-          (split-unit-hover coords-part rest))))))
+      (split-hover-rest hover-status coords-part rest))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-05-07T19:20:14.778041-05:00", :module-hash "919031281", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 4, :hash "2121582387"} {:id "defn/should-show-paused?", :kind "defn", :line 6, :end-line 9, :hash "1556317815"} {:id "defn-/safe-name", :kind "defn-", :line 11, :end-line 13, :hash "-1628295260"} {:id "defn-/unit-fuel-str", :kind "defn-", :line 15, :end-line 17, :hash "1572131136"} {:id "defn-/unit-cargo-str", :kind "defn-", :line 19, :end-line 23, :hash "-912894557"} {:id "defn-/transport-mission-str", :kind "defn-", :line 25, :end-line 30, :hash "2125337359"} {:id "defn-/patrol-mode-str", :kind "defn-", :line 32, :end-line 34, :hash "1917316096"} {:id "defn-/army-mission-str", :kind "defn-", :line 36, :end-line 38, :hash "18689968"} {:id "defn-/unit-orders-str", :kind "defn-", :line 40, :end-line 44, :hash "-636057977"} {:id "defn-/unit-target-str", :kind "defn-", :line 46, :end-line 50, :hash "-543671099"} {:id "defn/format-unit-status", :kind "defn", :line 52, :end-line 67, :hash "745030943"} {:id "defn-/format-ship-for-dock", :kind "defn-", :line 69, :end-line 74, :hash "2019898018"} {:id "defn-/format-shipyard", :kind "defn-", :line 76, :end-line 80, :hash "1584376118"} {:id "defn-/city-production-str", :kind "defn-", :line 82, :end-line 88, :hash "245476064"} {:id "defn-/coordinate-pair?", :kind "defn-", :line 90, :end-line 95, :hash "-1023604492"} {:id "defn-/march-target", :kind "defn-", :line 97, :end-line 102, :hash "1344081493"} {:id "defn-/marching-orders-str", :kind "defn-", :line 104, :end-line 110, :hash "-638452953"} {:id "defn-/flight-path-str", :kind "defn-", :line 112, :end-line 115, :hash "303918737"} {:id "defn-/city-orders-str", :kind "defn-", :line 117, :end-line 122, :hash "-1367287606"} {:id "defn/format-city-status", :kind "defn", :line 124, :end-line 135, :hash "981966243"} {:id "defn-/format-terrain-status", :kind "defn-", :line 137, :end-line 141, :hash "-1429165815"} {:id "defn/format-waypoint-status", :kind "defn", :line 143, :end-line 149, :hash "1023450594"} {:id "defn/format-hover-status", :kind "defn", :line 151, :end-line 160, :hash "-1863990030"} {:id "form/23/declare", :kind "declare", :line 162, :end-line 162, :hash "1539091516"} {:id "defn-/split-unit-hover", :kind "defn-", :line 164, :end-line 169, :hash "-181459465"} {:id "defn-/compact-detail-token", :kind "defn-", :line 171, :end-line 179, :hash "-1585523871"} {:id "defn-/compact-detail", :kind "defn-", :line 181, :end-line 186, :hash "-468040357"} {:id "defn-/split-city-hover", :kind "defn-", :line 188, :end-line 197, :hash "-1457307672"} {:id "defn-/split-capitalized-hover", :kind "defn-", :line 199, :end-line 204, :hash "623314853"} {:id "defn-/split-waypoint-hover", :kind "defn-", :line 206, :end-line 208, :hash "151217740"} {:id "defn-/split-terrain-hover", :kind "defn-", :line 210, :end-line 212, :hash "2026826951"} {:id "defn-/hover-kind", :kind "defn-", :line 214, :end-line 221, :hash "-590361608"} {:id "defn/split-hover-status", :kind "defn", :line 223, :end-line 235, :hash "1412963234"}]}

@@ -24,12 +24,16 @@
   [context]
   {:action (loaded-no-path-state context)})
 
+(defn- blocked-invading-state
+  [sidestep-succeeded?]
+  (if sidestep-succeeded? :sidestep :random-walk))
+
 (defn invading-state
   [{:keys [threat-near-target? empty-path? direct-shortcut? blocked? sidestep-succeeded?]}]
   (cond
     threat-near-target? :threat
     (or empty-path? direct-shortcut?) :crawl
-    blocked? (if sidestep-succeeded? :sidestep :random-walk)
+    blocked? (blocked-invading-state sidestep-succeeded?)
     :else :path))
 
 (defn invading-action

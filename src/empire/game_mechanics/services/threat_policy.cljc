@@ -21,15 +21,19 @@
   (and (= :city (:type game-cell))
        (= :player (:city-status game-cell))))
 
+(defn- army-detection-trigger
+  [game-cell]
+  (if (:country-id game-cell)
+    :country-defense-trigger
+    :major-invasion-trigger))
+
 (defn detection-trigger
   [game-cell]
   (let [unit-type (player-unit-type game-cell)]
     (cond
       (= :fighter unit-type) :fighter-detected
       (enemy-ship-types unit-type) :ship-detected
-      (= :army unit-type) (if (:country-id game-cell)
-                            :country-defense-trigger
-                            :major-invasion-trigger)
+      (= :army unit-type) (army-detection-trigger game-cell)
       (player-city? game-cell) :major-invasion-trigger
       :else nil)))
 

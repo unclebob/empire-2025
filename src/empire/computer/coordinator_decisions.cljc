@@ -7,15 +7,19 @@
   [unit]
   (and unit (= (:owner unit) :computer)))
 
+(defn- typed-dispatch-action
+  [unit-type]
+  (cond
+    (= :army unit-type) :army
+    (= :fighter unit-type) :fighter
+    (= :transport unit-type) :transport
+    (ship-types unit-type) :ship
+    :else nil))
+
 (defn dispatch-action
   [unit]
-  (cond
-    (not (computer-unit? unit)) nil
-    (= :army (:type unit)) :army
-    (= :fighter (:type unit)) :fighter
-    (= :transport (:type unit)) :transport
-    (ship-types (:type unit)) :ship
-    :else nil))
+  (when (computer-unit? unit)
+    (typed-dispatch-action (:type unit))))
 
 (defn dispatch-plan
   [unit]

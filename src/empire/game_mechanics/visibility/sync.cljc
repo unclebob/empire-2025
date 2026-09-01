@@ -39,6 +39,23 @@
     (when (= :computer (:owner unit))
       unit)))
 
+(defn- reveal-visibility-ring
+  [pos owner visible-map-key visible-map game-map radius stamp-id detect-threats?]
+  (let [[x y] pos
+        height (count game-map)
+        width (count (first game-map))
+        exposed-positions (atom [])]
+    (doseq [di (range (- radius) (inc radius))
+            dj (range (- radius) (inc radius))
+            :let [ni (+ x di) nj (+ y dj)]
+            :when (core/in-bounds? ni nj height width)]
+      (when (core/was-unexplored? visible-map ni nj)
+        (swap! exposed-positions conj [ni nj]))
+      (core/reveal-and-track! visible-map-key ni nj
+                              stamp-id detect-threats? visible-map queue-detection!))
+    (when (= owner :computer)
+      (territory/stamp-exposed-territory! visible-map-key @exposed-positions))))
+
 (defn update-cell-visibility
   "Updates visibility around a specific cell for the given owner.
    Satellites reveal two rectangular rings (distances 1 and 2).
@@ -52,21 +69,9 @@
          stamp-id (core/should-stamp-country? unit)
          detect-threats? (= owner :computer)]
      (when-let [visible-map (core/read-runtime-state visible-map-key)]
-      (let [[x y] pos
-             height (count game-map)
-             width (count (first game-map))
-             exposed-positions (atom [])]
-         (doseq [di (range (- radius) (inc radius))
-                 dj (range (- radius) (inc radius))
-                 :let [ni (+ x di) nj (+ y dj)]
-                 :when (core/in-bounds? ni nj height width)]
-           (when (core/was-unexplored? visible-map ni nj)
-             (swap! exposed-positions conj [ni nj]))
-           (core/reveal-and-track! visible-map-key ni nj
-                                   stamp-id detect-threats? visible-map queue-detection!))
-         (when (= owner :computer)
-           (territory/stamp-exposed-territory! visible-map-key @exposed-positions))
-         nil)))))
+       (reveal-visibility-ring pos owner visible-map-key visible-map game-map
+                               radius stamp-id detect-threats?)
+       nil))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T11:10:55.544735-05:00", :module-hash "-20824294", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "-251313654"} {:id "def/detection-queue", :kind "def", :line 5, :end-line 5, :hash "303696996"} {:id "defn/drain-detections!", :kind "defn", :line 7, :end-line 12, :hash "1195271324"} {:id "defn-/queue-detection!", :kind "defn-", :line 14, :end-line 16, :hash "-319377426"} {:id "defn/sync-ai-unit-to-computer-map!", :kind "defn", :line 18, :end-line 27, :hash "-91376998"} {:id "defn/sync-ai-cell-to-computer-map!", :kind "defn", :line 29, :end-line 34, :hash "-521139698"} {:id "defn/authoritative-computer-unit-at", :kind "defn", :line 36, :end-line 40, :hash "-1952801816"} {:id "defn/update-cell-visibility", :kind "defn", :line 42, :end-line 69, :hash "27123339"}]}

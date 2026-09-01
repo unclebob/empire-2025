@@ -40,17 +40,24 @@
            (and (= :fighter (:type unit))
                 (not= next-pos (:target unit))))))
 
+(defn- blocked-movement-action
+  [{:keys [blocked-by-friendly? can-attack-enemy?]}]
+  (cond
+    blocked-by-friendly? :sidestep-friendly
+    can-attack-enemy? :combat
+    :else nil))
+
+(defn- blocked-or-woke-action
+  [{:keys [woke?] :as ctx}]
+  (or (blocked-movement-action ctx)
+      (if woke? :woke :normal)))
+
 (defn movement-action
   "Classifies the next movement-resolution action."
-  [{:keys [sidestep-city?
-           blocked?
-           blocked-by-friendly?
-           can-attack-enemy?
-           woke?]}]
+  [{:keys [sidestep-city? blocked? woke?] :as ctx}]
   (cond
     sidestep-city? :sidestep-city
-    (and blocked? blocked-by-friendly?) :sidestep-friendly
-    (and blocked? can-attack-enemy?) :combat
+    blocked? (blocked-or-woke-action ctx)
     woke? :woke
     :else :normal))
 

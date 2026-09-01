@@ -10,6 +10,10 @@
     []
     (vec player-items)))
 
+(defn- handicap-display-clear?
+  [remaining* display]
+  (and (zero? remaining*) (zero? (or display 0)) (some? display)))
+
 (defn handicap-update
   [remaining display]
   (let [remaining* (or remaining 0)]
@@ -19,7 +23,7 @@
        :remaining (dec remaining*)
        :display (dec remaining*)}
 
-      (and (zero? remaining*) (zero? (or display 0)) (some? display))
+      (handicap-display-clear? remaining* display)
       {:action :clear-display}
 
       :else nil)))
@@ -43,13 +47,14 @@
 
       :else nil)))
 
+(defn- blocked-by-ui?
+  [{:keys [load-menu-open save-menu-open paused]}]
+  (or load-menu-open save-menu-open paused))
+
 (defn advance-game-action
-  [{:keys [load-menu-open save-menu-open paused both-lists-empty? pause-requested waiting-for-input
-           player-items]}]
+  [{:keys [both-lists-empty? pause-requested waiting-for-input player-items] :as state}]
   (cond
-    load-menu-open nil
-    save-menu-open nil
-    paused nil
+    (blocked-by-ui? state) nil
     (round-end-action both-lists-empty? pause-requested) (round-end-action both-lists-empty? pause-requested)
     waiting-for-input nil
     (seq player-items) :process-player

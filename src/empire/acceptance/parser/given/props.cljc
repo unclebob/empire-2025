@@ -53,25 +53,31 @@
                                              (case v "true" true "false" false nil)
                                              (keyword v))}}))}])
 
+(defn- extract-unit-props
+  [rest-str]
+  (reduce (fn [acc {:keys [regex extract-fn]}]
+            (if-let [match (re-find regex rest-str)]
+              (if-let [extracted (extract-fn match)]
+                (merge-with merge acc extracted)
+                acc)
+              acc))
+          {:props {} :container-props {}}
+          unit-prop-extractors))
+
+(defn- unit-props-result
+  [unit props container-props]
+  (when (or (seq props) (seq container-props))
+    (let [result {:type :unit-props :unit unit :props props}]
+      (if (seq container-props)
+        (assoc result :container-props container-props)
+        result))))
+
 (defn parse-unit-props-line [line]
-  (let [clean (h/strip-trailing-period (str/trim line))
-        clean (h/strip-keyword-prefix clean)]
+  (let [clean (h/strip-keyword-prefix (h/strip-trailing-period (str/trim line)))]
     (when-let [[_ unit rest-str] (re-matches #"(\w+)\s+(.*)" clean)]
       (when (h/city-or-unit-char? unit)
-        (let [{:keys [props container-props]}
-              (reduce (fn [acc {:keys [regex extract-fn]}]
-                        (if-let [match (re-find regex rest-str)]
-                          (if-let [extracted (extract-fn match)]
-                            (merge-with merge acc extracted)
-                            acc)
-                          acc))
-                      {:props {} :container-props {}}
-                      unit-prop-extractors)
-              result {:type :unit-props :unit unit :props props}]
-          (when (or (seq props) (seq container-props))
-            (if (seq container-props)
-              (assoc result :container-props container-props)
-              result)))))))
+        (let [{:keys [props container-props]} (extract-unit-props rest-str)]
+          (unit-props-result unit props container-props))))))
 
 (defn parse-container-state-line [line]
   (let [clean (h/strip-trailing-period (str/trim line))

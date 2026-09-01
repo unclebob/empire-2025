@@ -53,25 +53,13 @@
       (let [at-best (filter #(= best-score (second %)) scored)]
         (first (first (sort-by (fn [[n _]] (fm/distance-to n target)) at-best)))))))
 
-(defn- navigate-toward-target
-  "Move one step toward target, preferring unexplored cells when fuel allows.
-   Returns {:pos p :hops n} or nil."
-  [pos target fuel]
-  (let [passable (fm/get-passable-neighbors pos)
-        direct-dist (fm/distance-to pos target)
-        fuel-margin? (> fuel (+ direct-dist 2))
-        explore-pos (when fuel-margin?
-                      (select-best-navigation-target passable target))]
-    (if explore-pos
-      (when (action-resolution/move-unit-to pos explore-pos)
-        (computer-movement/update-cell-visibility! pos :computer)
-        (computer-movement/update-cell-visibility! explore-pos :computer)
-        (when (fm/consume-fighter-fuel explore-pos)
-          {:pos explore-pos :hops 1}))
-      (when-let [hop (fm/hop-over-friendly pos target)]
-        (when-let [{:keys [pos hops]} (fm/execute-hop pos hop)]
-          (when (fm/consume-fighter-fuel pos)
-            {:pos pos :hops hops}))))))
+(defn- explore-navigation-step
+  [pos explore-pos]
+  (when (action-resolution/move-unit-to pos explore-pos)
+    (computer-movement/update-cell-visibility! pos :computer)
+    (computer-movement/update-cell-visibility! explore-pos :computer)
+    (when (fm/consume-fighter-fuel explore-pos)
+      {:pos explore-pos :hops 1})))
 
 (defn- refuel-at-site
   "Refuel fighter in place, recording origin site for leg tracking."
@@ -88,6 +76,19 @@
     (when-let [{:keys [pos hops]} (fm/execute-hop pos hop)]
       (when (fm/consume-fighter-fuel pos)
         {:pos pos :hops hops}))))
+
+(defn- navigate-toward-target
+  "Move one step toward target, preferring unexplored cells when fuel allows.
+   Returns {:pos p :hops n} or nil."
+  [pos target fuel]
+  (let [passable (fm/get-passable-neighbors pos)
+        direct-dist (fm/distance-to pos target)
+        fuel-margin? (> fuel (+ direct-dist 2))
+        explore-pos (when fuel-margin?
+                      (select-best-navigation-target passable target))]
+    (if explore-pos
+      (explore-navigation-step pos explore-pos)
+      (move-and-consume-toward pos target))))
 
 (defn- adjacent-to-city-site? [site pos]
   (and site
@@ -162,6 +163,10 @@
   [pos unit]
   (fe/explore-step pos unit))
 
+(defn- arrived-at-flight-target?
+  [pos target]
+  (and target (at-flight-target? pos target)))
+
 (defn- move-fighter-toward-objective
   "Non-combat movement priorities: explore > arrival > low fuel > navigate > patrol. CC=5."
   [pos unit]
@@ -169,7 +174,7 @@
         target (:flight-target-site unit)
         action (decisions/objective-action
                 {:exploring? (exploring? unit)
-                 :at-flight-target? (and target (at-flight-target? pos target))
+                 :at-flight-target? (arrived-at-flight-target? pos target)
                  :low-fuel? (should-break-off-to-refuel? pos fuel unit)
                  :has-target? (boolean target)})]
     (case action

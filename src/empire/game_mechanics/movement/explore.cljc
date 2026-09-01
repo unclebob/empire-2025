@@ -48,25 +48,8 @@
         unexplored-moves (filter adjacent-to-unexplored? unvisited-moves)
         on-coast? (map-utils/adjacent-to-sea? pos current-map)
         coastal-moves (when on-coast? (filter #(map-utils/adjacent-to-sea? % current-map) unvisited-moves))]
-    (cond
-      ;; Prefer moves towards unexplored areas
-      (seq unexplored-moves)
-      (rand-nth unexplored-moves)
-
-      ;; On coast with coastal moves available - follow coast
-      (seq coastal-moves)
-      (rand-nth coastal-moves)
-
-      ;; Unvisited random walk
-      (seq unvisited-moves)
-      (rand-nth unvisited-moves)
-
-      ;; All visited - allow revisiting as last resort
-      (seq all-moves)
-      (rand-nth all-moves)
-
-      ;; No valid moves - stuck
-      :else nil)))
+    (some #(when (seq %) (rand-nth %))
+          [unexplored-moves coastal-moves unvisited-moves all-moves])))
 
 (defn move-explore-unit
   "Moves an exploring army one step. Returns new position or nil if done/stuck."

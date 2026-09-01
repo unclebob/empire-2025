@@ -131,17 +131,26 @@
   (and (:major-invasion (computer-unit-at current-pos))
        (ship-core/find-adjacent-enemy-ship current-pos)))
 
+(defn- patrol-loop-done?
+  [current-pos steps-left]
+  (or (zero? steps-left)
+      (nil? (computer-unit-at current-pos))))
+
+(defn- standard-patrol-step
+  [current-pos]
+  (if (attacking-major-invasion-patrol? current-pos)
+    {:done (or (major-invasion-step current-pos) current-pos)}
+    {:continue (or (patrol-boat-step current-pos) current-pos)}))
+
 (defn- process-standard-patrol
   [pos]
   (loop [current-pos pos steps-left 4]
-    (if (or (zero? steps-left)
-            (nil? (computer-unit-at current-pos)))
+    (if (patrol-loop-done? current-pos steps-left)
       current-pos
-      (if (attacking-major-invasion-patrol? current-pos)
-        (or (major-invasion-step current-pos) current-pos)
-        (if-let [new-pos (patrol-boat-step current-pos)]
-          (recur new-pos (dec steps-left))
-          (recur current-pos (dec steps-left)))))))
+      (let [step (standard-patrol-step current-pos)]
+        (if-let [done (:done step)]
+          done
+          (recur (:continue step) (dec steps-left)))))))
 
 (defn process-patrol-boat
   "Processes a computer patrol boat. Moves up to speed 4 steps per round.

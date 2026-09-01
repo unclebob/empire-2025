@@ -174,19 +174,25 @@
                    :nearby-unloadable-land? (and (pos? army-count)
                                                  ((:has-nearby-unloadable-land? deps) pos transport 5))})}))
 
+(defn- revert-or-hold-load-for-invasion
+  [deps update-game-map! transition-to-loading pos timed-out? load-state]
+  (if (= :revert-loading (handler-decisions/load-for-invasion-action load-state))
+    (process-load-for-invasion-empty
+     update-game-map!
+     transition-to-loading
+     (:sync-transport! deps)
+     pos
+     timed-out?)
+    (when (:has-armies? load-state) nil)))
+
 (defn- apply-load-for-invasion-action
   [deps update-game-map! transition-to-loading pos
    {:keys [major-target timed-out? load-state]}]
   (case (handler-decisions/load-for-invasion-action load-state)
     :unload ((:transition-to-unloading deps) pos major-target)
     :sail ((:transition-to-sailing deps) pos)
-    :revert-loading (process-load-for-invasion-empty
-                     update-game-map!
-                     transition-to-loading
-                     (:sync-transport! deps)
-                     pos
-                     timed-out?)
-    (when (:has-armies? load-state) nil)))
+    (revert-or-hold-load-for-invasion
+     deps update-game-map! transition-to-loading pos timed-out? load-state)))
 
 (defn process-load-for-invasion
   [{:keys [current-world

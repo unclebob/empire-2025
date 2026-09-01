@@ -123,13 +123,21 @@
           (Math/abs (long (- (second pos) (second start)))))
      radius))
 
+(defn- passable-sea-cell?
+  [computer-map pos]
+  (let [cell (get-in computer-map pos)]
+    (and cell (= :sea (:type cell)))))
+
+(defn- unowned-coast-hit?
+  [start current computer-map]
+  (and (not= current start)
+       (adjacent-to-unowned? current computer-map)))
+
 (defn bfs-to-unowned-coast
   "BFS from start over explored sea cells on computer-map to find nearest
    cell adjacent to non-computer land/city on computer-map."
   [start computer-map _game-map]
-  (let [passable-sea? (fn [pos]
-                        (let [cell (get-in computer-map pos)]
-                          (and cell (= :sea (:type cell)))))]
+  (let [passable-sea? #(passable-sea-cell? computer-map %)]
     (when (passable-sea? start)
       (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
              visited #{start}
@@ -137,20 +145,12 @@
         (when (seq queue)
           (let [current (peek queue)
                 rest-queue (pop queue)]
-            (if (and (not= current start)
-                     (adjacent-to-unowned? current computer-map))
+            (if (unowned-coast-hit? start current computer-map)
               (vec (rest (map-utils/reconstruct-path came-from start current)))
-              (let [[x y] current
-                    neighbors (for [[dx dy] map-utils/neighbor-offsets
-                                    :let [nx (+ x dx) ny (+ y dy) n [nx ny]]
-                                    :when (and (not (visited n))
-                                               (passable-sea? n))]
-                                n)
-                    new-visited (into visited neighbors)
-                    new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
+              (let [neighbors (core/bfs-sea-neighbors current visited passable-sea?)]
                 (recur (into rest-queue neighbors)
-                       new-visited
-                       new-came-from)))))))))
+                       (into visited neighbors)
+                       (reduce #(assoc %1 %2 current) came-from neighbors))))))))))
 
 (def ^:private coast-lookahead 4)
 

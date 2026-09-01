@@ -57,6 +57,25 @@
             (= target-city [(+ x dx) (+ y dy)]))
           map-utils/neighbor-offsets)))
 
+(defn- land-ho-arrived?
+  [start current target-city]
+  (and (not= current start)
+       (adjacent-to-target? current target-city)))
+
+(defn- land-ho-search
+  [start target-city passable-sea?]
+  (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
+         visited #{start}
+         came-from {}]
+    (when (seq queue)
+      (let [current (peek queue)]
+        (if (land-ho-arrived? start current target-city)
+          (vec (rest (map-utils/reconstruct-path came-from start current)))
+          (let [neighbors (core/bfs-sea-neighbors current visited passable-sea?)]
+            (recur (reduce conj (pop queue) neighbors)
+                   (into visited neighbors)
+                   (reduce #(assoc %1 %2 current) came-from neighbors))))))))
+
 (defn bfs-to-land-ho-target
   "BFS over sea cells on computer-map from start toward target-city.
    Returns path of sea cells (excluding start) ending adjacent to target-city.
@@ -68,19 +87,7 @@
     (if (adjacent-to-target? start target-city)
       []
       (when (passable-sea? start)
-        (loop [queue (conj clojure.lang.PersistentQueue/EMPTY start)
-               visited #{start}
-               came-from {}]
-          (when (seq queue)
-            (let [current (peek queue)]
-              (if (and (not= current start)
-                       (adjacent-to-target? current target-city))
-                (vec (rest (map-utils/reconstruct-path came-from start current)))
-                (let [neighbors (core/bfs-sea-neighbors current visited passable-sea?)
-                      new-came-from (reduce #(assoc %1 %2 current) came-from neighbors)]
-                  (recur (reduce conj (pop queue) neighbors)
-                         (into visited neighbors)
-                         new-came-from))))))))))
+        (land-ho-search start target-city passable-sea?)))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T01:23:31.141059-05:00", :module-hash "-537788175", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 6, :hash "2073553519"} {:id "defn/adjacent-to-target-continent-land?", :kind "defn", :line 8, :end-line 19, :hash "1305370384"} {:id "defn-/find-nearest-unload-uncached", :kind "defn-", :line 21, :end-line 41, :hash "557224228"} {:id "defn/find-nearest-unload-position", :kind "defn", :line 43, :end-line 50, :hash "1788335098"} {:id "defn-/adjacent-to-target?", :kind "defn-", :line 52, :end-line 58, :hash "317433455"} {:id "defn/bfs-to-land-ho-target", :kind "defn", :line 60, :end-line 83, :hash "797561837"}]}

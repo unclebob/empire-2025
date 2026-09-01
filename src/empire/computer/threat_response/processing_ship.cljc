@@ -170,25 +170,35 @@
       (patrol-stand-off-step ctx current
                              (major-invasion-target nearest-major-target current center))))
 
+(defn- patrol-invasion-done?
+  [ctx current steps-left]
+  (or (zero? steps-left)
+      (not (occupied-position? ctx current))))
+
 (defn run-patrol-major-invasion
   [ctx nearest-major-target pos center]
   (loop [current pos
          steps-left 4]
-    (cond
-      (zero? steps-left) current
-      (not (occupied-position? ctx current)) current
-      :else
+    (if (patrol-invasion-done? ctx current steps-left)
+      current
       (if-let [yield-pos (patrol-yield-to-transport ctx current center)]
         yield-pos
-        (let [next-steps-left (dec steps-left)]
-          (recur (or (patrol-major-invasion-step ctx nearest-major-target current center)
-                     current)
-                 next-steps-left))))))
+        (recur (or (patrol-major-invasion-step ctx nearest-major-target current center)
+                   current)
+               (dec steps-left))))))
 
 (defn handle-sea-scout-ship-threat
   [pos ship-type center radius]
   (ship-threat-action pos ship-type (sea-scout-target pos center radius))
   true)
+
+(defn- pursue-major-invasion-target
+  [ctx pos target congestion-random-walk-restore-keys]
+  (when target
+    (or (ship-core/move-toward pos target)
+        (ship-sidestep-toward pos target)
+        (do (start-ship-congestion-random-walk! ctx pos congestion-random-walk-restore-keys)
+            true))))
 
 (defn handle-major-invasion-ship-threat
   [ctx nearest-major-target pos ship-type center congestion-random-walk-restore-keys]
@@ -197,28 +207,26 @@
     (let [target (major-invasion-target nearest-major-target pos center)]
       (or (when-let [enemy-pos (ship-core/find-adjacent-enemy-ship pos)]
             (ship-core/attack-enemy pos enemy-pos))
-          (when target
-            (or (ship-core/move-toward pos target)
-                (ship-sidestep-toward pos target)
-                (do (start-ship-congestion-random-walk! ctx pos congestion-random-walk-restore-keys)
-                    true)))
+          (pursue-major-invasion-target ctx pos target congestion-random-walk-restore-keys)
           (ship-core/explore-sea pos ship-type))))
   true)
+
+(defn- ship-threat-mode-input
+  [unit]
+  {:random-walk? (and (:major-invasion unit) (oscillation/in-random-walk? unit))
+   :sea-scout? (= :sea-scout (:threat-mission unit))
+   :major-invasion? (:major-invasion unit)})
 
 (defn process-ship-threat
   [ctx pos ship-type unit congestion-random-walk-restore-keys process-ship-random-walk-fn]
   (let [center (or (:threat-center unit) (:major-invasion-target unit))
         radius (:threat-radius unit (:threat-radius ctx))
-        nearest-major-target (:nearest-major-target ctx)
-        result (case (decisions/ship-threat-mode
-                      {:random-walk? (and (:major-invasion unit) (oscillation/in-random-walk? unit))
-                       :sea-scout? (= :sea-scout (:threat-mission unit))
-                       :major-invasion? (:major-invasion unit)})
-                 :random-walk (process-ship-random-walk-fn ctx pos)
-                 :sea-scout (handle-sea-scout-ship-threat pos ship-type center radius)
-                 :major-invasion (handle-major-invasion-ship-threat ctx nearest-major-target pos ship-type center congestion-random-walk-restore-keys)
-                 false)]
-    result))
+        nearest-major-target (:nearest-major-target ctx)]
+    (case (decisions/ship-threat-mode (ship-threat-mode-input unit))
+      :random-walk (process-ship-random-walk-fn ctx pos)
+      :sea-scout (handle-sea-scout-ship-threat pos ship-type center radius)
+      :major-invasion (handle-major-invasion-ship-threat ctx nearest-major-target pos ship-type center congestion-random-walk-restore-keys)
+      false)))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-05-07T18:35:39.376522-05:00", :module-hash "-481543727", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 7, :hash "-1909031043"} {:id "def/patrol-yield-radius", :kind "def", :line 9, :end-line 9, :hash "-2055166791"} {:id "def/patrol-max-invasion-distance", :kind "def", :line 10, :end-line 10, :hash "-1594233431"} {:id "defn-/visible-world", :kind "defn-", :line 12, :end-line 16, :hash "1238115483"} {:id "defn/ship-threat-action", :kind "defn", :line 18, :end-line 24, :hash "-1509416151"} {:id "defn/ship-sidestep-toward", :kind "defn", :line 26, :end-line 37, :hash "1309917641"} {:id "defn/start-ship-congestion-random-walk!", :kind "defn", :line 39, :end-line 41, :hash "761797024"} {:id "defn/process-ship-random-walk", :kind "defn", :line 43, :end-line 57, :hash "-1413180417"} {:id "defn/nearby-invading-transports", :kind "defn", :line 59, :end-line 73, :hash "1013786602"} {:id "defn/land-at-distance?", :kind "defn", :line 75, :end-line 84, :hash "-1281486861"} {:id "defn/shore-band-score", :kind "defn", :line 86, :end-line 92, :hash "-1955351171"} {:id "defn/top-random-choice", :kind "defn", :line 94, :end-line 99, :hash "-28880076"} {:id "defn/candidate-neighbors", :kind "defn", :line 101, :end-line 107, :hash "-597944319"} {:id "defn/patrol-stand-off-step", :kind "defn", :line 109, :end-line 119, :hash "1653988852"} {:id "defn/patrol-yield-to-transport", :kind "defn", :line 121, :end-line 146, :hash "-900586249"} {:id "defn/sea-scout-target", :kind "defn", :line 148, :end-line 154, :hash "2135436017"} {:id "defn/major-invasion-target", :kind "defn", :line 156, :end-line 161, :hash "1142149879"} {:id "defn/occupied-position?", :kind "defn", :line 163, :end-line 164, :hash "-1183999174"} {:id "defn/patrol-major-invasion-step", :kind "defn", :line 166, :end-line 171, :hash "1182676753"} {:id "defn/run-patrol-major-invasion", :kind "defn", :line 173, :end-line 186, :hash "-1835871187"} {:id "defn/handle-sea-scout-ship-threat", :kind "defn", :line 188, :end-line 191, :hash "-115651107"} {:id "defn/handle-major-invasion-ship-threat", :kind "defn", :line 193, :end-line 206, :hash "-121391592"} {:id "defn/process-ship-threat", :kind "defn", :line 208, :end-line 221, :hash "-697317044"}]}

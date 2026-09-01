@@ -57,6 +57,17 @@
                  :when (and tcell (= :land (:type tcell)) (not (:contents tcell)))]
              target))))
 
+(defn- exploring-army?
+  [active-unit is-army-aboard?]
+  (and (= :army (:type active-unit)) (not is-army-aboard?)))
+
+(defn- army-aboard-look-around-action
+  [world coords]
+  (if-let [valid-target (adjacent-land-target world coords)]
+    {:action :disembark-army-to-explore
+     :target valid-target}
+    {:action :no-op}))
+
 (defn look-around-action
   [world coords active-unit]
   (let [is-army-aboard? (movement-state/is-army-aboard-transport? active-unit)
@@ -65,14 +76,11 @@
                      #(= :land (:type %)))
         rejection-reason (coastline/coastline-follow-rejection-reason active-unit near-coast?)]
     (cond
-      (and (= :army (:type active-unit)) (not is-army-aboard?))
+      (exploring-army? active-unit is-army-aboard?)
       {:action :set-explore-mode}
 
       is-army-aboard?
-      (if-let [valid-target (adjacent-land-target world coords)]
-        {:action :disembark-army-to-explore
-         :target valid-target}
-        {:action :no-op})
+      (army-aboard-look-around-action world coords)
 
       (coastline/coastline-follow-eligible? active-unit near-coast?)
       {:action :set-coastline-follow-mode}
@@ -231,13 +239,15 @@
     {:action :set-production
      :item item}))
 
+(def ^:private movement-context-actions
+  {:airport-fighter :launch-airport-fighter
+   :carrier-fighter :launch-carrier-fighter
+   :army-aboard :army-aboard-movement
+   :standard-unit :standard-unit-movement})
+
 (defn movement-context-action
   [context]
-  (case context
-    :airport-fighter :launch-airport-fighter
-    :carrier-fighter :launch-carrier-fighter
-    :army-aboard :army-aboard-movement
-    :standard-unit :standard-unit-movement))
+  (get movement-context-actions context))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-05-07T17:23:51.053753-05:00", :module-hash "-1369621678", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 9, :hash "323401925"} {:id "defn/space-key-action", :kind "defn", :line 11, :end-line 25, :hash "1796301992"} {:id "defn/unload-key-action", :kind "defn", :line 27, :end-line 34, :hash "674384875"} {:id "defn/sentry-key-action", :kind "defn", :line 36, :end-line 47, :hash "506811832"} {:id "defn/adjacent-land-target", :kind "defn", :line 49, :end-line 58, :hash "-776962319"} {:id "defn/look-around-action", :kind "defn", :line 60, :end-line 84, :hash "-1104782613"} {:id "defn/adjacent-coords?", :kind "defn", :line 86, :end-line 91, :hash "-1207367948"} {:id "defn-/chebyshev-distance", :kind "defn-", :line 93, :end-line 96, :hash "-94764975"} {:id "defn-/adjacent-open-land-target", :kind "defn-", :line 98, :end-line 111, :hash "-334674420"} {:id "defn-/army-coastal-attack-action", :kind "defn-", :line 113, :end-line 121, :hash "431117189"} {:id "defn-/hostile-city-action", :kind "defn-", :line 123, :end-line 131, :hash "-855228636"} {:id "defn-/friendly-blocker?", :kind "defn-", :line 133, :end-line 141, :hash "320660491"} {:id "defn-/army-blocking-reason", :kind "defn-", :line 143, :end-line 149, :hash "24121794"} {:id "defn-/naval-blocking-reason", :kind "defn-", :line 151, :end-line 154, :hash "127848293"} {:id "defn-/movement-blocking-reason", :kind "defn-", :line 156, :end-line 162, :hash "1315273709"} {:id "defn-/rejection-action", :kind "defn-", :line 164, :end-line 168, :hash "2014820854"} {:id "defn-/standard-click-action", :kind "defn-", :line 170, :end-line 180, :hash "-2002292125"} {:id "defn-/army-aboard-attack-action", :kind "defn-", :line 182, :end-line 187, :hash "152398951"} {:id "defn-/army-aboard-disembark-action", :kind "defn-", :line 189, :end-line 195, :hash "1591121177"} {:id "defn-/army-aboard-extended-disembark-action", :kind "defn-", :line 197, :end-line 202, :hash "487831673"} {:id "defn-/army-aboard-click-action", :kind "defn-", :line 204, :end-line 213, :hash "-464994346"} {:id "defn/click-action", :kind "defn", :line 215, :end-line 221, :hash "659796768"} {:id "defn/city-production-action", :kind "defn", :line 223, :end-line 232, :hash "1476259673"} {:id "defn/movement-context-action", :kind "defn", :line 234, :end-line 240, :hash "527198210"}]}

@@ -113,6 +113,21 @@
     (when (awake-carrier-fighter? cell)
       (container-ops/launch-fighter-from-carrier coords flight-path))))
 
+(defn- empty-land-cell?
+  [tcell]
+  (and tcell
+       (= :land (:type tcell))
+       (not (:contents tcell))))
+
+(defn- adjacent-empty-land-target
+  [coords]
+  (let [[x y] coords
+        adjacent-cells (for [dx [-1 0 1] dy [-1 0 1]
+                             :when (not (and (zero? dx) (zero? dy)))]
+                         [(+ x dx) (+ y dy)])]
+    (first (filter #(empty-land-cell? (get-in (sa/current-world) %))
+                   adjacent-cells))))
+
 (defn- auto-disembark-army [coords cell]
   "Auto-disembarks an army from transport if marching-orders is set.
    Returns new coords if disembarked, nil otherwise."
@@ -120,31 +135,29 @@
         marching-orders (:marching-orders contents)
         has-awake-army? (and (= (:type contents) :transport)
                              (pos? (:awake-armies contents 0)))]
-        (when (and marching-orders has-awake-army?)
-      (let [[x y] coords
-            adjacent-cells (for [dx [-1 0 1] dy [-1 0 1]
-                                 :when (not (and (zero? dx) (zero? dy)))]
-                             [(+ x dx) (+ y dy)])
-            valid-target (first (filter (fn [target]
-                                          (let [tcell (get-in (sa/current-world) target)]
-                                            (and tcell
-                                                 (= :land (:type tcell))
-                                                 (not (:contents tcell)))))
-                                        adjacent-cells))]
-        (when valid-target
-          (container-ops/disembark-army-with-target coords valid-target marching-orders))))))
+    (when (and marching-orders has-awake-army?)
+      (when-let [valid-target (adjacent-empty-land-target coords)]
+        (container-ops/disembark-army-with-target coords valid-target marching-orders)))))
+
+(defn- auto-movement-coords
+  [coords unit]
+  (case (:mode unit)
+    :explore (move-explore-unit coords)
+    :coastline-follow (move-coastline-unit coords)
+    :moving (move-current-unit coords)
+    nil))
+
+(defn- player-visibility-maps-aligned?
+  [unit]
+  (and (= :player (:owner unit))
+       (vector? (sa/read-state :player-map))
+       (= (count (sa/read-state :player-map)) (count (sa/current-world)))
+       (= (count (first (sa/read-state :player-map)))
+          (count (first (sa/current-world))))))
 
 (defn- process-auto-movement [coords unit]
-  (let [new-coords (case (:mode unit)
-                     :explore (move-explore-unit coords)
-                     :coastline-follow (move-coastline-unit coords)
-                     :moving (move-current-unit coords)
-                     nil)]
-    (when (and (= :player (:owner unit))
-               (vector? (sa/read-state :player-map))
-               (= (count (sa/read-state :player-map)) (count (sa/current-world)))
-               (= (count (first (sa/read-state :player-map)))
-                  (count (first (sa/current-world)))))
+  (let [new-coords (auto-movement-coords coords unit)]
+    (when (player-visibility-maps-aligned? unit)
       (visibility/update-combatant-map :player-map :player))
     (if new-coords
       (do (sa/update-state! :player-items #(cons new-coords (rest %))) :continue)
@@ -153,6 +166,34 @@
 (defn- try-auto-launch-or-disembark [coords cell]
   (or (auto-launch-fighter coords cell)
       (auto-disembark-army coords cell)))
+
+(defn- apply-auto-move-item
+  [coords unit auto-coords]
+  (if auto-coords
+    (do (sa/update-state! :player-items
+                          #(cond-> (cons auto-coords (rest %))
+                             (should-requeue-airport? coords) (cons coords)))
+        :continue)
+    (process-auto-movement coords unit)))
+
+(defn- apply-attention-item
+  [coords]
+  (sa/write-state! :cells-needing-attention [coords])
+  (player-attention/set-attention-message coords)
+  (sa/write-state! :waiting-for-input true)
+  :waiting)
+
+(defn- apply-player-item-action
+  [action coords unit auto-coords]
+  (case action
+    :skip-satellite
+    (do (sa/update-state! :player-items rest) :done)
+
+    :auto-move
+    (apply-auto-move-item coords unit auto-coords)
+
+    :attention
+    (apply-attention-item coords)))
 
 (defn- process-one-item
   "Processes a single player item. Returns :done, :continue, or :waiting."
@@ -183,23 +224,7 @@
         :auto-coords auto-coords
         :needs-attention? needs-attention?
         :action action})
-      (case action
-        :skip-satellite
-        (do (sa/update-state! :player-items rest) :done)
-
-        :auto-move
-        (if auto-coords
-          (do (sa/update-state! :player-items
-                                #(cond-> (cons auto-coords (rest %))
-                                   (should-requeue-airport? coords) (cons coords)))
-              :continue)
-          (process-auto-movement coords unit))
-
-        :attention
-        (do (sa/write-state! :cells-needing-attention [coords])
-            (player-attention/set-attention-message coords)
-            (sa/write-state! :waiting-for-input true)
-            :waiting)))))
+      (apply-player-item-action action coords unit auto-coords))))
 
 (defn process-computer-items
   "Processes computer items until done or safety limit reached."
@@ -213,15 +238,17 @@
     :waiting-for-input? (sa/read-state :waiting-for-input)
     :processed processed}))
 
+(defn- continue-player-batch?
+  [result]
+  (#{:continue :done} result))
+
 (defn process-player-items-batch []
   (loop [processed 0]
     (when-not (batch-should-stop? processed)
       (let [result (process-one-item)]
         (check-player-victory!)
-        (case result
-          :waiting nil
-          :continue (recur (inc processed))
-          :done (recur (inc processed)))))))
+        (when (continue-player-batch? result)
+          (recur (inc processed)))))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T01:52:51.717557-05:00", :module-hash "-1017583001", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 13, :hash "1080197236"} {:id "defn/check-player-victory!", :kind "defn", :line 15, :end-line 18, :hash "1003493917"} {:id "defn-/advance-step", :kind "defn-", :line 20, :end-line 27, :hash "-1281843861"} {:id "defn-/end-combat-move", :kind "defn-", :line 29, :end-line 41, :hash "-1330459889"} {:id "defn-/resolve-move-result", :kind "defn-", :line 43, :end-line 56, :hash "1588429236"} {:id "defn/move-current-unit", :kind "defn", :line 58, :end-line 71, :hash "367190430"} {:id "defn/move-explore-unit", :kind "defn", :line 73, :end-line 76, :hash "-703094186"} {:id "defn/move-coastline-unit", :kind "defn", :line 78, :end-line 81, :hash "-127782"} {:id "defn-/airport-flight-path", :kind "defn-", :line 83, :end-line 84, :hash "502978521"} {:id "defn-/awake-airport-fighter?", :kind "defn-", :line 86, :end-line 87, :hash "-358747613"} {:id "defn-/awake-carrier-fighter?", :kind "defn-", :line 89, :end-line 91, :hash "-230396723"} {:id "defn-/should-requeue-airport?", :kind "defn-", :line 93, :end-line 98, :hash "-431335550"} {:id "defn-/auto-launch-fighter", :kind "defn-", :line 100, :end-line 109, :hash "251699985"} {:id "defn-/auto-disembark-army", :kind "defn-", :line 111, :end-line 130, :hash "217231336"} {:id "defn-/process-auto-movement", :kind "defn-", :line 132, :end-line 146, :hash "-773956978"} {:id "defn-/try-auto-launch-or-disembark", :kind "defn-", :line 148, :end-line 150, :hash "1778439438"} {:id "defn-/process-one-item", :kind "defn-", :line 152, :end-line 183, :hash "1376545742"} {:id "defn/process-computer-items", :kind "defn", :line 185, :end-line 188, :hash "-1537801344"} {:id "defn-/batch-should-stop?", :kind "defn-", :line 190, :end-line 195, :hash "1013519075"} {:id "defn/process-player-items-batch", :kind "defn", :line 197, :end-line 205, :hash "1662766734"}]}

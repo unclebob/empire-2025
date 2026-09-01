@@ -21,25 +21,25 @@
           (= :sea (:type (get-in (sa/read-state :computer-map) neighbor))))
         (world-query/get-neighbors pos)))
 
+(defn- country-coastal-land?
+  [gm country-id pos]
+  (let [cell (get-in gm pos)]
+    (and cell
+         (= :land (:type cell))
+         (or (nil? (:country-id cell))
+             (= country-id (:country-id cell))))))
+
 (defn- seed-coastal-registry
   "Populate coastal cell registry for country-id using coastal index when available."
   [country-id]
   (let [gm (sa/read-state :computer-map)
         coastal-index (sa/read-state :coastal-index)
         coastal (if coastal-index
-                  (filter (fn [pos]
-                            (let [cell (get-in gm pos)]
-                              (and cell
-                                   (= :land (:type cell))
-                                   (or (nil? (:country-id cell))
-                                       (= country-id (:country-id cell))))))
+                  (filter #(country-coastal-land? gm country-id %)
                           (:coastal-land-cells coastal-index))
                   (for [i (range (count gm))
                         j (range (count (first gm)))
-                        :let [cell (get-in gm [i j])]
-                        :when (and (= :land (:type cell))
-                                   (or (nil? (:country-id cell))
-                                       (= country-id (:country-id cell)))
+                        :when (and (country-coastal-land? gm country-id [i j])
                                    (adjacent-to-sea? [i j]))]
                     [i j]))]
     (let [registry (or (sa/read-state :coastal-cells-by-country) {})]

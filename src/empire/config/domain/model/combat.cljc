@@ -121,28 +121,33 @@
   "Unit types that flip ownership on city conquest (ships and fighters)."
   #{:fighter :transport :patrol-boat :destroyer :submarine :carrier :battleship})
 
+(defn- flip-conquered-unit
+  [contents new-owner]
+  (let [flipped (-> contents
+                    (assoc :owner new-owner :mode :awake)
+                    (dissoc :target :reason))]
+    (cond-> flipped
+      (= :transport (:type flipped))
+      (assoc :army-count 0 :awake-armies 0)
+      (= :carrier (:type flipped))
+      (assoc :fighter-count 0 :awake-fighters 0))))
+
+(defn- apply-conquered-contents
+  [game-map city-coords contents new-owner]
+  (cond
+    (nil? contents) game-map
+    (= :satellite (:type contents)) game-map
+    (= :army (:type contents))
+    (update-in game-map city-coords dissoc :contents)
+    (flippable-types (:type contents))
+    (assoc-in game-map (conj city-coords :contents) (flip-conquered-unit contents new-owner))
+    :else game-map))
+
 (defn conquer-city-contents-world
   "Pure world transformation: updates city contents upon conquest."
   [game-map city-coords new-owner]
-  (let [cell (get-in game-map city-coords)
-        contents (:contents cell)
-        with-updated-contents
-        (cond
-          (nil? contents) game-map
-          (= :satellite (:type contents)) game-map
-          (= :army (:type contents))
-          (update-in game-map city-coords dissoc :contents)
-          (flippable-types (:type contents))
-          (let [flipped (-> contents
-                            (assoc :owner new-owner :mode :awake)
-                            (dissoc :target :reason))
-                flipped (cond-> flipped
-                          (= :transport (:type flipped))
-                          (assoc :army-count 0 :awake-armies 0)
-                          (= :carrier (:type flipped))
-                          (assoc :fighter-count 0 :awake-fighters 0))]
-            (assoc-in game-map (conj city-coords :contents) flipped))
-          :else game-map)]
+  (let [contents (:contents (get-in game-map city-coords))
+        with-updated-contents (apply-conquered-contents game-map city-coords contents new-owner)]
     (update-in with-updated-contents city-coords dissoc :marching-orders :flight-path)))
 
 (defn apply-fighter-overfly-world

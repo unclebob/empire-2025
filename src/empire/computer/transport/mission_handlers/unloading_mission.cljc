@@ -11,12 +11,23 @@
   []
   (dispatcher/speed :transport))
 
+(defn- unloaded-recently?
+  [transport current-round]
+  (when-let [last-unload (:last-unload-round transport)]
+    (>= last-unload (dec current-round))))
+
+(defn- load-path-ready?
+  [pos load-target-cell load-path]
+  (or (seq load-path) (load-targeting/target-reached? pos load-target-cell)))
+
+(defn- pickup-closer-than-unload?
+  [load-path unload-path]
+  (or (empty? unload-path) (<= (count load-path) (count unload-path))))
+
 (defn- prefer-pickup-over-unload?
   [transition-to-loading pos transport read-map]
   (let [transport-id (:transport-id transport)
         current-round (or (sa/read-state :round-number) 0)
-        unloaded-recently? (when-let [last-unload (:last-unload-round transport)]
-                             (>= last-unload (dec current-round)))
         computer-map (read-map)
         load-target-cell (load-targeting/choose-load-target-cell
                           pos computer-map
@@ -30,10 +41,10 @@
             [(boolean transition-to-loading)
              (pos? (:army-count transport 0))
              (< (:army-count transport 0) 6)
-             (not unloaded-recently?)
+             (not (unloaded-recently? transport current-round))
              (boolean load-target-cell)
-             (boolean (or (seq load-path) (load-targeting/target-reached? pos load-target-cell)))
-             (or (empty? unload-path) (<= (count load-path) (count unload-path)))])))
+             (boolean (load-path-ready? pos load-target-cell load-path))
+             (pickup-closer-than-unload? load-path unload-path)])))
 
 (declare crawl-step-result)
 
@@ -46,6 +57,12 @@
    :retried? true
    :moved-any? moved-any?})
 
+(defn- crawl-blocked-next-state
+  [current-pos moves-left retried? moved-any?]
+  (if retried?
+    {:done? true :pos (when moved-any? current-pos)}
+    (retry-unloading-crawl current-pos moves-left moved-any?)))
+
 (defn- crawl-loop-next-state
   [read-map process-unloading-crawl try-opportunistic-unload
    current-pos moves-left retried? moved-any?]
@@ -54,9 +71,7 @@
     (case action
       :continue {:pos pos :moves-left (dec moves-left) :retried? false :moved-any? true}
       :stop {:done? true :pos pos})
-    (if retried?
-      {:done? true :pos (when moved-any? current-pos)}
-      (retry-unloading-crawl current-pos moves-left moved-any?))))
+    (crawl-blocked-next-state current-pos moves-left retried? moved-any?)))
 
 (defn- crawl-step-result
   "Returns :continue, :stop, or nil (blocked) after one crawl step."

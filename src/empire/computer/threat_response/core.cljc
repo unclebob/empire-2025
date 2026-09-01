@@ -57,25 +57,33 @@
 
 ;; --- detection orchestration ---
 
+(defn- invasion-army-target?
+  [game-cell]
+  (and (refresh/major-invasion-active?)
+       (= :army (get-in game-cell [:contents :type]))
+       (= :player (get-in game-cell [:contents :owner]))))
+
+(defn- apply-detection-trigger
+  [pos trigger]
+  (case trigger
+    :fighter-detected (detection/handle-fighter-detection! pos)
+    :ship-detected (detection/handle-ship-detection! pos)
+    :country-defense-trigger (detection/handle-country-defense-detection! pos)
+    :major-invasion-trigger (refresh/handle-major-invasion-detection! (manager-ctx) pos)
+    nil))
+
 (defn handle-detection!
   "Handle a newly-visible cell on computer-map for threat triggers."
   [pos game-cell]
   (refresh/refresh-computer-map!)
   (let [{:keys [record-army-target? trigger]}
         (decisions/detection-action
-         {:record-army-target? (and (refresh/major-invasion-active?)
-                                    (= :army (get-in game-cell [:contents :type]))
-                                    (= :player (get-in game-cell [:contents :owner])))
+         {:record-army-target? (invasion-army-target? game-cell)
           :trigger (threat-policy/detection-trigger game-cell)})]
-  (when record-army-target?
-    (refresh/record-army-target! pos))
-  (case trigger
-    :fighter-detected (detection/handle-fighter-detection! pos)
-    :ship-detected (detection/handle-ship-detection! pos)
-    :country-defense-trigger (detection/handle-country-defense-detection! pos)
-    :major-invasion-trigger (refresh/handle-major-invasion-detection! (manager-ctx) pos)
-    nil)
-  nil))
+    (when record-army-target?
+      (refresh/record-army-target! pos))
+    (apply-detection-trigger pos trigger)
+    nil))
 
 ;; --- processing (stays in core) ---
 

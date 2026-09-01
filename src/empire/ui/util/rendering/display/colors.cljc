@@ -55,19 +55,31 @@
            (and (= :computer (:city-status cell))
                 (contains? #{:computer-map :player-map} map-to-display)))))
 
+(defn- player-production-visible?
+  [cell map-to-display]
+  (and (= :player (:city-status cell))
+       (contains? #{:player-map :actual-map} map-to-display)))
+
+(defn- computer-own-production-visible?
+  [cell map-to-display]
+  (and (= :computer (:city-status cell))
+       (= :computer-map map-to-display)))
+
+(defn- computer-known-production-visible?
+  [cell map-to-display]
+  (and (= :computer (:city-status cell))
+       (= :player-map map-to-display)))
+
 (defn- production-entry-for-display
   [cell production coords map-to-display]
   (cond
-    (and (= :player (:city-status cell))
-         (contains? #{:player-map :actual-map} map-to-display))
+    (player-production-visible? cell map-to-display)
     (get production coords)
 
-    (and (= :computer (:city-status cell))
-         (= :computer-map map-to-display))
+    (computer-own-production-visible? cell map-to-display)
     (get production coords)
 
-    (and (= :computer (:city-status cell))
-         (= :player-map map-to-display))
+    (computer-known-production-visible? cell map-to-display)
     (:known-production cell)
 
     :else nil))

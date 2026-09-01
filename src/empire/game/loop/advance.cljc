@@ -33,16 +33,19 @@
   []
   (item-processing/process-player-items-batch))
 
+(defn- start-new-round-action!
+  []
+  (when (pos? (sa/read-state :round-number))
+    (round-start/update-handicap-before-round!))
+  (round-start/start-new-round))
+
 (defn- apply-advance-game-action!
   [action]
   (case action
     :pause (do
              (sa/write-state! :paused true)
              (sa/write-state! :pause-requested false))
-    :new-round (do
-                 (when (pos? (sa/read-state :round-number))
-                   (round-start/update-handicap-before-round!))
-                 (round-start/start-new-round))
+    :new-round (start-new-round-action!)
     :process-player (process-player-action!)
     :process-computer (item-processing/process-computer-items)
     nil))

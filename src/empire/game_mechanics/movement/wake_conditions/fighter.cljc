@@ -48,27 +48,33 @@
           (and (friendly-carrier? target-contents unit)
                (<= (* distance 4/3) fuel))))))
 
+(defn- landing-site?
+  [unit next-cell]
+  (or (friendly-city? next-cell)
+      (friendly-carrier? (:contents next-cell) unit)))
+
 (defn- landing-site-on-path-status [unit target next-pos next-cell]
   (cond
-    (nil? next-pos) :blocked
-    (hostile-city? next-cell) :blocked
-    (friendly-city? next-cell) :landing-site
-    (friendly-carrier? (:contents next-cell) unit) :landing-site
-    (= next-pos target) :blocked
+    (or (nil? next-pos) (hostile-city? next-cell) (= next-pos target)) :blocked
+    (landing-site? unit next-cell) :landing-site
     :else :continue))
+
+(defn- scan-path-for-landing
+  [unit target pos fuel current-map]
+  (loop [pos pos
+         remaining-fuel fuel]
+    (when (pos? remaining-fuel)
+      (let [next-pos (pathing/next-step-pos pos target)
+            next-cell (get-in (map-data current-map) next-pos)]
+        (case (landing-site-on-path-status unit target next-pos next-cell)
+          :landing-site true
+          :blocked false
+          (recur next-pos (dec remaining-fuel)))))))
 
 (defn- reachable-landing-site-on-path?
   [unit final-pos fuel current-map]
   (when-let [target (:target unit)]
-    (loop [pos final-pos
-           remaining-fuel fuel]
-      (when (pos? remaining-fuel)
-        (let [next-pos (pathing/next-step-pos pos target)
-              next-cell (get-in (map-data current-map) next-pos)]
-          (case (landing-site-on-path-status unit target next-pos next-cell)
-            :landing-site true
-            :blocked false
-            (recur next-pos (dec remaining-fuel))))))))
+    (scan-path-for-landing unit target final-pos fuel current-map)))
 
 (defn- build-fighter-checks [unit final-pos current-map]
   (let [world (map-data current-map)

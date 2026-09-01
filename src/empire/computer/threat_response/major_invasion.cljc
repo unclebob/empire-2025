@@ -154,14 +154,20 @@
   (and (:major-invasion unit)
        (= target (:major-invasion-target unit))))
 
+(defn- should-stamp-invasion-target?
+  [current-transport target target-revision]
+  (let [clear-skip? (and (contains? current-transport :major-invasion-skip-revision)
+                         (not= target-revision (:major-invasion-skip-revision current-transport)))]
+    (and (:type current-transport)
+         (or clear-skip?
+             (not (stamped-transport-target? current-transport target))))))
+
 (defn- stamp-transport-major-invasion-target!
   [ctx pos target target-revision]
   (let [current-transport (get-in ((:current-world ctx)) (conj pos :contents))
         clear-skip? (and (contains? current-transport :major-invasion-skip-revision)
                          (not= target-revision (:major-invasion-skip-revision current-transport)))]
-    (when (and (:type current-transport)
-               (or clear-skip?
-                   (not (stamped-transport-target? current-transport target))))
+    (when (should-stamp-invasion-target? current-transport target target-revision)
       ((:update-game-map! ctx) update-in (conj pos :contents)
        #(cond-> (assoc % :major-invasion true :major-invasion-target target)
           clear-skip?
@@ -365,32 +371,39 @@
    pos
    unit))
 
+(defn- finding-armies-for-invasion?
+  [unit round-now]
+  (and unit
+       (= :transport (:type unit))
+       (= :find-armies-for-invasion (:transport-mission unit))
+       (:major-invasion-target unit)
+       (number? round-now)))
+
+(defn- timeout-find-armies-mission!
+  [ctx pos]
+  ((:update-game-map! ctx) update-in (conj pos :contents)
+   #(-> %
+        (assoc :major-invasion-skip-revision (current-target-land-revision ctx))
+        (assoc :transport-mission (if (zero? (:army-count % 0))
+                                    :sail-to-load
+                                    :sail-to-unload))
+        (dissoc :major-invasion-target
+                :major-invasion-find-armies-round
+                :invasion-target
+                :invasion-path
+                :invasion-path-origin
+                :invasion-plan-revision))))
+
 (defn trim-stale-find-armies-missions!
   [ctx]
   (let [state ((:load-major-invasion-state ctx))
         round-now ((:read-runtime-state ctx) :round-number)]
     (doseq [pos (:known-transports state)
             :let [unit (get-in ((:current-world ctx)) (conj pos :contents))]
-            :when (and unit
-                       (= :transport (:type unit))
-                       (= :find-armies-for-invasion (:transport-mission unit))
-                       (:major-invasion-target unit)
-                       (number? round-now))]
-      (let [start-round (or (:major-invasion-find-armies-round unit) round-now)
-            timed-out? (>= (- round-now start-round) invasion-load-timeout-rounds)]
-        (if timed-out?
-          ((:update-game-map! ctx) update-in (conj pos :contents)
-           #(-> %
-                (assoc :major-invasion-skip-revision (current-target-land-revision ctx))
-                (assoc :transport-mission (if (zero? (:army-count % 0))
-                                            :sail-to-load
-                                            :sail-to-unload))
-                (dissoc :major-invasion-target
-                        :major-invasion-find-armies-round
-                        :invasion-target
-                        :invasion-path
-                        :invasion-path-origin
-                        :invasion-plan-revision)))
+            :when (finding-armies-for-invasion? unit round-now)]
+      (let [start-round (or (:major-invasion-find-armies-round unit) round-now)]
+        (if (>= (- round-now start-round) invasion-load-timeout-rounds)
+          (timeout-find-armies-mission! ctx pos)
           ((:update-game-map! ctx) assoc-in (conj pos :contents :major-invasion-find-armies-round) start-round))))))
 
 ;; clj-mutate-manifest-begin

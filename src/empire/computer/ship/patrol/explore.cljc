@@ -15,6 +15,19 @@
 (defn- computer-unit-at [pos]
   (get-in (sa/read-state :computer-map) (conj pos :contents)))
 
+(defn- unseen-coast-cell?
+  [computer-map seen-coast excluded c]
+  (and (not (contains? seen-coast c))
+       (not (contains? excluded c))
+       (let [cell (get-in computer-map c)]
+         (and cell (= :sea (:type cell))))))
+
+(defn- unseen-coast-candidates
+  [coastal-index computer-map seen-coast excluded]
+  (when coastal-index
+    (filter #(unseen-coast-cell? computer-map seen-coast excluded %)
+            (:coastal-sea-cells coastal-index))))
+
 (defn find-nearest-unseen-coast-target
   "Uses coastal index to find nearest unseen coastal-sea-cell visible on computer-map."
   [pos]
@@ -22,13 +35,7 @@
         computer-map (sa/read-state :computer-map)
         seen-coast (or (sa/read-state :seen-coast) #{})
         excluded (or (sa/read-state :claimed-patrol-targets) #{})
-        candidates (when coastal-index
-                     (filter (fn [c]
-                               (and (not (contains? seen-coast c))
-                                    (not (contains? excluded c))
-                                    (let [cell (get-in computer-map c)]
-                                      (and cell (= :sea (:type cell))))))
-                             (:coastal-sea-cells coastal-index)))]
+        candidates (unseen-coast-candidates coastal-index computer-map seen-coast excluded)]
     (when (seq candidates)
       (apply min-key (fn [[r c]]
                        (+ (Math/abs (- r (first pos)))

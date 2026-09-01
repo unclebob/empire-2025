@@ -1,13 +1,16 @@
 (ns empire.computer.threat-response.major-invasion-assignment-decisions)
 
+(defn- ship-assignment-action
+  [type major-invasion-ship-types]
+  (when (major-invasion-ship-types type)
+    (if (= :carrier type) :carrier :ship)))
+
 (defn assignment-action
   [{:keys [type major-invasion-ship-types]}]
-  (cond
-    (= :fighter type) :fighter
-    (major-invasion-ship-types type) (if (= :carrier type) :carrier :ship)
-    (= :transport type) :transport
-    (= :army type) :army
-    :else nil))
+  (or (when (= :fighter type) :fighter)
+      (ship-assignment-action type major-invasion-ship-types)
+      (when (= :transport type) :transport)
+      (when (= :army type) :army)))
 
 (defn fighter-assignment
   [{:keys [major-target targets plan]}]

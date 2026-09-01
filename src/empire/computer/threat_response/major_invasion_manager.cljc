@@ -184,6 +184,18 @@
       (when (nil? (:decision ((:load-major-invasion-state ctx))))
         (evaluate-major-invasion-start! ctx)))))
 
+(defn- record-first-landing!
+  [ctx state armies-on-target]
+  (when (and (nil? (:first-landing-round state))
+             (pos? armies-on-target))
+    ((:update-major-invasion-state! ctx) assoc :first-landing-round ((:current-round-fn ctx)))))
+
+(defn- unsustainable-losses?
+  [updated-state armies-on-target armies-in-transit]
+  (and (:first-landing-round updated-state)
+       (zero? armies-on-target)
+       (zero? armies-in-transit)))
+
 (defn- maybe-handle-unsustainable-losses!
   [ctx]
   (let [state ((:load-major-invasion-state ctx))
@@ -192,16 +204,12 @@
                (seq target-land-set))
       (let [world ((:current-world ctx))
             armies-on-target (invasion-decision/invasion-armies-on-target-continent world target-land-set)]
-        (when (and (nil? (:first-landing-round state))
-                   (pos? armies-on-target))
-          ((:update-major-invasion-state! ctx) assoc :first-landing-round ((:current-round-fn ctx))))
+        (record-first-landing! ctx state armies-on-target)
         (let [updated-state ((:load-major-invasion-state ctx))
               armies-in-transit (invasion-decision/armies-in-transports-to-target-continent
                                  world
                                  target-land-set)]
-          (when (and (:first-landing-round updated-state)
-                     (zero? armies-on-target)
-                     (zero? armies-in-transit))
+          (when (unsustainable-losses? updated-state armies-on-target armies-in-transit)
             (stand-down-major-invasion! ctx :unsustainable-losses)))))))
 
 (defn- maybe-review-deferred-major-invasion!

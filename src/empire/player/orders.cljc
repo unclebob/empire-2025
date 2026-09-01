@@ -65,27 +65,35 @@
     (set-command-message! message))
   true)
 
+(defn- clear-city-marching-orders
+  [[cx cy]]
+  (let [cell (get-in (sa/current-world) [cx cy])]
+    (when (and (= :city (:type cell)) (= :player (:city-status cell))
+               (:marching-orders cell))
+      (sa/update-world! update-in [cx cy] dissoc :marching-orders)
+      (set-command-message! "Marching orders cleared")
+      true)))
+
+(defn- apply-destination-marching-orders
+  [[cx cy] dest]
+  (let [cell (get-in (sa/current-world) [cx cy])
+        decision (decisions/marching-orders-action cell dest)]
+    (case (:action decision)
+      :set-marching-orders
+      (apply-marching-orders (into [cx cy] (:path decision)) (:dest decision))
+
+      :set-waypoint-orders
+      (do (waypoint/set-waypoint-orders [cx cy]) true)
+
+      nil)))
+
 (defn set-marching-orders-at
   "Sets or clears marching orders on a player city, transport, or waypoint.
    When destination is nil, clears marching orders on the city."
-  [[cx cy]]
+  [coords]
   (if-let [dest (sa/read-state :destination)]
-    (let [cell (get-in (sa/current-world) [cx cy])
-          decision (decisions/marching-orders-action cell dest)]
-      (case (:action decision)
-        :set-marching-orders
-        (apply-marching-orders (into [cx cy] (:path decision)) (:dest decision))
-
-        :set-waypoint-orders
-        (do (waypoint/set-waypoint-orders [cx cy]) true)
-
-        nil))
-    (let [cell (get-in (sa/current-world) [cx cy])]
-      (when (and (= :city (:type cell)) (= :player (:city-status cell))
-                 (:marching-orders cell))
-        (sa/update-world! update-in [cx cy] dissoc :marching-orders)
-        (set-command-message! "Marching orders cleared")
-        true))))
+    (apply-destination-marching-orders coords dest)
+    (clear-city-marching-orders coords)))
 
 (defn- apply-flight-path
   [[cx cy] decision]

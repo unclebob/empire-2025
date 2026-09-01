@@ -204,12 +204,16 @@
              (#{nil :idle} initial-mission))
     (tc/set-transport-mission pos mission)))
 
+(defn- force-sailing-transition!
+  [pos transport army-count]
+  (if (zero? army-count)
+    (transition-to-loading pos)
+    (start-sailing pos transport)))
+
 (defn- apply-force-sailing!
   [pos transport army-count force-sailing?]
   (when force-sailing?
-    (if (zero? army-count)
-      (transition-to-loading pos)
-      (start-sailing pos transport))))
+    (force-sailing-transition! pos transport army-count)))
 
 (defn- current-transport-mission
   [pos mission]

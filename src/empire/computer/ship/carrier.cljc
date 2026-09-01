@@ -124,15 +124,22 @@
                          (grid/distance % city2))
              candidates))))
 
+(defn- cached-positions
+  [state-key]
+  (or (sa/read-state state-key) #{}))
+
+(defn- refueling-caches-empty?
+  []
+  (and (empty? (cached-positions :computer-city-positions))
+       (empty? (cached-positions :computer-carrier-positions))))
+
 (defn find-refueling-sites
   "Returns positions of all computer cities and computer carriers."
   []
-  (when (and (empty? (or (sa/read-state :computer-city-positions) #{}))
-             (empty? (or (sa/read-state :computer-carrier-positions) #{})))
+  (when (refueling-caches-empty?)
     (sa/rebuild-refueling-caches!))
-
-  (concat (or (sa/read-state :computer-city-positions) #{})
-          (or (sa/read-state :computer-carrier-positions) #{})))
+  (concat (cached-positions :computer-city-positions)
+          (cached-positions :computer-carrier-positions)))
 
 (defn- compute-carrier-position []
   (when-let [pair (find-unreserved-pair)]
@@ -191,20 +198,24 @@
     (and (= :sea (:type cell))
          (nil? (:contents cell)))))
 
+(defn- arrive-at-carrier-target
+  [pos unit]
+  (if (= :explore (:refueling unit))
+    (do
+      (sa/update-world! update-in (conj pos :contents) dissoc :carrier-target)
+      (position-carrier-without-target pos))
+    (do
+      (sa/update-world! update-in (conj pos :contents)
+                        #(-> % (assoc :carrier-mode :holding) (dissoc :carrier-target)))
+      (visibility/sync-ai-unit-to-computer-map! pos))))
+
 (defn- position-carrier-with-target
   "Handles carrier in positioning mode that has a target."
   [pos target]
   (let [unit (computer-unit-at pos)]
     (cond
       (= pos target)
-      (if (= :explore (:refueling unit))
-        (do
-          (sa/update-world! update-in (conj pos :contents) dissoc :carrier-target)
-          (position-carrier-without-target pos))
-        (do
-          (sa/update-world! update-in (conj pos :contents)
-                            #(-> % (assoc :carrier-mode :holding) (dissoc :carrier-target)))
-          (visibility/sync-ai-unit-to-computer-map! pos)))
+      (arrive-at-carrier-target pos unit)
 
       (not (target-still-valid? target))
       (do
@@ -250,29 +261,29 @@
                      (= :computer (:city-status cell)))))
             pair)))
 
+(defn- process-carrier-positioning
+  [pos unit]
+  (if-let [target (:carrier-target unit)]
+    (position-carrier-with-target pos target)
+    (position-carrier-without-target pos)))
+
+(defn- process-carrier-holding
+  [pos unit]
+  (let [pair (:carrier-pair unit)]
+    (when-not (or (nil? pair) (pair-still-valid? pair))
+      (sa/update-world! update-in (conj pos :contents)
+                        #(-> % (assoc :carrier-mode :repositioning) (dissoc :carrier-pair)))
+      (visibility/sync-ai-unit-to-computer-map! pos)
+      nil)))
+
 (defn process-carrier
   "Processes a computer carrier based on its carrier-mode."
   [pos]
-  (let [unit (computer-unit-at pos)
-        mode (:carrier-mode unit)]
-    (case mode
-      :positioning
-      (let [target (:carrier-target unit)]
-        (if target
-          (position-carrier-with-target pos target)
-          (position-carrier-without-target pos)))
-
-      :holding
-      (let [pair (:carrier-pair unit)]
-        (if (or (nil? pair) (pair-still-valid? pair))
-          nil
-          (do (sa/update-world! update-in (conj pos :contents)
-                                #(-> % (assoc :carrier-mode :repositioning) (dissoc :carrier-pair)))
-              (visibility/sync-ai-unit-to-computer-map! pos)
-              nil)))
-
+  (let [unit (computer-unit-at pos)]
+    (case (:carrier-mode unit)
+      :positioning (process-carrier-positioning pos unit)
+      :holding (process-carrier-holding pos unit)
       :repositioning (reposition-carrier pos)
-
       nil)))
 
 ;; clj-mutate-manifest-begin

@@ -4,42 +4,33 @@
 
 (defn- noop-sync! [_])
 
+(defn- land-lock-transport!
+  [update-game-map! sync-transport! read-map pos]
+  (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
+    (update-game-map! update-in (conj pos :contents)
+                      #(assoc % :mode :sentry
+                              :transport-mission :land-locked))
+    (sync-transport! pos)
+    (tc/log-transport-mission-transition! pos from-mission :land-locked)))
+
+(defn- retreat-or-land-lock-empty-transport!
+  [{:keys [update-game-map! move-unit-to retreat-step-from-shore deep-water?]}
+   read-map sync-transport! pos lake-cells-set]
+  (if-let [step (retreat-step-from-shore (read-map) lake-cells-set pos)]
+    (if (move-unit-to pos step)
+      (when (deep-water? (read-map) step)
+        (land-lock-transport! update-game-map! sync-transport! read-map step))
+      (land-lock-transport! update-game-map! sync-transport! read-map pos))
+    (land-lock-transport! update-game-map! sync-transport! read-map pos)))
+
 (defn park-lake-transport-if-empty
-  [{:keys [current-world
-           read-computer-map
-           update-game-map!
-           sync-transport!
-           move-unit-to
-           retreat-step-from-shore
-           deep-water?]}
+  [{:keys [current-world read-computer-map sync-transport!] :as deps}
    pos lake-cells-set]
   (let [read-map (or read-computer-map current-world)
         sync-transport! (or sync-transport! noop-sync!)
         unit (get-in (read-map) (conj pos :contents))]
     (if (zero? (:army-count unit 0))
-      (if-let [step (retreat-step-from-shore (read-map) lake-cells-set pos)]
-        (if (move-unit-to pos step)
-          (when (deep-water? (read-map) step)
-            (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
-              (update-game-map! update-in (conj step :contents)
-                                #(assoc % :mode :sentry
-                                        :transport-mission :land-locked))
-              (sync-transport! step)
-              (tc/log-transport-mission-transition! step from-mission :land-locked)))
-          (do
-            (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
-              (update-game-map! update-in (conj pos :contents)
-                                #(assoc % :mode :sentry
-                                        :transport-mission :land-locked))
-              (sync-transport! pos)
-              (tc/log-transport-mission-transition! pos from-mission :land-locked))))
-        (do
-          (let [from-mission (get-in (read-map) (conj pos :contents :transport-mission))]
-            (update-game-map! update-in (conj pos :contents)
-                              #(assoc % :mode :sentry
-                                      :transport-mission :land-locked))
-            (sync-transport! pos)
-            (tc/log-transport-mission-transition! pos from-mission :land-locked))))
+      (retreat-or-land-lock-empty-transport! deps read-map sync-transport! pos lake-cells-set)
       false)))
 
 (defn process-land-locked-mission

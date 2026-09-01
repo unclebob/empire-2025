@@ -133,27 +133,30 @@
          (grid/inflated-path? path pos target support/sea-path-inflation-threshold)
          (support/direct-sea-corridor? pos target computer-map))))
 
+(defn- invading-step-candidates
+  [from world last-pos]
+  (let [neighbors (->> (tc/get-passable-sea-neighbors from)
+                       (filter #(nil? (get-in world (conj % :contents)))))]
+    (if (and last-pos (> (count neighbors) 1))
+      (remove #(= % last-pos) neighbors)
+      neighbors)))
+
+(defn- invading-step-pool
+  [from target candidates]
+  (if-not target
+    candidates
+    (let [current-distance (grid/chebyshev-distance from target)
+          better (filter #(< (grid/chebyshev-distance % target) current-distance) candidates)]
+      (if (seq better) better candidates))))
+
 (defn- choose-invading-step
   [from target]
   (let [world (sa/read-state :computer-map)
-        transport (get-in world (conj from :contents))
-        last-pos (:invasion-last-pos transport)
-        neighbors (->> (tc/get-passable-sea-neighbors from)
-                       (filter #(nil? (get-in world (conj % :contents)))))
-        candidates (if (and last-pos (> (count neighbors) 1))
-                     (remove #(= % last-pos) neighbors)
-                     neighbors)
-        current-distance (if target
-                           (grid/chebyshev-distance from target)
-                           ##Inf)
-        better (if target
-                 (filter #(< (grid/chebyshev-distance % target) current-distance) candidates)
-                 candidates)
-        pool (if (seq better) better candidates)]
+        last-pos (:invasion-last-pos (get-in world (conj from :contents)))
+        candidates (invading-step-candidates from world last-pos)
+        pool (invading-step-pool from target candidates)]
     (first (sort-by (fn [p]
-                      [(if target
-                         (grid/chebyshev-distance p target)
-                         0)
+                      [(if target (grid/chebyshev-distance p target) 0)
                        p])
                     pool))))
 
@@ -178,6 +181,25 @@
                         #(when (:type %) (oscillation/start-random-walk % support/transport-random-walk-restore-keys)))
       (visibility/sync-ai-unit-to-computer-map! pos))))
 
+(defn- invading-mission-action
+  [pos path target]
+  (let [threat-near-target? (handle-invasion-threat-near-target! pos target)
+        empty-path? (empty? path)
+        direct-shortcut? (and (not empty-path?)
+                              (use-direct-invasion-shortcut? pos target path))]
+    (:action (decisions/invading-action {:threat-near-target? threat-near-target?
+                                         :empty-path? empty-path?
+                                         :direct-shortcut? direct-shortcut?}))))
+
+(defn- apply-invading-action
+  [pos path target action]
+  (case action
+    :threat nil
+    :crawl (continue-invading-without-path! pos target #(invading-step % target))
+    :path (when (= :blocked (continue-invading-via-path! pos path))
+            (handle-blocked-invading-path! pos target))
+    nil))
+
 (defn process-invading-mission
   "Follow precomputed invasion path. Steps up to 2 cells per round.
    When path exhausted, transition to unloading with coast-crawl."
@@ -185,20 +207,8 @@
   (visibility/sync-ai-unit-to-computer-map! pos)
   (let [transport (get-in (sa/read-state :computer-map) (conj pos :contents))
         path (:invasion-path transport)
-        target (or (:invasion-target transport) (:major-invasion-target transport))
-        threat-near-target? (handle-invasion-threat-near-target! pos target)
-        empty-path? (empty? path)
-        direct-shortcut? (and (not empty-path?)
-                              (use-direct-invasion-shortcut? pos target path))
-        action (:action (decisions/invading-action {:threat-near-target? threat-near-target?
-                                                    :empty-path? empty-path?
-                                                    :direct-shortcut? direct-shortcut?}))]
-    (case action
-      :threat nil
-      :crawl (continue-invading-without-path! pos target #(invading-step % target))
-      :path (when (= :blocked (continue-invading-via-path! pos path))
-              (handle-blocked-invading-path! pos target))
-      nil)))
+        target (or (:invasion-target transport) (:major-invasion-target transport))]
+    (apply-invading-action pos path target (invading-mission-action pos path target))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-05-07T17:36:43.356784-05:00", :module-hash "1800368724", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 11, :hash "17419080"} {:id "defn-/clear-invasion-path!", :kind "defn-", :line 13, :end-line 17, :hash "-786211817"} {:id "defn-/store-invasion-path!", :kind "defn-", :line 19, :end-line 24, :hash "1541348549"} {:id "defn-/move-invasion-step!", :kind "defn-", :line 26, :end-line 31, :hash "-208279688"} {:id "defn-/finish-invading-at!", :kind "defn-", :line 33, :end-line 36, :hash "-207367400"} {:id "defn-/continue-invading-via-path!", :kind "defn-", :line 38, :end-line 52, :hash "-1602446716"} {:id "defn-/unload-zone?", :kind "defn-", :line 54, :end-line 60, :hash "3271002"} {:id "defn-/retreat-away-from-target!", :kind "defn-", :line 62, :end-line 76, :hash "2033806174"} {:id "defn-/handle-invasion-threat-near-target!", :kind "defn-", :line 78, :end-line 86, :hash "83010819"} {:id "defn-/crawl-two-steps", :kind "defn-", :line 88, :end-line 96, :hash "160876629"} {:id "defn-/start-random-walk-from!", :kind "defn-", :line 98, :end-line 103, :hash "415670099"} {:id "defn-/apply-crawl-follow-up!", :kind "defn-", :line 105, :end-line 110, :hash "1604198202"} {:id "defn-/target-crawl-follow-up", :kind "defn-", :line 112, :end-line 119, :hash "-1152990199"} {:id "defn-/continue-invading-without-path!", :kind "defn-", :line 121, :end-line 127, :hash "-437609397"} {:id "defn-/use-direct-invasion-shortcut?", :kind "defn-", :line 129, :end-line 134, :hash "1655568541"} {:id "defn-/choose-invading-step", :kind "defn-", :line 136, :end-line 158, :hash "-2039612965"} {:id "defn-/invading-step", :kind "defn-", :line 160, :end-line 171, :hash "480851697"} {:id "defn-/handle-blocked-invading-path!", :kind "defn-", :line 173, :end-line 179, :hash "44868908"} {:id "defn/process-invading-mission", :kind "defn", :line 181, :end-line 201, :hash "2090134072"}]}

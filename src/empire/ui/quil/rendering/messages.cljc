@@ -73,20 +73,18 @@
         (some-> (hovered-token mouse-x mouse-y spans)
                 (hud-tooltips/status-token-tooltip production-status))))))
 
+(defn- clamp-tooltip-axis
+  [preferred mouse box-size screen-size]
+  (cond
+    (<= (+ preferred box-size) screen-size) preferred
+    (>= (- mouse 12 box-size) 0) (- mouse 12 box-size)
+    :else (max 0 (- screen-size box-size))))
+
 (defn tooltip-box-position
   "Places the tooltip inside the current window bounds."
   [mouse-x mouse-y box-w box-h screen-w screen-h]
-  (let [preferred-x (+ mouse-x 12)
-        preferred-y (+ mouse-y 12)
-        x (cond
-            (<= (+ preferred-x box-w) screen-w) preferred-x
-            (>= (- mouse-x 12 box-w) 0) (- mouse-x 12 box-w)
-            :else (max 0 (- screen-w box-w)))
-        y (cond
-            (<= (+ preferred-y box-h) screen-h) preferred-y
-            (>= (- mouse-y 12 box-h) 0) (- mouse-y 12 box-h)
-            :else (max 0 (- screen-h box-h)))]
-    [x y]))
+  [(clamp-tooltip-axis (+ mouse-x 12) mouse-x box-w screen-w)
+   (clamp-tooltip-axis (+ mouse-y 12) mouse-y box-h screen-h)])
 
 (defn- draw-tooltip
   [tooltip mouse-x mouse-y]

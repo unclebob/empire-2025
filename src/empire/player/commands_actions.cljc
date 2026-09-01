@@ -94,32 +94,42 @@
 
       nil))
 
+(defn- look-around-processed!
+  [ctx apply-fn]
+  (apply-fn)
+  (item-processed! ctx)
+  true)
+
+(defn- apply-look-around-mode
+  [ctx coords decision]
+  (case (:action decision)
+    :set-explore-mode
+    (look-around-processed! ctx #(explore/set-explore-mode coords))
+
+    :set-coastline-follow-mode
+    (look-around-processed! ctx #(coastline/set-coastline-follow-mode coords))
+
+    nil))
+
+(defn- apply-look-around-decision
+  [ctx coords decision]
+  (or (apply-look-around-mode ctx coords decision)
+      (case (:action decision)
+        :disembark-army-to-explore
+        (look-around-processed! ctx #(container-ops/disembark-army-to-explore coords (:target decision)))
+
+        :no-op true
+
+        :reject
+        (do (write-runtime-state! ctx :warning-message (:message decision))
+            (sound/play-bonk!)
+            true)
+
+        nil)))
+
 (defn handle-look-around-key [ctx coords _cell active-unit]
-  (let [decision (decisions/look-around-action (current-world ctx) coords active-unit)]
-    (case (:action decision)
-      :set-explore-mode
-      (do (explore/set-explore-mode coords)
-          (item-processed! ctx)
-          true)
-
-      :disembark-army-to-explore
-      (do (container-ops/disembark-army-to-explore coords (:target decision))
-          (item-processed! ctx)
-          true)
-
-      :no-op true
-
-      :set-coastline-follow-mode
-      (do (coastline/set-coastline-follow-mode coords)
-          (item-processed! ctx)
-          true)
-
-      :reject
-      (do (write-runtime-state! ctx :warning-message (:message decision))
-          (sound/play-bonk!)
-          true)
-
-      nil)))
+  (apply-look-around-decision
+   ctx coords (decisions/look-around-action (current-world ctx) coords active-unit)))
 
 (defn- launch-airport-fighter!
   [ctx attn-coords decision]

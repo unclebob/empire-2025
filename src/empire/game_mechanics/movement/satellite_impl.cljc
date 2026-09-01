@@ -135,47 +135,54 @@
 
         [x y]))))
 
+(defn- write-satellite-target!
+  [[x y] satellite new-target]
+  (let [updated-satellite (assoc satellite :target new-target)]
+    (update-game-map! assoc-in [x y :contents] updated-satellite)
+    (visibility/update-cell-visibility [x y] (:owner satellite))
+    [x y]))
+
+(defn- advance-satellite-toward
+  [[x y] satellite [tx ty] map-height map-width]
+  (let [dx (Integer/signum (- tx x))
+        dy (Integer/signum (- ty y))
+        next-pos [(+ x dx) (+ y dy)]
+        {:keys [dest hit-edge]} (find-open-cell next-pos [dx dy] map-height map-width)]
+    (cond
+      dest
+      (do (update-game-map! assoc-in [x y :contents] nil)
+          (update-game-map! assoc-in (conj dest :contents) satellite)
+          (visibility/update-cell-visibility [x y] (:owner satellite))
+          (visibility/update-cell-visibility dest (:owner satellite))
+          dest)
+
+      hit-edge
+      (let [edge (extend-to-boundary [x y] [dx dy] map-height map-width)]
+        (write-satellite-target! [x y] satellite
+                                 (calculate-new-satellite-target edge map-height map-width)))
+
+      :else [x y])))
+
+(defn- move-satellite-toward-target
+  [[x y] satellite target]
+  (let [world (current-world)
+        map-height (count world)
+        map-width (count (first world))
+        [tx ty] target]
+    (if (and (= x tx) (= y ty))
+      (write-satellite-target! [x y] satellite
+                               (calculate-new-satellite-target [x y] map-height map-width))
+      (advance-satellite-toward [x y] satellite target map-height map-width))))
+
 (defn move-satellite
   [bounce-direction-fn [x y]]
   (let [world (current-world)
-        cell (get-in world [x y])
-        satellite (:contents cell)]
+        satellite (:contents (get-in world [x y]))]
     (if (:direction satellite)
       (move-satellite-straight bounce-direction-fn [x y])
-      (let [target (:target satellite)]
-        (if-not target
-          [x y]
-          (let [map-height (count world)
-                map-width (count (first world))
-                [tx ty] target
-                at-target? (and (= x tx) (= y ty))]
-            (if at-target?
-              (let [new-target (calculate-new-satellite-target [x y] map-height map-width)
-                    updated-satellite (assoc satellite :target new-target)]
-                (update-game-map! assoc-in [x y :contents] updated-satellite)
-                (visibility/update-cell-visibility [x y] (:owner satellite))
-                [x y])
-              (let [dx (Integer/signum (- tx x))
-                    dy (Integer/signum (- ty y))
-                    next-pos [(+ x dx) (+ y dy)]]
-                (let [{:keys [dest hit-edge]} (find-open-cell next-pos [dx dy] map-height map-width)]
-                  (cond
-                    dest
-                    (do (update-game-map! assoc-in [x y :contents] nil)
-                        (update-game-map! assoc-in (conj dest :contents) satellite)
-                        (visibility/update-cell-visibility [x y] (:owner satellite))
-                        (visibility/update-cell-visibility dest (:owner satellite))
-                        dest)
-
-                    hit-edge
-                    (let [edge (extend-to-boundary [x y] [dx dy] map-height map-width)
-                          new-target (calculate-new-satellite-target edge map-height map-width)
-                          updated-satellite (assoc satellite :target new-target)]
-                      (update-game-map! assoc-in [x y :contents] updated-satellite)
-                      (visibility/update-cell-visibility [x y] (:owner satellite))
-                      [x y])
-
-                    :else [x y]))))))))))
+      (if-let [target (:target satellite)]
+        (move-satellite-toward-target [x y] satellite target)
+        [x y]))))
 
 ;; clj-mutate-manifest-begin
 ;; {:version 1, :tested-at "2026-03-27T01:26:21.545597-05:00", :module-hash "1125470330", :forms [{:id "form/0/ns", :kind "ns", :line 1, :end-line 3, :hash "1361079119"} {:id "defn/update-game-map!", :kind "defn", :line 5, :end-line 7, :hash "1484461537"} {:id "defn/current-world", :kind "defn", :line 9, :end-line 11, :hash "-1099101758"} {:id "defn/extend-to-boundary", :kind "defn", :line 13, :end-line 21, :hash "148767333"} {:id "defn/calculate-satellite-target", :kind "defn", :line 23, :end-line 32, :hash "1796796084"} {:id "defn/opposite-row", :kind "defn", :line 34, :end-line 35, :hash "673010459"} {:id "defn/opposite-col", :kind "defn", :line 37, :end-line 38, :hash "-1648502411"} {:id "defn/target-on-opposite-row", :kind "defn", :line 40, :end-line 41, :hash "-14779067"} {:id "defn/target-on-opposite-col", :kind "defn", :line 43, :end-line 44, :hash "1289820126"} {:id "defn/boundary-type", :kind "defn", :line 46, :end-line 49, :hash "786501016"} {:id "defn/pick-corner-target", :kind "defn", :line 51, :end-line 54, :hash "-1510145388"} {:id "defn/calculate-new-satellite-target", :kind "defn", :line 56, :end-line 62, :hash "-889882695"} {:id "defn/blocked-cell?", :kind "defn", :line 64, :end-line 67, :hash "1044356496"} {:id "defn/in-bounds?", :kind "defn", :line 69, :end-line 71, :hash "-1306676454"} {:id "defn/find-open-cell", :kind "defn", :line 73, :end-line 80, :hash "1361778132"} {:id "defn/move-satellite-to!", :kind "defn", :line 82, :end-line 88, :hash "530758615"} {:id "defn/bounce-move", :kind "defn", :line 90, :end-line 99, :hash "4022779"} {:id "defn/straight-move-action", :kind "defn", :line 101, :end-line 109, :hash "947347066"} {:id "defn/move-satellite-straight", :kind "defn", :line 111, :end-line 136, :hash "1463161510"} {:id "defn/move-satellite", :kind "defn", :line 138, :end-line 178, :hash "1636052399"}]}

@@ -152,6 +152,15 @@
        (= (:owner contents) :player)
        (not= (:mode contents) :awake)))
 
+(defn- player-carrier-with-fighters? [contents]
+  (and contents
+       (= :carrier (:type contents))
+       (= :player (:owner contents))
+       (pos? (:fighter-count contents 0))))
+
+(defn- player-city-with-fighters? [cell]
+  (and (player-city? cell) (pos? (:fighter-count cell 0))))
+
 (defn wake-at
   "Wakes a sleeping unit.
    For transports with armies, also wakes the armies aboard.
@@ -168,8 +177,7 @@
                       (uc/wake-all :army-count :awake-armies)))
           true)
 
-      (and contents (= :carrier (:type contents)) (= :player (:owner contents))
-           (pos? (:fighter-count contents 0)))
+      (player-carrier-with-fighters? contents)
       (do (update-game-map! update-in [cx cy :contents]
                  uc/wake-all :fighter-count :awake-fighters)
           true)
@@ -182,7 +190,7 @@
                              :explore-steps :explore-heading :explore-origin)))
           true)
 
-      (and (player-city? cell) (pos? (:fighter-count cell 0)))
+      (player-city-with-fighters? cell)
       (do (update-game-map! update-in [cx cy]
                             (fn [city]
                               (-> city

@@ -208,14 +208,24 @@
                                         major-target
                                         city-pos))))
 
+(defn- airport-ready-to-launch-kamikazee?
+  [world city-pos cell]
+  (and (computer-city-site? world city-pos)
+       (launch-decisions/airport-kamikazee-ready? cell)
+       (routing/city-has-launch-capacity? world city-pos route-city-launch-buffer)))
+
+(defn- can-launch-kamikazee-action?
+  [world action next-route-city]
+  (and action
+       (or (nil? next-route-city)
+           (routing/city-has-launch-capacity? world next-route-city route-city-launch-buffer))))
+
 (defn launch-kamikazee-from-airport!
   [ctx city-pos]
   (let [world ((:current-world ctx))
         cell (get-in world city-pos)
         state ((:load-major-invasion-state ctx))]
-    (when (and (computer-city-site? world city-pos)
-               (launch-decisions/airport-kamikazee-ready? cell)
-               (routing/city-has-launch-capacity? world city-pos route-city-launch-buffer))
+    (when (airport-ready-to-launch-kamikazee? world city-pos cell)
       (let [targets (targets/ordered-army-target-positions state
                                                            (targets/current-round ctx)
                                                            world)
@@ -234,14 +244,20 @@
                            :plan plan
                            :fighter-fuel config/fighter-fuel})
             action (launch-decisions/launch-decision launch-state)]
-        (when (and action
-                   (or (nil? next-route-city)
-                       (routing/city-has-launch-capacity? world next-route-city route-city-launch-buffer)))
+        (when (can-launch-kamikazee-action? world action next-route-city)
           (remove-airport-kamikazee! ctx city-pos)
           ((:update-game-map! ctx) assoc-in (conj (:launch-pos action) :contents) (:fighter action))
           (sync-kamikazee-cell! city-pos)
           (sync-kamikazee-cell! (:launch-pos action))
           (:launch-pos action))))))
+
+(defn- hunt-refuel-stage?
+  [stage wait-site]
+  (and (= :refuel stage) wait-site))
+
+(defn- hunt-return-stage?
+  [stage resume-pos]
+  (and (= :return stage) resume-pos))
 
 (defn- process-hunt-step
   [ctx pos unit current-goal refuel-sites]
@@ -250,10 +266,10 @@
         resume-pos (:kamikazee-hunt-resume-pos unit)
         fuel (:fuel unit config/fighter-fuel)]
     (cond
-      (and (= :refuel stage) wait-site)
+      (hunt-refuel-stage? stage wait-site)
       (process-refuel-stage ctx pos wait-site)
 
-      (and (= :return stage) resume-pos)
+      (hunt-return-stage? stage resume-pos)
       (process-return-stage ctx pos unit resume-pos)
 
       :else
@@ -286,21 +302,26 @@
         (non-backtracking-step ctx pos current-goal 0))
     (non-backtracking-step ctx pos nil 0)))
 
+(defn- route-stage-inputs
+  [world pos next-site current-goal]
+  {:adjacent-route-city? (adjacent-route-city? world pos next-site)
+   :at-route-site? (and next-site (routing/at-site? world pos next-site))
+   :has-next-site? (boolean next-site)
+   :close-enough-to-goal? (decisions/close-enough-to-hunt?
+                           (when current-goal (grid/distance pos current-goal)))
+   :has-goal? (boolean current-goal)})
+
+(defn- land-at-route-city!
+  [pos next-site]
+  (fm/land-at-city pos next-site)
+  (sync-kamikazee-cell! pos)
+  (sync-kamikazee-cell! next-site)
+  nil)
+
 (defn- process-route-stage
   [ctx pos world unit route next-site current-goal]
-  (case (decisions/route-stage-action {:adjacent-route-city? (adjacent-route-city? world pos next-site)
-                                       :at-route-site? (and next-site (routing/at-site? world pos next-site))
-                                       :has-next-site? (boolean next-site)
-                                       :close-enough-to-goal? (decisions/close-enough-to-hunt?
-                                                               (when current-goal (grid/distance pos current-goal)))
-                                       :has-goal? (boolean current-goal)})
-    :land-at-city
-    (do
-      (fm/land-at-city pos next-site)
-      (sync-kamikazee-cell! pos)
-      (sync-kamikazee-cell! next-site)
-      nil)
-
+  (case (decisions/route-stage-action (route-stage-inputs world pos next-site current-goal))
+    :land-at-city (land-at-route-city! pos next-site)
     :finish-route-node (finish-route-node! ctx pos route next-site)
     :move-to-next-site (move-toward! pos next-site)
     :enter-hunt (process-kamikazee-fighter ctx pos (enter-hunt! ctx pos unit))

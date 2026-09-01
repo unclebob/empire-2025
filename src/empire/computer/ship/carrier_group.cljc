@@ -106,23 +106,34 @@
     (adopt-carrier-escort pos carrier-pos unit-type)
     (ship-core/move-toward pos carrier-pos)))
 
+(defn- orbiting-pos
+  [pos target]
+  (or (when (not= pos target) target) pos))
+
+(defn- begin-orbiting-at!
+  [pos carrier-pos valid-angle]
+  (let [target (orbit-target-pos carrier-pos valid-angle)
+        dest (orbiting-pos pos target)]
+    (when (not= pos target)
+      (ship-core/move-toward pos target))
+    (sa/update-world! update-in (conj dest :contents)
+                      assoc :escort-mode :orbiting :orbit-angle valid-angle)
+    (visibility/sync-ai-unit-to-computer-map! dest)))
+
+(defn- park-orbiting-in-place!
+  [pos]
+  (sa/update-world! update-in (conj pos :contents)
+                    assoc :escort-mode :orbiting)
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
 (defn- transition-to-orbiting
   "Transitions an escort to orbiting mode."
   [pos carrier-pos unit]
   (let [angle (or (:orbit-angle unit) 0)
         valid-angle (find-next-orbit-angle carrier-pos angle)]
     (if valid-angle
-      (let [target (orbit-target-pos carrier-pos valid-angle)]
-        (when (not= pos target)
-          (ship-core/move-toward pos target))
-        (sa/update-world! update-in
-                          (conj (or (when (not= pos target) target) pos) :contents)
-                          assoc :escort-mode :orbiting :orbit-angle valid-angle)
-        (visibility/sync-ai-unit-to-computer-map! (or (when (not= pos target) target) pos)))
-      (do
-        (sa/update-world! update-in (conj pos :contents)
-                          assoc :escort-mode :orbiting)
-        (visibility/sync-ai-unit-to-computer-map! pos)))))
+      (begin-orbiting-at! pos carrier-pos valid-angle)
+      (park-orbiting-in-place! pos))))
 
 (defn- process-escort-intercepting
   "Escort intercepting: move toward carrier, transition to orbiting at radius 2."
@@ -134,28 +145,34 @@
         (ship-core/move-toward pos carrier-pos))
       (revert-escort-to-seeking pos))))
 
+(defn- hold-orbit-angle!
+  [pos next-angle]
+  (sa/update-world! update-in (conj pos :contents)
+                    assoc :orbit-angle next-angle)
+  (visibility/sync-ai-unit-to-computer-map! pos))
+
+(defn- step-orbit-to!
+  [pos target next-angle]
+  (when (valid-orbit-pos? target)
+    (action-resolution/move-unit-to pos target)
+    (computer-movement/update-cell-visibility! pos :computer)
+    (computer-movement/update-cell-visibility! target :computer)
+    (hold-orbit-angle! target next-angle)))
+
+(defn- advance-escort-orbit
+  [pos carrier-pos next-angle]
+  (let [target (orbit-target-pos carrier-pos next-angle)]
+    (if (= pos target)
+      (hold-orbit-angle! pos next-angle)
+      (step-orbit-to! pos target next-angle))))
+
 (defn- process-escort-orbiting
   "Escort orbiting: advance one step along the orbit ring."
   [pos]
   (let [unit (computer-unit-at pos)]
     (if-let [carrier-pos (escort/find-carrier-by-id (:escort-carrier-id unit))]
-      (let [current-angle (or (:orbit-angle unit) 0)
-            next-angle (find-next-orbit-angle carrier-pos (inc current-angle))]
-        (if next-angle
-          (let [target (orbit-target-pos carrier-pos next-angle)]
-            (if (= pos target)
-              (do
-                (sa/update-world! update-in (conj pos :contents)
-                                  assoc :orbit-angle next-angle)
-                (visibility/sync-ai-unit-to-computer-map! pos))
-              (when (valid-orbit-pos? target)
-                (action-resolution/move-unit-to pos target)
-                (computer-movement/update-cell-visibility! pos :computer)
-                (computer-movement/update-cell-visibility! target :computer)
-                (sa/update-world! update-in (conj target :contents)
-                                  assoc :orbit-angle next-angle)
-                (visibility/sync-ai-unit-to-computer-map! target))))
-          nil))
+      (when-let [next-angle (find-next-orbit-angle carrier-pos (inc (or (:orbit-angle unit) 0)))]
+        (advance-escort-orbit pos carrier-pos next-angle))
       (revert-escort-to-seeking pos))))
 
 (defn- find-enemy-near-carrier-group

@@ -11,8 +11,23 @@
              :when (= (:type contents) :satellite)]
          [i j])))
 
+(defn- expire-satellite!
+  [update-game-map! update-visibility! coords satellite]
+  (update-game-map! update-in coords dissoc :contents)
+  (update-visibility! coords (:owner satellite))
+  nil)
+
+(defn- finish-satellite-round
+  [{:keys [update-game-map! update-visibility!]} coords satellite]
+  (let [round-action (decisions/finish-round-action satellite)]
+    (if (= :expire (:action round-action))
+      (expire-satellite! update-game-map! update-visibility! coords satellite)
+      (do (update-game-map! assoc-in (conj coords :contents :turns-remaining)
+                            (:turns-remaining round-action))
+          coords))))
+
 (defn- move-satellite-steps
-  [{:keys [current-world update-game-map! update-visibility! move-satellite satellite-speed]}
+  [{:keys [current-world update-game-map! update-visibility! move-satellite satellite-speed] :as ctx}
    start-coords]
   (loop [coords start-coords
          steps-left satellite-speed]
@@ -20,28 +35,10 @@
           satellite (:contents cell)
           action (decisions/satellite-step-action satellite steps-left)]
       (case (:action action)
-        :missing
-        nil
-
-        :expire
-        (do
-          (update-game-map! update-in coords dissoc :contents)
-          (update-visibility! coords (:owner satellite))
-          nil)
-
-        :finish-round
-        (let [round-action (decisions/finish-round-action satellite)]
-          (if (= :expire (:action round-action))
-            (do (update-game-map! update-in coords dissoc :contents)
-                (update-visibility! coords (:owner satellite))
-                nil)
-            (do (update-game-map! assoc-in (conj coords :contents :turns-remaining)
-                                  (:turns-remaining round-action))
-                coords)))
-
-        :move
-        (let [new-coords (move-satellite coords)]
-          (recur new-coords (dec steps-left)))))))
+        :missing nil
+        :expire (expire-satellite! update-game-map! update-visibility! coords satellite)
+        :finish-round (finish-satellite-round ctx coords satellite)
+        (recur (move-satellite coords) (dec steps-left))))))
 
 (defn move-satellites!
   [ctx]

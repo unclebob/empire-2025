@@ -19,19 +19,27 @@
         (helpers/item-processed!)))
     true))
 
+(defn- idle-player-city?
+  [cell coords]
+  (and (= (:type cell) :city)
+       (= (:city-status cell) :player)
+       (not (movement-state/get-active-unit cell coords))))
+
+(defn- apply-city-production-decision
+  [decision coords]
+  (case (:action decision)
+    :skip (do (sa/update-state! :player-items rest)
+              (helpers/item-processed!)
+              true)
+    :clear-production (do (sa/update-state! :production assoc coords :none)
+                          (helpers/item-processed!)
+                          true)
+    :set-production (try-set-production coords (:item decision))
+    nil))
+
 (defn handle-city-production-decision [decision coords cell]
-  (when (and (= (:type cell) :city)
-             (= (:city-status cell) :player)
-             (not (movement-state/get-active-unit cell coords)))
-    (case (:action decision)
-      :skip (do (sa/update-state! :player-items rest)
-                (helpers/item-processed!)
-                true)
-      :clear-production (do (sa/update-state! :production assoc coords :none)
-                            (helpers/item-processed!)
-                            true)
-      :set-production (try-set-production coords (:item decision))
-      nil)))
+  (when (idle-player-city? cell coords)
+    (apply-city-production-decision decision coords)))
 
 (defn handle-city-production-key [k coords cell]
   (when-let [decision (decisions/city-key-action k cell)]

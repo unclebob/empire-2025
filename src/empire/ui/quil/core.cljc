@@ -57,14 +57,15 @@
     (render-overlay/draw-load-menu)
     (render-overlay/draw-save-menu)))
 
+(def ^:private key-code-aliases
+  {java.awt.event.KeyEvent/VK_DELETE :delete
+   java.awt.event.KeyEvent/VK_BACK_SPACE :backspace
+   java.awt.event.KeyEvent/VK_ENTER :enter
+   java.awt.event.KeyEvent/VK_ESCAPE :escape})
+
 (defn- normalize-key
   [raw-k key-code]
-  (cond
-    (= key-code java.awt.event.KeyEvent/VK_DELETE) :delete
-    (= key-code java.awt.event.KeyEvent/VK_BACK_SPACE) :backspace
-    (= key-code java.awt.event.KeyEvent/VK_ENTER) :enter
-    (= key-code java.awt.event.KeyEvent/VK_ESCAPE) :escape
-    :else raw-k))
+  (get key-code-aliases key-code raw-k))
 
 (defn- remember-key!
   [k]

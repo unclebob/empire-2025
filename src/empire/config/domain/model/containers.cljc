@@ -86,11 +86,16 @@
   [carrier]
   (sleep-contained-units carrier :awake-fighters))
 
+(defn- step-delta
+  [from to]
+  (cond
+    (zero? (- to from)) 0
+    (pos? (- to from)) 1
+    :else -1))
+
 (defn first-step-toward
   [[cx cy] [tx ty]]
-  (let [dx (cond (zero? (- tx cx)) 0 (pos? (- tx cx)) 1 :else -1)
-        dy (cond (zero? (- ty cy)) 0 (pos? (- ty cy)) 1 :else -1)]
-    [(+ cx dx) (+ cy dy)]))
+  [(+ cx (step-delta cx tx)) (+ cy (step-delta cy ty))])
 
 (defn launched-fighter
   [owner target-coords steps-remaining]

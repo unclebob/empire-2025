@@ -5,6 +5,17 @@
   (:require [empire.state.api :as sa]
             [empire.game-mechanics.movement.map-utils :as map-utils]))
 
+(defn- bresenham-step
+  [r c err sr sc dr dc]
+  (let [e2 (* 2 err)
+        [r' err'] (if (> e2 (- dc))
+                    [(+ r sr) (- err dc)]
+                    [r err])
+        [c' err''] (if (< e2 dr)
+                     [(+ c sc) (+ err' dr)]
+                     [c err'])]
+    [r' c' err'']))
+
 (defn bresenham-line
   "Returns vector of [row col] cells along a line from start to end."
   [[r1 c1] [r2 c2]]
@@ -16,14 +27,8 @@
       (let [cells (conj cells [r c])]
         (if (and (= r r2) (= c c2))
           cells
-          (let [e2 (* 2 err)
-                [r' err'] (if (> e2 (- dc))
-                            [(+ r sr) (- err dc)]
-                            [r err])
-                [c' err''] (if (< e2 dr)
-                             [(+ c sc) (+ err' dr)]
-                             [c err'])]
-            (recur r' c' err'' cells)))))))
+          (let [[r' c' err'] (bresenham-step r c err sr sc dr dc)]
+            (recur r' c' err' cells)))))))
 
 (defn ray-clear?
   "Returns true if all cells along the ray from start to end are sea."
@@ -108,6 +113,33 @@
   [path {:keys [ray-to-coast coast-path]}]
   (into (into path ray-to-coast) (rest coast-path)))
 
+(defn- continue-ray-crawl
+  [game-map coastal-sea-cells coastal-sea-neighbors current target max-crawl-steps path rays-used]
+  (when-let [{:keys [exit-cell] :as continuation}
+             (ray-crawl-continuation
+              game-map coastal-sea-cells coastal-sea-neighbors
+              current target max-crawl-steps)]
+    {:current exit-cell
+     :path (append-ray-crawl-continuation path continuation)
+     :rays-used (inc rays-used)}))
+
+(defn- ray-crawl-step
+  [game-map coastal-sea-cells coastal-sea-neighbors current target max-rays max-crawl-steps path rays-used]
+  (cond
+    (= current target)
+    {:done (conj path target)}
+
+    (>= rays-used max-rays)
+    {:done nil}
+
+    (ray-clear? game-map current target)
+    {:done (into path (rest (bresenham-line current target)))}
+
+    :else
+    (or (continue-ray-crawl game-map coastal-sea-cells coastal-sea-neighbors
+                            current target max-crawl-steps path rays-used)
+        {:done nil})))
+
 (defn- ray-crawl-path
   "Build a path using ray+crawl. Returns path vector or nil.
    Tries up to max-rays rays with coast crawls between them."
@@ -117,25 +149,11 @@
     (loop [current start
            path []
            rays-used 0]
-      (cond
-        (= current target)
-        (conj path target)
-
-        (>= rays-used max-rays)
-        nil
-
-        (ray-clear? game-map current target)
-        (into path (rest (bresenham-line current target)))
-
-        :else
-        (when-let [{:keys [exit-cell] :as continuation}
-                   (ray-crawl-continuation
-                    game-map coastal-sea-cells coastal-sea-neighbors
-                    current target max-crawl-steps)]
-          (let [next-rays-used (inc rays-used)]
-            (recur exit-cell
-                   (append-ray-crawl-continuation path continuation)
-                   next-rays-used)))))))
+      (let [step (ray-crawl-step game-map coastal-sea-cells coastal-sea-neighbors
+                                 current target max-rays max-crawl-steps path rays-used)]
+        (if (contains? step :done)
+          (:done step)
+          (recur (:current step) (:path step) (:rays-used step)))))))
 
 (defn- reconstruct-path
   [came-from start target]
