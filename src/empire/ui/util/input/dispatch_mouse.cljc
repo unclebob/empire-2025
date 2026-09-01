@@ -24,24 +24,34 @@
       (when (< idx (count files))
         (save-load/load-game! (nth files idx))))))
 
-(defn mouse-down
+(defn- left-click?
+  [button]
+  (= button :left))
+
+(defn- handle-help-mouse
   [x y button]
-  (cond
-    (sa/read-state :help-open)
-    (when (= button :left)
-      (help/handle-help-click x y))
+  (when (left-click? button)
+    (help/handle-help-click x y)))
 
-    (sa/read-state :save-menu-open)
-    nil
+(defn- handle-load-menu-mouse
+  [button]
+  (when (left-click? button)
+    (handle-load-menu-click)))
 
-    (sa/read-state :load-menu-open)
-    (when (= button :left)
-      (handle-load-menu-click))
-
-    (and (= button :left) (map-utils/on-map? x y))
+(defn- handle-map-mouse
+  [x y button]
+  (when (and (left-click? button) (map-utils/on-map? x y))
     (let [[cell-x cell-y] (map-utils/determine-cell-coordinates x y)]
       (sa/write-state! :last-clicked-cell [cell-x cell-y])
       (handle-cell-click cell-x cell-y))))
+
+(defn mouse-down
+  [x y button]
+  (cond
+    (sa/read-state :help-open) (handle-help-mouse x y button)
+    (sa/read-state :save-menu-open) nil
+    (sa/read-state :load-menu-open) (handle-load-menu-mouse button)
+    :else (handle-map-mouse x y button)))
 
 (defn modifier-held?
   [modifiers]

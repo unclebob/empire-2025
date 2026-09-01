@@ -3,7 +3,6 @@
             [empire.game.save-load :as save-load]
             [empire.state.api :as sa]
             [empire.game.loop.core :as game-loop]
-            [empire.game-mechanics.movement.movement-state :as movement-state]
             [empire.player.orders :as player-orders]
             [empire.ui.util.help :as help]
             [empire.ui.util.input.actions :as actions]))
@@ -109,13 +108,22 @@
     :actual-map :player-map}
    current))
 
+(def ^:private game-control-handlers
+  {help-key (fn [] (help/open-help!))
+   backtick-key (fn [] (sa/write-state! :backtick-pressed true))
+   :P (fn [] (game-loop/toggle-pause))
+   :+ (fn [] (sa/update-state! :map-to-display cycle-map-display))})
+
+(defn- paused-space?
+  [k]
+  (and (= k :space) (sa/read-state :paused)))
+
 (defn dispatch-game-control-key [k]
-  (cond
-    (= k help-key) (do (help/open-help!) true)
-    (= k backtick-key) (do (sa/write-state! :backtick-pressed true) true)
-    (= k :P) (do (game-loop/toggle-pause) true)
-    (= k :+) (do (sa/update-state! :map-to-display cycle-map-display) true)
-    (and (= k :space) (sa/read-state :paused)) (do (game-loop/step-one-round) true)))
+  (if-let [handle (game-control-handlers k)]
+    (do (handle) true)
+    (when (paused-space? k)
+      (game-loop/step-one-round)
+      true)))
 
 (defn dispatch-save-load-key [k]
   (cond
@@ -137,11 +145,6 @@
   (or (dispatch-standing-order-key k cell-coords)
       (when cell-coords
         (player-orders/set-city-marching-orders-by-direction-at cell-coords k))))
-
-(defn- unit-has-attention? []
-  (when-let [coords (first (sa/read-state :cells-needing-attention))]
-    (let [cell (get-in (sa/current-world) coords)]
-      (movement-state/get-active-unit cell coords))))
 
 (defn- dispatch-waiting-input-key
   [k cell-coords]

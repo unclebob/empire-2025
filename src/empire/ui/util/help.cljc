@@ -147,11 +147,19 @@
     (and (>= px x) (< px (+ x w))
          (>= py y) (< py (+ y h)))))
 
+(defn- or-zero
+  [n]
+  (or n 0))
+
+(defn- read-dims
+  [key fallback]
+  (or (sa/read-state key) fallback))
+
 (defn- window-size
   []
-  (let [[map-w map-h] (or (sa/read-state :map-screen-dimensions) [0 0])
-        [_ text-y _ text-h] (or (sa/read-state :text-area-dimensions) [0 0 0 0])]
-    [map-w (max map-h (+ (or text-y 0) (or text-h 0)))]))
+  (let [[map-w map-h] (read-dims :map-screen-dimensions [0 0])
+        [_ text-y _ text-h] (read-dims :text-area-dimensions [0 0 0 0])]
+    [map-w (max map-h (+ (or-zero text-y) (or-zero text-h)))]))
 
 (defn current-geometry
   []

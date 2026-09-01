@@ -119,6 +119,35 @@
       (should (<= (+ (:x button) (:w button)) 1100))
       (should (<= (+ (:y button) (:h button)) 1047)))))
 
+(describe "current-geometry"
+  (before (test-utils/reset-all-atoms!))
+
+  (it "returns a stored help geometry"
+    (let [geom (help/help-geometry 1100 1047)]
+      (test-utils/set-test-state! :help-geometry geom)
+      (should= geom (help/current-geometry))))
+
+  (it "builds geometry from the map window when none is stored"
+    (test-utils/set-test-state! :map-screen-dimensions [1100 1047])
+    (test-utils/set-test-state! :text-area-dimensions [0 900 1100 147])
+    (let [geom (help/current-geometry)]
+      (should= (help/help-geometry 1100 1047) geom)))
+
+  (it "uses the text-area bottom when it is taller than the map"
+    (test-utils/set-test-state! :map-screen-dimensions [1100 400])
+    (test-utils/set-test-state! :text-area-dimensions [0 900 1100 200])
+    (should= (help/help-geometry 1100 1100) (help/current-geometry)))
+
+  (it "treats missing screen dimensions as zeros"
+    (test-utils/set-test-state! :map-screen-dimensions nil)
+    (test-utils/set-test-state! :text-area-dimensions nil)
+    (should= (help/help-geometry 0 0) (help/current-geometry)))
+
+  (it "treats missing text-area pieces as zero"
+    (test-utils/set-test-state! :map-screen-dimensions [800 100])
+    (test-utils/set-test-state! :text-area-dimensions [0 nil 0 nil])
+    (should= (help/help-geometry 800 100) (help/current-geometry))))
+
 (describe "dismiss-button-hit?"
   (it "is true inside the dismiss button and false outside"
     (let [geom (help/help-geometry 800 600)
