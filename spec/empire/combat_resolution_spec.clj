@@ -114,6 +114,20 @@
       (should= "Combat. Carrier destroyed."
                (combat/format-combat-outcome :submarine :carrier :attacker))))
 
+  (context "format-combat-status"
+    (it "summarizes attacker and defender damage on an attacker win"
+      (let [log [{:hit :defender :damage 3}
+                 {:hit :attacker :damage 1}
+                 {:hit :defender :damage 2}]]
+        (should= "Battle: c-3,S-1,c-2. Carrier destroyed. Damage: Submarine lost 1, Carrier lost 5."
+                 (combat/format-combat-status log :submarine :carrier :attacker))))
+
+    (it "summarizes attacker and defender damage on a defender win"
+      (let [log [{:hit :attacker :damage 2}
+                 {:hit :defender :damage 1}]]
+        (should= "Battle: A-2,d-1. Army destroyed. Damage: Army lost 2, Destroyer lost 1."
+                 (combat/format-combat-status log :army :destroyer :defender)))))
+
   (context "fight-round"
     (it "attacker hits when rand < 0.5"
       (with-redefs [rand (constantly 0.4)]
